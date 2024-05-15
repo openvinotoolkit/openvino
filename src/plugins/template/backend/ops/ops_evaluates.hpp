@@ -497,6 +497,13 @@ extern template bool evaluate_node<ov::op::v14::ROIAlignRotated>(std::shared_ptr
                                                                  ov::TensorVector& outputs,
                                                                  const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v15::EmbeddingBagOffsets>(std::shared_ptr<ov::Node> node,
+                                                                     ov::TensorVector& outputs,
+                                                                     const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v15::EmbeddingBagPacked>(std::shared_ptr<ov::Node> node,
+                                                                    ov::TensorVector& outputs,
+                                                                    const ov::TensorVector& inputs);
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,
                                                                 const ov::TensorVector& inputs);

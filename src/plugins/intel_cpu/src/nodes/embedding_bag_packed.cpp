@@ -5,17 +5,20 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include "embedding_bag_packed_sum.h"
-#include "openvino/opsets/opset3.hpp"
+#include "embedding_bag_packed.h"
+#include "openvino/op/embeddingbag_packedsum.hpp"
+#include "openvino/op/embeddingbag_packed.hpp"
+#include "openvino/opsets/opset15.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool EmbeddingBagPacked::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto embBagPackedSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingBagPackedSum>(op);
-        if (!embBagPackedSumOp) {
+        const auto embBagPackedOp = ov::as_type_ptr<const ov::op::v15::EmbeddingBagPacked>(op);
+        if (!embBagPackedSumOp && !embBagPackedOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagPackedSum operation from opset v3.";
             return false;
         }
@@ -25,23 +28,35 @@ bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ov:
     return true;
 }
 
-EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
-      EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
+      EmbeddingBag(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-
+    auto packed_op = ov::as_type_ptr<ov::op::util::EmbeddingBagPackedBase>(op);
+    if (packed_op) {
+        using OpReduction = ov::op::util::EmbeddingBagPackedBase::Reduction;
+        switch (packed_op->get_reduction()) {
+        case OpReduction::SUM:
+            _reduction = Reduction::SUM;
+            break;
+        case OpReduction::MEAN:
+        default:
+            _reduction = Reduction::MEAN;
+            break;
+        }
+    }
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul)
         OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
 }
 
-void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
+void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
+    std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     static const std::set<ov::element::Type> supportedPrecisions =
             {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
 
@@ -66,17 +81,17 @@ void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
 }
 
-void EmbeddingBagPackedSum::prepareParams() {
+void EmbeddingBagPacked::prepareParams() {
     _batch = getParentEdgeAt(INDICES_IDX)->getMemory().getStaticDims()[0];
     _indicesPerBag = getParentEdgeAt(INDICES_IDX)->getMemory().getStaticDims()[1];
-    EmbeddingBagSum::prepareParams(getParentEdgeAt(EMB_TABLE_IDX)->getMemory().getStaticDims());
+    EmbeddingBag::prepareParams(getParentEdgeAt(EMB_TABLE_IDX)->getMemory().getStaticDims());
 }
 
-void EmbeddingBagPackedSum::initFromInputs() {
+void EmbeddingBagPacked::initFromInputs() {
     _indices = getSrcDataAtPortAs<const int>(INDICES_IDX);
 }
 
-void EmbeddingBagPackedSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+void EmbeddingBagPacked::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag)
         OPENVINO_THROW("Invalid embedding bag index.");
 
@@ -88,27 +103,27 @@ void EmbeddingBagPackedSum::getIndices(size_t embIndex, const int*& indices, siz
     weightsIdx = embIndex * _indicesPerBag;
 }
 
-void EmbeddingBagPackedSum::executeDynamicImpl(dnnl::stream strm) {
+void EmbeddingBagPacked::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool EmbeddingBagPackedSum::isExecutable() const {
+bool EmbeddingBagPacked::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagPackedSum::execute(dnnl::stream strm) {
+void EmbeddingBagPacked::execute(dnnl::stream strm) {
     const auto *srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
         weightsData = getSrcDataAtPortAs<const uint8_t>(PER_SAMPLE_WEIGHTS_IDX);
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
+    EmbeddingBag::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
                                        inputMem.getStaticDims(), getDstMemoryAtPort(0));
 }
 
-bool EmbeddingBagPackedSum::created() const {
-    return getType() == Type::EmbeddingBagPackedSum;
+bool EmbeddingBagPacked::created() const {
+    return getType() == Type::EmbeddingBagPacked;
 }
 
 }   // namespace node

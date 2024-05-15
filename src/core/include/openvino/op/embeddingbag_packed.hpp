@@ -10,17 +10,17 @@
 
 namespace ov {
 namespace op {
-namespace v3 {
+namespace v15 {
 /// \brief Returns embeddings for given indices
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API EmbeddingBagPackedSum : public util::EmbeddingBagPackedBase {
+class OPENVINO_API EmbeddingBagPacked : public util::EmbeddingBagPackedBase {
 public:
-    OPENVINO_OP("EmbeddingBagPackedSum", "opset3", util::EmbeddingBagPackedBase);
-    /// \brief Constructs a EmbeddingBagPackedSum operation.
-    EmbeddingBagPackedSum() = default;
-    /// \brief Constructs a EmbeddingBagPackedSum operation.
+    OPENVINO_OP("EmbeddingBagPacked", "opset15", util::EmbeddingBagPackedBase);
+    /// \brief Constructs a EmbeddingBagPacked operation.
+    EmbeddingBagPacked() = default;
+    /// \brief Constructs a EmbeddingBagPacked operation.
     ///
-    /// EmbeddingBagPackedSum constructs an output tensor by replacing every index in a
+    /// EmbeddingBagPacked constructs an output tensor by replacing every index in a
     /// given
     /// input tensor with a row (from the weights matrix) at that index
     ///
@@ -32,16 +32,17 @@ public:
     /// Each value in this tensor are multiplied with each
     /// value pooled from embedding table for each index. Optional.
 
-    EmbeddingBagPackedSum(const Output<Node>& emb_table,
-                          const Output<Node>& indices,
-                          const Output<Node>& per_sample_weights);
+    EmbeddingBagPacked(const Output<Node>& emb_table,
+                       const Output<Node>& indices,
+                       const Output<Node>& per_sample_weights,
+                       const Reduction& reduction = Reduction::MEAN);
 
-    EmbeddingBagPackedSum(const Output<Node>& emb_table, const Output<Node>& indices);
+    EmbeddingBagPacked(const Output<Node>& emb_table,
+                       const Output<Node>& indices,
+                       const Reduction& reduction = Reduction::MEAN);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
 };
-}  // namespace v3
+}  // namespace v15
 }  // namespace op
 }  // namespace ov

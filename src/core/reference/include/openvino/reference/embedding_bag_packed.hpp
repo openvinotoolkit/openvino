@@ -5,16 +5,19 @@
 #pragma once
 
 #include "openvino/core/shape.hpp"
+#include "openvino/op/util/embeddingbag_packed_base.hpp"
 
 namespace ov {
 namespace reference {
 template <typename T, typename U>
-void embeddingBagPackedSum(const T* emb_table,
-                           const U* indices,
-                           const T* weights,
-                           T* out,
-                           const Shape& indicesShape,
-                           const Shape& outShape) {
+void embeddingBagPacked(const T* emb_table,
+                        const U* indices,
+                        const T* weights,
+                        T* out,
+                        const Shape& indicesShape,
+                        const Shape& outShape,
+                        const ov::op::util::EmbeddingBagPackedBase::Reduction reduction) {
+    using Reduction = ov::op::util::EmbeddingBagPackedBase::Reduction;
     const size_t indices_per_bag = indicesShape[1];
 
     size_t embDepth = 1lu;
@@ -40,6 +43,11 @@ void embeddingBagPackedSum(const T* emb_table,
                     out[dst_index + i] += emb_table[src_index + i];
                 }
             }
+        }
+    }
+    if (reduction == Reduction::MEAN) {
+        for (size_t i = 0lu; i < shape_size(outShape); i++) {
+            out[i] /= indices_per_bag;
         }
     }
 

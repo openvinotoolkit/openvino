@@ -11,23 +11,29 @@ ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node
                                                                const Output<Node>& indices,
                                                                const Output<Node>& offsets,
                                                                const Output<Node>& default_index,
-                                                               const Output<Node>& per_sample_weights)
-    : Op({emb_table, indices, offsets, default_index, per_sample_weights}) {
+                                                               const Output<Node>& per_sample_weights,
+                                                               const Reduction& reduction)
+    : Op({emb_table, indices, offsets, default_index, per_sample_weights}),
+      m_reduction{reduction} {
     constructor_validate_and_infer_types();
 }
 
 ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                                                                const Output<Node>& indices,
                                                                const Output<Node>& offsets,
-                                                               const Output<Node>& default_index)
-    : Op({emb_table, indices, offsets, default_index}) {
+                                                               const Output<Node>& default_index,
+                                                               const Reduction& reduction)
+    : Op({emb_table, indices, offsets, default_index}),
+      m_reduction{reduction} {
     constructor_validate_and_infer_types();
 }
 
 ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                                                                const Output<Node>& indices,
-                                                               const Output<Node>& offsets)
-    : Op({emb_table, indices, offsets}) {
+                                                               const Output<Node>& offsets,
+                                                               const Reduction& reduction)
+    : Op({emb_table, indices, offsets}),
+      m_reduction{reduction} {
     constructor_validate_and_infer_types();
 }
 
@@ -68,6 +74,9 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
 
     if (get_input_size() == 5) {
         NODE_VALIDATION_CHECK(this,
+                              m_reduction == Reduction::SUM,
+                              "Per sample weights can only be used in Reduction::SUM mode.");
+        NODE_VALIDATION_CHECK(this,
                               get_input_element_type(EMB_TABLE).compatible(get_input_element_type(PER_SAMPLE_WEIGHTS)),
                               "Per sample weight element type (",
                               get_input_element_type(PER_SAMPLE_WEIGHTS),
@@ -83,5 +92,20 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
 
 bool ov::op::util::EmbeddingBagOffsetsBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_EmbeddingBagOffsetsBase_visit_attributes);
+    visitor.on_attribute("reduction", m_reduction);
     return true;
 }
+namespace ov {
+template <>
+OPENVINO_API EnumNames<op::util::EmbeddingBagOffsetsBase::Reduction>&
+EnumNames<op::util::EmbeddingBagOffsetsBase::Reduction>::get() {
+    static auto enum_names = EnumNames<op::util::EmbeddingBagOffsetsBase::Reduction>(
+        "op::util::EmbeddingBagOffsetsBase::Reduction",
+        {{"sum", op::util::EmbeddingBagOffsetsBase::Reduction::SUM},
+         {"mean", op::util::EmbeddingBagOffsetsBase::Reduction::MEAN}});
+    return enum_names;
+}
+std::ostream& operator<<(std::ostream& s, const op::util::EmbeddingBagOffsetsBase::Reduction& reduction) {
+    return s << as_string(reduction);
+}
+}  // namespace ov

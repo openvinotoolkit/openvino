@@ -5,18 +5,22 @@
 #pragma once
 
 #include "openvino/core/shape.hpp"
+#include "openvino/op/util/embeddingbag_offsets_base.hpp"
+#include "openvino/reference/divide.hpp"
 
 namespace ov {
 namespace reference {
 template <typename T, typename U>
-void embeddingBagOffsetsSum(const T* emb_table,
-                            const U* indices,
-                            const U* offsets,
-                            const U* default_index,
-                            const T* weights,
-                            T* out,
-                            const size_t indices_count,
-                            const Shape& outShape) {
+void embeddingBagOffsets(const T* emb_table,
+                         const U* indices,
+                         const U* offsets,
+                         const U* default_index,
+                         const T* weights,
+                         T* out,
+                         const size_t indices_count,
+                         const Shape& outShape,
+                         ov::op::util::EmbeddingBagOffsetsBase::Reduction reduction) {
+    using Reduction = ov::op::util::EmbeddingBagOffsetsBase::Reduction;
     const size_t offsets_size = outShape[0];
     std::vector<U> default_indices;
     if (default_index)
@@ -27,7 +31,6 @@ void embeddingBagOffsetsSum(const T* emb_table,
         embDepth *= outShape[i];
     }
     std::fill(out, out + shape_size(outShape), T{0});
-
     auto get_indices =
         [&](size_t emb_index, const U*& indices_ref, size_t& indices_num, size_t& weights_idx, bool& with_weights) {
             if (emb_index >= offsets_size)
@@ -84,6 +87,11 @@ void embeddingBagOffsetsSum(const T* emb_table,
                     for (size_t i = 0lu; i < embDepth; i++) {
                         out[dst_index + i] += emb_table[src_index + i];
                     }
+                }
+            }
+            if (reduction == Reduction::MEAN) {
+                for (size_t i = 0lu; i < embDepth; i++) {
+                    out[dst_index + i] /= indices_size;
                 }
             }
         }

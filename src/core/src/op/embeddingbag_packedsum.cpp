@@ -11,10 +11,10 @@ namespace ov {
 op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_table,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& per_sample_weights)
-    : util::EmbeddingBagPackedBase(emb_table, indices, per_sample_weights) {}
+    : util::EmbeddingBagPackedBase(emb_table, indices, per_sample_weights, Reduction::SUM) {}
 
 op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_table, const Output<Node>& indices)
-    : util::EmbeddingBagPackedBase(emb_table, indices) {}
+    : util::EmbeddingBagPackedBase(emb_table, indices, Reduction::SUM) {}
 
 std::shared_ptr<Node> op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_EmbeddingBagPackedSum_clone_with_new_inputs);
@@ -26,5 +26,9 @@ std::shared_ptr<Node> op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const
     } else {
         OPENVINO_THROW("Incorrect number of arguments");
     }
+}
+bool op::v3::EmbeddingBagPackedSum::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v3_EmbeddingBagPackedSum_visit_attributes);
+    return true;
 }
 }  // namespace ov
