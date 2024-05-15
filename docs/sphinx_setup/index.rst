@@ -4,11 +4,11 @@ OpenVINO 2024.2
 
 .. meta::
    :google-site-verification: _YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk
-  
-**OpenVINO is an open-source toolkit** for optimizing and deploying deep learning models from cloud 
-to edge. It accelerates deep learning inference across various use cases, such as generative AI, video, 
-audio, and language with models from popular frameworks like PyTorch, TensorFlow, ONNX, and more. 
-Convert and optimize models, and deploy across a mix of Intel® hardware and environments, on-premises 
+
+**OpenVINO is an open-source toolkit** for optimizing and deploying deep learning models from cloud
+to edge. It accelerates deep learning inference across various use cases, such as generative AI, video,
+audio, and language with models from popular frameworks like PyTorch, TensorFlow, ONNX, and more.
+Convert and optimize models, and deploy across a mix of Intel® hardware and environments, on-premises
 and on-device, in the browser or in the cloud.
 
 Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
@@ -38,14 +38,14 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
                   <p class="ov-homepage-slide-subtitle">Use OpenVINO directly in PyTorch-native applications!</p>
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html">Learn more</a>
-                  </li>                  
+                  </li>
                   <li id="ov-homepage-slide4" class="splide__slide">
                   <p class="ov-homepage-slide-title">Do you like Generative AI?</p>
                   <p class="ov-homepage-slide-subtitle">You will love how it performs with OpenVINO!</p>
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/interactive-tutorials-python.html">Check out our new notebooks</a>
                   </li>
                   <li id="ov-homepage-slide5" id class="splide__slide">
-                     <p class="ov-homepage-slide-title">Boost your AI deep learning interface perfmormance.</p>
+                     <p class="ov-homepage-slide-title">Boost your AI deep learning interface performance.</p>
                      <p class="ov-homepage-slide-subtitle">Use Intel's open-source OpenVino toolkit for optimizing and deploying deep learning models.</p>
                      <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html">Learn more</a>
                   </li>
@@ -73,9 +73,9 @@ Places to Begin
       :img-top: ./_static/images/home_begin_tile_01.png
       :class-card: homepage_begin_tile
       :shadow: none
-      
+
       This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit.
-      
+
       .. button-link:: get-started/install-openvino.html
          :color: primary
          :outline:
@@ -120,7 +120,7 @@ Places to Begin
          :outline:
 
          Run Inference
-   
+
    .. grid-item-card:: Serving at scale
       :img-top: ./_static/images/home_begin_tile_05.png
       :class-card: homepage_begin_tile
@@ -138,7 +138,7 @@ Places to Begin
       :img-top: ./_static/images/home_begin_tile_06.png
       :class-card: homepage_begin_tile
       :shadow: none
-      
+
       Reach for performance with post-training and training-time compression with NNCF.
 
       .. button-link:: openvino-workflow/model-optimization.html
@@ -169,7 +169,7 @@ Key Features
       :shadow: none
 
       Write an application once, deploy it anywhere, achieving maximum performance from hardware. Automatic device discovery allows for superior deployment flexibility. OpenVINO Runtime supports Linux, Windows and MacOS and provides Python, C++ and C API. Use your preferred language and OS.
-   
+
    .. grid-item-card:: Lighter Deployment
       :img-top: ./_static/images/home_key_feature_03.png
       :class-card: homepage_begin_key
@@ -181,7 +181,7 @@ Key Features
       :img-top: ./_static/images/home_key_feature_04.png
       :class-card: homepage_begin_key
       :shadow: none
-      
+
       In applications where fast start-up is required, OpenVINO significantly reduces first-inference latency by using the CPU for initial inference and then switching to another device once the model has been compiled and loaded to memory. Compiled models are cached, improving start-up time even more.
 
 
