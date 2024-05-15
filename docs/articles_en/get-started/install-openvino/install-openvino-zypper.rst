@@ -52,7 +52,7 @@ Step 1: Update the repository
 +++++++++++++++++++++++++++++
 
 
-1. Update the official factory repository to obtain the latest release with the command below:
+1. Update the official factory repository to obtain the latest release:
 
    .. code-block:: sh
 
