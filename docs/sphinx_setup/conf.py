@@ -34,6 +34,11 @@ extensions = [
     'breathe'
     ]
 
+try:
+    import openvino
+except ImportError:
+    autodoc_mock_imports = ["openvino"]
+
 breathe_projects = {
     "openvino": "../xml/"
 }
