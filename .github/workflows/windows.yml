@@ -354,7 +354,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Configure OpenVINO JS
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
@@ -368,6 +368,15 @@ jobs:
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
+
+      - name: Create package dir
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
+        run: mkdir project-uses-openvino-node
+      - name: Test installation of openvino-node package
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/project-uses-openvino-node
+        run: |
+          npm i openvino-node
+          node -e "const { addon: ov } = require('openvino-node'); console.log(ov);"
 
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
