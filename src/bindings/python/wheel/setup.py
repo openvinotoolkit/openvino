@@ -56,7 +56,7 @@ PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", "python")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 PYTHON_EXTENSIONS_ONLY = True if os.getenv("PYTHON_EXTENSIONS_ONLY") is not None else False
 SKIP_RPATH = True if os.getenv("SKIP_RPATH") is not None else False
-CPACK_GENERATOR = os.getenv("CPACK_GENERATOR", "TGZ")
+CPACK_GENERATOR = os.getenv("CPACK_GENERATOR", "WHEEL")
 
 LIB_INSTALL_CFG = {
     "ie_libs": {
@@ -169,7 +169,7 @@ DATA_INSTALL_CFG = {
     "core_dev": {
         "name": "core_dev",
         "prefix": f"{BUILD_BASE}/libs.dev",
-        "install_dir": "runtime",
+        "install_dir": "",
         "binary_dir": OPENVINO_BINARY_DIR,
     },
 }
@@ -294,12 +294,11 @@ class CustomBuild(build):
         # build and install clib into temporary directories
         if not PYTHON_EXTENSIONS_ONLY:
             self.cmake_build_and_install(LIB_INSTALL_CFG)
+            # build and install additional files into temporary directories
+            self.cmake_build_and_install(DATA_INSTALL_CFG)
 
         # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)
-
-        # build and install additional files into temporary directories
-        self.cmake_build_and_install(DATA_INSTALL_CFG)
 
         # install clibs into a temporary directory (site-packages)
         if not PYTHON_EXTENSIONS_ONLY:
@@ -442,10 +441,11 @@ class PrepareLibs(build_clib):
 
     def copy_package_data(self, src_dirs):
         """Collect package data files (clibs and other plugin support files) from preinstalled dirs and put all runtime libraries to the subpackage."""
-        os.makedirs(WHEEL_PACKAGE_DIR, exist_ok=True)
+        package_dir = os.path.join(PACKAGE_DIR, WHEEL_PACKAGE_DIR)
+        os.makedirs(package_dir, exist_ok=True)
 
         for src_dir in src_dirs:
-            src, dst = Path(src_dir), Path(WHEEL_PACKAGE_DIR)
+            src, dst = Path(src_dir), Path(package_dir)
             shutil.copytree(src, dst, dirs_exist_ok=True)
 
 

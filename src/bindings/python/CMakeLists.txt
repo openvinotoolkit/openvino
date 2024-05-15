@@ -260,7 +260,7 @@ macro(ov_define_setup_py_packaging_vars)
         OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
         OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
         # to create proper directories for BA, OVC tools
-        CPACK_GENERATOR=${CPACK_GENERATOR}
+        CPACK_GENERATOR="WHEEL"
         # propogate build type
         BUILD_TYPE=${build_type}
         # variables to reflect cpack locations
