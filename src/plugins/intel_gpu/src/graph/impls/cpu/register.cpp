@@ -29,7 +29,6 @@ void register_implementations() {
     REGISTER_CPU(broadcast);
     REGISTER_CPU(tile);
     REGISTER_CPU(select);
-    REGISTER_CPU(rope);
 }
 
 }  // namespace cpu
