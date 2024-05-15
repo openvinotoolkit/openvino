@@ -40,38 +40,6 @@ struct RangeParams {
     float step;
 };
 
-static std::shared_ptr<op::v0::Constant> CreateConstant(element::Type ntype, float input) {
-    const Shape ishape;
-    switch (ntype) {
-    case element::Type_t::f64:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<double>{input});
-    case element::Type_t::f32:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<float>{input});
-    case element::Type_t::f16:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<float16>{input});
-    case element::Type_t::bf16:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<bfloat16>{input});
-    case element::Type_t::i64:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<int64_t>{static_cast<int64_t>(input)});
-    case element::Type_t::i32:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<int32_t>{static_cast<int16_t>(input)});
-    case element::Type_t::i16:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<int16_t>{static_cast<int16_t>(input)});
-    case element::Type_t::i8:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<int8_t>{static_cast<int8_t>(input)});
-    case element::Type_t::u64:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint64_t>{static_cast<uint64_t>(input)});
-    case element::Type_t::u32:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint32_t>{static_cast<uint32_t>(input)});
-    case element::Type_t::u16:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint16_t>{static_cast<uint16_t>(input)});
-    case element::Type_t::u8:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint8_t>{static_cast<uint8_t>(input)});
-    default:
-        return {};
-    }
-}
-
 class ReferenceRangeV0LayerTest : public testing::TestWithParam<RangeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
@@ -97,9 +65,9 @@ private:
                                                  float fstart,
                                                  float fstop,
                                                  float fstep) {
-        auto start = CreateConstant(ntype, fstart);
-        auto stop = CreateConstant(ntype, fstop);
-        auto step = CreateConstant(ntype, fstep);
+        auto start = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstart);
+        auto stop = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstop);
+        auto step = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstep);
         auto range = std::make_shared<op::v0::Range>(start, stop, step);
         return std::make_shared<Model>(NodeVector{range}, ParameterVector{});
     }
@@ -130,9 +98,9 @@ private:
                                                  float fstart,
                                                  float fstop,
                                                  float fstep) {
-        auto start = CreateConstant(ntype, fstart);
-        auto stop = CreateConstant(ntype, fstop);
-        auto step = CreateConstant(ntype, fstep);
+        auto start = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstart);
+        auto stop = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstop);
+        auto step = std::make_shared<op::v0::Constant>(ntype, Shape{}, fstep);
         auto range = std::make_shared<op::v4::Range>(start, stop, step, otype);
         return std::make_shared<Model>(NodeVector{range}, ParameterVector{});
     }
