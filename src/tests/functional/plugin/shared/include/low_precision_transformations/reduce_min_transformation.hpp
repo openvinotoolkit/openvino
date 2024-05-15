@@ -14,8 +14,8 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<int64_t> constantValues;
     bool keepDims;
-    std::string layerName;
-    std::string expectedKernelType;
+    std::vector<std::string> layerTypes;
+    std::vector<std::string> expectedKernelTypes;
 };
 
 typedef std::tuple<
