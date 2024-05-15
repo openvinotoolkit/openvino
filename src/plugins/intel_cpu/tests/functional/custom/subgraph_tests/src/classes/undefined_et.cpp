@@ -51,8 +51,6 @@ std::string UndefinedEtSubgraphTest::getTestCaseName(const testing::TestParamInf
 
 void UndefinedEtSubgraphTest::SetUp() {
     targetDevice = test::utils::DEVICE_CPU;
-    do_core_config = false; // No need to force InferencePrecision and type conversion.
-    configuration.insert({ov::hint::enable_cpu_pinning.name(), true});
 
     const auto& params = this->GetParam();
     m_data_et = std::get<0>(params);
@@ -137,13 +135,11 @@ fill_data(tensor->data<ov::element_type_traits<P>::value_type>(), S, L); break;
 }
 
 TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
-    // Disable skipping of the bf16 test cases.
-    const auto origin_sk = ov::test::utils::disable_tests_skipping;
-    ov::test::utils::disable_tests_skipping = true;
-
     run();
 
-    ov::test::utils::disable_tests_skipping = origin_sk;
+    if (IsSkipped()) {
+        return;
+    }
 
     ASSERT_EQ(compiledModel.get_property(ov::hint::execution_mode), m_mode);
     ASSERT_EQ(compiledModel.get_property(ov::hint::inference_precision), element::undefined);
