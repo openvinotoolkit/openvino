@@ -63,9 +63,9 @@ void regclass_graph_DiscreteTypeInfo(py::module m) {
         if (self.parent != nullptr) {
             std::string parent_version = std::string(self.parent->version_id);
             std::string parent_name = self.parent->name;
-            return "<" + class_name + ": " + name + " v" + version + " Parent(" + parent_name + " v" + parent_version +
+            return "<" + class_name + ": " + name + " " + version + " Parent(" + parent_name + " v" + parent_version +
                    ")" + ">";
         }
-        return "<" + class_name + ": " + name + " v" + version + ">";
+        return "<" + class_name + ": " + name + " " + version + ">";
     });
 }

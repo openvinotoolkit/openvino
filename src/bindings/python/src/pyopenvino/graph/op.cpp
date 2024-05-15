@@ -21,8 +21,11 @@ class PyOp : public ov::op::Op {
 public:
     using ov::op::Op::Op;
 
+    // Keeps a reference to the Python object to manage its lifetime
+    PyOp(const py::object& py_obj) : py_handle(py_obj) {}
+
     void validate_and_infer_types() override {
-        PYBIND11_OVERRIDE(void, Op, validate_and_infer_types);
+        PYBIND11_OVERRIDE(void, ov::op::Op, validate_and_infer_types);
     }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
@@ -33,11 +36,11 @@ public:
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
-        PYBIND11_OVERRIDE_PURE(std::shared_ptr<Node>, Op, clone_with_new_inputs, new_args);
+        PYBIND11_OVERRIDE_PURE(std::shared_ptr<Node>, ov::op::Op, clone_with_new_inputs, new_args);
     }
 
     const type_info_t& get_type_info() const override {
-        PYBIND11_OVERRIDE(const type_info_t&, ov::op::Op, get_type_info);
+        PYBIND11_OVERRIDE(const ov::Node::type_info_t&, ov::op::Op, get_type_info);
     }
 
     bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override {
@@ -47,8 +50,14 @@ public:
     bool has_evaluate() const override {
         PYBIND11_OVERRIDE(bool, ov::op::Op, has_evaluate);
     }
+
+private:
+    py::object py_handle;  // Holds the Python object to manage its lifetime
 };
 
 void regclass_graph_Op(py::module m) {
-    py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node>(m, "PyOp").def(py::init<>());
+    py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node>(m, "PyOp").def(
+        py::init([](const py::object& py_obj) {
+            return PyOp(py_obj);
+        }));
 }
