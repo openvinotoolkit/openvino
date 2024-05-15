@@ -56,28 +56,28 @@ protected:
     IShapeInfer::Result shapeInfer() const override;
 
 private:
-    void init_memory_ptrs();
-    void init_attrs();
-    void init_start_offsets();
-    void init_plugin_blocked_shapes() const;
-    void init_snippets_blocked_shapes(snippets::op::Subgraph::BlockedShapeVector& in_blocked_shapes) const;
-    void init_precisions(std::vector<ov::element::Type>& input_types, std::vector<ov::element::Type>& output_types) const;
+    void initMemoryPtrs();
+    void initAttributes();
+    void initStartOffsets();
+    void initPluginBlockedShapes() const;
     void lower();
 
-    static uint64_t get_body_hash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
+    snippets::op::Subgraph::BlockedShapeVector getSnippetsBlockedShapes() const;
+    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> getIOPrecisions() const;
 
-    uint8_t get_broadcasting_mask(const std::vector<VectorDims>& input_shapes) const;
+    static uint64_t getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
+    static uint8_t getBroadcastingMask(const std::vector<VectorDims>& input_shapes);
 
     using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;
     using ControlFlowPasses = std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>;
     using ControlFlowConfig = std::shared_ptr<ov::snippets::lowered::pass::PassConfig>;
 
-    DataFlowPasses get_data_flow_passes() const;
-    std::pair<ControlFlowConfig, ControlFlowPasses> get_control_flow_passes() const;
+    DataFlowPasses getDataFlowPasses() const;
+    std::pair<ControlFlowConfig, ControlFlowPasses> getControlFlowPasses() const;
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
-    std::shared_ptr<SubgraphAttrs> snippetAttrs;
+    std::shared_ptr<SubgraphAttrs> subgraph_attrs;
 
     size_t input_num = 0;
     size_t output_num = 0;

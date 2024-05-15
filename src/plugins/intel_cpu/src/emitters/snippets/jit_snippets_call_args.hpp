@@ -13,7 +13,7 @@
 namespace ov {
 namespace intel_cpu {
 
-#define SNIPPETS_MAX_DATA_PTR_COUNT 12
+#define SNIPPETS_MAX_DATA_PTR_COUNT 11
 
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)

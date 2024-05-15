@@ -62,6 +62,11 @@ protected:
      * @param linear_ir LinearIR
      */
     virtual void update(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+    /**
+     * @brief Allocate and intialize fields in RuntimeConfig
+     * @param linear_ir LinearIR
+     */
+    virtual void initialization(const std::shared_ptr<lowered::LinearIR>& linear_ir);
 
     /**
      * @brief Initializes input and data information of LinearIR:
@@ -94,14 +99,14 @@ protected:
     void update_latest_shapes();
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
-    lowered::pass::PassPipeline m_state_updater;
+    lowered::pass::PassPipeline m_state_updater = {};
 
     size_t m_io_num = 0;
     size_t m_in_num = 0;
     std::vector<snippets::lowered::PortDescriptorPtr> m_io_descs = {};
     std::vector<size_t> m_io_data_sizes = {};
 
-    std::vector<ov::snippets::VectorDims> m_latest_input_shapes = {};
+    std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
 };
 
 } // namespace snippets

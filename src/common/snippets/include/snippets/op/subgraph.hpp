@@ -106,7 +106,7 @@ public:
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ov::snippets::Generator> generator);
-    void set_tile_rank(size_t newRank) {tileRank = newRank;}
+    void set_tile_rank(size_t rank) {tile_rank = rank;}
     void set_virtual_port_count(size_t count);
 
     void print() const;
@@ -163,23 +163,20 @@ private:
 
     void pre_generation_transformations() const;
 
-    void init_shape_infer_linear_ir();
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
     // NOTE: To avoid overheads in each calculation of this count (for example, in validate_and_type_infer()),
     //       we should MANUALLY calculate it where it needed.
     size_t m_virtual_port_count = 0;
-    Shape exec_domain = {};
-    std::shared_ptr<ov::snippets::Generator> m_generator = nullptr;
-    // Temprorary solution
     size_t buffer_scratchpad_size = 0;
+    size_t tile_rank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
 
-    size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
-    std::vector<size_t> appendOnesForCanonical;
     std::shared_ptr<lowered::LinearIR> m_linear_ir = nullptr;
     // This LinearIR is used for ShapeInfer and based on LinearIR state after ControlFlow transformations
     std::shared_ptr<lowered::LinearIR> m_shape_infer_linear_ir = nullptr;
+
+    std::shared_ptr<ov::snippets::Generator> m_generator = nullptr;
 
     /**
     * @interface SubgraphConfig

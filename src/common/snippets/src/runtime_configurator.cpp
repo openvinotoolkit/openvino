@@ -18,6 +18,11 @@ RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) : m_c
 }
 
 const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
+    // First initialization
+    if (m_io_num == 0) {
+        initialization(linear_ir);
+    }
+
     update(linear_ir);
     update_latest_shapes();
 
@@ -25,21 +30,22 @@ const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(co
 }
 
 void RuntimeConfigurator::update(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
-    // First initialization
-    if (m_io_num == 0) {
-        init_data_info(linear_ir);
-        init_tensor_rank(linear_ir);
-
-        OPENVINO_ASSERT(m_io_num > 0, "LinearIR must have parameters and results");
-        m_latest_input_shapes.resize(m_io_num);
-    }
-
     if (linear_ir->is_dynamic()) {
         update_linear_ir_state(linear_ir);
     }
 
     update_data_offsets();
     update_parallel_domain(linear_ir);
+}
+
+void RuntimeConfigurator::initialization(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
+    init_data_info(linear_ir);
+    init_tensor_rank(linear_ir);
+
+    OPENVINO_ASSERT(m_io_num > 0, "LinearIR must have parameters and results");
+    m_latest_shapes.resize(m_io_num);
+    m_config->io_data_offsets.resize(m_io_num);
+    m_config->parallel_domain.resize(m_config->tensor_rank, 1);
 }
 
 void RuntimeConfigurator::init_tensor_rank(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
@@ -95,7 +101,6 @@ void RuntimeConfigurator::update_linear_ir_state(const std::shared_ptr<lowered::
 }
 
 void RuntimeConfigurator::update_data_offsets() const {
-    m_config->io_data_offsets.resize(m_io_num);
     for (size_t i = 0; i < m_io_num; ++i) {
         // offsets represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
@@ -106,7 +111,7 @@ void RuntimeConfigurator::update_data_offsets() const {
         //    shape:      s0, s1, s2 == 1, s3
         //    offsets: s1*s3, s3,       0,  1
         const auto& shape = m_io_descs[i]->get_shape();
-        if (shape == m_latest_input_shapes[i])
+        if (shape == m_latest_shapes[i])
             continue;
 
         const auto& layout = m_io_descs[i]->get_layout();
@@ -140,16 +145,14 @@ void RuntimeConfigurator::update_data_offsets() const {
 }
 
 void RuntimeConfigurator::update_parallel_domain(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
-    m_config->parallel_domain.resize(m_config->tensor_rank, 1);
     const auto parallel_exec_domain = linear_ir->get_parallel_domain();
     std::copy(parallel_exec_domain.cbegin(), parallel_exec_domain.cend(),
               m_config->parallel_domain.begin() + (m_config->tensor_rank - parallel_exec_domain.size()));
 }
 
 void RuntimeConfigurator::update_latest_shapes() {
-    m_latest_input_shapes.resize(m_in_num);
-    for (size_t i = 0; i < m_in_num; ++i) {
-        m_latest_input_shapes[i] = m_io_descs[i]->get_shape();
+    for (size_t i = 0; i < m_io_num; ++i) {
+        m_latest_shapes[i] = m_io_descs[i]->get_shape();
     }
 }
 

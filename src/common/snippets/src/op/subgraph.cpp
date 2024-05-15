@@ -357,7 +357,7 @@ Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_
                                     const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
-    lowering_config.m_loop_depth = tileRank;
+    lowering_config.m_loop_depth = tile_rank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
@@ -502,7 +502,13 @@ void Subgraph::lowering_transformations(size_t min_parallel_work_amount, size_t 
                                         const std::vector<lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) {
     convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, shape_infer_factory);
     control_flow_transformations(lowered_pass_config, lowered_backend_passes);
-    init_shape_infer_linear_ir();
+
+    // After ControlFlow transformations we should to create LinearIR for ShapeInference - clone state of LinearIR before loop decomposition.
+    const auto& cloning_config = lowered::LinearIRBuilder::Config(false);
+    m_shape_infer_linear_ir = lowered::LinearIRBuilder(cloning_config).clone(m_linear_ir);
+    OPENVINO_ASSERT(m_shape_infer_linear_ir, "LinearIR has not been successfully cloned!");
+    m_shape_infer = m_shape_infer_linear_ir->get_shape_infer_instance();
+
     pre_generation_transformations();
 }
 
@@ -545,18 +551,6 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const void* compile_params)
     VectorDims parallel_exec_domain = linear_ir.get_parallel_domain();
 
     return {parallel_exec_domain, std::move(lowering_result)};
-}
-
-void Subgraph::init_shape_infer_linear_ir() {
-    INTERNAL_OP_SCOPE(Subgraph);
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::init_shape_infer_linear_ir")
-    OPENVINO_ASSERT(m_linear_ir, "LinearIR has not been inited before init_shape_infer_linear_ir!");
-
-    const auto& cloning_config = lowered::LinearIRBuilder::Config(false);
-    m_shape_infer_linear_ir = lowered::LinearIRBuilder(cloning_config).clone(m_linear_ir);
-    OPENVINO_ASSERT(m_shape_infer_linear_ir, "LinearIR has not been successfully copied!");
-
-    m_shape_infer = m_shape_infer_linear_ir->get_shape_infer_instance();
 }
 
 const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
