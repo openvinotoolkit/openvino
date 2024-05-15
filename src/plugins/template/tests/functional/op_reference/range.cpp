@@ -17,7 +17,6 @@ namespace {
 struct RangeParams {
     template <class IT>
     RangeParams(const Shape& oShape,
-                const element::Type& iType,
                 const element::Type& oType,
                 const element::Type& nodeType,
                 const std::vector<IT>& oValues,
@@ -25,7 +24,6 @@ struct RangeParams {
                 float stop,
                 float step)
         : outShape(oShape),
-          inType(iType),
           outType(oType),
           nodeType(nodeType),
           outData(CreateTensor(oShape, oType, oValues)),
@@ -34,7 +32,6 @@ struct RangeParams {
           step(step) {}
 
     Shape outShape;
-    element::Type inType;
     element::Type outType;
     element::Type nodeType;
     ov::Tensor outData;
@@ -79,13 +76,8 @@ class ReferenceRangeV0LayerTest : public testing::TestWithParam<RangeParams>, pu
 public:
     void SetUp() override {
         const auto& params = GetParam();
-        function = CreateFunction(params.outShape,
-                                  params.inType,
-                                  params.outType,
-                                  params.nodeType,
-                                  params.start,
-                                  params.stop,
-                                  params.step);
+        function =
+            CreateFunction(params.outShape, params.outType, params.nodeType, params.start, params.stop, params.step);
         refOutData = {params.outData};
     }
 
@@ -93,7 +85,6 @@ public:
         const auto& param = obj.param;
         std::ostringstream result;
         result << "oShape=" << param.outShape << "_";
-        result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType << "_";
         result << "nType=" << param.nodeType;
         return result.str();
@@ -101,7 +92,6 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& oshape,
-                                                 const element::Type& itype,
                                                  const element::Type& otype,
                                                  const element::Type& ntype,
                                                  float fstart,
@@ -119,13 +109,8 @@ class ReferenceRangeV4LayerTest : public testing::TestWithParam<RangeParams>, pu
 public:
     void SetUp() override {
         const auto& params = GetParam();
-        function = CreateFunction(params.outShape,
-                                  params.inType,
-                                  params.outType,
-                                  params.nodeType,
-                                  params.start,
-                                  params.stop,
-                                  params.step);
+        function =
+            CreateFunction(params.outShape, params.outType, params.nodeType, params.start, params.stop, params.step);
         refOutData = {params.outData};
     }
 
@@ -133,7 +118,6 @@ public:
         const auto& param = obj.param;
         std::ostringstream result;
         result << "oShape=" << param.outShape << "_";
-        result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType << "_";
         result << "nType=" << param.nodeType;
         return result.str();
@@ -141,7 +125,6 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& oshape,
-                                                 const element::Type& itype,
                                                  const element::Type& otype,
                                                  const element::Type& ntype,
                                                  float fstart,
@@ -167,8 +150,8 @@ template <element::Type_t IN_ET>
 std::vector<RangeParams> generateParamsForRangeV0Int() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RangeParams> params{RangeParams(Shape{4}, IN_ET, IN_ET, IN_ET, std::vector<T>{-5, -2, 1, 4}, -5, 6, 3),
-                                    RangeParams(Shape{2}, IN_ET, IN_ET, IN_ET, std::vector<T>{10, 7}, 10, 5, -3)};
+    std::vector<RangeParams> params{RangeParams(Shape{4}, IN_ET, IN_ET, std::vector<T>{-5, -2, 1, 4}, -5, 6, 3),
+                                    RangeParams(Shape{2}, IN_ET, IN_ET, std::vector<T>{10, 7}, 10, 5, -3)};
     return params;
 }
 
@@ -177,7 +160,7 @@ std::vector<RangeParams> generateParamsForRangeV0UnsignedInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
-        RangeParams(Shape{10}, IN_ET, IN_ET, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 0, 10, 1)};
+        RangeParams(Shape{10}, IN_ET, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 0, 10, 1)};
     return params;
 }
 
@@ -186,10 +169,9 @@ std::vector<RangeParams> generateParamsForRangeV0Float() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
-        RangeParams(Shape{4}, IN_ET, IN_ET, IN_ET, std::vector<T>{0.0f, 0.25f, 0.5f, 0.75}, 0.0f, 1.0f, 0.25f),
-        RangeParams(Shape{3}, IN_ET, IN_ET, IN_ET, std::vector<T>{1.0f, 4.f, 7.f}, 1.0f, 10.0f, 3.0f),
+        RangeParams(Shape{4}, IN_ET, IN_ET, std::vector<T>{0.0f, 0.25f, 0.5f, 0.75}, 0.0f, 1.0f, 0.25f),
+        RangeParams(Shape{3}, IN_ET, IN_ET, std::vector<T>{1.0f, 4.f, 7.f}, 1.0f, 10.0f, 3.0f),
         RangeParams(Shape{10},
-                    IN_ET,
                     IN_ET,
                     IN_ET,
                     std::vector<T>{-1.0f, -0.8f, -0.6f, -0.4f, -0.2f, 0.0f, 0.2f, 0.4f, 0.6f, 0.8f},
@@ -197,7 +179,6 @@ std::vector<RangeParams> generateParamsForRangeV0Float() {
                     0.875f,
                     0.2f),
         RangeParams(Shape{8},
-                    IN_ET,
                     IN_ET,
                     IN_ET,
                     std::vector<T>{2.0f, 1.75f, 1.5f, 1.25f, 1.0f, 0.75f, 0.5f, 0.25},
@@ -211,8 +192,8 @@ template <element::Type_t IN_ET>
 std::vector<RangeParams> generateParamsForRangeV4Int() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<RangeParams> params{RangeParams(Shape{4}, IN_ET, IN_ET, IN_ET, std::vector<T>{-5, -2, 1, 4}, -5, 6, 3),
-                                    RangeParams(Shape{2}, IN_ET, IN_ET, IN_ET, std::vector<T>{10, 7}, 10, 5, -3)};
+    std::vector<RangeParams> params{RangeParams(Shape{4}, IN_ET, IN_ET, std::vector<T>{-5, -2, 1, 4}, -5, 6, 3),
+                                    RangeParams(Shape{2}, IN_ET, IN_ET, std::vector<T>{10, 7}, 10, 5, -3)};
 
     return params;
 }
@@ -224,13 +205,12 @@ std::vector<RangeParams> generateParamsForRangeV4UnsignedInt() {
     std::vector<RangeParams> params{
         RangeParams(Shape{10},
                     IN_ET,
-                    IN_ET,
                     element::Type_t::f32,
                     std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
                     1.2f,
                     11.3f,
                     1.6f),
-        RangeParams(Shape{10}, IN_ET, IN_ET, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 0, 10, 1)};
+        RangeParams(Shape{10}, IN_ET, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 0, 10, 1)};
 
     return params;
 }
@@ -240,9 +220,8 @@ std::vector<RangeParams> generateParamsForRangeV4Float() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
-        RangeParams(Shape{4}, IN_ET, IN_ET, IN_ET, std::vector<T>{0.0f, 0.25f, 0.5f, 0.75f}, 0.0f, 1.0f, 0.25f),
+        RangeParams(Shape{4}, IN_ET, IN_ET, std::vector<T>{0.0f, 0.25f, 0.5f, 0.75f}, 0.0f, 1.0f, 0.25f),
         RangeParams(Shape{10},
-                    IN_ET,
                     IN_ET,
                     IN_ET,
                     std::vector<T>{-1.0f, -0.8f, -0.6f, -0.4f, -0.2f, 0.0f, 0.2f, 0.4f, 0.6f, 0.8f},
@@ -250,7 +229,6 @@ std::vector<RangeParams> generateParamsForRangeV4Float() {
                     0.875f,
                     0.2f),
         RangeParams(Shape{8},
-                    IN_ET,
                     IN_ET,
                     IN_ET,
                     std::vector<T>{2.0f, 1.75f, 1.5f, 1.25f, 1.0f, 0.75f, 0.5f, 0.25f},
