@@ -516,7 +516,7 @@ inline void attn_softmax_kernel(float* a,
                                 ov::element::Type dst_precision) {
     using func_fp32_type = void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float&);
     using func_bf16_type = void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float&);
-    static func_fp32_type funcs_fp32[] = {
+    static constexpr func_fp32_type funcs_fp32[] = {
         scale_add2_reduce_max<false, false, false>,
         scale_add2_reduce_max<false, false, true>,
         scale_add2_reduce_max<false, true, false>,
@@ -526,7 +526,7 @@ inline void attn_softmax_kernel(float* a,
         scale_add2_reduce_max<true, true, false>,
         scale_add2_reduce_max<true, true, true>
     };
-    static func_bf16_type funcs_bf16[] = {
+    static constexpr func_bf16_type funcs_bf16[] = {
         scale_add2_reduce_max<false, false, false>,
         scale_add2_reduce_max<false, false, true>,
         scale_add2_reduce_max<false, true, false>,
