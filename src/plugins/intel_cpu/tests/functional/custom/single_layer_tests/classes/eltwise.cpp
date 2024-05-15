@@ -255,8 +255,6 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
 #if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
     if ((eltwise_type == utils::EltwiseTypes::ADD) ||
-       (eltwise_type == utils::EltwiseTypes::ELTWISE_MINIMUM) ||
-       (eltwise_type == utils::EltwiseTypes::ELTWISE_MAXIMUM) ||
        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
        (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
@@ -300,8 +298,6 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
-        utils::EltwiseTypes::ELTWISE_MINIMUM,
-        utils::EltwiseTypes::ELTWISE_MAXIMUM,
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
         utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
