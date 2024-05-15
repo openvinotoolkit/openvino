@@ -30,7 +30,7 @@ struct RangeParams {
           inType(iType),
           outType(oType),
           nodeType(nodeType),
-          outData(CreateTensor(oType, oValues)),
+          outData(CreateTensor(oShape, oType, oValues)),
           start(start),
           stop(stop),
           step(step) {}
@@ -47,7 +47,7 @@ struct RangeParams {
     float step;
 };
 
-static std::shared_ptr<op::v0::Constant> CreateConstant(Shape& ishape, element::Type ntype, float input) {
+static std::shared_ptr<op::v0::Constant> CreateConstant(const Shape& ishape, element::Type ntype, float input) {
     switch (ntype) {
     case element::Type_t::f64:
         return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<double>{input});
@@ -81,8 +81,7 @@ static std::shared_ptr<op::v0::Constant> CreateConstant(Shape& ishape, element::
 class ReferenceRangeV0LayerTest : public testing::TestWithParam<RangeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.inShape,
                                   params.outShape,
                                   params.inType,
@@ -95,7 +94,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "iShape=" << param.inShape << "_";
         result << "oShape=" << param.outShape << "_";
@@ -106,11 +105,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(Shape& ishape,
-                                                 Shape& oshape,
-                                                 element::Type& itype,
-                                                 element::Type& otype,
-                                                 element::Type& ntype,
+    static std::shared_ptr<Model> CreateFunction(const Shape& ishape,
+                                                 const Shape& oshape,
+                                                 const element::Type& itype,
+                                                 const element::Type& otype,
+                                                 const element::Type& ntype,
                                                  float fstart,
                                                  float fstop,
                                                  float fstep) {
@@ -125,8 +124,7 @@ private:
 class ReferenceRangeV4LayerTest : public testing::TestWithParam<RangeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.inShape,
                                   params.outShape,
                                   params.inType,
@@ -139,7 +137,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "iShape=" << param.inShape << "_";
         result << "oShape=" << param.outShape << "_";
@@ -150,11 +148,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(Shape& ishape,
-                                                 Shape& oshape,
-                                                 element::Type& itype,
-                                                 element::Type& otype,
-                                                 element::Type& ntype,
+    static std::shared_ptr<Model> CreateFunction(const Shape& ishape,
+                                                 const Shape& oshape,
+                                                 const element::Type& itype,
+                                                 const element::Type& otype,
+                                                 const element::Type& ntype,
                                                  float fstart,
                                                  float fstop,
                                                  float fstep) {
@@ -214,7 +212,7 @@ std::vector<RangeParams> generateParamsForRangeV0Float() {
                     0.0f,
                     1.0f,
                     0.25f),
-        RangeParams(ov::Shape{}, ov::Shape{}, IN_ET, IN_ET, IN_ET, std::vector<T>{1.0f, 4.f, 7.f}, 1.0f, 10.0f, 3.0f),
+        RangeParams(ov::Shape{}, ov::Shape{3}, IN_ET, IN_ET, IN_ET, std::vector<T>{1.0f, 4.f, 7.f}, 1.0f, 10.0f, 3.0f),
         RangeParams(ov::Shape{},
                     ov::Shape{10},
                     IN_ET,
