@@ -29,25 +29,29 @@ void col2im(const T* data,
     std::fill_n(out, batch_count * output_size[0] * output_size[1] * channel_count, T(0));
 
     // calculate the original height and width
-    const T original_height =
-        (output_size[0] + pads_begin[0] + pads_end[0] - (dilations[0] * (kernel_size[0] - 1) + 1)) / strides[0] + 1;
-    const T original_width =
-        (output_size[1] + pads_begin[1] + pads_end[1] - (dilations[1] * (kernel_size[1] - 1) + 1)) / strides[1] + 1;
+    auto get_original_dimension = [&](const int64_t idx) {
+        return (output_size[idx] + pads_begin[idx] + pads_end[idx] - (dilations[idx] * (kernel_size[idx] - 1) + 1)) /
+                   strides[idx] +
+               1;
+    };
+    const T original_height = get_original_dimension(0);
+    const T original_width = get_original_dimension(1);
 
+    auto get_image_dimension_index = [&](const T column_dim_idx, const T dim_offset, const int64_t idx) {
+        return column_dim_idx * strides[idx] - pads_begin[idx] + dim_offset * dilations[idx];
+    };
     const T_idx channels_per_column = channel_count * kernel_product;
     for (T batch = 0; batch < batch_count; ++batch) {
         for (T_idx column = 0; column < channels_per_column; ++column) {
             const auto width_offset = column % kernel_size[1];
             const auto height_offset = (column / kernel_size[1]) % kernel_size[0];
-            const auto channel_idx = column / kernel_size[0] / kernel_size[1];
+            const auto channel_idx = column / kernel_product;
 
             for (T column_height_idx = 0; column_height_idx < original_height; ++column_height_idx) {
-                const T_idx image_height_idx =
-                    column_height_idx * strides[0] - pads_begin[0] + height_offset * dilations[0];
+                const T_idx image_height_idx = get_image_dimension_index(column_height_idx, height_offset, 0);
 
                 for (T column_width_idx = 0; column_width_idx < original_width; ++column_width_idx) {
-                    const T_idx image_width_idx =
-                        column_width_idx * strides[1] - pads_begin[1] + width_offset * dilations[1];
+                    const T_idx image_width_idx = get_image_dimension_index(column_width_idx, width_offset, 1);
 
                     if (image_height_idx >= 0 && image_height_idx < output_size[0] && image_width_idx >= 0 &&
                         image_width_idx < output_size[1]) {
