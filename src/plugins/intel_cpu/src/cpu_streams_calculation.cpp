@@ -652,7 +652,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
-    // streams_info_table = {{1, 1, 32, -1, -1}, {-1, 1, 16, 0, 0}, {-1, 1, 16, 1, 1}};
+    // streams_info_table = {{1, 1, 56, 1, 1}, {-1, 1, 28, 1, 1}, {-1, 1, 28, 0, 0}};
     if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
         config.modelDistributionPolicy.end()) {
         config.streamsRankTable =

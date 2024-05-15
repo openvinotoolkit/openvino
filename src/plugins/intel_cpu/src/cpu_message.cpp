@@ -19,7 +19,7 @@ void MessageManage::send_message(MessageInfo msg_info) {
     {
         std::lock_guard<std::mutex> lock(_msgMutex);
         _messageQueue.push_back(msg_info);
-        // std::cout << "send : " << msg_info.msg_type << ", " << msg_info.rank.size() << "\n";
+        // std::cout << "send : " << msg_info.msg_type << ", " << (msg_info.rank.size() > 0 ? msg_info.rank[0] : -1) << "\n";
     }
     _msgCondVar.notify_all();
 }
@@ -41,12 +41,23 @@ void MessageManage::infer_wait() {
     _inferCondVar.wait(lock);
 }
 
+void MessageManage::reduce_wait(int cur_rank, int streams_num) {
+    std::unique_lock<std::mutex> lock(_reduceMutex);
+    while (_reduceQueue[cur_rank] < streams_num) {
+        // std::cout << "reduce_wait_" << cur_rank << " " << _reduceQueue[cur_rank] << " end\n";
+        _reduceCondVar.wait(lock);
+    }
+    _reduceQueue[cur_rank] = 0;
+}
+
 void MessageManage::server_wait(int streams_num) {
     if (!_serverThread.joinable()) {
         _readQueue.assign(streams_num, std::vector<MessageInfo>());
+        _reduceQueue.assign(streams_num, 0);
         MsgType msg_type;
         _serverThread = std::thread([&, streams_num]() {
             int count = 0;
+            int reduce_count = 0;
             while (!_isServerStopped) {
                 std::vector<MessageInfo> msgQueue;
                 {
@@ -66,6 +77,19 @@ void MessageManage::server_wait(int streams_num) {
                         Task task = std::move(rec_info.task);
                         task();
                     } else if (msg_type == TP) {
+                        // Resend _readQueue that failed last time
+                        bool stop = false;
+                        while (!stop) {
+                            stop = true;
+                            for (int i = 0; i < streams_num; i++) {
+                                if (_readQueue[i].size() == streams_num) {
+                                    stop = false;
+                                }
+                            }
+                            if (!stop) {
+                                _readCondVar.notify_all();
+                            }
+                        }
                         for (int i = 0; i < streams_num; i++) {
                             std::lock_guard<std::mutex> lock(_readMutex);
                             _readQueue[i].push_back(rec_info);
@@ -77,6 +101,17 @@ void MessageManage::server_wait(int streams_num) {
                         if (count == streams_num) {
                             _inferCondVar.notify_one();
                             count = 0;
+                        }
+                    } else if (msg_type == REDUCE) {  // REDUCE
+                        reduce_count++;
+                        // std::cout << "server_wait REDUCE: " << reduce_count << "/" << streams_num << "\n";
+                        if (reduce_count == streams_num) {
+                            {
+                                std::lock_guard<std::mutex> lock(_reduceMutex);
+                                _reduceQueue.assign(streams_num, reduce_count);
+                            }
+                            _reduceCondVar.notify_all();
+                            reduce_count = 0;
                         }
                     } else if (msg_type == QUIT) {
                         _isServerStopped = true;
@@ -90,22 +125,18 @@ void MessageManage::server_wait(int streams_num) {
 
 void MessageManage::setSubCompileModels(std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> models) {
     m_sub_compilemodels = models;
-    std::cout << __FUNCTION__ << ": " << m_sub_compilemodels.size() << "\n";
 }
 
 std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> MessageManage::getSubCompileModels() {
     return m_sub_compilemodels;
-    std::cout << __FUNCTION__ << ": " << m_sub_compilemodels.size() << "\n";
 }
 
 void MessageManage::setSubInferRequest(std::vector<std::shared_ptr<IAsyncInferRequest>> requests) {
     m_sub_infer_requests = requests;
-    std::cout << __FUNCTION__ << ": " << m_sub_infer_requests.size() << "\n";
 }
 
 std::vector<std::shared_ptr<ov::IAsyncInferRequest>> MessageManage::getSubInferRequest() {
     return m_sub_infer_requests;
-    std::cout << __FUNCTION__ << ": " << m_sub_infer_requests.size() << "\n";
 }
 
 MessageManage::~MessageManage() {

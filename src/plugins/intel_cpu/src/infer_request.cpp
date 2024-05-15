@@ -646,7 +646,6 @@ void SyncInferRequest::sub_streams_infer() {
     auto outputs = m_asyncRequest->get_outputs();
 
     size_t requests_num = requests.size();
-    size_t requests_count = 0;
     // std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
 
     if (requests.size() > 0) {
