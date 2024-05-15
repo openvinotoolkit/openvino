@@ -108,7 +108,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.tile_m_size = tuning_data.simd_size;
         bool output_ndim_transposed = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
         if ((params.transpose_input0 == 0 /*X_LAST*/) && (params.transpose_input1 == 0 /*X_LAST*/ || params.transpose_input1 == 1 /*Y_LAST*/)
-            && (!params.indirect_input0 && !params.inputs[0].has_dynamic_pad())
+            && (!params.indirect_input0 && !params.inputs[0].has_dynamic_pad() && params.indirect_axis != 1)
             && (!output_ndim_transposed || params.fused_ops.empty())
             && !params.engineInfo.supports_immad) {
             // - Not supports transposed input0 / transposed input1 for OTHER mode yet
