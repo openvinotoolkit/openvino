@@ -56,13 +56,15 @@ are called a fuzzing corpus. Place valid inputs for the fuzzing test into
 directory.
 
 Intel employees can get the corpus as described here
-https://wiki.ith.intel.com/x/2N42bg. 
+https://wiki.ith.intel.com/x/2N42bg.
 
 2. Run fuzzing
 
 ```bash
-./read_network-fuzzer -max_total_time=600 ./read_network-corpus
+# LD_PRELOAD is required when OpenVINO build as shared library, the ASAN library has to be pre-loaded.
+[LD_PRELOAD=path-to-asan-lib] ./read_network-fuzzer -max_total_time=600 ./read_network-corpus
 ```
+
 Consider adding those useful command line options:
 - `-jobs=$(nproc)` runs multiple fuzzing jobs in parallel. Note: configuring code coverage profiling with environment variable `LLVM_PROFILE_FILE=deafult-%p.profraw` is required.
 - `-rss_limit_mb=0` to ignore out-of-memory issues.

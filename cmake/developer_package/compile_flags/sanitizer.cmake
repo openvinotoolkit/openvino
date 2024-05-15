@@ -111,8 +111,8 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
             # https://stackoverflow.com/questions/68571138/asan-dynamic-runtime-is-missing-on-ubuntu-18, https://bugs.llvm.org/show_bug.cgi?id=51271
             if(BUILD_SHARED_LIBS AND ENABLE_SANITIZER AND OV_COMPILER_IS_CLANG)
                 execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name libclang_rt.asan-x86_64.so
-                                OUTPUT_VARIABLE LIBASAN_DIRNAME)
-                get_filename_component(LIBASAN_DIRNAME ${LIBASAN_DIRNAME} PATH)
+                    OUTPUT_VARIABLE OV_LIBASAN_FILEPATH)
+                get_filename_component(LIBASAN_DIRNAME ${OV_LIBASAN_FILEPATH} PATH)
                 set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=${LIBASAN_DIRNAME}")
             endif()
 
