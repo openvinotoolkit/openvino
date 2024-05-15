@@ -19,8 +19,7 @@ struct Col2ImParams {
                  const ov::Strides& strides,
                  const ov::Strides& dilations,
                  const ov::Shape& pads_begin,
-                 const ov::Shape& pads_end,
-                 const std::string& testcaseName = "")
+                 const ov::Shape& pads_end)
         : dataTensor(dataTensor),
           outputSizeTensor(outputSizeTensor),
           kernelSizeTensor(kernelSizeTensor),
@@ -28,8 +27,7 @@ struct Col2ImParams {
           strides(strides),
           dilations(dilations),
           pads_begin(pads_begin),
-          pads_end(pads_end),
-          testcaseName(testcaseName) {}
+          pads_end(pads_end) {}
 
     reference_tests::Tensor dataTensor;
     reference_tests::Tensor outputSizeTensor;
@@ -39,7 +37,6 @@ struct Col2ImParams {
     ov::Strides dilations;
     ov::Shape pads_begin;
     ov::Shape pads_end;
-    std::string testcaseName;
 };
 
 class ReferenceCol2ImV15LayerTest : public testing::TestWithParam<Col2ImParams>,
@@ -103,7 +100,7 @@ std::vector<Col2ImParams> generateCol2ImParams() {
     using T_I = typename ov::element_type_traits<T_idx>::value_type;
     using reference_tests::Tensor;
     std::vector<Col2ImParams> col2ImParams{
-        // test_name
+        // no pads, default arguments, 1x1 kernel_size
         Col2ImParams(Tensor({3, 4}, T, getContinuousIncreasingValue<T_D>(12, 1)),
                      Tensor({2}, T_idx, std::vector<T_I>{2, 2}),
                      Tensor({2}, T_idx, std::vector<T_I>{1, 1}),
@@ -111,10 +108,9 @@ std::vector<Col2ImParams> generateCol2ImParams() {
                      {1, 1},
                      {1, 1},
                      {0, 0},
-                     {0, 0},
-                     "first_test"),
-        // kernel_size
-        Col2ImParams(Tensor({12, 9}, T, getContinuousIncreasingValue<T_D>(12*9, 1)),
+                     {0, 0}),
+        // no pads, default strides and dilations, 2x2 kernel_size
+        Col2ImParams(Tensor({12, 9}, T, getContinuousIncreasingValue<T_D>(108, 1)),
                      Tensor({2}, T_idx, std::vector<T_I>{4, 4}),
                      Tensor({2}, T_idx, std::vector<T_I>{2, 2}),
                      Tensor({3, 4, 4}, T, std::vector<T_D>{1,  12,  14,  12,  23,  66,  70,  45,  29,  78,  82,  51,
@@ -124,22 +120,52 @@ std::vector<Col2ImParams> generateCol2ImParams() {
                      {1, 1},
                      {1, 1},
                      {0, 0},
-                     {0, 0},
-                     "kernel_size"),
-        //Col2ImParams(Tensor({12, 25}, T, getContinuousIncreasingValue<T_D>(300, 1)),
-        //             Tensor({2}, T_idx, std::vector<T_I>{4, 4}),
-        //             Tensor({2}, T_idx, std::vector<T_I>{2, 2}),
-        //             Tensor({3, 4, 4}, T, std::vector<T_D>{
-        // 166,  170,  174,  178,  186,  190,  194,  198,  206,  210,
-        // 214,  218,  226,  230,  234,  238,  566,  570,  574,  578,
-        // 586,  590,  594,  598,  606,  610,  614,  618,  626,  630,
-        // 634,  638,  966,  970,  974,  978,  986,  990,  994,  998,
-        // 1006, 1010, 1014, 1018, 1026, 1030, 1034, 1038}),
-        //             {1, 1},
-        //             {1, 1},
-        //             {1, 1},
-        //             {1, 1},
-        //             "first_teste"),
+                     {0, 0}),
+        // (1, 1) pads, default strides and dilations, 2x2 kernel_size
+        Col2ImParams(Tensor({12, 25}, T, getContinuousIncreasingValue<T_D>(300, 1)),
+                     Tensor({2}, T_idx, std::vector<T_I>{4, 4}),
+                     Tensor({2}, T_idx, std::vector<T_I>{2, 2}),
+                     Tensor({3, 4, 4}, T, std::vector<T_D>{
+         166,  170,  174,  178,  186,  190,  194,  198,  206,  210,
+         214,  218,  226,  230,  234,  238,  566,  570,  574,  578,
+         586,  590,  594,  598,  606,  610,  614,  618,  626,  630,
+         634,  638,  966,  970,  974,  978,  986,  990,  994,  998,
+         1006, 1010, 1014, 1018, 1026, 1030, 1034, 1038}),
+                     {1, 1},
+                     {1, 1},
+                     {1, 1},
+                     {1, 1}),
+        // (3, 3) pads, non-default strides, default dilations, 2x2 kernel_size
+        Col2ImParams(Tensor({12, 25}, T, getContinuousIncreasingValue<T_D>(300, 1)),
+                     Tensor({2}, T_idx, std::vector<T_I>{4, 4}),
+                     Tensor({2}, T_idx, std::vector<T_I>{2, 2}),
+                     Tensor({3, 4, 4}, T, std::vector<T_D>{
+         82,  58,  83,  59,  37,  13,  38,  14,  87,  63,  88,  64,
+         42,  18,  43,  19, 182, 158, 183, 159, 137, 113, 138, 114,
+        187, 163, 188, 164, 142, 118, 143, 119, 282, 258, 283, 259,
+        237, 213, 238, 214, 287, 263, 288, 264, 242, 218, 243, 219}),
+                     {2, 2},
+                     {1, 1},
+                     {3, 3},
+                     {3, 3}),
+        // 4 channels, (0, 2) pads, non-default strides, non-default dilations, 3x3 kernel_size
+        Col2ImParams(Tensor({36, 3}, T, getContinuousIncreasingValue<T_D>(108, 1)),
+                     Tensor({2}, T_idx, std::vector<T_I>{5, 5}),
+                     Tensor({2}, T_idx, std::vector<T_I>{3, 3}),
+                     Tensor({4, 5, 5}, T, std::vector<T_D>{
+          6,   0,  15,   0,  14,   0,   0,   0,   0,   0,  24,   0,
+         42,   0,  32,   0,   0,   0,   0,   0,  42,   0,  69,   0,
+         50,  60,   0,  96,   0,  68,   0,   0,   0,   0,   0,  78,
+          0, 123,   0,  86,   0,   0,   0,   0,   0,  96,   0, 150,
+          0, 104, 114,   0, 177,   0, 122,   0,   0,   0,   0,   0,
+        132,   0, 204,   0, 140,   0,   0,   0,   0,   0, 150,   0,
+        231,   0, 158, 168,   0, 258,   0, 176,   0,   0,   0,   0,
+          0, 186,   0, 285,   0, 194,   0,   0,   0,   0,   0, 204,
+          0, 312,   0, 212}),
+                     {2, 2},
+                     {2, 2},
+                     {0, 2},
+                     {0, 2}),
     };
     return col2ImParams;
 }
