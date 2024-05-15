@@ -10,11 +10,9 @@ PyTorch:
 
 Quantize the model using the :doc:`Post-Training Quantization <../quantizing-models-post-training/basic-quantization-flow>` method.
 
-.. tab:: PyTorch
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-      :language: python
-      :fragment: [quantize]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+   :language: python
+   :fragment: [quantize]
 
 
 2. Fine-tune the model
@@ -24,11 +22,9 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5.
 Quantized models carry out all computations in floating point precision during the fine-tuning by modeling quantization errors in both the forward and backward passes.
 
-.. tab:: PyTorch
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-      :language: python
-      :fragment: [tune_model]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+   :language: python
+   :fragment: [tune_model]
 
 
 .. note::
@@ -44,11 +40,9 @@ checkpoints during the training. Since NNCF wraps the original model with its ow
 
 To save model checkpoint use the following API:
 
-.. tab:: PyTorch
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-      :language: python
-      :fragment: [save_checkpoint]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+   :language: python
+   :fragment: [save_checkpoint]
 
 
 4. (Optional) Restore from checkpoint
@@ -56,11 +50,9 @@ To save model checkpoint use the following API:
 
 To restore the model from checkpoint you should use the following API:
 
-.. tab:: PyTorch
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-      :language: python
-      :fragment: [load_checkpoint]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+   :language: python
+   :fragment: [load_checkpoint]
 
 
 Deploying quantized model
@@ -69,11 +61,9 @@ Deploying quantized model
 The model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
 No extra steps or options are required.
 
-.. tab:: PyTorch
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
-      :language: python
-      :fragment:  [inference]
+.. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
+   :language: python
+   :fragment:  [inference]
 
 For more details, see the corresponding :doc:`documentation <../../running-inference>`.
 

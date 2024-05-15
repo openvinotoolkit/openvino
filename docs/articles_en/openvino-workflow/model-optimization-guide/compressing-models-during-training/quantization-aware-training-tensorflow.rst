@@ -13,11 +13,9 @@ Here, we provide the steps that are required to integrate QAT from NNCF into the
 
 In this step, you add NNCF-related imports in the beginning of the training script:
 
-.. tab:: TensorFlow
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-      :language: python
-      :fragment: [imports]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+   :language: python
+   :fragment: [imports]
 
 2. Create NNCF configuration
 ####################################
@@ -26,11 +24,9 @@ Here, you should define NNCF configuration which consists of model-related param
 of optimization methods (``"compression"`` section). For faster convergence, it is also recommended to register a dataset object
 specific to the DL framework. It will be used at the model creation step to initialize quantization parameters.
 
-.. tab:: TensorFlow
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-      :language: python
-      :fragment: [nncf_congig]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+   :language: python
+   :fragment: [nncf_congig]
 
 
 3. Apply optimization methods
@@ -43,11 +39,9 @@ undergoes a set of corresponding transformations and can contain additional oper
 the case of QAT, the compression controller object is used for model export and, optionally, in distributed training as it
 will be shown below.
 
-.. tab:: TensorFlow
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-      :language: python
-      :fragment: [wrap_model]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+   :language: python
+   :fragment: [wrap_model]
 
 
 4. Fine-tune the model
@@ -57,11 +51,9 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle,
 you can skip this step which means that the post-training optimization will be applied to the model.
 
-.. tab:: TensorFlow
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-      :language: python
-      :fragment: [tune_model]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+   :language: python
+   :fragment: [tune_model]
 
 
 5. Multi-GPU distributed training
@@ -69,11 +61,9 @@ you can skip this step which means that the post-training optimization will be a
 In the case of distributed multi-GPU training (not DataParallel), you should call ``compression_ctrl.distributed()`` before
 the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
 
-.. tab:: TensorFlow
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-      :language: python
-      :fragment: [distributed]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+   :language: python
+   :fragment: [distributed]
 
 
 .. note::
@@ -89,11 +79,9 @@ checkpoints during the training. Since NNCF wraps the original model with its ow
 
 To save model checkpoint use the following API:
 
-.. tab:: TensorFlow
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-      :language: python
-      :fragment: [save_checkpoint]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+   :language: python
+   :fragment: [save_checkpoint]
 
 
 7. (Optional) Restore from checkpoint
@@ -101,11 +89,9 @@ To save model checkpoint use the following API:
 
 To restore the model from checkpoint you should use the following API:
 
-.. tab:: TensorFlow
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-      :language: python
-      :fragment: [load_checkpoint]
+.. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+   :language: python
+   :fragment: [load_checkpoint]
 
 
 For more details on saving/loading checkpoints in the NNCF, see the following `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
@@ -116,11 +102,9 @@ Deploying quantized model
 The model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
 No extra steps or options are required.
 
-.. tab:: TensorFlow
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
-      :language: python
-      :fragment:  [inference]
+.. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
+   :language: python
+   :fragment:  [inference]
 
 For more details, see the corresponding :doc:`documentation <../../running-inference>`.
 
