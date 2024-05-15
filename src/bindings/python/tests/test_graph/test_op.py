@@ -5,13 +5,13 @@
 import numpy as np
 
 from openvino import Op
-from openvino.runtime import DiscreteTypeInfo, Model, Shape, compile_model
+from openvino.runtime import CompiledModel, DiscreteTypeInfo, Model, Shape, compile_model
 import openvino.runtime.opset14 as ops
-from tests.utils.helpers import generate_image
 
 
 class CustomOp(Op):
     class_type_info = DiscreteTypeInfo("Custom", "extension")
+
     def __init__(self, inputs):
         super().__init__(self)
         self.set_arguments(inputs)
@@ -40,7 +40,7 @@ def create_snake_model():
     custom_op = CustomOp([param1])
     custom_op.set_friendly_name("custom_" + str(0))
 
-    for i in range (20):
+    for i in range(20):
         custom_op = CustomOp([custom_op])
         custom_op.set_friendly_name("custom_" + str(i + 1))
     return Model(custom_op, [param1], "TestModel")
@@ -48,6 +48,7 @@ def create_snake_model():
 
 class CustomAdd(Op):
     class_type_info = DiscreteTypeInfo("Add", "extension")
+
     def __init__(self, inputs):
         super().__init__(self)
         self.set_arguments(inputs)
@@ -89,18 +90,17 @@ def test_custom_add_op():
     node2 = ops.constant(data2, dtype=np.float32)
     inputs = [node1.output(0), node2.output(0)]
     custom_op = CustomAdd(inputs=inputs)
-   
+
     assert custom_op.get_input_size() == 2
     assert custom_op.get_output_size() == 1
 
 
 def test_custom_add_model():
     model = create_add_model()
+    assert isinstance(model, Model)
 
 
 def test_custom_op():
     model = create_snake_model()
-
     compiled_model = compile_model(model)
-
-    
+    assert isinstance(compiled_model, CompiledModel)
