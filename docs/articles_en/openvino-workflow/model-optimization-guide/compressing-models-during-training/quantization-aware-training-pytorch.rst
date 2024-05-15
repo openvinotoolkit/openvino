@@ -1,11 +1,11 @@
 Quantization-aware Training (QAT) with PyTorch
 ===============================================
 
-Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with
+Below are the steps required to integrate QAT from NNCF into a training script written with
 PyTorch:
 
 
-1. Apply Post Training Quantization to the model
+1. Apply Post Training Quantization to the Model
 ##################################################
 
 Quantize the model using the :doc:`Post-Training Quantization <../quantizing-models-post-training/basic-quantization-flow>` method.
@@ -15,12 +15,11 @@ Quantize the model using the :doc:`Post-Training Quantization <../quantizing-mod
    :fragment: [quantize]
 
 
-2. Fine-tune the model
+2. Fine-tune the Model
 ########################
 
-This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the
-case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5.
-Quantized models carry out all computations in floating point precision during the fine-tuning by modeling quantization errors in both the forward and backward passes.
+This step assumes applying fine-tuning to the model the same way it is done for the baseline model. For QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5.
+Quantized models perform all computations in floating-point precision during fine-tuning by modeling quantization errors in both forward and backward passes.
 
 .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
    :language: python
@@ -28,38 +27,37 @@ Quantized models carry out all computations in floating point precision during t
 
 
 .. note::
-   The precision of weights gets INT8 only after the step of model conversion to OpenVINO Intermediate Representation.
-   You can expect the model footprint reduction only for that format.
+   The precision of weights transitions to INT8 only after converting the model to OpenVINO Intermediate Representation.
+   You can expect a reduction in model footprint only for that format.
 
 
-These were the basic steps to applying the QAT method from the NNCF. However, it is required in some cases to save/load model
-checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
+These steps outline the basics of applying the QAT method from the NNCF. However, in some cases, it is required to save/load model
+checkpoints during training. Since NNCF wraps the original model with its own object, it provides an API for these needs.
 
-3. (Optional) Save checkpoint
+3. (Optional) Save Checkpoint
 ####################################
 
-To save model checkpoint use the following API:
+To save a model checkpoint, use the following API:
 
 .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
    :language: python
    :fragment: [save_checkpoint]
 
 
-4. (Optional) Restore from checkpoint
+4. (Optional) Restore from Checkpoint
 ################################################
 
-To restore the model from checkpoint you should use the following API:
+To restore the model from checkpoint, use the following API:
 
 .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
    :language: python
    :fragment: [load_checkpoint]
 
 
-Deploying quantized model
-#########################
+Deploying the Quantized Model
+###############################
 
-The model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
-No extra steps or options are required.
+The model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled, and run with OpenVINO without any additional steps.
 
 .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
    :language: python
