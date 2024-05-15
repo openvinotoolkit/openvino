@@ -68,7 +68,8 @@ TEST_F(TypePropCol2ImTest, incorrect_types) {
     const auto data = std::make_shared<Parameter>(element::i32, PartialShape{3, 12, 225});
     const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
     const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
-    constexpr auto error_substring = "The element types of the output_size and kernel_size tensors must match and be of i32 or i64 type"; 
+    constexpr auto error_substring =
+        "The element types of the output_size and kernel_size tensors must match and be of i32 or i64 type";
     {
         const auto output_size_i4 = std::make_shared<Parameter>(element::i4, PartialShape{16, 16});
         OV_EXPECT_THROW(std::ignore = make_op(data, output_size_i4, kernel_size),
