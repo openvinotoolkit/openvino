@@ -751,6 +751,7 @@ struct MHAHelper {
     PlainTensor _qk_scratch_b;      // [B, rnd_up(kv_len, block_size), Hk, scratch_b_size]
     PlainTensor _wv_scratch_a;
     PlainTensor _wv_scratch_b;
+    PlainTensor _alibi_lookup;
     std::vector<size_t> _wsp;
     size_t _wsp_size_per_thread = 0;
 
@@ -770,7 +771,7 @@ struct MHAHelper {
     }
 
     void init(size_t H, size_t S, size_t Hk, size_t h_each_group_len, size_t block_size, size_t sliding_window,
-              float d_scale, size_t kv_len) {
+              float d_scale, size_t kv_len, bool init_alibi_lookup) {
         // query shape: [B, H, L, S]
         // present_key shape: [block, H, 32, S]
         // Q*K': [M1, S] * [M2, S]'
@@ -846,6 +847,12 @@ struct MHAHelper {
             if (_fastpath_valid && !_gemv)
                 _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
         }
+
+        if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
+            _alibi_lookup.resize<float>({kv_len * 2});
+            for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++)
+                _alibi_lookup.ptr<float>()[i] = - static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
+        }
     }
 
     void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
@@ -862,7 +869,7 @@ struct MHAHelper {
     //  wv_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
     void exec_kernel_multiple(const PlainTensor& query, const PlainTensor& present_value, const PlainTensor& output_emb,
         const PlainTensor& qk_scratch_b, const PlainTensor& wv_scratch_b,
-        const int32_t* block_table, size_t ithr, size_t q_blk, size_t hk, size_t q_len, size_t cur_kv_len) {
+        const int32_t* block_table, size_t ithr, size_t q_blk, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -913,17 +920,25 @@ struct MHAHelper {
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
+                    // alibi may available when _sliding_window is false
+                    float* alibi_lookup = nullptr;
+                    float alibi_slope = 0.f;
+                    if (alibi_slopes) {
+                        alibi_slope = alibi_slopes.ptr<float>()[h];
+                        alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
+                    }
                     attn_softmax_kernel(score,
                                         reinterpret_cast<DATA_TYPE*>(score),
                                         _d_scale,
-                                        nullptr,
+                                        alibi_lookup,
                                         nullptr,
                                         nullptr,
                                         false,
                                         ncausal,
                                         rnd_up(cur_kv_len, _block_size),
                                         precision_of<DATA_TYPE>::value,
-                                        precision_of<DATA_TYPE>::value);
+                                        precision_of<DATA_TYPE>::value,
+                                        alibi_slope);
                 }
             }
 
@@ -976,7 +991,7 @@ struct MHAHelper {
     //  weight: [nthr, H, 32, rnd_up(kv_len, block_size)]
     //  output: [nthr, 32, H, S]
     void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
-        const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len) {
+        const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes) {
         if (_fastpath_valid) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
@@ -1004,17 +1019,24 @@ struct MHAHelper {
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
                 // apply attention mask & sofmax
+                float* alibi_lookup = nullptr;
+                float alibi_slope = 0.f;
+                if (alibi_slopes) {
+                    alibi_slope = alibi_slopes.ptr<float>()[h];
+                    alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
+                }
                 attn_softmax_kernel(_weight.ptr<float>(ithr, h, pq),
                                     _weight.ptr<float>(ithr, h, pq),
                                     _d_scale,
-                                    nullptr,
+                                    alibi_lookup,
                                     nullptr,
                                     nullptr,
                                     false,
                                     cur_kv_len,
                                     cur_kv_len,
                                     ov::element::f32,
-                                    ov::element::f32);
+                                    ov::element::f32,
+                                    alibi_slope);
             }
         }
 
@@ -1051,7 +1073,8 @@ struct MHAHelper {
                        const PlainTensor& output_emb,
                        const PlainTensor& block_tables,
                        size_t max_context_len,
-                       const PlainTensor& context_lens) {
+                       const PlainTensor& context_lens,
+                       const PlainTensor& alibi_slopes) {
         auto B = query.size(0);
         auto q_len = query.size(2);
         auto kv_len_in_blocks = block_tables.m_dims[1];
@@ -1089,17 +1112,24 @@ struct MHAHelper {
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto ncausal = cur_kv_len;
             // apply attention mask & sofmax
+            float* alibi_lookup = nullptr;
+            float alibi_slope = 0.f;
+            if (alibi_slopes) {
+                alibi_slope = alibi_slopes.ptr<float>()[h];
+                alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
+            }
             attn_softmax_kernel(_weight_bhl.ptr<float>(b, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq),
                                 _d_scale,
-                                nullptr,
+                                alibi_lookup,
                                 nullptr,
                                 nullptr,
                                 false,
                                 ncausal,
                                 cur_kv_len,
                                 ov::element::f32,
-                                ov::element::f32);
+                                ov::element::f32,
+                                alibi_slope);
         });
 
         // attn_w * V
@@ -1150,7 +1180,8 @@ struct MHAMultiple {
                     PlainTensor& output_emb,
                     const PlainTensor& block_tables,
                     size_t max_context_len,
-                    const PlainTensor& context_lens) {
+                    const PlainTensor& context_lens,
+                    const PlainTensor& alibi_slopes) {
         auto B = query.m_dims[0];
         auto Hk = present_value.m_dims[1];
         constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
@@ -1201,7 +1232,7 @@ struct MHAMultiple {
             auto q_len = cur_kv_len;
             _helper.exec_kernel_multiple(query.slice(0, b, b), present_value, output_emb.slice(0, b, b),
                 _helper._qk_scratch_b.slice(0, b, b), _helper._wv_scratch_b.slice(0, b, b),
-                block_tables.ptr<int32_t>(b), ithr, q_blk, hk, q_len, std::min(cur_kv_len, (q_blk + 1) * _helper._block_size));
+                block_tables.ptr<int32_t>(b), ithr, q_blk, hk, q_len, std::min(cur_kv_len, (q_blk + 1) * _helper._block_size), alibi_slopes);
         });
     }
 };
@@ -1220,7 +1251,8 @@ struct MHASingle {
                       PlainTensor& output_emb,
                       const PlainTensor& block_tables,
                       size_t max_context_len,
-                      const PlainTensor& context_lens) {
+                      const PlainTensor& context_lens,
+                      const PlainTensor& alibi_slopes) {
         auto B = query.m_dims[0];
         auto Hk = present_value.m_dims[1];
         parallel_for2d_dynamic(B, Hk, [&](size_t b, size_t hk) {
@@ -1228,7 +1260,7 @@ struct MHASingle {
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto q_len = 1ul;
             _helper.exec_kernel_one_bh(query.slice(0, b, b), present_key, present_value,
-                output_emb.slice(0, b, b), block_tables.ptr<int32_t>(b), ithr, hk, q_len, cur_kv_len);
+                output_emb.slice(0, b, b), block_tables.ptr<int32_t>(b), ithr, hk, q_len, cur_kv_len, alibi_slopes);
         });
     }
 
@@ -1243,14 +1275,15 @@ struct MHASingle {
                     PlainTensor& output_emb,
                     const PlainTensor& block_tables,
                     size_t max_context_len,
-                    const PlainTensor& context_lens) {
+                    const PlainTensor& context_lens,
+                    const PlainTensor& alibi_slopes) {
         auto B = query.size(0);
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (B >= nthr) {
-            exec_loop_bh(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+            exec_loop_bh(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, alibi_slopes);
         } else {
-            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, alibi_slopes);
         }
     }
 };
@@ -1371,7 +1404,8 @@ struct MHAMixed {
                          const PlainTensor& block_tables,
                          size_t max_context_len,
                          const PlainTensor& context_lens,
-                         const PlainTensor& subsequence_lens) {
+                         const PlainTensor& subsequence_lens,
+                         const PlainTensor& alibi_slopes) {
         auto Hk = present_value.m_dims[1];
 
         constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
@@ -1425,7 +1459,8 @@ struct MHAMixed {
                 const auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[batch_in_query]);
 
                 _helper.exec_kernel_one_bh(query.slice(0, batch_in_query, batch_in_query), present_key, present_value,
-                    output_emb.slice(0, batch_in_query, batch_in_query), block_tables.ptr<int32_t>(batch_in_query), ithr, hk, 1ul, cur_kv_len);
+                    output_emb.slice(0, batch_in_query, batch_in_query), block_tables.ptr<int32_t>(batch_in_query),
+                    ithr, hk, 1ul, cur_kv_len, alibi_slopes);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
@@ -1446,7 +1481,8 @@ struct MHAMixed {
                     q_blk,
                     hk,
                     q_len,
-                    cur_kv_len);
+                    cur_kv_len,
+                    alibi_slopes);
             }
         });
     }
@@ -1459,15 +1495,16 @@ struct MHAMixed {
                     const PlainTensor& block_tables,
                     size_t max_context_len,
                     const PlainTensor& context_lens,
-                    const PlainTensor& subsequence_lens) {
+                    const PlainTensor& subsequence_lens,
+                    const PlainTensor& alibi_slopes) {
         _workitems.reset(query, context_lens, subsequence_lens, _helper._block_size);
 
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (subsequence_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
-            exec_loop_mixed(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens);
+            exec_loop_mixed(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens, alibi_slopes);
         } else {
-            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, alibi_slopes);
         }
     }
 };
@@ -1489,6 +1526,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor v_input;           // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
         PlainTensor block_tables;      // i32[B, max_kvLen]
         PlainTensor context_lens;
+        PlainTensor alibi_slopes;
         PlainTensor output_emb(output);
         float scale_input = 0.0f;
         size_t B, L1, S, H, Hk, h_each_group_len;
@@ -1507,6 +1545,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         context_lens.reset(inputs[ID_CONTEXT_LENS]);
         block_tables.reset(inputs[ID_BLOCK_TABLES]);
         scale_input = *inputs[ID_SCALE]->getDataAs<float>();
+        if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims())
+            alibi_slopes.reset(inputs[ID_ALIBI_SLOPES]);
 
         // q: [B, L1, H*S], kv: [B, L1, Hk*S]
         // k_cache: [NUM_BLOCKS, Hk, 32, S]
@@ -1534,11 +1574,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         q_input.assert_dims({B, L1, H * S});
         output_emb.assert_dims({B, L1, H * S});
+        if (alibi_slopes) {
+            alibi_slopes.assert_dims({H});
+        }
         q_input = q_input.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
         k_input = k_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
         v_input = v_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
 
-        _helper.init(H, S, Hk, h_each_group_len, block_size, sliding_window, scale_input, max_context_len);
+        _helper.init(H, S, Hk, h_each_group_len, block_size, sliding_window, scale_input, max_context_len, alibi_slopes);
 
         if (is_prompt) {
             sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
@@ -1563,7 +1606,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             }
 
             // multi-token version
-            _kernel_multiple(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+            _kernel_multiple(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, alibi_slopes);
         } else {
             context_lens.assert_dims({B});
             block_tables.assert_dims({B, 0}, true);
@@ -1573,9 +1616,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 PlainTensor subsequence_lens;
                 subsequence_lens.reset(inputs[ID_SUBSEQUENCE_LENS]);
 
-                _kernel_mixed(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens);
+                _kernel_mixed(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens, alibi_slopes);
             } else {
-                _kernel_single(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+                _kernel_single(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, alibi_slopes);
             }
         }
     }
