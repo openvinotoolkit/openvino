@@ -209,9 +209,8 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         std::ifstream binaryFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
         OPENVINO_ASSERT(binaryFile, "Cannot open ", files[inputIndex]);
 
-        auto inputSize = tensor_size * sizeof(T) / binaryBatchSize;
+        auto inputSize = tensor_size / binaryBatchSize;
         auto inputByteSize = inputSize * inputInfo.type.bitwidth() / 8u;
-
         std::string extension = get_extension(files[inputIndex]);
         if (extension == "bin") {
             auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
