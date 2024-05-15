@@ -43,6 +43,7 @@ ov::pass::LoopInputs::LoopInputs() {
 
         auto new_loop = make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
         new_loop->set_function(body_model);
+        new_loop->set_special_body_ports(loop->get_special_body_ports());
 
         for (const auto& input_description : loop->get_input_descriptions()) {
             if (const auto merged_input_desc =
@@ -53,7 +54,7 @@ ov::pass::LoopInputs::LoopInputs() {
                 } else {
                     new_loop->set_merged_input(body_params[merged_input_desc->m_body_parameter_index],
                                                loop_input_values[merged_input_desc->m_input_index],
-                                               body_params[merged_input_desc->m_body_value_index]);
+                                               body_results[merged_input_desc->m_body_value_index]);
                 }
             } else if (const auto invariant_input_desc =
                            dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(
@@ -99,8 +100,6 @@ ov::pass::LoopInputs::LoopInputs() {
                 new_loop_outputs.emplace_back(new_loop->get_iter_value(body_result, iteration));
             }
         }
-
-        new_loop->set_special_body_ports(loop->get_special_body_ports());
 
         auto loop_outputs = loop->outputs();
         for (size_t i = 0; i < loop_outputs.size(); ++i) {
