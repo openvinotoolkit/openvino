@@ -19,7 +19,7 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(
     auto kv_past = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
     auto kv_gather = pattern::wrap_type<v8::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
     auto kv_shape = pattern::wrap_type<v3::ShapeOf>({kv_gather});
-    auto seq = pattern::wrap_type<v8::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
+    auto seq = pattern::wrap_type<v8::Gather>({kv_shape, pattern::any_input(), pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension -- use symbolics or

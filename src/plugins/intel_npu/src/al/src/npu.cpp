@@ -54,4 +54,8 @@ ov::device::PCIInfo IDevice::getPciInfo() const {
     OPENVINO_THROW("Get PCIInfo is not supported");
 }
 
+std::map<ov::element::Type, float> IDevice::getGops() const {
+    OPENVINO_THROW("Get DEVICE_GOPS is not supported");
+}
+
 }  // namespace intel_npu
