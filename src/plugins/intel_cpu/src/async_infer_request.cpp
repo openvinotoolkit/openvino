@@ -3,6 +3,7 @@
 //
 
 #include "async_infer_request.h"
+#include "cpu_message.hpp"
 
 ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<IInferRequest>& request,
@@ -13,14 +14,13 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
 }
 
 ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
+    if (m_sub_infers) {
+        auto message = ov::threading::message_manager();
+        message->stop_server_thread();
+    }
     stop_and_wait();
 }
 
 void ov::intel_cpu::AsyncInferRequest::throw_if_canceled() const {
     check_cancelled_state();
-}
-
-void ov::intel_cpu::AsyncInferRequest::setSubInferRequest(
-    const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests) {
-    m_sub_infer_requests = requests;
 }

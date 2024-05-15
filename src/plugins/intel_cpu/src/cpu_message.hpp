@@ -21,11 +21,13 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
+#include "compiled_model.h"
+#include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace ov {
 
 namespace threading {
-enum MsgType { TP, START_INFER, CALL_BACK };
+enum MsgType { TP, START_INFER, CALL_BACK, QUIT };
 
 struct MessageInfo {
     MsgType msg_type;
@@ -44,8 +46,20 @@ public:
 
     void server_wait(int streams_num);
 
+    void stop_server_thread();
+
     ~MessageManage();
+
+    void setSubCompileModels(std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> models);
+    std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> getSubCompileModels();
+
+    void setSubInferRequest(std::vector<std::shared_ptr<ov::IAsyncInferRequest>> requests);
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> getSubInferRequest();
+
 private:
+    int sub_streams;
+    std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> m_sub_compilemodels;
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_sub_infer_requests;
     std::thread _serverThread;
     bool _isServerStopped = false;
     std::vector<MessageInfo> _messageQueue;

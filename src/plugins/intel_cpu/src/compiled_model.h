@@ -74,12 +74,7 @@ private:
      */
     GraphGuard::Lock get_graph() const;
 
-    std::vector<std::shared_ptr<CompiledModel>> get_sub_compilemodles() const {
-        return m_sub_compilemodels;
-    }
-
-    // bool m_subCompileModel = true;
-    std::vector<std::shared_ptr<CompiledModel>> m_sub_compilemodels;
+    bool m_subCompileModel = false;
 };
 
 }   // namespace intel_cpu

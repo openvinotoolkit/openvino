@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/runtime/threading/cpu_message.hpp"
+#include "cpu_message.hpp"
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -12,7 +12,8 @@
 namespace ov {
 namespace threading {
 
-MessageManage::MessageManage() {}
+MessageManage::MessageManage() {
+}
 
 void MessageManage::send_message(MessageInfo msg_info) {
     {
@@ -49,7 +50,7 @@ void MessageManage::server_wait(int streams_num) {
             while (!_isServerStopped) {
                 std::vector<MessageInfo> msgQueue;
                 {
-                    // std::cout << "server_wait ........\n";
+                    // std::cout << "server_wait ........" << _isServerStopped << "\n";
                     std::unique_lock<std::mutex> lock(_msgMutex);
                     while (_messageQueue.empty()) {
                         _msgCondVar.wait(lock);
@@ -77,6 +78,8 @@ void MessageManage::server_wait(int streams_num) {
                             _inferCondVar.notify_one();
                             count = 0;
                         }
+                    } else if (msg_type == QUIT) {
+                        _isServerStopped = true;
                     }
                 }
             }
@@ -85,14 +88,40 @@ void MessageManage::server_wait(int streams_num) {
     }
 }
 
+void MessageManage::setSubCompileModels(std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> models) {
+    m_sub_compilemodels = models;
+    std::cout << __FUNCTION__ << ": " << m_sub_compilemodels.size() << "\n";
+}
+
+std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> MessageManage::getSubCompileModels() {
+    return m_sub_compilemodels;
+    std::cout << __FUNCTION__ << ": " << m_sub_compilemodels.size() << "\n";
+}
+
+void MessageManage::setSubInferRequest(std::vector<std::shared_ptr<IAsyncInferRequest>> requests) {
+    m_sub_infer_requests = requests;
+    std::cout << __FUNCTION__ << ": " << m_sub_infer_requests.size() << "\n";
+}
+
+std::vector<std::shared_ptr<ov::IAsyncInferRequest>> MessageManage::getSubInferRequest() {
+    return m_sub_infer_requests;
+    std::cout << __FUNCTION__ << ": " << m_sub_infer_requests.size() << "\n";
+}
+
 MessageManage::~MessageManage() {
-    _isServerStopped = true;
-    _msgCondVar.notify_one();
+    std::cout << "~MessageManage\n";
+}
+
+void MessageManage::stop_server_thread() {
+    MessageInfo msg_info;
+    msg_info.msg_type = ov::threading::MsgType::QUIT;
+    send_message(msg_info);
     if (_serverThread.joinable()) {
         _serverThread.join();
     }
+    m_sub_infer_requests.clear();
+    m_sub_compilemodels.clear();
 }
-
 namespace {
 
 class MessageManageHolder {
@@ -117,7 +146,7 @@ public:
 
 }  // namespace
 
-std::shared_ptr<MessageManage> message_manager(){
+std::shared_ptr<MessageManage> message_manager() {
     static MessageManageHolder message_manage;
     return message_manage.get();
 }

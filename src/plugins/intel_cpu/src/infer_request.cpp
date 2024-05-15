@@ -18,7 +18,7 @@
 #include "proxy_mem_mgr.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
-#include "openvino/runtime/threading/cpu_message.hpp"
+#include "cpu_message.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
@@ -109,13 +109,14 @@ void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, m_profiling_task);
     auto graphLock = m_compiled_model->get_graph();
     m_graph = &(graphLock._graph);
-    auto streams_executor = m_graph->context->getCPUStreamExecutor();
+    auto message = ov::threading::message_manager();
+    // auto streams_executor = m_graph->context->getCPUStreamExecutor();
 
     throw_if_canceled();
-    auto requests = m_asyncRequest->getSubInferRequest();
-    // std::cout << "[ infer ] " << requests.size() << "\n";
-    if (requests.size() > 0) {
-        auto message = ov::threading::message_manager();
+    // std::cout << "[ infer ] " << m_asyncRequest->m_sub_infers << "\n";
+    if (m_asyncRequest->m_sub_infers) {
+        // auto message = ov::threading::message_manager();
+        auto requests = message->getSubInferRequest();//m_asyncRequest->getSubInferRequest();
         message->server_wait(requests.size());
         ov::threading::MessageInfo msg_info;
         msg_info.msg_type = ov::threading::MsgType::START_INFER;
@@ -330,6 +331,16 @@ void SyncInferRequest::change_default_ptr() {
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
+    if (m_asyncRequest->m_sub_infers) {
+        auto message = ov::threading::message_manager();
+        auto requests = message->getSubInferRequest();
+        std::vector<ov::SoPtr<ov::IVariableState>> states;
+        for (auto request : requests) {
+            auto cur = request->query_state();
+            states.insert(states.end(), cur.begin(), cur.end());
+        }
+        return states;
+    }
     return {m_memory_states.begin(), m_memory_states.end()};
 }
 
@@ -629,26 +640,24 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
 
 void SyncInferRequest::sub_streams_infer() {
     std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> input_tensors;
-    auto requests = m_asyncRequest->getSubInferRequest();
+    auto message = ov::threading::message_manager();
+    auto requests = message->getSubInferRequest();
     auto inputs = m_asyncRequest->get_inputs();
     auto outputs = m_asyncRequest->get_outputs();
-    auto message = ov::threading::message_manager();
+
     size_t requests_num = requests.size();
     size_t requests_count = 0;
     // std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
 
     if (requests.size() > 0) {
-        for (const auto& input : inputs) {
-            auto tensor = m_asyncRequest->get_tensor(input);
-            input_tensors.insert({input, tensor});
-        }
         for (const auto& output : outputs) {
             auto tensor = requests[0]->get_tensor(output);
-            m_asyncRequest->set_tensor(output, tensor);
+            set_tensor(output, tensor);
         }
         for (size_t i = 0; i < requests_num; i++) {
-            for (auto& input : input_tensors) {
-                requests[i]->set_tensor(input.first, input.second);
+            for (auto& input : inputs) {
+                auto tensor = m_asyncRequest->get_tensor(input);
+                requests[i]->set_tensor(input, tensor);
             }
 
             requests[i]->set_callback([i, requests, message](const std::exception_ptr& ptr) {

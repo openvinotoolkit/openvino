@@ -19,6 +19,7 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "cpu_message.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
@@ -56,7 +57,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
-    ov::threading::IStreamsExecutor::Ptr stream_executor = nullptr;
     IStreamsExecutor::Config executor_confg;
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
@@ -70,12 +70,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                       false,
                                                       true};
         } else {
-            executor_confg = m_cfg.subStreamExecConfig.get_name() != "StreamExecutor"
+            executor_confg = m_cfg.subStreamExecConfig.get_name() != "StreamsExecutor"
                                  ? std::move(m_cfg.subStreamExecConfig)
                                  : std::move(m_cfg.streamExecutorConfig);
         }
-        stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
-        m_task_executor = stream_executor;
+        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
@@ -120,12 +119,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::cout << "xxxxxxxxx: m_subCompileModel: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
     if (m_cfg.enableSubStreams) {
         m_cfg.enableSubStreams = false;
+        m_subCompileModel = true;
+        std::vector<std::shared_ptr<CompiledModel>> sub_models;
+        auto message = message_manager();
         for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
             auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
             std::vector<std::vector<int>> info_table;
             info_table.push_back(streams_info_table[i + 1]);
             info_table[0][NUMBER_OF_STREAMS] = 1;
-            auto streamExecutorConfig = IStreamsExecutor::Config{"CPUSubStreamsExecutor" + std::to_string(i),
+            auto streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                                  1,
                                                                  1,
                                                                  ov::hint::SchedulingCoreType::ANY_CORE,
@@ -134,8 +136,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                  info_table,
                                                                  m_cfg.streamsRankTable[i]};
             m_cfg.subStreamExecConfig = std::move(streamExecutorConfig);
-            m_sub_compilemodels.push_back(std::make_shared<CompiledModel>(model, plugin, m_cfg, loaded_from_cache));
+            sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, m_cfg, loaded_from_cache));
         }
+        message->setSubCompileModels(sub_models);
     }
     // init sub stream threads of executor
     // int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
@@ -202,12 +205,15 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
                                             get_callback_executor());
-    if (m_sub_compilemodels.size() > 0) {
+    if (m_subCompileModel) {
+        auto message = message_manager();
+        auto sub_models = message->getSubCompileModels();
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
-        for (int i = 0; i < m_sub_compilemodels.size(); i++) {
-            requests.push_back(m_sub_compilemodels[i]->create_infer_request());
+        for (int i = 0; i < sub_models.size(); i++) {
+            requests.push_back(sub_models[i]->create_infer_request());
         }
-        async_infer_request->setSubInferRequest(requests);
+        message->setSubInferRequest(requests);
+        async_infer_request->setSubInfer(true);
     }
     return async_infer_request;
 }
