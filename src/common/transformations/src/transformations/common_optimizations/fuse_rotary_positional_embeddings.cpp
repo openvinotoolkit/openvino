@@ -498,9 +498,9 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
-    auto qkv_linear = makePattern("f32[?,?,?]");  //  f32[seq_length, batch_size, 4608]
+    auto qkv_linear = makePattern("[?,?,?]");  //  f32[seq_length, batch_size, 4608]
     auto seq_length = makePattern("i32[1]");
-    auto cos_sin_cache = makePattern("f32[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
+    auto cos_sin_cache = makePattern("[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
 
     auto ndims = ov::gen_pattern::Symbol("ndims");
     auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
