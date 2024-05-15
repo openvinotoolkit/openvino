@@ -278,7 +278,8 @@ void reorder_inst::update_output_memory() {
 
     // Do not update output memory when reorder is optimized out
     // but input memory is not allocated yet because input is dynamic.
-    if (!input_memory_ptr())
+    // Since dep's _outputs may be empty, Check whether input memory is null by dep's outputs_allocated()
+    if (!dependencies().front().first->outputs_allocated())
         return;
 
     if (requires_reinterpret()) {
