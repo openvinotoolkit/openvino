@@ -407,8 +407,7 @@ TEST_F(TransformationTestsF, SingleAbsOnShape) {
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
         auto shape_op = std::make_shared<opset7::ShapeOf>(data);
-        auto gather = gatherv8(shape_op, {0});
-        auto abs = std::make_shared<opset7::Abs>(gather);
+        auto abs = std::make_shared<opset7::Abs>(shape_op);
 
         model = std::make_shared<Model>(NodeVector{abs}, ParameterVector{data});
         manager.register_pass<pass::AbsSinking>();
@@ -416,9 +415,8 @@ TEST_F(TransformationTestsF, SingleAbsOnShape) {
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
         auto shape_op = std::make_shared<opset7::ShapeOf>(data);
-        auto gather = gatherv8(shape_op, {0});
 
-        model_ref = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{shape_op}, ParameterVector{data});
     }
 }
 

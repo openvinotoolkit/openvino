@@ -21,7 +21,8 @@ bool has_non_negative_bounds_on_data(const Node* const op) {
     const auto& lb = op->get_input_tensor(0).get_lower_value();
     const auto& ub = op->get_input_tensor(0).get_upper_value();
 
-    return lb && ub && ov::util::all(ov::util::ge(lb, 0)) && ov::util::all(ov::util::ge(ub, 0));
+    return lb && ub && ov::util::reduce_and(ov::util::greater_equal(lb, 0)) &&
+           ov::util::reduce_and(ov::util::greater_equal(ub, 0));
 }
 }  // namespace
 

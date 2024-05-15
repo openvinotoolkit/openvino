@@ -7,7 +7,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 
-ov::Tensor ov::util::ge(const ov::Tensor& lhs, const ov::Tensor& rhs) {
+ov::Tensor ov::util::greater_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     if (!lhs || !rhs)
         return {};
     Tensor result(element::boolean, {});
@@ -18,21 +18,14 @@ ov::Tensor ov::util::ge(const ov::Tensor& lhs, const ov::Tensor& rhs) {
         return {};
 }
 
-bool ov::util::all(const ov::Tensor& t) {
+bool ov::util::reduce_and(const ov::Tensor& t) {
     if (!t)
         return false;
 
-    Tensor result(element::boolean, {});
-    TensorVector outputs = {result};
-
-    auto axes_vector = std::vector<int64_t>(t.get_shape().size());
-    std::iota(axes_vector.begin(), axes_vector.end(), 0);
-    auto axes = make_tensor_of_value(element::i64, Shape(axes_vector.size()), axes_vector);
-
+    auto outputs = TensorVector{{element::boolean, Shape{}}};
+    auto axes = Tensor(element::i64, Shape{t.get_shape().size()});
+    std::iota(axes.data<int64_t>(), axes.data<int64_t>() + t.get_shape().size(), 0);
     if (!ov::op::v1::ReduceLogicalAnd().evaluate(outputs, {t, axes}))
         return false;
-    auto result_as_vector = to_vector<bool>(result);
-    if (result_as_vector.size() != 1)
-        return false;
-    return result_as_vector[0];
+    return outputs[0].data<char>();
 }

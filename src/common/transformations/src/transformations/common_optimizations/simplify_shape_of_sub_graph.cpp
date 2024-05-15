@@ -165,7 +165,7 @@ pass::AbsSinking::AbsSinking() {
         }
         for (const auto& abs : abs_ops) {
             auto bounds = ov::evaluate_both_bounds(abs->input_value(0));
-            if (ov::util::all(ov::util::ge(bounds.first, 0))) {
+            if (ov::util::reduce_and(ov::util::greater_equal(bounds.first, 0))) {
                 replace_output_update_name(abs->output(0), abs->input_value(0));
                 graph_got_changed = true;
             }

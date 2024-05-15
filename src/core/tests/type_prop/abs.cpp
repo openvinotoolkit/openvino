@@ -15,15 +15,16 @@ using Type = ::testing::Types<ov::op::v0::Abs>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_abs, UnaryOperator, Type);
 
-struct bound {
+struct Bound {
     int64_t lower, upper, expected_lower, expected_upper;
     std::shared_ptr<ov::Symbol> in_symbol;
 };
 
-using AbsTestParams = std::vector<bound>;
+using AbsTestParams = std::vector<Bound>;
 
-class AbsTest : public testing::TestWithParam<AbsTestParams> {};
+class TypePropAbsV0Test : public testing::TestWithParam<AbsTestParams> {};
 
+namespace {
 std::shared_ptr<ov::Node> construct_graph_with_partial_value(const AbsTestParams& params) {
     auto shape = std::vector<ov::Dimension>();
     auto subtrahend = std::vector<int64_t>();
@@ -45,9 +46,10 @@ std::shared_ptr<ov::Node> construct_graph_with_partial_value(const AbsTestParams
         ov::op::v0::Constant::create(element::i64, ov::Shape{subtrahend.size()}, subtrahend));
     return subtract;
 }
+}  // namespace
 
-TEST_P(AbsTest, type_prop_abs) {
-    std::vector<bound> data = GetParam();
+TEST_P(TypePropAbsV0Test, type_prop_abs) {
+    const auto& data = GetParam();
 
     auto abs = std::make_shared<ov::op::v0::Abs>(construct_graph_with_partial_value(data));
     ov::TensorSymbol symbols;
@@ -71,7 +73,7 @@ TEST_P(AbsTest, type_prop_abs) {
 }
 
 INSTANTIATE_TEST_SUITE_P(type_prop_abs,
-                         AbsTest,
+                         TypePropAbsV0Test,
                          testing::ValuesIn(std::vector<AbsTestParams>{{
                              //    lower, upper
                              // negative, negative (equal)

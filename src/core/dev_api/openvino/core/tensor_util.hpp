@@ -5,42 +5,40 @@
 #pragma once
 
 #include "openvino/op/constant.hpp"
+#include "ov_optional.hpp"
 
 namespace ov {
 namespace util {
 
-OPENVINO_API Tensor ge(const ov::Tensor& lhs, const ov::Tensor& rhs);
+OPENVINO_API Tensor greater_equal(const ov::Tensor& lhs, const ov::Tensor& rhs);
 template <typename T>
-OPENVINO_API Tensor ge(const ov::Tensor& lhs, const T& element);
-OPENVINO_API bool all(const ov::Tensor& t);
+OPENVINO_API Tensor greater_equal(const ov::Tensor& lhs, const T& element);
+OPENVINO_API bool reduce_and(const ov::Tensor& t);
 template <typename T>
-OPENVINO_API std::vector<T> to_vector(const ov::Tensor& t);
+OPENVINO_API ov::optional<std::vector<T>> to_vector(const ov::Tensor& t);
 
 template <typename T>
-Tensor make_tensor_of_value(const element::Type_t& et, const T& value) {
-    auto c = op::v0::Constant(et, Shape{}, value);
-    auto t = Tensor(et, Shape{});
-    std::memcpy(t.data(), c.get_data_ptr(), t.get_byte_size());
-    return t;
-}
-
-template <typename T>
-Tensor make_tensor_of_value(const element::Type_t& et, const Shape& shape, const std::vector<T>& value) {
+Tensor make_tensor_of_value(const element::Type_t& et, const T& value, Shape shape = {}) {
     auto c = op::v0::Constant(et, shape, value);
-    auto t = Tensor(et, Shape{});
+    auto t = Tensor(et, shape);
     std::memcpy(t.data(), c.get_data_ptr(), t.get_byte_size());
     return t;
 }
 
 template <typename T>
-Tensor ge(const ov::Tensor& lhs, const T& element) {
+Tensor greater_equal(const ov::Tensor& lhs, const T& element) {
+    if (!lhs)
+        return {};
     const auto& other = make_tensor_of_value(lhs.get_element_type(), element);
-    return ge(lhs, other);
+    return greater_equal(lhs, other);
 }
 
 template <typename T>
-std::vector<T> to_vector(const ov::Tensor& t) {
-    return t ? ov::op::v0::Constant(t).cast_vector<T>() : std::vector<T>{};
+ov::optional<std::vector<T>> to_vector(const ov::Tensor& t) {
+    ov::optional<std::vector<T>> result;
+    if (t)
+        result = ov::op::v0::Constant(t).cast_vector<T>();
+    return result;
 }
 }  // namespace util
 }  // namespace ov
