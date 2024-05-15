@@ -342,7 +342,7 @@ void primitive_inst::update_shape() {
         }
     }
 
-    // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
+    // Even though the predecessors' shapes are not changed, the output shape might be updated by the mem_dep
     auto memory_deps = _node->get_const_memory_deps();
     for (auto& i : _node->get_shape_infer_dependencies()) {
         if (memory_deps.count(i) > 0) {
