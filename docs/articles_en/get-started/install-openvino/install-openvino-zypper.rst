@@ -48,22 +48,15 @@ Install OpenVINO™ Runtime on Linux From ZYPPER Repository
 Install OpenVINO Runtime
 ########################
 
-Step 1: Set Up the Repository
+Step 1: Update the repository
 +++++++++++++++++++++++++++++
 
 
-1. Create a ZYPPER repository file with the command below:
+1. Update the official factory repository to obtain the latest release with the command below:
 
    .. code-block:: sh
 
-      sudo zypper addrepo https://download.opensuse.org/repositories/science/openSUSE_Tumbleweed/science.repo
       sudo zypper refresh
-
-2. Verify that the new repository is set up properly.
-
-   .. code-block:: sh
-
-      zypper lr |grep -i science
 
    You will see the available list of packages.
 
