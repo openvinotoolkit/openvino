@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <pyopenvino/graph/op.hpp>
+#include "openvino/op/op.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "openvino/op/op.hpp"
+#include <pyopenvino/graph/op.hpp>
+
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 
@@ -49,6 +50,5 @@ public:
 };
 
 void regclass_graph_Op(py::module m) {
-    py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node>(m, "PyOp")
-        .def(py::init<>());
+    py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node>(m, "PyOp").def(py::init<>());
 }
