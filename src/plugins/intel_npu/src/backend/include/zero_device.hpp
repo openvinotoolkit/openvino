@@ -31,6 +31,7 @@ public:
     uint64_t getTotalMemSize() const override;
     ov::device::PCIInfo getPciInfo() const override;
     std::map<ov::element::Type, float> getGops() const override;
+    ov::device::Type getDeviceType() const override;
 
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const std::shared_ptr<IExecutor>& executor,

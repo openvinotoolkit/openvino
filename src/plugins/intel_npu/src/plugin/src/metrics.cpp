@@ -175,4 +175,13 @@ std::map<ov::element::Type, float> Metrics::GetGops(const std::string& specified
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
+ov::device::Type Metrics::GetDeviceType(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device != nullptr) {
+        return device->getDeviceType();
+    }
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
 }  // namespace intel_npu
