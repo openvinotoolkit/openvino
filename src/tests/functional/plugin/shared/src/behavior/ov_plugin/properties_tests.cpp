@@ -83,11 +83,7 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     std::string::size_type pos = temp_device.find(":", 0);
     if (pos != std::string::npos) {
         target_device = temp_device.substr(0, pos);
-        for (auto& it : compileModelProperties) {
-            OPENVINO_ASSERT(it.first == ov::device::priorities.name(),
-                            "there is already ov::device::priorities() in compileModelProperties");
-        }
-        compileModelProperties.insert(ov::device::priorities(temp_device.substr(++pos, std::string::npos)));
+        compileModelProperties = {ov::device::priorities(temp_device.substr(++pos, std::string::npos))};
     } else {
         target_device = temp_device;
     }
