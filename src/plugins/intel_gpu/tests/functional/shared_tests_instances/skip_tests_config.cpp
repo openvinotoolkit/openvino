@@ -204,7 +204,6 @@ std::vector<std::string> disabledTestPatterns() {
 
             // TODO: Add RoPE support for Llama2, Qwen7b, GPTJ models
             R"(.*(RoPEGPUTestLlama2).*)",
-            R"(.*(RoPEGPUTestChatGLM).*)",
             R"(.*(RoPEGPUTestQwen7b).*)",
             R"(.*(RoPEGPUTestGPTJ).*)",
 #if defined(_WIN32)
