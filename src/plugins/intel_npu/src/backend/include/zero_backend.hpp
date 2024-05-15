@@ -24,6 +24,8 @@ public:
     uint32_t getDriverVersion() const override;
     uint32_t getDriverExtVersion() const override;
 
+    bool isBatchingSupported() const override;
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _instance;
 

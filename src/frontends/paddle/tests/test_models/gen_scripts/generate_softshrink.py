@@ -30,7 +30,7 @@ def softshrink(name: str, x, threshold):
     saveModel(
         name,
         exe,
-        feedkeys=["x"],
+        feed_vars=[node_x],
         fetchlist=[out],
         inputs=[x],
         outputs=[outs[0]],

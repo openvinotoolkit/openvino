@@ -24,7 +24,7 @@ layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node, 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
 
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     const size_t spatial_num = format::spatial_num(input_format);
 
@@ -92,7 +92,7 @@ std::vector<layout> batch_to_space_inst::calc_output_layouts(batch_to_space_node
 
     auto output_type = desc->output_data_types[0].value_or(input0_layout.data_type);
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     if (desc->shape_constant == 0 && (!constant_mem.count(1) || !constant_mem.count(2) || !constant_mem.count(3))) {
         auto out_shape = ov::PartialShape::dynamic(input0_size);
