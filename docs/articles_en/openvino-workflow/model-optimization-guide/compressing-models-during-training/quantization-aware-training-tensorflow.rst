@@ -1,11 +1,10 @@
-Quantization-aware Training (QAT) with tensorFlow 2
+Quantization-aware Training (QAT) with TensorFlow
 ===================================================
 
-Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with
-PyTorch or TensorFlow 2:
+Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with TensorFlow:
 
 .. note::
-   Currently, NNCF for TensorFlow 2 supports optimization of the models created using Keras
+   Currently, NNCF for TensorFlow supports optimization of the models created using Keras
    `Sequential API <https://www.tensorflow.org/guide/keras/sequential_model>`__ or
    `Functional API <https://www.tensorflow.org/guide/keras/functional>`__.
 
@@ -14,7 +13,7 @@ PyTorch or TensorFlow 2:
 
 In this step, you add NNCF-related imports in the beginning of the training script:
 
-.. tab:: TensorFlow 2
+.. tab:: TensorFlow
 
    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
       :language: python
@@ -27,7 +26,7 @@ Here, you should define NNCF configuration which consists of model-related param
 of optimization methods (``"compression"`` section). For faster convergence, it is also recommended to register a dataset object
 specific to the DL framework. It will be used at the model creation step to initialize quantization parameters.
 
-.. tab:: TensorFlow 2
+.. tab:: TensorFlow
 
    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
       :language: python
@@ -44,7 +43,7 @@ undergoes a set of corresponding transformations and can contain additional oper
 the case of QAT, the compression controller object is used for model export and, optionally, in distributed training as it
 will be shown below.
 
-.. tab:: TensorFlow 2
+.. tab:: TensorFlow
 
    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
       :language: python
@@ -58,7 +57,7 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle,
 you can skip this step which means that the post-training optimization will be applied to the model.
 
-.. tab:: TensorFlow 2
+.. tab:: TensorFlow
 
    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
       :language: python
@@ -70,7 +69,7 @@ you can skip this step which means that the post-training optimization will be a
 In the case of distributed multi-GPU training (not DataParallel), you should call ``compression_ctrl.distributed()`` before
 the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
 
-.. tab:: TensorFlow 2
+.. tab:: TensorFlow
 
    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
       :language: python
@@ -90,7 +89,7 @@ checkpoints during the training. Since NNCF wraps the original model with its ow
 
 To save model checkpoint use the following API:
 
-.. tab:: TensorFlow 2
+.. tab:: TensorFlow
 
    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
       :language: python
@@ -102,7 +101,7 @@ To save model checkpoint use the following API:
 
 To restore the model from checkpoint you should use the following API:
 
-.. tab:: TensorFlow 2
+.. tab:: TensorFlow
 
    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
       :language: python
