@@ -230,6 +230,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<PERFORMANCE_HINT>();
           }}},
+        {ov::hint::execution_mode.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<EXECUTION_MODE_HINT>();
+          }}},
         {ov::hint::num_requests.name(),
          {true,
           ov::PropertyMutability::RW,
@@ -562,7 +568,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+    if (!localConfig.has<STEPPING>() && device != nullptr &&
+        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -572,7 +579,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+    if (!localConfig.has<MAX_TILES>() && device != nullptr &&
+        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
