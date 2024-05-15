@@ -425,7 +425,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
-    bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
@@ -1774,7 +1774,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     auto output_layout = node.get_output_layout();
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
-    bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
 
     if (allow_new_shape_infer) {
         // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
@@ -2131,9 +2131,6 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
     switch (attribute) {
         case optimization_attributes_type::group_convolution:
             _optimization_attributes.group_convolution = val;
-            break;
-        case optimization_attributes_type::deformable_convolution:
-            _optimization_attributes.deformable_convolution = val;
             break;
         case optimization_attributes_type::bfyx_only_layer:
             _optimization_attributes.bfyx_only_layer = val;
