@@ -26,7 +26,7 @@ void TokenizeMHASnippetsTests::run() {
     ASSERT_TRUE(model);
     manager.register_pass<ov::snippets::pass::ExtractReshapesFromMHA>();
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
-    manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>();
+    manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>(config);
     manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
     disable_rt_info_check();
 }
@@ -94,7 +94,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM) {
                                       false);
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 24;
+    config.set_concurrency(24);
     run();
 }
 
@@ -105,7 +105,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM_withMul) {
                                       true);
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 16;
+    config.set_concurrency(16);
     run();
 }
 
@@ -116,7 +116,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM) {
                                       false);
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 60;
+    config.set_concurrency(60);
     run();
 }
 
@@ -127,7 +127,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM_withMul) {
                                       true);
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 60;
+    config.set_concurrency(60);
     run();
 }
 
@@ -137,7 +137,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHAWOTranspose_SplitM) {
                                                  std::vector<Shape>{{10, 3, 3072, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 18;
+    config.set_concurrency(18);
     run();
 }
 
@@ -147,7 +147,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM_AlmostAllThreads) {
                                                  std::vector<Shape>{{5, 10, 3, 32}, {5, 1, 32, 30}, {5, 1, 30, 32}, {5, 30, 32}});
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 32;
+    config.set_concurrency(32);
     run();
 }
 
@@ -157,7 +157,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
                                                                {8, 1, 64, 512}, {8, 512, 512}});
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 16;
+    config.set_concurrency(16);
     run();
 }
 

@@ -4,6 +4,7 @@
 
 #include <common_test_utils/ov_test_utils.hpp>
 #include "lowering_utils.hpp"
+#include "utils.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -129,8 +130,9 @@ std::shared_ptr<ov::snippets::op::Subgraph>
 std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getTokenizedSubgraph(const std::shared_ptr<Model> &f) {
     // Perform tokenization
     ov::pass::Manager m;
+    ov::snippets::pass::SnippetsTokenization::Config config = get_default_tokenization_config();
     m.register_pass<ov::snippets::pass::EnumerateNodes>();
-    m.register_pass<ov::snippets::pass::TokenizeSnippets>();
+    m.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
     m.run_passes(f);
     // Perform lowering
     return getSubgraph(f);

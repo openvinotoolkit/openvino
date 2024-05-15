@@ -66,11 +66,42 @@ public:
      * @ingroup snippets
      */
     struct Config {
-        Config(size_t concurrency = 1, bool split_m_dimension = true, bool enable_transpose_on_output = true, std::set<size_t> mha_transpose_ranks = {3, 4})
-            : concurrency(concurrency), split_m_dimension(split_m_dimension),
-              mha_token_enable_transpose_on_output(enable_transpose_on_output), mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {}
+        Config(size_t concurrency, size_t data_ptr_gpr_count, bool split_m_dimension, bool enable_transpose_on_output, std::set<size_t> mha_transpose_ranks)
+            : concurrency(concurrency), data_ptr_gpr_count(data_ptr_gpr_count), split_m_dimension(split_m_dimension),
+              mha_token_enable_transpose_on_output(enable_transpose_on_output), mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {
+            OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
+            OPENVINO_ASSERT(data_ptr_gpr_count > 0, "data_ptr_gpr_count should be greater than 0");
+        }
 
-        size_t concurrency = 1;
+        void set_concurrency(size_t concur) {
+            concurrency = concur;
+        }
+
+        size_t get_concurrency() const {
+            return concurrency;
+        }
+
+        size_t get_data_ptr_gpr_count() const {
+            return data_ptr_gpr_count;
+        }
+
+        bool get_split_m_dimension() const {
+            return split_m_dimension;
+        }
+
+        bool get_mha_token_enable_transpose_on_output() const {
+            return mha_token_enable_transpose_on_output;
+        }
+
+        std::set<size_t> get_mha_supported_transpose_ranks() const {
+            return mha_supported_transpose_ranks;
+        }
+
+    private:
+        size_t concurrency = 0;
+        // The number of gpr that can be used as data pointers for data nodes (Parameter (and non-Scalar Constants),
+        // Result, Buffers with the same ID)
+        size_t data_ptr_gpr_count = 0;
         // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
         bool split_m_dimension = true;
         // False if Transpose on output isn't tokenized in MHA Tokenization.
@@ -88,7 +119,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
-    Config m_config{};
+    Config m_config;
 };
 
 

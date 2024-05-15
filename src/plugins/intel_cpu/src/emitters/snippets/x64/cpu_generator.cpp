@@ -21,7 +21,7 @@
 
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
-#include "transformations/snippets/x64/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
@@ -295,6 +295,10 @@ size_t intel_cpu::CPUTargetMachine::get_lanes() const {
         case dnnl::impl::cpu::x64::avx512_core : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
         default : OPENVINO_THROW("unknown isa ", isa);
     }
+}
+
+size_t intel_cpu::CPUTargetMachine::get_reg_count() const {
+    return 16;
 }
 
 dnnl::impl::cpu::x64::cpu_isa_t intel_cpu::CPUTargetMachine::get_isa() const {

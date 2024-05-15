@@ -14,7 +14,8 @@ endif()
 
 if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
-      ${CMAKE_CURRENT_SOURCE_DIR}/transformations/arm)
+      ${CMAKE_CURRENT_SOURCE_DIR}/transformations/arm
+      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/arm)
 endif()
 
 if(NOT X86_64)
@@ -22,7 +23,7 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
-      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
+      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp)
 endif()
