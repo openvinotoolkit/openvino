@@ -56,7 +56,7 @@ private:
 };
 
 void regclass_graph_Op(py::module m) {
-    py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node>(m, "PyOp").def(
+    py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node>(m, "Op").def(
         py::init([](const py::object& py_obj) {
             return PyOp(py_obj);
         }));
