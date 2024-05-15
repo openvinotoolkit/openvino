@@ -116,6 +116,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Slice", Type::StridedSlice},
         {"Tile", Type::Tile},
         {"ROIAlign", Type::ROIAlign},
+        {"ROIAlignRotated", Type::ROIAlignRotated},
         {"ROIPooling", Type::ROIPooling},
         {"PSROIPooling", Type::PSROIPooling},
         {"DeformablePSROIPooling", Type::PSROIPooling},
@@ -280,6 +281,7 @@ std::string NameFromType(const Type type) {
         CASE(NonZero);
         CASE(Tile);
         CASE(ROIAlign);
+        CASE(ROIAlignRotated);
         CASE(ROIPooling);
         CASE(PSROIPooling);
         CASE(DepthToSpace);
