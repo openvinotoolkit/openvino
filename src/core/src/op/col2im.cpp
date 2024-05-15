@@ -100,11 +100,36 @@ struct Evaluate : element::NoAction<bool> {
         return true;
     }
 };
+//    template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
+//    static result_type visit(const Tensor& in,
+//                             const Shape& in_shape,
+//                             const Tensor& output_size,
+//                             const Tensor& kernel_size,
+//                             Tensor& out,
+//                             const Strides& strides,
+//                             const Strides& dilations,
+//                             const Shape& pads_begin,
+//                             const Shape& pads_end) {
+//        reference::col2im(in.data<const T>(),
+//                          in_shape,
+//                          output_size.data<const T>(),
+//                          kernel_size.data<const T>(),
+//                          out.data<T>(),
+//                          strides,
+//                          dilations,
+//                          pads_begin,
+//                          pads_end);
+//        return true;
+//    }
+//};
 }  // namespace col2im
 
 bool Col2Im::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v15_Col2Im_evaluate);
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this), make_tensor_accessor(inputs)).front().to_shape();
+    const auto output_shape =
+        shape_infer(this, ov::util::get_node_input_partial_shapes(*this), make_tensor_accessor(inputs))
+            .front()
+            .to_shape();
 
     outputs.front().set_shape(output_shape);
     using namespace ov::element;
