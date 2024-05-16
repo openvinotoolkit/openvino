@@ -14,25 +14,15 @@ PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) :
 }
 
 void PagedAttentionExtension::validate_and_infer_types() {
-    auto value_cache_shape = get_input_partial_shape(4);
+    // const auto& value_cache_shape = get_input_partial_shape(4);
     // m_num_kv_heads = value_cache_shape[1];
     // m_head_size = value_cache_shape[2];
     // m_block_size = value_cache_shape[3];
-    NODE_VALIDATION_CHECK(this, value_cache_shape.size() == 4, "Value cache shape must be 4 dims");
-
-    // key_cache: shape [num_blocks, num_kv_heads, head_size/x, block_size, x]
-    auto key_cache_shape = get_input_partial_shape(3);
-    NODE_VALIDATION_CHECK(this,
-                          value_cache_shape.size() == 4,
-                          // value_cache_shape[0] == key_cache_shape[0] && // num_blocks
-                          // key_cache_shape[1] == m_num_kv_heads &&
-                          // key_cache_shape[2] * key_cache_shape[4] == m_head_size &&
-                          // m_block_size == key_cache_shape[3], // block_size,
-                          "Key cache shape must be 4 dims");
+    // Do not check shapes for cache K and cache V inputs, because they are hardware dependent
 
     // query: shape [batch_size, seq_len, num_heads * head_size]
-    auto query_type = get_input_element_type(0);
-    auto query_shape = get_input_partial_shape(0);
+    const auto& query_type = get_input_element_type(0);
+    const auto& query_shape = get_input_partial_shape(0);
     NODE_VALIDATION_CHECK(this,
                           // query_type.is_real() &&
                           query_shape.size() == 3,
@@ -44,8 +34,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           query_shape);
 
     // key: shape [batch_size, seq_len, num_kv_heads * head_size]
-    auto key_type = get_input_element_type(1);
-    auto key_shape = get_input_partial_shape(1);
+    const auto& key_type = get_input_element_type(1);
+    const auto& key_shape = get_input_partial_shape(1);
     NODE_VALIDATION_CHECK(this,
                           // query_type == key_type &&
                           key_shape.size() == 3,
@@ -57,7 +47,6 @@ void PagedAttentionExtension::validate_and_infer_types() {
 
     // value: shape [batch_size, seq_len, num_kv_heads * head_size]
     // auto value_type = get_input_element_type(2);
-    auto value_shape = get_input_partial_shape(2);
 
     // is_prompt: boolean scalar
     NODE_VALIDATION_CHECK(this,
@@ -70,7 +59,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           get_input_shape(5));
 
     // slot_mapping: shape [batch_size, max_context_len]
-    auto slot_mapping_shape = get_input_partial_shape(6);
+    const auto& slot_mapping_shape = get_input_partial_shape(6);
     NODE_VALIDATION_CHECK(this,
                           // get_input_element_type(6) == ov::element::i64 &&
                           slot_mapping_shape.size() == 2,
@@ -91,7 +80,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           get_input_shape(7));
 
     // context_lens: shape [batch_size]
-    auto context_lens_shape = get_input_partial_shape(8);
+    const auto& context_lens_shape = get_input_partial_shape(8);
     NODE_VALIDATION_CHECK(this,
                           // get_input_element_type(8) == ov::element::i32 &&
                           context_lens_shape.size() == 1,
