@@ -75,13 +75,6 @@ void rms_norm(const T* in,
 }
 
 template <class T_IN, class T_OUT>
-void rms_norm_convert_out(const T_IN* in, const AxisSet& axes, T_OUT* out, const Shape& in_shape, double eps) {
-    std::vector<T_IN> tmp_out(shape_size(in_shape));
-    rms_norm(in, axes, tmp_out.data(), in_shape, eps);
-    convert(std::begin(tmp_out), out, tmp_out.size());
-}
-
-template <class T_IN, class T_OUT>
 void rms_norm_mul_convert_out(const T_IN* in,
                               const AxisSet& axes,
                               T_OUT* out,
