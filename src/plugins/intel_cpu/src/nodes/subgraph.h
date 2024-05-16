@@ -10,6 +10,11 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "snippets/op/subgraph.hpp"
 
+#if defined(OPENVINO_ARCH_ARM64)
+#include "cpu/aarch64/cpu_isa_traits.hpp"
+#else
+#include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 
 #include <array>
 

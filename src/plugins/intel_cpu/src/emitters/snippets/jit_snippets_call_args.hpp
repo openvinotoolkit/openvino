@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <cstddef>
 
-#include "oneapi/dnnl/dnnl_common_types.h"
 #include "dnnl_types.h"
 #include "openvino/core/visibility.hpp"
 

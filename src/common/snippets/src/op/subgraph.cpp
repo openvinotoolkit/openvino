@@ -440,7 +440,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
-     size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
+    size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
     if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
         lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
         m_linear_ir->set_loop_depth(loop_depth);
@@ -528,7 +528,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     OPENVINO_ASSERT(m_generator != nullptr, "generate is called while generator is not set");
 
     // actual code emission
-    // Note: to not damage the lowered linear IR for the shape-dependent passes, we have to make a copy
+    // Note: to not corrupt the lowered linear IR for the shape-dependent passes, we have to make a copy
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
     auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir);
 
