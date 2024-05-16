@@ -12,8 +12,9 @@
 namespace ov {
 namespace threading {
 
-MessageManage::MessageManage() {
-}
+MessageManage::MessageManage() {}
+
+MessageManage::~MessageManage() {}
 
 void MessageManage::send_message(MessageInfo msg_info) {
     {
@@ -118,7 +119,7 @@ void MessageManage::server_wait(int streams_num) {
                     }
                 }
             }
-            std::cout << "-------- server_wait end ---------\n";
+            // std::cout << "-------- server_wait end ---------\n";
         });
     }
 }
@@ -139,10 +140,6 @@ std::vector<std::shared_ptr<ov::IAsyncInferRequest>> MessageManage::getSubInferR
     return m_sub_infer_requests;
 }
 
-MessageManage::~MessageManage() {
-    std::cout << "~MessageManage\n";
-}
-
 void MessageManage::stop_server_thread() {
     MessageInfo msg_info;
     msg_info.msg_type = ov::threading::MsgType::QUIT;
@@ -150,9 +147,13 @@ void MessageManage::stop_server_thread() {
     if (_serverThread.joinable()) {
         _serverThread.join();
     }
+}
+
+void MessageManage::clear() {
     m_sub_infer_requests.clear();
     m_sub_compilemodels.clear();
 }
+
 namespace {
 
 class MessageManageHolder {

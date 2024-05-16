@@ -17,6 +17,7 @@ ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
     if (m_sub_infers) {
         auto message = ov::threading::message_manager();
         message->stop_server_thread();
+        message->clear();
     }
     stop_and_wait();
 }

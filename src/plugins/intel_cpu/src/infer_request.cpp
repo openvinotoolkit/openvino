@@ -110,14 +110,11 @@ void SyncInferRequest::infer() {
     auto graphLock = m_compiled_model->get_graph();
     m_graph = &(graphLock._graph);
     auto message = ov::threading::message_manager();
-    // auto streams_executor = m_graph->context->getCPUStreamExecutor();
 
     throw_if_canceled();
     // std::cout << "[ infer ] " << m_asyncRequest->m_sub_infers << "\n";
     if (m_asyncRequest->m_sub_infers) {
-        // auto message = ov::threading::message_manager();
-        auto requests = message->getSubInferRequest();//m_asyncRequest->getSubInferRequest();
-        message->server_wait(requests.size());
+        message->server_wait(message->getSubInferRequest().size());
         ov::threading::MessageInfo msg_info;
         msg_info.msg_type = ov::threading::MsgType::START_INFER;
         ov::threading::Task task = [&] {
@@ -333,9 +330,8 @@ void SyncInferRequest::change_default_ptr() {
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     if (m_asyncRequest->m_sub_infers) {
         auto message = ov::threading::message_manager();
-        auto requests = message->getSubInferRequest();
         std::vector<ov::SoPtr<ov::IVariableState>> states;
-        for (auto request : requests) {
+        for (auto request : message->getSubInferRequest()) {
             auto cur = request->query_state();
             states.insert(states.end(), cur.begin(), cur.end());
         }
@@ -659,7 +655,7 @@ void SyncInferRequest::sub_streams_infer() {
                 requests[i]->set_tensor(input, tensor);
             }
 
-            requests[i]->set_callback([i, requests, message](const std::exception_ptr& ptr) {
+            requests[i]->set_callback([i, message](const std::exception_ptr& ptr) {
                 // std::cout << "set_callback------ " << i << "\n";
                 ov::threading::MessageInfo msg_info;
                 msg_info.msg_type = ov::threading::MsgType::CALL_BACK;

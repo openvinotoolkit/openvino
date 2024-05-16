@@ -50,6 +50,8 @@ public:
 
     void stop_server_thread();
 
+    void clear();
+
     ~MessageManage();
 
     void setSubCompileModels(std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> models);
