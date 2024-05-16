@@ -645,7 +645,7 @@ LoRA <https://huggingface.co/latent-consistency/lcm-lora-sdxl>`__ to
 speedup the generation process. Previously, we already considered how to
 convert and run SDXL model for Text-to-Image and Image-to-Image
 generation using Optimum-Intel library (please check out this notebook
-for `details <stable-diffusion-xl-with-output.html>`__ ), now
+for `details <stable-diffusion-xl-with-output.html>`__), now
 we will use it in combination with ControlNet and convert it using
 OpenVINO Model Conversion API.
 
