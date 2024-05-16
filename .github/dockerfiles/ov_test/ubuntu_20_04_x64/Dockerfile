@@ -22,6 +22,7 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        libtbb2 \
         # Python
         python3.11-dev \
         python3.11-venv \
