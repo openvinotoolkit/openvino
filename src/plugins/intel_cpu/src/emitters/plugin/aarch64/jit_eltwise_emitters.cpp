@@ -862,42 +862,6 @@ void jit_softsign_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     h->fmul(dst.s, dst.s, src.s);
 }
 
-// SoftPlus
-
-jit_softplus_emitter::jit_softplus_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
-                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                           const std::shared_ptr<ov::Node>& node)
-                                           : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
-
-                                           jit_softplus_emitter::jit_softplus_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
-                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                           const ov::element::Type exec_prc)
-                                           : jit_emitter(host, host_isa, exec_prc) {}
-                                           size_t jit_softplus_emitter::get_inputs_count() const { return 1; }
-                                           size_t jit_softplus_emitter::get_aux_vecs_count() const { return 1; }
-                                           std::set<std::vector<element::Type>> jit_softplus_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& /*node*/) {
-                                               return {{element::f32}};
-                                           }
-                                           void jit_softplus_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-                                             if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
-                                                 emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
-                                             } else {
-                                                 OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
-                                             }
-                                         }
-                                          template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-                                           void jit_softplus_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
-                                             OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-                                             using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-                                             TReg src = TReg(in_vec_idxs[0]);
-                                             TReg dst = TReg(out_vec_idxs[0]);
-                                             TReg aux = TReg(aux_vec_idxs[0]);
-                                             h->movi(aux.s, 1);
-                                             h->fadd(dst.s, src.s, aux.s);
-                                             h->fdiv(dst.s, dst.s, aux.s);
-                                             h->fsub(dst.s, aux.s, dst.s);
-                                             h->fmul(dst.s, dst.s, src.s);
-                                           }
 
 
 /// SIGMOID ///
