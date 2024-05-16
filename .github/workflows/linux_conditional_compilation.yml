@@ -210,7 +210,7 @@ jobs:
 
           cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
           pushd ${INSTALL_TEST_DIR}
-            ls -la .
+            ls -la tests
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
               tests/ov_cpu_func_tests \
               tests/libopenvino_template_extension.so \
