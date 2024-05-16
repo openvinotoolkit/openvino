@@ -466,7 +466,10 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_im
     // i.e. predecessor node was supposed be increased already
     if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
         && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
-        GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id() << "  allocated: " << dep_memory(0).count() << "  required: " << updated_params.input_layouts[0].count() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
+            << "  allocated: " << dep_memory(0).count()
+            << "  required: " << updated_params.input_layouts[0].count()
+            << std::endl;
         updated_params = *_impl_params;
     }
     return updated_params;
