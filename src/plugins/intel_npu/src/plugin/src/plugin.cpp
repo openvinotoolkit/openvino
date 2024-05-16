@@ -368,7 +368,11 @@ Plugin::Plugin()
          {true,
           ov::PropertyMutability::RO,
           [&](const Config& config) {
-              return std::string("NPU" + config.get<DEVICE_ID>());
+              if (_metrics->GetAvailableDevicesNames().size() > 1) {
+                  return std::string("NPU." + config.get<DEVICE_ID>());
+              } else {
+                  return std::string("NPU");
+              }
           }}},
         // OV Internals
         // =========
