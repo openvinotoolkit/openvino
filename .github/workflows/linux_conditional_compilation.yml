@@ -65,8 +65,7 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_20_04_x64_cc
-            ov_test/ubuntu_20_04_x64
+            ov_build/ubuntu_22_04_x64_cc
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.Smart_CI.outputs.changed_components }}
@@ -79,7 +78,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64_cc }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_cc }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -255,7 +254,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64_cc }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_cc }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -335,7 +334,7 @@ jobs:
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_cc
