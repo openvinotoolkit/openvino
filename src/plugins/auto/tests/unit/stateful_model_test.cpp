@@ -158,8 +158,6 @@ void StatefulModelSupportedTest::SetUp() {
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                           (_)))
         .WillByDefault(InvokeWithoutArgs([this]() {
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(200));  // make sure GPU finishes compilation model first.
             return mockExeNetwork;
         }));
 
@@ -169,6 +167,8 @@ void StatefulModelSupportedTest::SetUp() {
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
                               (_)))
             .WillByDefault(InvokeWithoutArgs([this]() {
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(200));  // make sure GPU finishes compilation model first.
                 return mockExeNetworkActual;
             }));
     } else {
@@ -300,14 +300,14 @@ const std::vector<StatefulModelConfigParams> testConfigs = {
                               false,
                               true,
                               std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
-                              "GPU"},
+                              "(CPU)"},
     StatefulModelConfigParams{"GPU,CPU",
                               true,
                               false,
                               false,
                               true,
                               std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
-                              "GPU"},
+                              "(CPU)"},
     StatefulModelConfigParams{
         "GPU,CPU",
         false,
