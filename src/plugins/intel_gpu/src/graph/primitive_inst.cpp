@@ -462,6 +462,15 @@ void primitive_inst::update_shape() {
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
     auto updated_params = _node->type()->get_fake_aligned_params(orig_impl_param);
 
+    auto env = getenv("ORIG_FAKE_ALIGN");
+    static bool first = true;
+    if (env != nullptr) {
+        if (first)
+            std::cout << "ORIG_FAKE_ALIGN is on!" << std::endl;
+        first = false;
+        return updated_params;
+    }
+
     // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
     // i.e. predecessor node was supposed be increased already
     if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
