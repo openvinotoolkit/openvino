@@ -188,6 +188,11 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
                                     orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+        can_apply_fake_alignment = false;
+    }
+
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
         auto updated_param = orig_impl_param;
 
