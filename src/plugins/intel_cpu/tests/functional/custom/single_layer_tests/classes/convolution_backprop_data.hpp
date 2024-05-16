@@ -59,7 +59,7 @@ private:
 const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
-        fusingScaleShift
+        fusingAddPerChannel
 #endif
 };
 
@@ -80,8 +80,9 @@ const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
 const std::vector<std::vector<size_t>> dilations2d = {{1, 1}};
 
-const std::vector<std::vector<size_t>> deconvAmxKernels2d = {{3, 3}, {2, 2}};
-const std::vector<std::vector<size_t>> deconvAmxStrides2d = {{2, 2}};
+const std::vector<std::vector<size_t>> deconvBrgKernels2d = {{3, 3}, {2, 2}};
+const std::vector<std::vector<size_t>> deconvBrgKernels2d_1x1 = {{1, 1}};
+const std::vector<std::vector<size_t>> deconvBrgStrides2d = {{1, 1}};
 
 /* ============= Deconvolution params (3D) ============= */
 const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
@@ -90,8 +91,9 @@ const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};
 const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}};
 
-const std::vector<std::vector<size_t>> deconvAmxKernels3d = {{3, 3, 3}, {2, 2, 2}};
-const std::vector<std::vector<size_t>> deconvAmxStrides3d = {{2, 2, 2}};
+const std::vector<std::vector<size_t>> deconvBrgKernels3d = {{3, 3, 3}, {2, 2, 2}};
+const std::vector<std::vector<size_t>> deconvBrgKernels3d_1x1 = {{1, 1, 1}};
+const std::vector<std::vector<size_t>> deconvBrgStrides3d = {{1, 1, 1}};
 
 /* ============= */
 
