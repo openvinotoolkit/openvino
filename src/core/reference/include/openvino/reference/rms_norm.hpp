@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include "openvino/reference/add.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/reference/divide.hpp"
 #include "openvino/reference/multiply.hpp"
 #include "openvino/reference/power.hpp"
@@ -72,5 +73,26 @@ void rms_norm(const T* in,
     rms_norm(in, axes, out, in_shape, eps);
     multiply(out, scale, out, in_shape, scale_shape, op::AutoBroadcastType::NUMPY);
 }
+
+template <class T_IN, class T_OUT>
+void rms_norm_convert_out(const T_IN* in, const AxisSet& axes, T_OUT* out, const Shape& in_shape, double eps) {
+    std::vector<T_IN> tmp_out(shape_size(in_shape));
+    rms_norm(in, axes, tmp_out.data(), in_shape, eps);
+    convert(std::begin(tmp_out), out, tmp_out.size());
+}
+
+template <class T_IN, class T_OUT>
+void rms_norm_mul_convert_out(const T_IN* in,
+                              const AxisSet& axes,
+                              T_OUT* out,
+                              const Shape& in_shape,
+                              double eps,
+                              const Shape& scale_shape,
+                              const T_IN* scale) {
+    std::vector<T_IN> tmp_out(shape_size(in_shape));
+    rms_norm(in, axes, tmp_out.data(), in_shape, eps, scale_shape, scale);
+    convert(tmp_out.data(), out, tmp_out.size());
+}
+
 }  // namespace reference
 }  // namespace ov
