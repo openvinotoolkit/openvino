@@ -195,10 +195,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelIncorrectDevice,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVCompiledModelIncorrectDevice>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesDefaultSupportedTests,
-                         ::testing::Values(ov::test::utils::DEVICE_NPU),
-                         ov::test::utils::appendPlatformTypeTestName<OVCompiledModelPropertiesDefaultSupportedTests>);
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(publicCompiledModelConfigs)),

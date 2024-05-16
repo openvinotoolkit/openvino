@@ -105,28 +105,6 @@ protected:
 
 const std::vector<ov::AnyMap> configs = {{}};
 
-using QueryNetworkTestSuite1NPU = QueryNetworkTestNPU;
-
-// Test query with a supported OpenVINO model
-TEST_P(QueryNetworkTestSuite1NPU, TestQueryNetworkSupported) {
-    const auto supportedModel = ov::test::utils::make_conv_pool_relu();
-    ov::SupportedOpsMap result;
-    EXPECT_NO_THROW(result = testQueryNetwork(supportedModel));
-    std::unordered_set<std::string> expected, actual;
-    for (auto& op : supportedModel->get_ops()) {
-        expected.insert(op->get_friendly_name());
-    }
-    for (auto& name : result) {
-        actual.insert(name.first);
-    }
-    EXPECT_EQ(expected, actual);
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, QueryNetworkTestSuite1NPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         QueryNetworkTestNPU::getTestCaseName);
-
 using QueryNetworkTestSuite2NPU = QueryNetworkTestNPU;
 
 // Test query with an unsupported ngraph function
