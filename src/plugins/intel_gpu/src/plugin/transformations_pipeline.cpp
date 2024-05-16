@@ -58,7 +58,7 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
-#include "plugin/transformations/rms_fusion.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_matmul_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
@@ -734,7 +734,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConstantFolding>();
         }
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
-        manager.register_pass<ov::intel_gpu::RMSFusion>(device_info.max_work_group_size);
+        manager.register_pass<ov::pass::RMSFusion>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         if (!device_info.supports_immad) {
