@@ -20,7 +20,7 @@ from openvino.runtime.utils.types import get_dtype
 
 class Caller:
     def __init__(self, base):
-        self.base = base 
+        self.base = base
 
     def query_state(self):
         return self.base.query_state()

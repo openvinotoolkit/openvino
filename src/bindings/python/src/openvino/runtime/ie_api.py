@@ -255,7 +255,7 @@ class CompiledModel(CompiledModelBase):
 
     def reset_state(self) -> None:
         """Resets all internal variable states of the underlaying infer request.
-        
+
         Resets all internal variable states to a value specified as default for
         the corresponding `ReadValue` node.
         """
