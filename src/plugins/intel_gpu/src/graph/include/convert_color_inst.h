@@ -25,6 +25,8 @@ class typed_primitive_inst<convert_color> : public typed_primitive_inst_base<con
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(convert_color_node const& /* node */, const kernel_impl_params& impl_param);
     static layout calc_output_layout(convert_color_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convert_color_node const& node);
     typed_primitive_inst(network& network, convert_color_node const& desc);
