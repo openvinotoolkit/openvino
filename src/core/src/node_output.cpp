@@ -69,7 +69,8 @@ void Output<Node>::remove_target_input(const Input<Node>& target_input) const {
 
 void Output<Node>::replace(const Output<Node>& replacement) {
     for (auto& input : get_target_inputs()) {
-        input.replace_source_output(replacement);
+        if (input.get_node() != replacement.get_node())
+            input.replace_source_output(replacement);
     }
     replacement.get_tensor_ptr()->add_names(get_tensor_ptr()->get_names());
     OPENVINO_SUPPRESS_DEPRECATED_START
