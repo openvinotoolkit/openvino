@@ -26,7 +26,7 @@ void TSForwardBase::transpose_sinking(const std::string& pass_name,
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto main_node = pattern_to_output.at(m_pattern).get_node_shared_ptr();
         utils::TransposeInputsInfo transpose_input_info =
-            utils::GetFirstTransposeInput(main_node, m_const_transpose_input, m_tranpose_indices);
+            utils::GetFirstTransposeInput(main_node, m_transpose_indices, m_if_transpose_sinkable);
 
         if (transformation_callback(main_node)) {
             mark_as_no_sinking_node(transpose_input_info.transpose);
@@ -68,10 +68,12 @@ void TSForwardBase::default_outputs_update(const std::shared_ptr<Node>& main_nod
     }
 }
 
-bool TSForwardBase::if_node_has_transpose_inputs(const Output<Node>& output,
-                                                 bool const_transpose_input,
-                                                 const std::vector<size_t>& transpose_indices) {
+bool TSForwardBase::if_node_has_transpose_inputs(
+    const Output<Node>& output,
+    const std::vector<size_t>& transpose_indices,
+    const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                             const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>& if_transpose_sinkable) {
     utils::TransposeInputsInfo inputs_info =
-        utils::GetFirstTransposeInput(output.get_node_shared_ptr(), const_transpose_input, transpose_indices);
+        utils::GetFirstTransposeInput(output.get_node_shared_ptr(), transpose_indices, if_transpose_sinkable);
     return !inputs_info.isEmpty();
 }
