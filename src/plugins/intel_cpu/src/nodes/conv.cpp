@@ -650,6 +650,11 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 if (withSumBroadcast) {
                     break;
                 }
+                eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
+                if (DnnlExtensionUtils::DataTypeToElementType(outputDataType).size() != eltwisePrecision.size()) {
+                    eltwisePrecision = ov::element::f32;
+                    outputDataType = memory::data_type::f32;
+                }
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as sum post op");
                 ops.append_sum(1.0, 0, DnnlExtensionUtils::ElementTypeToDataType(eltwisePrecision));
             } else {
