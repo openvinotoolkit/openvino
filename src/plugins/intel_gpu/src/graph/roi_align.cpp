@@ -42,17 +42,20 @@ std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& no
     };
 
     std::vector<ShapeType> output_shapes;
+
+#define PERFORM_SHAPE_INFERENCE(ROI_ALIGN_CLASS_NAME) \
+    ROI_ALIGN_CLASS_NAME op;                          \
+    op.set_pooled_h(primitive->pooled_h);             \
+    op.set_pooled_w(primitive->pooled_w);             \
+    output_shapes = shape_infer(&op, input_shapes);
+
     if (primitive->roi_mode == roi_align::ROIMode::rotated) {
-        ov::op::v14::ROIAlignRotated op;
-        op.set_pooled_h(primitive->pooled_h);
-        op.set_pooled_w(primitive->pooled_w);
-        output_shapes = shape_infer(&op, input_shapes);
+        PERFORM_SHAPE_INFERENCE(ov::op::v14::ROIAlignRotated);
     } else {
-        ov::op::v3::ROIAlign op;
-        op.set_pooled_h(primitive->pooled_h);
-        op.set_pooled_w(primitive->pooled_w);
-        output_shapes = shape_infer(&op, input_shapes);
+        PERFORM_SHAPE_INFERENCE(ov::op::v3::ROIAlign);
     }
+
+#undef PERFORM_SHAPE_INFERENCE
 
     return { layout{output_shapes[0], input0_layout.data_type, input0_layout.format} };
 }
