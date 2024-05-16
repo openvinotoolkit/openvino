@@ -19,7 +19,7 @@
 namespace ov {
 
 /**
- * @brief This class limit the local env to a spicial value in sub-scope
+ * @brief This class limits the locale env to a special value in sub-scope
  *
  */
 class ScopedLocale {
