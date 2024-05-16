@@ -286,7 +286,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 }
 
 std::shared_ptr<snippets::TargetMachine> intel_cpu::CPUTargetMachine::clone() const {
-    return std::make_shared<intel_cpu::CPUTargetMachine>(isa, compiled_kernel_cache);
+    const auto cloned = std::make_shared<intel_cpu::CPUTargetMachine>(isa, compiled_kernel_cache);
+    cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+    return cloned;
 }
 
 size_t intel_cpu::CPUTargetMachine::get_lanes() const {

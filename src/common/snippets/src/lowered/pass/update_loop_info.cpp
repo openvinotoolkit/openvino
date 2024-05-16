@@ -66,7 +66,7 @@ bool UpdateLoopInfo::run(LinearIR& linear_ir) {
 
         expanded_loop_info->update_ptr_increments(ptr_increments);
         if (current_work_amount > 0) {
-            expanded_loop_info->update_finalization_offsets(0);
+            expanded_loop_info->update_finalization_offsets(std::vector<int64_t>(finalization_offsets.size(), 0));
         } else {
             expanded_loop_info->update_finalization_offsets(finalization_offsets);
         }

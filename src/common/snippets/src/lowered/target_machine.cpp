@@ -24,7 +24,7 @@ bool TargetMachine::has(const ov::DiscreteTypeInfo& type) const {
     return jitters.find(type) != jitters.end();
 }
 
-const std::shared_ptr<RuntimeConfig>& TargetMachine::update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
+const std::shared_ptr<RuntimeConfigurator>& TargetMachine::get_runtime_configurator() const {
     OPENVINO_ASSERT(configurator, "RuntimeConfigurator has not been inited!");
-    return configurator->get_updated_config(linear_ir);
+    return configurator;
 }

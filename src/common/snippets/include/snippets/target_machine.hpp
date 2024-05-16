@@ -26,7 +26,6 @@ using CompiledSnippetPtr = std::shared_ptr<CompiledSnippet>;
 typedef std::pair<std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)>,
         std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>> jitters_value;
 
-class RuntimeConfig;
 class RuntimeConfigurator;
 
 /**
@@ -82,10 +81,10 @@ public:
     virtual std::shared_ptr<TargetMachine> clone() const = 0;
 
     /**
-     * @brief updates config with runtime arguments using the current state of LinearIR
-     * @return shared pointer of config
+     * @brief gets runtime configurator
+     * @return shared pointer with runtime configurator
      */
-    const std::shared_ptr<RuntimeConfig>& update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    const std::shared_ptr<RuntimeConfigurator>& get_runtime_configurator() const;
 
 protected:
     std::map<const ov::DiscreteTypeInfo, jitters_value> jitters;

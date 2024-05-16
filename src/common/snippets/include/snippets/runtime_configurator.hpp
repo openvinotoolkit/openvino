@@ -38,6 +38,7 @@ public:
     size_t tensor_rank = 0;
     std::vector<ov::snippets::VectorDims> io_data_offsets = {};
     ov::snippets::VectorDims parallel_domain = {};
+    size_t buffer_scratchpad_size = 0;
 };
 
 /**
@@ -93,6 +94,11 @@ protected:
      * @param linear_ir LinearIR
      */
     virtual void update_parallel_domain(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    /**
+     * @brief Calculate buffer scratchpad size and update these values in CPURuntimeConfig
+     * @param linear_ir LinearIR
+     */
+    void update_buffer_scratchpad_size(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
     /**
      * @brief Update latest input shapes
      */

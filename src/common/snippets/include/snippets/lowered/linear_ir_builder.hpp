@@ -21,7 +21,7 @@ public:
 
         // If True, copy of stored pointer in `PortDescriptor::m_tensor_shape`.
         // If False, copy shapes as shared pointers.
-        bool deep_copy_of_shapes = true;
+        const bool deep_copy_of_shapes = true;
     };
 
     LinearIRBuilder(Config config = {}) : m_config(std::move(config)) {}

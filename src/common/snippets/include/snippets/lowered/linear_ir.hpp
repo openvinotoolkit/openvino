@@ -75,7 +75,10 @@ public:
     const container& get_ops() const { return m_expressions; }
     const io_container& get_IO_ops() const { return m_io_expressions; }
     const Config& get_config() const { return m_config; }
+    size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad_size; }
+
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
+    void set_buffer_scratchpad_size(size_t size) { m_buffer_scratchpad_size = size; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -130,7 +133,6 @@ public:
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
-    VectorDims get_parallel_domain() const;
 
     bool is_dynamic() const;
 
@@ -252,6 +254,8 @@ private:
     LoopManagerPtr m_loop_manager = nullptr;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
     bool m_is_dynamic = false;
+
+    size_t m_buffer_scratchpad_size = 0;
 };
 
 template<typename iterator>

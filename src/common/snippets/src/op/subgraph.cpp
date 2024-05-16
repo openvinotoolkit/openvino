@@ -20,6 +20,7 @@
 #include "snippets/pass/reduce_to_snippets_reduce.hpp"
 #include "snippets/pass/gn_decomposition.hpp"
 
+#include "snippets/runtime_configurator.hpp"
 #include "snippets/utils.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
@@ -424,12 +425,19 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     manager.run_passes(body_ptr());
 }
 
-void Subgraph::control_flow_transformations(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
-                                            const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) {
+void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
+                                            const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory,
+                                            const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
+                                            const std::vector<lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
+    OV_ITT_TASK_CHAIN(CONTROL_FLOW, ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations", "::convert_body_to_linear_ir")
+
+    convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, shape_infer_factory);
     OPENVINO_ASSERT(m_linear_ir, "LinearIR has not been inited for control flow transformations!");
+
+    OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
      size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
@@ -455,7 +463,7 @@ void Subgraph::control_flow_transformations(const std::shared_ptr<lowered::pass:
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
-    pipeline.register_pass<lowered::pass::AllocateBuffers>(buffer_scratchpad_size, m_linear_ir->get_config().m_are_buffers_optimized);
+    pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
     pipeline.register_pass<lowered::pass::Validate>(); // must be last
@@ -467,19 +475,23 @@ void Subgraph::control_flow_transformations(const std::shared_ptr<lowered::pass:
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
 #endif
-}
 
-void Subgraph::pre_generation_transformations() const {
-    INTERNAL_OP_SCOPE(Subgraph);
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::pre_generation_transformations")
+    OV_ITT_TASK_NEXT(CONTROL_FLOW, "::init_shape_infer_linear_ir")
 
-    OPENVINO_ASSERT(m_linear_ir, "LinearIR has not been inited for pre generation transformations!");
+    // After ControlFlow transformations we should to create LinearIR for ShapeInference - clone state of LinearIR before loop decomposition.
+    const auto& cloning_config = lowered::LinearIRBuilder::Config(false);
+    m_shape_infer_linear_ir = lowered::LinearIRBuilder(cloning_config).clone(m_linear_ir);
+    OPENVINO_ASSERT(m_shape_infer_linear_ir, "LinearIR has not been successfully cloned!");
+    m_shape_infer = m_shape_infer_linear_ir->get_shape_infer_instance();
+    OPENVINO_ASSERT(m_shape_infer, "ShapeInference based on ShapeInferenceLinearIR has not been successfully created!");
+
+    OV_ITT_TASK_NEXT(CONTROL_FLOW, "::pre_generation_pipeline")
 
     std::function<RegType(const ov::Output<Node>& out)> reg_type_mapper = [&](const ov::Output<Node>& out) -> RegType {
         return get_generator()->get_op_out_reg_type(out);
     };
 
-    lowered::pass::PassPipeline pipeline;
+    lowered::pass::PassPipeline gen_pipeline(lowered_pass_config);
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertSpecificIterations must be called after AssignRegisters since tail loop expressions must have the same
     //       assigned registers as the corresponding ops in the main body.
@@ -487,29 +499,13 @@ void Subgraph::pre_generation_transformations() const {
     //       (this might happen if tail loop and main loop have different increments)
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
-    pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
-    pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
-    pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
-    pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
-    pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
-    pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
-    pipeline.run(*m_linear_ir);
-}
-
-void Subgraph::lowering_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
-                                        const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory,
-                                        const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
-                                        const std::vector<lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) {
-    convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, shape_infer_factory);
-    control_flow_transformations(lowered_pass_config, lowered_backend_passes);
-
-    // After ControlFlow transformations we should to create LinearIR for ShapeInference - clone state of LinearIR before loop decomposition.
-    const auto& cloning_config = lowered::LinearIRBuilder::Config(false);
-    m_shape_infer_linear_ir = lowered::LinearIRBuilder(cloning_config).clone(m_linear_ir);
-    OPENVINO_ASSERT(m_shape_infer_linear_ir, "LinearIR has not been successfully cloned!");
-    m_shape_infer = m_shape_infer_linear_ir->get_shape_infer_instance();
-
-    pre_generation_transformations();
+    gen_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
+    gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
+    gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
+    gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
+    gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
+    gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
+    gen_pipeline.run(*m_linear_ir);
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
@@ -522,11 +518,11 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
                                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                                       const void* compile_params) {
     data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
-    lowering_transformations(min_parallel_work_amount, min_kernel_work_amount, factory, lowered_pass_config, lowered_backend_passes);
-    return generate_from_linear_ir(compile_params);
+    control_flow_transformations(min_parallel_work_amount, min_kernel_work_amount, factory, lowered_pass_config, lowered_backend_passes);
+    return generate(compile_params);
 }
 
-snippets::Schedule Subgraph::generate_from_linear_ir(const void* compile_params) const {
+snippets::Schedule Subgraph::generate(const void* compile_params) const {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     OPENVINO_ASSERT(m_generator != nullptr, "generate is called while generator is not set");
@@ -544,19 +540,15 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const void* compile_params)
         shape_dependent_pipeline.run(linear_ir);
     }
 
-    LoweringResult lowering_result;
-    lowering_result.buffer_scratchpad_size = buffer_scratchpad_size;
-    m_generator->generate(linear_ir, lowering_result, compile_params);
+    auto lowering_result = m_generator->generate(linear_ir, compile_params);
 
-    VectorDims parallel_exec_domain = linear_ir.get_parallel_domain();
-
-    return {parallel_exec_domain, std::move(lowering_result)};
+    return {std::move(lowering_result)};
 }
 
 const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
     OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
     OPENVINO_ASSERT(m_linear_ir, "LoweredLinearIR has not been inited!");
-    return m_generator->update_runtime_config(m_linear_ir);
+    return m_generator->get_target_machine()->get_runtime_configurator()->get_updated_config(m_linear_ir);
 }
 
 void Subgraph::print() const {

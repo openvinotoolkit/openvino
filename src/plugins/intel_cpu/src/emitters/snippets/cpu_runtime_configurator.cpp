@@ -32,7 +32,7 @@ void CPURuntimeConfigurator::update_loop_args(const std::shared_ptr<ov::snippets
     cpu_config->loop_args.resize(loop_map.size());
     for (const auto& loop : loop_map) {
         const auto& idx = loop.first;
-        const auto& loop_info = std::dynamic_pointer_cast<ov::snippets::lowered::ExpandedLoopInfo>(loop.second);
+        const auto& loop_info = ov::as_type_ptr<ov::snippets::lowered::ExpandedLoopInfo>(loop.second);
         OPENVINO_ASSERT(loop_info, "CPURuntimeConfigurator expects ExpandedLoopInfo in loop manager");
 
         const auto& increment = loop_info->get_increment();

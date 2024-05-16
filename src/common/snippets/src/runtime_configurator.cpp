@@ -36,6 +36,7 @@ void RuntimeConfigurator::update(const std::shared_ptr<lowered::LinearIR>& linea
 
     update_data_offsets();
     update_parallel_domain(linear_ir);
+    update_buffer_scratchpad_size(linear_ir);
 }
 
 void RuntimeConfigurator::initialization(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
@@ -145,9 +146,15 @@ void RuntimeConfigurator::update_data_offsets() const {
 }
 
 void RuntimeConfigurator::update_parallel_domain(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
-    const auto parallel_exec_domain = linear_ir->get_parallel_domain();
-    std::copy(parallel_exec_domain.cbegin(), parallel_exec_domain.cend(),
-              m_config->parallel_domain.begin() + (m_config->tensor_rank - parallel_exec_domain.size()));
+    const auto& tile_rank = linear_ir->get_config().m_loop_depth;
+    VectorDims master_shape = linear_ir->get_master_shape();
+    std::copy(master_shape.cbegin(), master_shape.cbegin() + (master_shape.size() - tile_rank),
+              m_config->parallel_domain.begin() + (m_config->tensor_rank - master_shape.size()));
+    std::fill(m_config->parallel_domain.rbegin(), m_config->parallel_domain.rbegin() + tile_rank, 1);
+}
+
+void RuntimeConfigurator::update_buffer_scratchpad_size(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
+    m_config->buffer_scratchpad_size = linear_ir->get_buffer_scratchpad_size();
 }
 
 void RuntimeConfigurator::update_latest_shapes() {

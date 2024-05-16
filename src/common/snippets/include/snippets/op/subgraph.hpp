@@ -11,13 +11,13 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/generator.hpp"
+#include "snippets/runtime_configurator.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/pass/manager.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/pass/positioned_pass.hpp"
 
-#include "snippets/generator.hpp"
 
 namespace ov {
 namespace snippets {
@@ -136,40 +136,33 @@ public:
                                    const std::vector<ov::element::Type>& output_precisions = {},
                                    const std::vector<snippets::pass::Manager::PositionedPassBase>& = {}) const;
 
+    void control_flow_transformations(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
+                                      const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>(),
+                                      const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
+
     std::shared_ptr<lowered::LinearIR>
     convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
                               const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
 
-    void lowering_transformations(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
-                                  const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>(),
-                                  const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
-                                  const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
-
-    Schedule generate_from_linear_ir(const void* compile_params = nullptr) const;
-
-    snippets::Schedule generate(const BlockedShapeVector& blocked_input_shapes = {},
-                                const std::vector<ov::element::Type>& input_precisions = {},
-                                const std::vector<ov::element::Type>& output_precisions = {},
-                                const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_passes = {},
-                                const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
-                                const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
-                                size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
-                                const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
-                                const void* compile_params = nullptr);
+    Schedule generate(const void* compile_params = nullptr) const;
+    Schedule generate(const BlockedShapeVector& blocked_input_shapes = {},
+                      const std::vector<ov::element::Type>& input_precisions = {},
+                      const std::vector<ov::element::Type>& output_precisions = {},
+                      const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_passes = {},
+                      const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
+                      size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
+                      const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
+                      const void* compile_params = nullptr);
 
 private:
-    void control_flow_transformations(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
-                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
-
-    void pre_generation_transformations() const;
-
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
     // NOTE: To avoid overheads in each calculation of this count (for example, in validate_and_type_infer()),
     //       we should MANUALLY calculate it where it needed.
     size_t m_virtual_port_count = 0;
-    size_t buffer_scratchpad_size = 0;
     size_t tile_rank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
 
     std::shared_ptr<lowered::LinearIR> m_linear_ir = nullptr;

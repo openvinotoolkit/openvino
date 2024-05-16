@@ -34,7 +34,6 @@ class LoweringResult {
 
 public:
     std::shared_ptr<CompiledSnippet> compiled_snippet = nullptr;
-    size_t buffer_scratchpad_size = 0;
 };
 
 /**
@@ -47,11 +46,9 @@ public:
     Schedule() = default;
     /**
      * @brief Create schedule out of specific parameters
-     * @param domain work domain for kernel execution
      * @param lr lowering result produced during code generation
      */
-    Schedule(std::vector<size_t>&& domain, LoweringResult&& lr) : parallel_exec_domain(domain), lowering_result(lr) {}
-    Schedule(std::vector<size_t> domain, LoweringResult&& lr) : parallel_exec_domain(std::move(domain)), lowering_result(lr) {}
+    Schedule(LoweringResult&& lr) : lowering_result(lr) {}
     /**
      * @brief Returns callable instanse of code pointer
      */
@@ -59,7 +56,6 @@ public:
         return reinterpret_cast<K>(const_cast<unsigned char*>(lowering_result.compiled_snippet->get_code()));
     }
 
-    VectorDims parallel_exec_domain {};
     LoweringResult lowering_result {};
 };
 
@@ -81,24 +77,16 @@ public:
     /**
      * @brief generates executable code
      * @param linear_ir lowered IR for code generation
-     * @param result variable to hande the result, only compiled_snippet and m_saved_emitters field will be modified
      * @param compile_params compile-time parameters used for code generation
-     * @return void
+     * @return variable to hande the result, only compiled_snippet and m_saved_emitters field will be modified
      */
-    void generate(lowered::LinearIR& linear_ir, LoweringResult& result, const void* compile_params = nullptr) const;
+    LoweringResult generate(lowered::LinearIR& linear_ir, const void* compile_params = nullptr) const;
 
     /**
      * @brief gets target machine
      * @return pointer to constant target machine
      */
     std::shared_ptr<const TargetMachine> get_target_machine() const;
-
-    /**
-     * @brief Update config with runtime arguments using the current state of LinearIR
-     * @param linear_ir current LinearIR
-     * @return shared pointer of config
-     */
-    const std::shared_ptr<RuntimeConfig>& update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
 
     /**
      * @brief gets register type by op type

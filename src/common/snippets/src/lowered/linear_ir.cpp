@@ -62,12 +62,8 @@ ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const 
     return ExpressionFactory::build(n, inputs, *this);
 }
 
-ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
-                                          const std::vector<size_t>& loop_ids, bool update_loop_ports,
-                                          const std::vector<std::set<ExpressionPort>>& consumers) {
-    const auto new_expr = create_expression(n, new_inputs);
-    new_expr->set_loop_ids(loop_ids);
-
+namespace {
+void update_consumers_and_regs(const ExpressionPtr& new_expr, const std::vector<std::set<ExpressionPort>>& consumers) {
     OPENVINO_ASSERT(consumers.empty() || consumers.size() == new_expr->get_output_count(),
                     "Failed to insert node: count of consumer sets must be sero or equal to output port count");
     for (size_t i = 0; i < consumers.size(); ++i) {
@@ -79,6 +75,15 @@ ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const 
     for (size_t i = 0; i < new_expr->get_input_count(); ++i) {
         new_expr->get_input_port_descriptor(i)->set_reg(new_expr->get_input_port_connector(i)->get_source().get_descriptor_ptr()->get_reg());
     }
+}
+} // namespace
+
+ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
+                                          const std::vector<size_t>& loop_ids, bool update_loop_ports,
+                                          const std::vector<std::set<ExpressionPort>>& consumers) {
+    const auto new_expr = create_expression(n, new_inputs);
+    update_consumers_and_regs(new_expr, consumers);
+    new_expr->set_loop_ids(loop_ids);
 
     if (update_loop_ports) {
         m_loop_manager->update_loop_ports(new_expr);
@@ -292,12 +297,6 @@ VectorDims LinearIR::get_master_shape() const {
     return master_shape;
 }
 
-VectorDims LinearIR::get_parallel_domain() const {
-    VectorDims parallel_exec_domain = get_master_shape();
-    std::fill(parallel_exec_domain.rbegin(), parallel_exec_domain.rbegin() + m_config.m_loop_depth, 1);
-    return parallel_exec_domain;
-}
-
 template<>
 LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
                                        const std::vector<size_t>& loop_ids, bool update_loop_ports, const constExprIt& place,
@@ -382,17 +381,7 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
         }
     }
 
-    OPENVINO_ASSERT(consumers.empty() || consumers.size() == new_expr->get_output_count(),
-                    "Failed to insert node: count of consumer sets must be sero or equal to output port count");
-    for (size_t i = 0; i < consumers.size(); ++i) {
-        const auto& port_consumers = consumers[i];
-        replace_input_port_connectors(port_consumers, new_expr->get_output_port_connector(i));
-        if (!port_consumers.empty())
-            new_expr->get_output_port_descriptor(i)->set_reg(port_consumers.cbegin()->get_descriptor_ptr()->get_reg());
-    }
-    for (size_t i = 0; i < new_expr->get_input_count(); ++i) {
-        new_expr->get_input_port_descriptor(i)->set_reg(new_expr->get_input_port_connector(i)->get_source().get_descriptor_ptr()->get_reg());
-    }
+    update_consumers_and_regs(new_expr, consumers);
 
     const auto new_expr_it = insert(place, new_expr);
     const auto& loop_ids = new_expr_it->get()->get_loop_ids();

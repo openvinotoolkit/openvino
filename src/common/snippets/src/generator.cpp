@@ -13,7 +13,7 @@
 namespace ov {
 namespace snippets {
 
-void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, const void* compile_params) const {
+LoweringResult Generator::generate(lowered::LinearIR& linear_ir, const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
 
     OV_ITT_TASK_CHAIN(GENERATE, ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::InitEmitters")
@@ -36,6 +36,7 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     }
     OV_ITT_TASK_NEXT(GENERATE, "::GetSnippet")
 
+    LoweringResult result;
     // 1. some emitters use precompiled kernels. They need to be saved, so the kernels are accessible at runtime.
     // 2. perf count node as field of emitter should be alive at runtime.
     // 3. Emitters with segfault detector debug capabilty also need to be accessible at runtime.
@@ -45,6 +46,8 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
             result.m_saved_emitters.emplace_back(emitter);
     }
     result.compiled_snippet = target->get_snippet();
+
+    return result;
 }
 
 std::shared_ptr<const TargetMachine> Generator::get_target_machine() const {
@@ -96,11 +99,6 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
 
 RegType Generator::get_specific_op_out_reg_type(const ov::Output<Node>& out) const {
     OPENVINO_THROW("Register type of the operation " + std::string(out.get_node()->get_type_name()) + " isn't determined!");
-}
-
-const std::shared_ptr<RuntimeConfig>& Generator::update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
-    OPENVINO_ASSERT(target, "TargetMachine has not been inited!");
-    return target->update_runtime_config(linear_ir);
 }
 
 }// namespace snippets
