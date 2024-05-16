@@ -41,6 +41,7 @@ enum class Type {
     NonZero,
     Tile,
     ROIAlign,
+    ROIAlignRotated,
     ROIPooling,
     PSROIPooling,
     BatchToSpace,
@@ -118,6 +119,7 @@ enum class Type {
     Unique,
     Ngram,
     ScaledDotProductAttention,
+    PagedAttention,
     RoPE,
     CausalMaskPreprocess,
 };

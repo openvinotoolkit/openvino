@@ -39,6 +39,7 @@ jobs:
         run: |
           python3 -m pip install -r docs/requirements.txt
           (cd docs/openvino_sphinx_theme && python3 setup.py install)
+          python3 -m pip install docs/openvino_custom_sphinx_sitemap
 
       - name: Download and install doxygen
         run: |
@@ -50,7 +51,7 @@ jobs:
       - name: Build docs
         run: |
           rm -rf build && mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -DENABLE_CPP_API=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON
           cmake --build . --target sphinx_docs
 
       - name: Cache documentation
@@ -68,12 +69,6 @@ jobs:
           PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
-      - name: 'Upload doxygen.log'
-        uses: actions/upload-artifact@v4
-        with:
-          name: doxygen_build_log_${{ env.PR_NUMBER }}.log
-          path: build/docs/doxygen.log
-
       - name: 'Upload sphinx.log'
         uses: actions/upload-artifact@v4
         with:
@@ -88,12 +83,10 @@ jobs:
 
       - name: Run Pytest
         run: |
-          pytest --doxygen="./build/docs/doxygen.log" \
-                 --sphinx="./build/docs/sphinx.log" \
+          pytest --sphinx="./build/docs/sphinx.log" \
                  --suppress-warnings="./docs/scripts/tests/suppress_warnings.txt" \
                  --confcutdir="./docs/scripts/tests/" \
                  --html="./build/docs/_artifacts/doc-generation.html" \
-                 --doxygen-strip="$(pwd)" \
                  --sphinx-strip="$(pwd)/build/docs/sphinx_source" \
                  --xfail="./docs/scripts/tests/xfail.txt" \
                  --self-contained-html ./docs/scripts/tests/test_docs.py
