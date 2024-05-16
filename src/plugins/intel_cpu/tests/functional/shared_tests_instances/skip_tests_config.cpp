@@ -283,6 +283,24 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_RDFT_2d/RDFTLayerTest.Inference/IS=\(100.16\)_modelType=f32_Axes=\((0.1|_2._1|1.0)\)_SignalSize=\(\).*)",
         // Issue: 134470
         R"(.*smoke.*StatefulModelStateInLoopBody.*)",
+        // Issue: 138520
+        R"(.*smoke_MM_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\]_\[\]_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.32.120\)\)_\(\(120.5\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.32.120\)\)_\(\(120.50\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.1.120\)\)_\(\(120.120\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(3.1.120\)\)_\(\(120.120\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[.*\]_\[.*\]_TS=\(\(1.5.32\)_\(1.5.32\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[..60...60...60\]_\[14.10\]_TS=\(\(1.3.14\)_\(1.7.14\)\)_\(\(14.10\)_\(14.10\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*nightly_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.32.120\)\)_\(\(120.5.*\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*nightly_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\?.\?.50\]_\[50.7\]_TS=\(\(1.2.50\)_\(1.10.50\)_\(1.2.50\)_\(2.2.50\)\)_\(\(50.7\)_\(50.7\)_\(50.7\)_\(50.7\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*smoke_MM_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
+        R"(.*(nightly|smoke)_MM_Brgemm_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\]_\[\]_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)",
+        R"(.*smoke_MM_Brgemm_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPUconfig=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)",
+        // Issue: 140389
+        R"(.*smoke_GatherCompressedWeights_basic/GatherWeightsDecompression.CompareWithRefs.*i4.*)",
+        R"(.*FQLayerDQBias.smoke_CompareWithRefs.*)",
+        R"(.*smoke_matmulBrgemmInt8/MatmulBrgemmInt8Test.CompareWithRefs.*MatMul.*InputType=i8_OutputType=i8.*)",
+        R"(.*smoke_Snippets_MHAWOTransposeOnInputs_4D/MHAWOTransposeOnInputs.CompareWithRefImpl.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -367,7 +385,17 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
     // int8 / code-generation specific
     retVector.emplace_back(R"(smoke_LPT.*)");
+    // smoke_Snippets test cases are not supported on arm32 platforms
+#if !defined(OPENVINO_ARCH_ARM64)
     retVector.emplace_back(R"(smoke_Snippets.*)");
+#endif
+    // smoke_Snippets test cases are not supported on arm64 platforms, except for smoke_Snippets_Eltwise
+    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise).*)");
+    // arm snippets doesn't support sve_128 that required by dnnl injector jit_uni_eltwise_injector_f32 yet
+    retVector.emplace_back(R"(smoke_Snippets_Eltwise_TwoResults.*)");
+    retVector.emplace_back(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)");
+    // arm jit_eltwise_emitters doesn't support jit_power_dynamic_emitter yet
+    retVector.emplace_back(R"(smoke_Snippets_Eltwise/MaxNumParamsEltwise.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");

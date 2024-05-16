@@ -84,11 +84,12 @@ void NmsRotatedOpTest::SetUp() {
     std::vector<std::shared_ptr<ov::Node>> inputs;
     const auto in_shape_1d = InputShape{{1}, {{1}}};
 
-#define CONST_CASE(P, S, H, L)                                                                                             \
-    case P:                                                                                                                \
-        inputs.push_back(ov::test::utils::deprecated::make_constant(P, S, std::vector<ov::element_type_traits<P>::value_type>{}, true,  \
-                            ov::element_type_traits<P>::value_type(H), ov::element_type_traits<P>::value_type(L)));        \
-        break;
+#define CONST_CASE(P, S, H, L)                                                                                          \
+    case P: {                                                                                                           \
+        auto start_from = ov::element_type_traits<P>::value_type(L);                                                    \
+        auto range = ov::element_type_traits<P>::value_type(H) - start_from;                                            \
+        inputs.push_back(ov::test::utils::make_constant(P, S, ov::test::utils::InputGenerateData(start_from, range)));  \
+        break; }
 
 #define CREATE_INPUT(C, P, S, N, H, L)                                                                                     \
     if (C) {                                                                                                               \
