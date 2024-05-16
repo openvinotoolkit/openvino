@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/runtime/threading/cpu_message.hpp"
+
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -12,20 +13,21 @@
 namespace ov {
 namespace threading {
 
-MessageManage::MessageManage() {}
+MessageManager::MessageManager() {}
 
-MessageManage::~MessageManage() {}
+MessageManager::~MessageManager() {}
 
-void MessageManage::send_message(MessageInfo msg_info) {
+void MessageManager::send_message(const MessageInfo& msg_info) {
     {
         std::lock_guard<std::mutex> lock(_msgMutex);
         _messageQueue.push_back(msg_info);
-        // std::cout << "send : " << msg_info.msg_type << ", " << (msg_info.rank.size() > 0 ? msg_info.rank[0] : -1) << "\n";
+        // std::cout << "send : " << msg_info.msg_type << ", " << (msg_info.rank.size() > 0 ? msg_info.rank[0] : -1)
+        //           << "\n";
     }
     _msgCondVar.notify_all();
 }
 
-std::vector<MessageInfo> MessageManage::wait_message(int cur_rank, int streams_num) {
+std::vector<MessageInfo> MessageManager::wait_message(int cur_rank, int streams_num) {
     std::vector<MessageInfo> messages_total;
     std::unique_lock<std::mutex> lock(_readMutex);
     _readCondVar.wait(lock, [&] {
@@ -37,12 +39,12 @@ std::vector<MessageInfo> MessageManage::wait_message(int cur_rank, int streams_n
     return messages_total;
 }
 
-void MessageManage::infer_wait() {
+void MessageManager::infer_wait() {
     std::unique_lock<std::mutex> lock(_inferMutex);
     _inferCondVar.wait(lock);
 }
 
-void MessageManage::reduce_wait(int cur_rank, int streams_num) {
+void MessageManager::reduce_wait(int cur_rank, int streams_num) {
     std::unique_lock<std::mutex> lock(_reduceMutex);
     while (_reduceQueue[cur_rank] < streams_num) {
         // std::cout << "reduce_wait_" << cur_rank << " " << _reduceQueue[cur_rank] << " end\n";
@@ -51,7 +53,7 @@ void MessageManage::reduce_wait(int cur_rank, int streams_num) {
     _reduceQueue[cur_rank] = 0;
 }
 
-void MessageManage::server_wait(int streams_num) {
+void MessageManager::server_wait(int streams_num) {
     if (!_serverThread.joinable()) {
         _readQueue.assign(streams_num, std::vector<MessageInfo>());
         _reduceQueue.assign(streams_num, 0);
@@ -77,7 +79,7 @@ void MessageManage::server_wait(int streams_num) {
                     if (msg_type == START_INFER) {
                         Task task = std::move(rec_info.task);
                         task();
-                    } else if (msg_type == TP) {
+                    } else if (msg_type == TENSOR_PARALLEL) {
                         // Resend _readQueue that failed last time
                         bool stop = false;
                         while (!stop) {
@@ -124,23 +126,23 @@ void MessageManage::server_wait(int streams_num) {
     }
 }
 
-void MessageManage::setSubCompileModels(std::vector<std::shared_ptr<ov::ICompiledModel>> models) {
-    m_sub_compilemodels = models;
+void MessageManager::set_sub_compiled_models(std::vector<std::shared_ptr<ov::ICompiledModel>> models) {
+    _sub_compiled_models = models;
 }
 
-std::vector<std::shared_ptr<ov::ICompiledModel>> MessageManage::getSubCompileModels() {
-    return m_sub_compilemodels;
+std::vector<std::shared_ptr<ov::ICompiledModel>> MessageManager::get_sub_compiled_models() {
+    return _sub_compiled_models;
 }
 
-void MessageManage::setSubInferRequest(std::vector<std::shared_ptr<IAsyncInferRequest>> requests) {
-    m_sub_infer_requests = requests;
+void MessageManager::set_sub_infer_requests(std::vector<std::shared_ptr<IAsyncInferRequest>> requests) {
+    _sub_infer_requests = requests;
 }
 
-std::vector<std::shared_ptr<ov::IAsyncInferRequest>> MessageManage::getSubInferRequest() {
-    return m_sub_infer_requests;
+std::vector<std::shared_ptr<ov::IAsyncInferRequest>> MessageManager::get_sub_infer_requests() {
+    return _sub_infer_requests;
 }
 
-void MessageManage::stop_server_thread() {
+void MessageManager::stop_server_thread() {
     MessageInfo msg_info;
     msg_info.msg_type = ov::threading::MsgType::QUIT;
     send_message(msg_info);
@@ -149,22 +151,16 @@ void MessageManage::stop_server_thread() {
     }
 }
 
-void MessageManage::clear() {
-    for (size_t i = 0; i < m_sub_infer_requests.size(); i++) {
-        std::cout << "infer count_" << i << " : " << m_sub_infer_requests[i].use_count() << "\n";
-    }
-    m_sub_infer_requests.clear();
-    for (size_t i = 0; i < m_sub_compilemodels.size(); i++) {
-        std::cout << "model count_" << i << " : " << m_sub_compilemodels[i].use_count() << "\n";
-    }
-    m_sub_compilemodels.clear();
+void MessageManager::clear() {
+    _sub_infer_requests.clear();
+    _sub_compiled_models.clear();
 }
 
 namespace {
 
 class MessageManageHolder {
     std::mutex _mutex;
-    std::weak_ptr<MessageManage> _manager;
+    std::weak_ptr<MessageManager> _manager;
 
 public:
     MessageManageHolder(const MessageManageHolder&) = delete;
@@ -172,11 +168,11 @@ public:
 
     MessageManageHolder() = default;
 
-    std::shared_ptr<ov::threading::MessageManage> get() {
+    std::shared_ptr<ov::threading::MessageManager> get() {
         std::lock_guard<std::mutex> lock(_mutex);
         auto manager = _manager.lock();
         if (!manager) {
-            _manager = manager = std::make_shared<MessageManage>();
+            _manager = manager = std::make_shared<MessageManager>();
         }
         return manager;
     }
@@ -184,7 +180,7 @@ public:
 
 }  // namespace
 
-std::shared_ptr<MessageManage> message_manager() {
+std::shared_ptr<MessageManager> message_manager() {
     static MessageManageHolder message_manage;
     return message_manage.get();
 }

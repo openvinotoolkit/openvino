@@ -27,7 +27,7 @@
 namespace ov {
 
 namespace threading {
-enum MsgType { TP, START_INFER, CALL_BACK, REDUCE, QUIT };
+enum MsgType { START_INFER, TENSOR_PARALLEL, CALL_BACK, REDUCE, QUIT };
 
 struct MessageInfo {
     MsgType msg_type;
@@ -35,10 +35,11 @@ struct MessageInfo {
     void* buf;
     Task task;
 };
-class OPENVINO_RUNTIME_API MessageManage {
+class OPENVINO_RUNTIME_API MessageManager {
 public:
-    MessageManage();
-    void send_message(MessageInfo msg_info);
+    MessageManager();
+
+    void send_message(const MessageInfo& msg_info);
 
     std::vector<MessageInfo> wait_message(int cur_rank, int streams_num);
 
@@ -52,18 +53,18 @@ public:
 
     void clear();
 
-    ~MessageManage();
+    ~MessageManager();
 
-    void setSubCompileModels(std::vector<std::shared_ptr<ov::ICompiledModel>> models);
-    std::vector<std::shared_ptr<ov::ICompiledModel>> getSubCompileModels();
+    void set_sub_compiled_models(std::vector<std::shared_ptr<ov::ICompiledModel>> models);
+    std::vector<std::shared_ptr<ov::ICompiledModel>> get_sub_compiled_models();
 
-    void setSubInferRequest(std::vector<std::shared_ptr<ov::IAsyncInferRequest>> requests);
-    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> getSubInferRequest();
+    void set_sub_infer_requests(std::vector<std::shared_ptr<ov::IAsyncInferRequest>> requests);
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> get_sub_infer_requests();
 
 private:
     int sub_streams;
-    std::vector<std::shared_ptr<ov::ICompiledModel>> m_sub_compilemodels;
-    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_sub_infer_requests;
+    std::vector<std::shared_ptr<ov::ICompiledModel>> _sub_compiled_models;
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> _sub_infer_requests;
     std::thread _serverThread;
     bool _isServerStopped = false;
     std::vector<MessageInfo> _messageQueue;
@@ -79,6 +80,6 @@ private:
     std::condition_variable _reduceCondVar;
 };
 
-OPENVINO_RUNTIME_API std::shared_ptr<MessageManage> message_manager();
+OPENVINO_RUNTIME_API std::shared_ptr<MessageManager> message_manager();
 }  // namespace threading
 }  // namespace ov
