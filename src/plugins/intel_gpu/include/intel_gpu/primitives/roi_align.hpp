@@ -21,8 +21,9 @@ struct roi_align : public primitive_base<roi_align> {
     /// @brief Aligned mode for the @ref roi_align
     enum AlignedMode { asymmetric, half_pixel_for_nn, half_pixel };
 
-    /// @brief Rotated mode supports rotation, but according to the @ref roi_align_rotated, rois are encoded in
-    /// different way.
+    /// @brief Mode of ROIAlign. base - no rotation of roi box. Rotated supports box rotation, but according to the @ref
+    /// roi_align_rotated, rois wiill encoded in different way than in base mode. Please refer to the @ref
+    /// roi_align_rotated and @ref roi_align for more details.
     enum ROIMode { base, rotated };
 
     /// @brief Constructs roi_align primitive.
