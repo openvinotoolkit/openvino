@@ -30,14 +30,14 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
      .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
            :language: cpp
            :fragment: [all_inputs_ouputs]
 
      .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
            :language: cpp
            :fragment: [all_inputs_ouputs]
 
@@ -140,14 +140,14 @@ the conversion will throw an exception. For example:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: python
          :fragment: [ov:partial_shape]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:partial_shape]
 
@@ -189,14 +189,14 @@ To build an ``ov::Model`` instance from ``opset8`` operations, include the follo
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [import]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:include]
 
@@ -208,14 +208,14 @@ The following code demonstrates how to create a simple model:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_simple_model]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:create_simple_model]
 
@@ -227,14 +227,14 @@ The following code creates a model with several outputs:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_advanced_model]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:create_advanced_model]
 
@@ -254,14 +254,14 @@ OpenVINO™ provides several debug capabilities:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: python
          :fragment: [ov:visualize]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:visualize]
 
@@ -290,14 +290,14 @@ OpenVINO™ provides several debug capabilities:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: python
          :fragment: [ov:serialize]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:serialize]
 

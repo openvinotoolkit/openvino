@@ -50,13 +50,13 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 * Normally, the frame is captured with OpenCV and then immediately processed:
 
-  .. doxygensnippet:: docs/snippets/dldt_optimization_guide8.cpp
+  .. doxygensnippet:: docs/articles_en/assets/snippets/dldt_optimization_guide8.cpp
      :language: cpp
      :fragment: [part8]
 
 * In the "true" async mode, the ``NEXT`` request is populated in the main (application) thread, while the ``CURRENT`` request is processed:
 
-  .. doxygensnippet:: docs/snippets/dldt_optimization_guide9.cpp
+  .. doxygensnippet:: docs/articles_en/assets/snippets/dldt_optimization_guide9.cpp
      :language: cpp
      :fragment: [part9]
 

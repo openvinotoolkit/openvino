@@ -48,14 +48,14 @@ To enable model caching, the application must specify a folder to store the cach
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_caching.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
          :fragment: [ov:caching:part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part0]
 
@@ -82,14 +82,14 @@ For these cases, there is a more convenient API to compile the model in a single
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_caching.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
          :fragment: [ov:caching:part1]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part1]
 
@@ -101,14 +101,14 @@ With model caching enabled, the total load time is even shorter, if ``read_model
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_caching.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
          :fragment: [ov:caching:part2]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part2]
 
@@ -126,14 +126,14 @@ To check in advance if a particular device supports model caching, your applicat
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_caching.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
          :fragment: [ov:caching:part3]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part3]
 

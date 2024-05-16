@@ -28,14 +28,14 @@ There are six levels of logs, which can be called explicitly or set via the ``OP
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_auto.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto.py
          :language: python
          :fragment: [part6]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/AUTO6.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/AUTO6.cpp
          :language: cpp
          :fragment: [part6]
 
