@@ -462,15 +462,20 @@ void primitive_inst::update_shape() {
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
     auto updated_params = _node->type()->get_fake_aligned_params(orig_impl_param);
 
-    // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
-    // i.e. predecessor node was supposed be increased already
-    if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
-        && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
-        GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
-            << "  allocated: " << dep_memory(0).count()
-            << "  required: " << updated_params.input_layouts[0].count()
-            << std::endl;
-        updated_params = *_impl_params;
+    const auto &dev_info = get_node().get_program().get_engine().get_device_info();
+
+    // The target HW of this patch is limited because of performance concern
+    if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
+        // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
+        // i.e. predecessor node was supposed be increased already
+        if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
+            && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
+            GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
+                << "  allocated: " << dep_memory(0).count()
+                << "  required: " << updated_params.input_layouts[0].count()
+                << std::endl;
+            updated_params = *_impl_params;
+        }
     }
     return updated_params;
 }
