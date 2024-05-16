@@ -260,6 +260,11 @@ class CustomBuild(build):
         self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier)
         self.announce(f"Create build directory: {self.build_temp}", level=3)
 
+        self.announce(f"Reset cpack_generator {CPACK_GENERATOR}", level=3)
+        self.spawn(["cmake", f"-DCPACK_GENERATOR=WHEEL",
+                            "-S", OPENVINO_SOURCE_DIR,
+                            "-B", OPENVINO_BINARY_DIR])
+
         # build some components which have not been built yet
         for comp, comp_data in install_cfg.items():
             cpack_comp_name = comp_data.get("name")
@@ -275,12 +280,12 @@ class CustomBuild(build):
 
                 # even perform a build in case of binary directory does not exist
                 binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
-                if source_dir and os.path.exists(source_dir):
+                if not os.path.exists(binary_dir):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
                                         f"-DPython3_EXECUTABLE={sys.executable}",
-                                        f"-DCPACK_GENERATOR=WHEEL",
+                                        f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
                                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                         "-DENABLE_WHEEL=OFF",
                                         self.cmake_args,
@@ -297,6 +302,12 @@ class CustomBuild(build):
                                      "--prefix", prefix,
                                      "--config", CONFIG,
                                      "--component", cpack_comp_name])
+
+        self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
+        self.spawn(["cmake", f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
+                            "-S", OPENVINO_SOURCE_DIR,
+                            "-B", OPENVINO_BINARY_DIR])
+
 
     def run(self):
         # build and install clib into temporary directories
