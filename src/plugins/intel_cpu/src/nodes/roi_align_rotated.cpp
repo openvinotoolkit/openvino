@@ -15,7 +15,6 @@ namespace node {
 
 ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
-    std::string errorMessage;
     const auto roiAlign = ov::as_type_ptr<const ov::opset14::ROIAlignRotated>(op);
     pooledH = roiAlign->get_pooled_h();
     pooledW = roiAlign->get_pooled_w();
@@ -71,11 +70,10 @@ void ROIAlignRotated::executeImpl() {
         getSrcDataAtPortAs<const T>(1),
         batch_indices_vec_scaled_up.data(),
         getDstDataAtPortAs<T>(0),
-        getSrcMemoryAtPort(0)->getShape().toPartialShape().to_shape(),  //< Conversion from intel_cpu::Shape to
-                                                                        // ov::Shape....
-        getSrcMemoryAtPort(1)->getShape().toPartialShape().to_shape(),
-        getSrcMemoryAtPort(2)->getShape().toPartialShape().to_shape(),
-        getDstMemoryAtPort(0)->getShape().toPartialShape().to_shape(),
+        ov::Shape{getSrcMemoryAtPort(0)->getStaticDims()},
+        ov::Shape{getSrcMemoryAtPort(1)->getStaticDims()},
+        ov::Shape{getSrcMemoryAtPort(2)->getStaticDims()},
+        ov::Shape{getDstMemoryAtPort(0)->getStaticDims()},
         pooledH,
         pooledW,
         samplingRatio,

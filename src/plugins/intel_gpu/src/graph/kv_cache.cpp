@@ -74,12 +74,14 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
     auto shape_info_ptr = lock.data();
     size_t offset = 0;
 
-    std::vector<std::pair<layout, layout>> input_layouts; // [kv_state, kv_new_token, [beam_idx, bt_past]]
-    for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
+    size_t i = 0;
+    // [kv_state, kv_new_token, [beam_idx, bt_past]]
+    for (i = 0; i < _node->get_dependencies().size(); i++) {
         const auto& node_in_lay = _node->get_input_layout(i);
         const auto& runtime_in_lay = params.input_layouts[i];
 
-        input_layouts.emplace_back(runtime_in_lay, node_in_lay);
+        GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
+        fill_shape_info_data(runtime_in_lay, node_in_lay, shape_info_ptr, offset);
     }
 
     if (params.typed_desc<kv_cache>()->indirect) {
@@ -94,12 +96,9 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
             }
             bt_layout.set_partial_shape(bt_shape);
         }
-        input_layouts.emplace_back(bt_layout, bt_state->get_initial_layout());
-    }
 
-    for (size_t i = 0; i < input_layouts.size(); i++) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
-        fill_shape_info_data(input_layouts[i].first, input_layouts[i].second, shape_info_ptr, offset);
+        fill_shape_info_data(bt_layout, bt_state->get_initial_layout(), shape_info_ptr, offset);
     }
 
     for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {

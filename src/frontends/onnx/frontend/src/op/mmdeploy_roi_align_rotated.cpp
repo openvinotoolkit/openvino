@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/roi_align_rotated.hpp"
-
 #include "op/mmdeploy_roi_align_rotated.hpp"
+
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/op/slice.hpp"
 
 using namespace ov::op;
@@ -22,12 +22,13 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
     const auto inputs = node.get_ov_inputs();
 
     FRONT_END_GENERAL_CHECK(inputs.size() == 2,
-                            "The mmdeploy.ROIAlignRotated operator expects 2 inputs. Got: ",
+                            "The mmdeploy.MMCVRoIAlignRotated operator expects 2 inputs. Got: ",
                             inputs.size());
 
     const auto& data = inputs[0];
     const auto& rois_data = inputs[1];
 
+    // Slice the rois_data to get the rois and rois_batch_idx.
     const auto step = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, 1);
     const auto axes = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, 1);
 
@@ -45,16 +46,15 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
 
     const auto rois_batch_idx = std::make_shared<v0::Convert>(rois_batch_reshaped, ov::element::i32);
 
-    const bool aligned = node.get_attribute_value<int64_t>("aligned", true);
-    FRONT_END_GENERAL_CHECK(aligned == true,
-                            "The mmdeploy.RoiAlignRotated only supports aligned = True.",
-                            inputs.size());
+    // Read op attributes:
+    const auto aligned = static_cast<bool>(node.get_attribute_value<int64_t>("aligned", 1));
+    FRONT_END_GENERAL_CHECK(aligned == true, "The mmdeploy.RoiAlignRotated only supports aligned = True.");
 
     const auto pooled_h = node.get_attribute_value<int64_t>("output_height", 1);
     const auto pooled_w = node.get_attribute_value<int64_t>("output_width", 1);
     const auto sampling_ratio = node.get_attribute_value<int64_t>("sampling_ratio", 1);
-    const float spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
-    const bool clockwise = node.get_attribute_value<int64_t>("clockwise", false);
+    const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
+    const auto clockwise = static_cast<bool>(node.get_attribute_value<int64_t>("clockwise", 0));
 
     return {std::make_shared<v14::ROIAlignRotated>(data,
                                                    rois,

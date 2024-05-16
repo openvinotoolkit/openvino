@@ -116,6 +116,7 @@
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
 #include "op/mish.hpp"
+#include "op/mmdeploy_roi_align_rotated.hpp"
 #include "op/mod.hpp"
 #include "op/mul.hpp"
 #include "op/neg.hpp"
