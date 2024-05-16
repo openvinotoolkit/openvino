@@ -5,8 +5,10 @@
 import numpy as np
 
 from openvino import Op
-from openvino.runtime import CompiledModel, DiscreteTypeInfo, Model, Shape, compile_model
+from openvino.runtime import CompiledModel, DiscreteTypeInfo, Model, Shape, compile_model, Tensor
 import openvino.runtime.opset14 as ops
+
+from openvino.runtime.utils.types import get_element_type
 
 
 class CustomOp(Op):
@@ -47,7 +49,7 @@ def create_snake_model():
 
 
 class CustomAdd(Op):
-    class_type_info = DiscreteTypeInfo("Add", "extension")
+    class_type_info = DiscreteTypeInfo("CustomAdd", "extension")
 
     def __init__(self, inputs):
         super().__init__(self)
@@ -79,7 +81,8 @@ def create_add_model():
     param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
     custom_add = CustomAdd(inputs=[param1, param2])
     custom_add.set_friendly_name("test_add")
-    return Model(custom_add, [param1, param2], "AddModel")
+    res = ops.result(custom_add, name="result")
+    return Model(res, [param1, param2], "AddModel")
 
 
 def test_custom_add_op():
@@ -90,17 +93,37 @@ def test_custom_add_op():
     node2 = ops.constant(data2, dtype=np.float32)
     inputs = [node1.output(0), node2.output(0)]
     custom_op = CustomAdd(inputs=inputs)
+    custom_op.set_friendly_name("test_add")
 
     assert custom_op.get_input_size() == 2
     assert custom_op.get_output_size() == 1
+    assert custom_op.get_type_name() == "CustomAdd"
+    assert list(custom_op.get_output_shape(0)) == [3]
+    assert custom_op.friendly_name == "test_add"
 
 
 def test_custom_add_model():
     model = create_add_model()
+
     assert isinstance(model, Model)
+
+    ordered_ops = model.get_ordered_ops()
+    assert len(ordered_ops) == 4
+
+    op_types = [op.get_type_name() for op in ordered_ops]
+    assert op_types == ["Parameter", "Parameter", "CustomAdd", "Result"]
 
 
 def test_custom_op():
     model = create_snake_model()
     compiled_model = compile_model(model)
+
     assert isinstance(compiled_model, CompiledModel)
+    request = compiled_model.create_infer_request()
+    input_data = np.random.rand(*[1, 3, 32, 32]).astype(np.float32) - 0.5
+
+    expected_output = np.maximum(0.0, input_data)
+
+    input_tensor = Tensor(input_data)
+    results = request.infer({"data": input_tensor})
+    # assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
