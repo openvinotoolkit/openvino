@@ -262,7 +262,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         OutputVector params = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
         params.insert(params.end(), model_remaining_params.begin(), model_remaining_params.end());
-        std::initializer_list<std::shared_ptr<Node>> additional_params = {scale, sliding_window, alibi_slopes, max_context_len.get_node_shared_ptr()};
+        std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
+                                                                          sliding_window,
+                                                                          alibi_slopes,
+                                                                          max_context_len.get_node_shared_ptr()};
         params.insert(params.end(), additional_params.begin(), additional_params.end());
 
         // Really not sure if I construct correctly because the Python code uses an additional function
