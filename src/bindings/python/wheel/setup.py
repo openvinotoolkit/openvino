@@ -49,7 +49,7 @@ OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 CONFIG = os.getenv("BUILD_TYPE", "Release")
-OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"libs")
+OV_RUNTIME_LIBS_DIR = "libs"
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", "python")
@@ -346,7 +346,7 @@ class PrepareLibs(build_clib):
         self.post_install(LIB_INSTALL_CFG)
         # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
         self.copy_package_libs(get_install_dirs_list(LIB_INSTALL_CFG))
-
+        # copy package data (everything except python or libraries)
         self.copy_package_data(get_install_dirs_list(DATA_INSTALL_CFG))
 
     def post_install(self, install_cfg):
@@ -459,7 +459,7 @@ class PrepareLibs(build_clib):
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
 
     def copy_package_data(self, src_dirs):
-        """Collect package data files (clibs and other plugin support files) from preinstalled dirs and put all runtime libraries to the subpackage."""
+        """Collect package data files from preinstalled dirs and put to the subpackage."""
         package_dir = os.path.join(PACKAGE_DIR, WHEEL_PACKAGE_DIR)
         os.makedirs(package_dir, exist_ok=True)
 
