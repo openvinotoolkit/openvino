@@ -47,7 +47,7 @@ void embeddingBagPacked(const T* emb_table,
     }
     if (reduction == Reduction::MEAN) {
         for (size_t i = 0lu; i < shape_size(outShape); i++) {
-            out[i] /= indices_per_bag;
+            out[i] /= (T)indices_per_bag;
         }
     }
 

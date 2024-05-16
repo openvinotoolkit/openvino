@@ -91,7 +91,7 @@ void embeddingBagOffsets(const T* emb_table,
             }
             if (reduction == Reduction::MEAN) {
                 for (size_t i = 0lu; i < embDepth; i++) {
-                    out[dst_index + i] /= indices_size;
+                    out[dst_index + i] /= (T)indices_size;
                 }
             }
         }
