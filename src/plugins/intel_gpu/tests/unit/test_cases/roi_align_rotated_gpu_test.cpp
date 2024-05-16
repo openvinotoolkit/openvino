@@ -13,6 +13,8 @@ using namespace ::tests;
 
 namespace {
 
+constexpr float EPS = 2e-3f;
+
 // Allocates tensoer with given shape and data.
 template <typename TDataType>
 memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt, const std::vector<TDataType>& data) {
@@ -24,8 +26,8 @@ memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt, const std:
 }
 
 struct ROIAlignRotatedParams {
-    size_t pooledH;
-    size_t pooledW;
+    int32_t pooledH;
+    int32_t pooledW;
     float spatialScale;
     int32_t samplingRatio;
     bool clockwise;
@@ -38,8 +40,8 @@ struct ROIAlignRotatedParams {
 
 template <typename T>
 ROIAlignRotatedParams PrepareParams(const ov::PartialShape& inputShape,
-                                    size_t pooledH,
-                                    size_t pooledW,
+                                    int32_t pooledH,
+                                    int32_t pooledW,
                                     float spatialScale,
                                     int32_t samplingRatio,
                                     bool clockwise,
@@ -63,7 +65,7 @@ ROIAlignRotatedParams PrepareParams(const ov::PartialShape& inputShape,
     ret.testcaseName = testcaseName;
 
     ret.input = AllocateTensor<T>(inputShape, cldnn::format::bfyx, inputValues);
-    ret.rois = AllocateTensor<T>({numOfRois, 5}, cldnn::format::bfyx, roisVals);
+    ret.rois = AllocateTensor<T>({numOfRois, rois_second_dim_size}, cldnn::format::bfyx, roisVals);
     ret.roiBatchIdxs = AllocateTensor<int32_t>({numOfRois}, cldnn::format::bfyx, roiBatchIdx);
     ret.expectedOutput = AllocateTensor<float>({numOfRois,
                                                 channels,
@@ -121,7 +123,7 @@ public:
         ASSERT_EQ(output->get_layout(), params.expectedOutput->get_layout());
         ASSERT_EQ(output_ptr.size(), wanted_output_ptr.size());
         for (size_t i = 0; i < output_ptr.size(); ++i)
-            ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], 2e-3));
+            ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], EPS));
     }
 
 private:
