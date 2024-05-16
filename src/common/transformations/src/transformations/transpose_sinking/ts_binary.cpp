@@ -30,7 +30,7 @@ TSBinaryForward::TSBinaryForward() : TSForwardBase() {
                    op::util::BinaryElementwiseComparison,
                    op::util::BinaryElementwiseLogical,
                    ov::op::v0::PRelu,
-                   ov::op::v0::FakeQuantize>(true);
+                   ov::op::v0::FakeQuantize>();
     transpose_sinking(matcher_name);
 }
 

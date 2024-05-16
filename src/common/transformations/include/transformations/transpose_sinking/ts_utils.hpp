@@ -28,12 +28,21 @@ struct TransposeInputsInfo {
 };
 
 /**
+ * @brief default function to check if we could sink found transpose
+ */
+bool if_transpose_sinkable_default(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                                   const std::shared_ptr<ov::op::v0::Constant>& transpose_order);
+
+/**
  * @brief Finds node first input that is a transpose operation and returns filled TransposeInputsInfo
  * for it
  */
-TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&,
-                                           bool const_transpose_order,
-                                           const std::vector<size_t>& indices = {});
+TransposeInputsInfo GetFirstTransposeInput(
+    const std::shared_ptr<ov::Node>&,
+    const std::vector<size_t>& indices = {},
+    const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                             const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>& =
+        if_transpose_sinkable_default);
 
 /**
  * @brief Checks if @arg has any input node that is a transpose operation
