@@ -7,6 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations_visibility.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace ov {
 namespace pass {
@@ -18,6 +19,16 @@ class TRANSFORMATIONS_API RMSFusion;
 
 namespace ov {
 namespace pass {
+
+class TRANSFORMATIONS_API RMSFusion;
+
+}  // namespace pass
+}  // namespace ov
+
+namespace ov {
+namespace pass {
+
+
 
 class RMSFusion : public ov::pass::MatcherPass {
 public:
