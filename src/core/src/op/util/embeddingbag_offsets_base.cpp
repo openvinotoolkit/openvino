@@ -11,6 +11,33 @@ ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node
                                                                const Output<Node>& indices,
                                                                const Output<Node>& offsets,
                                                                const Output<Node>& default_index,
+                                                               const Output<Node>& per_sample_weights)
+    : Op({emb_table, indices, offsets, default_index, per_sample_weights}),
+      m_reduction{Reduction::SUM} {
+    constructor_validate_and_infer_types();
+}
+
+ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
+                                                               const Output<Node>& indices,
+                                                               const Output<Node>& offsets,
+                                                               const Output<Node>& default_index)
+    : Op({emb_table, indices, offsets, default_index}),
+      m_reduction{Reduction::SUM} {
+    constructor_validate_and_infer_types();
+}
+
+ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
+                                                               const Output<Node>& indices,
+                                                               const Output<Node>& offsets)
+    : Op({emb_table, indices, offsets}),
+      m_reduction{Reduction::SUM} {
+    constructor_validate_and_infer_types();
+}
+
+ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
+                                                               const Output<Node>& indices,
+                                                               const Output<Node>& offsets,
+                                                               const Output<Node>& default_index,
                                                                const Output<Node>& per_sample_weights,
                                                                const Reduction& reduction)
     : Op({emb_table, indices, offsets, default_index, per_sample_weights}),

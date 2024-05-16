@@ -11,10 +11,10 @@ namespace ov {
 op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_table,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& per_sample_weights)
-    : util::EmbeddingBagPackedBase(emb_table, indices, per_sample_weights, Reduction::SUM) {}
+    : util::EmbeddingBagPackedBase(emb_table, indices, per_sample_weights) {}
 
 op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_table, const Output<Node>& indices)
-    : util::EmbeddingBagPackedBase(emb_table, indices, Reduction::SUM) {}
+    : util::EmbeddingBagPackedBase(emb_table, indices) {}
 
 std::shared_ptr<Node> op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_EmbeddingBagPackedSum_clone_with_new_inputs);

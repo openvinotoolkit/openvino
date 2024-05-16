@@ -13,18 +13,18 @@ op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_t
                                                        const Output<Node>& offsets,
                                                        const Output<Node>& default_index,
                                                        const Output<Node>& per_sample_weights)
-    : util::EmbeddingBagOffsetsBase(emb_table, indices, offsets, default_index, per_sample_weights, Reduction::SUM) {}
+    : util::EmbeddingBagOffsetsBase(emb_table, indices, offsets, default_index, per_sample_weights) {}
 
 op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_table,
                                                        const Output<Node>& indices,
                                                        const Output<Node>& offsets,
                                                        const Output<Node>& default_index)
-    : util::EmbeddingBagOffsetsBase(emb_table, indices, offsets, default_index, Reduction::SUM) {}
+    : util::EmbeddingBagOffsetsBase(emb_table, indices, offsets, default_index) {}
 
 op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_table,
                                                        const Output<Node>& indices,
                                                        const Output<Node>& offsets)
-    : util::EmbeddingBagOffsetsBase(emb_table, indices, offsets, Reduction::SUM) {}
+    : util::EmbeddingBagOffsetsBase(emb_table, indices, offsets) {}
 
 std::shared_ptr<Node> op::v3::EmbeddingBagOffsetsSum::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_EmbeddingBagOffsetsSum_clone_with_new_inputs);

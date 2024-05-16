@@ -7,8 +7,19 @@
 #include "embeddingbag_packed_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace std;
+ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table,
+                                                             const Output<Node>& indices,
+                                                             const Output<Node>& per_sample_weights)
+    : Op({emb_table, indices, per_sample_weights}),
+      m_reduction{Reduction::SUM} {
+    constructor_validate_and_infer_types();
+}
 
+ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table, const Output<Node>& indices)
+    : Op({emb_table, indices}),
+      m_reduction{Reduction::SUM} {
+    constructor_validate_and_infer_types();
+}
 ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(
     const Output<Node>& emb_table,
     const Output<Node>& indices,

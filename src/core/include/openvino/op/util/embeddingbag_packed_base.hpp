@@ -30,6 +30,11 @@ public:
     /// \param per_sample_weights tensor of the same shape as indices and of type T.
     /// Each value in this tensor are multiplied with each
     /// value pooled from embedding table for each index. Optional.
+    EmbeddingBagPackedBase(const Output<Node>& emb_table,
+                           const Output<Node>& indices,
+                           const Output<Node>& per_sample_weights);
+
+    EmbeddingBagPackedBase(const Output<Node>& emb_table, const Output<Node>& indices);
 
     EmbeddingBagPackedBase(const Output<Node>& emb_table,
                            const Output<Node>& indices,
@@ -51,7 +56,7 @@ private:
     static constexpr int PER_SAMPLE_WEIGHTS = 2;
 
 protected:
-    Reduction m_reduction = Reduction::MEAN;
+    Reduction m_reduction = Reduction::SUM;
 };
 }  // namespace util
 }  // namespace op

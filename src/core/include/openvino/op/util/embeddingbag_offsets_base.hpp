@@ -37,6 +37,18 @@ public:
     /// \param default_index scalar of type T_IND containing default index in embedding
     /// table to fill empty "bags". If not provided empty "bags"
     /// are filled with zeros. Optional.
+    EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
+                            const Output<Node>& indices,
+                            const Output<Node>& offsets,
+                            const Output<Node>& default_index,
+                            const Output<Node>& per_sample_weights);
+
+    EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
+                            const Output<Node>& indices,
+                            const Output<Node>& offsets,
+                            const Output<Node>& default_index);
+
+    EmbeddingBagOffsetsBase(const Output<Node>& emb_table, const Output<Node>& indices, const Output<Node>& offsets);
 
     EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                             const Output<Node>& indices,
@@ -71,7 +83,7 @@ private:
     static constexpr int PER_SAMPLE_WEIGHTS = 4;
 
 protected:
-    Reduction m_reduction = Reduction::MEAN;
+    Reduction m_reduction = Reduction::SUM;
 };
 }  // namespace util
 }  // namespace op
