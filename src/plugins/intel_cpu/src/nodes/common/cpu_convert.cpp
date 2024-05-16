@@ -600,23 +600,19 @@ static int8_t get_u4(const uint8_t& val, bool high) {
 template <typename DT>
 struct ConvertFrom4BitPrecision {
     void operator()(ConvertFrom4BitContext &ctx) {
-        std::function<int8_t(const uint8_t&, bool)> get4Bit = nullptr;
-        switch (ctx.inType) {
-        case ov::element::u4:
-            get4Bit = get_u4;
-            break;
-        case ov::element::i4:
-            get4Bit = get_i4;
-            break;
-        default:
-            break;
-        }
-
         auto src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<DT*>(ctx.dstPtr);
-        parallel_for(ctx.size, [&](size_t i) {
-            dst[i] = static_cast<DT>(get4Bit(src[i / 2], i % 2));
-        });
+        if (ctx.inType == ov::element::u4) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<DT>(get_u4(src[i / 2], i % 2));
+            });
+        } else if (ctx.inType == ov::element::i4) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<DT>(get_i4(src[i / 2], i % 2));
+            });
+        } else {
+            OPENVINO_THROW("cpu_convert doesn't support input data type: ", ctx.inType, ". Not implemented.");
+        }
         ctx.converted = true;
     }
 };
