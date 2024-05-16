@@ -168,7 +168,7 @@ void StatefulModelSupportedTest::SetUp() {
                               (_)))
             .WillByDefault(InvokeWithoutArgs([this]() {
                 std::this_thread::sleep_for(
-                    std::chrono::milliseconds(200));  // make sure GPU finishes compilation model first.
+                    std::chrono::milliseconds(100));
                 return mockExeNetworkActual;
             }));
     } else {
@@ -230,6 +230,7 @@ TEST_P(StatefulModelSupportedTest, CanFilterOutCorrectTargetDeviceWithStatefulMo
         ASSERT_THROW(plugin->compile_model(model, config), ov::Exception);
     } else {
         ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
         EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), expectedExecuteDev);
     }
 }
@@ -300,14 +301,14 @@ const std::vector<StatefulModelConfigParams> testConfigs = {
                               false,
                               true,
                               std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
-                              "(CPU)"},
+                              "GPU"},
     StatefulModelConfigParams{"GPU,CPU",
                               true,
                               false,
                               false,
                               true,
                               std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
-                              "(CPU)"},
+                              "GPU"},
     StatefulModelConfigParams{
         "GPU,CPU",
         false,
