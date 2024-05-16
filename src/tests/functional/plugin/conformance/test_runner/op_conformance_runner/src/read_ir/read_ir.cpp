@@ -22,6 +22,7 @@
 #include "utils/generate_static_shapes.hpp"
 
 #include "read_ir_test/read_ir.hpp"
+#include "utils/generate_static_shapes.hpp"
 
 namespace ov {
 namespace test {
