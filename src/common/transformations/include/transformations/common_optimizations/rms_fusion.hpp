@@ -18,8 +18,6 @@ class TRANSFORMATIONS_API RMSFusion;
 namespace ov {
 namespace pass {
 
-
-
 class RMSFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RMSFusion", "0");

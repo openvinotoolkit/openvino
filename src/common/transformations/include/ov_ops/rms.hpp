@@ -13,7 +13,7 @@ namespace internal {
 /// \brief Operator performing Root Mean Square Normalization
 ///
 /// \note Performs re-scaling invariance and regularizes the summed input according to RMS statistics
-class TRANSFORMATIONS_API RMS: public ov::op::Op {
+class TRANSFORMATIONS_API RMS : public ov::op::Op {
 public:
     OPENVINO_OP("RMS", "ie_internal_opset");
 
