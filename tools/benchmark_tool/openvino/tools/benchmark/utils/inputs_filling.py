@@ -10,7 +10,7 @@ from collections import defaultdict
 from pathlib import Path
 from importlib.util import find_spec
 
-from openvino.runtime import Tensor, PartialShape
+from openvino.runtime import Tensor, PartialShape, Type
 from openvino.runtime.utils.types import get_dtype
 
 from .constants import IMAGE_EXTENSIONS, NUMPY_EXTENSIONS, BINARY_EXTENSIONS
@@ -345,9 +345,16 @@ def get_image_info_tensors(image_sizes, layer):
         im_infos.append(Tensor(im_info))
     return im_infos
 
+def get_random_4bit_tensor(shape, element_type, rs):
+    pack_shape = [x for x in shape]
+    pack_shape[-1] = pack_shape[-1]*element_type.bitwidth
+    rand_data = (rs.uniform(0, 15, list(pack_shape)) >= 7).astype(int).flatten()
+    rr = np.packbits(rand_data)
+    return Tensor(rr, shape, element_type)
 
 def fill_tensors_with_random(layer):
-    dtype = get_dtype(layer.element_type)
+    is_4bit = layer.element_type.bitwidth == 4
+    dtype = np.uint8 if is_4bit else get_dtype(layer.element_type)
     rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
@@ -356,10 +363,16 @@ def fill_tensors_with_random(layer):
     input_tensors = []
     for shape in layer.shapes:
         if shape:
-            input_tensors.append(Tensor(rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)))
+            if is_4bit:
+                ov_tensor = get_random_4bit_tensor(shape, layer.element_type, rs)
+            else:
+                ov_tensor = Tensor(rs.uniform(rand_min, rand_max, list(shape)).astype(dtype))
         else:
-            scalar = rs.uniform(rand_min, rand_max)
-            input_tensors.append(Tensor(np.ndarray([], dtype, np.array(scalar).astype(dtype))))
+            if is_4bit:
+                ov_tensor = get_random_4bit_tensor([1], layer.element_type, rs)
+            else:
+                ov_tensor = Tensor(np.ndarray([], dtype, np.array(rs.uniform(rand_min, rand_max)).astype(dtype)))
+        input_tensors.append(ov_tensor)
     return input_tensors
 
 
