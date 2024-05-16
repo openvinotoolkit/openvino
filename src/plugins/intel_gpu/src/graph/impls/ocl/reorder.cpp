@@ -28,8 +28,12 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         parent::load(ib);
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
-            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+            if (!_kernel_data.kernelName.empty()) {
+                auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+                kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << "Fail to update dispatch data because kernel name is empty" << std::endl;
+            }
         }
     }
 
