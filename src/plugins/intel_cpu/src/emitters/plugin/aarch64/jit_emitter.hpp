@@ -157,6 +157,8 @@ private:
         return te.off + key_off_val_shift * scale;
     }
 
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+
     static inline size_t get_asimd_vectors_count() {
         return 32;
     }
