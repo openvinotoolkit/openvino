@@ -23,7 +23,7 @@ using namespace ov::pass::transpose_sinking::utils;
 
 TSInterpolateForward::TSInterpolateForward() {
     MATCHER_SCOPE(TSInterpolateForward);
-    create_pattern<ov::op::v4::Interpolate>(true, {0});
+    create_pattern<ov::op::v4::Interpolate>({0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
