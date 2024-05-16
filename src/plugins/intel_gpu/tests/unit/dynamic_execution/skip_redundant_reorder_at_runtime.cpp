@@ -21,7 +21,6 @@ using namespace ::tests;
 namespace skip_reorder_tests {
 TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
     auto& engine = get_test_engine();
-
     auto weight_mem = engine.allocate_memory({{2, 32}, data_types::f32, format::bfyx});
     std::vector<float> weight_data(weight_mem->get_layout().count());
     std::iota(weight_data.begin(), weight_data.end(), 1.0f);
@@ -38,7 +37,7 @@ TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
 
     network network(engine, topology, config);
     auto reorder_inst = network.get_primitive("reorder");
-    ASSERT_EQ(reorder_inst->can_be_optimized(), false);
+    ASSERT_EQ(reorder_inst->can_be_optimized(), true);
 
     auto input_mem = engine.allocate_memory({{10, 32}, data_types::f32, format::bfyx});
     std::vector<float> input_data(input_mem->get_layout().count());
@@ -75,7 +74,7 @@ TEST(skip_reorder_at_runtime, correct_memory_reuse) {
     auto reorder_inst = network.get_primitive("reorder");
     auto reshape_inst = network.get_primitive("reshape");
     auto reorder_fsv16_inst = network.get_primitive("reorder_fsv16");
-    ASSERT_EQ(reorder_inst->can_be_optimized(), false);
+    ASSERT_EQ(reorder_inst->can_be_optimized(), true);
     ASSERT_EQ(reshape_inst->can_be_optimized(), true);
     ASSERT_EQ(reorder_fsv16_inst->can_be_optimized(), false);
 

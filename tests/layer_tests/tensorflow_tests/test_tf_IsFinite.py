@@ -43,7 +43,7 @@ class TestIsFinite(CommonTFLayerTest):
                              use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104855')
-        if not use_legacy_frontend:
+        if use_legacy_frontend:
             pytest.skip("IsFinite operation is not supported via legacy frontend.")
         self._test(*self.create_is_finite_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
