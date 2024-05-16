@@ -128,23 +128,35 @@ const std::vector<InputShape> input_shapes = {
 const std::vector<std::vector<size_t>> indices = {{0, 1, 2, 2, 3}, {4, 4, 3, 1, 0}, {1, 2, 1, 2, 1, 2, 1, 2, 1, 2}};
 const std::vector<std::vector<size_t>> offsets = {{0, 2}, {0, 0, 2, 2}, {2, 4}};
 const std::vector<size_t> default_index = {0, 4};
-const std::vector<bool> with_weights = {false};
 const std::vector<bool> with_default_index = {false, true};
 const std::vector<ov::op::util::EmbeddingBagOffsetsBase::Reduction> reduction = {
     ov::op::util::EmbeddingBagOffsetsBase::Reduction::SUM,
     ov::op::util::EmbeddingBagOffsetsBase::Reduction::MEAN};
 
-const auto embBagOffsetArgSet = ::testing::Combine(::testing::ValuesIn(input_shapes),
+const auto embBagOffsetArgSetWthWeights = ::testing::Combine(::testing::ValuesIn(input_shapes),
                                                    ::testing::ValuesIn(indices),
                                                    ::testing::ValuesIn(offsets),
                                                    ::testing::ValuesIn(default_index),
-                                                   ::testing::ValuesIn(with_weights),
+                                                   ::testing::Values(true),
+                                                   ::testing::ValuesIn(with_default_index),
+                                                   ::testing::Values(ov::op::util::EmbeddingBagOffsetsBase::Reduction::SUM));
+const auto embBagOffsetArgSetNoWeights = ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                                   ::testing::ValuesIn(indices),
+                                                   ::testing::ValuesIn(offsets),
+                                                   ::testing::ValuesIn(default_index),
+                                                   ::testing::Values(false),
                                                    ::testing::ValuesIn(with_default_index),
                                                    ::testing::ValuesIn(reduction));
-
-INSTANTIATE_TEST_SUITE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke_EmbeddingBagOffsets_With_Weights,
                          EmbeddingBagOffsetsLayerCPUTest,
-                         ::testing::Combine(embBagOffsetArgSet,
+                         ::testing::Combine(embBagOffsetArgSetWthWeights,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(indPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         EmbeddingBagOffsetsLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_EmbeddingBagOffsets_No_Weights,
+                         EmbeddingBagOffsetsLayerCPUTest,
+                         ::testing::Combine(embBagOffsetArgSetNoWeights,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(indPrecisions),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),

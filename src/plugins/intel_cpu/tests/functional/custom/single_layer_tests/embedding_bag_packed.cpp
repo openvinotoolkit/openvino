@@ -119,20 +119,31 @@ const std::vector<InputShape> input_shapes = {
 const std::vector<std::vector<std::vector<size_t>>> indices = {{{0, 1}, {2, 2}, {3, 4}},
                                                                {{4, 4, 3}, {1, 0, 2}},
                                                                {{1, 2, 1, 2}, {1, 2, 1, 2}}};
-const std::vector<bool> with_weights = {false};
 
 const std::vector<ov::op::util::EmbeddingBagPackedBase::Reduction> reduction = {
     ov::op::util::EmbeddingBagPackedBase::Reduction::SUM,
     ov::op::util::EmbeddingBagPackedBase::Reduction::MEAN};
 
-const auto embBagPackedArgSet = ::testing::Combine(::testing::ValuesIn(input_shapes),
+const auto embBagPackedArgSetWthWeights = ::testing::Combine(::testing::ValuesIn(input_shapes),
                                                    ::testing::ValuesIn(indices),
-                                                   ::testing::ValuesIn(with_weights),
+                                                   ::testing::Values(true),
+                                                   ::testing::Values(ov::op::util::EmbeddingBagPackedBase::Reduction::SUM));
+
+const auto embBagPackedArgSetNoWeights = ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                                   ::testing::ValuesIn(indices),
+                                                   ::testing::Values(false),
                                                    ::testing::ValuesIn(reduction));
 
-INSTANTIATE_TEST_SUITE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke_EmbeddingBagPacked_With_Weights,
                          EmbeddingBagPackedLayerCPUTest,
-                         ::testing::Combine(embBagPackedArgSet,
+                         ::testing::Combine(embBagPackedArgSetWthWeights,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(indPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         EmbeddingBagPackedLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_EmbeddingBagPacked_No_Weights,
+                         EmbeddingBagPackedLayerCPUTest,
+                         ::testing::Combine(embBagPackedArgSetNoWeights,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(indPrecisions),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
