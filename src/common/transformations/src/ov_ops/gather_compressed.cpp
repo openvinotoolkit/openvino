@@ -64,7 +64,7 @@ void GatherCompressed::validate_and_infer_types() {
                                           std::vector<ov::PartialShape>{get_input_partial_shape(0),
                                                                         get_input_partial_shape(1),
                                                                         get_input_partial_shape(2)});
-    // GatherCompressed = gahter + dequantization, the output precision is the same with the scale.
+    // GatherCompressed = gather + decompression, the output precision is the same as the scale's one.
     auto output_type = get_input_element_type(3);
     set_output_type(0, output_type, out_shapes[0]);
 }
