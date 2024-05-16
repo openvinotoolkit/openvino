@@ -10,7 +10,7 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-Kernel::Kernel(lowered::LinearIR nested) : Op(), region(std::move(nested)) {}
+Kernel::Kernel(lowered::LinearIR nested) : Op(), region(std::make_shared<lowered::LinearIR>(std::move(nested))) {}
 
 std::shared_ptr<Kernel> Kernel::make_kernel(const lowered::LinearIR& region) {
     if (region.is_dynamic()) {
@@ -25,11 +25,11 @@ KernelStatic::KernelStatic(lowered::LinearIR nested) : Kernel(std::move(nested))
 KernelDynamic::KernelDynamic(lowered::LinearIR nested) : Kernel(std::move(nested)) {}
 
 std::shared_ptr<Node> KernelStatic::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<KernelStatic>(region);
+    return std::make_shared<KernelStatic>(*region.get());
 }
 
 std::shared_ptr<Node> KernelDynamic::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<KernelDynamic>(region);
+    return std::make_shared<KernelDynamic>(*region.get());
 }
 
 } // namespace op

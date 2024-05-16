@@ -9,11 +9,17 @@
 #include <cstddef>
 
 #include "oneapi/dnnl/dnnl_common_types.h"
+#include "dnnl_types.h"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
+#if defined(OPENVINO_ARCH_ARM64)
+#define SNIPPETS_MAX_DATA_PTR_COUNT 23
+#else
 #define SNIPPETS_MAX_DATA_PTR_COUNT 11
+#endif
 
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)

@@ -7,8 +7,9 @@
 #include "node.h"
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
-#include "emitters/snippets/x64/cpu_generator.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "snippets/op/subgraph.hpp"
+
 
 #include <array>
 
@@ -74,7 +75,12 @@ private:
     ControlFlowPasses getControlFlowPasses() const;
 
     // Holds ISA version used is codeGeneration target
+#if defined(OPENVINO_ARCH_ARM64)
+    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa;
+#else
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
+#endif
+
     std::shared_ptr<SubgraphAttrs> subgraph_attrs;
 
     size_t input_num = 0;

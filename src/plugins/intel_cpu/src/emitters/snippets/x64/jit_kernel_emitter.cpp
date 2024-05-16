@@ -26,15 +26,15 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
 }
 
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_container_emitter(h, isa), reg_runtime_params_idx(abi_param1.getIdx()) {
+    : jit_emitter(h, isa), reg_runtime_params_idx(abi_param1.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "invoked with invalid op argument");
-    OV_CPU_JIT_EMITTER_ASSERT(!kernel->region.empty(), "invoked with empty body");
+    OV_CPU_JIT_EMITTER_ASSERT(!kernel->region->empty(), "invoked with empty body");
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     num_inputs = 0;
     num_outputs = 0;
-    const auto& io_exprs = body.get_IO_ops();
+    const auto& io_exprs = body->get_IO_ops();
     for (const auto& expr : io_exprs) {
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
@@ -51,7 +51,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         mem_access_exprs.push_back(expr);
     }
     std::set<size_t> unique_buffers;
-    for (const auto& expr : body) {
+    for (const auto& expr : *body) {
         if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
             const auto buffer_id = buffer->get_id();
             if (unique_buffers.count(buffer_id) == 0) {
@@ -126,7 +126,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
 
     init_data_pointers(data_ptr_regs);
-    for (const auto& expression : body) {
+    for (const auto& expression : *body) {
         const auto reg_info = expression->get_reg_info();
         auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
         auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);
