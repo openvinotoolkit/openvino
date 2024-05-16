@@ -74,6 +74,20 @@ void rms_norm(const T* in,
     multiply(out, scale, out, in_shape, scale_shape, op::AutoBroadcastType::NUMPY);
 }
 
+/**
+ * @brief Reference implementation of RMS operator with output type conversion
+ *
+ *  Math Formula: Convert((x / Sqrt(ReduceMean(x^2, axes) + eps)) * scale), T_OUT)
+ *
+ * @param in           Input pointer to data
+ * @param axes         Axes for reduce mean calculation
+ * @param out          Output pointer to results
+ * @param in_shape     Shape of the input Tensor
+ * @param eps          Epsilon for not dividing by zero while normalizing the value
+ * @param scale_shape  Shape of the scale Tensor
+ * @param scale        Input pointer to scale
+ *
+ */
 template <class T_IN, class T_OUT>
 void rms_norm_mul_convert_out(const T_IN* in,
                               const AxisSet& axes,
