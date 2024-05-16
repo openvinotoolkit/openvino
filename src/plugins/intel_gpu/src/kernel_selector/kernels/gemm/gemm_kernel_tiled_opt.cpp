@@ -147,6 +147,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         auto n_size = dims1.dims_sizes[input1_dims[7]];
         auto n_padded_size = "(" + dims1_padded.dims_sizes[input1_dims[7]] + ")";
         auto k_size = dims0.dims_sizes[input0_dims[7]];
+        // GPU_DEBUG_COUT << "m_size: " << m_size << ", n_size: " << n_size << ", k_size: " << k_size << std::endl;
         auto k_padded_size_in0 = "(" + dims0_padded.dims_sizes[input0_dims[7]] + ")";
         const std::string leftover_m = "(" + m_size + "%" + std::to_string(tuning_data.tile_m_size) + ")";
         const std::string leftover_n = "(" + n_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
