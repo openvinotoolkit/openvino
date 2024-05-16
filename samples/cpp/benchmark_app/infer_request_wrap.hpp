@@ -151,7 +151,6 @@ public:
                           const double latency,
                           const std::exception_ptr& ptr = nullptr) {
         std::unique_lock<std::mutex> lock(_mutex);
-        // std::cout << "put_idle_request: id: " << id << " lat_group_id: " << lat_group_id << " latency: " << latency << "\n";
         if (ptr) {
             inferenceException = ptr;
         } else {

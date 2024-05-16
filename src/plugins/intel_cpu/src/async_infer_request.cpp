@@ -3,7 +3,8 @@
 //
 
 #include "async_infer_request.h"
-#include "cpu_message.hpp"
+
+#include "openvino/runtime/threading/cpu_message.hpp"
 
 ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<IInferRequest>& request,

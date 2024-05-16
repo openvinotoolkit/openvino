@@ -6,7 +6,7 @@
 
 #include "compiled_model.h"
 #include "cpu_streams_calculation.hpp"
-#include "cpu_message.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 
 namespace ov {
 namespace intel_cpu {

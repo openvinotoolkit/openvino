@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "cpu_message.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -124,11 +124,11 @@ void MessageManage::server_wait(int streams_num) {
     }
 }
 
-void MessageManage::setSubCompileModels(std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> models) {
+void MessageManage::setSubCompileModels(std::vector<std::shared_ptr<ov::ICompiledModel>> models) {
     m_sub_compilemodels = models;
 }
 
-std::vector<std::shared_ptr<ov::intel_cpu::CompiledModel>> MessageManage::getSubCompileModels() {
+std::vector<std::shared_ptr<ov::ICompiledModel>> MessageManage::getSubCompileModels() {
     return m_sub_compilemodels;
 }
 
@@ -150,7 +150,13 @@ void MessageManage::stop_server_thread() {
 }
 
 void MessageManage::clear() {
+    for (size_t i = 0; i < m_sub_infer_requests.size(); i++) {
+        std::cout << "infer count_" << i << " : " << m_sub_infer_requests[i].use_count() << "\n";
+    }
     m_sub_infer_requests.clear();
+    for (size_t i = 0; i < m_sub_compilemodels.size(); i++) {
+        std::cout << "model count_" << i << " : " << m_sub_compilemodels[i].use_count() << "\n";
+    }
     m_sub_compilemodels.clear();
 }
 

@@ -19,7 +19,7 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
-#include "cpu_message.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
@@ -116,11 +116,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-    std::cout << "xxxxxxxxx: m_subCompileModel: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
+    // std::cout << "m_subCompileModel: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
     if (m_cfg.enableSubStreams) {
         m_cfg.enableSubStreams = false;
         m_subCompileModel = true;
-        std::vector<std::shared_ptr<CompiledModel>> sub_models;
+        std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
         auto message = message_manager();
         for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
             auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
@@ -209,8 +209,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         auto message = message_manager();
         auto sub_models = message->getSubCompileModels();
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
-        for (int i = 0; i < sub_models.size(); i++) {
-            requests.push_back(sub_models[i]->create_infer_request());
+        for (auto model : sub_models) {
+            requests.push_back(model->create_infer_request());
         }
         message->setSubInferRequest(requests);
         async_infer_request->setSubInfer(true);

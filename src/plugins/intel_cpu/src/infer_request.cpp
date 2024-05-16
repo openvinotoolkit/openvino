@@ -18,7 +18,7 @@
 #include "proxy_mem_mgr.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
-#include "cpu_message.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
@@ -638,8 +638,8 @@ void SyncInferRequest::sub_streams_infer() {
     std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> input_tensors;
     auto message = ov::threading::message_manager();
     auto requests = message->getSubInferRequest();
-    auto inputs = m_asyncRequest->get_inputs();
-    auto outputs = m_asyncRequest->get_outputs();
+    auto inputs = get_inputs();
+    auto outputs = get_outputs();
 
     size_t requests_num = requests.size();
     // std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
@@ -651,7 +651,7 @@ void SyncInferRequest::sub_streams_infer() {
         }
         for (size_t i = 0; i < requests_num; i++) {
             for (auto& input : inputs) {
-                auto tensor = m_asyncRequest->get_tensor(input);
+                auto tensor = get_tensor(input);
                 requests[i]->set_tensor(input, tensor);
             }
 
