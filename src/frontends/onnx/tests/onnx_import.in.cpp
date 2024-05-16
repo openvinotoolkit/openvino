@@ -6617,8 +6617,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
-    if (std::string("${BACKEND_NAME}") != std::string("INTERPRETER")) {
-        return;  //< Skip this test for non-INTERPRETER backends, since op is not yet implemented on those backends.
+    if (!(std::string("${BACKEND_NAME}") == std::string("INTERPRETER") ||
+          std::string("${BACKEND_NAME}") == std::string("IE_CPU"))) {
+        return;  //< Skip this test for not-yet-implemented on those backends.
     }
 
     auto model = convert_model("mmdeploy_roi_align_rotated.onnx");
