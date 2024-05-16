@@ -41,7 +41,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
                                                          NodeVector& assignes_to_remove,
-                                                         int& layer_index) {
+                                                         int& layer_index,
+                                                         Output<Node> max_context_len) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
@@ -209,7 +210,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         auto q_transpose = std::make_shared<v1::Transpose>(real_q, kv_transpose_order);
         auto q_reshape =
-            std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i64, Shape{3}, {0, 0, -1}), true);
+            std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
         std::shared_ptr<Node> k_transpose_order =
             kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
@@ -221,7 +222,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
         auto k_transpose = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
         auto k_reshape =
-            std::make_shared<v1::Reshape>(k_transpose, v0::Constant::create(element::i64, Shape{3}, {0, 0, -1}), true);
+            std::make_shared<v1::Reshape>(k_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
         std::shared_ptr<Node> v_transpose_order =
             kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
@@ -233,7 +234,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
         auto v_transpose = std::make_shared<v1::Transpose>(real_v, v_transpose_order);
         auto v_reshape =
-            std::make_shared<v1::Reshape>(v_transpose, v0::Constant::create(element::i64, Shape{3}, {0, 0, -1}), true);
+            std::make_shared<v1::Reshape>(v_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
         // TODO: Detect whether SDPA in the model graph has `scale` argument set and use it instead of the computed
         // scale below Most likely `scale` will always be a constant in real inference, but dynamic dimension
@@ -261,7 +262,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         OutputVector params = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
         params.insert(params.end(), model_remaining_params.begin(), model_remaining_params.end());
-        std::initializer_list<std::shared_ptr<Node>> additional_params = {scale, alibi_slopes, sliding_window};
+        std::initializer_list<std::shared_ptr<Node>> additional_params = {scale, sliding_window, alibi_slopes, max_context_len.get_node_shared_ptr()};
         params.insert(params.end(), additional_params.begin(), additional_params.end());
 
         // Really not sure if I construct correctly because the Python code uses an additional function
@@ -270,7 +271,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto pa_shape = std::make_shared<v0::Concat>(
             OutputVector{
                 v0::Constant::create(element::i64, Shape{1}, {0}),
-                v0::Constant::create(element::i64, Shape{1}, {0}),
+                v0::Constant::create(element::i64, Shape{1}, {1}),
                 v0::Constant::create(element::i64, Shape{1}, {-1}),
                 std::make_shared<v0::Unsqueeze>(hidden_dim, v0::Constant::create(element::i64, Shape{}, {0})),
             },

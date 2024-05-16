@@ -23,5 +23,5 @@ class PositionIDsReplacer;
 class ov::pass::PositionIDsReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PositionIDsReplacer", "0");
-    explicit PositionIDsReplacer(const std::shared_ptr<Output<Node>>& position_ids);
+    explicit PositionIDsReplacer(const Output<Node>& position_ids);
 };
