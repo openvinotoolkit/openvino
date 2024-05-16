@@ -108,9 +108,9 @@ void SyncInferRequest::infer() {
     auto message = ov::threading::message_manager();
 
     throw_if_canceled();
-    // std::cout << "[ infer ] " << m_asyncRequest->m_sub_infers << "\n";
-    if (m_asyncRequest->m_sub_infers) {
-        message->server_wait(message->getSubInferRequest().size());
+    // std::cout << "[ infer ] " << m_asyncRequest->m_has_sub_infers << "\n";
+    if (m_asyncRequest->m_has_sub_infers) {
+        message->server_wait(message->get_sub_infer_requests().size());
         ov::threading::MessageInfo msg_info;
         msg_info.msg_type = ov::threading::MsgType::START_INFER;
         ov::threading::Task task = [&] {
@@ -320,10 +320,10 @@ void SyncInferRequest::change_default_ptr() {
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
-    if (m_asyncRequest->m_sub_infers) {
+    if (m_asyncRequest->m_has_sub_infers) {
         auto message = ov::threading::message_manager();
         std::vector<ov::SoPtr<ov::IVariableState>> states;
-        for (auto request : message->getSubInferRequest()) {
+        for (auto request : message->get_sub_infer_requests()) {
             auto cur = request->query_state();
             states.insert(states.end(), cur.begin(), cur.end());
         }
@@ -629,7 +629,7 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
 void SyncInferRequest::sub_streams_infer() {
     std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> input_tensors;
     auto message = ov::threading::message_manager();
-    auto requests = message->getSubInferRequest();
+    auto requests = message->get_sub_infer_requests();
     auto inputs = get_inputs();
     auto outputs = get_outputs();
 

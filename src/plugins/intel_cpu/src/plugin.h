@@ -44,7 +44,7 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented get_default_context  is not supported by CPU plugin!");
     };
 
-    std::shared_ptr<ov::threading::MessageManage> m_msg_manager;
+    std::shared_ptr<ov::threading::MessageManager> m_msg_manager;
 
 private:
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;

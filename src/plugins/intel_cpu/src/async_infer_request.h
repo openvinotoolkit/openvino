@@ -17,12 +17,12 @@ public:
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
     ~AsyncInferRequest();
 
-    void setSubInfer(bool sub_infer) {
-        m_sub_infers = sub_infer;
+    void setSubInfer(bool has_sub_infer) {
+        m_has_sub_infers = has_sub_infer;
     }
 
     void throw_if_canceled() const;
-    bool m_sub_infers = false;
+    bool m_has_sub_infers = false;
 };
 
 }  // namespace intel_cpu

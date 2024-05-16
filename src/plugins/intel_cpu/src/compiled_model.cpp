@@ -115,10 +115,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-    // std::cout << "m_subCompileModel: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
+    // std::cout << "m_hans_sub_compiled_models: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
     if (m_cfg.enableSubStreams) {
         m_cfg.enableSubStreams = false;
-        m_subCompileModel = true;
+        m_hans_sub_compiled_models = true;
         std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
         auto message = message_manager();
         for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
@@ -137,7 +137,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_cfg.subStreamExecConfig = std::move(streamExecutorConfig);
             sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, m_cfg, loaded_from_cache));
         }
-        message->setSubCompileModels(sub_models);
+        message->set_sub_compiled_models(sub_models);
     }
     // init sub stream threads of executor
     // int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
@@ -204,14 +204,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
                                             get_callback_executor());
-    if (m_subCompileModel) {
+    if (m_hans_sub_compiled_models) {
         auto message = message_manager();
-        auto sub_models = message->getSubCompileModels();
+        auto sub_models = message->get_sub_compiled_models();
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         for (auto model : sub_models) {
             requests.push_back(model->create_infer_request());
         }
-        message->setSubInferRequest(requests);
+        message->set_sub_infer_requests(requests);
         async_infer_request->setSubInfer(true);
     }
     return async_infer_request;

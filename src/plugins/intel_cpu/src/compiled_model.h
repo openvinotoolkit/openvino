@@ -74,7 +74,7 @@ private:
      */
     GraphGuard::Lock get_graph() const;
 
-    bool m_subCompileModel = false;
+    bool m_hans_sub_compiled_models = false;
 };
 
 }   // namespace intel_cpu
