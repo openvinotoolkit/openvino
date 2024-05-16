@@ -134,7 +134,7 @@ sequences.
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:state_api_usage]
 
