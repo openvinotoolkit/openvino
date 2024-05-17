@@ -14,6 +14,19 @@ experimental_detectron_topk_rois_inst::typed_primitive_inst(network& network, ex
 : parent(network, node) {
 }
 
+template<typename ShapeType>
+std::vector<layout> experimental_detectron_topk_rois_inst::calc_output_layouts(
+        experimental_detectron_topk_rois_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto input_layout = impl_param.get_input_layout();
+    auto desc = impl_param.typed_desc<experimental_detectron_topk_rois>();
+
+    return { layout(ov::PartialShape{static_cast<int64_t>(desc->max_rois), 4}, input_layout.data_type, input_layout.format) };
+}
+
+template std::vector<layout>
+experimental_detectron_topk_rois_inst::calc_output_layouts<ov::PartialShape>(
+    experimental_detectron_topk_rois_node const& node, const kernel_impl_params& impl_param);
+
 layout experimental_detectron_topk_rois_inst::calc_output_layout(
     experimental_detectron_topk_rois_node const &node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();

@@ -128,7 +128,13 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
         for (size_t i = 0; i < desc->input_size(); i++) {
             input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
         }
-        output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
+
+        // Special handling for is_finite, is_nan, is_inf modes
+        if (input_shapes.size() == 1) {
+            output_shapes = input_shapes;
+        } else {
+            output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
+        }
 
         if (input_layout.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             out_format = format::b_fs_zyx_fsv16;

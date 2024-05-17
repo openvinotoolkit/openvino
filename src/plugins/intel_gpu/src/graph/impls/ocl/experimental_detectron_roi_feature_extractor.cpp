@@ -22,18 +22,6 @@ struct experimental_detectron_roi_feature_extractor_impl : public typed_primitiv
         return make_unique<experimental_detectron_roi_feature_extractor_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(const experimental_detectron_roi_feature_extractor_inst& instance) const override {
-        kernel_arguments_data args;
-
-        for (std::size_t i = 0; i < instance.inputs_memory_count(); i++) {
-            args.inputs.push_back(instance.input_memory_ptr(i));
-        }
-        args.outputs = { instance.output_memory_ptr() };
-
-        return args;
-    }
-
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             experimental_detectron_roi_feature_extractor_inst& instance) override {
         instance.copy_rois_input_to_second_output();

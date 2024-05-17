@@ -295,8 +295,8 @@ namespace v13 {
 template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const NMSRotated* op,
                                  const std::vector<T>& input_shapes,
-                                 const ITensorAccessor& ta = make_tensor_accessor()) {
-    constexpr bool static_output = !std::is_same<T, PartialShape>::value;
+                                 const ITensorAccessor& ta = make_tensor_accessor(),
+                                 const bool static_output = !std::is_same<T, PartialShape>::value) {
     return nms::shape_infer(op, input_shapes, ta, static_output);
 }
 }  // namespace v13

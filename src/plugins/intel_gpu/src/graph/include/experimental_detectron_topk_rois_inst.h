@@ -17,6 +17,8 @@ class typed_primitive_inst<experimental_detectron_topk_rois> : public typed_prim
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(experimental_detectron_topk_rois_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(experimental_detectron_topk_rois_node const &node, kernel_impl_params const& impl_param);
 
     static std::string to_string(experimental_detectron_topk_rois_node const &node);
