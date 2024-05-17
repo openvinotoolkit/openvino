@@ -61,18 +61,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        if (m_cfg.enableSubStreams) {
-            executor_confg = IStreamsExecutor::Config{"CPUMainStreamExecutor",
-                                                      1,
-                                                      1,
-                                                      ov::hint::SchedulingCoreType::ANY_CORE,
-                                                      false,
-                                                      true};
-        } else {
-            executor_confg = m_cfg.subStreamExecConfig.get_name() != "StreamsExecutor"
-                                 ? std::move(m_cfg.subStreamExecConfig)
-                                 : std::move(m_cfg.streamExecutorConfig);
-        }
+        executor_confg = m_cfg.enableSubStreams ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
+                                                                           1,
+                                                                           1,
+                                                                           ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                           false,
+                                                                           true}
+                                                : m_cfg.streamExecutorConfig;
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
@@ -115,27 +110,27 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-    // std::cout << "m_hans_sub_compiled_models: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
+    // std::cout << "m_has_sub_compiled_models: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
     if (m_cfg.enableSubStreams) {
         m_cfg.enableSubStreams = false;
-        m_hans_sub_compiled_models = true;
+        m_has_sub_compiled_models = true;
+        auto sub_cfg = m_cfg;
         std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
+        auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
         auto message = message_manager();
         for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
-            auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
-            std::vector<std::vector<int>> info_table;
-            info_table.push_back(streams_info_table[i + 1]);
-            info_table[0][NUMBER_OF_STREAMS] = 1;
-            auto streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
-                                                                 1,
-                                                                 1,
-                                                                 ov::hint::SchedulingCoreType::ANY_CORE,
-                                                                 false,
-                                                                 true,
-                                                                 info_table,
-                                                                 m_cfg.streamsRankTable[i]};
-            m_cfg.subStreamExecConfig = std::move(streamExecutorConfig);
-            sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, m_cfg, loaded_from_cache));
+            std::vector<std::vector<int>> sub_streams_table;
+            sub_streams_table.push_back(streams_info_table[i + 1]);
+            sub_streams_table[0][NUMBER_OF_STREAMS] = 1;
+            sub_cfg.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
+                                                                    1,
+                                                                    1,
+                                                                    ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                    false,
+                                                                    true,
+                                                                    sub_streams_table,
+                                                                    sub_cfg.streamsRankTable[i]};
+            sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache));
         }
         message->set_sub_compiled_models(sub_models);
     }
@@ -204,7 +199,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
                                             get_callback_executor());
-    if (m_hans_sub_compiled_models) {
+    if (m_has_sub_compiled_models) {
         auto message = message_manager();
         auto sub_models = message->get_sub_compiled_models();
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
