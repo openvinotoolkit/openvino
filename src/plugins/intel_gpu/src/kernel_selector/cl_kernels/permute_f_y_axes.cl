@@ -26,28 +26,26 @@ KERNEL (permute_f_y_axes)(
     )
 {
     const int bf = get_global_id(2);
-    int f_idx = bf % INPUT0_FEATURE_NUM;
+    const int f_idx = bf % INPUT0_FEATURE_NUM;
     const int b_idx = bf / INPUT0_FEATURE_NUM;
     const int x_start = get_global_id(0) * BLOCK_SIZE;
-    int y_idx = get_global_id(1);
+    const int y_idx = get_global_id(1);
 
     __attribute__((opencl_unroll_hint(J_TIMES)))
     for (int j = 0; j < J_TIMES; ++j) {
         const int x_idx = x_start + j * VEC_SIZE;
-        f_idx = get_global_id(1);
-        y_idx = bf % INPUT0_FEATURE_NUM;
+        const int f_out_idx = get_global_id(1);
+        const int y_out_idx = bf % INPUT0_FEATURE_NUM;
 #if HAS_FUSED_OPS
-        
         OUT_VEC_TYPE result;
-        OUT_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, y_idx, f_idx, x_idx)]);
+        OUT_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         FUSED_OPS_VEC;
         result = FUSED_OPS_RESULT_VEC;
-        
 #else
-        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, y_idx, f_idx, x_idx)]);
+        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         OUT_VEC_TYPE result = ACTIVATION(res, ACTIVATION_PARAMS);
 #endif
-        const int output_idx = OUTPUT_GET_INDEX(b_idx,  f_idx, y_idx,x_idx);
+        const int output_idx = OUTPUT_GET_INDEX(b_idx, f_out_idx, y_out_idx, x_idx);
         WRITE_VEC(result, 0, &output[output_idx]);
     }
 }
@@ -68,7 +66,7 @@ KERNEL (permute_f_y_axes)(
 {
     __local OUTPUT_TYPE transpose_buf[FEATURE_BLOCK_SIZE][FEATURE_BLOCK_SIZE][TILE_SIZE];
     const int bf = get_global_id(2);
-    int f_idx = bf % INPUT0_FEATURE_NUM;
+    const int f_idx = bf % INPUT0_FEATURE_NUM;
     const int b_idx = bf / INPUT0_FEATURE_NUM;
 
     int bf_local = get_local_id(2);
@@ -82,17 +80,15 @@ KERNEL (permute_f_y_axes)(
     for (int j = 0; j < FEATURE_BLOCK_SIZE; ++j) {
         __attribute__((opencl_unroll_hint(TILE_SIZE)))
         for (int i = 0; i < TILE_SIZE; ++i) {
-            int x_idx = x_begin + i;
-            int y_idx = y_begin + j;
+            const int x_idx = x_begin + i;
+            const int y_idx = y_begin + j;
             const uint input_offset = INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx) - get_sub_group_local_id();
             INPUT0_TYPE res = DT_INPUT_BLOCK_READ(input, input_offset);
     #if HAS_FUSED_OPS
-            f_idx = y_begin + j;
-            y_idx = bf % INPUT0_FEATURE_NUM;
+            const int f_out_idx = y_begin + j;
+            const y_out_idx = bf % INPUT0_FEATURE_NUM;
             FUSED_OPS;
             transpose_buf[bf_local][j][i]  = FUSED_OPS_RESULT;
-            f_idx = bf % INPUT0_FEATURE_NUM;
-            y_idx = y_begin + j;
     #else
             transpose_buf[bf_local][j][i] = ACTIVATION(res, ACTIVATION_PARAMS);
     #endif
@@ -130,7 +126,7 @@ KERNEL (permute_f_y_axes)(
 
     const int bf = get_global_id(2);
     const int b_idx = bf / INPUT0_FEATURE_NUM;
-    int f_idx = bf % INPUT0_FEATURE_NUM;
+    const int f_idx = bf % INPUT0_FEATURE_NUM;
     const int bf_local = get_local_id(2);
     const int x_idx = get_global_id(0);
     const int y_begin = get_global_id(1) * TILE_SIZE;
@@ -139,10 +135,8 @@ KERNEL (permute_f_y_axes)(
     __attribute__((opencl_unroll_hint(J_TIMES)))
     for (int j = 0; j < J_TIMES; ++j) {
         const int j_vec = j * VEC_SIZE;
-        int y_idx = y_begin + j_vec;
+        const int y_idx = y_begin + j_vec;
 #if HAS_FUSED_OPS
-        y_idx = y_begin + j_vec;
-        f_idx = bf % INPUT0_FEATURE_NUM;
         OUT_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         __attribute__((opencl_unroll_hint(VEC_SIZE)))
         for (int k = 0; k < VEC_SIZE; ++k) {
@@ -161,11 +155,11 @@ KERNEL (permute_f_y_axes)(
     for (int j = 0; j < J_TIMES; ++j) {
         const int j_vec = j * VEC_SIZE;
         OUT_VEC_TYPE res = READ_VEC(0, &transpose_buf[bf_local][j_vec]);
-        f_idx = y_begin + bf_local;
-        int y_idx = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
+        const int f_out_idx = y_begin + bf_local;
+        const int y_out_idx = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
         FUSED_OPS_VEC;
         OUT_VEC_TYPE result = FUSED_OPS_RESULT_VEC;
-        const int output_idx = OUTPUT_GET_INDEX(b_idx, f_idx, y_idx, x_idx);
+        const int output_idx = OUTPUT_GET_INDEX(b_idx, f_out_idx, y_out_idx, x_idx);
         WRITE_VEC(result, 0 , &output[output_idx]);
     }
 #else
@@ -186,11 +180,10 @@ KERNEL (permute_f_y_axes)(
         const uint input_offset = INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx) - get_sub_group_local_id();
         INPUT0_TYPE res = DT_INPUT_BLOCK_READ(input, input_offset);
 #if HAS_FUSED_OPS
-        y_idx = bf % INPUT0_FEATURE_NUM;
-        f_idx = y_begin + j;
+        const int y_out_idx = bf % INPUT0_FEATURE_NUM;
+        const int f_out_idx = y_begin + j;
         FUSED_OPS;
         transpose_buf[bf_local][j]  = FUSED_OPS_RESULT;
-        f_idx = bf % INPUT0_FEATURE_NUM;
 #else
         transpose_buf[bf_local][j] = ACTIVATION(res, ACTIVATION_PARAMS);
 #endif
