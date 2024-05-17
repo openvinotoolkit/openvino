@@ -685,7 +685,8 @@ def test_output_tuple_names():
 
 def test_patched_16bit_model_converts():
     from openvino.frontend.pytorch import patch_model
-    from openvino import convert_model
+    from openvino import convert_model, compile_model
+    import copy
 
     class ModelWithLinear(torch.nn.Module):
         def __init__(self):
@@ -704,17 +705,29 @@ def test_patched_16bit_model_converts():
             out2 = self.branch2(x2)
             return (out1 + self.buffer, out2)
 
-    model_fp16 = ModelWithLinear().half()
     example = (torch.randn(32, 64), torch.randn(32, 128))
+    model_ref = ModelWithLinear()
+    with torch.no_grad():
+        res_ref = model_ref(*example)
+    model_fp16 = copy.deepcopy(model_ref).half()
 
     patch_model.__make_16bit_traceable(model_fp16)
     # the approach with patching only works for node with no grad
     with torch.no_grad():
         converted_model = convert_model(model_fp16, example_input=example)
     assert converted_model
-    model_bf16 = ModelWithLinear().bfloat16()
+    cm_fp16 = compile_model(converted_model, "CPU")
+    res_fp16 = cm_fp16([x.numpy() for x in example])
+    np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-3)
+    np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-3)
+    
+    model_bf16 = copy.deepcopy(model_ref).bfloat16()
     patch_model.__make_16bit_traceable(model_bf16)
     # the approach with patching only works for node with no grad
     with torch.no_grad():
         converted_model = convert_model(model_bf16, example_input=example)
     assert converted_model
+    cm_bf16 = compile_model(converted_model, "CPU")
+    res_bf16 = cm_bf16([x.numpy() for x in example])
+    np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
+    np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
