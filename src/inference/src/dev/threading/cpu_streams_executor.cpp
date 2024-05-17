@@ -142,10 +142,14 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
                 // Numa id has used different mapping methods in TBBBind since oneTBB 2021.4.0
-#    if (USE_TBBBIND_2_5 || (TBB_INTERFACE_VERSION >= 12040))
+#    if USE_TBBBIND_2_5
                 auto real_numa_node_id = _numaNodeId;
 #    else
                 auto real_numa_node_id = get_org_numa_id(_numaNodeId);
+                auto tbb_version = TBB_runtime_interface_version();
+                if (tbb_version >= 12040) {
+                    real_numa_node_id = _numaNodeId;
+                }
 #    endif
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_numa_id(real_numa_node_id)
