@@ -43,22 +43,44 @@ protected:
     event::ptr execute_impl(const std::vector<event::ptr>& events ,
                             typed_primitive_inst<fully_connected>& instance) override {
         auto& stream = instance.get_network().get_stream();
-        stream.finish();
-        instance.fill_placeholder();
+        //instance.fill_placeholder();
         auto event = parent::execute_impl(events, instance);
         if (getenv("ENABLE_CCL")) {
-            auto& network = instance.get_network();
-            auto& stream = network.get_stream();
-            stream.finish();
-            auto& output_memory = instance.output_memory();
-            std::cout << output_memory.get_allocation_type() << std::endl;
-            auto send_ptr = output_memory.buffer_ptr();
-            if (output_memory.get_layout().data_type == ov::element::f16)
-                Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory.count());
-            else if (output_memory.get_layout().data_type == ov::element::f32)
-                Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory.count());
+            stream.finish(); // can be replaced with need_completion_event?
+            //auto output_memory_ptr = instance.output_memory_ptr();
+            auto rank_output_memory = instance.get_output_rank_placeholder();
+            //auto send_ptr = rank_output_memory->buffer_ptr();
+            {std::ofstream file_stream("bell_fc_output_onednn_iter_rank_"
+                                    + std::to_string(instance.get_node().as<fully_connected>().w_rank) + ".txt");
+            auto&& size = rank_output_memory->get_layout().get_tensor();
+
+            file_stream << "shape: " << size.to_string() << " ";
+            file_stream << "(count: " << size.count()
+                            << ", original format: " << cldnn::fmt_to_str(rank_output_memory->get_layout().format) << ")" << std::endl;
+
+            mem_lock<float, mem_lock_type::read> lock(rank_output_memory, stream);
+            auto mem_ptr = lock.data();
+            std::stringstream buffer;
+
+            {
+                for (size_t i = 0; i < lock.size(); ++i) {
+                    std::cout << "output, rank " << instance.get_node().as<fully_connected>().w_rank << mem_ptr[i] << std::endl;
+                    buffer << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
+                }
+            }
+            file_stream << buffer.str();
+            }
+            /*
+            if (output_memory_ptr->get_layout().data_type == ov::element::f16)
+                Messenger::getInstance().helperAllgathervf16(send_ptr, rank_output_memory->count(),
+                                        output_memory_ptr->buffer_ptr(), {rank_output_memory->count()});
+            else if (output_memory_ptr->get_layout().data_type == ov::element::f32)
+                Messenger::getInstance().helperAllgatherv(send_ptr, rank_output_memory->count(),
+                                        output_memory_ptr->buffer_ptr(), {rank_output_memory->count()});
             else
                 OPENVINO_THROW("not expected!");
+                */
+            std::cout << "&&&&&&&&" << std::endl;
         }
         return event;
     }
@@ -67,19 +89,19 @@ protected:
         std::unordered_map<int, dnnl::memory> args;
         std::cout << "**********" << std::endl;
         {
-            auto& input = instance.get_input_rank_placeholder_mem();
-            //auto input = instance.get_input_rank_placeholder();
+            auto& input = instance.input_memory(0);
             std::cout << input.get_layout().to_short_string() << std::endl;
             auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
             for (auto& iter : _pd.dnnl::primitive_desc_base::src_desc(0).get_dims())
                 std::cout << iter  << ",";
             std::cout << std::endl;
+            int offset_memory = instance.get_impl_params()->w_rank ? 0 : 12;
             // mapping input memory here
-            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
+            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset + offset_memory)});
         }
 
         {
-            auto& output = instance.output_memory();
+            auto& output = instance.get_output_rank_placeholder_mem();
             std::cout << output.get_layout().to_short_string() << std::endl;
             auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});

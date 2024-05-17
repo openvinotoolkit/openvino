@@ -697,82 +697,16 @@ void program::transfer_memory_to_device() {
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
-            auto engine = mem.get_engine();
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
 
-            memory::ptr rank_weights_memory_host;
-            auto rank_weights_layout = data_node_layout;
-            bool rank_enabled = false;
-            if (node->get_users().size() == 1) {
-                auto user_node = node->get_users().front();
-                if (user_node->is_type<fully_connected>()) {
-                    auto& fc_node = user_node->as<fully_connected>();
-                    GPU_DEBUG_TRACE_DETAIL << node->id() << " current in rank:  " << fc_node.w_rank << ", total size "
-                            << fc_node.w_size << std::endl;
-                    if (fc_node.w_size && fc_node.w_size != -1 && fc_node.w_size != 1) {
-                        auto rank = fc_node.w_rank;
-                        auto weights_pshape = data_node_layout.get_partial_shape().to_shape();
-                        std::cout << "in program build!!!" << data_node_layout.to_short_string() << std::endl;
-                        auto dims = data_node_layout.get_dims();
-                        auto dim = 1; // to be finalized
-                        if (weights_pshape[dim] == 1)
-                            dim = weights_pshape.size() -2;
-                        std::cout << weights_pshape[dim] << std::endl;
-                        weights_pshape[dim] /= fc_node.w_size;
-                        auto element_size = ov::element::Type(data_node_layout.data_type).size();
-                        rank_weights_layout = layout(ov::PartialShape(weights_pshape),
-                                                                data_node_layout.data_type,
-                                                                data_node_layout.format,
-                                                                data_node_layout.data_padding);
-                        data_node.set_output_layout(rank_weights_layout);   // do we need to update layout here?
-                        rank_weights_memory_host = engine->allocate_memory(rank_weights_layout, allocation_type::usm_host);
-                        auto dst_ptr = static_cast<uint8_t*>(rank_weights_memory_host->buffer_ptr());
-                        auto src_ptr = static_cast<uint8_t*>(mem.buffer_ptr());
-                        auto mem_size = mem.size(); // total bytes
-                        auto channel_size = dims[dim] * element_size; // selected dim bytes
-                        const int step = (mem_size / channel_size); // the steps need to copy.
-                        const int stride = dims[dim] / fc_node.w_size; // elements of half selected dim.
-                        const auto copy_size = stride * element_size; // bytes of half selected dim.
-                        ov::parallel_for(step, [&](int i){
-                            int dst_offset = i * copy_size;
-                            int src_offset = i * copy_size* 2 + rank * copy_size;
-                            std::memcpy(dst_ptr + dst_offset, src_ptr + src_offset, copy_size);
-                        });
-                        rank_enabled = true;
-                        GPU_DEBUG_TRACE_DETAIL << node->id() << ": re-rank weights from " << data_node_layout.to_short_string() << " to "
-                            << rank_weights_layout.to_short_string() << std::endl;
-                        /*if (fc_node.id() == "fullyconnected:__module.model.layers.0.self_attn.v_proj/aten::linear/MatMul") {
-                            std::ofstream file_stream("bell_original_weight_rank_" +
-                                    std::to_string(fc_node.w_rank) + ".txt");
-                            auto&& size = rank_weights_memory_host->get_layout().get_tensor();
-
-                            file_stream << "shape: " << size.to_string() << " ";
-                            file_stream << "(count: " << size.count()
-                                            << ", original format: " << cldnn::fmt_to_str(rank_weights_memory_host->get_layout().format) << ")" << std::endl;
-
-                            mem_lock<ov::float16, mem_lock_type::read> lock(rank_weights_memory_host, get_stream());
-                            auto mem_ptr = lock.data();
-                            std::stringstream buffer;
-
-                            {
-                                for (size_t i = 0; i < lock.size(); ++i) {
-                                    buffer << std::fixed << std::setprecision(6) << static_cast<float>(mem_ptr[i]) << std::endl;
-                                }
-                            }
-                            file_stream << buffer.str();
-                        }*/
-                    }
-                }
-            }
-
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
-                auto device_mem = engine->allocate_memory(rank_enabled ? rank_weights_layout : data_node_layout, allocation_type::usm_device, false);
-                device_mem->copy_from(get_stream(), rank_enabled ? *rank_weights_memory_host : mem);
+                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
+                device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();

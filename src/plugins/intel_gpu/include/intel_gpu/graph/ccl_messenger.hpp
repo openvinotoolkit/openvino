@@ -112,6 +112,9 @@ public:
         ccl::allgatherv(sendBuf, count, recvBuf, recvCounts, ccl::datatype::bfloat16, *pcomm).wait();
     }
 
+    void helperAllgathervf16(const void* sendBuf, size_t count, void* recvBuf, const std::vector<long unsigned int> &recvCounts) {
+        ccl::allgatherv(sendBuf, count, recvBuf, recvCounts, ccl::datatype::float16, *pcomm).wait();
+    }
     void helperAllreduce(void *sendBuf, void *recvBuf, size_t count) {
         ccl::allreduce(sendBuf, recvBuf, count, ccl::datatype::float32, ccl::reduction::sum, *pcomm).wait();
     }

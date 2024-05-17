@@ -268,15 +268,6 @@ void primitive_inst::update_shape() {
         return;
     }
     bool input_shape_changed = false;
-    // update weight shape for impl params
-    if (_node->is_type<fully_connected>()) {
-        const auto weights_idx = _node->get_primitive()->input.size();
-        const auto original_weights_memory = dep_memory_ptr(weights_idx);
-        if (_impl_params->input_layouts[1] != original_weights_memory->get_layout())
-            _impl_params->input_layouts[1] = original_weights_memory->get_layout();
-        GPU_DEBUG_TRACE_DETAIL << id() << ": update weight shape to "
-                               <<  _impl_params->input_layouts[1].to_short_string() << std::endl;
-    }
 
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
@@ -284,14 +275,12 @@ void primitive_inst::update_shape() {
         auto update_new_layout = new_layout;
         if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && i == 0) {
             auto new_update_pshape = new_layout.get_partial_shape().to_shape();
-            auto dims = new_layout.get_dims();
-            auto dim = new_update_pshape.size() - 1; // to be finalized
-            new_update_pshape[dim] /= _impl_params->w_size;
+            new_update_pshape[0] /= _impl_params->w_size;
             update_new_layout = layout(ov::PartialShape(new_update_pshape),
                                                             new_layout.data_type,
                                                             new_layout.format,
                                                             new_layout.data_padding);
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update input shape to "
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update input shape from " << new_layout.to_short_string() << " to "
                                <<  update_new_layout.to_short_string() << std::endl;
         }
         if (_impl_params->get_input_layout(i) != update_new_layout) {
@@ -1403,6 +1392,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
         if (_node->is_type<fully_connected>()) {
             create_input_memory_placeholder();
+            create_output_memory_placeholder();
             GPU_DEBUG_TRACE_DETAIL << "bell debugline created new input memory place holder!!!! " << id() << std::endl;
         }
         set_arguments();

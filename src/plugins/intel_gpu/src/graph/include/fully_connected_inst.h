@@ -37,23 +37,7 @@ public:
 
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_engine().get_device_info().dev_type,
-                                                                                 get_program().get_stream_ptr(), get_primitive(),
-                                                                                 get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
-        params->memory_deps = get_const_memory_deps();
-        params->_can_be_optimized = this->optimized;
-        params->in_port_to_shape_info_offset = get_input_port_to_shape_info_offset_map();
-        params->out_port_to_shape_info_offset = get_output_port_to_shape_info_offset_map();
-        auto deps = get_dependencies();
-        for (size_t i = 0; i < deps.size(); i++) {
-            if (!deps[i].first->is_constant()) {
-                params->primary_input_idx = i;
-                break;
-            }
-        }
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        params->fused_desc_onednn = get_fused_primitives_onednn();
-#endif // ENABLE_ONEDNN_FOR_GPU
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
         if (bias_term())
             params->bias_layout = optional_layout(bias().get_output_layout());
@@ -93,12 +77,17 @@ public:
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 
     bool bias_term() const { return _impl_params->bias_layout.has_value(); }
+    memory::ptr get_output_rank_placeholder() const { return output_placeholder; }
+    memory& get_output_rank_placeholder_mem() const { return *output_placeholder; }
+    void create_output_memory_placeholder() override;
+    //void fill_placeholder();
     memory::ptr get_input_rank_placeholder() const { return input_placeholder; }
     memory& get_input_rank_placeholder_mem() const { return *input_placeholder; }
     void create_input_memory_placeholder() override;
     void fill_placeholder();
 
 private:
+    memory::ptr output_placeholder;
     memory::ptr input_placeholder;
 };
 

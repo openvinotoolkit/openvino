@@ -69,25 +69,27 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
         }
         stream.finish(); // extra finish for input copy, to be optimized
         instance.fill_placeholder();
-        /*std::ofstream file_stream("bell_fc_weight_iter" + std::to_string(infer_count) +
+        {std::ofstream file_stream("bell_fc_input_iter" + std::to_string(infer_count) +
                                 std::to_string(instance.get_node().as<fully_connected>().w_rank) + ".txt");
-        auto input_mem = instance.weights_memory();
+        auto input_mem = instance.get_input_rank_placeholder();
         auto&& size = input_mem->get_layout().get_tensor();
 
         file_stream << "shape: " << size.to_string() << " ";
         file_stream << "(count: " << size.count()
                         << ", original format: " << cldnn::fmt_to_str(input_mem->get_layout().format) << ")" << std::endl;
 
-        mem_lock<ov::float16, mem_lock_type::read> lock(input_mem, stream);
+        mem_lock<float, mem_lock_type::read> lock(input_mem, stream);
         auto mem_ptr = lock.data();
         std::stringstream buffer;
 
         {
             for (size_t i = 0; i < lock.size(); ++i) {
-                buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[i]) << std::endl;
+                std::cout << "rank " << instance.get_node().as<fully_connected>().w_rank << mem_ptr[i] << std::endl;
+                buffer << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
             }
         }
-        file_stream << buffer.str();*/
+        file_stream << buffer.str();
+                            }
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
         OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
@@ -126,41 +128,64 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
             return aggregate_events(tmp_events, stream);
 
         bool group_events = (all_events.size() > 1);
-        if (getenv("ENABLE_CCL")) {
+        if (instance.get_impl_params()->w_size != 1) {
             stream.finish(); // can be replaced with need_completion_event?
             auto output_memory_ptr = instance.output_memory_ptr();
-            //auto actual_mem = output_memory.get_engine()->reinterpret_buffer(output_memory, output_memory.get_layout());
+            auto re_inter_layout_out = layout(ov::PartialShape({2, 4}),
+                                                            output_memory_ptr->get_layout().data_type,
+                                                            output_memory_ptr->get_layout().format,
+                                                            output_memory_ptr->get_layout().data_padding);
+            auto actual_mem = output_memory_ptr->get_engine()->reinterpret_buffer(*output_memory_ptr, re_inter_layout_out);
+            std::cout << actual_mem->get_allocation_type() << std::endl;
             //mem_lock<char, mem_lock_type::read_write> lock(actual_mem, stream);
-            auto send_ptr = output_memory_ptr->buffer_ptr();
-            std::cout << output_memory_ptr->get_allocation_type() << std::endl;
-            std::cout << output_memory_ptr->count() << std::endl;
-            std::cout << output_memory_ptr->get_layout().to_string() << std::endl;
-            std::cout << output_memory_ptr->size() << std::endl;
+            auto rank_output_memory = instance.get_output_rank_placeholder();
+
+            auto re_inter_layout = layout(ov::PartialShape({1, 4}),
+                                                            rank_output_memory->get_layout().data_type,
+                                                            rank_output_memory->get_layout().format,
+                                                            rank_output_memory->get_layout().data_padding);
+            auto re_inter = rank_output_memory->get_engine()->reinterpret_buffer(*rank_output_memory, re_inter_layout);
+            std::cout << re_inter->get_allocation_type() << std::endl;
+            std::cout << re_inter->count() << std::endl;
+            std::cout << re_inter->get_layout().to_string() << std::endl;
+            std::cout << re_inter->size() << std::endl;
+            auto send_ptr = re_inter->buffer_ptr();
             std::cout << "bell debug!!!!" << send_ptr << std::endl;
             //auto prec = output.();
             std::cout << "&&&&&&&&" << std::endl;
-            /*std::ofstream file_stream("bell_fc_output_iter_" + std::to_string(infer_count) + "_rank_"
+            {std::ofstream file_stream("bell_fc_output_iter_" + std::to_string(infer_count) + "_rank_"
                                     + std::to_string(instance.get_node().as<fully_connected>().w_rank) + ".txt");
-            auto&& size = output_memory_ptr->get_layout().get_tensor();
+            auto&& size = re_inter->get_layout().get_tensor();
 
             file_stream << "shape: " << size.to_string() << " ";
             file_stream << "(count: " << size.count()
-                            << ", original format: " << cldnn::fmt_to_str(output_memory_ptr->get_layout().format) << ")" << std::endl;
+                            << ", original format: " << cldnn::fmt_to_str(re_inter->get_layout().format) << ")" << std::endl;
 
-            mem_lock<ov::float16, mem_lock_type::read> lock(instance.output_memory_ptr(), stream);
+            mem_lock<float, mem_lock_type::read> lock(re_inter, stream);
             auto mem_ptr = lock.data();
             std::stringstream buffer;
 
             {
                 for (size_t i = 0; i < lock.size(); ++i) {
-                    buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[i]) << std::endl;
+                    std::cout << "output, rank " << instance.get_node().as<fully_connected>().w_rank << mem_ptr[i] << std::endl;
+                    buffer << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
                 }
             }
-            file_stream << buffer.str();*/
+            file_stream << buffer.str();
+            }
+            auto size = instance.get_impl_params()->w_size;
+            std::vector<size_t> recv_counts(size, re_inter->count());
+            for (auto& iter : recv_counts)
+                std::cout << iter << std::endl;
+            std::cout << re_inter->count() << " " << actual_mem->count() << std::endl;
             if (output_memory_ptr->get_layout().data_type == ov::element::f16)
-                Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory_ptr->count());
+                Messenger::getInstance().helperAllgathervf16(send_ptr, re_inter->count(),
+                                        actual_mem->buffer_ptr(), recv_counts);
             else if (output_memory_ptr->get_layout().data_type == ov::element::f32)
-                Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory_ptr->count());
+                Messenger::getInstance().helperAllgatherv(send_ptr, re_inter->count(),
+                                        actual_mem->buffer_ptr(), recv_counts);
+                //Messenger::getInstance().helperAllreduce(send_ptr, send_ptr,
+                                        //re_inter->count());
             else
                 OPENVINO_THROW("not expected!");
             std::cout << "&&&&&&&&" << std::endl;
@@ -178,6 +203,7 @@ protected:
         std::cout << "bell check weight layout!! " << args.weights->get_layout().to_short_string() << std::endl;
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
         args.inputs = {(instance.get_input_rank_placeholder())};
+        args.outputs = {{instance.get_output_rank_placeholder()}};
         size_t in_id = instance.bias_term() ? 3 : 2;
         if (!desc->decompression_scale.empty())
             args.inputs.push_back(instance.dep_memory_ptr(in_id++));
@@ -309,6 +335,8 @@ public:
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
+        std::cout << "bell debug in dispatch data" << impl_param.get_input_layout(0).to_short_string() << std::endl;
+        std::cout << "bell debug in dispatch data" << impl_param.get_output_layout(0).to_short_string() << std::endl;
         (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 
