@@ -91,7 +91,7 @@ and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operati
 and replacing pairs of Parameter and Results with the Assign and ReadValue operations,
 as illustrated by the following example:
 
-.. image:: ../../../_static/images/applying_low_latency_2.svg
+.. image:: /docs/articles_en/assets/images/applying_low_latency_2.svg
    :alt: diagram of LowLatency Transformation
    :align: center
 

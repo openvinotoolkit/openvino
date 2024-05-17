@@ -227,12 +227,12 @@ Decomposition transformations decompose the ``FakeQuantize`` operation to: quant
 
 Original ``FakeQuantize``:
 
-.. image:: ../../../../_static/images/fq.common.svg
+.. image:: /docs/articles_en/assets/images/fq.common.svg
    :alt: FakeQuantize operation before LPT
 
 ``FakeQuantize`` after decomposition to quantization and dequantization operations:
 
-.. image:: ../../../../_static/images/fq.transformed.svg
+.. image:: /docs/articles_en/assets/images/fq.transformed.svg
    :alt: FakeQuantize operation after LPT
 
 Dequantization operations handling transformations
@@ -270,12 +270,12 @@ There are more details in developer guide :doc:`Cleanup transformations <low-pre
 
 ``FakeQuantize`` operation with not handled dequantization operations:
 
-.. image:: ../../../../_static/images/fq.transformed.svg
+.. image:: /docs/articles_en/assets/images/fq.transformed.svg
    :alt: TODO: FakeQuantize operation with dequantization operations before LPT
 
 ``FakeQuantize`` operation with fused dequantization operations:
 
-.. image:: ../../../../_static/images/fq.common.svg
+.. image:: /docs/articles_en/assets/images/fq.common.svg
    :alt: TODO: FakeQuantize operation with fused operations after LPT
 
 
