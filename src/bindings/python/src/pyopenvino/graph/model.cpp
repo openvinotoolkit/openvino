@@ -354,14 +354,9 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const ov::PartialShape& partial_shape, const py::dict& variables_shapes) {
-            if (variables_shapes.empty()) {
-                py::gil_scoped_release release;
-                self.reshape(partial_shape);
-            } else {
-                const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-                py::gil_scoped_release release;
-                self.reshape(partial_shape, new_variables_shapes);
-            }
+            const auto new_variable_shapes = get_variables_shapes(variables_shapes);
+            py::gil_scoped_release release;
+            self.reshape(partial_shape, new_variable_shapes);
         },
         py::arg("partial_shape"),
         py::arg("variables_shapes") = py::dict(),
@@ -401,14 +396,9 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape);
-            if (variables_shapes.empty()) {
-                py::gil_scoped_release release;
-                self.reshape(new_shape);
-            } else {
-                const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-                py::gil_scoped_release release;
-                self.reshape(new_shape, new_variables_shapes);
-            }
+            const auto new_variables_shapes = get_variables_shapes(variables_shapes);
+            py::gil_scoped_release release;
+            self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
         py::arg("variables_shapes") = py::dict(),
@@ -448,14 +438,9 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const py::tuple& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape.cast<py::list>());
-            if (variables_shapes.empty()) {
-                py::gil_scoped_release release;
-                self.reshape(new_shape);
-            } else {
-                const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-                py::gil_scoped_release release;
-                self.reshape(new_shape, new_variables_shapes);
-            }
+            const auto new_variables_shapes = get_variables_shapes(variables_shapes);
+            py::gil_scoped_release release;
+            self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
         py::arg("variables_shapes") = py::dict(),
@@ -494,14 +479,9 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const std::string& partial_shape, const py::dict& variables_shapes) {
-            if (variables_shapes.empty()) {
-                py::gil_scoped_release release;
-                self.reshape(ov::PartialShape(partial_shape));
-            } else {
-                const auto new_variables_shape = get_variables_shapes(variables_shapes);
-                py::gil_scoped_release release;
-                self.reshape(ov::PartialShape(partial_shape), new_variables_shape);
-            }
+            const auto new_variables_shape = get_variables_shapes(variables_shapes);
+            py::gil_scoped_release release;
+            self.reshape(ov::PartialShape(partial_shape), new_variables_shape);
         },
         py::arg("partial_shape"),
         py::arg("variables_shapes") = py::dict(),
@@ -547,15 +527,9 @@ void regclass_graph_Model(py::module m) {
                                         output_from_handle(self, item.first),
                                         partial_shape_from_handle(item.second));
             }
-
-            if (variables_shapes.empty()) {
-                py::gil_scoped_release release;
-                self.reshape(new_shapes);
-            } else {
-                const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-                py::gil_scoped_release release;
-                self.reshape(new_shapes, new_variables_shapes);
-            }
+            const auto new_variables_shapes = get_variables_shapes(variables_shapes);
+            py::gil_scoped_release release;
+            self.reshape(new_shapes, new_variables_shapes);
         },
         py::arg("partial_shapes"),
         py::arg("variables_shapes") = py::dict(),

@@ -30,11 +30,6 @@ atomic<size_t> ov::Model::m_next_instance_id(0);
 
 namespace {
 
-const std::unordered_map<std::string, ov::PartialShape>& default_variable_map() {
-    static const std::unordered_map<std::string, ov::PartialShape> variable_map;
-    return variable_map;
-}
-
 void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                     const ov::op::util::VariableVector& variables) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_pass, "Model::check_all_variables_registered");
@@ -782,26 +777,6 @@ ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
     OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
 }
 
-void ov::Model::reshape(const ov::PartialShape& partial_shape) {
-    OPENVINO_ASSERT(m_parameters.size() == 1,
-                    "reshape(const ov::PartialShape&) must be called on a Model with exactly one parameter.");
-    std::map<size_t, ov::PartialShape> shapes;
-    shapes[0] = partial_shape;
-    reshape(shapes);
-}
-
-void ov::Model::reshape(const std::map<size_t, ov::PartialShape>& partial_shapes) {
-    reshape(port_shapes_to_node_shapes(this, partial_shapes), default_variable_map());
-}
-
-void ov::Model::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
-    reshape(tensor_names_shapes_to_node_shapes(this, partial_shapes), default_variable_map());
-}
-
-void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
-    reshape(partial_shapes, default_variable_map());
-}
-
 void ov::Model::reshape(const ov::PartialShape& partial_shape,
                         const std::unordered_map<std::string, ov::PartialShape>& variable_shapes) {
     OPENVINO_ASSERT(m_parameters.size() == 1, "must be called on a Model with exactly one parameter.");
@@ -816,7 +791,7 @@ void ov::Model::reshape(const std::map<size_t, ov::PartialShape>& partial_shapes
 
 void ov::Model::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes,
                         const std::unordered_map<std::string, ov::PartialShape>& variable_shapes) {
-    reshape(tensor_names_shapes_to_node_shapes(this, partial_shapes), default_variable_map());
+    reshape(tensor_names_shapes_to_node_shapes(this, partial_shapes), variable_shapes);
 }
 
 void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes,
