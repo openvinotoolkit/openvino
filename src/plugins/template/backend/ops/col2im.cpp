@@ -4,24 +4,21 @@
 
 #include "openvino/reference/col2im.hpp"
 
-#include "evaluate_node.hpp"
-#include "element_visitor.hpp"
 #include "col2im_shape_inference.hpp"
+#include "element_visitor.hpp"
+#include "evaluate_node.hpp"
 
 template <ov::element::Type_t ET_data, ov::element::Type_t ET_idx>
 bool evaluate_index_type(const std::shared_ptr<ov::op::v15::Col2Im>& op,
-              ov::TensorVector& outputs,
-              const ov::TensorVector& inputs) {
+                         ov::TensorVector& outputs,
+                         const ov::TensorVector& inputs) {
     using T_data = typename ov::element_type_traits<ET_data>::value_type;
     using T_idx = typename ov::element_type_traits<ET_idx>::value_type;
-    const std::vector<ov::PartialShape> input_shapes{
-        op->get_input_shape(0),
-        op->get_input_shape(1),
-        op->get_input_shape(2)};
+    const std::vector<ov::PartialShape> input_shapes{op->get_input_shape(0),
+                                                     op->get_input_shape(1),
+                                                     op->get_input_shape(2)};
     const auto output_shape =
-        ov::op::v15::shape_infer(op.get(), input_shapes, make_tensor_accessor(inputs))
-            .front()
-            .to_shape();
+        ov::op::v15::shape_infer(op.get(), input_shapes, make_tensor_accessor(inputs)).front().to_shape();
     outputs.front().set_shape(output_shape);
     ov::reference::col2im(inputs[0].data<const T_data>(),
                           inputs[0].get_shape(),
@@ -37,8 +34,8 @@ bool evaluate_index_type(const std::shared_ptr<ov::op::v15::Col2Im>& op,
 
 template <ov::element::Type_t ET_data>
 bool evaluate_data_type(const std::shared_ptr<ov::op::v15::Col2Im>& op,
-              ov::TensorVector& outputs,
-              const ov::TensorVector& inputs) {
+                        ov::TensorVector& outputs,
+                        const ov::TensorVector& inputs) {
     const auto& index_type = op->get_input_element_type(1);
     using ov::op::v15::Col2Im;
     using namespace ov::element;
@@ -54,8 +51,8 @@ bool evaluate_data_type(const std::shared_ptr<ov::op::v15::Col2Im>& op,
 
 template <>
 bool evaluate_node<ov::op::v15::Col2Im>(std::shared_ptr<ov::Node> node,
-                                                     ov::TensorVector& outputs,
-                                                     const ov::TensorVector& inputs) {
+                                        ov::TensorVector& outputs,
+                                        const ov::TensorVector& inputs) {
     const auto& element_type = node->get_output_element_type(0);
 
     using ov::op::v15::Col2Im;
