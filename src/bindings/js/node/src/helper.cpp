@@ -109,7 +109,7 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(const
 template <>
 ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info, const size_t idx) {
     const auto elem = info[idx];
-    OPENVINO_ASSERT(elem.IsString(), "Cannot convert Napi::Value to ov::element::Type_t");
+    OPENVINO_ASSERT(elem.IsString(), "Passed argument must be of type String.");
 
     const std::string type = elem.ToString();
     const auto& types = get_supported_types();
