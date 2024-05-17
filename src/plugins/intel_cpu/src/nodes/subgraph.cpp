@@ -808,14 +808,27 @@ void Subgraph::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
+namespace {
+inline void init_parallel_domain(const std::shared_ptr<CPURuntimeConfig>& snippet_config, std::vector<size_t>& domain) {
+    const auto& master_shape = snippet_config->master_shape;
+    const auto& tensor_rank = snippet_config->tensor_rank;
+    const auto& tile_rank = snippet_config->tile_rank;
+    domain.resize(tensor_rank, 1);
+
+    std::fill(domain.begin(), domain.end(), 1);
+    std::copy(master_shape.cbegin(), master_shape.cbegin() + (master_shape.size() - tile_rank),
+              domain.begin() + (tensor_rank - master_shape.size()));
+}
+}  // namespace
+
 Subgraph::SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs,
                                                        const std::shared_ptr<CPURuntimeConfig>& config) {
     OPENVINO_ASSERT(snippet_attrs, "Subgraph attributes are empty!");
     OPENVINO_ASSERT(config, "Runtime Config is empty!");
 
     jit_snippets_compile_args jcp;
-    jcp.master_shape = config->parallel_domain;
     jcp.data_offsets = config->io_data_offsets;
+    init_parallel_domain(config, jcp.exec_domain);
     schedule = std::make_shared<ov::snippets::Schedule>(snippet_attrs->snippet->generate(reinterpret_cast<const void*>(&jcp)));
 }
 
@@ -833,11 +846,14 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
 
 void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config) {
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
+
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
     m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
-    m_parallel_exec_domain = snippet_config->parallel_domain;
+
+    init_parallel_domain(snippet_config, m_parallel_exec_domain);
+
     m_harness_work_amount = std::accumulate(m_parallel_exec_domain.cbegin(), m_parallel_exec_domain.cend(), size_t(1), std::multiplies<size_t>());
-    m_nthreads = std::min(parallel_get_max_threads(), static_cast<int>(m_harness_work_amount));
+    m_nthreads = 1; // std::min(parallel_get_max_threads(), static_cast<int>(m_harness_work_amount));
 }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)

@@ -133,7 +133,7 @@ std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter 
 std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_static_emitter"
-       << " jcp.master_shape:" << vector_to_string(emitter->jcp.master_shape)
+       << " jcp.exec_domain:" << vector_to_string(emitter->jcp.exec_domain)
        << " gp_regs_pool:"<< vector_to_string(emitter->gp_regs_pool)
        << " master_shape:" << vector_to_string(emitter->master_shape)
        << " num_inputs:" << emitter->num_inputs

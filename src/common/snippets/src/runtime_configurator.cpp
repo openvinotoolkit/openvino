@@ -19,24 +19,23 @@ RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) : m_c
 
 const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
     // First initialization
-    if (m_io_num == 0) {
+    if (m_io_num == 0)
         initialization(linear_ir);
-    }
 
     update(linear_ir);
-    update_latest_shapes();
-
     return m_config;
 }
 
 void RuntimeConfigurator::update(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
     if (linear_ir->is_dynamic()) {
-        update_linear_ir_state(linear_ir);
+        m_state_updater.run(*linear_ir);
     }
 
+    m_config->master_shape = linear_ir->get_master_shape();
+    m_config->buffer_scratchpad_size = linear_ir->get_buffer_scratchpad_size();
+
     update_data_offsets();
-    update_parallel_domain(linear_ir);
-    update_buffer_scratchpad_size(linear_ir);
+    update_latest_shapes();
 }
 
 void RuntimeConfigurator::initialization(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
@@ -46,7 +45,7 @@ void RuntimeConfigurator::initialization(const std::shared_ptr<lowered::LinearIR
     OPENVINO_ASSERT(m_io_num > 0, "LinearIR must have parameters and results");
     m_latest_shapes.resize(m_io_num);
     m_config->io_data_offsets.resize(m_io_num);
-    m_config->parallel_domain.resize(m_config->tensor_rank, 1);
+    m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 }
 
 void RuntimeConfigurator::init_tensor_rank(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
@@ -97,10 +96,6 @@ void RuntimeConfigurator::init_data_info(const std::shared_ptr<lowered::LinearIR
     }
 }
 
-void RuntimeConfigurator::update_linear_ir_state(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
-    m_state_updater.run(*linear_ir);
-}
-
 void RuntimeConfigurator::update_data_offsets() const {
     for (size_t i = 0; i < m_io_num; ++i) {
         // offsets represent distance between consecutive elements of corresponding dimension.
@@ -143,18 +138,6 @@ void RuntimeConfigurator::update_data_offsets() const {
             offsets = std::move(reordered_offsets);
         }
     }
-}
-
-void RuntimeConfigurator::update_parallel_domain(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
-    const auto& tile_rank = linear_ir->get_config().m_loop_depth;
-    VectorDims master_shape = linear_ir->get_master_shape();
-    std::copy(master_shape.cbegin(), master_shape.cbegin() + (master_shape.size() - tile_rank),
-              m_config->parallel_domain.begin() + (m_config->tensor_rank - master_shape.size()));
-    std::fill(m_config->parallel_domain.rbegin(), m_config->parallel_domain.rbegin() + tile_rank, 1);
-}
-
-void RuntimeConfigurator::update_buffer_scratchpad_size(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
-    m_config->buffer_scratchpad_size = linear_ir->get_buffer_scratchpad_size();
 }
 
 void RuntimeConfigurator::update_latest_shapes() {

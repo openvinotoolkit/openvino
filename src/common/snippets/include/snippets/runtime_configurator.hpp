@@ -36,8 +36,9 @@ public:
     }
 
     size_t tensor_rank = 0;
+    size_t tile_rank = 0;
     std::vector<ov::snippets::VectorDims> io_data_offsets = {};
-    ov::snippets::VectorDims parallel_domain = {};
+    ov::snippets::VectorDims master_shape = {};
     size_t buffer_scratchpad_size = 0;
 };
 
@@ -81,24 +82,9 @@ protected:
      */
     virtual void init_tensor_rank(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
     /**
-     * @brief Update LinearIR parameters that depends on shape: LoopInfo in LoopManager
-     * @param linear_ir LinearIR
-     */
-    virtual void update_linear_ir_state(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
-    /**
      * @brief Calculate data offsets of LinearIR and update these values in RuntimeConfig
      */
-    virtual void update_data_offsets() const;
-    /**
-     * @brief Calculate parallel domain and update these values in CPURuntimeConfig
-     * @param linear_ir LinearIR
-     */
-    virtual void update_parallel_domain(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
-    /**
-     * @brief Calculate buffer scratchpad size and update these values in CPURuntimeConfig
-     * @param linear_ir LinearIR
-     */
-    void update_buffer_scratchpad_size(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    void update_data_offsets() const;
     /**
      * @brief Update latest input shapes
      */

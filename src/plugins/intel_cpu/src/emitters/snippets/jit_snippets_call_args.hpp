@@ -68,7 +68,7 @@ struct jit_snippets_call_args::loop_args_t {
 
 struct jit_snippets_compile_args {
     std::vector<std::vector<size_t>> data_offsets = {};
-    std::vector<size_t> master_shape = {};
+    std::vector<size_t> exec_domain = {};
 };
 
 }   // namespace intel_cpu
