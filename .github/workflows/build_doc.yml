@@ -39,6 +39,7 @@ jobs:
         run: |
           python3 -m pip install -r docs/requirements.txt
           (cd docs/openvino_sphinx_theme && python3 setup.py install)
+          python3 -m pip install docs/openvino_custom_sphinx_sitemap
 
       - name: Download and install doxygen
         run: |

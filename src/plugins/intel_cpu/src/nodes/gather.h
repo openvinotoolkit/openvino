@@ -106,6 +106,8 @@ private:
     static constexpr size_t GATHER_ZP = 4;
 
     bool have_zp = false;
+    bool have_scalar_zp = false;
+    bool have_scalar_scale = false;
     size_t zp_group_size = 1u;
     size_t scale_group_size = 1u;
 

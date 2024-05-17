@@ -99,7 +99,7 @@ The original model key features:
 
 Transformations are run with the following parameters:
 
-.. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
    :fragment: [lpt_markup_pipeline]
 
