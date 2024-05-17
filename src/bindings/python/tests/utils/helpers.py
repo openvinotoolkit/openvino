@@ -196,6 +196,7 @@ def generate_relu_compiled_model(
     core = Core()
     return core.compile_model(model, device, {})
 
+
 def encrypt_base64(src):
     return base64.b64encode(bytes(src, "utf-8"))
 
