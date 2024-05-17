@@ -33,7 +33,7 @@ The adjoint matrix (conjugate transpose) :math:`adj(A)` of a square matrix of no
 
    adj(A) = A^{T}
 
-where :math:`A^{-1}` is the matrix inverse of :math:`A`.
+where :math:`A^{T}` is the matrix transpose of :math:`A`.
 
 The adjoint matrix exists if and only if the inverse matrix exists.
 
@@ -75,6 +75,9 @@ Algorithm pseudocode:
 
 1. Start with original matrix :math:`A`. If the data type of :math:`A` is not f32, convert them to f32 to avoid accumulating rounding errors.
 2. Copy initial matrix into matrix :math:`U`. Initialize matrix :math:`L` to be the Identity matrix (zero matrix with all diagonal elements set to 1).
+
+   * If adjoint == true, set U to be the transpose of the initial matrix, instead of a direct copy.
+
 3. Perform LU decomposition with partial pivoting.
 
    * Repeat this step for each column in the input matrix.
@@ -89,8 +92,7 @@ Algorithm pseudocode:
    * Solve linear equation :math:`Ux = y` for x (backward substitution)
    * Set x as the corresponding column of the output inverse matrix :math:`A^{-1}`
 
-5. If adjoint == true, then it is sufficient to tranpose the resulting matrix.
-6. Return the computed matrix. Convert it back from f32 to its original element type.
+5. Return the computed matrix. Convert it back from f32 to its original element type.
 
 **Attribute**:
 
