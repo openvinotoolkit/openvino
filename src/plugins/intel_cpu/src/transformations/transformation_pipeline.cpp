@@ -945,7 +945,8 @@ void Transformations::MainSnippets(void) {
 
     auto is_supported_op = [](const std::shared_ptr<const ov::Node> &n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
-        return (ov::is_type<ov::op::v1::Add>(n) ||
+        return (ov::is_type<ov::op::v0::Abs>(n) ||
+                ov::is_type<ov::op::v1::Add>(n) ||
                 ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Exp>(n) ||

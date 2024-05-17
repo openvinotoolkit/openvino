@@ -75,8 +75,9 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
 bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node) {
     // Note: some other operations support this fusing (Abs, Clamp, Elu, Sigmoid, SoftPlus, Sqrt).
     // Skip them here, when they are supported by Snippets ARM. Ticket: 141170.
-    return ov::is_type<ov::op::v0::Tanh>(node) ||
-           ov::is_type<ov::op::v0::Relu>(node);
+    return ov::is_type<ov::op::v0::Abs>(node) ||
+           ov::is_type<ov::op::v0::Relu>(node) ||
+           ov::is_type<ov::op::v0::Tanh>(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(const std::shared_ptr<const Node> &node) {
