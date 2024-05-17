@@ -5,16 +5,17 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
-namespace intel_gpu {
 namespace op {
+namespace internal {
 /// \brief Operator performing Root Mean Square Normalization
 ///
 /// \note Performs re-scaling invariance and regularizes the summed input according to RMS statistics
-class RMS : public ov::op::Op {
+class TRANSFORMATIONS_API RMS : public ov::op::Op {
 public:
-    OPENVINO_OP("RMS", "gpu_opset");
+    OPENVINO_OP("RMS", "ie_internal_opset");
 
     RMS() = default;
     /// \brief Constructs an RMS operation.
@@ -43,6 +44,6 @@ private:
     ov::element::Type m_output_type;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
