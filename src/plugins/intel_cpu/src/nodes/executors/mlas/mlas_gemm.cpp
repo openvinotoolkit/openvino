@@ -106,7 +106,9 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
                                    const PostOps& postOps,
                                    const MemoryArgs& memory,
                                    const ExecutorContext::CPtr context)
-    : packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)) {}
+    : m_attrs(attrs),
+      m_memoryArgs(memory),
+      packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)) {}
 
 bool MlasGemmExecutor::update(const MemoryArgs& memory) {
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
@@ -151,6 +153,16 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
                        dstRawMemPtr,
                        ldc,
                        biasRawMemPtr);
+}
+
+void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
+    if (curNumaNode == numaNodeID)
+        return;
+    curNumaNode = numaNodeID;
+    mbind_move(packedWeights, numaNodeID);
+    if (m_attrs.withBias) {
+        mbind_move(m_memoryArgs.at(ARG_BIAS), numaNodeID);
+    }
 }
 
 }  // namespace intel_cpu

@@ -248,8 +248,7 @@ void inline fill_data_ptr_real_random_float(T* pointer,
                                             const float max,
                                             const int seed) {
     std::mt19937 gen(seed);
-    std::uniform_real_distribution<float> dist(min, max);
-
+    std::uniform_real_distribution<double> dist(min, max);
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(dist(gen));
     }
@@ -380,6 +379,8 @@ void inline fill_data_ptr_normal_random_float(T* data,
         }
     }
 }
+
+void fill_data_boolean(fundamental_type_for<ov::element::boolean>* dst, const size_t size, const int seed = 1);
 
 void fill_random_string(std::string* dst,
                         const size_t size,

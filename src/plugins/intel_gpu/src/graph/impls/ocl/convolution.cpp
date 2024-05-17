@@ -94,7 +94,7 @@ public:
             const auto spatial_rank = input_layout.get_spatial_rank();
 
             ov::PartialShape kernel;
-            for (size_t i = 0; i < spatial_rank; i++) {
+            for (int32_t i = static_cast<int32_t>(spatial_rank) - 1; i >= 0; i--) {
                 kernel.emplace_back(weights_layout.spatial(i));
             }
 
@@ -196,6 +196,16 @@ public:
             conv_params.padding_begin = {pad_begin_y, pad_begin_x, pad_begin_z};
             conv_params.stride = {stride_y, stride_x, stride_z};
             conv_params.dilation = {dilation_y, dilation_x, dilation_z};
+        }
+
+        if (primitive->deformable_mode) {
+            auto interpolated_layout = impl_param.output_layouts[0];
+            auto in_shape = impl_param.input_layouts[0].get_partial_shape();
+            auto interpolated_shape = interpolated_layout.get_partial_shape();
+            interpolated_shape[0] = in_shape[0];
+            interpolated_shape[1] = in_shape[1] * conv_params.filterSize.x * conv_params.filterSize.y;
+            interpolated_layout.set_partial_shape(interpolated_shape);
+            conv_params.intermediate_tensor = convert_data_tensor(interpolated_layout);
         }
 
         auto format = impl_param.get_output_layout().format;

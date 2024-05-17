@@ -34,9 +34,9 @@ def yolo_box(name : str, x, img_size, attrs : dict):
             feed={'x': x, 'img_size': img_size},
             fetch_list=[boxes, scores])
         
-        # Save inputs in order of OpenVINO model, to facilite Fuzzy test, 
+        # Save inputs in order of OpenVINO model, to facilitate Fuzzy test, 
         # which accepts inputs and outputs in this order as well. 
-        saveModel(name, exe, feedkeys=['x', 'img_size'], fetchlist=[boxes, scores],
+        saveModel(name, exe, feed_vars=[node_x, node_img_size], fetchlist=[boxes, scores],
                   inputs=[x, img_size], outputs=outs, target_dir=sys.argv[1])
 
     return outs

@@ -28,6 +28,7 @@ temp/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
 CMakeUserPresets.json
+venv
 
 *.project
 *.cproject
@@ -46,6 +47,17 @@ __pycache__
 *htmlcov
 *pylint_report.txt
 *pylint_report_comments.txt
+
+# JS specific
+!__tests__
+__tests__/runner/*
+# Dependency directory
+node_modules
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+# Optional npm cache directory
+.npm
 
 # Artifacts
 /tools/mo/*.bin

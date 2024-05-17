@@ -236,8 +236,8 @@ void ov::hetero::SubgraphCollector::split_subgraphs_by_parameter_results() {
             _subgraph_ids.emplace(result, output_subgraph_id);
             _intermediate_results.push_back(result);
             for (const auto& input_subset : input_subsets) {
-                const auto input_subgraph_id = input_subset.first;
-                const auto inputs = input_subset.second;
+                const auto& input_subgraph_id = input_subset.first;
+                const auto& inputs = input_subset.second;
                 // Avoid duplicate parameters in the same subgraph
                 auto parameter =
                     std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
@@ -428,9 +428,9 @@ void ov::hetero::merge_submodels(std::vector<std::shared_ptr<ov::Model>>& submod
                 port_in_index++;
                 continue;
             }
-            auto submodel_out_index = item->second.first;
-            auto submodel_out_result_name = item->second.second;
-            auto submodel_out = submodels.at(submodel_out_index);
+            const auto& submodel_out_index = item->second.first;
+            const auto& submodel_out_result_name = item->second.second;
+            const auto& submodel_out = submodels.at(submodel_out_index);
 
             std::shared_ptr<ov::op::v0::Result> result_to_replace = nullptr;
             for (auto& result : submodel_out->get_results()) {
@@ -478,9 +478,22 @@ void ov::hetero::merge_submodels(std::vector<std::shared_ptr<ov::Model>>& submod
     }
     // Finally all subgraphs should be merged into single one
     OPENVINO_ASSERT(input_to_prev_output.size() == 0);
+    std::set<size_t> distinct_submodels_index;
+    for (size_t i = 0; i < submodels.size(); i++) {
+        bool has_same_model = false;
+        for (auto& index : distinct_submodels_index) {
+            if (submodels[i] == submodels[index]) {
+                has_same_model = true;
+                break;
+            }
+        }
+        if (!has_same_model) {
+            distinct_submodels_index.insert(i);
+        }
+    }
     auto& result_model = submodels[0];
     for (size_t i = 1; i < submodels.size(); i++) {
-        if (submodels[i] != result_model) {
+        if (submodels[i] != result_model && distinct_submodels_index.count(i)) {
             result_model->add_parameters(submodels[i]->get_parameters());
             result_model->add_results(submodels[i]->get_results());
             result_model->add_sinks(submodels[i]->get_sinks());
@@ -600,7 +613,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
     const std::string subgraph_id_rt_info_name = "HETERO_SUBGRAPH_ID";
     const std::string input_id_rt_info_name = "HETERO_INPUT_ID";
     const std::string output_id_rt_info_name = "HETERO_OUTPUT_ID";
-    const auto name = model->get_friendly_name();
+    const auto& name = model->get_friendly_name();
 
     SubgraphsVector ordered_subgraphs;
     SubgraphsMappingInfo mapping_info;

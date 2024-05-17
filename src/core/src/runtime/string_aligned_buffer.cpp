@@ -58,7 +58,7 @@ void aux_get_header(const std::shared_ptr<ov::StringAlignedBuffer>& string_align
     size_t current_symbols_pos = 0;
 
     for (size_t ind = 0; ind < num_elements; ++ind) {
-        auto str = strings[ind];
+        const auto& str = strings[ind];
         current_symbols_pos += str.size();
         *pindices = int32_t(current_symbols_pos);
         ++pindices;
@@ -72,7 +72,7 @@ void aux_get_raw_string_by_index(const std::shared_ptr<ov::StringAlignedBuffer>&
     OPENVINO_ASSERT(string_aligned_buffer_ptr, "StringAlignedBuffer pointer is nullptr");
     OPENVINO_ASSERT(string_ind < string_aligned_buffer_ptr->get_num_elements(),
                     "Incorrect packed string tensor format: no batch size in the packed string tensor");
-    const std::string* strings = reinterpret_cast<const std::string*>(string_aligned_buffer_ptr->get_ptr());
+    const auto strings = string_aligned_buffer_ptr->get_ptr<const std::string>();
     raw_string_ptr = strings[string_ind].data();
     raw_string_size = strings[string_ind].size();
 }
@@ -82,22 +82,25 @@ namespace ov {
 StringAlignedBuffer::StringAlignedBuffer(size_t num_elements, size_t byte_size, size_t alignment, bool initialize)
     : AlignedBuffer(byte_size, alignment),
       m_num_elements(num_elements) {
-    OPENVINO_ASSERT(sizeof(std::string) * num_elements <= byte_size + alignment,
-                    "Allocated memory of size " + std::to_string(byte_size) + " bytes is not enough to store " +
-                        std::to_string(num_elements) + " std::string objects");
+    const auto has_enough_size = (sizeof(std::string) * m_num_elements) <= size();
+    OPENVINO_ASSERT(has_enough_size,
+                    "Allocated memory of size ",
+                    size(),
+                    " bytes is not enough to store ",
+                    m_num_elements,
+                    " std::string objects");
     if (initialize) {
-        auto strings = reinterpret_cast<std::string*>(m_aligned_buffer);
-        std::uninitialized_fill_n(strings, m_num_elements, std::string());
+        std::uninitialized_fill_n(get_ptr<std::string>(), m_num_elements, std::string{});
     }
 }
 
 StringAlignedBuffer::~StringAlignedBuffer() {
-    if (m_aligned_buffer) {
-        auto strings = reinterpret_cast<std::string*>(m_aligned_buffer);
-        for (size_t ind = 0; ind < m_num_elements; ++ind) {
+    if (m_allocated_buffer) {
+        const auto first = get_ptr<std::string>();
+        for_each(first, first + m_num_elements, [](std::string& s) {
             using std::string;
-            strings[ind].~string();
-        }
+            s.~string();
+        });
     }
 }
 
@@ -106,6 +109,11 @@ SharedStringAlignedBuffer::SharedStringAlignedBuffer(char* ptr, size_t size) {
     m_aligned_buffer = ptr;
     m_byte_size = size;
     m_num_elements = size / ov::element::string.size();
+}
+
+SharedStringAlignedBuffer::~SharedStringAlignedBuffer() {
+    // to prevent deallocation in parent dtors.
+    m_allocated_buffer = nullptr;
 }
 
 AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::AttributeAdapter(

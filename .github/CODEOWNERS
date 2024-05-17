@@ -29,8 +29,13 @@
 /src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
 /src/bindings/c/ @openvinotoolkit/openvino-c-api-maintainers
 /src/bindings/js/ @openvinotoolkit/openvino-js-api-maintainers
-/src/common/*transformations/  @openvinotoolkit/openvino-ie-transformations-maintainers
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers
+
+# OpenVINO Transformations
+/src/common/*transformations/ @openvinotoolkit/openvino-ie-transformations-maintainers
+/src/core/src/pass/ @openvinotoolkit/openvino-ie-transformations-maintainers
+/src/core/src/pattern/ @openvinotoolkit/openvino-ie-transformations-maintainers
+/src/core/include/openvino/pass/ @openvinotoolkit/openvino-ie-transformations-maintainers
 
 # OpenVINO Samples:
 /samples/c/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-c-api-maintainers
@@ -59,6 +64,9 @@
 /src/plugins/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /src/tests/**/gpu/ @openvinotoolkit/openvino-ie-gpu-maintainers
 /thirdparty/ocl/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+
+# OpenVINO NPU:
+/src/plugins/intel_npu/  @openvinotoolkit/openvino-npu-maintainers @openvinotoolkit/openvino-npu-developers
 
 # OpenVINO Auto (MULTI) plugin:
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers

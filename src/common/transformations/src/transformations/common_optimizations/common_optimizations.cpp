@@ -66,6 +66,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
@@ -126,15 +127,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
     REGISTER_PASS(manager, MOCTransformations, true, false)
-
-    // The transformations below have to be a part of MOC transformations.
-    // They delete StridedSlices which do nothing, just return the same data tensor to output.
-    // But in some plugins, deletion of these "useless" StridedSlices can cause functional issues.
-    // tickets: 135242, 135241
-    auto strided_slice_elimination = manager.register_pass<GraphRewrite>();
-    ADD_MATCHER(strided_slice_elimination, NopStridedSlice)
-    ADD_MATCHER(strided_slice_elimination, NopStridedSliceByShape)
-    strided_slice_elimination->set_name("ov::pass::StridedSliceElimination");
 
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
@@ -218,6 +210,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_DISABLED_PASS(manager, ConvertSoftMax1ToSoftMax8)
     REGISTER_PASS(manager, ConvertMaxPool8ToMaxPool1)
     REGISTER_DISABLED_PASS(manager, ConvertMaxPool1ToMaxPool8)
+    REGISTER_PASS(manager, ConvertMaxPool14ToMaxPool8)
     REGISTER_PASS(manager, ConvertPriorBox8To0)
     REGISTER_DISABLED_PASS(manager, ConvertDetectionOutput1ToDetectionOutput8)
     REGISTER_PASS(manager, ConvertDetectionOutput8ToDetectionOutput1)
@@ -230,6 +223,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertPad12ToPad1)
     REGISTER_PASS(manager, ConvertScatterElementsUpdate12ToScatterElementsUpdate3)
     REGISTER_PASS(manager, ConcatFusion)
+    REGISTER_PASS(manager, ConvertAvgPool14ToAvgPool1)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)

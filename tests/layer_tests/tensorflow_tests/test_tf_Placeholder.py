@@ -45,10 +45,12 @@ class TestPlaceholder(CommonTFLayerTest):
     @pytest.mark.parametrize("input_type", [np.int8, np.uint8, np.int16,
                                             np.int32, np.int64,
                                             np.float16, np.float32, np.float64, str, np.str_])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_placeholder(self, input_shape, input_type, ie_device, precision, ir_version, temp_dir,
                          use_legacy_frontend):
+        if ie_device == 'GPU' and (input_type == str or input_type == np.str_):
+            pytest.skip("string tensor is not supported on GPU")
         self._test(*self.create_placeholder_net(input_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

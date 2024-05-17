@@ -70,6 +70,8 @@ class TestInverse(PytorchLayerTest):
     @pytest.mark.precommit
     def test_inverse(self, data, dtype, out, ie_device, precision, ir_version):
         self.input_tensor = np.array(data, dtype=dtype)
+        if ie_device == "GPU":
+            pytest.xfail(reason="Inverse-14 is not supported on GPU")
         if not out:
             self._test(aten_inverse(), None, "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False)
@@ -77,3 +79,31 @@ class TestInverse(PytorchLayerTest):
             self._test(aten_inverse_out(), None, "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})
 
+    @pytest.mark.parametrize("shape", [
+        (10, 2, 2),
+        (3, 5, 5),
+        (10, 10),
+        (7, 6, 5, 4, 4)
+    ])
+    @pytest.mark.parametrize("dtype", [
+        np.float64,
+        np.float32
+    ])
+    @pytest.mark.parametrize("seed", [
+        1, 2, 3
+    ])
+    @pytest.mark.parametrize("out", [
+        False, 
+        True
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_inverse(self, shape, dtype, seed, out, ie_device, precision, ir_version):
+        rng = np.random.default_rng(seed)
+        self.input_tensor = rng.uniform(-10.0, 10.0, shape).astype(dtype)
+        if not out:
+            self._test(aten_inverse(), None, "aten::linalg_inv",
+                    ie_device, precision, ir_version, trace_model=True, freeze_model=False)
+        else:
+            self._test(aten_inverse_out(), None, "aten::linalg_inv",
+                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})

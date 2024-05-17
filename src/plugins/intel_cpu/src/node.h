@@ -354,6 +354,10 @@ public:
         return originalLayers;
     }
 
+    const std::string &getParallelDomain() const {
+        return parallelDomain;
+    }
+
     Type getType() const {
         return type;
     }
@@ -431,10 +435,13 @@ public:
 
     virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
 
-    virtual void execute(dnnl::stream strm) = 0;
+    // @todo this supposed to be 'execute + executeImpl' instead of 'executeStatic + execute'
+    // but this requires changes in all the nodes. Since moving to a numa node right before an execute
+    // is a temprorary solution, do it this way for now.
+    void executeStatic(const dnnl::stream strm, int numaId = -1);
     void updateShapes();
     void updateDynamicParams();
-    void executeDynamic(dnnl::stream strm);
+    void executeDynamic(dnnl::stream strm, int numaId = -1);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
     void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
     bool outputShapeDataDependency() const;
@@ -652,6 +659,13 @@ protected:
 
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
+
+    std::vector <NodePtr> parallelWith;
+    int curNumaNode = -1;
+
+    void toNumaNode(int numaID);
+    virtual void toNumaNodeImpl(int numaID);
+
     std::string primitivesPriority;
     std::vector <impl_desc_type> customImplPriorities;
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
@@ -660,6 +674,7 @@ protected:
     bool keepOriginalPrecision  = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
+    std::string parallelDomain;
 
     Node(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
     Node(const std::string& type,
@@ -747,6 +762,7 @@ protected:
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     IShapeInfer::Result shapeInfer() const;
+    virtual void execute(dnnl::stream strm) = 0;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
         OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
@@ -762,7 +778,7 @@ protected:
 
     MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
-            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
+            scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
         }
         return scratchpadMem;
     }

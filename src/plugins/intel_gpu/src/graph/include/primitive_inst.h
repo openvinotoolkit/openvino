@@ -181,14 +181,16 @@ public:
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
-    std::vector<primitive_inst*> get_user_insts() const {
+    const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
+    void init_users() {
         std::vector<primitive_id> users;
         for (auto u : get_users()) {
             users.push_back(u->id());
         }
-        return _network.get_primitives(users);
+        _users = _network.get_primitives(users);
     }
-    std::set<size_t> get_runtime_memory_dependencies() { return _runtime_memory_dependencies; }
+
+    const std::unordered_set<size_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -265,7 +267,7 @@ public:
                                        memory_pool& pool,
                                        const program_node& _node,
                                        const kernel_impl_params& impl_params,
-                                       const std::set<size_t>& memory_dependencies,
+                                       const std::unordered_set<size_t>& memory_dependencies,
                                        uint32_t net_id,
                                        bool is_internal,
                                        size_t idx = 0,
@@ -320,6 +322,8 @@ protected:
 
     // List of depandant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
+
+    std::vector<primitive_inst*> _users;
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
     // will be valid when executing this primitive. Most of the time this set will be equal to the _deps minus all
@@ -330,7 +334,7 @@ protected:
     std::vector<primitive_inst*> _exec_deps;
 
     // List of primitive ids that this primitive can't share memory buffers with
-    std::set<size_t> _runtime_memory_dependencies;
+    std::unordered_set<size_t> _runtime_memory_dependencies;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -422,7 +426,7 @@ protected:
         auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
 
         if (impl_param.has_fused_primitives()) {
-            output_type = impl_param.get_fused_output_layout().data_type;
+            output_type = impl_param.get_output_element_type();
         }
 
         return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };
@@ -452,6 +456,8 @@ protected:
         }
         return false;
     }
+
+    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

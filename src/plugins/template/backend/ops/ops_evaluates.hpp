@@ -19,6 +19,10 @@ extern template bool evaluate_node<ov::op::v0::Ceiling>(std::shared_ptr<ov::Node
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v0::Convert>(std::shared_ptr<ov::Node> node,
+                                                        ov::TensorVector& outputs,
+                                                        const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v0::CTCGreedyDecoder>(std::shared_ptr<ov::Node> node,
                                                                  ov::TensorVector& outputs,
                                                                  const ov::TensorVector& inputs);
@@ -155,6 +159,10 @@ extern template bool evaluate_node<ov::op::v1::DeformablePSROIPooling>(std::shar
                                                                        ov::TensorVector& outputs,
                                                                        const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v1::Divide>(std::shared_ptr<ov::Node> node,
+                                                       ov::TensorVector& outputs,
+                                                       const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v1::Equal>(std::shared_ptr<ov::Node> node,
                                                       ov::TensorVector& outputs,
                                                       const ov::TensorVector& inputs);
@@ -274,6 +282,10 @@ extern template bool evaluate_node<ov::op::v5::LSTMSequence>(std::shared_ptr<ov:
 extern template bool evaluate_node<ov::op::v5::NonMaxSuppression>(std::shared_ptr<ov::Node> node,
                                                                   ov::TensorVector& outputs,
                                                                   const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v14::RMSNorm>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v5::RNNSequence>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,
@@ -480,6 +492,10 @@ extern template bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov:
 extern template bool evaluate_node<ov::op::v14::Inverse>(std::shared_ptr<ov::Node> node,
                                                          ov::TensorVector& outputs,
                                                          const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v14::ROIAlignRotated>(std::shared_ptr<ov::Node> node,
+                                                                 ov::TensorVector& outputs,
+                                                                 const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,

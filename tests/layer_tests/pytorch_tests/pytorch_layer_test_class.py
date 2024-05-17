@@ -9,13 +9,12 @@ import os
 import numpy as np
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
+import openvino.properties.hint as hints
 import torch
 from packaging import version
-import openvino.torch
 import pytest
 
 def skip_if_export(param, reason="Unsupported on torch.export"):
@@ -48,8 +47,7 @@ class PytorchLayerTest:
     def use_torch_compile_backend():
         torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
         if torch_compile_env is not None:
-            if (torch_compile_env == "TORCHFX" or torch_compile_env == "TORCHSCRIPT"):
-                return True
+            return torch_compile_env == "TORCHFX"
         return False
 
     @staticmethod
@@ -102,16 +100,8 @@ class PytorchLayerTest:
                 gm = em.module()
                 print(gm.code)
 
-                input_shapes = []
-                input_types = []
-                for input_data in torch_inputs:
-                    input_types.append(input_data.type())
-                    input_shapes.append(input_data.size())
-
-                decoder = TorchFXPythonDecoder(
-                    gm, gm, input_shapes=input_shapes, input_types=input_types)
                 converted_model = convert_model(
-                    decoder, example_input=torch_inputs)
+                    em, example_input=torch_inputs)
                 self._resolve_input_shape_dtype(
                     converted_model, ov_inputs, dynamic_shapes)
                 smodel = model
@@ -133,7 +123,10 @@ class PytorchLayerTest:
                             smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
             core = Core()
-            compiled = core.compile_model(converted_model, ie_device)
+            config = {}
+            if ie_device == "GPU" and precision == "FP32":
+                config[hints.inference_precision] = Type.f32
+            compiled = core.compile_model(converted_model, ie_device, config)
             infer_res = compiled(deepcopy(ov_inputs))
 
             if hasattr(self, 'skip_framework') and self.skip_framework:

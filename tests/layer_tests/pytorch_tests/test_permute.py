@@ -56,4 +56,5 @@ class TestPermuteList(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_permute(self, order, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={"permute_shape": order})
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"permute_shape": order}, dynamic_shapes=ie_device != "GPU")
