@@ -78,13 +78,65 @@ interface Model {
   getFriendlyName(): string;
 }
 
+/**
+ * CompiledModel represents Model that is compiled for a specific device
+ * by applying multiple optimization transformations,
+ * then mapping to compute kernels.
+ */
 interface CompiledModel {
-  outputs: Output[];
+  /** Gets all inputs of a compiled model. */
   inputs: Output[];
-  output(nameOrId?: string | number): Output;
-  input(nameOrId?: string | number): Output;
+  /** Gets all outputs of a compiled model. */
+  outputs: Output[];
+  /**
+   * Creates an inference request object used to infer the compiled model.
+   * @return {InferRequest}
+   */
   createInferRequest(): InferRequest;
+  /**
+   * Exports the compiled model to binary data.
+   * @remarks
+   * The exported model can be imported via the {@link Core.importModelSync}.
+   * @return {Buffer} The binary data that contains this compiled model.
+   */
   exportModelSync(): Buffer;
+  /**
+   * Gets a single output of a compiled model.
+   * If a model has more than one output, this method throws an exception.
+   * @returns {Output} A compiled model output.
+   */
+  output(): Output;
+  /**
+   * Gets output of a compiled model identified by an index.
+   * @param index An output tensor index.
+   * @returns {Output} A compiled model output.
+   */
+  output(index: number): Output;
+  /**
+   * Gets output of a compiled model identified by a tensorName.
+   * @param name An output tensor name.
+   * @returns {Output} A compiled model output.
+   */
+  output(name: string): Output;
+  /**
+   * Gets a single input of a compiled model.
+   * If a model has more than one input, this method throws an exception.
+   * @returns {Output} A compiled model input.
+   */
+  input(): Output;
+  /**
+   * Gets input of a compiled model identified by an index.
+   * @param index An input tensor index.
+   * @returns {Output} A compiled model input.
+   */
+  input(index: number): Output;
+  /**
+   * Gets input of a compiled model identified by a tensorName.
+   * @param name An input tensor name.
+   * @returns {Output} A compiled model input.
+   */
+  input(name: string): Output;
+
 }
 
 interface Tensor {
