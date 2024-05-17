@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/loop_inputs.hpp"
+#include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 
 #include <unordered_map>
 
@@ -24,8 +24,8 @@ std::shared_ptr<ov::op::v0::Parameter> get_parent_param(const std::shared_ptr<ov
 }
 }  // namespace
 
-ov::pass::LoopInputs::LoopInputs() {
-    MATCHER_SCOPE(LoopInputs);
+ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
+    MATCHER_SCOPE(EliminateLoopInputsOutputs);
 
     auto loop_label = wrap_type<ov::op::v5::Loop>();
 
@@ -47,7 +47,7 @@ ov::pass::LoopInputs::LoopInputs() {
 
         for (const auto& input_description : loop->get_input_descriptions()) {
             if (const auto merged_input_desc =
-                    dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_description)) {
+                    as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_description)) {
                 if (get_parent_param(body_results[merged_input_desc->m_body_value_index])) {
                     new_loop->set_invariant_input(body_params[merged_input_desc->m_body_parameter_index],
                                                   loop_input_values[merged_input_desc->m_input_index]);
@@ -57,13 +57,11 @@ ov::pass::LoopInputs::LoopInputs() {
                                                body_results[merged_input_desc->m_body_value_index]);
                 }
             } else if (const auto invariant_input_desc =
-                           dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(
-                               input_description)) {
+                           as_type_ptr<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(input_description)) {
                 new_loop->set_invariant_input(body_params[invariant_input_desc->m_body_parameter_index],
                                               loop_input_values[invariant_input_desc->m_input_index]);
             } else if (const auto sliced_input_desc =
-                           dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::SliceInputDescription>(
-                               input_description)) {
+                           as_type_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>(input_description)) {
                 new_loop->set_sliced_input(body_params[sliced_input_desc->m_body_parameter_index],
                                            loop_input_values[sliced_input_desc->m_input_index],
                                            sliced_input_desc->m_start,
@@ -87,10 +85,11 @@ ov::pass::LoopInputs::LoopInputs() {
         }
 
         ov::OutputVector new_loop_outputs;
+        int64_t iteration = -1;
         for (const auto& output_description : loop->get_output_descriptions()) {
-            int64_t iteration = -1;
+            iteration = -1;
             if (const auto body_output_desc =
-                    dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(output_description)) {
+                    as_type_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(output_description)) {
                 iteration = body_output_desc->m_iteration;
             }
             const auto& body_result = body_results[output_description->m_body_value_index];

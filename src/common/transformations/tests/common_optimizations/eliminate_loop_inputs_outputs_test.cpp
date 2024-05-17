@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/loop_inputs.hpp"
-
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -18,6 +16,7 @@
 #include "openvino/op/sinh.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -55,7 +54,7 @@ TEST_F(TransformationTestsF, LoopInputsInvariantAndOutput) {
 
         model = std::make_shared<Model>(OutputVector{main_result0, main_result1}, ParameterVector{main_param0});
 
-        manager.register_pass<ov::pass::LoopInputs>();
+        manager.register_pass<ov::pass::EliminateLoopInputsOutputs>();
     }
 
     {
@@ -119,5 +118,5 @@ TEST_F(TransformationTestsF, LoopInputsNothing) {
     model = std::make_shared<Model>(OutputVector{main_result0, main_result1}, ParameterVector{main_param0});
     model_ref = model->clone();
 
-    manager.register_pass<ov::pass::LoopInputs>();
+    manager.register_pass<ov::pass::EliminateLoopInputsOutputs>();
 }
