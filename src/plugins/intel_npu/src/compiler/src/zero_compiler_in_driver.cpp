@@ -453,13 +453,19 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content, std::regex(ov::intel_npu::tiles.name()), "NPU_DPU_GROUPS");
     }
 
-    // Batch mode property is not supported in versions < 5.5 - need to remove it
+    // Batch mode and cpu pinning properties is not supported in versions < 5.5 - need to remove them
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 5)) {
         std::ostringstream batchstr;
         batchstr << ov::intel_npu::batch_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
+        std::ostringstream pinningstr;
+        pinningstr << ov::hint::enable_cpu_pinning.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                   << VALUE_DELIMITER;
         _logger.warning("NPU_BATCH_MODE property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
+        _logger.warning(
+            "ENABLE_CPU_PINNING property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(pinningstr.str()), "");
     }
 
     // EXECUTION_MODE_HINT is not supported in versions < 5.6 - need to remove it
