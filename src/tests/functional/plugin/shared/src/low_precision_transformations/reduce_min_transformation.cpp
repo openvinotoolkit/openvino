@@ -57,12 +57,8 @@ void ReduceMinTransformation::run() {
     LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    assert(params.layerTypes.size() == params.expectedKernelTypes.size());
-
-    for (size_t i = 0; i < params.layerTypes.size(); ++i) {
-        const auto actualType = get_runtime_precision_by_type(params.layerTypes[i]);
-        EXPECT_EQ(actualType, params.expectedKernelTypes[i]) << params.layerTypes[i];
-    }
+    const auto actualType = get_runtime_precision(params.layerName);
+    EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(ReduceMinTransformation, CompareWithRefImpl) {

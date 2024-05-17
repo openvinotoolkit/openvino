@@ -25,29 +25,29 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 2, 3 },
         true,
-        {"Reduce"},
-        {"u8"}
+        "Output_original",
+        "u8"
     },
     {
         { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 2, 3 },
         false,
-        {"Reshape", "Reduce"},
-        {"u8", "u8"}
+        "Output_original",
+        "u8"
     },
     {
         { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 1 },
         true,
-        {"Reduce"},
-        {"u8"}
+        "Output_original",
+        "u8"
     },
     {
         { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 1 },
         false,
-        {"Reshape", "Reduce"},
-        {"u8", "u8"}
+        "Output_original",
+        "u8"
     },
     {
         {
@@ -59,8 +59,8 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         },
         { 2, 3 },
         true,
-        {"Reduce"},
-        {"u8"}
+        "Output_original",
+        "u8"
     },
     {
         {
@@ -72,8 +72,8 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         },
         { 2, 3 },
         false,
-        {"Reshape", "Reduce"},
-        {"u8", "u8"}
+        "Output_original",
+        "u8"
     },
     {
         {
@@ -85,8 +85,8 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         },
         { 0, 1 },
         true,
-        {"Output"},
-        {"f32"}
+        "Output",
+        "f32"
     },
     {
         {
@@ -98,8 +98,8 @@ const std::vector<LayerTestsDefinitions::ReduceMinTransformationParam> params = 
         },
         { 0, 1 },
         false,
-        {"Output"},
-        {"f32"}
+        "Output",
+        "f32"
     },
 };
 
