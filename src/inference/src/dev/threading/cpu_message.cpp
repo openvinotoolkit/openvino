@@ -32,7 +32,7 @@ std::vector<MessageInfo> MessageManager::wait_message(int cur_rank, int streams_
     std::unique_lock<std::mutex> lock(_readMutex);
     _readCondVar.wait(lock, [&] {
         // std::cout << "wait_" << cur_rank << " : " << _readQueue[cur_rank].size() << " / " << streams_num << "\n";
-        return _readQueue[cur_rank].size() >= streams_num;
+        return static_cast<int>(_readQueue[cur_rank].size()) >= streams_num;
     });
     std::swap(_readQueue[cur_rank], messages_total);
     // std::cout << "wait_" << cur_rank << " " << _readQueue[cur_rank].size() << " end\n";
@@ -86,7 +86,7 @@ void MessageManager::server_wait(int streams_num) {
                         while (!stop) {
                             stop = true;
                             for (int i = 0; i < streams_num; i++) {
-                                if (_readQueue[i].size() == streams_num) {
+                                if (static_cast<int>(_readQueue[i].size()) == streams_num) {
                                     stop = false;
                                 }
                             }

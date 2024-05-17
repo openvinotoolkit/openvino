@@ -62,7 +62,6 @@ public:
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> get_sub_infer_requests();
 
 private:
-    int sub_streams;
     std::vector<std::shared_ptr<ov::ICompiledModel>> _sub_compiled_models;
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> _sub_infer_requests;
     std::thread _serverThread;
