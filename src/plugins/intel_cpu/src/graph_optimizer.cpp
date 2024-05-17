@@ -135,7 +135,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
-    if (auto env = std::getenv("ENABLE_TP")) {
+    if (std::getenv("ENABLE_TP")) {
         const char* str_enable = std::getenv("ENABLE_TP");
         int tp_mode = std::atoi(str_enable);
         if (tp_mode != 1) {
