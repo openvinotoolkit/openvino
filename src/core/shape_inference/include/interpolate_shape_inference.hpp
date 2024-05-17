@@ -153,12 +153,8 @@ TRShape make_padded_shape(const TShape& input, TInputIter pads_begin, TInputIter
  * @return Not null pointer with axes values or null pointer if can't get axes from input.
  */
 template <class TShape, class TRes = std::vector<int64_t>>
-std::unique_ptr<TRes> get_axes(const Node* const op,
-                               size_t port,
-                               bool has_axes,
-                               size_t rank,
-                               const ITensorAccessor& ta) {
-    std::unique_ptr<TRes> axes;
+ov::optional<TRes> get_axes(const Node* const op, size_t port, bool has_axes, size_t rank, const ITensorAccessor& ta) {
+    ov::optional<TRes> axes;
     if (has_axes) {
         using TAxis = typename TRes::value_type;
         axes = std::move(get_input_const_data_as<TShape, TAxis, TRes>(op, port, ta));
@@ -166,7 +162,7 @@ std::unique_ptr<TRes> get_axes(const Node* const op,
             validate::axes_values(op, *axes, rank);
         }
     } else {
-        axes.reset(new TRes(rank));
+        axes.emplace(rank);
         std::iota(axes->begin(), axes->end(), 0);
     }
     return axes;
