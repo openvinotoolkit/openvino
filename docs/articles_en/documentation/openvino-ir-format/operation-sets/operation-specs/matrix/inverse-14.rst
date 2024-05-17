@@ -25,7 +25,7 @@ where :math:`I` is the n-dimensional identity matrix.
 
 The inverse matrix exists if and only if the input matrix is invertible (satisfies any of the properties of the *Invertible Matrix Theorem*). In that case, the inverse exists, and is unique. However, if the matrix is not invertible, the operation may raise an exception or return an undefined result. The operation may return slightly different results for the same input data on different devices due to parallelism and different data types implementations.
 
-This operation can be used to compute the adjoint matrix instead of the inverse.
+This operation can be used to compute the inverse of adjoint matrix.
 
 The adjoint matrix (conjugate transpose) :math:`adj(A)` of a square matrix of non-complex numbers :math:`A` is simply defined as:
 
