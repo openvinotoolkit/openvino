@@ -182,7 +182,8 @@ template <>
 std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const Napi::CallbackInfo& info,
                                                                          const size_t idx) {
     const auto elem = info[idx];
-    OPENVINO_ASSERT(elem.IsObject(), "Cannot convert Napi::Value to std::map<std::string, ov::Any>");
+    OPENVINO_ASSERT(elem.IsObject(),
+                    static_cast<std::string>("Argument #" + std::to_string(idx) + " must be an Object."));
 
     std::map<std::string, ov::Any> properties_to_cpp;
     const auto& config = elem.ToObject();
