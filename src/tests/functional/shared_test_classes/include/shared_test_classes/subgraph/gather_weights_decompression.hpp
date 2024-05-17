@@ -52,6 +52,7 @@ using GatherWeightsDecompressionParams = std::tuple<std::string,        // Devic
                                                     ov::element::Type,  // output type
                                                     bool,               // decompression subtract
                                                     bool,               // reshape on decompression constants
+                                                    bool,               // per-tensor scale
                                                     bool>;              // per-tensor zero-point
 
 class GatherWeightsDecompression : public testing::WithParamInterface<GatherWeightsDecompressionParams>,
@@ -69,14 +70,16 @@ protected:
                                              const ov::element::Type output_precision,
                                              const bool add_subtract,
                                              const bool reshape_on_decompression,
-                                             const bool per_tensor_zp);
+                                             const bool per_tensor_zp,
+                                             const bool per_tensor_scale);
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& data_shape,
                                                                const int group_size,
                                                                const ov::element::Type data_precision,
                                                                const ov::element::Type output_precision,
                                                                const bool add_subtract,
                                                                const bool reshape_on_decompression_constant,
-                                                               const bool per_tensor_zp);
+                                                               const bool per_tensor_zp,
+                                                               const bool per_tensor_scale);
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override;
     void check_results();
     void SetUp() override;
