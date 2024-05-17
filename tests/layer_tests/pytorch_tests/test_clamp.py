@@ -117,11 +117,11 @@ class TestClampMax(PytorchLayerTest):
 
     @pytest.mark.parametrize("maximum", [0., 1., -1., 0.5, 2])
     @pytest.mark.parametrize("as_tensor", [True, False])
-    @pytest.mark.parametrize("inplace", [True, False])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    def test_clamp(self, maximum, as_tensor, inplace, ie_device, precision, ir_version):
+    def test_clamp_max(self, maximum, as_tensor, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(maximum, as_tensor, inplace), ie_device,
                    precision, ir_version, use_convert_model=True, trace_model=True)
