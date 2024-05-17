@@ -95,6 +95,7 @@ def test_custom_add_op():
     assert custom_op.friendly_name == "test_add"
 
 
+
 def test_custom_add_model():
     model = create_add_model()
 
