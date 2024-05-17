@@ -71,7 +71,7 @@ protected:
 
             if (!prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value()) {
                 // If _zp_mem is not set in primitive, use the one from primitive_inst.
-                // It happens when broadcasting is not necessary.
+                // It happens when zero_point_scalar has value
                 auto decompression_zp_idx = prim->bias.empty() ? 3 : 4;
                 auto zp_mem = _zp_mem != nullptr ? _zp_mem : instance.dep_memory_ptr(decompression_zp_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
@@ -328,18 +328,12 @@ public:
         };
 
         if (prim->decompression_zero_point_scalar.has_value()) {
-            // TODO: we may improve this logic by using common weight instead of broadcasted one
             auto& stream = engine.get_service_stream();
-            auto broadcasted_layout_zp = get_broadcasted_layout_zp(arg);
-            dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
-            zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
-            mem_fill(stream, zp_mem, static_cast<uint8_t>(std::round(prim->decompression_zero_point_scalar.value())));
+            auto zp_layout = layout(data_types::i8, format::bfyx, {1, 1, 1, 1});
+            zp_mem = engine.allocate_memory(zp_layout, false);
+            mem_fill(stream, zp_mem, static_cast<int8_t>(std::round(prim->decompression_zero_point_scalar.value())));
 
-            if (!is_four_bit_weight) {
-                attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
-            } else {
-                attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
-            }
+            attr->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, dnnl::memory::data_type::s8);
         } else if (!prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
             auto &zp_node = arg.get_dependency(decompression_zp_idx).as<data>();
