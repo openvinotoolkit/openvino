@@ -947,6 +947,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
         return (ov::is_type<ov::op::v0::Abs>(n) ||
                 ov::is_type<ov::op::v1::Add>(n) ||
+                ov::is_type<ov::op::v0::Clamp>(n) ||
                 ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Exp>(n) ||
