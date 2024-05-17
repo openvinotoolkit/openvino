@@ -945,7 +945,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
                 { ov::element::f32 };
 #else
-                { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+                {ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
 #endif
 
             if (!ignoreCallback) {
