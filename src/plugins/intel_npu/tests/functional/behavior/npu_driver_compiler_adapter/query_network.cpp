@@ -6,7 +6,7 @@
 #include <openvino/op/op.hpp>
 #include "base/ov_behavior_test_utils.hpp"
 #include "common/utils.hpp"
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu_non_zero.hpp"

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/config/common.hpp"
 
@@ -12,7 +12,7 @@
 
 namespace ov::test::utils {
 
-VpuTestEnvConfig::VpuTestEnvConfig() {
+NpuTestEnvConfig::NpuTestEnvConfig() {
     // start reading obsolete environment variables
     if (auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
         IE_NPU_TESTS_DEVICE_NAME = var;
@@ -136,20 +136,20 @@ VpuTestEnvConfig::VpuTestEnvConfig() {
     }
 }
 
-const VpuTestEnvConfig& VpuTestEnvConfig::getInstance() {
-    static VpuTestEnvConfig instance{};
+const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
+    static NpuTestEnvConfig instance{};
     return instance;
 }
 
 std::string getTestsDeviceNameFromEnvironmentOr(const std::string& instead) {
-    return (!VpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME.empty())
-                   ? VpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME
+    return (!NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME.empty())
+                   ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME
                    : instead;
 }
 
 std::string getTestsPlatformFromEnvironmentOr(const std::string& instead) {
-    return (!VpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty())
-                   ? VpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM
+    return (!NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty())
+                   ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM
                    : instead;
 }
 

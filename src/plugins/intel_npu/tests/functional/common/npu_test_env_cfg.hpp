@@ -20,7 +20,7 @@ namespace ov::test::utils {
 /**
  * Reads configuration environment variables
  */
-class VpuTestEnvConfig {
+class NpuTestEnvConfig {
 public:
     std::string IE_NPU_TESTS_DEVICE_NAME;
     std::string IE_NPU_TESTS_DUMP_PATH;
@@ -41,10 +41,10 @@ public:
     bool IE_NPU_TESTS_LONG_FILE_NAME = false;
 
 public:
-    static const VpuTestEnvConfig& getInstance();
+    static const NpuTestEnvConfig& getInstance();
 
 private:
-    explicit VpuTestEnvConfig();
+    explicit NpuTestEnvConfig();
 };
 
 std::string getTestsDeviceNameFromEnvironmentOr(const std::string& instead);

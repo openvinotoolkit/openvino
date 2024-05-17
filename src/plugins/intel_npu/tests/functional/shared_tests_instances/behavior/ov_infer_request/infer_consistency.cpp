@@ -7,7 +7,7 @@
 
 #include "behavior/ov_infer_request/infer_consistency.hpp"
 #include "common/utils.hpp"
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "npu_private_properties.hpp"
 
 using namespace ov::test::behavior;

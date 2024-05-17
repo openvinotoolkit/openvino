@@ -10,8 +10,8 @@
 #include "gtest/gtest.h"
 #include "intel_npu/al/config/config.hpp"
 #include "npu_private_properties.hpp"
-#include "vpu_test_report.hpp"
-#include "vpu_test_tool.hpp"
+#include "npu_test_report.hpp"
+#include "npu_test_tool.hpp"
 
 namespace testing {
 namespace internal {
@@ -47,7 +47,7 @@ int main(int argc, char** argv, char** envp) {
     }
 
     ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new ov::test::utils::VpuTestReportEnvironment());
+    ::testing::AddGlobalTestEnvironment(new ov::test::utils::NpuTestReportEnvironment());
 
     const bool dryRun = ::testing::GTEST_FLAG(list_tests) || ::testing::internal::g_help_flag;
 
@@ -55,7 +55,7 @@ int main(int argc, char** argv, char** envp) {
         const std::string noFetch{"<not fetched>"};
         std::string backend{noFetch}, arch{noFetch}, full{noFetch};
         try {
-            ov::test::utils::VpuTestTool kmbTestTool(ov::test::utils::VpuTestEnvConfig::getInstance());
+            ov::test::utils::NpuTestTool kmbTestTool(ov::test::utils::NpuTestEnvConfig::getInstance());
             backend = kmbTestTool.getDeviceMetric(ov::intel_npu::backend_name.name());
             arch = kmbTestTool.getDeviceMetric(ov::device::architecture.name());
             full = kmbTestTool.getDeviceMetric(ov::device::full_name.name());
@@ -74,7 +74,7 @@ int main(int argc, char** argv, char** envp) {
     }
 
     auto& log = intel_npu::Logger::global();
-    auto level = ov::test::utils::VpuTestEnvConfig::getInstance().IE_NPU_TESTS_LOG_LEVEL;
+    auto level = ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_LOG_LEVEL;
     ov::log::Level logLevel = level.empty()
                                       ? ov::log::Level::ERR
                                       : intel_npu::OptionParser<ov::log::Level>::parse(level.c_str());

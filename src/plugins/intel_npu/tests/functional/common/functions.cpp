@@ -4,7 +4,7 @@
 //
 
 #include "functions.h"
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
@@ -28,7 +28,7 @@ std::shared_ptr<ov::Model> buildSingleLayerSoftMaxNetwork() {
 }
 
 const std::string PlatformEnvironment::PLATFORM = []() -> std::string {
-    const auto& var = ov::test::utils::VpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM;
+    const auto& var = ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM;
     if (!var.empty()) {
         return var;
     } else {

@@ -8,7 +8,7 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "common/utils.hpp"
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/concat_with_params.hpp"
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"

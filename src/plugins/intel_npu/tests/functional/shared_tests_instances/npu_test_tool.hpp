@@ -10,19 +10,19 @@
 #include <openvino/runtime/core.hpp>
 #include <string>
 #include <string_view>
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace ov::test::utils {
 
-class VpuTestTool {
+class NpuTestTool {
 public:
-    const VpuTestEnvConfig& envConfig;
+    const NpuTestEnvConfig& envConfig;
     const std::string DEVICE_NAME;
     ::intel_npu::Logger _log;
 
 public:
-    explicit VpuTestTool(const VpuTestEnvConfig& envCfg);
+    explicit NpuTestTool(const NpuTestEnvConfig& envCfg);
 
     std::string getDeviceMetric(std::string name);
 };

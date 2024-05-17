@@ -9,7 +9,7 @@
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "common/functions.h"
 #include "common/utils.hpp"
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"

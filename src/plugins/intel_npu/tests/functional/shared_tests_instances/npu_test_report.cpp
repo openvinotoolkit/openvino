@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpu_test_report.hpp"
+#include "npu_test_report.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 
 #include <fstream>
@@ -48,7 +48,7 @@ void VpuTestReport::skipped(const testing::TestInfo* testInfo) {
     ++counters[testName(testInfo)][static_cast<int>(VpuTestStage::SKIPPED_EXCEPTION)];
 }
 
-void VpuTestReportEnvironment::TearDown() {
+void NpuTestReportEnvironment::TearDown() {
     std::cout << "TestReportResult: " << std::endl;
     const auto& counters = VpuTestReport::getInstance().getCounters();
 

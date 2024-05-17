@@ -5,7 +5,7 @@
 
 #include "behavior/ov_infer_request/inference_chaining.hpp"
 #include "common/utils.hpp"
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "intel_npu/al/config/common.hpp"
 

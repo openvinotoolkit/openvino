@@ -40,9 +40,9 @@ public:
     }
 };
 
-class VpuTestReportEnvironment : public testing::Environment {
+class NpuTestReportEnvironment : public testing::Environment {
 public:
-    ~VpuTestReportEnvironment() override {
+    ~NpuTestReportEnvironment() override {
     }
 
     void TearDown() override;

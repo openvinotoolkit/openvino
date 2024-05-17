@@ -10,7 +10,7 @@
 #include <vector>
 #include "common/functions.h"
 #include "common/utils.hpp"
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/op/clamp.hpp"

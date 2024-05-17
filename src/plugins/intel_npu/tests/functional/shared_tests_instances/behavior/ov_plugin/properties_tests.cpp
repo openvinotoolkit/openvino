@@ -6,7 +6,7 @@
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include <array>
 #include "common/utils.hpp"
-#include "common/vpu_test_env_cfg.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
