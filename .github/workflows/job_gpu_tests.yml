@@ -7,6 +7,10 @@ on:
         description: 'Type of tests to execute'
         type: string
         required: true
+      device:
+        description: 'Device name (igpu or dgpu)'
+        type: string
+        required: true
       runner:
         description: 'Machine on which the tests would run'
         type: string
@@ -97,9 +101,10 @@ jobs:
       - name: OpenVINO GPU ${{ inputs.test_type }} Tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          
-          rm -rf ${INSTALL_TEST_DIR}/gpu_${{ inputs.test_type }}_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_${{ inputs.test_type }}_tests
-          
+
+          TEST_RESULTS_DIR="${{ inputs.device }}_${{ inputs.test_type }}_tests"
+          rm -rf ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR} && mkdir -p ${TEST_RESULTS_DIR}
+
           test_filter=''
           if [[ "${{ inputs.test_type }}" == "unit" ]]; then
             # Ticket: 138018
@@ -107,7 +112,7 @@ jobs:
           else
             test_filter='*smoke*'
           fi
-          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ inputs.test_type }}_tests --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ inputs.test_type }}_tests/ov_gpu_${{ inputs.test_type }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ inputs.test_type }}_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_${{ inputs.test_type }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
 
 
       - name: Upload Test Results
@@ -115,5 +120,5 @@ jobs:
         if: always()
         with:
           name: test-results-${{ inputs.test_type }}-gpu
-          path: ${{ env.INSTALL_TEST_DIR }}/gpu_${{ inputs.test_type }}_tests
+          path: ${{ env.INSTALL_TEST_DIR }}/${TEST_RESULTS_DIR}
           if-no-files-found: 'error'

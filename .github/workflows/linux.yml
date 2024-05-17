@@ -695,6 +695,7 @@ jobs:
       matrix:
         TEST_TYPE: ['unit', 'func']
     with:
+      device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'gpu' ]"
       container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
@@ -711,6 +712,7 @@ jobs:
       matrix:
         TEST_TYPE: ['unit', 'func']
     with:
+      device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'dgpu' ]"
       container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
