@@ -113,14 +113,14 @@ For large models which don’t fit on a single first priority device, model pipe
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.py
          :language: Python
          :fragment: [set_pipeline_parallelism]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.cpp
          :language: cpp
          :fragment: [set_pipeline_parallelism]
 
