@@ -8,8 +8,6 @@ from openvino import Op
 from openvino.runtime import CompiledModel, DiscreteTypeInfo, Model, Shape, compile_model, Tensor
 import openvino.runtime.opset14 as ops
 
-from tests.utils.helpers import generate_image
-
 
 class CustomOp(Op):
     class_type_info = DiscreteTypeInfo("Custom", "extension")
@@ -95,7 +93,6 @@ def test_custom_add_op():
     assert custom_op.friendly_name == "test_add"
 
 
-
 def test_custom_add_model():
     model = create_add_model()
 
@@ -115,7 +112,7 @@ def test_custom_op():
     assert isinstance(compiled_model, CompiledModel)
     request = compiled_model.create_infer_request()
 
-    input_data = generate_image(shape=[1, 3, 32, 32])
+    input_data = np.ones([1, 3, 32, 32], dtype=np.float32)
     expected_output = np.maximum(0.0, input_data)
 
     input_tensor = Tensor(input_data)
