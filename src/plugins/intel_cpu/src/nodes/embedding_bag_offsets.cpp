@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include "embedding_bag_offset.h"
+#include "embedding_bag_offsets.h"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 #include "openvino/op/embeddingbag_offsets.hpp"
 #include "openvino/opsets/opset15.hpp"

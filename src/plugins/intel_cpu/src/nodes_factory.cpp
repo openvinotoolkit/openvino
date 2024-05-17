@@ -21,7 +21,7 @@
 #include "nodes/detection_output.h"
 #include "nodes/dft.h"
 #include "nodes/eltwise.h"
-#include "nodes/embedding_bag_offset.h"
+#include "nodes/embedding_bag_offsets.h"
 #include "nodes/embedding_bag_packed.h"
 #include "nodes/embedding_segments_sum.h"
 #include "nodes/experimental_detectron_detection_output.h"
