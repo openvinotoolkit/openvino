@@ -70,9 +70,6 @@ public:
         function = CreateFunction(params);
         inputData = {params.priorsData, params.featureMapData, params.imageSizeInfoData};
         refOutData = {params.refData};
-
-        if (params.actualComparisonSize > 0)
-            actual_comparision_size = params.actualComparisonSize;
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalPGGParams>& obj) {
         const auto& param = obj.param;
@@ -101,7 +98,7 @@ public:
             const auto shape = Shape{comparison_size};
             const auto expected = Tensor{refOutData[0].get_element_type(), shape, refOutData[0].data()};
             const auto inferred = Tensor{actualOutData[0].get_element_type(), shape, actualOutData[0].data()};
-            ValidateBlobs(expected, inferred, 0, threshold, abs_threshold, false, 0);
+            ValidateBlobs(expected, inferred, 0, threshold, abs_threshold, false);
         } else {
             CommonReferenceTest::Validate();
         }

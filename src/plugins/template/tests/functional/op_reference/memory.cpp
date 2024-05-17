@@ -298,8 +298,7 @@ protected:
                                                                 i,
                                                                 1e-2f,
                                                                 -1.f,
-                                                                true,
-                                                                0);
+                                                                true);
         }
     }
 

@@ -76,13 +76,7 @@ void CommonReferenceTest::Validate() {
 
     ASSERT_EQ(refOutData.size(), actualOutData.size());
     for (size_t i = 0; i < refOutData.size(); i++) {
-        ValidateBlobs(refOutData[i],
-                      actualOutData[i],
-                      i,
-                      threshold,
-                      abs_threshold,
-                      legacy_compare,
-                      actual_comparision_size);
+        ValidateBlobs(refOutData[i], actualOutData[i], i, threshold, abs_threshold, legacy_compare);
     }
 }
 
@@ -91,15 +85,11 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                         const size_t blob_idx,
                                         float threshold,
                                         float abs_threshold,
-                                        bool legacy_compare,
-                                        size_t actual_comparision_size) {
+                                        bool legacy_compare) {
     ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type())
         << "Incompatible element type for blob with index " << blob_idx;
     ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size())
         << "Incorrect byte size for blob with index " << blob_idx;
-
-    if (actual_comparision_size == 0)
-        actual_comparision_size = refBlob.get_size();
 
     const auto& element_type = refBlob.get_element_type();
     if (!legacy_compare) {
@@ -121,6 +111,8 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
             return;
         }
     }
+
+    const auto actual_comparision_size = refBlob.get_size();
     switch (element_type) {
     case ov::element::bf16:
         ov::test::utils::compare_raw_data<ov::bfloat16, ov::bfloat16>(refBlob.data<const ov::bfloat16>(),
