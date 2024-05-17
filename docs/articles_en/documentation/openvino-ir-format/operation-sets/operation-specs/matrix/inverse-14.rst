@@ -31,7 +31,7 @@ The adjoint matrix (conjugate transpose) :math:`adj(A)` of a square matrix of no
 
 .. math::
 
-   adj(A) = (A^{-1})^{T}
+   adj(A) = A^{T}
 
 where :math:`A^{-1}` is the matrix inverse of :math:`A`.
 
