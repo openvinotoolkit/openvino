@@ -4,6 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "openvino/op/roi_align.hpp"
 #include "openvino/op/util/rnn_cell_base.hpp"
 #include "openvino/runtime/core.hpp"
@@ -284,5 +287,66 @@ TEST_F(LocaleTests, DISABLED_WithUSLocaleCPP) {
     std::locale::global(std::locale("en_US.UTF-8"));
     testBody();
     std::locale::global(prev);
+}
+
+class LocaleTestsWithCacheDir : public ::testing::Test {
+    std::string originalLocale;
+    std::string cache_dir = "test_cache";
+    std::shared_ptr<ov::Model> model;
+
+public:
+protected:
+    void SetUp() override {
+        originalLocale = setlocale(LC_ALL, nullptr);
+        model = ov::test::utils::make_split_multi_conv_concat();
+    }
+    void TearDown() override {
+        setlocale(LC_ALL, originalLocale.c_str());
+        if (!cache_dir.empty()) {
+            ov::test::utils::removeDir(cache_dir);
+        }
+    }
+    void testBody() const {
+        std::map<ov::Output<ov::Node>, ov::Tensor> inputs;
+        for (const auto& input : model->inputs()) {
+            auto tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(input.get_element_type(),
+                                                                                      input.get_shape(),
+                                                                                      0.0f,
+                                                                                      0.2f,
+                                                                                      7235346);
+            inputs.insert({input, tensor});
+        }
+
+        ov::Core core;
+        ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f32), ov::cache_dir(cache_dir)};
+
+        auto getOutputBlob = [&]() {
+            auto compiled_model = core.compile_model(model, "CPU", properties);
+            auto req = compiled_model.create_infer_request();
+            for (const auto& input : inputs) {
+                req.set_tensor(input.first, input.second);
+            }
+            auto output_tensor = ov::Tensor(model->output().get_element_type(), model->output().get_shape());
+            req.set_output_tensor(output_tensor);
+            req.infer();
+            return output_tensor;
+        };
+
+        auto output_from_model_read = getOutputBlob();
+        auto output_from_model_cached = getOutputBlob();
+
+        ov::test::utils::compare(output_from_model_read, output_from_model_cached);
+        ov::test::utils::removeFilesWithExt(cache_dir, "blob");
+    }
+};
+
+TEST_F(LocaleTestsWithCacheDir, WithRULocale) {
+    setlocale(LC_ALL, "ru_RU.UTF-8");
+    testBody();
+}
+
+TEST_F(LocaleTestsWithCacheDir, WithUSLocale) {
+    setlocale(LC_ALL, "en_US.UTF-8");
+    testBody();
 }
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
