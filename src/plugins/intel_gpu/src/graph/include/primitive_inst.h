@@ -457,6 +457,8 @@ protected:
         return false;
     }
 
+    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
+
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
     // and store mapping onto original perf_clounter_key for further data analysis and dumps
