@@ -737,7 +737,7 @@ static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_M
 /**
  * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
  * If cache_crypto_callback is set, the model cache will be encrypted/decrypted when saving/loading cache.
- * cache_crypto_callback is enabled in compile_model only.
+ * cache_crypto_callback is enabled in core.compile_model only.
  * - First value of the vector is encryption function.
  * - Second value of the vector is decryption function.
  * @ingroup ov_runtime_cpp_prop_api

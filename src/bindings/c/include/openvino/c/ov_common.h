@@ -191,11 +191,24 @@ typedef enum {
     F8E5M3,          //!< f8e5m2 element type
 } ov_element_type_e;
 
-typedef char* (*crypto_func)(const char*, const size_t, size_t*);
+/**
+ * @brief crypto_func is a function pointer that encrypt or decrypt the input memory, example of this function is
+ * codec(const char* input, const size_t in_size, const char* output, size_t* out_size)
+ * This function needs to be called twice,
+ * the first call to obtain out_size (the size of output buffer), the second call to obtain output buffer.
+ * The first call output is nullptr, before the second call, the caller needs to apply for output
+ * memory based on the out_size returned by the first call.
+ * the memory of parameter output is allocated and released by the caller.
+ * @param input The pointer to the input buffer.
+ * @param in_size The size of input.
+ * @param output The pointer to the encrypted/decrypted buffer.
+ * @param out_size The size of output.
+ */
+typedef void (*crypto_func)(const char*, const size_t, char*, size_t*);
 typedef struct {
-    crypto_func encrypt_func;
-    crypto_func decrypt_func;
-} ov_struct_crypto_callback;
+    crypto_func encrypt_func;  // encryption function pointer
+    crypto_func decrypt_func;  // decryption function pointer
+} ov_crypto_callback;
 
 /**
  * @brief Print the error info.
