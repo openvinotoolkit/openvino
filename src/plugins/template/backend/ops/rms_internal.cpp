@@ -24,8 +24,8 @@ bool evaluate(const std::shared_ptr<ov::op::internal::RMS>& node,
 
     outputs[0].set_shape(inputs[0].get_shape());
 
-    const auto in_type = inputs[0].get_element_type();
-    const auto out_type = outputs[0].get_element_type();
+    const auto& in_type = inputs[0].get_element_type();
+    const auto& out_type = outputs[0].get_element_type();
 
     // The type compression mechanism is implemented for F16 only
     // The scale is expected to have the same type as the first input
@@ -64,6 +64,6 @@ bool evaluate_node<op::internal::RMS>(std::shared_ptr<ov::Node> node,
     case element::f32:
         return evaluate<element::f32>(as_type_ptr<op::internal::RMS>(node), outputs, inputs);
     default:
-        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
+        OPENVINO_THROW("Unhandled data type ", node->get_input_element_type(0).get_type_name(), " in evaluate_node()");
     }
 }
