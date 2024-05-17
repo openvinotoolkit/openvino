@@ -54,11 +54,13 @@ void pass::MatmulSplitDecomposition::split_weights(const Output<Node>& weights, 
     const auto& bias_shape = bias.get_partial_shape();
     int64_t bias_rank = static_cast<int64_t>(bias_shape.rank().get_length());
 
-    if (weights_rank != 2 || bias_rank != 3) {
-        return;
-    }
+    // if (weights_rank != 2 || bias_rank != 3 || bias_rank != 1) {
+    //     std::cout << "==================split_weights return=============" << weights_rank << ", " << bias_rank << "\n\n";
+    //     return;
+    // }
 
-    auto axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    std::cout << "==================split_weights 1=============\n\n";
+    auto axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));   // axis 0
     auto split = register_new_node<opset1::Split>(weights, axis, 3);
 
     // Constantfold new weights
@@ -69,7 +71,7 @@ void pass::MatmulSplitDecomposition::split_weights(const Output<Node>& weights, 
             new_weights.emplace_back(out);
     }
 
-    auto axis2 = register_new_node(v0::Constant::create(element::i32, Shape{}, {2}));
+    auto axis2 = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));  // axis -1
     auto split2 = register_new_node<opset1::Split>(bias, axis2, 3);
 
     // Constantfold new bias
@@ -152,6 +154,7 @@ pass::MatmulSplitDecomposition::MatmulSplitDecomposition() {
         if (std::any_of(gathers.begin(), gathers.end(), [](const std::shared_ptr<Node> node_ptr) {
                         return !node_ptr || !is_type<ov::op::util::GatherBase>(node_ptr);
                     })) return false;
+        std::cout << "==================4.1=============\n\n";
 
         OutputVector new_weights, new_bias;
         split_weights(weights, new_weights, bias, new_bias);
@@ -167,11 +170,12 @@ pass::MatmulSplitDecomposition::MatmulSplitDecomposition() {
 
         for (size_t i = 0 ; i < 3; i++) {
             std::cout << "=========replace=========5." << i << "=============\n\n";
-            auto mm0 = register_new_node<v0::MatMul>(input, new_weights[i]);
+            auto mm0 = register_new_node<v0::MatMul>(input, new_weights[i], false, true);
             auto add0 = register_new_node<v1::Add>(mm0, new_bias[i]);
             auto reshape0 = register_new_node<v1::Reshape>(add0, new_shape, true);
             auto transpose_order = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
             auto transpose0 = register_new_node<v1::Transpose>(reshape0, transpose_order);
+            transpose0->set_friendly_name(gathers[i]->get_friendly_name());
             
             copy_runtime_info({gathers[i], weights.get_node_shared_ptr(), bias.get_node_shared_ptr(), matmul, add, transpose}, get_new_nodes());
             replace_node(gathers[i], transpose0);  // replace gatherX by transposeX

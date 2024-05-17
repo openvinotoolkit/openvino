@@ -95,6 +95,7 @@
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/common_optimizations/matmul_split_decomposition.hpp"
+#include <openvino/pass/visualize_tree.hpp>
 
 static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
     auto new_shape = ov::PartialShape::dynamic(shape.rank());
@@ -251,11 +252,23 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
 
     auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(decomp, BatchNormDecomposition)
+    // ADD_MATCHER(decomp, MatmulSplitDecomposition)
     ADD_MATCHER(decomp, ConvertDivideWithConstant)
     ADD_MATCHER(decomp, ConvertSubtractWithConstant)
     ADD_MATCHER(decomp, ConvertNegative)
     ADD_MATCHER(decomp, ConvertConvertPromoteTypes)
     manager.register_pass<ov::pass::LinOpSequenceFusion>();
+
+    if (getenv("REPLACE")) {
+        REGISTER_PASS(manager, ConstantFolding)
+        manager.register_pass<ov::pass::VisualizeTree>("before_MatmulSplitDecomposition_moc.svg");
+
+        auto decomp_tmp = manager.register_pass<GraphRewrite>();
+        ADD_MATCHER(decomp_tmp, MatmulSplitDecomposition)
+        decomp_tmp->set_name("ov::pass::MatmulSplitDecomposition");
+
+        manager.register_pass<ov::pass::VisualizeTree>("after_MatmulSplitDecomposition_moc.svg");
+    }
 
     auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(multiply_fusions, ConvolutionMultiplyFusion)
