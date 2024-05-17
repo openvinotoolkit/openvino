@@ -71,10 +71,6 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input
-
-      - name: Verify devices
-        run: clinfo
-
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
@@ -93,6 +89,9 @@ jobs:
           wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
           wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
           dpkg -i *.deb
+
+      - name: Verify devices
+        run: clinfo
 
       #
       # Tests
