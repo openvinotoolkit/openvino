@@ -71,7 +71,6 @@ struct CPUStreamsExecutor::Impl {
                                                ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
                                                 _impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
-            // std::cout << "[ Stream ] " << _impl->_config.get_name() << " : " << _streamId << ", " << _impl->_config.get_streams() << "\n";
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
             if (is_cpu_map_available() && _impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
@@ -325,8 +324,7 @@ struct CPUStreamsExecutor::Impl {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         int streams_num = _config.get_streams();
-        int sub_streams_num = 0;//_config.get_sub_streams();
-        // std::cout << "[ Impl ] " << _config.get_name() << " : " << streams_num << "\n";
+        int sub_streams_num = 0;
         if (streams_num != 0) {
             std::copy_n(std::begin(numaNodes),
                         std::min<std::size_t>(streams_num, numaNodes.size()),
