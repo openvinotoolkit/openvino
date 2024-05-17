@@ -60,8 +60,6 @@ protected:
 };
 }  // namespace util
 }  // namespace op
-std::ostream& operator<<(std::ostream& s, const op::util::EmbeddingBagPackedBase::Reduction& reduction);
-
 template <>
 class OPENVINO_API AttributeAdapter<op::util::EmbeddingBagPackedBase::Reduction>
     : public EnumAttributeAdapterBase<op::util::EmbeddingBagPackedBase::Reduction> {
@@ -72,4 +70,6 @@ public:
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::EmbeddingBagPackedBase::Reduction>");
 };
 
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const op::util::EmbeddingBagPackedBase::Reduction& reduction);
 }  // namespace ov
