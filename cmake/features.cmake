@@ -162,15 +162,7 @@ else()
     set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT ON)
 endif()
 
-# users wants to use his own TBB version, specific either via env vars or cmake options
-if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
-    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
-else()
-    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
-endif()
-
-ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
-    "THREADING MATCHES TBB" OFF)
+ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" OFF "THREADING MATCHES TBB" OFF)
 ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" OFF)
 # the option is on by default, because we use only flatc compiler and don't use any libraries
 ov_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
