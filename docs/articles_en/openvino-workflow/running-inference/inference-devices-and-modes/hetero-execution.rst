@@ -103,9 +103,9 @@ It does not take into account device peculiarities such as the inability to infe
 Pipeline parallelism
 ------------------------
 
-The pipeline parallelism is set via ``ov::hint::model_distribution_policy``, This mode is an efficient technique to infer large models on multiple devices. The model is split into multiple stages, and each stage is assigned to a different device (``dGPU``, ``iGPU``, ``CPU``, etc.). This mode assign operations to different devices as reasonably as possible, ensuring that different stages can be executed in sequence and minimizing the amount of data transfer between different devices.
+The pipeline parallelism is set via ``ov::hint::model_distribution_policy``. This mode is an efficient technique to infer large models on multiple devices. The model is split into multiple stages, and each stage is assigned to a different device (``dGPU``, ``iGPU``, ``CPU``, etc.). This mode assign operations to different devices as reasonably as possible, ensuring that different stages can be executed in sequence and minimizing the amount of data transfer between different devices.
 
-For large models which don’t fit on a single first priority device, model pipeline parallelism is employed where certain parts of the model are placed on different devices to ensure that the device has enough memory to infer these operations, and assign other operations to next priority device.
+For large models which don’t fit on a single first priority device, model pipeline parallelism is employed where certain parts of the model are placed on different devices to ensure that the device has enough memory to infer these operations.
 
 
 .. tab-set::
