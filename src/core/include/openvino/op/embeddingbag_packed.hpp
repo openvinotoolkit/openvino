@@ -35,11 +35,11 @@ public:
     EmbeddingBagPacked(const Output<Node>& emb_table,
                        const Output<Node>& indices,
                        const Output<Node>& per_sample_weights,
-                       const Reduction& reduction = Reduction::MEAN);
+                       const Reduction& reduction = Reduction::SUM);
 
     EmbeddingBagPacked(const Output<Node>& emb_table,
                        const Output<Node>& indices,
-                       const Reduction& reduction = Reduction::MEAN);
+                       const Reduction& reduction = Reduction::SUM);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

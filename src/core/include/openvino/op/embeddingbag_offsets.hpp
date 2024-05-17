@@ -41,18 +41,18 @@ public:
                         const Output<Node>& offsets,
                         const Output<Node>& default_index,
                         const Output<Node>& per_sample_weights,
-                        const Reduction& reduction = Reduction::MEAN);
+                        const Reduction& reduction = Reduction::SUM);
 
     EmbeddingBagOffsets(const Output<Node>& emb_table,
                         const Output<Node>& indices,
                         const Output<Node>& offsets,
                         const Output<Node>& default_index,
-                        const Reduction& reduction = Reduction::MEAN);
+                        const Reduction& reduction = Reduction::SUM);
 
     EmbeddingBagOffsets(const Output<Node>& emb_table,
                         const Output<Node>& indices,
                         const Output<Node>& offsets,
-                        const Reduction& reduction = Reduction::MEAN);
+                        const Reduction& reduction = Reduction::SUM);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
