@@ -86,7 +86,7 @@ KERNEL (permute_f_y_axes)(
             INPUT0_TYPE res = DT_INPUT_BLOCK_READ(input, input_offset);
     #if HAS_FUSED_OPS
             const int f_out_idx = y_begin + j;
-            const y_out_idx = bf % INPUT0_FEATURE_NUM;
+            const int y_out_idx = bf % INPUT0_FEATURE_NUM;
             FUSED_OPS;
             transpose_buf[bf_local][j][i]  = FUSED_OPS_RESULT;
     #else
