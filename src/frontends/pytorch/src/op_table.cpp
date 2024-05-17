@@ -31,6 +31,7 @@ OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_alias_copy);
 OP_CONVERTER(translate_all);
+OP_CONVERTER(translate_any);
 OP_CONVERTER(translate_amax);
 OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
@@ -354,6 +355,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::amax", op::translate_amax},
         {"aten::amin", op::translate_amin},
         {"aten::aminmax", op::translate_aminmax},
+        {"aten::any", op::translate_any},
         // aten::append - Supported in limited set of patterns
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
@@ -495,6 +497,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::IntImplicit", op::translate_int},
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::is_nonzero", op::translate_is_nonzero},
+        {"aten::isfinite", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
+        {"aten::isinf", op::translate_1to1_match_1_inputs<opset10::IsInf>},
+        {"aten::isnan", op::translate_1to1_match_1_inputs<opset10::IsNaN>},
         {"aten::item", op::translate_1to1_match_1_inputs<opset10::Squeeze>},
         {"aten::layer_norm", op::translate_layer_norm},
         {"aten::le", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},
@@ -760,6 +765,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.amin.default", op::translate_amin},
         {"aten.any.default", op::translate_any_fx},
         {"aten.any.dim", op::translate_any_fx},
+        {"aten.any.dims", op::translate_any_fx},
         {"aten.arange.default", op::translate_arange_fx},
         {"aten.arange.start", op::translate_arange_fx},
         {"aten.arange.start_step", op::translate_arange_fx},
@@ -842,9 +848,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.hardtanh_.default", op::inplace_op<op::translate_hardtanh>},
         {"aten.index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
-        {"aten.isfinite.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsFinite>>},
-        {"aten.isinf.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsInf>>},
-        {"aten.isnan.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsNaN>>},
+        {"aten.isfinite.default", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
+        {"aten.isinf.default", op::translate_1to1_match_1_inputs<opset10::IsInf>},
+        {"aten.isnan.default", op::translate_1to1_match_1_inputs<opset10::IsNaN>},
         {"aten.le.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},
         {"aten.le.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},
         {"aten.leaky_relu.default", op::translate_leaky_relu_fx},
