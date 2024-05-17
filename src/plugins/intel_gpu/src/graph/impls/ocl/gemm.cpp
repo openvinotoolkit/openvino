@@ -138,7 +138,8 @@ protected:
             return false;
 
         const auto& params = *inst.get_impl_params();
-        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[0].get_length() == 1)
+        const auto indirect_axis = desc->indirect_axis;
+        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1)
             return false;
 
         const auto& deps = inst.dependencies();
@@ -226,6 +227,7 @@ public:
 
         params.indirect_input0 = primitive->indirect_a && indirect;
         params.indirect_input1 = primitive->indirect_b && indirect;
+        params.indirect_axis = primitive->indirect_axis;
         if (indirect && (primitive->indirect_a || primitive->indirect_b)) {
             OPENVINO_ASSERT(impl_param.input_layouts.size() >= 3, "[GPU] Actual inputs count: ", impl_param.input_layouts.size());
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_beam_table_id(primitive)]));

@@ -39,14 +39,13 @@ const auto is_output_foldable = [](const ov::Output<ov::Node>& output) {
  *
  * \return std::string with new friendly name.
  */
-const auto friendly_name_from = [](const ov::Node& node, const size_t output_count, const size_t idx) {
+const auto friendly_name_from = [](const ov::Node& node, const size_t output_count, const size_t idx) -> std::string {
     constexpr auto single_output = static_cast<size_t>(1);
-
-    if (single_output == output_count) {
-        return node.get_friendly_name();
-    } else {
-        return node.get_friendly_name() + "." + std::to_string(idx);
+    auto name = node.get_friendly_name();
+    if (single_output != output_count) {
+        name.append(".").append(std::to_string(idx));
     }
+    return name;
 };
 
 static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& node) {
@@ -128,7 +127,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
             for (size_t i = 0; i < replacements.size(); ++i) {
                 auto node_output = original_node->output(i);
-                auto replacement = replacements.at(i);
+                const auto& replacement = replacements.at(i);
                 auto replacement_ptr = replacement.get_node_shared_ptr();
                 if (replacement_ptr && (node_output != replacement)) {
                     replacement_ptr->set_friendly_name(friendly_name_from(*original_node, replacements.size(), i));
