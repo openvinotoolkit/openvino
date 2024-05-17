@@ -40,7 +40,6 @@ std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_nod
 TSDataMovementForward::TSDataMovementForward() {
     MATCHER_SCOPE(TSDataMovementForward);
     create_pattern<op::util::PadBase, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
-        true,
         {0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
