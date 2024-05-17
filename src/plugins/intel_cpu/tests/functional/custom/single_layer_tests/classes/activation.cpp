@@ -154,6 +154,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #if defined(OPENVINO_ARCH_ARM64)
     if ((element_type == ov::element::f32) &&
         ((activation_type == utils::ActivationTypes::Clamp) ||
+        (activation_type == utils::ActivationTypes::Elu) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::Relu) ||
