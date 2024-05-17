@@ -86,7 +86,7 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
 
 void FullyConnected::allreduce(void *send_buf, void *recv_buf, size_t count, ov::element::Type dtype) {
     ov::threading::MessageInfo send_message;
-    send_message.msg_type = ov::threading::MsgType::TP;
+    send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
     send_message.rank = {w_rank};
     send_message.buf = send_buf;
     message->send_message(send_message);
@@ -279,7 +279,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         });
 
         ov::threading::MessageInfo send_message;
-        send_message.msg_type = ov::threading::MsgType::TP;
+        send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
         send_message.rank = {w_rank};
         send_message.buf = cur_dst->getData();
         message->send_message(send_message);
@@ -317,7 +317,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         cpu_parallel_memcpy(dst_ptr + w_rank * copySize, cur_dst_ptr, copySize);
         // sync with another stream's buffer
         ov::threading::MessageInfo send_message;
-        send_message.msg_type = ov::threading::MsgType::TP;
+        send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
         send_message.rank = {w_rank};
         send_message.buf = cur_dst->getData();
         message->send_message(send_message);

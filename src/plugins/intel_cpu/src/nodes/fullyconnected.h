@@ -86,7 +86,7 @@ private:
     std::string errorPrefix;
     int w_rank = -1;
     int w_size = -1;
-    std::shared_ptr<ov::threading::MessageManage> message = nullptr;
+    std::shared_ptr<ov::threading::MessageManager> message = nullptr;
     /*
      * 1: allreduce     : split src and wgt, element-add dst
      * 2: allgather_h   : split src and wgt, concat in horizontal direction
