@@ -32,24 +32,37 @@ void UpdateLoopInfo::init_data_ptr_shifts(const UnifiedLoopInfoPtr& unified_loop
 bool UpdateLoopInfo::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::UpdateLoopInfo")
 
-    std::vector<int64_t> ptr_increments, finalization_offsets;
-    UnifiedLoopInfoPtr current_unified_loop_info = nullptr, updated_unified_loop_info = nullptr;
-    size_t current_work_amount = 0;
+    // Initialized UnifiedLoopInfo
+    struct CurrentUnifiedLoopInfo {
+        UnifiedLoopInfoPtr updated_unified_loop_info = nullptr;
+        size_t current_work_amount = 0;
+        std::vector<int64_t> ptr_increments;
+        std::vector<int64_t> finalization_offsets;
+    };
+    std::unordered_map<UnifiedLoopInfoPtr, CurrentUnifiedLoopInfo> initializated_info_map;
 
     const auto& loop_map = linear_ir.get_loop_manager()->get_map();
     for (const auto& p : loop_map) {
         const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(p.second);
         OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
-        if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info) {
-            current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
 
+        // First visiting of unified (whole) loop
+        const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
+        if (initializated_info_map.count(current_unified_loop_info) == 0) {
+            auto& current_info = initializated_info_map[current_unified_loop_info];
             // make a copy to avoid original loop info corruption
-            updated_unified_loop_info = std::make_shared<UnifiedLoopInfo>(*current_unified_loop_info);
-            InitLoops::init_loop_info(updated_unified_loop_info, true);
+            current_info.updated_unified_loop_info = std::make_shared<UnifiedLoopInfo>(*current_unified_loop_info);
+            InitLoops::init_loop_info(current_info.updated_unified_loop_info, true);
 
-            current_work_amount = updated_unified_loop_info->get_work_amount();
-            init_data_ptr_shifts(updated_unified_loop_info, ptr_increments, finalization_offsets);
+            current_info.current_work_amount = current_info.updated_unified_loop_info->get_work_amount();
+            init_data_ptr_shifts(current_info.updated_unified_loop_info, current_info.ptr_increments, current_info.finalization_offsets);
         }
+
+        auto& initializated_info = initializated_info_map.at(current_unified_loop_info);
+        auto& current_work_amount = initializated_info.current_work_amount;
+        const auto& updated_unified_loop_info = initializated_info.updated_unified_loop_info;
+        const auto& ptr_increments = initializated_info.ptr_increments;
+        const auto& finalization_offsets = initializated_info.finalization_offsets;
 
         const auto& decomposed_loop_type = expanded_loop_info->get_type();
 
