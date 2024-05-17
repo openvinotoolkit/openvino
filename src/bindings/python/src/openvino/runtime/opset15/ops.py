@@ -4,7 +4,7 @@
 
 """Factory functions for ops added to openvino opset15."""
 from functools import partial
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 from openvino.runtime import Node, Type
 from openvino.runtime.opset_utils import _get_node_factory
@@ -39,3 +39,39 @@ def scatter_nd_update(
     if reduction:
         attributes["reduction"] = reduction
     return _get_node_factory_opset15().create("ScatterNDUpdate", inputs, attributes)
+
+
+@nameable_op
+def col2im(
+    data: NodeInput,
+    output_size: NodeInput,
+    kernel_size: NodeInput,
+    strides: List[int] = [1, 1],
+    dilations: List[int] = [1, 1],
+    pads_begin: List[int] = [0, 0],
+    pads_end: List[int] = [0, 0],
+    name: Optional[str] = None,
+) -> Node:
+    """Perform data movement operation which combines sliding blocks into an image tensor.
+
+    :param  data:                The node providing input data.
+    :param  output_size:         Shape of the spatial dimensions of the output image.
+    :param  kernel_size:         Size of the sliding blocks.
+    :param  strides:             Stride on the sliding blocks in the input spatial dimensions. Defaults to [1, 1].
+    :param  dilations:           The dilation of filter elements (distance between elements). Defaults to [1, 1].
+    :param  pads_begin:          The number of pixels to add at the beginning along each axis. Defaults to [0, 0].
+    :param  pads_end:            The number of pixels to add at the end along each axis. Defaults to [0, 0].
+    :param  name:                The optional name for the created output node.
+
+    :return:   The new node performing Col2Im operation.
+    """
+    return _get_node_factory_opset15().create(
+        "Col2Im",
+        as_nodes(data, output_size, kernel_size, name=name),
+        {
+            "strides": strides,
+            "dilations": dilations,
+            "pads_begin": pads_begin,
+            "pads_end": pads_end,
+        },
+    )
