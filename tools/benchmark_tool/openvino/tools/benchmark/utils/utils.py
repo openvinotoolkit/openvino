@@ -748,7 +748,9 @@ def get_network_batch_size(inputs_info):
             if batch_size == null_dimension:
                 batch_size = info.partial_shape[batch_index]
             elif batch_size != info.partial_shape[batch_index]:
-                raise Exception("Can't deterimine batch size: batch is different for different inputs!")
+                batch_size = null_dimension
+                logger.warning("Can't deterimine batch size: batch is different for different inputs!")
+                break
     if batch_size == null_dimension:
         batch_size = Dimension(1)
     return batch_size

@@ -795,11 +795,12 @@ int main(int argc, char* argv[]) {
 
             batchSize = get_batch_size(app_inputs_info.at(0));
             warn_if_no_batch(app_inputs_info.at(0));
-            slog::info << "Model batch size: " << batchSize << slog::endl;
 
             if (batchSize == 0) {
                 batchSize = 1;
             }
+
+            slog::info << "Model batch size: " << batchSize << slog::endl;
         }
 
         bool allow_inference_only_or_sync = can_measure_as_static(app_inputs_info);
