@@ -46,10 +46,10 @@ def col2im(
     data: NodeInput,
     output_size: NodeInput,
     kernel_size: NodeInput,
-    strides: List[int] = [1, 1],
-    dilations: List[int] = [1, 1],
-    pads_begin: List[int] = [0, 0],
-    pads_end: List[int] = [0, 0],
+    strides: Optional[List[int]] = None,
+    dilations: Optional[List[int]] = None,
+    pads_begin: Optional[List[int]] = None,
+    pads_end: Optional[List[int]] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Perform data movement operation which combines sliding blocks into an image tensor.
@@ -65,6 +65,12 @@ def col2im(
 
     :return:   The new node performing Col2Im operation.
     """
+    for param in [strides, dilations]:
+        if param is None:
+            param = [1, 1]
+    for param in [pads_begin, pads_end]:
+        if param is None:
+            param = [0, 0]
     return _get_node_factory_opset15().create(
         "Col2Im",
         as_nodes(data, output_size, kernel_size, name=name),
