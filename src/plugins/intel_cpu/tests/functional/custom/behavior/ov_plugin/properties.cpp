@@ -256,7 +256,7 @@ const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode 
     {ov::hint::ExecutionMode::PERFORMANCE, {ov::hint::ExecutionMode::PERFORMANCE,
                                             expected_precision_for_performance_mode}},
     {ov::hint::ExecutionMode::ACCURACY,    {ov::hint::ExecutionMode::ACCURACY,
-                                            ov::element::f32}},
+                                            ov::element::undefined}},
 };
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondingInferencePrecision) {
