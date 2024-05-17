@@ -853,7 +853,7 @@ void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURu
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
 
     m_harness_work_amount = std::accumulate(m_parallel_exec_domain.cbegin(), m_parallel_exec_domain.cend(), size_t(1), std::multiplies<size_t>());
-    m_nthreads = 1; // std::min(parallel_get_max_threads(), static_cast<int>(m_harness_work_amount));
+    m_nthreads = std::min(parallel_get_max_threads(), static_cast<int>(m_harness_work_amount));
 }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
