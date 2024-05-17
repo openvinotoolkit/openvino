@@ -259,12 +259,6 @@ class CustomBuild(build):
         plat_specifier = ".{0}-{1}.{2}".format(self.plat_name, *sys.version_info[:2])
         self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier)
         self.announce(f"Create build directory: {self.build_temp}", level=3)
-
-        self.announce(f"Reset cpack_generator {CPACK_GENERATOR}", level=3)
-        self.spawn(["cmake", f"-DCPACK_GENERATOR=WHEEL",
-                            "-S", OPENVINO_SOURCE_DIR,
-                            "-B", OPENVINO_BINARY_DIR])
-
         # build some components which have not been built yet
         for comp, comp_data in install_cfg.items():
             cpack_comp_name = comp_data.get("name")
@@ -303,18 +297,25 @@ class CustomBuild(build):
                                      "--config", CONFIG,
                                      "--component", cpack_comp_name])
 
-        self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
-        self.spawn(["cmake", f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
-                            "-S", OPENVINO_SOURCE_DIR,
-                            "-B", OPENVINO_BINARY_DIR])
-
 
     def run(self):
         # build and install clib into temporary directories
         if not PYTHON_EXTENSIONS_ONLY:
+
+            self.announce(f"Reset cpack_generator {CPACK_GENERATOR}", level=3)
+            self.spawn(["cmake", "-DCPACK_GENERATOR=WHEEL",
+                            "-DENABLE_PKGCONFIG_GEN=OFF",
+                            "-S", OPENVINO_SOURCE_DIR,
+                            "-B", OPENVINO_BINARY_DIR])
+
             self.cmake_build_and_install(LIB_INSTALL_CFG)
             # build and install additional files into temporary directories
             self.cmake_build_and_install(DATA_INSTALL_CFG)
+
+            self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
+            self.spawn(["cmake", f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
+                             "-S", OPENVINO_SOURCE_DIR,
+                             "-B", OPENVINO_BINARY_DIR])
 
         # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)

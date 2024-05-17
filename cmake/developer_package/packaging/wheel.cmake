@@ -17,11 +17,9 @@ endif()
 #
 # ov_wheel_cpack_set_dirs()
 #
-# Set directories for ARCHIVE cpack
+# Set directories for WHEEL cpack
 #
 macro(ov_wheel_cpack_set_dirs)
-    # common "archive" package locations
-    # TODO: move current variables to OpenVINO specific locations
     set(OV_CPACK_INCLUDEDIR include)
     set(OV_CPACK_OPENVINO_CMAKEDIR cmake)
     set(OV_CPACK_DOCDIR docs)
@@ -79,8 +77,3 @@ macro(ov_define_component_include_rules)
 endmacro()
 
 ov_define_component_include_rules()
-
-# New in version 3.18
-set(CPACK_ARCHIVE_THREADS 8)
-# multiple packages are generated
-set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
