@@ -70,7 +70,8 @@ void MessageManager::server_wait(int streams_num) {
                         _msgCondVar.wait(lock);
                     }
                     std::swap(_messageQueue, msgQueue);
-                    // std::cout << "server_wait receive: " << msgQueue[0].msg_type << " rank:" << msgQueue[0].rank.size()
+                    // std::cout << "server_wait receive: " << msgQueue[0].msg_type << " rank:" <<
+                    // msgQueue[0].rank.size()
                     //           << " / " << msgQueue.size() << "\n";
                 }
 
