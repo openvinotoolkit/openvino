@@ -13,7 +13,7 @@ namespace v14 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API RMSNorm : public ov::op::Op {
 public:
-    OPENVINO_OP("RMSNorm", "opset14", ov::op::Op);
+    OPENVINO_OP("RMSNorm");
 
     RMSNorm() = default;
     /// \brief Constructs an RMSNorm operation without scaling.

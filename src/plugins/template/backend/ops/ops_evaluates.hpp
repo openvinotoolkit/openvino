@@ -6,6 +6,7 @@
 #include "evaluate_node.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "openvino/op/rms_norm.hpp"
 
 extern template bool evaluate_node<ov::op::v0::Abs>(std::shared_ptr<ov::Node> node,
                                                     ov::TensorVector& outputs,

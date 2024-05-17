@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/op/rms_norm.hpp"
 #include "utils.hpp"
 
 using namespace ov;
