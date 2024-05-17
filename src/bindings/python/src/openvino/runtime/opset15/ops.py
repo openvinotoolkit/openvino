@@ -59,8 +59,8 @@ def col2im(
     :param  kernel_size:         Size of the sliding blocks.
     :param  strides:             Stride on the sliding blocks in the input spatial dimensions. Defaults to [1, 1].
     :param  dilations:           The dilation of filter elements (distance between elements). Defaults to [1, 1].
-    :param  pads_begin:          The number of pixels to add at the beginning along each axis. Defaults to [0, 0].
-    :param  pads_end:            The number of pixels to add at the end along each axis. Defaults to [0, 0].
+    :param  pads_begin:          The number of pixels added at the beginning along each axis. Defaults to [0, 0].
+    :param  pads_end:            The number of pixels added at the end along each axis. Defaults to [0, 0].
     :param  name:                The optional name for the created output node.
 
     :return:   The new node performing Col2Im operation.
