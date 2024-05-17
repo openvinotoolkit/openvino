@@ -147,15 +147,15 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed4) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertGatherToCompressed5) {
+TEST_F(TransformationTestsF, ConvertGatherToCompressedFP16) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
         auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
-        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
-        auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f16);
+        auto zp_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 1}, {1});
         auto sub = std::make_shared<ov::op::v1::Subtract>(convert, zp_const);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 1}, {1});
         auto scale = std::make_shared<ov::op::v1::Multiply>(sub, scale_const);
         auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f32);
         auto gather = std::make_shared<ov::op::v8::Gather>(scale_convert, input1, axis_const);
@@ -167,9 +167,9 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed5) {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
         auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 1}, {1});
         auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale_const, ov::element::f32);
-        auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
+        auto zp_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 1}, {1});
         auto gather_compressed = std::make_shared<ov::op::internal::GatherCompressed>(weights_const,
                                                                                       input1,
                                                                                       axis_const,
