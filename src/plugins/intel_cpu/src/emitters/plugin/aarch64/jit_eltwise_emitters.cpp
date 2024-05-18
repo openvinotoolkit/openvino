@@ -423,20 +423,9 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     TReg divisor = TReg(in_vec_idxs[1]);
     TReg r = TReg(out_vec_idxs[0]);
 
-    //void uni_fmod(const TReg &r, const TReg &divend, const TReg &divisor) {
-    //    assert(r.getIdx() != divend.getIdx());
-    //    assert(r.getIdx() != divisor.getIdx());
     h->uni_fdiv(r.s, divend.s, divisor.s);
     h->uni_fmul(r.s, r.s, divisor.s);
     h->uni_fsub(r.s, divend.s, r.s);
-
-    //WReg src0 = WReg(in_vec_idxs[0]);
-    //WReg src1 = WReg(in_vec_idxs[1]);
-    //WReg dst = WReg(out_vec_idxs[0]);
-
-    //h->umod(dst.s, src0.s, src1.s);
-    //h->umod(dst, src0, src1);
-    //h->uni_fmod(dst.s, src0.s, src1.s);
 }
 
 std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
