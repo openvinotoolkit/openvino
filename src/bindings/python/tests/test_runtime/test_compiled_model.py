@@ -57,6 +57,10 @@ def test_export_import(device):
     assert np.argmax(res[new_compiled.outputs[0]]) == 531
 
 
+@pytest.mark.skipif(
+    condition=sys.version_info >= (3, 12),
+    reason="Fails on any Linux platform with Python 3.12. Ticket CVS-133903",
+)
 def test_export_import_with_crypto(device):
     core = Core()
 
