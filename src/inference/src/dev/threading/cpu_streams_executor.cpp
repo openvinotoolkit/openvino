@@ -146,7 +146,12 @@ struct CPUStreamsExecutor::Impl {
                 auto real_numa_node_id = _numaNodeId;
 #    else
                 auto real_numa_node_id = get_org_numa_id(_numaNodeId);
-                auto tbb_version = TBB_runtime_interface_version();
+                int tbb_version;
+#        if (TBB_INTERFACE_VERSION < 12000)
+                tbb_version = tbb::TBB_runtime_interface_version();
+#        else
+                tbb_version = TBB_runtime_interface_version();
+#        endif
                 if (tbb_version >= 12040) {
                     real_numa_node_id = _numaNodeId;
                 }
