@@ -6617,9 +6617,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
-    if (!(std::string("${BACKEND_NAME}") == std::string("INTERPRETER") ||
-          std::string("${BACKEND_NAME}") == std::string("IE_CPU"))) {
-        return;  //< Skip this test for not-yet-implemented on those backends.
+    float eps = 0.0001f;
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        eps = 0.01f;
     }
 
     auto model = convert_model("mmdeploy_roi_align_rotated.onnx");
@@ -6635,7 +6636,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
         Shape{1, 1, 5, 2},
         {5.1271f, 1.2473f, 6.1773f, 2.9598f, 7.2275f, 3.2300f, 8.2777f, 3.7458f, 9.3279f, 4.4060f});
 
-    test_case.run_with_tolerance_as_fp(0.0001f);
+    test_case.run_with_tolerance_as_fp(eps);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_18) {
