@@ -5,7 +5,6 @@
 #include "graph.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <limits>
 #include <map>
 #include <memory>
@@ -254,8 +253,8 @@ void Graph::GroupParallelNodes() {
     }
 }
 
-static std::vector<size_t> DefineSyncPoints(const std::vector<NodePtr>& graphNodes) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::DefineSyncPoints");
+static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphNodes) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::IdentifySyncPoints");
     std::vector<size_t> syncNodesInds;
 
     for (size_t i = 0; i < graphNodes.size(); ++i) {
@@ -280,6 +279,43 @@ static std::vector<size_t> DefineSyncPoints(const std::vector<NodePtr>& graphNod
     }
 
     return syncNodesInds;
+}
+
+static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNodesAndSyncPoints(const std::vector<size_t>& syncNodesInds,
+                                                                                                 const std::vector<NodePtr>& graphNodes) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodesAndSyncPoints");
+    std::unordered_map<size_t, size_t> graphIdToExecutableId;
+    std::vector<NodePtr> executableGraphNodes;
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        const auto& graphNode = graphNodes[i];
+        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || graphNode->isDynamicNode()) {
+            /* @todo
+             * Revise implementation.
+             * With current way it is possible that with debug_caps enabled
+             * we execute a node, which is not ready to be executed
+             */
+            graphIdToExecutableId[i] = executableGraphNodes.size();
+            executableGraphNodes.emplace_back(graphNode);
+        }
+    }
+
+    // use set to ensure sorted unique sync entries
+    std::set<size_t> uniqueExecutableSyncNodesInds;
+    for (const auto& syncNodesInd : syncNodesInds) {
+        auto it = graphIdToExecutableId.find(syncNodesInd);
+        if (it != graphIdToExecutableId.end()) {
+            uniqueExecutableSyncNodesInds.insert(it->second);
+            // since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
+            // let's add another sync index after the sync point node
+            uniqueExecutableSyncNodesInds.insert(it->second + 1);
+        }
+    }
+    uniqueExecutableSyncNodesInds.insert(executableGraphNodes.size());
+    // convert to a vector to reduce runtime overhead
+    std::vector<size_t> executableSyncNodesInds(uniqueExecutableSyncNodesInds.begin(), uniqueExecutableSyncNodesInds.end());
+
+    return std::make_tuple(std::move(executableGraphNodes),
+                           std::move(executableSyncNodesInds));
 }
 
 void Graph::InitGraph(bool optimize) {
@@ -314,7 +350,7 @@ void Graph::InitGraph(bool optimize) {
     SortTopologically();
 
     const bool hasDynNodes = ProcessDynNodes();
-    const auto syncNodesInds = hasDynNodes ? DefineSyncPoints(graphNodes) : std::vector<size_t>{};
+    const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
 
     Allocate(syncNodesInds);
 
@@ -326,7 +362,7 @@ void Graph::InitGraph(bool optimize) {
     }
 #endif
 
-    m_executableSyncNodesInds = ExtractExecutableNodes(syncNodesInds);
+    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 
@@ -397,39 +433,6 @@ void Graph::InitOptimalPrimitiveDescriptors() {
         DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n",
                   *node->getSelectedPrimitiveDescriptor(), "selectedPrimitiveDescriptorIdx = ", node->selectedPrimitiveDescriptorIndex);
     }
-}
-
-std::vector<size_t> Graph::ExtractExecutableNodes(const std::vector<size_t>& syncNodesInds) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodes");
-    std::unordered_map<size_t, size_t> graphIdToExecutableId;
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        const auto& graphNode = graphNodes[i];
-        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || graphNode->isDynamicNode()) {
-            /* @todo
-             * Revise implementation.
-             * With current way it is possible that with debug_caps enabled
-             * we execute a node, which is not ready to be executed
-             */
-            graphIdToExecutableId[i] = executableGraphNodes.size();
-            executableGraphNodes.emplace_back(graphNode);
-        }
-    }
-
-    // use set to ensure sorted unique sync entries
-    std::set<size_t> uniqueExecutableSyncNodesInds;
-    for (const auto& syncNodesInd : syncNodesInds) {
-        auto it = graphIdToExecutableId.find(syncNodesInd);
-        if (it != graphIdToExecutableId.end()) {
-            uniqueExecutableSyncNodesInds.insert(it->second);
-            // since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
-            // let's add another sync index after the sync point node
-            uniqueExecutableSyncNodesInds.insert(it->second + 1);
-        }
-    }
-    uniqueExecutableSyncNodesInds.insert(executableGraphNodes.size());
-
-    // convert to vector to reduce runtime overhead
-    return std::vector<size_t>(uniqueExecutableSyncNodesInds.begin(), uniqueExecutableSyncNodesInds.end());
 }
 
 void Graph::CreatePrimitivesAndExecConstants() const {
@@ -1120,7 +1123,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 void Graph::InferStatic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-    for (const auto& node : executableGraphNodes) {
+    for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
 
@@ -1339,19 +1342,18 @@ public:
 void Graph::InferDynamic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-    auto getUpdateNodes = [](std::vector<NodePtr>& executableGraphNodes) -> std::unique_ptr<IUpdateNodes>{
-        if (parallel_get_max_threads() > 1)
-            return make_unique<UpdateNodes>(executableGraphNodes);
-        return make_unique<UpdateNodesSeq>(executableGraphNodes);
-    };
-    // @todo Can we reset UpdateNodes instead of creating for every inference?
-    auto updateNodes = getUpdateNodes(executableGraphNodes);
+    std::unique_ptr<IUpdateNodes> updateNodes{};
+    if (parallel_get_max_threads() > 1) {
+        updateNodes.reset(new UpdateNodes(m_executableGraphNodes));
+    } else {
+        updateNodes.reset(new UpdateNodesSeq(m_executableGraphNodes));
+    }
 
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
         updateNodes->run(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
-            auto& node = executableGraphNodes[inferCounter];
+            auto& node = m_executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
 
