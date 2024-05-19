@@ -50,7 +50,6 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         `# to check debian package correctness` \
         lintian \
         `# openvino main dependencies` \
-        libtbb-dev \
         libpugixml-dev \
         `# OpenCL for GPU` \
         ocl-icd-opencl-dev \
@@ -115,7 +114,6 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         `# check bash scripts for correctness` \
         ShellCheck \
         `# main openvino dependencies` \
-        tbb-devel \
         pugixml-devel \
         `# GPU plugin dependency` \
         libva-devel \
@@ -151,7 +149,6 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
         `# check bash scripts for correctness` \
         ShellCheck \
         `# main openvino dependencies` \
-        tbb-devel \
         pugixml-devel \
         `# GPU plugin dependency` \
         libva-devel \
@@ -185,7 +182,6 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
         `# archive debian changelog file` \
         gzip \
         `# openvino main dependencies` \
-        libtbb-dev \
         libpugixml-dev \
         `# python API` \
         python3-pip \
@@ -215,7 +211,6 @@ elif [ -f /etc/os-release ] && grep -q "void" /etc/os-release; then
         patchelf \
         fdupes \
         `# main openvino dependencies` \
-        tbb-devel \
         pugixml-devel \
         `# OpenCL for GPU` \
         ocl-icd-devel \
@@ -266,8 +261,6 @@ elif [ -f /etc/os-release ] && grep -q "alpine" /etc/os-release; then
         patchelf \
         fdupes \
         `# main openvino dependencies` \
-        onetbb-dev \
-        py3-tbb \
         pugixml-dev \
         `# OpenCL for GPU` \
         opencl-dev `#(includes opencl-headers)`\
