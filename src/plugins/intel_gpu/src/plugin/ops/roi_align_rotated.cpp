@@ -31,7 +31,7 @@ void CreateROIAlignRotatedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1
 
 }  // anonymous namespace
 
-REGISTER_FACTORY_IMPL(v14, ROIAlignRotated);
+REGISTER_FACTORY_IMPL(v15, ROIAlignRotated);
 
 }  // namespace intel_gpu
 }  // namespace ov
