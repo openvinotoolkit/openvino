@@ -174,6 +174,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "";
     }
 #endif
+    if (activation_type == utils::ActivationTypes::Floor) {
+        return "ref";
+    }
     return "acl";
 #else
     return CPUTestsBase::getPrimitiveType();
@@ -200,9 +203,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Exp,         {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
-#if !defined(OPENVINO_ARCH_ARM)
         {Floor,       {{}}},
-#endif
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},

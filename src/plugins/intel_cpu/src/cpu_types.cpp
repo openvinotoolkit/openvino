@@ -187,11 +187,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ceiling", Type::Math},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
-#if defined(OPENVINO_ARCH_ARM)
-        {"Floor", Type::Math},
-#else
         {"Floor", Type::Eltwise},
-#endif
         {"HardSigmoid", Type::Math},
         {"If", Type::If},
         {"Neg", Type::Math},
