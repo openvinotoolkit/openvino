@@ -76,6 +76,7 @@ interface Model {
   getOutputSize(): number;
   setFriendlyName(name: string): void;
   getFriendlyName(): string;
+  getOutputShape(): number[];
 }
 
 interface CompiledModel {

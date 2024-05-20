@@ -66,6 +66,7 @@
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
+#include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
@@ -157,32 +158,37 @@ namespace intel_cpu {
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
-    auto get_single_consumer = [](const_node_ptr& node) -> std::shared_ptr<ov::Node> {
-        const auto consumers = node->get_output_target_inputs(0);
-        if (consumers.size() != 1)
-            return nullptr;
-        return consumers.begin()->get_node()->shared_from_this();
+    auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
+        return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
+            return input.get_node()->get_type_info() == type;
+        });
     };
 
-    auto consumer = get_single_consumer(node);
-    if (!consumer)
-        return false;
-
-    if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+    const auto consumers = node->get_output_target_inputs(0);
+    if (all_has_type(consumers, ov::opset1::MatMul::get_type_info_static()))
         return true;
-    } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
-        consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            return true;
+
+    auto are_converts_from_decompression = [&all_has_type](const std::set<ov::Input<ov::Node>>& consumers) {
+        if (!all_has_type(consumers, ov::opset1::Convert::get_type_info_static()))
+            return false;
+        for (const auto& consumer : consumers) {
+            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+            if (!all_has_type(child_consumers, ov::opset1::MatMul::get_type_info_static()))
+                return false;
+        }
+        return true;
+    };
+
+    if (all_has_type(consumers, ov::opset1::Reshape::get_type_info_static())) {
+        for (const auto& consumer : consumers) {
+            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+            if (all_has_type(child_consumers, ov::opset1::MatMul::get_type_info_static()) ||
+                are_converts_from_decompression(child_consumers)) {
+                return true;
+            }
         }
     }
-    if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
-        consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            return true;
-        }
-    }
-    return false;
+    return are_converts_from_decompression(consumers);
 }
 
 bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
@@ -344,11 +350,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        if (inferencePrecision != ov::element::f16) {
-                map.insert({ov::element::f16, ov::element::f32});
+        if (!one_of(inferencePrecision, element::f16, element::undefined)) {
+            map.insert({element::f16, element::f32});
         }
 #else
-        map.insert({ov::element::f16, ov::element::f32});
+        if (inferencePrecision != element::undefined) {
+            map.insert({element::f16, element::f32});
+        }
 #endif
         return map;
     };
@@ -371,13 +379,15 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                  false);
     }
 #else
-    static const auto precisions = get_convert_precisions();
+    const auto precisions = get_convert_precisions();
 #endif
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
-            const auto outputs = node->get_output_target_inputs(0);
-            return outputs.size() != 1 || !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
+            const auto consumers = node->get_output_target_inputs(0);
+            return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+                return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
+            });
         },
         ov::pass::KeepConstAndDecompression);
 
@@ -404,6 +414,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
+    CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
@@ -425,7 +436,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceMultiAxis);
-    CPU_REGISTER_PASS_ARM(manager, MishDecomposition);
+    CPU_REGISTER_PASS_ARM32(manager, MishDecomposition);
     CPU_REGISTER_PASS_ARM(manager, ConvertConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConvolution);
@@ -511,10 +522,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 // 2. GroupNormalizationDecomposition produce MVN, and MVN have a conditional pass MVN6Decomposition. If call MVN6Decomposition again after
                 //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not tokenized into subgraph again.
                 // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
-                if (node->is_dynamic() || inferencePrecision != element::f32)
+                if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined))
                     return false;
                 const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
-                if (!group_norm)
+                if (!group_norm || !implication(inferencePrecision == element::undefined, group_norm->get_element_type() == element::f32))
                     return false;
                 const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
                 const auto shape = group_norm->get_input_partial_shape(0).to_shape();
@@ -809,7 +820,7 @@ void Transformations::MainSnippets(void) {
     //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
-    bool mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
+    bool mha_token_enable_transpose_on_output = one_of(inferencePrecision, element::f32, element::undefined);
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (concurrency == 0)
         concurrency = parallel_get_max_threads();
@@ -836,7 +847,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
         CPU_REGISTER_PASS_ARM(snippetsManager, SnippetsMarkSkipped);
 #else
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
+        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision == ov::element::bf16);
 #endif
     }
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
@@ -855,7 +866,7 @@ void Transformations::MainSnippets(void) {
             false;
 #else
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-            one_of(inferencePrecision, ov::element::bf16, ov::element::f32);
+            one_of(inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined);
 #endif
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
@@ -869,7 +880,7 @@ void Transformations::MainSnippets(void) {
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
-        if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::f32)
+        if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && one_of(inferencePrecision, element::f32, element::undefined))
             return true;
         // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
