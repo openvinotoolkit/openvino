@@ -131,39 +131,24 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
             }
 
-            auto get_base_kernel_name = [](const std::string& unique_kernel_name) -> std::string {
-                int matched = 0;
-                size_t pos = unique_kernel_name.length();
-                if (unique_kernel_name.substr(pos-4, 4).compare("__sa") == 0) {
-                    pos -= 4;
-                }
-                while (pos > 0) {
-                    pos -= 1;
-                    if (unique_kernel_name.at(pos) == '_') {
-                        matched += 1;
-                    }
-                    if (matched == 3) {
-                        break;
-                    }
-                }
-                return unique_kernel_name.substr(0, pos);
-            };
-
             // This is a temporary walk-around to avoid severe performance drop.
             // It will be removed after OpenCL compiler is updated.
             auto need_separate_batch = [&](std::string& unique_kernel_name) -> bool {
                 const std::vector<std::string> special_kernels = {"gemm_tiled_opt"};
 
                 // check if the current kernel name is in special_kernels
-                auto target_base_kernel_name = get_base_kernel_name(entry_point);
-                if (std::count(special_kernels.begin(), special_kernels.end(), target_base_kernel_name) > 0)
-                    return true;
+                for (auto& special_kernel : special_kernels) {
+                    if (entry_point.find(special_kernel) != std::string::npos)
+                        return true;
+                }
 
                 // check if the current_batch has one of special_kernels
                 if (current_bucket.back().kernels_counter == 1) {
-                    target_base_kernel_name = get_base_kernel_name(current_bucket.back().entry_point_to_id.begin()->first);
-                    if (std::count(special_kernels.begin(), special_kernels.end(), target_base_kernel_name) > 0)
-                        return true;
+                    auto& kernel_in_current_batch = current_bucket.back().entry_point_to_id.begin()->first;
+                    for (auto& special_kernel : special_kernels) {
+                        if (kernel_in_current_batch.find(special_kernel) != std::string::npos)
+                            return true;
+                    }
                 }
                 return false;
             };
