@@ -109,7 +109,7 @@ jobs:
         if: ${{ runner.arch != 'ARM64' }} # Ticket: 126277
         run: |
           # see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
-          apt-get install --assume-yes --no-install-recommends language-pack-en
+          apt-get update && apt-get install --assume-yes --no-install-recommends language-pack-en
           locale-gen en_US.UTF-8
           update-locale LANG=en_US.UTF-8
 
