@@ -431,26 +431,38 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     qkv_proj->set_output_size(3);
 
     // get key [L, B, Hkv, S]
-    auto cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id), {0, 0, head_cnt, head_size}},
+    auto cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id),
+                                                 {0, 0, head_cnt, head_size}},
                                                 {{"special_zero", true}});
 
     auto slice_Slice_437 = GenSlice(cur_key, 0, ndims, 1, 3);
+    auto var_split_1 = makePattern<opset1::VariadicSplit>({cur_key, 3, {ndims, ov::gen_pattern::Symbol("end")}});
+    var_split_1->set_output_size(2);
 
     // rotate half
-    auto ListConstruct_452_Concat =
-        makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
-    auto ListConstruct_379_Concat =
-        makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
+    auto ListConstruct_452_Concat = makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
+    auto const_target_shape_1 = makeConst({0, 0, head_cnt, ndims / 2, 2});
 
-    auto reshape_Reshape_453 =
-        makePattern<opset1::Reshape>({slice_Slice_437, ListConstruct_452_Concat}, {{"special_zero", false}});
+    auto ListConstruct_379_Concat = makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
+    auto const_target_shape_2 = makeConst({0, 0, 1, ndims / 2, 2});
+
+    auto reshape_Reshape_453 = makePattern<opset1::Reshape>({slice_Slice_437 | var_split_1->output(0),
+                                                             ListConstruct_452_Concat | const_target_shape_1});
+
     auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
+    auto x_odd = makePattern<opset8::Gather>({reshape_Reshape_453, 1, -1}, {{"batch_dims", 0}});
+
     auto slice_Slice_449 = GenSlice2(cos_sin_cache, {0}, seq_length, {1}, 0);
-    auto view_Reshape_460 =
-        makePattern<opset1::Reshape>({slice_Slice_449, ListConstruct_379_Concat}, {{"special_zero", false}});
+    auto var_split_2 = makePattern<opset1::VariadicSplit>({cos_sin_cache, 0, {0, ov::gen_pattern::Symbol("end")}});
+    var_split_2->set_output_size(2);
+
+    auto view_Reshape_460 = makePattern<opset1::Reshape>({slice_Slice_449 | var_split_2->output(0),
+                                                          ListConstruct_379_Concat | const_target_shape_2},
+                                                         {{"special_zero", false}});
+
     auto cos_tab = makePattern<opset8::Gather>({view_Reshape_460, 0, -1}, {{"batch_dims", 0}});
     auto x_even_cos = makePattern<opset1::Multiply>({x_even, cos_tab}, {{"auto_broadcast", "numpy"}});
-    auto x_odd = makePattern<opset8::Gather>({reshape_Reshape_453, 1, -1}, {{"batch_dims", 0}});
+
     auto sin_tab = makePattern<opset8::Gather>({view_Reshape_460, 1, -1}, {{"batch_dims", 0}});
     auto x_odd_sin = makePattern<opset1::Multiply>({x_odd, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto neg_x_odd_sin = makePattern<opset1::Multiply>({x_odd_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});
@@ -467,13 +479,13 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     auto ShapeOf_135133 = makePattern<opset1::ShapeOf>({stack_481});
     auto flatten_Slice_497 = GenSlice(ShapeOf_135133, 0, 3, 1, 0);
     auto flatten_Concat_500 = makePattern<opset1::Concat>({flatten_Slice_497, {-1}}, {{"axis", 0}});
-    auto const_target_shape = makeConst({0, 0, head_cnt, ndims});
+    auto const_target_shape_3 = makeConst({0, 0, head_cnt, ndims});
     // [length, batch, head_cnt, half_rotary_dims, 2]
     auto flatten_Reshape_501 =
-        makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape}, {{"special_zero", true}});
+        makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3}, {{"special_zero", true}});
     auto slice_Slice_443 = GenSlice(cur_key, ndims, INT_MAX, 1, 3);
 
-    auto cat_Concat_505 = makePattern<opset1::Concat>({flatten_Reshape_501, slice_Slice_443}, {{"axis", -1}});
+    auto cat_Concat_505 = makePattern<opset1::Concat>({flatten_Reshape_501, slice_Slice_443 | var_split_1->output(1)}, {{"axis", -1}});
 
     auto result = cat_Concat_505;
 
