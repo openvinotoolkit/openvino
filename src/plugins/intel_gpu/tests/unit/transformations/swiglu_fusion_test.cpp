@@ -82,6 +82,28 @@ TEST_F(TransformationTestsF, SwiGLUFusionTest3) {
     }
 }
 
+TEST_F(TransformationTestsF, SwiGLUFusionTest3ReverseOrder) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 6 });
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
+        auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths_const);
+        auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
+        auto mul = std::make_shared<ov::op::v1::Multiply>(variadic_split->output(1), swish);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input});
+        manager.register_pass<SwiGLUFusion>();
+    }
+    {
+        int64_t axis = -1;
+        int64_t split_lenghts = 3;
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 6 });
+        auto swiglu = std::make_shared<op::SwiGLU>(input, axis, split_lenghts, ov::element::f16);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
+    }
+}
+
 TEST_F(TransformationTestsF, SwiGLUFusionTest4) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 6 });

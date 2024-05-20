@@ -27,7 +27,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         auto params = get_default_params<kernel_selector::dft_params>(impl_param);
         auto& memory_deps = impl_param.memory_deps;
 
-        bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
         if (allow_new_shape_infer && primitive->axes.empty() && primitive->signal_size.empty()) {
             if (memory_deps.count(1)) {
                 auto axes_mem = memory_deps.at(1);

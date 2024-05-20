@@ -56,7 +56,7 @@ struct TensorsContainer final {
         } else if (m_tensors.count(port) > 0) {
             return m_tensors.at(port);
         } else {
-            OPENVINO_THROW("[GPU] Can't get tensor for ", port, " port!\n");
+            return ov::Tensor{};
         }
     }
 

@@ -629,7 +629,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | MatrixDiagV2                                            | NO                            |                               |
 | MatrixDiagV3                                            | NO                            |                               |
 | MatrixExponential                                       | NO                            |                               |
-| MatrixInverse                                           | NO                            |                               |
+| MatrixInverse                                           | YES                           |                               |
 | MatrixLogarithm                                         | NO                            |                               |
 | MatrixSetDiag                                           | NO                            |                               |
 | MatrixSetDiagV2                                         | NO                            |                               |
@@ -988,7 +988,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ReverseV2                                               | YES                           |                               |
 | RewriteDataset                                          | NO                            |                               |
 | RightShift                                              | NO                            |                               |
-| Rint                                                    | NO                            |                               |
+| Rint                                                    | YES                           |                               |
 | RngReadAndSkip                                          | NO                            |                               |
 | RngSkip                                                 | NO                            |                               |
 | Roll                                                    | YES                           |                               |

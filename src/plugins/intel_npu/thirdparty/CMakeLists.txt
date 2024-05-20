@@ -21,16 +21,15 @@ if(ENABLE_ZEROAPI_BACKEND)
         set(USE_Z7 ON)
         # Close spectre for ze loader
         add_compile_options("/Qspectre-")
-    else()
-        string(REPLACE "-Werror " " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        string(REPLACE "-Werror " " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        ov_add_compiler_flags(-Wno-error)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
-            -Wno-error=undef \
-            -Wno-error=unused-but-set-variable \
-            -Wno-error=missing-declarations")
+            -Wno-undef \
+            -Wno-unused-but-set-variable \
+            -Wno-missing-declarations")
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.1)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
-                -Wno-error=stringop-truncation")
+                -Wno-stringop-truncation")
         endif()
     endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)

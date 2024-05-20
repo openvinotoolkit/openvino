@@ -3,7 +3,6 @@
 //
 
 #include "dnnl_executor.h"
-
 using namespace dnnl;
 
 namespace ov {

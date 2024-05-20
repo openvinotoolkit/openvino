@@ -116,6 +116,7 @@
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
 #include "op/mish.hpp"
+#include "op/mmdeploy_roi_align_rotated.hpp"
 #include "op/mod.hpp"
 #include "op/mul.hpp"
 #include "op/neg.hpp"
@@ -487,6 +488,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
     REGISTER_OPERATOR("ReduceL1", 1, reduce_l1);
     REGISTER_OPERATOR("ReduceL2", 1, reduce_l2);
+    REGISTER_OPERATOR("ReduceL2", 13, reduce_l2);
+    REGISTER_OPERATOR("ReduceL2", 18, reduce_l2);
     REGISTER_OPERATOR("ReduceMax", 1, reduce_max);
     REGISTER_OPERATOR("ReduceMax", 13, reduce_max);
     REGISTER_OPERATOR("ReduceMax", 18, reduce_max);
@@ -623,6 +626,7 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);
+    REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "MMCVRoIAlignRotated", 1, mmdeploy_roi_align_rotated);
 }
 
 #undef REGISTER_OPERATOR

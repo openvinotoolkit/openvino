@@ -19,6 +19,12 @@ const std::vector<std::string>& get_supported_types();
 typedef std::variant<napi_valuetype, napi_typedarray_type, js_type> napi_types;
 
 /**
+ * @brief Gets corresponding ov::element::Type_t to the passed TypedArray type
+ * @throw Exception if there is no corresponing or supported ov::element::Type_t
+ */
+const ov::element::Type_t& get_ov_type(napi_typedarray_type type);
+
+/**
  * @brief  Template function to convert Javascript data types into C++ data types
  * @tparam TargetType destinated C++ data type
  * @param info Napi::CallbackInfo contains all arguments passed to a function or method
@@ -31,6 +37,9 @@ TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx, const std
 
 template <typename TargetType>
 TargetType js_to_cpp(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
+
+template <typename TargetType>
+TargetType js_to_cpp(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
@@ -92,7 +101,7 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
 
 /** @brief  A template specialization for TargetType ov::Any */
 template <>
-ov::Any js_to_cpp<ov::Any>(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
+ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value);
 
 /** @brief  A template specialization for TargetType std::map<std::string, ov::Any */
 template <>
@@ -172,6 +181,6 @@ bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& accep
 
 Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value);
 
-ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value);
+bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num);
 
-bool is_napi_value_int(const Napi::CallbackInfo& info, Napi::Value& num);
+ov::AnyMap to_anyMap(const Napi::Env&, const Napi::Value&);

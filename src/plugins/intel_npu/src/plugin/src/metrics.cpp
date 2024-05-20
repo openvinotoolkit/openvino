@@ -25,7 +25,9 @@ Metrics::Metrics(const std::shared_ptr<const NPUBackends>& backends) : _backends
                          ov::cache_dir.name(),
                          ov::intel_npu::device_alloc_mem_size.name(),
                          ov::intel_npu::device_total_mem_size.name(),
-                         ov::intel_npu::driver_version.name()};
+                         ov::intel_npu::driver_version.name(),
+                         ov::device::pci_info.name(),
+                         ov::device::gops.name()};
 
     _supportedConfigKeys = {ov::log::level.name(),
                             ov::enable_profiling.name(),
@@ -153,6 +155,33 @@ std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const
     }
 
     return specifiedDeviceName;
+}
+
+ov::device::PCIInfo Metrics::GetPciInfo(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device != nullptr) {
+        return device->getPciInfo();
+    }
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+std::map<ov::element::Type, float> Metrics::GetGops(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device != nullptr) {
+        return device->getGops();
+    }
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+ov::device::Type Metrics::GetDeviceType(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device != nullptr) {
+        return device->getDeviceType();
+    }
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
 }  // namespace intel_npu

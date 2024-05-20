@@ -10,7 +10,6 @@ About OpenVINO
 
    about-openvino/performance-benchmarks
    about-openvino/compatibility-and-support
-   about-openvino/system-requirements
    Release Notes <about-openvino/release-notes-openvino>
    Additional Resources <about-openvino/additional-resources>
 
@@ -40,7 +39,7 @@ OpenVINO accelerates deep learning models on various hardware platforms, ensurin
 
 * `Deployment on a server <https://github.com/openvinotoolkit/model_server>`__
 
-A model can be deployed either locally using OpenVINO Runtime or on a model server. Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions. The model server enables quick model inference using external about-openvino/additional-resources.
+A model can be deployed either locally using OpenVINO Runtime or on a model server. Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions. The model server enables quick model inference using external resources.
 
 Architecture
 ##############################################################

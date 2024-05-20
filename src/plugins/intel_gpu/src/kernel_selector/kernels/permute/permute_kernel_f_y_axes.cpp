@@ -131,7 +131,7 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     const size_t tile_width = GetTileWidth(params);
     const size_t vector_size = std::min(tile_width, static_cast<size_t>(4));
     const size_t tile_size = GetTileSize(params);
-    const size_t j_times = tile_size / vector_size;
+    const size_t j_times = IsSimpleMemCopyOperation(params) ? tile_width / vector_size : tile_size / vector_size;
     const size_t feature_block_size = GetFeatureBlockSize(params);
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", tile_width));
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vector_size));
@@ -197,7 +197,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
 
     const auto is_swapping_f_with_y = [](const std::vector<uint16_t>& order) {
         // Target transform: Swap feature with y
-        // OV order:    0 2 1 3 => bfyx -> byfx
+        // IE order:    0 2 1 3 => bfyx -> byfx
         // cldnn order: 0 3 2 1 => bfxy -> byxf
         if (order.size() != 4) {
             return false;
@@ -241,5 +241,4 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
 KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
-
 }  // namespace kernel_selector

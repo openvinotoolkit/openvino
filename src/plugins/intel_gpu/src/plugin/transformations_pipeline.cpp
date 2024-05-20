@@ -41,12 +41,16 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
@@ -55,18 +59,20 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
-#include "plugin/transformations/rms_fusion.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_matmul_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
-#include "plugin/transformations/broadcast_reshape_matmul_fusion.hpp"
+#include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
@@ -705,6 +711,20 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager;
+
+        // Other ops support eltwise fusions
+        const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
+            ov::op::v1::Reshape::get_type_info_static(),
+            ov::op::v0::Squeeze::get_type_info_static(),
+            ov::op::v0::Unsqueeze::get_type_info_static(),
+            ov::op::v0::ShuffleChannels::get_type_info_static(),
+            ov::op::v7::Roll::get_type_info_static(),
+            ov::op::v0::ReverseSequence::get_type_info_static(),
+            ov::op::v1::Broadcast::get_type_info_static(),
+            ov::op::v3::Broadcast::get_type_info_static(),
+        };
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>(allowed_data_movement_ops);
+
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
@@ -716,17 +736,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConstantFolding>();
         }
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
-        manager.register_pass<ov::intel_gpu::RMSFusion>(device_info.max_work_group_size);
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
+            if (!root->get_input_node_ptr(0)->get_input_partial_shape(0).is_static()) {
+                return false;
+            }
+            const auto& gamma_shape = root->get_input_node_ptr(0)->get_input_partial_shape(0).to_shape();
+            const int32_t vec_size = 8;
+            return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
+        });
+
+        manager.register_pass<ov::pass::RMSFusion>();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
-        if (!device_info.supports_immad)
+        if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
+            manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
+        }
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
-
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
-        if (!device_info.supports_immad)
-            manager.register_pass<ov::intel_gpu::BroadcastReshapeMatmulFusion>();
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);

@@ -13,6 +13,7 @@
 #include <openvino/op/fake_quantize.hpp>
 #include <openvino/op/binary_convolution.hpp>
 #include <openvino/op/convolution.hpp>
+#include <openvino/op/pad.hpp>
 #include <plugin/transformations/binary_conv_to_conv.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
