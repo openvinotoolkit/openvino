@@ -55,30 +55,12 @@ OutputVector translate_select_op(const NodeContext& node) {
     // 2. condition must be Rank 1 and match over the first dimension, or
     // 3. condition is scalar
     default_op_checks(node, 3, {"Select", "SELECT"});
-    auto condition = node.get_input(0);
-    auto x = node.get_input(1);
-    auto y = node.get_input(2);
-
-    // compute number of dimensions to unsqueeze the condition
-    auto cond_rank = compute_subgraph_scalar_rank(condition, element::i32);
-    auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
-    auto num_new_axes = make_shared<v1::Subtract>(x_rank, cond_rank);
-
-    // generate a new shape for the condition
-    auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    auto new_subshape = make_shared<v3::Broadcast>(const_one, num_new_axes);
-    auto cond_shape = make_shared<v3::ShapeOf>(condition, element::i32);
-    // use extra dimensions in the begin to avoid concatenation of empty tensors that is not supported by Concat
-    auto const_1 = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    auto new_cond_shape = make_shared<v0::Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
-
-    // prepare the condition to have the same rank as operands `x` and `y`
-    auto prep_cond = make_shared<v1::Reshape>(condition, new_cond_shape, false)->output(0);
-    // squeeze prep_cond by one extra dimension specially added
-    auto const_0 = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    prep_cond = make_shared<v0::Squeeze>(prep_cond, const_0);
-
-    return translate_select_base_op(node, prep_cond, x, y);
+    auto select = make_shared<v1::Select>(node.get_input(0),
+                                          node.get_input(1),
+                                          node.get_input(2),
+                                          AutoBroadcastSpec(AutoBroadcastType::PDPD, 0));
+    set_node_name(node.get_name(), select);
+    return {select};
 }
 }  // namespace op
 }  // namespace tensorflow
