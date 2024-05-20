@@ -199,6 +199,8 @@ void AutoSchedule::init() {
                 std::pair<int, WorkerInferRequest*> worker;
                 std::list<Time> cpuhelp_all_start_times;
                 std::list<Time> cpuhelp_all_end_times;
+                std::chrono::duration<double, std::milli> first_infer_time =
+                    std::chrono::duration<double, std::milli>(0.0);
                 while (m_idle_worker_requests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
                     INFO_RUN([&cpuhelp_all_start_times, &cpuhelp_all_end_times, &worker]() {
@@ -206,9 +208,8 @@ void AutoSchedule::init() {
                         cpuhelp_all_end_times.splice(cpuhelp_all_end_times.end(), worker.second->m_end_times);
                     });
                 }
-                std::chrono::duration<double, std::milli> first_infer_time =
-                    cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
-                INFO_RUN([this, &cpuhelp_all_start_times, &cpuhelp_all_end_times]() {
+                INFO_RUN([this, &first_infer_time, &cpuhelp_all_start_times, &cpuhelp_all_end_times]() {
+                    first_infer_time = cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
                     cpuhelp_all_start_times.sort(std::less<Time>());
                     cpuhelp_all_end_times.sort(std::less<Time>());
                     m_cpuhelp_infer_count = cpuhelp_all_start_times.size();
@@ -300,9 +301,11 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         LOG_INFO_TAG("Device: [%s]: Compile model took %lf ms", device.c_str(), compiled_time);
     } catch (const ov::Exception& e) {
         context.m_err_message += device + ":" + e.what();
+        LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
         context.m_is_load_success = false;
     } catch (const std::exception& e) {
         context.m_err_message += device + ":" + e.what();
+        LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
         context.m_is_load_success = false;
     }
     if (context.m_is_load_success || cur_dev_is_cpu) {
