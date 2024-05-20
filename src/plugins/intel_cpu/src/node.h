@@ -761,7 +761,7 @@ protected:
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
-    IShapeInfer::Result shapeInfer() const;
+    virtual IShapeInfer::Result shapeInfer() const;
     virtual void execute(dnnl::stream strm) = 0;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
