@@ -40,6 +40,7 @@ DEFAULT_OPENVINO_PYTHON_CONFIG = MappingProxyType(
 )
 
 compiled_cache = {}
+req_cache = {}
 max_openvino_partitions = 0
 partitioned_modules = {}
 
@@ -91,14 +92,17 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
 
     if use_cache and (partition_id in compiled_cache):
         compiled = compiled_cache[partition_id]
+        req = req_cache[partition_id]
     else:
         compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
         compiled_cache[partition_id] = compiled
+        req = compiled.create_infer_request()
+        req_cache[partition_id] = req
 
     flat_args, _ = tree_flatten(args)
-    ov_inputs = [a.detach().cpu().numpy() for a in flat_args]
+    ov_inputs = [(a if isinstance(a, int) else a.detach().cpu().numpy()) for a in flat_args]
 
-    res = compiled(ov_inputs)
+    res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
 
     results1 = [torch.from_numpy(res[out]) for out in compiled.outputs]
     if len(results1) == 1:
