@@ -456,10 +456,10 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-32gb'
       # container: '{"image": ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}, "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
       volumes: '/mount:/mount'
       container-options: '-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING'
-      sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
+      sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
 
   ONNX_Models:
     name: ONNX Models Tests
