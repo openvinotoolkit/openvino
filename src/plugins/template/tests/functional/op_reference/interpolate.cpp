@@ -640,6 +640,21 @@ std::vector<InterpolateV4TestParams> generateParamsForInterpolate_v4_linear_onnx
                 NearestMode::ROUND_PREFER_FLOOR},
             {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
             {1.0f, 4.0f},
+        },
+        {   "linear_onnx.resize_downsample_scales_linear_align_corners_channel_last",
+            Shape{1, 2, 4, 1},
+            {1, 2},
+            Shape{1, 1, 2, 1},
+            {0.6f, 0.6f},
+            {1, 2},
+            {   InterpolateMode::LINEAR_ONNX,
+                ShapeCalcMode::SCALES,
+                zero_pads,
+                zero_pads,
+                CoordinateTransformMode::ALIGN_CORNERS,
+                NearestMode::ROUND_PREFER_FLOOR},
+            {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
+            {1.0f, 4.0f},
         }
     };
     // clang-format on
