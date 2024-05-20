@@ -66,7 +66,12 @@ void checkLevelZeroAttributesMatch(const IODescriptor& ioDescriptor,
 }  // namespace
 
 size_t ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
-    const ov::PartialShape& firstOutputShape = metadata.outputs.at(0).shapeFromIRModel;
+    if (!metadata.outputs.at(0).shapeFromIRModel.has_value()) {
+        _logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+        return DEFAULT_BATCH_SIZE;
+    }
+
+    const ov::PartialShape& firstOutputShape = *metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape.is_dynamic()) {
         _logger.info("Networks using dynamic shapes are not supported when batching is handled by the plugin");
         return DEFAULT_BATCH_SIZE;
@@ -85,8 +90,11 @@ size_t ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
 
     auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
         for (const IODescriptor& descriptor : descriptors) {
+            OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
+                            "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
+
             const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
-            const ov::PartialShape& shapeFromIRModel = descriptor.shapeFromIRModel;
+            const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
 
             if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
                 *shapeFromCompiler.begin() != DEFAULT_BATCH_SIZE) {

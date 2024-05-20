@@ -898,10 +898,42 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             std::nullopt,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
-            std::move(shapeFromIRModel)};
+            std::optional(shapeFromIRModel)};
 }
 
 template <typename TableExtension>
+template <typename T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
+                                                            ze_graph_handle_t graphHandle,
+                                                            uint32_t index,
+                                                            std::vector<IODescriptor>& inputs,
+                                                            std::vector<IODescriptor>& outputs) const {
+    ze_graph_argument_properties_3_t arg;
+    auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 pfnGetArgumentProperties3",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
+
+    switch (arg.type) {
+    case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
+        inputs.push_back(getIODescriptor(arg, std::nullopt));
+    } break;
+    case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
+        outputs.push_back(getIODescriptor(arg, std::nullopt));
+    } break;
+    default: {
+        OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ", arg.type);
+    }
+    }
+}
+
+template <typename TableExtension>
+template <typename T, std::enable_if_t<!NotSupportArgumentMetadata(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,

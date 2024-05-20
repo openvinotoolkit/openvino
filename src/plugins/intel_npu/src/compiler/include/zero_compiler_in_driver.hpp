@@ -36,7 +36,7 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
      std::is_same<T, ze_graph_dditable_ext_1_4_t>::value)
 
 // For ext version >= 1.6, originalShape is avaible
-#define NotSupportOriginalShape(T)                                                                                 \
+#define NotSupportArgumentMetadata(T)                                                                              \
     (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value || \
      std::is_same<T, ze_graph_dditable_ext_1_4_t>::value || std::is_same<T, ze_graph_dditable_ext_1_5_t>::value)
 
@@ -94,6 +94,14 @@ private:
                              ze_graph_compiler_version_info_t compilerVersion) const;
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
+    template <typename T = TableExtension, typename std::enable_if_t<NotSupportArgumentMetadata(T), bool> = true>
+    void getMetadata(TableExtension* graphDdiTableExt,
+                     ze_graph_handle_t graphHandle,
+                     uint32_t index,
+                     std::vector<IODescriptor>& inputs,
+                     std::vector<IODescriptor>& outputs) const;
+
+    template <typename T = TableExtension, typename std::enable_if_t<!NotSupportArgumentMetadata(T), bool> = true>
     void getMetadata(TableExtension* graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
