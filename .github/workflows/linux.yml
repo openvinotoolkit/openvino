@@ -455,7 +455,6 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      # container: '{"image": ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}, "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
       volumes: '/mount:/mount'
       container-options: '-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING'
@@ -685,7 +684,8 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
-      container: '{"image": ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}, "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
+      volumes: '/mount:/mount'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 

@@ -11,11 +11,21 @@ on:
         description: "shell to override the default shell settings in the runner's operating system."
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Image name to use for the Docker container'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
+      volumes:
+        description: 'Volumes to mount inside the Docker container'
+        type: string
+        required: false
+        default: null
+      container-options:
+        description: 'Options for the Docker container'
+        type: string
+        required: false
+        default: null
       affected-components:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
@@ -33,7 +43,11 @@ jobs:
       run:
         shell: ${{ inputs.shell }}
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - ${{ inputs.volumes }}
+      options: ${{ inputs.container-options }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       OPENVINO_TOKENIZERS_REPO: ${{ github.workspace }}/openvino_tokenizers
@@ -56,6 +70,7 @@ jobs:
             install_build_dependencies.sh
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
+        if: ${{ ! inputs.image }} # If we use an image, Python is already installed there
         uses: ./.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
@@ -95,7 +110,7 @@ jobs:
       #
 
       - name: Install build dependencies (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && ! inputs.image # If we use an image, the dependencies are already installed there
         run: ./install_build_dependencies.sh
 
       - name: Install python dependencies
