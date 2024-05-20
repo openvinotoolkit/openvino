@@ -53,7 +53,7 @@ Compared to the batching, the parallelism is somewhat transposed (performed over
      - | |execution-streams-2|
        | Inputs-wise the streams are the “transposed” batch.
 
-.. |large-batch-approach| image:: ../../../_static/images/large_batch_approach.svg
+.. |large-batch-approach| image:: /docs/articles_en/assets/images/large_batch_approach.svg
 
 .. |execution-streams-2| image:: /docs/articles_en/assets/images/cpu_execution_streams_2.svg
 

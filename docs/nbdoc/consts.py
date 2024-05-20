@@ -14,7 +14,7 @@ notebooks_colab = "https://colab.research.google.com/github/openvinotoolkit/open
 file_with_binder_notebooks = Path('../../docs/notebooks/notebooks_with_binder_buttons.txt').resolve(strict=True)
 file_with_colab_notebooks = Path('../../docs/notebooks/notebooks_with_colab_buttons.txt').resolve(strict=True)
 openvino_notebooks_ipynb_list = Path('../../docs/notebooks/all_notebooks_paths.txt').resolve(strict=True)
-binder_image_source = Path('../../docs/sphinx_setup/_static/images/launch_in_binder.svg').resolve(strict=True)
+binder_image_source = Path('../../docs/articles_en/assets/images/launch_in_binder.svg').resolve(strict=True)
 binder_image_source_data = open(binder_image_source, 'rb').read()
 binder_image_source_data_base64 = base64.b64encode(binder_image_source_data)
 binder_image_base64 = binder_image_source_data_base64.decode()
