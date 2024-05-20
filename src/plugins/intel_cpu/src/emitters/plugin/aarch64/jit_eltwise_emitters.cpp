@@ -929,11 +929,18 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
         const TReg src = TReg(in_vec_idxs[0]);
         const TReg dst = TReg(out_vec_idxs[0]);
         const TReg aux = TReg(aux_vec_idxs[0]);
-        h->movi(aux.s, 1);
-        h->fadd(dst.s, src.s, 1);
-        h->fdiv(dst.s, dst.s, 1);
-        h->fsub(dst.s, 1, dst.s);
-        h->fmul(dst.s, dst.s, src.s);
+        h->vldr(src.d, v0.d);
+        h->vmul(dst.d, v0.d, v0.d);
+        h->vcvt(dst.s, dst.d);
+        h->vfma(dst.s, v0.s, vptrue, v1.s, dst.s);
+        h->vmaxnm(dst.s, dst.s, vmmin.s);
+        h->vcvt(dst.d, dst.s);
+        h->vexp2(dst.d, dst.d);
+        h->vadd(dst.d, dst.d, vone.d);
+        h->vrcps(dst.d, dst.d);
+        h->vrsqrts(dst.d, dst.d);
+        h->vadd(dst.d, dst.d, vzero.d);
+        h->vst1(dst.d, ptr[dst_reg]);
     }
 }    
 
