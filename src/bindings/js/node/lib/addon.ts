@@ -73,8 +73,10 @@ interface Model {
   input(nameOrId?: string | number): Output;
   getName(): string;
   isDynamic(): boolean;
+  getOutputSize(): number;
   setFriendlyName(name: string): void;
   getFriendlyName(): string;
+  getOutputShape(): number[];
 }
 
 interface CompiledModel {
