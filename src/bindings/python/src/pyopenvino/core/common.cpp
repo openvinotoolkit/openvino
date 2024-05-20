@@ -44,12 +44,22 @@ const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
         {12, ov::element::f64},     // float64
         {1, ov::element::i8},       // int8
         {3, ov::element::i16},      // int16
+#ifdef _WIN32
+        {7, ov::element::i32},      // int32
+        {9, ov::element::i64},      // int64
+#else
         {5, ov::element::i32},      // int32
         {7, ov::element::i64},      // int64
+#endif
         {2, ov::element::u8},       // uint8
         {4, ov::element::u16},      // uint16
+#ifdef _WIN32
+        {8, ov::element::u32},      // uint32
+        {10, ov::element::u64},      // uint64
+#else
         {6, ov::element::u32},      // uint32
         {8, ov::element::u64},      // uint64
+#endif
         {0, ov::element::boolean},  // bool
         {18, ov::element::string},  // bytes_
         {19, ov::element::string},  // str_
