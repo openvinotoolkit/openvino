@@ -324,7 +324,12 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
                 m_type == "REDUCE_MIN" || m_type == "REDUCE_PROD" || m_type == "SUM")) {
         return this->get_attribute(&tflite::ReducerOptions::keep_dims);
     } else if (name == "approximate" && m_type == "GELU") {
-        return this->get_attribute(&tflite::GeluOptions::approximate);
+        bool has_attribute = this->has_attribute(&tflite::GeluOptions::approximate);
+        if (has_attribute) {
+            return this->get_attribute(&tflite::GeluOptions::approximate);
+        } else {
+            return {};
+        }
     }
 
     const auto opts = m_node_def->custom_options();
