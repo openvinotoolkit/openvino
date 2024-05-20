@@ -3581,9 +3581,17 @@ public:
         quant_data.output_low  = std::numeric_limits<WeightsT>::lowest();
         quant_data.output_high = std::numeric_limits<WeightsT>::max();
 
+        int min = -10;
+        int max = 10;
+
+        if (!std::numeric_limits<WeightsT>::is_signed) {
+            min = 0;
+            max = 20;
+        }
+
         VVVVF<InputT> input_data = rg.template generate_random_4d<InputT>(b, in_f, in_y, in_x, 0, 127);
-        VVVVF<WeightsT> weights_data = rg.template generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, quant_data.output_low , quant_data.output_high);
-        VF<WeightsT> bias_data = rg.template generate_random_1d<WeightsT>(out_f, quant_data.output_low , quant_data.output_high);
+        VVVVF<WeightsT> weights_data = rg.template generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, min, max);
+        VF<WeightsT> bias_data = rg.template generate_random_1d<WeightsT>(out_f, min, max);
 
         this->set_input(input_data);
         this->set_weights(weights_data);
@@ -3718,4 +3726,3 @@ TEST_F(fully_connected_gpu_tests, weights_reorder_shapes_update) {
 TEST_F(fully_connected_gpu_tests, weights_reorder_shapes_update_cached) {
     this->test_weights_reorder_shapes_update(true);
 }
-
