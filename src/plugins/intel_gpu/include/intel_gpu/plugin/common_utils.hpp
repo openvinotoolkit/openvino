@@ -111,7 +111,21 @@ inline ov::Shape predict_shape(const std::string& name, const cldnn::layout layo
     return layout.get_shape();
 }
 
-void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::stream& stream);
+/// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+inline void ForceExit() {
+    std::cerr << "[GPU] force exit.\n"
+              << "\tDue to the driver bug any subsequent OpenCL API call will cause application hang, "
+              << "so GPU plugin can't finish correctly.\n"
+              << "\tPlease try to update the driver or reduce memory consumption "
+              << "(use smaller batch size, less streams, lower precision, etc)"
+              << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
+    std::_Exit(-1);
+}
+
+void convert_and_copy(const ov::ITensor* src,
+                      cldnn::memory::ptr dst,
+                      cldnn::stream& stream,
+                      const cldnn::layout& src_layout = cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
 void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream);
 void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream);
 void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream);
