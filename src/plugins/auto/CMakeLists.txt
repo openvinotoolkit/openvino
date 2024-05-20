@@ -10,6 +10,26 @@ set (TARGET_NAME "openvino_auto_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.cpp)
 
+# WA for issue 141313
+if(LINUX AND CMAKE_COMPILE_WARNING_AS_ERROR AND ENABLE_SYSTEM_TBB)
+    execute_process(COMMAND lsb_release -a OUTPUT_VARIABLE output ERROR_QUIET)
+    string(REGEX MATCH "Distributor ID:[ \t]+([^\n]+)" match_name ${output})
+
+    if(match_name)
+        set(PRETTY_NAME "${CMAKE_MATCH_1}")
+    endif()
+
+    string(REGEX MATCH "Release:[ \t]+([0-9.]+)" match_version ${output})
+
+    if(match_version)
+        set(PRETTY_VERSION "${CMAKE_MATCH_1}")
+    endif()
+
+    if(PRETTY_NAME MATCHES "Ubuntu" AND PRETTY_VERSION MATCHES "24.*")
+        ov_add_compiler_flags(-Wno-stringop-overflow)
+    endif()
+endif()
+
 if(ENABLE_AUTO AND ENABLE_MULTI)
     ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "MULTI"
