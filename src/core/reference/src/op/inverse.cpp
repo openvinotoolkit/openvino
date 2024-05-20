@@ -12,15 +12,26 @@ void lu_decomposition(std::vector<float>& input,
                       std::vector<float>& L,
                       std::vector<float>& U,
                       std::vector<size_t>& P,
-                      bool& sign,
-                      size_t b,
-                      size_t n,
-                      size_t n_squared) {
+                      const bool adjoint,
+                      const size_t b,
+                      const size_t n,
+                      const size_t n_squared) {
     // Make L identity, U a copy of input and P a range(0, n)
     const auto batch_idx = b * n_squared;
 
     std::fill(L.begin(), L.end(), 0.0f);
-    memcpy(&U[0], &input[batch_idx], sizeof(float) * n_squared);
+
+    // To compute adjoint (conjugate transpose)
+    // it is enough to input a tranpose of the input matrix
+    if (!adjoint) {
+        memcpy(&U[0], &input[batch_idx], sizeof(float) * n_squared);
+    } else {
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                U[j * n + i] = input[batch_idx + i * n + j];
+            }
+        }
+    }
 
     for (size_t i = 0; i < n; ++i) {
         L[i * n + i] = 1.0f;
@@ -42,7 +53,6 @@ void lu_decomposition(std::vector<float>& input,
 
         if (pivot_row != k) {
             // Swap rows in L, U (A) and P
-            sign = !sign;
             std::swap(P[k], P[pivot_row]);
             std::swap_ranges(&U[k_idx], &U[k_idx + n], &U[pivot_idx]);
             std::swap_ranges(&L[k_idx], &L[k_idx + n], &L[pivot_idx]);
@@ -68,9 +78,9 @@ void lu_solve(std::vector<float>& output,
               std::vector<float>& L,
               std::vector<float>& U,
               std::vector<size_t>& P,
-              size_t b,
-              size_t n,
-              size_t n_squared) {
+              const size_t b,
+              const size_t n,
+              const size_t n_squared) {
     std::vector<float> X(n);
     std::vector<float> Y(n);
 
@@ -104,19 +114,6 @@ void lu_solve(std::vector<float>& output,
         for (size_t row = 0; row < n; ++row) {
             output[batch_column_idx + row * n] = X[row];
         }
-    }
-}
-
-void to_adjoint(std::vector<float>& output, std::vector<float>& U, bool sign, size_t b, size_t n, size_t n_squared) {
-    auto determinant = sign ? 1.0f : -1.0f;
-
-    for (size_t i = 0; i < n; ++i) {
-        determinant *= U[i * n + i];
-    }
-
-    const auto batch_idx = b * n_squared;
-    for (size_t i = 0; i < n_squared; ++i) {
-        output[batch_idx + i] *= determinant;
     }
 }
 }  // namespace internal

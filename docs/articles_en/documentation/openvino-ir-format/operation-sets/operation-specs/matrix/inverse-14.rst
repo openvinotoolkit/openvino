@@ -25,21 +25,21 @@ where :math:`I` is the n-dimensional identity matrix.
 
 The inverse matrix exists if and only if the input matrix is invertible (satisfies any of the properties of the *Invertible Matrix Theorem*). In that case, the inverse exists, and is unique. However, if the matrix is not invertible, the operation may raise an exception or return an undefined result. The operation may return slightly different results for the same input data on different devices due to parallelism and different data types implementations.
 
-This operation can be used to compute the adjugate matrix instead of the inverse.
+This operation can be used to compute the inverse of the adjoint matrix.
 
-The adjugate matrix :math:`adj(A)` of a square matrix :math:`A` is defined as:
+The adjoint matrix (conjugate transpose) :math:`adj(A)` of a square matrix of non-complex numbers :math:`A` is simply defined as:
 
 .. math::
 
-   adj(A) = det(A) \cdot A^{-1}
+   adj(A) = A^{T}
 
-where :math:`A^{-1}` is the matrix inverse of :math:`A`, and :math:`det(A)` is the determinant of :math:`A`.
+where :math:`A^{T}` is the matrix transpose of :math:`A`.
 
-The adjugate matrix exists if and only if the inverse matrix exists.
+With adjoint == true, the output of the algorithm can therefore be represented by (A^{T})^{-1}.
 
 **Algorithm formulation**:
 
-This operation uses LU decomposition with partial pivoting to compute the inverse (or adjugate) matrix.
+This operation uses LU decomposition with partial pivoting to compute the inverse (or adjoint) matrix.
 
 .. note::
 
@@ -48,10 +48,6 @@ This operation uses LU decomposition with partial pivoting to compute the invers
 .. math::
 
    A = L \cdot U
-
-.. note::
-
-   LU decomposition allows to easily obtain determinant of :math:`A`. Notice that since :math:`L`` is a lower triangular matrix with all diagonal elements equal to 1, :math:`det(L) = 1`.
 
 .. math::
 
@@ -79,12 +75,15 @@ Algorithm pseudocode:
 
 1. Start with original matrix :math:`A`. If the data type of :math:`A` is not f32, convert them to f32 to avoid accumulating rounding errors.
 2. Copy initial matrix into matrix :math:`U`. Initialize matrix :math:`L` to be the Identity matrix (zero matrix with all diagonal elements set to 1).
+
+   * If adjoint == true, set U to be the transpose of the initial matrix, instead of a direct copy.
+
 3. Perform LU decomposition with partial pivoting.
 
    * Repeat this step for each column in the input matrix.
    * Let *c* be the index of the currently processed column.
    * Find the index of the row with the highest value in a given column - *pivot*.
-   * If :math:`pivot \neq c`, swap the *pivot* and *c* row in :math:`L`. Repeat for :math:`U`. Note that this operation flips the sign of the determinant, so this has to be accounted for.
+   * If :math:`pivot \neq c`, swap the *pivot* and *c* row in :math:`L`. Repeat for :math:`U`.
    * Perform standard Gaussian elimination.
 
 4. To obtain the inverse, solve for each column of :math:`A^{-1}` as explained above.
@@ -93,14 +92,7 @@ Algorithm pseudocode:
    * Solve linear equation :math:`Ux = y` for x (backward substitution)
    * Set x as the corresponding column of the output inverse matrix :math:`A^{-1}`
 
-5. If adjoint == true, then it is necessary to multiply :math:`A^{-1}` by its determinant.
-
-   * As explained above, it is enough to compute :math:`det(U)`, since :math:`det(U) = det(A)`.
-   * :math:`det(U)` is just a multiplication of its diagonal elements.
-   * Account for each row swap in the LU decomposition step - for every row swap, swap the sign of the determinant.
-   * Multiply all elements of :math:`A^{-1}` by the determinant to obtain the adjugate matrix.
-
-6. Return the computed matrix. Convert it back from f32 to its original element type.
+5. Return the computed matrix. Convert it back from f32 to its original element type.
 
 **Attribute**:
 
@@ -109,7 +101,7 @@ Algorithm pseudocode:
   * **Description**: Modifies the return value of the operation. If true, the operation returns the adjoint (conjugate transpose) of the input matrices instead of finding the inverse.
   * **Range of values**: `true`, `false` 
 
-    * ``true`` - output adjugate matrix.
+    * ``true`` - output adjoint matrix.
     * ``false`` - output inverse matrix. 
 
   * **Type**: `bool`
@@ -122,7 +114,7 @@ Algorithm pseudocode:
 
 **Output**:
 
-* **1**: `output` - A tensor with the same type `T` as the input and same shape [B1, B2, ..., Bn, ROW, COL] as the input, representing the inverse matrices (or adjugate matrices) of the input matrices.
+* **1**: `output` - A tensor with the same type `T` as the input and same shape [B1, B2, ..., Bn, ROW, COL] as the input, representing the inverse matrices (or adjoint matrices) of the input matrices.
 
 **Types**
 

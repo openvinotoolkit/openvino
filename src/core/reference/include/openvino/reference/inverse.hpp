@@ -19,20 +19,18 @@ void lu_decomposition(std::vector<float>& input,
                       std::vector<float>& L,
                       std::vector<float>& U,
                       std::vector<size_t>& P,
-                      bool& sign,
-                      size_t b,
-                      size_t n,
-                      size_t n_squared);
+                      const bool adjoint,
+                      const size_t b,
+                      const size_t n,
+                      const size_t n_squared);
 
 void lu_solve(std::vector<float>& output,
               std::vector<float>& L,
               std::vector<float>& U,
               std::vector<size_t>& P,
-              size_t b,
-              size_t n,
-              size_t n_squared);
-
-void to_adjoint(std::vector<float>& output, std::vector<float>& U, bool sign, size_t b, size_t n, size_t n_squared);
+              const size_t b,
+              const size_t n,
+              const size_t n_squared);
 }  // namespace internal
 
 /**
@@ -64,15 +62,8 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
     std::vector<size_t> P(n);
 
     for (size_t b = 0; b < batch_size; ++b) {
-        bool sign = true;
-
-        internal::lu_decomposition(input_conv, L, U, P, sign, b, n, n_squared);
-
+        internal::lu_decomposition(input_conv, L, U, P, adjoint, b, n, n_squared);
         internal::lu_solve(output_conv, L, U, P, b, n, n_squared);
-
-        if (adjoint) {
-            internal::to_adjoint(output_conv, U, sign, b, n, n_squared);
-        }
     }
 
     convert<float, T>(output_conv.data(), output, batch_size * n_squared);
