@@ -69,6 +69,10 @@ inline bool is_dynamic_vdims(const VectorDims& shape) {
     return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_value(v); });
 }
 
+inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
+    return is_dynamic_vdims(*shape);
+}
+
 void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
 VectorDims pshape_to_vdims(const PartialShape&);
@@ -84,6 +88,9 @@ inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_i
     OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
     return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
 }
+
+// dim_idx starts from the layout end
+size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
 
 /* ----- Shape `getters` ----- */
 /**

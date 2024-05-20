@@ -29,7 +29,7 @@ def hard_swish(name: str, x, threshold=6.0, scale=6.0, offset=3.0, data_type='fl
             feed={'x': x},
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out],
                   inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
