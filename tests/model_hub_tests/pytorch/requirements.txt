@@ -4,6 +4,7 @@ auto-gptq>=0.5.1
 av
 basicsr
 datasets
+easyocr
 facexlib
 numpy
 optimum
