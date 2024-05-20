@@ -616,6 +616,99 @@ std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisio
     return {{element::f32}, {element::f32}};
 }
 
+/// MISH ///
+jit_mish_emitter::jit_mish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node)
+        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, node);
+}
+
+jit_mish_emitter::jit_mish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
+}
+
+size_t jit_mish_emitter::get_inputs_count() const { return 1; }
+
+size_t jit_mish_emitter::get_aux_vecs_count() const {
+    return std::max<size_t>(exp_emitter->get_aux_vecs_count() + 1, 2);
+}
+
+size_t jit_mish_emitter::get_aux_gprs_count() const {
+    return exp_emitter->get_aux_gprs_count() + 1;
+}
+
+void jit_mish_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_mish_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    // An equation other than mish(x) = x*tanh(srelu(x)) was used
+    // to calculate mish, but it should be remembered that it is equivalent
+    // equation, it uses the following rule:
+    // tanh(x) = (e^x - e^-x) / (e^x + e^-x),
+    // hence the equation for mish can take the form:
+    // mish(x) = x * ((e^x + 1)^2 - 1)/((e^x + 1)^2 + 1).
+    // This option was chosen because computing tanh requires more registers
+    // than exp, and also requires more constants to be stored in memory,
+    // making the algorithm slower.
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg vmm_src(in_vec_idxs[0]);
+    const TReg vmm_dst(out_vec_idxs[0]);
+    const TReg vmm_aux0(aux_vec_idxs[0]);
+    const TReg vmm_aux2(std::max<size_t>(exp_emitter->get_aux_vecs_count(), 1));
+
+    h->ld1r(vmm_aux0.s, table_val2("fwd_mish_max_x_for_equation_f"));
+    h->fminnm(vmm_aux2.s, vmm_src.s, vmm_aux0.s);
+
+    exp_emitter->emit_code(
+            { vmm_aux2.getIdx() },
+            { vmm_aux2.getIdx() },
+            aux_vec_idxs,
+            aux_gpr_idxs);
+
+    // (e^x+1)^2
+    h->fmov(vmm_aux0.s, 1.f);
+    h->fadd(vmm_aux2.s, vmm_aux2.s, vmm_aux0.s);
+    h->fmul(vmm_dst.s, vmm_aux2.s, vmm_aux2.s);
+
+    // save (e^x+1)^2 as it appears in both the denominator and the numerator
+    const TReg vmm_aux_src(aux_vec_idxs[1]);
+    h->mov(vmm_aux_src.b16, vmm_dst.b16);
+
+    // x * ((e^x + 1)^2 - 1) / ((e^x + 1)^2 + 1)
+    h->fsub(vmm_aux_src.s, vmm_aux_src.s, vmm_aux0.s);
+    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux0.s);
+    h->fdiv(vmm_dst.s, vmm_aux_src.s, vmm_dst.s);
+    h->fmul(vmm_dst.s, vmm_dst.s, vmm_src.s);
+}
+
+void jit_mish_emitter::register_table_entries() {
+    push_arg_entry_of("fwd_mish_max_x_for_equation_f", 0x42317217, true);
+    push_arg_entry_of("bwd_mish_max_x_for_equation_f", 0x41b17217, true);
+}
+
+void jit_mish_emitter::emit_data() const {
+    jit_emitter::emit_data();
+    exp_emitter->emit_data();
+}
+
+std::set<std::vector<element::Type>> jit_mish_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
 /// MUL_ADD ///
 jit_mul_add_emitter::jit_mul_add_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
