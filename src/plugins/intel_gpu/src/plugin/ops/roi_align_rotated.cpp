@@ -14,7 +14,7 @@ namespace intel_gpu {
 
 namespace {
 
-void CreateROIAlignRotatedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v14::ROIAlignRotated>& op) {
+void CreateROIAlignRotatedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::ROIAlignRotated>& op) {
     validate_inputs_count(op, {3});
     auto roi_align_prim = cldnn::roi_align(layer_type_name_ID(op),
                                            p.GetInputInfo(op),

@@ -961,7 +961,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::ROIAlign>&
     return std::make_shared<ov::Model>(results, params, "ROIAlignGraph");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::ROIAlignRotated>& node) {
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::ROIAlignRotated>& node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 16, 16}})};
     const auto coords = std::make_shared<ov::op::v0::Constant>(
         ov::element::f32,
@@ -969,7 +969,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::ROIAlignR
         std::vector<float>(node->get_rois_input_second_dim_size(), 0));
     const auto roisIdx =
         std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
-    auto new_node = std::make_shared<ov::op::v14::ROIAlignRotated>(params.at(0), coords, roisIdx, 2, 2, 2, 1, true);
+    auto new_node = std::make_shared<ov::op::v15::ROIAlignRotated>(params.at(0), coords, roisIdx, 2, 2, 2, 1, true);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(new_node)};
     return std::make_shared<ov::Model>(results, params, "ROIAlignRotatedGraph");
 }
