@@ -5,6 +5,7 @@
 # mypy: ignore-errors
 
 import torch
+from openvino.frontend.pytorch import ModuleExtension
 
 
 class no_jit_trace:
@@ -79,3 +80,19 @@ def unpatch_model(model, orig_forward_name):
                 print('[ WARNING ] Exception raised during model unpatching. Depending on the exact issue it may lead to broken original model.')
                 print('Original exception details:')
                 print(error)
+
+
+def __make_16bit_traceable(model: torch.nn.Module):
+    # Replace torch.nn.Linear with ModuleExtension and move other modules to fp32
+    extensions = {torch.nn.Linear: ModuleExtension(
+        torch.nn.Linear,
+        "aten::linear",
+        evaluate=lambda module, *args, **kwargs: torch.ones(
+            list(args[0].shape[:-1]) + [module.out_features], dtype=torch.float32) * 0.5,
+        convert=lambda module, target_op, *args, **kwargs: target_op(args[0], module.weight, module.bias))
+    }
+    patch_model(model, extensions,
+                "_openvino_module_extension_patch_orig_forward")
+    for _, module in model.named_modules():
+        if module.__class__ not in extensions and hasattr(module, "weight") and module.weight.dtype in [torch.float16, torch.bfloat16]:
+            module.float()
