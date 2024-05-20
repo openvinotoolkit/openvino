@@ -115,7 +115,7 @@ std::vector<layout> loop_inst::calc_output_layouts(loop_node const& /*node*/, ke
     if (impl_param.inner_nets.empty()) {
         OPENVINO_ASSERT(impl_param.inner_progs.size() == 1, "Loop(", prim->id, ") should have only one inner network");
         const auto& body_outputs = impl_param.inner_progs.front()->get_outputs();
-        output_layouts = get_output_layouts<program_node*>(impl_param, body_outputs);
+        output_layouts = get_output_layouts<program_node*>(impl_param, body_outputs, prim->max_num_iterations);
     } else {
         auto& memory_deps = impl_param.memory_deps;
         const size_t current_iteration_idx = 0;
