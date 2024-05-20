@@ -7,11 +7,11 @@
 namespace {
 const Params params[] = {
     std::tuple<Device, Config>{ov::test::utils::DEVICE_HETERO,
-                               {{ov::device::priorities.name(), ov::test::utils::DEVICE_TEMPLATE}}},
+                               {{ov::device::priorities.name(), ov::test::utils::DEVICE_CPU}}},
 };
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(HETERO, CoreThreadingTest, testing::ValuesIn(params), CoreThreadingTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_HETERO, CoreThreadingTest, testing::ValuesIn(params), CoreThreadingTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(HETERO_Streams,
                          CoreThreadingTestsWithIter,
