@@ -398,7 +398,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_", op::inplace_op<op::translate_clamp>},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>},
+        {"aten::clamp_max_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
+        {"aten::clamp_min_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>>},
         {"aten::clip", op::translate_clamp},
         {"aten::clip_", op::inplace_op<op::translate_clamp>},
         {"aten::clone", op::skip_node},  // ignore clone operators that are inserted by PyTorch autograd
@@ -617,6 +619,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::roll", op::translate_roll},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::optional_out<op::translate_rsqrt, 1>},
+        {"aten::rsqrt_", op::inplace_op<op::translate_rsqrt>},
         {"aten::rsub", op::translate_rsub},
         {"aten::ScalarImplicit", op::skip_node},
         {"aten::scaled_dot_product_attention", op::translate_scaled_dot_product_attention},
@@ -647,6 +650,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::split - Supported in limited set of patterns
         // aten::split_with_sizes - Supported in limited set of patterns
         {"aten::sqrt", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>, 1>},
+        {"aten::sqrt_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>>},
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::quantizable_op<op::translate_squeeze>},
         // aten::stack - Supported in limited set of patterns
