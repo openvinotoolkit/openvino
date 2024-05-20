@@ -273,7 +273,20 @@ code {
     font-weight: bold;
 }
 
+.sd-btn {
+    border-radius:0px !important;
+    color: #0054AE !important;
+    border-color: lightgray !important;
+}
 
+.sd-btn:hover {
+    border-radius:0px !important;
+    background-color: #0054AE !important;
+}
+
+.admonition {
+    border-radius:0px !important;
+}
 /* Table Sort Button */
 /* =================================================== */
 .sort-header {
