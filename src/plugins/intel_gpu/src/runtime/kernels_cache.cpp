@@ -160,9 +160,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     return true;
 
                 // check if the current_batch has one of special_kernels
-                auto& entry_points = current_bucket.back().entry_point_to_id;
-                for (auto ep_iter = entry_points.begin(); ep_iter != entry_points.end(); ep_iter++) {
-                    target_base_kernel_name = get_base_kernel_name(ep_iter->first);
+                if (current_bucket.back().kernels_counter == 1) {
+                    target_base_kernel_name = get_base_kernel_name(current_bucket.back().entry_point_to_id.begin()->first);
                     if (std::count(special_kernels.begin(), special_kernels.end(), target_base_kernel_name) > 0)
                         return true;
                 }
