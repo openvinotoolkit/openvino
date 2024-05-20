@@ -7,11 +7,21 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Image name to use for the Docker container'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
+      volumes:
+        description: 'Volumes to mount inside the Docker container'
+        type: string
+        required: false
+        default: null
+      container-options:
+        description: 'Options for the Docker container'
+        type: string
+        required: false
+        default: null
       sccache-azure-key-prefix:
         description: 'Key prefix for the cache folder on the Azure'
         type: string
@@ -22,7 +32,11 @@ jobs:
     name: ONNX Runtime Integration
     timeout-minutes: 60
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - ${{ inputs.volumes }}
+      options: ${{ inputs.container-options }}
     defaults:
       run:
         shell: bash
