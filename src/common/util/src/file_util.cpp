@@ -40,6 +40,7 @@
 #    include <dirent.h>
 #    include <dlfcn.h>
 #    include <ftw.h>
+#    include <limits.h>
 #    include <sys/file.h>
 #    include <sys/time.h>
 #    include <unistd.h>

@@ -10,7 +10,7 @@ Use Case - Integrate and Save Preprocessing Steps Into IR
                  OpenVINO Intermediate Representation.
 
 
-Previous sections covered the topic of the :doc:`preprocessing steps <preprocessing-api-details>` 
+Previous sections covered the topic of the :doc:`preprocessing steps <preprocessing-api-details>`
 and the overview of :doc:`Layout <layout-api-overview>` API.
 
 For many applications, it is also important to minimize read/load time of a model.
@@ -19,8 +19,8 @@ startup, after ``ov::runtime::Core::read_model``, may seem inconvenient. In such
 once pre and postprocessing steps have been added, it can be useful to store new execution
 model to OpenVINO Intermediate Representation (OpenVINO IR, `.xml` format).
 
-Most available preprocessing steps can also be performed via command-line options, 
-using Model Optimizer. For details on such command-line options, refer to the 
+Most available preprocessing steps can also be performed via command-line options,
+using Model Optimizer. For details on such command-line options, refer to the
 :doc:`Optimizing Preprocessing Computation <../../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`.
 
 Code example - Saving Model with Preprocessing to OpenVINO IR
@@ -48,14 +48,14 @@ in the model preparation script for such a case.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
          :language: Python
          :fragment: ov:preprocess:save_headers
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:save_headers
 
@@ -68,14 +68,14 @@ in the model preparation script for such a case.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
          :language: Python
          :fragment: ov:preprocess:save_model
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:save_model
 
@@ -83,8 +83,8 @@ in the model preparation script for such a case.
 Application Code - Load Model to Target Device
 ##############################################
 
-After this, the application code can load a saved file and stop preprocessing. In this case, enable 
-:doc:`model caching <../optimizing-latency/model-caching-overview>` to minimize load 
+After this, the application code can load a saved file and stop preprocessing. In this case, enable
+:doc:`model caching <../optimizing-latency/model-caching-overview>` to minimize load
 time when the cached model is available.
 
 
@@ -93,14 +93,14 @@ time when the cached model is available.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
          :language: Python
          :fragment: ov:preprocess:save_load
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:save_load
 
