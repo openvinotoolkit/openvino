@@ -41,8 +41,8 @@ protected:
     std::vector<ov::Tensor> inputData;
     std::vector<ov::Tensor> refOutData;
     std::vector<ov::Tensor> actualOutData;
-    float threshold = 1e-2f;             // Relative diff
-    float abs_threshold = -1.f;          // Absolute diff (not used when negative)
+    float threshold = 1e-2f;     // Relative diff
+    float abs_threshold = -1.f;  // Absolute diff (not used when negative)
 };
 
 template <class T>
