@@ -17,8 +17,8 @@ using namespace intel_npu;
 namespace {
 
 constexpr std::size_t BATCH_AXIS = 0;
-constexpr bool IS_INPUT = true;
-constexpr bool IS_OUTPUT = false;
+constexpr bool INPUT = true;
+constexpr bool OUTPUT = false;
 
 /**
  * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
@@ -82,7 +82,7 @@ size_t ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
         return DEFAULT_BATCH_SIZE;
     }
 
-    const size_t candidateBatchSize = firstOutputShape[0].get_length();
+    const size_t candidateBatchSize = firstOutputShape[BATCH_AXIS].get_length();
     if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
         _logger.info("Batching on the plugin is not used, batching is handled by the compiler");
         return DEFAULT_BATCH_SIZE;
@@ -178,7 +178,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         };
 
         // The I/O buffers already allocated using the Level Zero API are being reused here
-        allocate_tensor(inputDescriptor, IS_INPUT, inputAllocator, batchSizeArgument);
+        allocate_tensor(inputDescriptor, INPUT, inputAllocator, batchSizeArgument);
 
         ++inputIndex;
     }
@@ -186,7 +186,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     size_t outputIndex = 0;
     for (const IODescriptor& outputDescriptor : _metadata.outputs) {
         checkLevelZeroAttributesMatch(outputDescriptor, executorOutputDescriptors.at(outputIndex));
-        allocate_tensor(outputDescriptor, IS_OUTPUT, allocator, batchSizeArgument);
+        allocate_tensor(outputDescriptor, OUTPUT, allocator, batchSizeArgument);
 
         ++outputIndex;
     }
@@ -216,11 +216,13 @@ void ZeroInferRequest::infer_async() {
 
     size_t inputIndex = 0;
     for (const std::shared_ptr<ov::ITensor>& inputTensor : _inputTensors) {
-        const std::shared_ptr<ov::ITensor>& wrapperInputTensor = _copyInputTensors.at(inputIndex);
+        const std::shared_ptr<ov::ITensor>& copyInputTensor = _copyInputTensors.at(inputIndex);
 
         const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
         if (inputDescriptor.isShapeTensor) {
-            OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value());
+            OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value(),
+                            "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
+                            inputDescriptor.nameFromCompiler);
             const auto& inputDims = _inputTensors.at(*inputDescriptor.relatedDescriptorIndex)->get_shape();
 
             for (size_t i = 0; i < inputTensor->get_size(); ++i) {
@@ -230,7 +232,7 @@ void ZeroInferRequest::infer_async() {
         }
 
         const uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(inputTensor->data());
-        uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(wrapperInputTensor->data());
+        uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(copyInputTensor->data());
 
         if (tensorBuffer != copyTensorBuffer) {
             if (tensorBuffer == nullptr || copyTensorBuffer == nullptr) {
@@ -257,11 +259,13 @@ void ZeroInferRequest::get_result() {
 
     size_t outputIndex = 0;
     for (const std::shared_ptr<ov::ITensor>& outputTensor : _outputTensors) {
-        const std::shared_ptr<ov::ITensor>& wrapperOutputTensor = _copyOutputTensors.at(outputIndex);
+        const std::shared_ptr<ov::ITensor>& copyOutputTensor = _copyOutputTensors.at(outputIndex);
 
         const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
         if (outputDescriptor.isShapeTensor) {
-            OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value());
+            OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
+                            "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
+                            outputDescriptor.nameFromCompiler);
 
             ov::Shape actualDims;
             actualDims.reserve(outputTensor->get_size());
@@ -275,7 +279,7 @@ void ZeroInferRequest::get_result() {
         }
 
         uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(outputTensor->data());
-        const uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(wrapperOutputTensor->data());
+        const uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(copyOutputTensor->data());
 
         if (tensorBuffer != copyTensorBuffer) {
             if (tensorBuffer == nullptr || copyTensorBuffer == nullptr) {

@@ -29,6 +29,7 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& 
     }
 
     // Create map of empty tensors and cache ports from the compiled model
+    // See the ov::ISyncInferRequest constructor
     auto portType = SyncInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
@@ -209,7 +210,12 @@ void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
     }
 
     if (descriptor.isStateOutput) {
-        OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value());
+        // Only one buffer is required for each (state input, state output) pair, acting as an input before running the
+        // inference and as an output after performing it. Thus both the "state input" and "state output" entries shall
+        // point to the same buffer.
+        OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
+                        "The link between state descriptors is missing, state name: ",
+                        descriptor.nameFromCompiler);
         tensor = _inputTensors.at(*descriptor.relatedDescriptorIndex);
     } else if (allocator) {
         tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);

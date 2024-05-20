@@ -851,10 +851,11 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
 /**
  * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific ones.
  *
- * @param arg The first Level Zero structure from which metadata will be extracted. Typically this one contains the I/O
- * information perceived by the compiler.
- * @param metadata The second Level Zero structure from which metadata will be extracted. Typically this one contains
- * the I/O information found in the IR model.
+ * @param arg The main Level Zero structure from which most metadata will be extracted.
+ * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
+ * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for the
+ * referenced attribute.
+ * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
  */
 static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                                     const std::optional<ze_graph_argument_metadata_t>& metadata) {
@@ -874,6 +875,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
         }
     }
 
+    // Flags will be used instead of indices for informing the type of the current entry
     std::string nameFromCompiler = arg.name;
     bool isStateInput = false;
     bool isStateOutput = false;

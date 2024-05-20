@@ -46,7 +46,7 @@ private:
      * the model will also be deduced and returned.
      * @details Batching can be handled by the plugin only if:
      *  - The batch axis is the first axis.
-     *  - The batch size the compiler received takes the default value of 1.
+     *  - The batch size received by the compiler takes the default value of 1.
      *  - The batch size found in the IR model matches for all inputs/outputs and takes a value different than the
      * default one.
      *

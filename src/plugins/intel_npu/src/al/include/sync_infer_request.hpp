@@ -93,6 +93,9 @@ public:
     void initialize_states();
 
 protected:
+    /**
+     * @see ov::ISyncInferRequest
+     */
     struct FoundPort {
         size_t idx;
         enum class Type { NOT_FOUND = 0, INPUT, OUTPUT } type;
@@ -111,6 +114,7 @@ protected:
     /**
      * @brief Finds input or output port
      * @return structure which contains index of Input/Output or report that port wasn't found
+     * @see ov::ISyncInferRequest
      */
     FoundPort find_port(const ov::Output<const ov::Node>& port) const;
 
@@ -135,13 +139,11 @@ protected:
     virtual void check_network_precision(const ov::element::Type_t precision) = 0;
 
     /**
-     * @brief Allocates a tensor on host and stores the reference inside the "_allTensors" attribute. If a buffer
-     * address is provided, then the tensor is built upon it and no additional data buffer is allocated.
-     * @param tensorName The name by which the tensor shall be identified
+     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
      * @param descriptor Tensor's metadata
-     * @param isState If true, the tensor shall also be stored inside the state variables map. In this case, adding the
-     * tensor to this structure would be required in order to correctly answer the state queries.
+     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
      * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
+     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
      */
     void allocate_tensor(const IODescriptor& descriptor,
                          const bool isInput,
@@ -164,7 +166,14 @@ protected:
 
     NetworkMetadata _metadata;
 
+    /**
+     * @see ov::ISyncInferRequest
+     */
     mutable std::unordered_map<size_t, FoundPort> _cachedPorts;
+
+    /**
+     * @see ov::ISyncInferRequest
+     */
     mutable std::mutex _cacheMutex;
 };
 

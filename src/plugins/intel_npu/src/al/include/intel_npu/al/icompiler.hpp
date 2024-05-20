@@ -27,10 +27,10 @@ namespace intel_npu {
  */
 struct IODescriptor {
     /**
-     * @brief The name of the input/output seen/attributed by the compiler.
-     * @details This may be different from other name attributes:
-     *  - The compiler could have added additional I/O (e.g. for states). These are not found in the original IR model,
-     * and thus the other name attributes will not use the same value.
+     * @brief The name of the input/output assigned by the compiler.
+     * @details This value may differ from other name attributes:
+     *  - The compiler could have created additional inputs/outputs (e.g. for representing states). These are not
+     * found in the original IR model.
      *  - The compiler may append indices to names in the case where duplicate names are found.
      * @note The prefixes introduced by the compiler in order to differentiate the special cases (e.g. states and shape
      * tensors) were removed prior to initializing this field.
@@ -94,7 +94,7 @@ struct IODescriptor {
 
     /**
      * @brief The shape extracted from the IR model.
-     * @details The values may differ from the ones found in "shapeFromCompiler" if batching is to be applied inside the
+     * @details The values may differ from the ones found in "shapeFromCompiler" if batching is to be handled by the
      * plugin.
      *
      * This field may be empty if the I/O entry is not found in the original IR model (i.e. the entry was added
@@ -122,6 +122,15 @@ struct NetworkMetadata final {
         return std::nullopt;
     }
 
+    /**
+     * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
+     * "relatedDescriptorIndex" attribute.
+     * @details For state inputs, the "relatedDescriptorIndex" value is set to the index of the output which bears the
+     * same name. The reverse is also applied.
+     *
+     * For shape tensors, the lookup is performed in the same container (inputs or outputs). The value is once again set
+     * to the index of the entry which bears the same name.
+     */
     void bindRelatedDescriptors() {
         size_t ioIndex = 0;
 
@@ -135,15 +144,15 @@ struct NetworkMetadata final {
                 const std::optional<size_t> relatedDescriptorIndex = findByName(outputs, input.nameFromCompiler);
 
                 if (relatedDescriptorIndex.has_value()) {
-                    input.relatedDescriptorIndex = *relatedDescriptorIndex;
-                    outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
+                    input.relatedDescriptorIndex = relatedDescriptorIndex;
+                    outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
                 }
             } else if (input.isShapeTensor) {
                 const std::optional<size_t> relatedDescriptorIndex = findByName(inputs, input.nameFromCompiler);
 
                 if (relatedDescriptorIndex.has_value() && *relatedDescriptorIndex != ioIndex) {
-                    input.relatedDescriptorIndex = *relatedDescriptorIndex;
-                    inputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
+                    input.relatedDescriptorIndex = relatedDescriptorIndex;
+                    inputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
                 }
             }
 
@@ -162,8 +171,8 @@ struct NetworkMetadata final {
                 const std::optional<size_t> relatedDescriptorIndex = findByName(outputs, output.nameFromCompiler);
 
                 if (relatedDescriptorIndex.has_value() && *relatedDescriptorIndex != ioIndex) {
-                    output.relatedDescriptorIndex = *relatedDescriptorIndex;
-                    outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
+                    output.relatedDescriptorIndex = relatedDescriptorIndex;
+                    outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
                 }
             }
 

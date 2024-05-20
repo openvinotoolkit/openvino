@@ -49,9 +49,9 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     // implementaion, the "ov::Model" object is preprocessed before reaching the NPU plugin.
     const auto newAPIKey = "is_new_api";
 
-    // Flag used for indicating an NPU plugin version which switched the identification convention of inputs/outputs
-    // from names to indices. The flag is required in order to inform the driver-compiler adapter to expect indices when
-    // attempting to deserialize the I/O metadata.
+    // Flag used for indicating an NPU plugin version which switched the I/O identification convention from names to
+    // indices. The flag is required in order to inform the driver-compiler adapter to expect indices when attempting to
+    // deserialize the I/O metadata.
     const auto useIndicesForIOMetadata = "use_indices_for_io_metadata";
 
     // We modify the original model object here therefore a mutex is required
