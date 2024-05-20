@@ -25,7 +25,7 @@ struct PagedAttentionExecutor {
     static const size_t ID_V = 2;                           // [B_token, Hk * S], float
     static const size_t ID_KCACHE = 3;                      // [block_number, H, block_size, S], float
     static const size_t ID_VCACHE = 4;                      // [block_number, H, block_size, S], float
-    static const size_t ID_CONTEXT_LENS = 5;                // [B_seq]
+    static const size_t ID_PAST_LENS = 5;                   // [B_seq]
     static const size_t ID_SUBSEQUENCE_BEGINS = 6;          // [B_seq+1]
     static const size_t ID_BLOCK_INDICES = 7;               // [num_blocks]
     static const size_t ID_BLOCK_INDICES_BEGINS = 8;        // [B_seq+1]
