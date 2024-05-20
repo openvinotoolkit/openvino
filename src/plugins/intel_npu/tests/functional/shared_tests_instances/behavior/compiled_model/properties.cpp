@@ -55,6 +55,7 @@ const std::vector<ov::AnyMap> publicCompiledModelConfigs = {
         {{ov::hint::enable_cpu_pinning.name(), ov::Any(false)}},
         {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
         {{ov::execution_devices.name(), ov::Any(ov::test::utils::DEVICE_NPU)}},
+        {{ov::hint::execution_mode.name(), ov::Any(ov::hint::ExecutionMode::PERFORMANCE)}},
         {{ov::hint::inference_precision.name(), ov::Any(ov::element::f16)}},
         {{ov::loaded_from_cache.name(), ov::Any(false)}},
         {{ov::model_name.name(), ov::Any("")}},
@@ -65,7 +66,7 @@ const std::vector<ov::AnyMap> publicCompiledModelConfigs = {
         {{ov::supported_properties.name(),  // needed for HETERO
           ov::Any(std::vector<ov::PropertyName>{
                   ov::PropertyName(ov::device::id.name()), ov::PropertyName(ov::hint::enable_cpu_pinning.name()),
-                  ov::PropertyName(ov::execution_devices.name()),
+                  ov::PropertyName(ov::execution_devices.name()), ov::PropertyName(ov::hint::execution_mode.name()),
                   ov::PropertyName(ov::hint::inference_precision.name()),
                   ov::PropertyName(ov::loaded_from_cache.name()), ov::PropertyName(ov::hint::model_priority.name()),
                   ov::PropertyName(ov::model_name.name()),
@@ -194,6 +195,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelPropertiesInco
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelIncorrectDevice,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVCompiledModelIncorrectDevice>);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesDefaultSupportedTests,	
+                         ::testing::Values(ov::test::utils::DEVICE_NPU),	
+                         ov::test::utils::appendPlatformTypeTestName<OVCompiledModelPropertiesDefaultSupportedTests>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),

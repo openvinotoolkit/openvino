@@ -55,10 +55,10 @@ int main(int argc, char** argv, char** envp) {
         const std::string noFetch{"<not fetched>"};
         std::string backend{noFetch}, arch{noFetch}, full{noFetch};
         try {
-            ov::test::utils::NpuTestTool kmbTestTool(ov::test::utils::NpuTestEnvConfig::getInstance());
-            backend = kmbTestTool.getDeviceMetric(ov::intel_npu::backend_name.name());
-            arch = kmbTestTool.getDeviceMetric(ov::device::architecture.name());
-            full = kmbTestTool.getDeviceMetric(ov::device::full_name.name());
+            ov::test::utils::NpuTestTool npuTestTool(ov::test::utils::NpuTestEnvConfig::getInstance());
+            backend = npuTestTool.getDeviceMetric(ov::intel_npu::backend_name.name());
+            arch = npuTestTool.getDeviceMetric(ov::device::architecture.name());
+            full = npuTestTool.getDeviceMetric(ov::device::full_name.name());
         } catch (const std::exception& e) {
             std::cerr << "Exception while trying to determine device characteristics: " << e.what() << std::endl;
         }

@@ -122,7 +122,7 @@ public:
             for (const auto& pattern : entry._patterns) {
                 std::regex re(pattern);
                 if (std::regex_match(testName, re)) {
-                    _log.info("{0}; Pattern: {1}", entry._comment.c_str(), pattern.c_str());
+                    _log.info("%s; Pattern: %s", entry._comment.c_str(), pattern.c_str());
                     return pattern;
                 }
             }
@@ -302,8 +302,8 @@ std::vector<std::string> disabledTestPatterns() {
         // [Track number: E#67741]
         _skipRegistry.addPatterns(
                 "Cannot call setShape for Blobs", {
-                R"(.*(smoke_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
-                R"(.*(smoke_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*)"
+                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
+                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*)"
         });
 
         // [Track number: E#67749]
@@ -841,9 +841,15 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_2infers.*"
         });
 
+        // [Tracking number: E#125086]
         _skipRegistry.addPatterns(devices.has3720() && backendName.isZero(), 
-                "Failing tests after porting to OV", {
-                ".*smoke_Auto_BehaviorTests/OVInferRequestIOTensorTest.canInferAfterIOBlobReallocation.*"
+                "Failing tests after functional tests migration to OV", {
+                #ifdef WIN32
+                        ".*OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*",
+                #elif defined(__linux__)
+                        ".*OVInferRequestMultithreadingTests.canRun3AsyncRequestsConsistently.*",
+                #endif
+                ".*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*"
         });
 
         // [Tracking number: E#118348]
