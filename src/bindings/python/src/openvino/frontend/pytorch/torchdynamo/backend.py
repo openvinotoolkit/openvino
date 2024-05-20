@@ -52,6 +52,8 @@ openvino_options = {}
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
     if (_get_aot_autograd(options)):
+        global openvino_options
+        openvino_options = options
         decompositions = _get_decompositions(options) + get_inf_decomposition_list()
         decompositions = decompositions + get_aot_decomposition_list()
         return aot_autograd(fw_compiler=fx_openvino, 

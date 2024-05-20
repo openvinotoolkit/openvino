@@ -21,7 +21,7 @@ from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
 from openvino.runtime import Core, Type, PartialShape
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, aot_autograd
 
 from typing import Callable, Optional, Any
 
@@ -166,11 +166,12 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     model_hash_str = executor_parameters.get("model_hash_str", None)
 
     signature = str(id(gm))
-    for idx, input_data in enumerate(args):
-        if isinstance(input_data, torch.Tensor):
-            signature = signature + "_" + str(idx) + ":" + str(input_data.type())[6:] + ":" + str(input_data.size())[11:-1].replace(" ", "")
-        else:
-            signature = signature + "_" + str(idx) + ":" + type(input_data).__name__ + ":val(" + str(input_data) + ")"
+    if (not _get_aot_autograd(options)):
+        for idx, input_data in enumerate(args):
+            if isinstance(input_data, torch.Tensor):
+                signature = signature + "_" + str(idx) + ":" + str(input_data.type())[6:] + ":" + str(input_data.size())[11:-1].replace(" ", "")
+            else:
+                signature = signature + "_" + str(idx) + ":" + type(input_data).__name__ + ":val(" + str(input_data) + ")"
 
     if signature not in partitioned_modules:
         partitioned_modules[signature] = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache,
