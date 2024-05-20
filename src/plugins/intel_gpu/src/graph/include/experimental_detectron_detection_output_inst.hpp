@@ -46,6 +46,8 @@ class typed_primitive_inst<experimental_detectron_detection_output>
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(experimental_detectron_detection_output_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(const experimental_detectron_detection_output_node& node, kernel_impl_params const& impl_param);
     static std::string to_string(const experimental_detectron_detection_output_node& node);
 

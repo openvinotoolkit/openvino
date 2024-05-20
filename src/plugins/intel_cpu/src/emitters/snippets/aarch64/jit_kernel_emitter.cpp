@@ -182,45 +182,11 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::j
     : jit_kernel_emitter(h, isa, expr), reg_indexes_idx(Operand::X1) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelStatic>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "Expectes KernelStatic expression");
-    master_shape = body->get_master_shape();
-    io_shapes.reserve(num_inputs + num_outputs);
-    io_data_layouts.reserve(num_inputs + num_outputs);
-    io_data_sizes.reserve(num_inputs + num_outputs);
-    const auto& io_exprs = body->get_IO_ops();
-    for (const auto& expr : io_exprs) {
-        snippets::lowered::PortDescriptorPtr desc = nullptr;
-        element::Type etype;
-        switch (expr->get_type()) {
-            case snippets::lowered::IOExpression::io_type::INPUT: {
-                const auto first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-                if (ov::is_type<snippets::op::RankNormalization>(first_consumer->get_node())) {
-                    desc = first_consumer->get_output_port_descriptor(0);
-                } else {
-                    desc = expr->get_output_port_descriptor(0);
-                }
-                etype = expr->get_node()->get_output_element_type(0);
-                break;
-            }
-            case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                desc = expr->get_input_port_descriptor(0);
-                etype = expr->get_node()->get_input_element_type(0);
-                break;
-            } default : {
-                OV_CPU_JIT_EMITTER_THROW("Detected unsupported io_type");
-            }
-        }
-        const auto& shape = desc->get_shape();
-        const auto& layout = desc->get_layout();
-        OV_CPU_JIT_EMITTER_ASSERT(shape.size() == layout.size(), "Shape and layout must have the same length");
-        const auto max_dim = *std::max_element(layout.begin(), layout.end());
-        OV_CPU_JIT_EMITTER_ASSERT(max_dim < shape.size(), "Max layout index can't be larger than the shape size");
-        io_shapes.push_back(shape);
-        io_data_layouts.push_back(layout);
-        io_data_sizes.push_back(etype.size());
-    }
-    // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)
-    //       so we have to reproduce this behavior here
-    master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
+    jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
+    master_shape = jcp.exec_domain;
+    data_offsets = jcp.data_offsets;
+    OV_CPU_JIT_EMITTER_ASSERT(data_offsets.size() == num_inputs + num_outputs, "Incompatible count of data offsets!");
+    OV_CPU_JIT_EMITTER_ASSERT(data_offsets.front().size() == master_shape.size(), "Incompatible rank of data offsets!");
 
     // - Reserve reg_indexes_idx and reg_runtime_params_idx, since they'll be used to pass runtime call args to kernel
     // - However we can use reg_indexes_idx for non memory access operations
@@ -237,44 +203,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& data
     const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = master_shape.size() - 1;
-    std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
-    auto offset_calculation = [=](const std::vector<size_t>& shape, const std::vector<size_t>& layout, const size_t data_size, bool is_input) {
-        // Strides represent distance between consecutive elements of corresponding dimension.
-        // If a dim size == 1, then the next dim starts immediately and the stride is 0
-        // case 1:
-        //    shape:         s0,    s1, s2, s3
-        //    strides: s1*s2*s3, s2*s3, s3,  1
-        // case 2:
-        //    shape:      s0, s1, s2 == 1, s3
-        //    strides: s1*s3, s3,       0,  1
-        std::vector<size_t> strides(shape.size());
-        size_t dim_step = 1;
-        strides[shape.size() - 1] = 1;
-        for (int k = static_cast<int>(shape.size()) - 2; k >= 0; k--) {
-            dim_step *= shape[k+1];
-            strides[k] = shape[k] != 1 ? dim_step * data_size : 0;
-        }
-        // Note: this is an extra copy, but let's keep it for clarity
-        if (!layout.empty()) {
-            std::vector<size_t> reordered_strides(strides.size());
-            for (size_t i = 0; i < layout.size(); i++) {
-                const auto& src_idx = is_input ? layout[i] : i;
-                const auto& dst_idx = is_input ? i : layout[i];
-                reordered_strides[dst_idx] = strides[src_idx];
-            }
-            strides = std::move(reordered_strides);
-        }
-        // the last stride is ignored, since the entire last dim is processed by kernel
-        // and no parallel_for data_ptr offsets can be applied in this case
-        strides.pop_back();
-        // actual offset size might be larger that the shape size due to 6D scheduling
-        strides.insert(strides.begin(), offset_rank - strides.size(), 0);
 
-        return strides;
-    };
-    for (size_t i = 0; i < num_params; i++) {
-        data_offsets[i] = offset_calculation(io_shapes[i],  io_data_layouts[i], io_data_sizes[i], i < num_inputs);
-    }
     // master_shape size must be valid in both static and dynamic cases
     auto init_ptr_with_offset = [&](XReg pointer, const std::vector<size_t>& offsets) {
         for (size_t j = 0; j < offset_rank; j++) {
