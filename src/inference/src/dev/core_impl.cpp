@@ -1287,11 +1287,9 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             {
                 OPENVINO_SUPPRESS_DEPRECATED_START
                 if (device_supports_cache_dir(plugin.second)) {
-                    ov::AnyMap empty_map;
-                    auto cacheConfig = coreConfig.get_cache_config_for_device(plugin.second, empty_map);
-                    if (cacheConfig._cacheManager) {
-                        configCopy[ov::cache_dir.name()] = cacheConfig._cacheDir;
-                    }
+                    ov::AnyMap empty_map = {};
+                    configCopy[ov::cache_dir.name()] =
+                        coreConfig.get_cache_config_for_device(plugin.second, empty_map)._cacheDir;
                 } else if (configCopy.count(ov::cache_dir.name()) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     configCopy.erase(ov::cache_dir.name());

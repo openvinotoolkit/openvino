@@ -14,6 +14,7 @@
 
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "gemm_inst.h"
+#include "permute_inst.h"
 
 #include <cstddef>
 #include <vector>
@@ -739,6 +740,7 @@ public:
             beam_table_shape = { BATCH_SIZE, K_SIZE, 1, 1 };
         else if (indirect_input1)
             beam_table_shape = { BATCH_SIZE, 1, 1, K_SIZE };
+        int64_t indirect_axis = 0;
 
         cldnn::layout input0_layout = layout{ov::PartialShape::dynamic(input0_shape.size()), data_types::f32, format::bfyx};
         cldnn::layout input1_layout = layout{ov::PartialShape::dynamic(input1_shape.size()), data_types::f32, format::bfyx};
@@ -760,7 +762,7 @@ public:
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
                      input_layout("beam_table", beam_table_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, input0_order, input1_order, {}, indirect_input0, indirect_input1)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, input0_order, input1_order, {}, indirect_input0, indirect_input1, indirect_axis)
             );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -2594,6 +2596,81 @@ TEST(gemm_onednn, impl_replacement_with_cldnn) {
     impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_FALSE(impl->is_dynamic());
+}
+
+// Check gemm_onednn transpose_format() can accept transpose white list format (byfx/bxfy)
+TEST(gemm_onednn, check_transpose_format_byfx) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 128, 64, 12 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 128, 64, 12 } });
+
+    topology topology;
+    topology.add(input_layout("input0", input0->get_layout()));
+    topology.add(permute("permute0", input_info("input0"), {0, 2, 1, 3}));
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(permute("permute1", input_info("input1"), {0, 2, 1, 3}));
+    topology.add(gemm("gemm", { input_info("permute0"), input_info("permute1") }, data_types::f16, false, true));
+
+    ov::intel_gpu::ImplementationDesc impl = { format::bfyx, "", impl_types::onednn };
+    ExecutionConfig config{ ov::intel_gpu::queue_type(QueueTypes::in_order),
+                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", impl} }),
+                         ov::intel_gpu::optimize_data(true),
+                         ov::intel_gpu::allow_new_shape_infer(false) };
+    network network(engine, topology, config);
+
+    auto input0_data = rg.generate_random_1d<ov::float16>(input0->get_layout().count(), -1, 1);
+    auto input1_data = rg.generate_random_1d<ov::float16>(input1->get_layout().count(), -1, 1);
+
+    set_values(input0, input0_data);
+    set_values(input1, input1_data);
+
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+
+    ASSERT_NO_FATAL_FAILURE(network.execute()); 
+}
+
+TEST(gemm_onednn, check_transpose_format_bxfy) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 128, 64, 12 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 128, 64, 12 } });
+
+    topology topology;
+    topology.add(input_layout("input0", input0->get_layout()));
+    topology.add(permute("permute0", input_info("input0"), {0, 3, 1, 2}));
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(permute("permute1", input_info("input1"), {0, 3, 1, 2}));
+    topology.add(gemm("gemm", { input_info("permute0"), input_info("permute1") }, data_types::f16, false, true));
+
+    ov::intel_gpu::ImplementationDesc impl = { format::bfyx, "", impl_types::onednn };
+    ExecutionConfig config{ ov::intel_gpu::queue_type(QueueTypes::in_order),
+                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", impl} }),
+                         ov::intel_gpu::optimize_data(true),
+                         ov::intel_gpu::allow_new_shape_infer(false) };
+    network network(engine, topology, config);
+
+    auto input0_data = rg.generate_random_1d<ov::float16>(input0->get_layout().count(), -1, 1);
+    auto input1_data = rg.generate_random_1d<ov::float16>(input1->get_layout().count(), -1, 1);
+
+    set_values(input0, input0_data);
+    set_values(input1, input1_data);
+
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+
+    ASSERT_NO_FATAL_FAILURE(network.execute()); 
 }
 
 template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>

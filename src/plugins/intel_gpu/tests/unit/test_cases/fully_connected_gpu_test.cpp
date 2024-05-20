@@ -316,6 +316,61 @@ TEST(fully_connected_gpu, no_biases_int8) {
     ASSERT_EQ(-52.0f, output_ptr[3]);
 }
 
+TEST(fully_connected_gpu, no_biases_fc_i32) {
+    const int32_t input_b = 1, input_f = 3,     // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;   // size of the whole weights buffer
+
+    auto& engine = get_test_engine();
+
+    auto input_prim = engine.allocate_memory({ data_types::i32, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i32, format::bfyx, { weight_b, weight_f, 1, 1 } });
+
+    set_values<int32_t>(input_prim, {
+        8, 2, -4
+    });
+
+    set_values<int32_t>(weights_prim, {
+        2, 1, 0,
+        -3, -2, 1,
+        0, -2, -4,
+        -5, 10, 8
+    });
+
+    cldnn::topology topology{
+        input_layout("input", input_prim->get_layout()),
+        data("weights", weights_prim),
+        reorder("reorder_to_i32", input_info("input"), { data_types::i32, format::bfyx, { input_b, input_f, 1, 1 } }),
+        fully_connected("fc_prim", input_info("reorder_to_i32"), "weights"),
+        reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { input_b, weight_b, 1, 1 } })
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+
+    network.set_input_data("input", input_prim);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder_to_float");
+
+    auto output_memory = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr (output_memory, get_test_stream());
+    auto output_layout = output_memory->get_layout();
+
+    ASSERT_EQ(output_layout.format, format::bfyx);
+
+    VVF<float> output_ref = {
+        { 18, -32, 12, -52 },
+    };
+
+    for (int i = 0; i< weight_b; ++i) {
+        ASSERT_EQ(output_ref[0][i], output_ptr[i]);
+    }
+}
+
 TEST(fully_connected_gpu, xb_f32_batch_1) {
     //  Input  : 3x1
     //  Output : 4x1
@@ -1564,6 +1619,60 @@ public:
 
         for (size_t i = 0; i < expected_result.size(); i++) {
             ASSERT_FLOAT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+        }
+    }
+
+    void test_compressed_int8_scale_zp_scalar(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        long ifm_num = 6;
+        long ofm_num = 8;
+
+        auto input_mem = engine.allocate_memory({ { 1, ifm_num }, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ { ofm_num, ifm_num }, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ { ofm_num, 1 }, data_types::f16, format::bfyx });
+
+        set_values<ov::float16>(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f, 0.5f, 2.0f });
+        set_values<uint8_t>(weights_mem, { 0, 1, 2, 3, 4, 5,
+                                           0, 1, 2, 3, 4, 5,
+                                           0, 1, 2, 3, 4, 5,
+                                           0, 1, 2, 3, 4, 5,
+                                           0, 1, 2, 3, 4, 5,
+                                           0, 1, 2, 3, 4, 5,
+                                           0, 1, 2, 3, 4, 5,
+                                           0, 1, 2, 3, 4, 5 });
+        set_values<ov::float16>(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16);
+        fc_prim.decompression_zero_point_scalar = 8;
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            fc_prim
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+        ov::PartialShape expected_shape{1, 8};
+        ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+        std::vector<ov::float16> expected_result = { -52.f, -104.f, 52.f, 104.f, -13.f, 13.f, -52.f, -52.f };
+        for (size_t i = 0; i < output_ptr.size(); ++i) {
+            ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
         }
     }
 
@@ -3026,6 +3135,11 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_fp16) {
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_fp16_cached) {
     this->test_compressed_scale_fp16(false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
+    // Testing support for decompression zero points with group size that is not a power of two
+    this->test_compressed_int8_scale_zp_scalar(false);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {

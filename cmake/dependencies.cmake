@@ -18,7 +18,7 @@ if(THREADING STREQUAL "OMP")
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
                 SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
                 USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND X86_64)
+    elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
@@ -101,7 +101,7 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
                 USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
+    elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "oneapi-tbb-2021.2.4-lin.tgz"
@@ -132,21 +132,21 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "09fe7f5e7be589aa34ccd20fdfd7cad9e0afa89d1e74ecdb008a75d0af71d6e1"
                 USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND AARCH64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
+    elseif(LINUX AND AARCH64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64-20231012.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.5-lin-arm64.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "cbb239cbda7ea2937cec7008c12fe628dd44488e1eafd9630f8814f9eb2c13e2"
+                SHA256 "86b24e4db254136bf88f0a8195ae478494e34db109e08569b1c059b174494865"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND AARCH64)
         # build oneTBB 2021.2.1 with export MACOSX_DEPLOYMENT_TARGET=11.0
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.2.4-mac-arm64.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.2.5-mac-arm64.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "5e4581b95648d1c5d8f0742badecf48a9529feab6bc55ac94b526eddaf6a18c9"
+                SHA256 "bb1f84b1dcc50787f35c99b4b6ecea733d3068ca3467b5ebd2e369c4f7eccb53"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
@@ -203,7 +203,7 @@ function(ov_download_tbbbind_2_5)
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "49ae93b13a13953842ff9ae8d01681b269b5b0bc205daf18619ea9a828c44bee"
                 USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND X86_64)
+    elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v4.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"

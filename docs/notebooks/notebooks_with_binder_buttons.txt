@@ -5,7 +5,6 @@ async-api
 auto-device
 convert-to-openvino
 cross-lingual-books-alignment
-ct-scan-live-inference
 depth-anything
 detectron2-to-openvino
 distilbert-sequence-classification
@@ -18,7 +17,6 @@ hugging-face-hub
 image-classification-quantization
 image-inpainting
 knowledge-graphs-conve
-machine-translation
 magika-content-type-recognition
 meter-reader
 model-tools
@@ -32,7 +30,6 @@ paddle-to-openvino-classification
 person-tracking
 pose-estimation
 pytorch-onnx-to-openvino
-question-answering
 291-rmbg-background-removal
 speech-to-text
 style-transfer
@@ -45,5 +42,3 @@ vehicle-detection-and-recognition
 vision-background-removal
 vision-image-colorization
 vision-monodepth
-vision-superresolution-image
-vision-superresolution-video
