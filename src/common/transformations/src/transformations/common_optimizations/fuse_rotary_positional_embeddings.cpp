@@ -12,6 +12,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -538,9 +539,9 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionQwen);
 
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
-    auto rotary_emb_cos = makePattern("f32[1,?,1,?]");  // [1,..4096,1,128]
-    auto rotary_emb_sin = makePattern("f32[1,?,1,?]");  // [1,..4096,1,128]
-    auto qkv_proj = makePattern("f32[?,?,?]");          // f32[?,?,12288]
+    auto rotary_emb_cos = makePattern("[1,?,1,?]");  // [1,..4096,1,128]
+    auto rotary_emb_sin = makePattern("[1,?,1,?]");  // [1,..4096,1,128]
+    auto qkv_proj = makePattern("[?,?,?]");          // [?,?,12288]
 
     auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
     auto head_size = ov::gen_pattern::Symbol("head_size");

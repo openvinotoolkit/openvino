@@ -611,7 +611,7 @@ protected:
 };
 
 TEST_P(RoPEGPUTestGPTJ, smoke_CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    GTEST_SKIP();
     run();
     std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);

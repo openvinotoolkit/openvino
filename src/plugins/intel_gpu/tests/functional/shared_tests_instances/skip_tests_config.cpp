@@ -202,9 +202,8 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: 136862
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
 
-            // TODO: Add RoPE support for Llama2, Qwen7b, GPTJ models
+            // TODO: Add RoPE support for Llama2, GPTJ models
             R"(.*(RoPEGPUTestLlama2).*)",
-            R"(.*(RoPEGPUTestQwen7b).*)",
             R"(.*(RoPEGPUTestGPTJ).*)",
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
