@@ -5,7 +5,6 @@
 
 #include "common/primitive_hashing_utils.hpp"
 #include "dnnl_extension_utils.h"
-#include "emitters/snippets/x64/cpu_generator.hpp"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -22,15 +21,23 @@
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
+#include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
+
+#if defined(OPENVINO_ARCH_ARM64)
+#include "emitters/snippets/aarch64/cpu_generator.hpp"
+#include "transformations/snippets/aarch64/shape_inference.hpp"
+#else
+#include "emitters/snippets/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
-#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
+#endif
+
 #include "utils/cpu_utils.hpp"
 #include "utils/ngraph_utils.hpp"
 
@@ -38,16 +45,21 @@
 #include <array>
 #include <vector>
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
 #include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 #include <signal.h>
 std::mutex err_print_lock;
 #endif
 
+#ifdef SNIPPETS_LIBXSMM_TPP
+#include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
+#include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
+#include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
+#include "transformations/tpp/x64/pass/lowered/set_tpp_leading_dim.hpp"
+#endif
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
-using namespace dnnl::impl::cpu::x64;
-using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
@@ -128,15 +140,21 @@ bool SnippetKey::operator==(const SnippetKey& rhs) const {
 
 Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         : Node(op, context, SnippetShapeInferFactory(op)) {
+#if defined(OPENVINO_ARCH_ARM64)
+    host_isa = dnnl::impl::cpu::aarch64::asimd;
+#else
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
+#endif
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
     OPENVINO_ASSERT(tmp_snippet, "Attempt to create Snippet node from an invalid op type");
     snippetAttrs.snippet = tmp_snippet->clone();
     snippetAttrs.bodyHash = get_body_hash(tmp_snippet);
 
-#if defined(OPENVINO_ARCH_X86_64)
-    snippetAttrs.snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+#if defined(OPENVINO_ARCH_ARM64)
+    snippetAttrs.snippet->set_generator(std::make_shared<aarch64::CPUGenerator>(host_isa));
+#elif defined(OPENVINO_ARCH_X86_64)
+    snippetAttrs.snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
 #else
     OPENVINO_THROW("CPU plugin: Snippets code-generator is not supported on non-x64 platforms");
 
@@ -176,12 +194,16 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
+#if defined(OPENVINO_ARCH_ARM64)
+    bool isBlockedApplicable = false;
+#else
     bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  3u, 4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1)
             isBlockedApplicable = isBlockedApplicable && inShape.getMinDims()[1] != Shape::UNDEFINED_DIM && inShape.getMinDims()[1] > 1;
     }
+#endif
 
     enum LayoutType {
         Planar,
@@ -207,7 +229,11 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
-                size_t blockSize = mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
+#if defined(OPENVINO_ARCH_ARM64)
+                size_t blockSize = 16;
+#else
+                size_t blockSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
+#endif
 
                 VectorDims blocks = dims;
                 VectorDims order(blocks.size());
@@ -271,11 +297,17 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         }
 
         impl_desc_type impl_type = impl_desc_type::unknown;
-        if (mayiuse(x64::avx512_core)) {
+#if defined(OPENVINO_ARCH_ARM64)
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
+            impl_type = impl_desc_type::jit_asimd;
+        }
+#else
+        if (dnnl::impl::cpu::x64::mayiuse(x64::avx512_core)) {
             impl_type = impl_desc_type::jit_avx512;
-        } else if (mayiuse(x64::avx2)) {
+        } else if (dnnl::impl::cpu::x64::mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
         }
+#endif
         return {config, impl_type};
     };
 
@@ -334,35 +366,48 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     // * data flow optimizations
     // The result of these transformations will be reused by all shapes
     std::vector<ov::snippets::pass::Manager::PositionedPassBase> backend_passes;
-#if defined(OPENVINO_ARCH_X86_64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
-#   define SNIPPETS_REGISTER_PASS_ABSOLUTE(PASS_PLACE, PASS, ...) \
+#   define SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(PASS_PLACE, PASS, ...) \
             backend_passes.emplace_back(PassPosition(PASS_PLACE), std::make_shared<PASS>(__VA_ARGS__))
-#   define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...) \
+#if defined(OPENVINO_ARCH_X86_64)
+#   define SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(PASS_PLACE, PASS, ...) \
+            backend_passes.emplace_back(PassPosition(PASS_PLACE), std::make_shared<PASS>(__VA_ARGS__))
+#   define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...) \
             backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), std::make_shared<PASS>(__VA_ARGS__))
 #else
-#    define SNIPPETS_REGISTER_PASS_ABSOLUTE(PASS_PLACE, PASS, ...)
-#    define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...)
+#    define SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(PASS_PLACE, PASS, ...)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
-    SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineStart, ConvertToSwishCPU);
+    SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineStart, ConvertToSwishCPU);
     if (context->getConfig().inferencePrecision == ov::element::bf16 && snippetAttrs.snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
         // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
-        SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineStart, ov::snippets::pass::MatMulToBrgemm);
-        SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::pass::MatMulToBrgemm,
-                                        pass::EnforcePrecision, element::f32, element::bf16);
+        SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineStart, ov::snippets::pass::MatMulToBrgemm);
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::snippets::pass::MatMulToBrgemm,
+                                               pass::EnforcePrecision, element::f32, element::bf16);
     }
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::pass::PropagatePrecision,
-                                    ov::intel_cpu::pass::BrgemmToBrgemmCPU);
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                    ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
-    SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
-    SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::snippets::pass::PropagatePrecision,
+                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
+    SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
+    SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
-#undef SNIPPETS_REGISTER_PASS
+#ifdef SNIPPETS_LIBXSMM_TPP
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
+    // Note: There could be several ConvertConstantsToScalars instances in the pipeline
+    SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP,
+                                           ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
+#endif
+
+#undef SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON
+#undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 
     std::vector<ov::element::Type> input_precisions;
     std::vector<ov::element::Type> output_precisions;
@@ -377,8 +422,14 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     snippetAttrs.snippet->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
     // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
+#ifdef SNIPPETS_LIBXSMM_TPP
+    const auto& lir = snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
+                                                                      std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
+    lir->set_loop_depth(std::min(2ul, lir->get_master_shape().size()));
+#else
     snippetAttrs.snippet->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
                                                     std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
+#endif
 }
 
 ov::element::Type Snippet::getRuntimePrecision() const {
@@ -518,7 +569,7 @@ void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
     }
 }
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
 void Snippet::SnippetJitExecutor::segfault_detector() {
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippetAttrs.snippet->get_generator()->get_target_machine());
     if (target && target->debug_config.enable_segfault_detector) {
@@ -537,24 +588,33 @@ void Snippet::SnippetJitExecutor::segfault_detector() {
 #endif
 
 void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
 #endif
-    parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
-        [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
-            int64_t indexes[] = {d0, d1, d2, d3, d4};
-            jit_snippets_call_args call_args;
-            update_ptrs(call_args, inMemPtrs, outMemPtrs);
+    int nthr = std::min(parallel_get_max_threads(), static_cast<int>(harnessWorkAmount));
+    parallel_nt(nthr, [&](const int ithr, const int nthr) {
+        jit_snippets_call_args call_args;
+        update_ptrs(call_args, inMemPtrs, outMemPtrs);
+
+        size_t start = 0, end = 0;
+        splitter(harnessWorkAmount, nthr, ithr, start, end);
+
+        size_t indexes[] = {0, 0, 0, 0, 0};
+        size_t dom[] = {parallel_exec_domain[0], parallel_exec_domain[1], parallel_exec_domain[2],
+                        parallel_exec_domain[3], parallel_exec_domain[4]};
+        parallel_it_init(start, indexes[0], dom[0], indexes[1], dom[1], indexes[2], dom[2], indexes[3], dom[3], indexes[4], dom[4]);
+        for (size_t iwork = start; iwork < end; ++iwork) {
             callable(&call_args, indexes);
-        });
+            parallel_it_step(indexes[0], dom[0], indexes[1], dom[1], indexes[2], dom[2], indexes[3], dom[3], indexes[4], dom[4]);
+        }
+    });
 }
 
 void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     const auto& work_size = parallel_exec_domain;
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
 #endif
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -628,22 +688,32 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
 #if defined(OPENVINO_ARCH_X86_64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
-#   define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...) \
+#   define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...) \
             backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), std::make_shared<PASS>(__VA_ARGS__))
 #else
-#    define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::MarkLoops,
-                                    ov::intel_cpu::pass::BrgemmBlocking);
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InsertLoops,
-                                    ov::intel_cpu::pass::FuseLoadStoreConvert);
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
-                                    ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::snippets::lowered::pass::MarkLoops,
+                                           ov::intel_cpu::pass::BrgemmBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::snippets::lowered::pass::InsertLoops,
+                                           ov::intel_cpu::pass::FuseLoadStoreConvert);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
+                                           ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
 
-    schedule = snippetAttrs.snippet->generate_from_linear_ir(std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
+    auto lowering_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
+#ifdef SNIPPETS_LIBXSMM_TPP
+    // Note: temporary disabled. Re-enable after ticket 132833 is resolved
+    lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
+                                    ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
+#endif
+
+    schedule = snippetAttrs.snippet->generate_from_linear_ir(lowering_config,
                                                              backend_passes,
                                                              reinterpret_cast<const void*>(jcp));
+
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 }
 
 bool Snippet::SnippetJitExecutor::schedule_created() {

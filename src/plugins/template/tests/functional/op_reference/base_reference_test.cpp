@@ -103,10 +103,6 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
 
     const auto& element_type = refBlob.get_element_type();
     if (!legacy_compare) {
-        double abs_threshold_{abs_threshold};
-        if (abs_threshold_ < 0.)
-            abs_threshold_ = std::numeric_limits<double>::max();
-
         switch (element_type) {
         case ov::element::boolean:
         case ov::element::bf16:
@@ -121,11 +117,7 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
         case ov::element::u16:
         case ov::element::u32:
         case ov::element::u64:
-            ov::test::utils::compare(refBlob,
-                                     outBlob,
-                                     //  actual_comparision_size,
-                                     abs_threshold_,
-                                     threshold);
+            ov::test::utils::compare(refBlob, outBlob, abs_threshold, threshold);
             return;
         }
     }

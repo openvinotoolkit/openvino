@@ -10,6 +10,7 @@
 
 #include "emitter.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "kernel_executor_table.hpp"
 
 namespace ov {
 namespace snippets {
@@ -51,6 +52,12 @@ public:
     virtual size_t get_lanes() const = 0;
 
     /**
+     * @brief gets number of registers for a target machine
+     * @return number of registers
+     */
+    virtual size_t get_reg_count() const = 0;
+
+    /**
      * @brief called by generator to all the emitter for a target machine
      * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
      */
@@ -62,10 +69,12 @@ public:
      * @return true, if supported
      */
     bool has(const ov::DiscreteTypeInfo& type) const;
+    virtual std::shared_ptr<TargetMachine> clone() const = 0;
     virtual ~TargetMachine() = default;
 
 protected:
     std::map<const ov::DiscreteTypeInfo, jitters_value> jitters;
+    std::shared_ptr<KernelExecutorTable> kernel_executor_table;
 };
 
 } // namespace snippets

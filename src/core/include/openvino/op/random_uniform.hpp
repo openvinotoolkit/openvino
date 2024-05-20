@@ -97,7 +97,6 @@ protected:
     uint64_t m_op_seed;
     PhilloxAlignment m_alignment;
 
-    mutable std::mutex m_state_mutex;
     mutable std::pair<uint64_t, uint64_t> m_state;
 };
 }  // namespace v8

@@ -82,6 +82,14 @@ ov::log::Level OptionParser<ov::log::Level>::parse(std::string_view val) {
     return level;
 }
 
+ov::hint::ExecutionMode OptionParser<ov::hint::ExecutionMode>::parse(std::string_view val) {
+    std::string strVal(val);
+    std::istringstream is(strVal);
+    ov::hint::ExecutionMode mode;
+    is >> mode;
+    return mode;
+}
+
 //
 // OptionPrinter
 //
@@ -91,6 +99,12 @@ std::string OptionPrinter<bool>::toString(bool val) {
 }
 
 std::string OptionPrinter<ov::log::Level>::toString(ov::log::Level val) {
+    std::ostringstream os;
+    os << val;
+    return os.str();
+}
+
+std::string OptionPrinter<ov::hint::ExecutionMode>::toString(ov::hint::ExecutionMode val) {
     std::ostringstream os;
     os << val;
     return os.str();
@@ -167,8 +181,8 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
 }
 
 void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) const {
-    for (const auto& [_, opt] : _impl) {
-        cb(opt);
+    for (const auto& itr : _impl) {
+        cb(itr.second);
     }
 }
 
@@ -211,7 +225,7 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
 std::string Config::toString() const {
     std::stringstream resultStream;
     for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
-        const auto key = it->first;
+        const auto& key = it->first;
 
         resultStream << key << "=\"" << it->second->toString() << "\"";
         if (std::next(it) != _impl.end()) {

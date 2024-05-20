@@ -5,7 +5,7 @@
 #pragma once
 #include <vector>
 
-#include "npu_driver_compiler_adapter.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "openvino/pass/manager.hpp"
 
 /**

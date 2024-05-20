@@ -38,7 +38,7 @@ void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     std::set<std::vector<size_t>> layouts;
     for (const auto& consumer_input : consumer_inputs) {
         const auto& node = consumer_input.get_expr()->get_node();
-        if (const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(node)) {
+        if (const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(node)) {
             OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
                             "Parameter expects MemoryAccess on output");
             layouts.insert(consumer_input.get_descriptor_ptr()->get_layout());
@@ -55,7 +55,7 @@ void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
     const auto source = expr_val->get_input_port_connector(0)->get_source();
-    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
+    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
     OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()),
                     "Result expects MemoryAccess parent");
 }
@@ -65,7 +65,7 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
                     "Buffer validation expects Buffer op");
     const auto& in = expr->get_input_port_connector(0);
     const auto& source = in->get_source();
-    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
+    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
     OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
                     "Buffer expects MemoryAccess parent");
     const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(expr);
@@ -74,7 +74,7 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto consumers = out->get_consumers();
     for (const auto& consumer_input : consumers) {
         const auto& node = consumer_input.get_expr()->get_node();
-        if (const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(node)) {
+        if (const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(node)) {
             OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
                             "Buffer expects MemoryAccess on output");
         } else {
@@ -90,31 +90,30 @@ void validate_loop_end_static(const ExpressionPtr& expr, const LinearIR& linear_
                     "LoopEndStatic must be connected to the LoopBeginStatic");
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto& loop_info = loop_manager->get_loop_info(loop_end->get_id());
+    const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
     OPENVINO_ASSERT(loop_info->get_work_amount() == loop_end->get_work_amount() &&
                     loop_info->get_increment() == loop_end->get_increment(),
                     "Incompatible LoopEndStatic and the corresponding LoopInfo");
 
-    const auto& entry_points = loop_info->get_entry_points();
-    const auto& exit_points = loop_info->get_exit_points();
-    OPENVINO_ASSERT(entry_points.size() == loop_end->get_input_num() &&
-                    exit_points.size() == loop_end->get_output_num(),
+    const auto input_port_infos = loop_info->get_input_ports_info();
+    const auto output_port_infos = loop_info->get_output_ports_info();
+    OPENVINO_ASSERT(input_port_infos.size() == loop_end->get_input_num() &&
+                    output_port_infos.size() == loop_end->get_output_num(),
                     "Incompatible LoopEndStatic and the corresponding LoopInfo");
 
     const auto& is_incremented = loop_end->get_is_incremented();
     const auto& ptr_increments = loop_end->get_ptr_increments();
     const auto& final_offsets = loop_end->get_finalization_offsets();
-
-    auto validate_loop_ports = [&](const std::vector<LinearIR::LoopManager::LoopPort>& loop_ports, size_t shift = 0) {
-        for (size_t i = 0; i < loop_ports.size(); ++i) {
-        OPENVINO_ASSERT(is_incremented[i + shift] == loop_ports[i].is_incremented &&
-                        ptr_increments[i + shift] == loop_ports[i].ptr_increment &&
-                        final_offsets[i + shift] == loop_ports[i].finalization_offset,
-                        "Incompatible data ptr shifts in LoopEndStatic and the corresponding LoopInfo");
+    auto validate_loop_ports = [&](const std::vector<UnifiedLoopInfo::LoopPortInfo>& loop_port_infos, size_t shift = 0) {
+        for (size_t i = 0; i < loop_port_infos.size(); ++i) {
+            OPENVINO_ASSERT(is_incremented[i + shift] == loop_port_infos[i].port.is_incremented &&
+                            ptr_increments[i + shift] == loop_port_infos[i].desc.ptr_increment &&
+                            final_offsets[i + shift] == loop_port_infos[i].desc.finalization_offset,
+                            "Incompatible data ptr shifts in LoopEndStatic and the corresponding LoopInfo");
         }
     };
-    validate_loop_ports(entry_points);
-    validate_loop_ports(exit_points, loop_end->get_input_num());
+    validate_loop_ports(input_port_infos);
+    validate_loop_ports(output_port_infos, loop_end->get_input_num());
 }
 
 void validate_loop_end_dynamic(const ExpressionPtr& expr, const LinearIR& linear_ir) {
@@ -124,26 +123,24 @@ void validate_loop_end_dynamic(const ExpressionPtr& expr, const LinearIR& linear
                     "LoopEndDynamic must be connected to the LoopBeginDynamic");
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto& loop_info = loop_manager->get_loop_info(loop_end->get_id());
+    const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
     OPENVINO_ASSERT(loop_info->get_increment() == loop_end->get_increment(),
                     "Incompatible LoopEndDynamic and the corresponding LoopInfo");
 
-    const auto& entry_points = loop_info->get_entry_points();
-    const auto& exit_points = loop_info->get_exit_points();
-    OPENVINO_ASSERT(entry_points.size() == loop_end->get_input_num() &&
-                    exit_points.size() == loop_end->get_output_num(),
+    OPENVINO_ASSERT(loop_info->get_input_count() == loop_end->get_input_num() &&
+                    loop_info->get_output_count() == loop_end->get_output_num(),
                     "Incompatible LoopEndStatic and the corresponding LoopInfo");
 
     const auto& is_incremented = loop_end->get_is_incremented();
 
-    auto validate_loop_ports = [&](const std::vector<LinearIR::LoopManager::LoopPort>& loop_ports, size_t shift = 0) {
+    auto validate_loop_ports = [&](const std::vector<LoopPort>& loop_ports, size_t shift = 0) {
         for (size_t i = 0; i < loop_ports.size(); ++i) {
         OPENVINO_ASSERT(is_incremented[i + shift] == loop_ports[i].is_incremented,
                         "Incompatible data ptr shifts in LoopEndStatic and the corresponding LoopInfo");
         }
     };
-    validate_loop_ports(entry_points);
-    validate_loop_ports(exit_points, loop_end->get_input_num());
+    validate_loop_ports(loop_info->get_input_ports());
+    validate_loop_ports(loop_info->get_output_ports(), loop_end->get_input_num());
 }
 } // namespace
 

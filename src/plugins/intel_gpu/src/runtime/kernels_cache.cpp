@@ -14,6 +14,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
+#include "openvino/util/pp.hpp"
 
 #ifdef WIN32
 #include <sdkddkver.h>
@@ -89,9 +90,8 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
     GPU_DEBUG_IF(debug_config->max_kernels_per_batch >= 1) {
         return static_cast<size_t>(debug_config->max_kernels_per_batch);
     }
-    return 8;
+    return _config.get_property(ov::intel_gpu::max_kernels_per_batch);
 }
-
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
@@ -454,7 +454,7 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_mutex);
         _kernels_code.clear();
         _pending_compilation = false;
-#if defined(__unix__) && !defined(__ANDROID__)
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
@@ -617,7 +617,7 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
     OPENVINO_ASSERT(output_kernels.size() == 1, "Only the kernels of the single primitive should be compiled.");
 
     t_kernels_code.clear();
-#if defined(__unix__) && !defined(__ANDROID__)
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
