@@ -100,7 +100,7 @@ struct IODescriptor {
      * This field may be empty if the I/O entry is not found in the original IR model (i.e. the entry was added
      * by the compiler).
      */
-    std::optional<ov::PartialShape> shapeFromIRModel;
+    std::optional<ov::PartialShape> shapeFromIRModel = std::nullopt;
 };
 
 struct NetworkMetadata final {

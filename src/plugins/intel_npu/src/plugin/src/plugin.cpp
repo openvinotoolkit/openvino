@@ -24,8 +24,6 @@ using namespace intel_npu;
 
 namespace {
 
-const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
-
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 
 /**
@@ -59,18 +57,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         parameters.push_back(parameter);
     }
 
-    // The "result" nodes require a parent node in order to satisfy the legacy API naming conventions as well (in
-    // the 1.0 API, the name of an output is given by the parent of the "result" node). Additionally, a dummy shape for
-    // the "Constant" node was required since the specific constructor does not accept "ov::PartialShape" values (a
-    // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
-    // potentially dynamic, output shape.
     for (const IODescriptor& outputDescriptor : outputDescriptors) {
         if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
             continue;
         }
-
-        std::shared_ptr<ov::Node> constantDummy =
-            std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
 
         const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
             outputDescriptor.precision,
@@ -78,7 +68,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
                                                           : outputDescriptor.shapeFromCompiler,
             outputDescriptor.outputTensorNames);
 
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>();
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
         results.push_back(result);

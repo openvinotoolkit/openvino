@@ -898,7 +898,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             std::nullopt,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
-            std::optional(shapeFromIRModel)};
+            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
 }
 
 template <typename TableExtension>

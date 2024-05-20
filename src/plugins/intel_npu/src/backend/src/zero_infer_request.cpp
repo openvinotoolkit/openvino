@@ -118,6 +118,8 @@ size_t ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
         return DEFAULT_BATCH_SIZE;
     }
 
+    _logger.info("Batching is handled by the plugin");
+
     return candidateBatchSize;
 }
 
