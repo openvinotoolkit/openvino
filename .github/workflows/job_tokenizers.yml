@@ -20,12 +20,12 @@ on:
         description: 'Volumes to mount inside the Docker container'
         type: string
         required: false
-        default: null
+        default: ''
       container-options:
         description: 'Options for the Docker container'
         type: string
         required: false
-        default: null
+        default: ''
       affected-components:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string

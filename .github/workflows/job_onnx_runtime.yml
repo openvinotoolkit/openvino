@@ -16,12 +16,12 @@ on:
         description: 'Volumes to mount inside the Docker container'
         type: string
         required: false
-        default: null
+        default: ''
       container-options:
         description: 'Options for the Docker container'
         type: string
         required: false
-        default: null
+        default: ''
       sccache-azure-key-prefix:
         description: 'Key prefix for the cache folder on the Azure'
         type: string
