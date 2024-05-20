@@ -134,6 +134,14 @@ bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) 
     }
     return false;
 }
+
+bool has_user_fc_enabled_tp(const std::list<const program_node*>& users) {
+    for (const auto& user : users) {
+        if (user->is_type<fully_connected>())
+            return user->as<fully_connected>().w_size != 1;
+    }
+    return false;
+}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
@@ -562,9 +570,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             user->update_shape_done_by_other = true;
 
             auto fc_impl_params = *user->_impl_params;
-            std::cout << "bell debug" << fc_impl_params.input_layouts[0].to_short_string() << std::endl;
             auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
-            std::cout << "bdell debug after fake alignment" << fc_input_layout.to_short_string() << std::endl;
             if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
                                        << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
@@ -1403,7 +1409,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
         if (_node->is_type<fully_connected>()) {
             create_input_memory_placeholder();
-            GPU_DEBUG_TRACE_DETAIL << "bell debugline created new input memory place holder!!!! " << id() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << id() << ": create input memory place holder" << std::endl;
         }
         set_arguments();
     }
@@ -1869,6 +1875,9 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu) ||
+        // lockable memory for nodes with FC TP users, as we have to manipulate the FC input memory, to be optimized further
+        has_user_fc_enabled_tp(_node.get_users()) ||
+        // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
         (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 

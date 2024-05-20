@@ -708,19 +708,13 @@ void program::transfer_memory_to_device() {
             bool rank_enabled = false;
             if (node->get_users().size() == 1) {
                 auto user_node = node->get_users().front();
-                if (user_node->is_type<fully_connected>()) {
+                if (user_node->is_type<fully_connected>()) { // bypass static model for now
                     auto& fc_node = user_node->as<fully_connected>();
-                    GPU_DEBUG_TRACE_DETAIL << node->id() << " current in rank:  " << fc_node.w_rank << ", total size "
-                            << fc_node.w_size << std::endl;
-                    if (fc_node.w_size && fc_node.w_size != -1 && fc_node.w_size != 1) {
+                    if (fc_node.w_size != 1 && fc_node.is_dynamic()) { // world size > 1, means TP maybe applied further
                         auto rank = fc_node.w_rank;
                         auto weights_pshape = data_node_layout.get_partial_shape().to_shape();
-                        std::cout << "in program build!!!" << data_node_layout.to_short_string() << std::endl;
                         auto dims = data_node_layout.get_dims();
-                        auto dim = 1; // to be finalized
-                        if (weights_pshape[dim] == 1)
-                            dim = weights_pshape.size() -2;
-                        std::cout << weights_pshape[dim] << std::endl;
+                        auto dim = weights_pshape.size() - 1; // to be finalized
                         weights_pshape[dim] /= fc_node.w_size;
                         auto element_size = ov::element::Type(data_node_layout.data_type).size();
                         rank_weights_layout = layout(ov::PartialShape(weights_pshape),
@@ -732,38 +726,20 @@ void program::transfer_memory_to_device() {
                         auto dst_ptr = static_cast<uint8_t*>(rank_weights_memory_host->buffer_ptr());
                         auto src_ptr = static_cast<uint8_t*>(mem.buffer_ptr());
                         auto mem_size = mem.size(); // total bytes
-                        auto channel_size = dims[dim] * element_size; // selected dim bytes
-                        const int step = (mem_size / channel_size); // the steps need to copy.
-                        const int stride = dims[dim] / fc_node.w_size; // elements of half selected dim.
-                        const auto copy_size = stride * element_size; // bytes of half selected dim.
-                        ov::parallel_for(step, [&](int i){
+                        auto channel_size = dims[dim] * element_size;
+                        const int step = (mem_size / channel_size);
+                        const int stride = dims[dim] / fc_node.w_size;
+                        const auto copy_size = stride * element_size;
+                        // update weights in compile time, this will increase compile latency
+                        ov::parallel_for(step, [&](int i) {
                             int dst_offset = i * copy_size;
                             int src_offset = i * copy_size* 2 + rank * copy_size;
                             std::memcpy(dst_ptr + dst_offset, src_ptr + src_offset, copy_size);
                         });
                         rank_enabled = true;
-                        GPU_DEBUG_TRACE_DETAIL << node->id() << ": re-rank weights from " << data_node_layout.to_short_string() << " to "
+                        GPU_DEBUG_TRACE_DETAIL << node->id() << " [ rank: " << rank << " ]" <<
+                            ": re-rank weights for TP from " << data_node_layout.to_short_string() << " to "
                             << rank_weights_layout.to_short_string() << std::endl;
-                        /*if (fc_node.id() == "fullyconnected:__module.model.layers.0.self_attn.v_proj/aten::linear/MatMul") {
-                            std::ofstream file_stream("bell_original_weight_rank_" +
-                                    std::to_string(fc_node.w_rank) + ".txt");
-                            auto&& size = rank_weights_memory_host->get_layout().get_tensor();
-
-                            file_stream << "shape: " << size.to_string() << " ";
-                            file_stream << "(count: " << size.count()
-                                            << ", original format: " << cldnn::fmt_to_str(rank_weights_memory_host->get_layout().format) << ")" << std::endl;
-
-                            mem_lock<ov::float16, mem_lock_type::read> lock(rank_weights_memory_host, get_stream());
-                            auto mem_ptr = lock.data();
-                            std::stringstream buffer;
-
-                            {
-                                for (size_t i = 0; i < lock.size(); ++i) {
-                                    buffer << std::fixed << std::setprecision(6) << static_cast<float>(mem_ptr[i]) << std::endl;
-                                }
-                            }
-                            file_stream << buffer.str();
-                        }*/
                     }
                 }
             }

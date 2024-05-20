@@ -419,7 +419,6 @@ public:
     std::string uniqueID;
     bool is_shape_agnostic;
     size_t stage_id;
-    int tp_size;
     bool allowStaticInputReordering = true;  // allow kernel to provide a kernel which reorder static data like weights/bias/tables...
     bool allowInputReordering = false;  // allow kernel to ask graph compiler to reorder the input data before executing its
 

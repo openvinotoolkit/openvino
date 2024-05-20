@@ -11,6 +11,7 @@
 
 #include <string>
 #include <memory>
+#include <mutex>
 
 namespace cldnn {
 template <>
@@ -20,8 +21,7 @@ struct typed_program_node<fully_connected> : public typed_program_node_base<full
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog) {
-            if (getenv("ENABLE_CCL")) {
-                std::cout << getenv("ENABLE_CCL") << std::endl;
+            if (getenv("ENABLE_CCL")) { // only apply for dynamic models for now
                 w_rank = Messenger::getInstance().getRank();
                 w_size = Messenger::getInstance().getSize();
                 GPU_DEBUG_TRACE_DETAIL << "Apply TP rank " << w_rank << " : " << w_size << std::endl;
@@ -37,32 +37,19 @@ public:
 
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_engine().get_device_info().dev_type,
-                                                                                 get_program().get_stream_ptr(), get_primitive(),
-                                                                                 get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
-        params->memory_deps = get_const_memory_deps();
-        params->_can_be_optimized = this->optimized;
-        params->in_port_to_shape_info_offset = get_input_port_to_shape_info_offset_map();
-        params->out_port_to_shape_info_offset = get_output_port_to_shape_info_offset_map();
-        auto deps = get_dependencies();
-        for (size_t i = 0; i < deps.size(); i++) {
-            if (!deps[i].first->is_constant()) {
-                params->primary_input_idx = i;
-                break;
-            }
-        }
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        params->fused_desc_onednn = get_fused_primitives_onednn();
-#endif // ENABLE_ONEDNN_FOR_GPU
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
         if (bias_term())
             params->bias_layout = optional_layout(bias().get_output_layout());
-        params->w_rank = w_rank;
-        params->w_size = w_size;
+        // runtime decision if needs to apply TP based on different FC inputs/weights
+        if (is_dynamic()) {
+            params->w_rank = w_rank;
+            params->w_size = w_size;
+        }
         return params;
     }
     int w_rank = -1;
-    int w_size = 1;
+    int w_size = 1; // default 1 process, world size as 1
 };
 
 using fully_connected_node = typed_program_node<fully_connected>;
