@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/concat.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/squeeze.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
