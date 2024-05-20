@@ -43,6 +43,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
             }
         });
         program_helpers::do_for_types<permute>(*node, [](permute_node& node){
+            // if node is already optimized at compilation time, do not handle at runtime
+            if (node.can_be_optimized())
+                return;
             auto impl_params = node.get_kernel_impl_params();
             if (node.is_output() ||
                 node.has_fused_primitives() ||
