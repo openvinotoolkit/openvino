@@ -116,7 +116,9 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                 {},
                 np.array([4, 5, 6], dtype=np.float32),
                 np.float32,
-                None
+                None,
+                None,
+                False
             ),
             (
                 None,
@@ -152,14 +154,18 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                 {"add:0": np.array([4, 5, 6], dtype=np.float32), "z:0": np.array([1, 2, 3], dtype=np.float32)},
                 np.array([4, 10, 18], dtype=np.float32),
                 np.float32,
-                None
+                None,
+                None,
+                False
             ),
             (
                 "add:0{i32}[3],z:0{i32}",
                 {"add:0": np.array([4, 5, 6], dtype=np.int32), "z:0": np.array([1, 2, 3], dtype=np.int32)},
                 np.array([4, 10, 18], dtype=np.int32),
                 np.int32,
-                None
+                None,
+                None,
+                False
             ),
         ]
         for input_freezing_value, inputs, expected, dtype, freeze_placeholder_with_value, \
@@ -205,14 +211,18 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                 {"x": np.array([3, 2, 1, 5], dtype=np.float32)},
                 np.array([6, 4, 2, 10], dtype=np.float32),
                 np.float32,
-                None
+                None,
+                None,
+                False
             ),
             (
                 "x[1],y->[2.0,3.0]",
                 {"x": np.array([3], dtype=np.float32)},
                 np.array([6, 9], dtype=np.float32),
                 np.float32,
-                None
+                None,
+                None,
+                False
             ),
         ]
         for inputs, inputs_data, expected, dtype, freeze_placeholder_with_value, \
