@@ -181,21 +181,27 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                 {"x": np.array([[3, 2, 1, 5]], dtype=np.int32), "y": np.array([0, -1, -7, 8], dtype=np.int32)},
                 np.array([[3, 1, -6, 13]], dtype=np.int32),
                 np.int32,
-                None
+                None,
+                None,
+                False
             ),
             (
                 "x,y",
                 {"x": np.array([[-3, 20, 1]], dtype=np.int32), "y": np.array([[10, -11, -17]], dtype=np.int32)},
                 np.array([[7, 9, -16]], dtype=np.int32),
                 np.int32,
-                None
+                None,
+                None,
+                False
             ),
             (
                 "x",
                 {"x": np.array([[-3, 20, 1]], dtype=np.int32)},
                 np.array([[-2, 22, 4], [1, 25, 7]], dtype=np.int32),
                 np.int32,
-                None
+                None,
+                None,
+                False
             ),
         ]
         for inputs, inputs_data, expected, dtype, freeze_placeholder_with_value, \
