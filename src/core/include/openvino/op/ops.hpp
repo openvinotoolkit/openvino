@@ -154,7 +154,6 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/reverse.hpp"
 #include "openvino/op/reverse_sequence.hpp"
-#include "openvino/op/rms_norm.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/roi_align.hpp"

@@ -404,7 +404,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset15
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Col2Im, ShapeInferTA, util::bit::mask(1, 2)),
     // opset14
-    _OV_OP_SHAPE_INFER_MASK_REG(op::v14::RMSNorm, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset14::Inverse, ShapeInferTA, util::bit::mask()),
     // opset13
     _OV_OP_SHAPE_INFER_MASK_REG(opset13::Multinomial, ShapeInferTA, util::bit::mask(1)),
@@ -565,6 +564,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     //
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUCell, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
 };
 // clang-format on
 

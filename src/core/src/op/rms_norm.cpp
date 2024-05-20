@@ -11,7 +11,7 @@
 
 namespace ov {
 namespace op {
-namespace v14 {
+namespace internal {
 
 RMSNorm::RMSNorm(const Output<Node>& data,
                  const Output<Node>& axes,
@@ -92,6 +92,6 @@ const ov::element::Type& RMSNorm::get_compute_type() const {
     return m_compute_type;
 }
 
-}  // namespace v14
+}  // namespace internal
 }  // namespace op
 }  // namespace ov

@@ -1350,14 +1350,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::FakeConve
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, scale, shift}, "FakeConvert");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::RMSNorm>& node) {
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 8, 6});
-    const auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{-1});
-    const auto rms = std::make_shared<ov::op::v14::RMSNorm>(data, axes, 1e-5);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rms)};
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "RMSNorm");
-}
-
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 3});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
