@@ -147,6 +147,14 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
     return model;
 }
 
+OutputVector NodeContext::inputs() const {
+    OutputVector res;
+    for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
+        res.push_back(get_input(i));
+    }
+    return res;
+}
+
 bool NodeContext::input_is_none(size_t index) const {
     bool res = index >= m_inputs_is_none.size() || m_inputs_is_none.at(index);
     if (!res) {

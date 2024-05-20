@@ -681,3 +681,18 @@ def test_output_tuple_names():
     om = fe.convert(im)
     assert len(om.outputs[0].names) == 0 and len(
         om.outputs[1].names) == 0, "Output tuple names must be empty"
+
+
+class InlinedInputsModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self):
+        return torch.arange(2048)
+
+
+def test_inlined_inputs():
+    model = InlinedInputsModel()
+    model.eval()
+    model = torch.compile(model, backend="openvino")
+    model()

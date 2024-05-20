@@ -18,8 +18,18 @@ from packaging import version
 import openvino.torch
 import pytest
 
+
+def skip_check(param):
+    return skip_if_export(param) if PytorchLayerTest.use_torch_export() else skip_if_fx(param)
+
+
 def skip_if_export(param, reason="Unsupported on torch.export"):
     return pytest.param(param, marks=pytest.mark.skipif(PytorchLayerTest.use_torch_export(), reason=reason))
+
+
+def skip_if_fx(param, reason="Unsupported on torch.fx"):
+    return pytest.param(param, marks=pytest.mark.skipif(PytorchLayerTest.use_torch_compile_backend(), reason=reason))
+
 
 class PytorchLayerTest:
     _type_map = {
