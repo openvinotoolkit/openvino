@@ -3,7 +3,9 @@
 //
 
 #include "shared_test_classes/subgraph/gather_weights_decompression.hpp"
+
 #include "ov_ops/gather_compressed.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 
 namespace ov {
 namespace test {
@@ -11,7 +13,7 @@ namespace test {
 std::string GatherWeightsDecompression::get_test_case_name(
     testing::TestParamInfo<GatherWeightsDecompressionParams> obj) {
     std::string target_device;
-    GWDShapeParams shape_params;
+    GatherDecompressionShapeParams shape_params;
     ov::element::Type data_precision;
     ov::element::Type output_precision;
     bool decompression_sub;
@@ -30,15 +32,7 @@ std::string GatherWeightsDecompression::get_test_case_name(
 
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
-    result << "data_shape=" << shape_params.data_shape << "_";
-    result << "indices_shape=";
-    result << ov::test::utils::partialShape2str({shape_params.indices_shape.first}) << "_";
-    for (const auto& actual_shape : shape_params.indices_shape.second) {
-        result << ov::test::utils::partialShape2str({actual_shape}) << "_";
-    }
-    result << "axis=" << shape_params.axis << "_";
-    result << "batch_dims=" << shape_params.batch_dims << "_";
-    result << "group_size=" << shape_params.decompression_group_size << "_";
+    result << shape_params << "_";
     result << "data_precision=" << data_precision << "_";
     result << "output_precision=" << output_precision << "_";
     result << "decompression_subtract=" << decompression_sub << "_";
@@ -62,117 +56,18 @@ std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::S
                                                                      const bool per_tensor_scale) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape)};
     auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
-    const auto data_subgraph = init_compressed_weights_subgraph(data_shape,
-                                                                group_size,
-                                                                data_precision,
-                                                                output_precision,
-                                                                add_subtract,
-                                                                reshape_on_decompression,
-                                                                per_tensor_zp,
-                                                                per_tensor_scale);
+    const auto data_subgraph = initGatherDecompressionSubgraph(data_shape,
+                                                               group_size,
+                                                               data_precision,
+                                                               output_precision,
+                                                               add_subtract,
+                                                               reshape_on_decompression,
+                                                               per_tensor_zp,
+                                                               per_tensor_scale);
 
     auto gather = std::make_shared<ov::op::v8::Gather>(data_subgraph, params[0], axis_const, batch_dims);
     gather->set_friendly_name("gather_node");
     return std::make_shared<ov::Model>(ov::NodeVector{gather}, params, "GatherDataDecompression");
-}
-std::shared_ptr<ov::Node> GatherWeightsDecompression::init_compressed_weights_subgraph(
-    const ov::Shape& data_shape,
-    const int group_size,
-    const ov::element::Type data_precision,
-    const ov::element::Type output_precision,
-    const bool add_subtract,
-    const bool reshape_on_decompression_constant,
-    const bool per_tensor_zp,
-    const bool per_tensor_scale) {
-    const bool group_decompression = group_size != -1;
-    // Weights has shape [I, D], where
-    // I - index
-    // D - data
-    // In case of group decompression, data dimension is split into 2: I -> [N, G], where
-    // N - number of groups
-    // G - group size
-    auto original_data_shape = data_shape;
-    if (group_decompression) {
-        OPENVINO_ASSERT(data_shape[1] % group_size == 0,
-                        "The last data dimension (",
-                        data_shape[1],
-                        ") must be divisible by decompression group size (",
-                        group_size,
-                        ").");
-        auto data_idx = data_shape.size() - 1;
-        original_data_shape[data_idx] = data_shape[1] / group_size;
-        original_data_shape.insert(original_data_shape.begin() + data_idx + 1, group_size);
-    }
-    ov::test::utils::InputGenerateData generate_data;
-    if (data_precision.is_signed())
-        generate_data.start_from = -5;
-    auto weights_tensor = ov::test::utils::create_and_fill_tensor(data_precision, original_data_shape, generate_data);
-    auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
-    weights->set_friendly_name("Compressed_weights");
-    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, output_precision);
-
-    std::shared_ptr<ov::Node> mul_parent = weights_convert;
-
-    // Decompression constants shape:
-    // Ordinary decompression: [I, 1]
-    // Group decompression: [I, N, 1]
-    ov::Shape scaleshift_target_shape{data_shape[0]};
-    scaleshift_target_shape.insert(scaleshift_target_shape.end(), group_decompression ? data_shape[1] / group_size : 1);
-    if (group_decompression || scaleshift_target_shape.size() < original_data_shape.size()) {
-        auto data_idx = scaleshift_target_shape.size() - 1;
-        scaleshift_target_shape.insert(scaleshift_target_shape.begin() + data_idx + 1, 1);
-    }
-
-    auto scaleshift_const_shape = scaleshift_target_shape;
-    if (reshape_on_decompression_constant)
-        scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1),
-                                     scaleshift_const_shape.end());
-    if (add_subtract) {
-        auto shift_tensor_shape = per_tensor_zp ? ov::Shape{1} : scaleshift_const_shape;
-        auto shift_tensor = ov::test::utils::create_and_fill_tensor(data_precision, shift_tensor_shape);
-        if (per_tensor_zp && data_precision.bitwidth() == 4) {
-            static_cast<uint8_t*>(shift_tensor.data())[0] = 0x88;
-        }
-        auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_tensor);
-        std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, output_precision);
-        if (reshape_on_decompression_constant && !per_tensor_zp) {
-            auto shift_reshape_const = ov::op::v0::Constant::create(ov::element::i32,
-                                                                    {scaleshift_target_shape.size()},
-                                                                    scaleshift_target_shape);
-            auto shift_reshape = std::make_shared<ov::op::v1::Reshape>(shift_convert, shift_reshape_const, false);
-            shift_convert = shift_reshape;
-        }
-        mul_parent = std::make_shared<ov::op::v1::Subtract>(weights_convert, shift_convert);
-    }
-
-    ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = -0.5;
-    in_data.range = 1;
-    in_data.resolution = 30000;
-    auto shift_tensor_shape = per_tensor_scale ? ov::Shape{1} : scaleshift_const_shape;
-    auto scale_tensor = ov::test::utils::create_and_fill_tensor(output_precision, shift_tensor_shape, in_data);
-    for (size_t i = 0; i < scale_tensor.get_size(); i++) {
-        if (output_precision == ov::element::f16)
-            scale_tensor.data<ov::float16>()[i] /= ov::float16(16.f);
-        else if (output_precision == ov::element::f32)
-            scale_tensor.data<float>()[i] /= 16.f;
-    }
-    std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_tensor);
-    if (reshape_on_decompression_constant && !per_tensor_scale) {
-        auto scale_reshape_const =
-            ov::op::v0::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
-        auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale_const, scale_reshape_const, false);
-        scale_const = scale_reshape;
-    }
-    std::shared_ptr<ov::Node> last_node = std::make_shared<ov::op::v1::Multiply>(mul_parent, scale_const);
-
-    if (group_decompression) {
-        auto reshape_target_shape = std::vector<int>{static_cast<int>(data_shape[0]), -1};
-        auto target_shape_node =
-            ov::op::v0::Constant::create(ov::element::i32, {reshape_target_shape.size()}, reshape_target_shape);
-        last_node = std::make_shared<ov::op::v1::Reshape>(last_node, target_shape_node, false);
-    }
-    return last_node;
 }
 void GatherWeightsDecompression::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
     inputs.clear();
@@ -207,7 +102,7 @@ void GatherWeightsDecompression::check_results() {
 }
 
 void GatherWeightsDecompression::SetUp() {
-    GWDShapeParams shape_params;
+    GatherDecompressionShapeParams shape_params;
     ov::element::Type data_precision;
     ov::element::Type output_precision;
     bool decompression_sub;

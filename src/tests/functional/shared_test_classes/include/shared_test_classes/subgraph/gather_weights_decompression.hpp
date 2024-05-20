@@ -6,6 +6,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 
 namespace ov {
 namespace test {
@@ -25,29 +26,8 @@ namespace test {
  *             Gather
  */
 
-struct GWDShapeParams {
-    GWDShapeParams() = default;
-    GWDShapeParams(ov::Shape data_shape,
-                InputShape indices_shape,
-                int axis,
-                int64_t batch_dims,
-                int decompression_group_size = -1)
-        : data_shape(std::move(data_shape)),
-          indices_shape(std::move(indices_shape)),
-          axis(axis),
-          batch_dims(batch_dims),
-          decompression_group_size(decompression_group_size) {}
-
-    ov::Shape data_shape;
-    InputShape indices_shape;
-    int axis;
-    int64_t batch_dims;
-    // Decompression group size. If the value is equal to -1, ordinary decompression is used
-    int decompression_group_size;
-};
-
 using GatherWeightsDecompressionParams = std::tuple<std::string,        // Device name
-                                                    GWDShapeParams,     // input shapes
+                                                    GatherDecompressionShapeParams,
                                                     ov::element::Type,  // data type
                                                     ov::element::Type,  // output type
                                                     bool,               // decompression subtract
@@ -72,14 +52,6 @@ protected:
                                              const bool reshape_on_decompression,
                                              const bool per_tensor_zp,
                                              const bool per_tensor_scale);
-    std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& data_shape,
-                                                               const int group_size,
-                                                               const ov::element::Type data_precision,
-                                                               const ov::element::Type output_precision,
-                                                               const bool add_subtract,
-                                                               const bool reshape_on_decompression_constant,
-                                                               const bool per_tensor_zp,
-                                                               const bool per_tensor_scale);
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override;
     void check_results();
     void SetUp() override;

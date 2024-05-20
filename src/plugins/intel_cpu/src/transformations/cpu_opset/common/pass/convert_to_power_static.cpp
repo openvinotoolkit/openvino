@@ -10,6 +10,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "utils/general_utils.h"
@@ -104,11 +105,17 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp> &node) {
 ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     MATCHER_SCOPE(ConvertToPowerStatic);
     ov::OutputVector twoInputs = {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                      ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())};
-    auto power = ov::pass::pattern::wrap_type<ov::opset1::Power>(twoInputs);
-    auto add = ov::pass::pattern::wrap_type<ov::opset1::Add>(twoInputs);
-    auto sub = ov::pass::pattern::wrap_type<ov::opset1::Subtract>(twoInputs);
-    auto mult = ov::pass::pattern::wrap_type<ov::opset1::Multiply>(twoInputs);
+                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())};
+    // Decompression/dequantization nodes are not converted to PowerStatic because
+    // they are always fused into other operations or constant folded in CPU graph optimizations
+    // If these constants converted into PowerStatic, we would have to handle these specific cases in plugin fusings
+    auto not_dequantization_or_decompression = [](const ov::Output<ov::Node>& output) {
+        return !ov::is_dequantization_node(output.get_node_shared_ptr());
+    };
+    auto power = ov::pass::pattern::wrap_type<ov::opset1::Power>(twoInputs, not_dequantization_or_decompression);
+    auto add = ov::pass::pattern::wrap_type<ov::opset1::Add>(twoInputs, not_dequantization_or_decompression);
+    auto sub = ov::pass::pattern::wrap_type<ov::opset1::Subtract>(twoInputs, not_dequantization_or_decompression);
+    auto mult = ov::pass::pattern::wrap_type<ov::opset1::Multiply>(twoInputs, not_dequantization_or_decompression);
     const auto candidate = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{power, add, sub, mult});
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher &m) {
