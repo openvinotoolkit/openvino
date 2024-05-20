@@ -544,8 +544,7 @@ jobs:
           :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;${{ env.INSTALL_TEST_DIR }}\python;%PYTHONPATH%
 
-          :: Skip test ticket: 126319
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests -k "not test_ovc_tool_non_existng_output_dir" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
