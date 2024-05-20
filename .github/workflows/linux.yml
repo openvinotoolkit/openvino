@@ -460,6 +460,19 @@ jobs:
         format('{"image": {0}, "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64)
       sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
 
+  ONNX_Runtime_test:
+    name: ONNX Runtime Integration (Test)
+    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
+      fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
+    needs: [ Build, Smart_CI, Docker ]
+    uses: ./.github/workflows/job_onnx_runtime.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      # container: '{"image": ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}, "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      container: |-
+        format('{{"image": {0}, "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64)
+      sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
+
   ONNX_Models:
     name: ONNX Models Tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
