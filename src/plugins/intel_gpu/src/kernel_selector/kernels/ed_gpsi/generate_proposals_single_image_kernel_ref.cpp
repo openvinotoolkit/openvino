@@ -39,7 +39,6 @@ constexpr size_t kImInfoInputIdx = 0;
 constexpr size_t kAnchorsInputIdx = 1;
 constexpr size_t kDeltasInputIdx = 2;
 constexpr size_t kScoresInputIdx = 3;
-constexpr size_t kRoiScoresOutputIdx = 4;
 
 ExperimentalDetectronGenerateProposalsSingleImageRef::DispatchData SetDefault(
         const experimental_detectron_generate_proposals_single_image_params& params, size_t idx) {
@@ -88,7 +87,7 @@ void ExperimentalDetectronGenerateProposalsSingleImageRef::SetKernelArguments(
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // nms_out_indices
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2}); // nms_num_outputs
             arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});          // rois
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoiScoresOutputIdx}); // roi scores
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1}); // roi scores
             break;
         }
         default:

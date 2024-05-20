@@ -86,8 +86,8 @@ endif()
 if(CMAKE_TOOLCHAIN_FILE)
     message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
 endif()
-if(NOT OV_GLIBC_VERSION VERSION_EQUAL 0.0)
-    message (STATUS "GLIBC_VERSION ......................... " ${OV_GLIBC_VERSION})
+if(NOT OV_LIBC_VERSION VERSION_EQUAL 0.0)
+    message (STATUS "LIBC_VERSION .......................... " ${OV_LIBC_VERSION})
 endif()
 
 # remove file with exported targets to force its regeneration
