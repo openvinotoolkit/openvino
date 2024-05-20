@@ -31,11 +31,12 @@ std::vector<MessageInfo> MessageManager::wait_message(int stream_id) {
     std::vector<MessageInfo> messages_total;
     std::unique_lock<std::mutex> lock(_readMutex);
     _readCondVar.wait(lock, [&] {
-        // std::cout << "wait_" << cur_rank << " : " << _readQueue[cur_rank].size() << " / " << _num_sub_streams << "\n";
+        // std::cout << "wait_" << stream_id << " : " << _readQueue[stream_id].size() << " / " << _num_sub_streams <<
+        // "\n";
         return static_cast<int>(_readQueue[stream_id].size()) >= _num_sub_streams;
     });
     std::swap(_readQueue[stream_id], messages_total);
-    // std::cout << "wait_" << cur_rank << " " << _readQueue[cur_rank].size() << " end\n";
+    // std::cout << "wait_" << stream_id << " " << _readQueue[stream_id].size() << " end\n";
     return messages_total;
 }
 
@@ -47,7 +48,7 @@ void MessageManager::infer_wait() {
 void MessageManager::reduce_wait(int stream_id) {
     std::unique_lock<std::mutex> lock(_reduceMutex);
     while (_reduceQueue[stream_id] < _num_sub_streams) {
-        // std::cout << "reduce_wait_" << cur_rank << " " << _reduceQueue[cur_rank] << " end\n";
+        // std::cout << "reduce_wait_" << stream_id << " " << _reduceQueue[stream_id] << " end\n";
         _reduceCondVar.wait(lock);
     }
     _reduceQueue[stream_id] = 0;
