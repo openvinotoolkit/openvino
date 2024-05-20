@@ -8,7 +8,6 @@
 #include "embedding_bag_packed.h"
 #include "openvino/op/embeddingbag_packedsum.hpp"
 #include "openvino/op/embeddingbag_packed.hpp"
-#include "openvino/opsets/opset15.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,7 +18,7 @@ bool EmbeddingBagPacked::isSupportedOperation(const std::shared_ptr<const ov::No
         const auto embBagPackedSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingBagPackedSum>(op);
         const auto embBagPackedOp = ov::as_type_ptr<const ov::op::v15::EmbeddingBagPacked>(op);
         if (!embBagPackedSumOp && !embBagPackedOp) {
-            errorMessage = "Node is not an instance of the EmbeddingBagPackedSum operation from opset v3.";
+            errorMessage = "Node is not an instance of the v3::EmbeddingBagPackedSum or v15::EmbeddingBagPacked operations.";
             return false;
         }
     } catch (...) {
@@ -43,9 +42,10 @@ EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, cons
             _reduction = Reduction::SUM;
             break;
         case OpReduction::MEAN:
-        default:
             _reduction = Reduction::MEAN;
             break;
+        default:
+            THROW_CPU_NODE_ERR("EmbeddingBagPacked does not support reduction mode: ", ov::as_string(packed_op->get_reduction()));
         }
     }
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul)

@@ -8,7 +8,6 @@
 #include "embedding_bag_offsets.h"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 #include "openvino/op/embeddingbag_offsets.hpp"
-#include "openvino/opsets/opset15.hpp"
 
 
 namespace ov {
@@ -20,7 +19,7 @@ bool EmbeddingBagOffset::isSupportedOperation(const std::shared_ptr<const ov::No
         const auto embBagOffsetSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingBagOffsetsSum>(op);
         const auto embBagOffsetOp = ov::as_type_ptr<const ov::op::v15::EmbeddingBagOffsets>(op);
         if (!embBagOffsetSumOp && !embBagOffsetOp) {
-            errorMessage = "Node is not an instance of the EmbeddingBagOffsetsSum operation from opset v3.";
+            errorMessage = "Node is not an instance of the v3::EmbeddingBagOffsetsSum or v15::EmbeddingBagOffsets operation.";
             return false;
         }
     } catch (...) {
@@ -44,9 +43,10 @@ EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, cons
             _reduction = Reduction::SUM;
             break;
         case OpReduction::MEAN:
-        default:
             _reduction = Reduction::MEAN;
             break;
+        default:
+            THROW_CPU_NODE_ERR("EmbeddingBagOffsets does not support reduction mode: ", ov::as_string(offsets_op->get_reduction()));
         }
     }
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
