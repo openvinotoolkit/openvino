@@ -358,6 +358,12 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetGops(get_specified_device_name(config));
           }}},
+        {ov::device::type.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetDeviceType(get_specified_device_name(config));
+          }}},
         // OV Internals
         // =========
         {ov::internal::caching_properties.name(),
