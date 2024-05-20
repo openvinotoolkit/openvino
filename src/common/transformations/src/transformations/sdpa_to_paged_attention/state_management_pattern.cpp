@@ -120,12 +120,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto q = pattern::any_input();
     auto scale_input = pattern::any_input();
 
-    auto k_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
-    auto v_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+    auto k_to_sdpa =
+        std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
+    auto v_to_sdpa =
+        std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
     auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, pattern::any_input()});
 
-    auto sdpa_with_4_inputs = pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
-    auto sdpa_with_5_inputs = pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
+    auto sdpa_with_4_inputs =
+        pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
+    auto sdpa_with_5_inputs =
+        pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
 
     auto sdpa_variants = std::make_shared<pattern::op::Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs});
 
@@ -157,13 +161,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto real_k = take_4d(k_current, k_current_reshaped, k_current2);
         auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
 
-        auto sdpa_node =  pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs : sdpa_with_5_inputs).get_node();
+        auto sdpa_node =
+            pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs : sdpa_with_5_inputs).get_node();
         // E and Ev are from the SDPA specification at
         // https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
         auto E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
         auto Ev = sdpa_node->get_input_tensor(2).get_partial_shape()[-1];  // in common case may not match E
 
-        auto extract_num_kv_heads = [=, &pattern_map](std::shared_ptr<Node> unsqueeze, const Dimension& default_heads_num) {
+        auto extract_num_kv_heads = [=, &pattern_map](std::shared_ptr<Node> unsqueeze,
+                                                      const Dimension& default_heads_num) {
             // Deduce number of k/v heads from Unsqueeze-Broadcast-Reshape (UBR pattern, if present)
             // pattern that appears in case of MQA/GQA
             // In case if UBR pattern doesn't appear, the default number of heads is used passed as default_heads_num
@@ -197,8 +203,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             }
         };
 
-        auto num_k_heads = extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3]);
-        auto num_v_heads = extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3]);
+        auto num_k_heads =
+            extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3]);
+        auto num_v_heads =
+            extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3]);
         const ov::element::Type kv_cache_type = real_q.get_element_type();
         std::string layer_index_str = std::to_string(layer_index);
         auto k_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_k_heads, E}),
@@ -243,12 +251,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                        v0::Constant::create(element::i64, Shape{}, {-1}),
                                                        v0::Constant::create(element::i64, Shape{}, {0}));
         std::shared_ptr<ov::Node> scale;
-        if(pattern_map.count(scale_input)) {
+        if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
         } else {
             // most likely `scale` below will always be a constant in real inference, but dynamic dimension
-            // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built instead
-            // of just a constant node representing one of the dimensions.
+            // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
+            // instead of just a constant node representing one of the dimensions.
             scale = std::make_shared<v1::Divide>(
                 v0::Constant::create(element::f32, Shape{}, {1}),
                 std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));

@@ -7,9 +7,9 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
@@ -82,7 +82,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     int layer_index = 0;
 
-    auto batch_dim = std::make_shared<v3::ShapeOf>(position_ids);   // it is not always required, so will be disposed if not needed
+    auto batch_dim =
+        std::make_shared<v3::ShapeOf>(position_ids);  // it is not always required, so will be disposed if not needed
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
