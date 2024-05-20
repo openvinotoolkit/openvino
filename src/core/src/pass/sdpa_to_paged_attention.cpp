@@ -9,6 +9,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
@@ -73,12 +74,15 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     } else {
         position_ids = std::dynamic_pointer_cast<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         position_ids->set_partial_shape(PartialShape{-1});
+        position_ids->validate_and_infer_types();
     }
     auto unsqueezed_position_ids =
         std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {1}));
     replace_node(position_ids, unsqueezed_position_ids);
 
     int layer_index = 0;
+
+    auto batch_dim = std::make_shared<v3::ShapeOf>(position_ids);   // it is not always required, so will be disposed if not needed
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
@@ -89,7 +93,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   assignes_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0));
-    manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len);
+    manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
 
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
@@ -131,5 +135,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_parameters(kv_parameters);
     model->add_parameters(model_remaining_params);
     model->add_parameters({max_context_len});
+    model->validate_nodes_and_infer_types();
     return true;
 }
