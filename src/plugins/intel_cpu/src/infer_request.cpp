@@ -114,7 +114,7 @@ void SyncInferRequest::infer() {
     throw_if_canceled();
     // std::cout << "[ infer ] " << m_asyncRequest->m_has_sub_infers << "\n";
     if (m_asyncRequest->m_has_sub_infers) {
-        message->server_wait(message->get_sub_infer_requests().size());
+        message->server_wait();
         ov::threading::MessageInfo msg_info;
         msg_info.msg_type = ov::threading::MsgType::START_INFER;
         ov::threading::Task task = [&] {
@@ -655,7 +655,7 @@ void SyncInferRequest::sub_streams_infer() {
                 requests[i]->set_tensor(input, tensor);
             }
 
-            requests[i]->set_callback([i, message](const std::exception_ptr& ptr) {
+            requests[i]->set_callback([message](const std::exception_ptr& ptr) {
                 // std::cout << "set_callback------ " << i << "\n";
                 ov::threading::MessageInfo msg_info;
                 msg_info.msg_type = ov::threading::MsgType::CALL_BACK;

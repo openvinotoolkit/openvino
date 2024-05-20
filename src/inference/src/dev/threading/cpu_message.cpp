@@ -27,14 +27,14 @@ void MessageManager::send_message(const MessageInfo& msg_info) {
     _msgCondVar.notify_all();
 }
 
-std::vector<MessageInfo> MessageManager::wait_message(int cur_rank, int streams_num) {
+std::vector<MessageInfo> MessageManager::wait_message(int stream_id) {
     std::vector<MessageInfo> messages_total;
     std::unique_lock<std::mutex> lock(_readMutex);
     _readCondVar.wait(lock, [&] {
-        // std::cout << "wait_" << cur_rank << " : " << _readQueue[cur_rank].size() << " / " << streams_num << "\n";
-        return static_cast<int>(_readQueue[cur_rank].size()) >= streams_num;
+        // std::cout << "wait_" << cur_rank << " : " << _readQueue[cur_rank].size() << " / " << _num_sub_streams << "\n";
+        return static_cast<int>(_readQueue[stream_id].size()) >= _num_sub_streams;
     });
-    std::swap(_readQueue[cur_rank], messages_total);
+    std::swap(_readQueue[stream_id], messages_total);
     // std::cout << "wait_" << cur_rank << " " << _readQueue[cur_rank].size() << " end\n";
     return messages_total;
 }
@@ -44,21 +44,22 @@ void MessageManager::infer_wait() {
     _inferCondVar.wait(lock);
 }
 
-void MessageManager::reduce_wait(int cur_rank, int streams_num) {
+void MessageManager::reduce_wait(int stream_id) {
     std::unique_lock<std::mutex> lock(_reduceMutex);
-    while (_reduceQueue[cur_rank] < streams_num) {
+    while (_reduceQueue[stream_id] < _num_sub_streams) {
         // std::cout << "reduce_wait_" << cur_rank << " " << _reduceQueue[cur_rank] << " end\n";
         _reduceCondVar.wait(lock);
     }
-    _reduceQueue[cur_rank] = 0;
+    _reduceQueue[stream_id] = 0;
 }
 
-void MessageManager::server_wait(int streams_num) {
+void MessageManager::server_wait() {
     if (!_serverThread.joinable()) {
-        _readQueue.assign(streams_num, std::vector<MessageInfo>());
-        _reduceQueue.assign(streams_num, 0);
+        assert(_num_sub_streams);
+        _readQueue.assign(_num_sub_streams, std::vector<MessageInfo>());
+        _reduceQueue.assign(_num_sub_streams, 0);
         MsgType msg_type;
-        _serverThread = std::thread([&, streams_num]() {
+        _serverThread = std::thread([&]() {
             int count = 0;
             int reduce_count = 0;
             while (!_isServerStopped) {
@@ -85,8 +86,8 @@ void MessageManager::server_wait(int streams_num) {
                         bool stop = false;
                         while (!stop) {
                             stop = true;
-                            for (int i = 0; i < streams_num; i++) {
-                                if (static_cast<int>(_readQueue[i].size()) == streams_num) {
+                            for (int i = 0; i < _num_sub_streams; i++) {
+                                if (static_cast<int>(_readQueue[i].size()) == _num_sub_streams) {
                                     stop = false;
                                 }
                             }
@@ -94,25 +95,25 @@ void MessageManager::server_wait(int streams_num) {
                                 _readCondVar.notify_all();
                             }
                         }
-                        for (int i = 0; i < streams_num; i++) {
+                        for (int i = 0; i < _num_sub_streams; i++) {
                             std::lock_guard<std::mutex> lock(_readMutex);
                             _readQueue[i].push_back(rec_info);
                         }
                         _readCondVar.notify_all();
                     } else if (msg_type == CALL_BACK) {  // CALL_BACK
                         count++;
-                        // std::cout << "server_wait CALL_BACK: " << count << "/" << streams_num << "\n";
-                        if (count == streams_num) {
+                        // std::cout << "server_wait CALL_BACK: " << count << "/" << _num_sub_streams << "\n";
+                        if (count == _num_sub_streams) {
                             _inferCondVar.notify_one();
                             count = 0;
                         }
                     } else if (msg_type == REDUCE) {  // REDUCE
                         reduce_count++;
-                        // std::cout << "server_wait REDUCE: " << reduce_count << "/" << streams_num << "\n";
-                        if (reduce_count == streams_num) {
+                        // std::cout << "server_wait REDUCE: " << reduce_count << "/" << _num_sub_streams << "\n";
+                        if (reduce_count == _num_sub_streams) {
                             {
                                 std::lock_guard<std::mutex> lock(_reduceMutex);
-                                _reduceQueue.assign(streams_num, reduce_count);
+                                _reduceQueue.assign(_num_sub_streams, reduce_count);
                             }
                             _reduceCondVar.notify_all();
                             reduce_count = 0;
@@ -129,6 +130,8 @@ void MessageManager::server_wait(int streams_num) {
 
 void MessageManager::set_sub_compiled_models(std::vector<std::shared_ptr<ov::ICompiledModel>> models) {
     _sub_compiled_models = models;
+    _num_sub_streams = static_cast<int>(_sub_compiled_models.size());
+    assert(_num_sub_streams);
 }
 
 std::vector<std::shared_ptr<ov::ICompiledModel>> MessageManager::get_sub_compiled_models() {
@@ -141,6 +144,10 @@ void MessageManager::set_sub_infer_requests(std::vector<std::shared_ptr<IAsyncIn
 
 std::vector<std::shared_ptr<ov::IAsyncInferRequest>> MessageManager::get_sub_infer_requests() {
     return _sub_infer_requests;
+}
+
+int MessageManager::get_num_sub_streams() {
+    return _num_sub_streams;
 }
 
 void MessageManager::stop_server_thread() {
