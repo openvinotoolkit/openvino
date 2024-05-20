@@ -5,12 +5,9 @@ import os
 import tempfile
 import unittest
 
-from generator import generator, generate
-
 from openvino.tools.ovc.convert import convert_model
 
 
-@generator
 class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     def test_conversion_fake_pb_model(self):
         # TODO: Should FEs give detailed report why a model is rejected and should we print out the report?
