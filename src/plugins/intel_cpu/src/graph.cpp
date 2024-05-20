@@ -1123,9 +1123,6 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 void Graph::InferStatic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-    const auto& cpuExecutor = context->getCPUStreamExecutor();
-    // std::cout << "execute stream: " << cpuExecutor->get_stream_id() << "\n";
-
     for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
