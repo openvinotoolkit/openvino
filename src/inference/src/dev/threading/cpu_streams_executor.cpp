@@ -123,10 +123,6 @@ struct CPUStreamsExecutor::Impl {
         }
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-#    ifndef TBBBIND_2_5_AVAILABLE
-#        define TBBBIND_2_5_AVAILABLE 0
-#    endif
-#    define USE_TBBBIND_2_5 TBBBIND_2_5_AVAILABLE
         void create_tbb_task_arena(const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
@@ -141,7 +137,7 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
-                // Numa id has used different mapping methods in TBBBind since oneTBB 2021.4.0
+                // Numa node id has used different mapping methods in TBBBind since oneTBB 2021.4.0
 #    if USE_TBBBIND_2_5
                 auto real_numa_node_id = _numaNodeId;
 #    else
