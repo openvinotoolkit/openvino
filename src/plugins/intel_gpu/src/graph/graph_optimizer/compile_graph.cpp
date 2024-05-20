@@ -62,12 +62,12 @@ void compile_graph::run(program& p) {
             } else if (node->is_type<gemm>() && !disable_permute_fuse_onednn_gemm) {
                 // permute is fused to onednn gemm. The updated memory formats are not supported by ocl this keep onednn impl
                 for (const auto& dep : node->get_dependencies()) {
-                    if (dep.first->is_type<permute>() && dep.first->can_be_optimized() &&
+                    if (dep.first->is_type<permute>() && dep.first->can_be_optimized() && !dep.first->is_runtime_skippable() &&
                         node->get_preferred_input_fmt() != format::any)
                         change_initial_impl = false;
                 }
                 for (const auto& user : node->get_users()) {
-                    if (user->is_type<permute>() && user->can_be_optimized() &&
+                    if (user->is_type<permute>() && user->can_be_optimized() && !user->is_runtime_skippable() &&
                         node->get_preferred_output_fmt() != format::any)
                         change_initial_impl = false;
                 }
