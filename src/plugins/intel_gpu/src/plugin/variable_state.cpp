@@ -58,7 +58,10 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     auto src_shape = state->get_shape();
     size_t src_rank = src_shape.size();
-    m_layout.data_padding = cldnn::padding(std::vector<int32_t>(src_rank, 0), std::vector<int32_t>(src_rank, 0), 0, m_layout.data_padding.get_dynamic_pad_dims());
+    m_layout.data_padding = cldnn::padding(std::vector<int32_t>(src_rank, 0),
+                                           std::vector<int32_t>(src_rank, 0),
+                                           0,
+                                           m_layout.data_padding.get_dynamic_pad_dims());
     auto src_stride = state->get_strides();
     for (size_t i = 0; i < src_rank; ++i) {
         src_stride[i] = src_stride[i] / (state->get_element_type().bitwidth()/8);
@@ -77,13 +80,13 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
             OPENVINO_ASSERT(src_stride[i] > src_stride_no_pad[i]);
             size_t padded_size = src_stride[i] / src_stride[i + 1];
             size_t non_padded_size = src_stride_no_pad[i] / src_stride_no_pad[i + 1];
-            auto pad_dim_legacy = i + 1;
+            int32_t pad_dim_legacy = i + 1;
             if (pad_dim_legacy >= 2) {
-                auto spatial_axis = pad_dim_legacy - 2;
-                auto spatial_size = std::max<size_t>(src_rank, 4) - 2;
+                int32_t spatial_axis = pad_dim_legacy - 2;
+                int32_t spatial_size = std::max<int32_t>(static_cast<int32_t>(src_rank), 4) - 2;
                 pad_dim_legacy = spatial_size - spatial_axis - 1 + 2;
             }
-            upper_pad[pad_dim_legacy] = padded_size - non_padded_size;
+            upper_pad[pad_dim_legacy] = static_cast<int32_t>(padded_size) - static_cast<int32_t>(non_padded_size);
         }
     }
     cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad, 0.f);
