@@ -405,7 +405,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
     if (axis < 0)
         axis += updates_rank;
-    OPENVINO_ASSERT(axis >= 0 && axis < updates_rank, "Invalid axis.");
+    OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
     const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
@@ -519,7 +519,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
     if (axis < 0)
         axis += updates_rank;
-    OPENVINO_ASSERT(axis >= 0 && axis < updates_rank, "Invalid axis.");
+    OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
     const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
