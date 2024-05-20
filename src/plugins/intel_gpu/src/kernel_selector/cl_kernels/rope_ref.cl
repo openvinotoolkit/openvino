@@ -4,6 +4,7 @@
 
 #include "include/fetch_utils.cl"
 
+#ifdef CHATGLM
 KERNEL(rope_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -39,5 +40,47 @@ KERNEL(rope_ref)(
     output[output_idx + r] = cosv * input[input_idx + r] - sinv * input[input_idx + r + 1];
     output[output_idx + r + 1] = sinv * input[input_idx + r] + cosv * input[input_idx + r + 1];
 
+#ifdef ENABLE_IO_COPY
     output[output_idx + ROTARY_NDIMS + f] = input[input_idx + ROTARY_NDIMS + f];
+#endif
 }
+#endif
+
+#ifdef QWEN
+KERNEL(rope_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* cos,
+    const __global INPUT1_TYPE* sin,
+    __global OUTPUT_TYPE* output)
+{
+    const uint b = get_global_id(0);
+    const uint p = get_global_id(1);
+    const uint h = get_global_id(2) / HALF_ROTARY_NDIMS;
+    const uint r = get_global_id(2) % HALF_ROTARY_NDIMS;
+
+#ifdef ENABLE_SLICE
+    uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, b, p, h * HEAD_SIZE, 0);
+
+    input_idx += SLICED_FROM_START * (b * INPUT0_FEATURE_NUM + p + 1)
+              + SLICED_FROM_END * (b * INPUT0_FEATURE_NUM + p);
+#else
+    uint input_idx = INPUT0_GET_INDEX(b, p, h * HEAD_SIZE, 0);
+#endif
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_p = p + INPUT1_FEATURE_NUM - INPUT0_FEATURE_NUM < INPUT1_FEATURE_NUM ? p + INPUT1_FEATURE_NUM - INPUT0_FEATURE_NUM : 0;
+    uint cos_sin_h = h < INPUT1_SIZE_Y ? h : 0;
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_p, cos_sin_h, 0);
+
+    uint output_idx = OUTPUT_GET_INDEX(b, p, h, 0);
+
+    if (get_global_id(2) >= HEAD_COUNT * HALF_ROTARY_NDIMS)
+        return;
+
+    output[output_idx + r] = cos[cos_sin_idx + r] * input[input_idx + r] +
+                             sin[cos_sin_idx + r] * (-input[input_idx + r + HALF_ROTARY_NDIMS]);
+
+    output[output_idx + HALF_ROTARY_NDIMS + r] = cos[cos_sin_idx + HALF_ROTARY_NDIMS + r] * input[input_idx + HALF_ROTARY_NDIMS + r] +
+                                                 sin[cos_sin_idx + HALF_ROTARY_NDIMS + r] * input[input_idx + r];
+}
+#endif

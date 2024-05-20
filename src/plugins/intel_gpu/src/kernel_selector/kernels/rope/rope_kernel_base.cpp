@@ -18,6 +18,10 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
     jit.AddConstant(MakeJitConstant("HALF_ROTARY_NDIMS", params.rotary_ndims / 2));
     jit.AddConstant(MakeJitConstant("HEAD_COUNT", params.head_cnt));
 
+    if (params.head_size > params.rotary_ndims) {
+        jit.AddConstant(MakeJitConstant("ENABLE_IO_COPY", true));
+    }
+
     if (params.slice_stop - params.slice_start > 0) {
         jit.AddConstant(MakeJitConstant("ENABLE_SLICE", true));
 
@@ -36,6 +40,12 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         jit.AddConstant(MakeJitConstant("SLICED_FROM_END", "(" + y + "-" + toCodeString(params.slice_stop) + ")"));
     }
 
+    if (params.is_qwen) {
+        jit.AddConstant(MakeJitConstant("QWEN", true));
+    } else if (params.is_chatglm) {
+        jit.AddConstant(MakeJitConstant("CHATGLM", true));
+    }
+
     return jit;
 }
 
@@ -44,9 +54,13 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
     const auto& input = params.inputs[0];
 
     dispatchData.gws = {input.Batch().v,
-                        input.Feature().v * (params.head_size - params.rotary_ndims),
+                        input.Feature().v,
                         Align(params.head_cnt * (params.rotary_ndims / 2), 64)};
     dispatchData.lws = {1, 1, 64};
+
+    if (params.is_chatglm && params.head_size > params.rotary_ndims) {
+        dispatchData.gws[1] *= params.head_size - params.rotary_ndims;
+    }
 
     return dispatchData;
 }
