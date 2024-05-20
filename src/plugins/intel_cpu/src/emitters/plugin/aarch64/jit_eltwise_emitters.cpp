@@ -898,24 +898,24 @@ void jit_select_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
 
 // SoftSign
 
-jit_softsign_emitter::jit_softsign_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+jit_soft_sign_emitter::jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                            const std::shared_ptr<ov::Node>& node)
                                            : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
 
-jit_softsign_emitter::jit_softsign_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+jit_soft_sign_emitter::jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                            const ov::element::Type exec_prc)
                                            : jit_emitter(host, host_isa, exec_prc) {}
 
-size_t jit_softsign_emitter::get_inputs_count() const { return 1; }
-size_t jit_softsign_emitter::get_aux_vecs_count() const { return 1; }
+size_t jit_soft_sign_emitter::get_inputs_count() const { return 1; }
+size_t jit_soft_sign_emitter::get_aux_vecs_count() const { return 1; }
 
 std::set<std::vector<element::Type>> jit_softsign_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& /*node*/) {
     return {{element::f32}};
 }
 
-void jit_softsign_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+void jit_soft_sign_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -924,18 +924,19 @@ void jit_softsign_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, con
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-void jit_softsign_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+void jit_soft_sign_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     TReg src = TReg(in_vec_idxs[0]);
     TReg dst = TReg(out_vec_idxs[0]);
     TReg aux = TReg(aux_vec_idxs[0]);
-    h->movi(aux.s, 1);
-    h->fdiv(dst.s, src.s, 1); 
-    h->fadd(dst.s, dst.s, src.s);
-    h->fdiv(dst.s, dst.s, 1); 
-    h->fsub(dst.s, 1, dst.s);  
-    h->fmul(dst.s, dst.s, src.s);
+    h->fabs(src.s, src.s);      
+    h->fcvtns(dst.d, src.s);   
+    h->fld1(dst.d, dst.d);    
+    h->fadd(dst.d, dst.d, src.d); 
+    h->flog(dst.d, dst.d);     
+    h->fdiv(dst.d, dst.d, v2.d); 
+    h->fmuls(src.s, dst.s, src.s); 
 }
 
 
