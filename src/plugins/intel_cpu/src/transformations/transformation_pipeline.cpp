@@ -158,32 +158,37 @@ namespace intel_cpu {
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
-    auto get_single_consumer = [](const_node_ptr& node) -> std::shared_ptr<ov::Node> {
-        const auto consumers = node->get_output_target_inputs(0);
-        if (consumers.size() != 1)
-            return nullptr;
-        return consumers.begin()->get_node()->shared_from_this();
+    auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
+        return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
+            return input.get_node()->get_type_info() == type;
+        });
     };
 
-    auto consumer = get_single_consumer(node);
-    if (!consumer)
-        return false;
-
-    if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+    const auto consumers = node->get_output_target_inputs(0);
+    if (all_has_type(consumers, ov::opset1::MatMul::get_type_info_static()))
         return true;
-    } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
-        consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            return true;
+
+    auto are_converts_from_decompression = [&all_has_type](const std::set<ov::Input<ov::Node>>& consumers) {
+        if (!all_has_type(consumers, ov::opset1::Convert::get_type_info_static()))
+            return false;
+        for (const auto& consumer : consumers) {
+            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+            if (!all_has_type(child_consumers, ov::opset1::MatMul::get_type_info_static()))
+                return false;
+        }
+        return true;
+    };
+
+    if (all_has_type(consumers, ov::opset1::Reshape::get_type_info_static())) {
+        for (const auto& consumer : consumers) {
+            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+            if (all_has_type(child_consumers, ov::opset1::MatMul::get_type_info_static()) ||
+                are_converts_from_decompression(child_consumers)) {
+                return true;
+            }
         }
     }
-    if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
-        consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            return true;
-        }
-    }
-    return false;
+    return are_converts_from_decompression(consumers);
 }
 
 bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
@@ -379,8 +384,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
-            const auto outputs = node->get_output_target_inputs(0);
-            return outputs.size() != 1 || !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
+            const auto consumers = node->get_output_target_inputs(0);
+            return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+                return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
+            });
         },
         ov::pass::KeepConstAndDecompression);
 
