@@ -116,29 +116,29 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
             const auto& target_inputs = output.get_target_inputs();
             if (target_inputs.size() <= 1)
                 continue;  // nothing to optimize
-            unordered_map<Node::type_info_t, vector<std::shared_ptr<Node>>> type_to_node;
+            unordered_map<Node::type_info_t, unordered_set<std::shared_ptr<Node>>> type_to_node;
             for (const auto& input : target_inputs)
                 if (auto node = input.get_node()->shared_from_this())
-                    type_to_node[node->get_type_info()].push_back(node);
+                    type_to_node[node->get_type_info()].insert(node);
             for (auto& item : type_to_node) {
                 auto& shared_nodes = item.second;
                 if (shared_nodes.size() < 2)
                     continue;
 
-                std::vector<bool> visited_nodes(shared_nodes.size(), false);
-                for (size_t i = 0; i < visited_nodes.size(); ++i) {
-                    if (visited_nodes[i])
+                std::unordered_map<std::shared_ptr<Node>, bool> visited_nodes;
+                for (auto it = shared_nodes.begin(); it != shared_nodes.end(); ++it) {
+                    if (visited_nodes.count(*it))
                         continue;
-                    const auto& root_op = shared_nodes[i];
-                    visited_nodes[i] = true;
-                    for (size_t j = i + 1; j < visited_nodes.size(); ++j) {
-                        if (visited_nodes[j])
+                    const auto& root_op = *it;
+                    visited_nodes[root_op] = true;
+                    for (auto in_it = std::next(it, 1); in_it != shared_nodes.end(); ++in_it) {
+                        if (visited_nodes.count(*in_it))
                             continue;
-                        const auto& child_op = shared_nodes[j];
+                        const auto& child_op = *in_it;
                         if (nodes_are_equal(root_op, child_op)) {
                             rewritten =
                                 replace_output_update_name(child_op->output(0), root_op->output(0)) || rewritten;
-                            visited_nodes[j] = true;
+                            visited_nodes[child_op] = true;
                         }
                     }
                 }
