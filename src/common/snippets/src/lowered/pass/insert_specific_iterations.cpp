@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/linear_ir_builder.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
@@ -75,19 +76,10 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
     ExpressionMap expression_map;
-    const auto& loop_copy_range = LinearIR::deep_copy_range(loop_bounds.first, std::next(loop_bounds.second), expression_map);
+    const auto& cloning_config = LinearIRBuilder::Config(false);
+    const auto& loop_copy_range = LinearIRBuilder(cloning_config).clone_range(loop_bounds.first, std::next(loop_bounds.second), expression_map);
     const auto new_loop_begin_pos = linear_ir.insert(insert_pos, loop_copy_range.begin(), loop_copy_range.end());
     const auto new_loop_end_pos = std::prev(insert_pos);
-
-    // Set the same pointers of Tensor Shape to the cloned loop
-    for (LinearIR::constExprIt cloned_it = new_loop_begin_pos, original_it = loop_bounds.first; cloned_it != new_loop_end_pos; ++cloned_it, ++original_it) {
-        const auto& cloned_expr = *cloned_it;
-        const auto& original_expr = *original_it;
-        for (size_t i = 0; i < original_expr->get_input_count(); ++i)
-            cloned_expr->get_input_port_descriptor(i)->set_shape_ptr(original_expr->get_input_port_descriptor(i)->get_shape_ptr());
-        for (size_t i = 0; i < original_expr->get_output_count(); ++i)
-            cloned_expr->get_output_port_descriptor(i)->set_shape_ptr(original_expr->get_output_port_descriptor(i)->get_shape_ptr());
-    }
 
     auto clone_ports = [&expression_map](const std::vector<LoopPort>& ports, std::vector<LoopPort>& new_ports) {
         new_ports.resize(ports.size());

@@ -39,6 +39,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "internal_properties.hpp"
 
 #include <memory>
 #include <string>
@@ -63,6 +64,7 @@ typedef std::tuple<
         std::vector<EltwiseTypes>,          // Eltwise operations
         bool,                               // With quantization
         bool,                               // Need reshape
+        bool,                               // Enforce Snippets
         std::string,                        // Device name
         CPUSpecificParams
 > EltwiseCacheTestParams;
@@ -76,10 +78,11 @@ public:
         std::vector<EltwiseTypes> eltwiseOpTypes;
         bool withQuantization;
         bool needReshape;
+        bool enforceSnippets;
         std::string targetName;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapesTuple, inputPrecisions, eltwiseOpTypes, withQuantization, needReshape, targetName,
-                cpuParams) = obj.param;
+        std::tie(inputShapesTuple, inputPrecisions, eltwiseOpTypes, withQuantization, needReshape, enforceSnippets,
+                 targetName, cpuParams) = obj.param;
 
         std::vector<InputShape> eltwiseInputShapes;
         std::vector<std::vector<size_t>> fqInputShapes;
@@ -116,6 +119,7 @@ public:
             results << "Op" << std::to_string(i) << "=" << eltwiseOpTypes[i] << "_";
         }
         results << "WithQuant=" << withQuantization << "_";
+        results << "enforceSnippets=" << enforceSnippets << "_";
         results << "targetDevice=" << targetName;
 
         results << CPUTestsBase::getTestCaseName(cpuParams);
@@ -146,9 +150,10 @@ protected:
         std::vector<EltwiseTypes> eltwiseOpTypes;
         bool withQuantization;
         bool needReshape;
+        bool enforceSnippets;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapesTuple, inputPrecisions, eltwiseOpTypes, withQuantization, needReshape, targetDevice,
-                cpuParams) = this->GetParam();
+        std::tie(inputShapesTuple, inputPrecisions, eltwiseOpTypes, withQuantization, needReshape, enforceSnippets,
+                 targetDevice, cpuParams) = this->GetParam();
 
         std::vector<InputShape> eltwiseInputShapes;
         std::vector<std::vector<size_t>> fqInputShapes;
@@ -158,6 +163,10 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         init_input_shapes(eltwiseInputShapes);
+
+        if (!enforceSnippets) {
+            configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
+        }
 
         ov::ParameterVector paramVec;
         std::vector<std::shared_ptr<ov::Node>> inputNodes;
@@ -192,6 +201,10 @@ TEST_P(EltwiseCacheTest, CompareWithRefs) {
 }
 
 namespace {
+
+std::vector<bool> enforceSnippets = {
+    false, true
+};
 
 std::vector<std::vector<ElementType>> inputPrecisions {
         { ElementType::f32, ElementType::f32, ElementType::f32, ElementType::f32 }
@@ -273,6 +286,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_2D_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true),
                                 ::testing::Values(false),
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_empty)),
                         EltwiseCacheTest::getTestCaseName);
@@ -336,6 +350,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_2D_diff_last_dim_dyn, EltwiseCacheTe
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true),
                                 ::testing::Values(true),
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_empty)),
                         EltwiseCacheTest::getTestCaseName);
@@ -400,6 +415,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_1D_2D_combo_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_empty)),
                         EltwiseCacheTest::getTestCaseName);
@@ -476,6 +492,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_3D_planar_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true), // withQuantization
                                 ::testing::Values(true), // needReshape
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_3D_planar)),
                         EltwiseCacheTest::getTestCaseName);
@@ -539,6 +556,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_3D_blocked_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::Values(false),  // CPU Plugin doesn't support non-planar layout for Subgraphs
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D_blocked_vec))),
                         EltwiseCacheTest::getTestCaseName);
@@ -606,6 +624,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_3D_nspc_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::Values(false),  // CPU Plugin doesn't support non-planar layout for Subgraphs
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_3D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
@@ -682,6 +701,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_planar_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true), // withQuantization
                                 ::testing::Values(true), // needReshape
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_planar)),
                         EltwiseCacheTest::getTestCaseName);
@@ -742,6 +762,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_planar_collapse_dyn, EltwiseCache
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true), // needReshape
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_planar)),
                         EltwiseCacheTest::getTestCaseName);
@@ -805,6 +826,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_blocked_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::Values(false),  // CPU Plugin doesn't support non-planar layout for Subgraphs
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_blocked_vec))),
                         EltwiseCacheTest::getTestCaseName);
@@ -872,6 +894,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_nspc_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::Values(false),  // CPU Plugin doesn't support non-planar layout for Subgraphs
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
@@ -931,6 +954,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_nspc_collapse_dyn, EltwiseCacheTe
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::Values(false),  // CPU Plugin doesn't support non-planar layout for Subgraphs
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
@@ -1008,6 +1032,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_planar_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true), // withQuantization
                                 ::testing::Values(true), // needReshape
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_planar)),
                         EltwiseCacheTest::getTestCaseName);
@@ -1068,6 +1093,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_planar_collapse_dyn, EltwiseCache
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_planar)),
                         EltwiseCacheTest::getTestCaseName);
@@ -1131,6 +1157,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_blocked_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::Values(false),  // CPU Plugin doesn't support non-planar layout for Subgraphs
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_blocked_vec))),
                         EltwiseCacheTest::getTestCaseName);
@@ -1198,6 +1225,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_nspc_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::Values(false),  // CPU Plugin doesn't support non-planar layout for Subgraphs
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
@@ -1257,6 +1285,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_nspc_collapse_dyn, EltwiseCacheTe
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
+                                ::testing::Values(false),  // CPU Plugin doesn't support non-planar layout for Subgraphs
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
@@ -1328,6 +1357,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_7D_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true), // withQuantization
                                 ::testing::Values(true), // needReshape
+                                ::testing::ValuesIn(enforceSnippets),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_empty)),
                         EltwiseCacheTest::getTestCaseName);

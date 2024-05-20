@@ -241,6 +241,6 @@ ExpressionPtr IOExpression::clone_with_new_inputs(const std::vector<PortConnecto
     return expr;
 }
 
-}// namespace lowered
-}// namespace snippets
-}// namespace ov
+} // namespace lowered
+} // namespace snippets
+} // namespace ov

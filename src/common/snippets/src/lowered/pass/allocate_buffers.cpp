@@ -20,8 +20,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-AllocateBuffers::AllocateBuffers(size_t& buffer_scratchpad_size, bool is_optimized)
-    : m_buffer_scratchpad_size(buffer_scratchpad_size), m_is_optimized_mode(is_optimized) {}
+AllocateBuffers::AllocateBuffers(bool is_optimized) : m_is_optimized_mode(is_optimized) {}
 
 void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
@@ -69,7 +68,7 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
 
 bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
-    m_buffer_scratchpad_size = 0;
+    size_t buffer_scratchpad_size = 0;
 
     if (m_is_optimized_mode) {
         BufferClusters buffer_clusters;
@@ -77,14 +76,16 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
         pipeline.register_pass<EnumerateExpressions>();
         pipeline.register_pass<IdentifyBuffers>();
         pipeline.register_pass<DefineBufferClusters>(buffer_clusters);
-        pipeline.register_pass<SolveBufferMemory>(m_buffer_scratchpad_size, buffer_clusters);
+        pipeline.register_pass<SolveBufferMemory>(buffer_scratchpad_size, buffer_clusters);
         pipeline.register_pass<NormalizeBufferIDs>();
         pipeline.run(linear_ir);
     } else {
-        InitBuffersDefault(m_buffer_scratchpad_size).run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
+        InitBuffersDefault(buffer_scratchpad_size).run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
     }
 
-    return m_buffer_scratchpad_size > 0;
+    linear_ir.set_buffer_scratchpad_size(buffer_scratchpad_size);
+
+    return buffer_scratchpad_size > 0;
 }
 
 } // namespace pass

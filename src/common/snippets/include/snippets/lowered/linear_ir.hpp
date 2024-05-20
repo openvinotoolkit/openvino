@@ -49,6 +49,7 @@ public:
     bool m_are_buffers_optimized = true;
 };
 
+class LinearIRBuilder;
 class LoopManager;
 using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
@@ -56,6 +57,7 @@ using LoopManagerPtr = std::shared_ptr<LoopManager>;
  * The class diagram is described in the documentation `snippets/docs/snippets_design_guide.md`.
  */
 class LinearIR {
+    friend class LinearIRBuilder;
     class ExpressionFactory;
 public:
     using container = std::list<ExpressionPtr>;
@@ -70,15 +72,13 @@ public:
 
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
 
-    std::shared_ptr<LinearIR> clone() const;
-    static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
-                                               LinearIR::container::const_iterator end,
-                                               ExpressionMap& expression_map);
-
     const container& get_ops() const { return m_expressions; }
     const io_container& get_IO_ops() const { return m_io_expressions; }
     const Config& get_config() const { return m_config; }
+    size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad_size; }
+
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
+    void set_buffer_scratchpad_size(size_t size) { m_buffer_scratchpad_size = size; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -254,6 +254,8 @@ private:
     LoopManagerPtr m_loop_manager = nullptr;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
     bool m_is_dynamic = false;
+
+    size_t m_buffer_scratchpad_size = 0;
 };
 
 template<typename iterator>

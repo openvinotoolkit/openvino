@@ -7,6 +7,7 @@
 #include <vector>
 #include <cstdint>
 #include <cstddef>
+
 #include "dnnl_types.h"
 #include "openvino/core/visibility.hpp"
 
@@ -49,9 +50,6 @@ struct jit_snippets_call_args {
 };
 
 struct jit_snippets_call_args::loop_args_t {
-    friend class jit_loop_begin_dynamic_emitter;
-    friend class jit_loop_end_dynamic_emitter;
-
     loop_args_t() = default;
     loop_args_t(int64_t work_amount, const std::vector<int64_t>& ptr_increments, const std::vector<int64_t>& finalization_offsets);
     loop_args_t(const loop_args_t& other);
@@ -60,10 +58,8 @@ struct jit_snippets_call_args::loop_args_t {
     loop_args_t& operator=(loop_args_t other);
     friend void swap(loop_args_t& first, loop_args_t& second);
 
-private:
     void init_pointers_and_copy_data(const int64_t num_elements, const int64_t* ptr_increments, const int64_t* finalization_offsets);
 
-public:
     int64_t m_work_amount = 0;
     int64_t m_num_data_ptrs = 0;
     int64_t* m_ptr_increments = nullptr;
@@ -71,7 +67,8 @@ public:
 };
 
 struct jit_snippets_compile_args {
-    size_t parallel_executor_ndims = 1;
+    std::vector<std::vector<size_t>> data_offsets = {};
+    std::vector<size_t> exec_domain = {};
 };
 
 }   // namespace intel_cpu

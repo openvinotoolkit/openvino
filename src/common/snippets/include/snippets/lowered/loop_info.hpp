@@ -405,6 +405,19 @@ public:
     const std::vector<int64_t>& get_data_sizes() const;
 
     /**
+     * @brief Update `m_ptr_increments` using copy values from `new_values`.
+     *        The count of new values must be equal to the count of current increments.
+     * @param new_values vector of new pointer increments
+     */
+    void update_ptr_increments(const std::vector<int64_t>& new_values);
+    /**
+     * @brief Update `m_finalization_offsets` using copy values from `new_values`.
+     *        The count of new values must be equal to the count of current offsets.
+     * @param new_values vector of new finalization offsets
+     */
+    void update_finalization_offsets(const std::vector<int64_t>& new_values);
+
+    /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
      *        Attention: ExpandedLoopInfo supports only replace one port with one port!
      * @param actual_port actual port
