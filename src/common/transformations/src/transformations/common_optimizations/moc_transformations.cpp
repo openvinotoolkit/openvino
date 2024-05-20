@@ -78,6 +78,7 @@
 #include "transformations/common_optimizations/swish_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
+#include "transformations/common_optimizations/concat_to_broadcast.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
@@ -185,6 +186,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, LSTMCellFusion)
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
+
+    REGISTER_PASS(manager, ConcatToBroadcast);
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)
