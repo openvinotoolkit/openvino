@@ -911,7 +911,7 @@ jit_soft_sign_emitter::jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_gener
 size_t jit_soft_sign_emitter::get_inputs_count() const { return 1; }
 size_t jit_soft_sign_emitter::get_aux_vecs_count() const { return 1; }
 
-std::set<std::vector<element::Type>> jit_softsign_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& /*node*/) {
+std::set<std::vector<element::Type>> jit_soft_sign_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& /*node*/) {
     return {{element::f32}};
 }
 
