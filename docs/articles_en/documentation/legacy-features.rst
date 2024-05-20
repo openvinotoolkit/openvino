@@ -96,14 +96,14 @@ Discontinued:
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/export_compiled_model.py
                :language: python
                :fragment: [export_compiled_model]
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/export_compiled_model.cpp
                :language: cpp
                :fragment: [export_compiled_model]
 
