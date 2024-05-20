@@ -8,6 +8,7 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/axes_util.hpp"
 #include "openvino/reference/reduce_prod.hpp"
@@ -20,7 +21,8 @@ bool has_non_negative_bounds_on_data(const Node* const op) {
     const auto& lb = op->get_input_tensor(0).get_lower_value();
     const auto& ub = op->get_input_tensor(0).get_upper_value();
 
-    return lb && ub && tensor_is_non_negative(lb) && tensor_is_non_negative(ub);
+    return lb && ub && ov::util::reduce_and(ov::util::greater_equal(lb, 0)) &&
+           ov::util::reduce_and(ov::util::greater_equal(ub, 0));
 }
 }  // namespace
 

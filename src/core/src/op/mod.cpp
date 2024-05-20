@@ -7,6 +7,7 @@
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
@@ -16,17 +17,6 @@
 #include "utils.hpp"
 
 namespace ov {
-namespace util {
-namespace {
-Tensor make_tensor_of_value(const element::Type_t et, const int64_t value) {
-    auto c = op::v0::Constant(et, Shape{}, value);
-    auto t = Tensor(et, Shape{});
-    std::memcpy(t.data(), c.get_data_ptr(), t.get_byte_size());
-    return t;
-}
-}  // namespace
-}  // namespace util
-
 namespace op {
 namespace mod {
 struct Evaluate : ov::element::NoAction<bool> {

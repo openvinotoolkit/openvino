@@ -8,6 +8,7 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -483,27 +484,6 @@ bool ov::interval_bound_evaluator(const Node* node,
         }
     }
     return fully_defined;
-}
-
-bool ov::tensor_is_non_negative(const Tensor& bound) {
-    const auto bound_constant =
-        std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
-    const auto zero_constant = op::v0::Constant::create(bound.get_element_type(), {1}, {0});
-    OutputVector greater(1);
-
-    bool folded = std::make_shared<op::v1::GreaterEqual>(bound_constant, zero_constant)
-                      ->constant_fold(greater, {bound_constant, zero_constant});
-    OPENVINO_ASSERT(folded);
-
-    auto axes_vector = std::vector<int64_t>(greater[0].get_shape().size());
-    std::iota(axes_vector.begin(), axes_vector.end(), 0);
-    const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
-
-    OutputVector all(1);
-    folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
-    OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
-    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
-    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ov::tensor_has_max_value(const Tensor& bound) {

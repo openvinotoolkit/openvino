@@ -372,3 +372,61 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNotCompatibleIndiciesCannot
         manager.register_pass<pass::GroupedGatherElimination>();
     }
 }
+
+TEST_F(TransformationTestsF, ConcatAbsCombo) {
+    PartialShape shape = PartialShape::dynamic(4);
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
+        auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+        auto gather = gatherv8(shape_op, {0});
+
+        auto one = opset7::Constant::create(element::i64, {1}, {1});
+        auto minus_one = opset7::Constant::create(element::i64, {1}, {-1});
+        auto concat = std::make_shared<opset7::Concat>(OutputVector{gather, minus_one, one, minus_one}, 0);
+        auto abs = std::make_shared<opset7::Abs>(concat);
+
+        model = std::make_shared<Model>(NodeVector{abs}, ParameterVector{data});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
+        auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+        auto gather = gatherv8(shape_op, {0});
+
+        auto one0 = opset7::Constant::create(element::i64, {1}, {1});
+        auto one1 = opset7::Constant::create(element::i64, {1}, {1});
+        auto one2 = opset7::Constant::create(element::i64, {1}, {1});
+        auto concat = std::make_shared<opset7::Concat>(OutputVector{gather, one0, one1, one2}, 0);
+
+        model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, SingleAbsOnShape) {
+    PartialShape shape = PartialShape::dynamic(4);
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
+        auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+        auto abs = std::make_shared<opset7::Abs>(shape_op);
+
+        model = std::make_shared<Model>(NodeVector{abs}, ParameterVector{data});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
+        auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+
+        model_ref = std::make_shared<Model>(OutputVector{shape_op}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, AbsInTheUnknown) {
+    PartialShape data_shape{2, 128};
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
+        auto abs = std::make_shared<opset7::Abs>(data);
+
+        model = std::make_shared<Model>(NodeVector{abs}, ParameterVector{data});
+        manager.register_pass<pass::AbsSinking>();
+    }
+}
