@@ -19,16 +19,17 @@ struct gemm_params : public base_params {
     float beta;
     uint32_t transpose_input0;
     uint32_t transpose_input1;
-    std::vector<int32_t> input0_target_shape;
-    std::vector<int32_t> input1_target_shape;
-    std::vector<int64_t> input0_output_pattern;
-    std::vector<int64_t> input1_output_pattern;
     std::vector<int64_t> input0_order;
     std::vector<int64_t> input1_order;
     std::vector<int64_t> output_order;
+    int64_t input0_reshape_axes = 0;
+    int64_t input1_reshape_axes = 0;
+    int64_t input0_broadcast_val = 0;
+    int64_t input1_broadcast_val = 0;
     DataTensor beam_table;
     bool indirect_input0 = false;
     bool indirect_input1 = false;
+    int64_t indirect_axis = 0;
     QuantizationType quantization = QuantizationType::NONE;
 
     ParamsKey GetParamsKey() const override {

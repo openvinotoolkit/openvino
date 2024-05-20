@@ -576,8 +576,17 @@ void Node::updateDynamicParams() {
         }
     }
 }
-void Node::executeDynamic(dnnl::stream strm) {
+
+void Node::executeStatic(const dnnl::stream strm, int numaId) {
+    if (numaId >= 0)
+        toNumaNode(numaId);
+    execute(strm);
+}
+
+void Node::executeDynamic(dnnl::stream strm, int numaId) {
     if (isExecutable()) {
+        if (numaId >= 0)
+            toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
@@ -907,14 +916,17 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 }
 
 void Node::toNumaNode(int numaNodeID) {
+    return toNumaNodeImpl(numaNodeID);
+}
+
+void Node::toNumaNodeImpl(int numaNodeID) {
     if (curNumaNode == numaNodeID)
         return;
 
     // create scratch pad from specified numa node
     if (scratchpadMem) {
         scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
-        auto mem = scratchpadMem->getPrimitive();
-        primArgs[DNNL_ARG_SCRATCHPAD] = mem;
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
     }
 
     // mbind constant prim args to numa nodes
@@ -1701,7 +1713,7 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
              DQScales[i] *= scaleData[i];
          }
      }
-     if (std::all_of(DQScales.begin(), DQScales.end(), [=](float val){ return (val == DQScales[0]);}))
+     if (std::all_of(DQScales.begin(), DQScales.end(), [OV_CAPTURE_CPY_AND_THIS](float val){ return (val == DQScales[0]);}))
         DQScales.resize(1);
 }
 

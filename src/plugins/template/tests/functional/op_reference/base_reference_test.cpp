@@ -76,7 +76,13 @@ void CommonReferenceTest::Validate() {
 
     ASSERT_EQ(refOutData.size(), actualOutData.size());
     for (size_t i = 0; i < refOutData.size(); i++) {
-        ValidateBlobs(refOutData[i], actualOutData[i], i, threshold, abs_threshold, actual_comparision_size);
+        ValidateBlobs(refOutData[i],
+                      actualOutData[i],
+                      i,
+                      threshold,
+                      abs_threshold,
+                      legacy_compare,
+                      actual_comparision_size);
     }
 }
 
@@ -85,6 +91,7 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                         const size_t blob_idx,
                                         float threshold,
                                         float abs_threshold,
+                                        bool legacy_compare,
                                         size_t actual_comparision_size) {
     ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type())
         << "Incompatible element type for blob with index " << blob_idx;
@@ -95,6 +102,25 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
         actual_comparision_size = refBlob.get_size();
 
     const auto& element_type = refBlob.get_element_type();
+    if (!legacy_compare) {
+        switch (element_type) {
+        case ov::element::boolean:
+        case ov::element::bf16:
+        case ov::element::f16:
+        case ov::element::f32:
+        case ov::element::f64:
+        case ov::element::i8:
+        case ov::element::i16:
+        case ov::element::i32:
+        case ov::element::i64:
+        case ov::element::u8:
+        case ov::element::u16:
+        case ov::element::u32:
+        case ov::element::u64:
+            ov::test::utils::compare(refBlob, outBlob, abs_threshold, threshold);
+            return;
+        }
+    }
     switch (element_type) {
     case ov::element::bf16:
         ov::test::utils::compare_raw_data<ov::bfloat16, ov::bfloat16>(refBlob.data<const ov::bfloat16>(),

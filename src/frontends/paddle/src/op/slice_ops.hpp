@@ -55,6 +55,12 @@ NamedOutputs slice_op(const NodeContext& node, const bool& stride_input) {
                 slice_node,
                 std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1),
                 false);
+            const auto output_info = node.get_output_port_infos("Out");
+            size_t output_size = output_info[0].second.size();
+            if (output_size == 0) {
+                auto squeeze_node = std::make_shared<default_opset::Squeeze>(decreased_node);
+                return node.default_single_output_mapping({squeeze_node}, {"Out"});
+            }
             return node.default_single_output_mapping({decreased_node}, {"Out"});
         }
 

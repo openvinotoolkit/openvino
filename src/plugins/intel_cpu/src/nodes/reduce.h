@@ -21,6 +21,7 @@ struct jit_reduce_config_params {
     ReduceLayoutType layout;
     Algorithm reduce_mode;
     bool fuse_low_precision;
+    bool fuse_broadcast;    // if post ops fusion needs broadcast
     dnnl::memory::data_type src_dt;
     dnnl::memory::data_type dst_dt;
     int src_data_size;

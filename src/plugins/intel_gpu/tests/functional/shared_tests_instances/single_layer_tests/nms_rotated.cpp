@@ -124,11 +124,12 @@ void NmsRotatedLayerTestGPU::SetUp() {
     std::vector<std::shared_ptr<ov::Node>> inputs;
     const auto in_shape_1d = InputShape{{1}, {{1}}};
 
-#define CONST_CASE(P, S, H, L)                                                                                                         \
-    case P:                                                                                                                            \
-        inputs.push_back(ov::test::utils::deprecated::make_constant(P, S, std::vector<ov::element_type_traits<P>::value_type>{}, true, \
-                            ov::element_type_traits<P>::value_type(H), ov::element_type_traits<P>::value_type(L)));                    \
-        break;
+#define CONST_CASE(P, S, H, L)                                                                                          \
+    case P: {                                                                                                           \
+        auto start_from = ov::element_type_traits<P>::value_type(L);                                                    \
+        auto range = ov::element_type_traits<P>::value_type(H) - start_from;                                            \
+        inputs.push_back(ov::test::utils::make_constant(P, S, ov::test::utils::InputGenerateData(start_from, range)));  \
+        break; }
 
 #define CREATE_INPUT(C, P, S, N, H, L)                                                                                     \
     if (C) {                                                                                                               \
@@ -267,6 +268,7 @@ void NmsRotatedLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutp
 
     ASSERT_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i) {
+        abs_threshold = ov::test::utils::get_eps_by_ov_type(ov::element::f32) * expected[i].score;
         ASSERT_EQ(expected[i], actual[i]) << ", i=" << i;
         ASSERT_NEAR(expected[i].score, actual[i].score, abs_threshold) << ", i=" << i;
     }

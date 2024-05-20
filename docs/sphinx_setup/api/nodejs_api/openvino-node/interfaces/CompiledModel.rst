@@ -4,104 +4,119 @@ Interface CompiledModel
 .. code-block:: ts
 
    interface CompiledModel {
-       inputs: Output[];
-       outputs: Output[];
-       createInferRequest(): InferRequest;
-       input(nameOrId?): Output;
-       output(nameOrId?): Output;
+       inputs: Output[];
+       outputs: Output[];
+       createInferRequest(): InferRequest;
+       exportModelSync(): Buffer;
+       input(nameOrId?): Output;
+       output(nameOrId?): Output;
    }
 
-- Defined in
-  `addon.ts:52 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L52>`__
+* **Defined in:**
+  `addon.ts:65 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L65>`__
 
 
 Properties
 #####################
 
+
 .. rubric:: inputs
 
+.. container:: m-4
 
+   .. code-block:: ts
 
-.. code-block:: ts
+      inputs: Output []
 
-   inputs: Output []
-
--  Defined in
-   `addon.ts:54 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L54>`__
-
+   -  **Defined in:**
+      `addon.ts:67 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L67>`__
 
 
 .. rubric:: outputs
 
+.. container:: m-4
 
+   .. code-block:: ts
 
-.. code-block:: ts
+      outputs: Output []
 
-   outputs: Output []
-
--  Defined in
-   `addon.ts:53 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L53>`__
-
+   -  **Defined in:**
+      `addon.ts:66 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L66>`__
 
 
 Methods
 #####################
 
+
 .. rubric:: createInferRequest
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   createInferRequest(): InferRequest
+      createInferRequest(): InferRequest
 
-**Returns** :doc:`InferRequest <InferRequest>`
+   * **Returns:** :doc:`InferRequest <InferRequest>`
 
--  Defined in
-   `addon.ts:57 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L57>`__
+   -  **Defined in:**
+      `addon.ts:84 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L84>`__
 
+
+.. rubric:: exportModelSync
+
+.. container:: m-4
+
+   .. code-block:: ts
+
+      exportModelSync(): Buffer
+
+   * **Returns:** Buffer
+
+   -  **Defined in:**
+      `addon.ts:85 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L85>`__
 
 
 .. rubric:: input
 
+.. container:: m-4
+
+   .. code-block:: ts
+
+      input(nameOrId?): Output
 
 
-.. code-block:: ts
+   * **Parameters:**
 
-   input(nameOrId?): Output
+     - ``Optional``
 
+       .. code-block:: ts
 
-**Parameters**
+          nameOrId: string|number
 
-- ``Optional``
+   * **Returns:** :doc:`InferRequest <Output>`
 
-  .. code-block:: ts
-
-     nameOrId: string|number
-
-**Returns** :doc:`InferRequest <Output>`
-
-- Defined in
-  `addon.ts:56 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L56>`__
-
+   * **Defined in:**
+     `addon.ts:83 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L83>`__
 
 
 .. rubric:: output
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   output(nameOrId?): Output
+      output(nameOrId?): Output
 
-- ``Optional``
+   * **Parameters:**
 
-  .. code-block:: ts
+     - ``Optional``
 
-     nameOrId: string|number
+       .. code-block:: ts
 
-**Returns**  :doc:`Output <Output>`
+          nameOrId: string|number
 
+   * **Returns:**  :doc:`Output <Output>`
 
-
-- Defined in
-  `addon.ts:55 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L55>`__
+   * **Defined in:**
+   `addon.ts:82 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L82>`__
 

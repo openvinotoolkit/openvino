@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "primitive_base.hpp"
 
 #include "multiclass_nms_inst.h"
@@ -11,15 +12,15 @@
 namespace cldnn {
 namespace ocl {
 namespace {
-kernel_selector::SortResultType get_sort_result_type(const cldnn::multiclass_nms::sort_result_type sort_result_type) {
+kernel_selector::SortResultType get_sort_result_type(const ov::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
     switch (sort_result_type) {
-        case cldnn::multiclass_nms::sort_result_type::classid:
+        case ov::op::util::MulticlassNmsBase::SortResultType::CLASSID:
             return kernel_selector::SortResultType::CLASSID;
             break;
-        case cldnn::multiclass_nms::sort_result_type::score:
+        case ov::op::util::MulticlassNmsBase::SortResultType::SCORE:
             return kernel_selector::SortResultType::SCORE;
             break;
-        case cldnn::multiclass_nms::sort_result_type::none:
+        case ov::op::util::MulticlassNmsBase::SortResultType::NONE:
             return kernel_selector::SortResultType::NONE;
             break;
         default:
@@ -28,21 +29,6 @@ kernel_selector::SortResultType get_sort_result_type(const cldnn::multiclass_nms
     return kernel_selector::SortResultType::NONE;
 }
 
-kernel_selector::Datatype get_indices_output_type(const data_types indices_output_type) {
-    switch (indices_output_type) {
-        case cldnn::data_types::i32: {
-            return kernel_selector::Datatype::INT32;
-            break;
-        }
-        case cldnn::data_types::i64: {
-            return kernel_selector::Datatype::INT64;
-            break;
-        }
-        default:
-            throw std::runtime_error{"Not supported index element type"};
-    }
-    return kernel_selector::Datatype::INT32;
-}
 }  // namespace
 
 struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
@@ -60,8 +46,11 @@ struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<multiclass_nms>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
-        args.inputs.push_back(instance.output_indices_memory());
-        args.inputs.push_back(instance.output_num_memory());
+        // Legacy multi-output
+        if (instance.desc()->num_outputs == 1) {
+            args.outputs.push_back(instance.output_indices_memory());
+            args.outputs.push_back(instance.output_num_memory());
+        }
         return args;
     }
 
@@ -72,9 +61,8 @@ public:
 
         const auto& attrs = primitive->attrs;
 
-        params.sort_result_type = get_sort_result_type(attrs.sort_result);
+        params.sort_result_type = get_sort_result_type(attrs.sort_result_type);
         params.sort_result_across_batch = attrs.sort_result_across_batch;
-        params.indices_output_type = get_indices_output_type(attrs.indices_output_type);
         params.iou_threshold = attrs.iou_threshold;
         params.score_threshold = attrs.score_threshold;
         params.nms_top_k = attrs.nms_top_k;
@@ -84,10 +72,21 @@ public:
         params.nms_eta = attrs.nms_eta;
         params.has_roisnum = primitive->has_roisnum;
 
-        size_t extra_inputs_num = primitive->has_roisnum ? 4 : 3;
+        size_t inputs_num = primitive->has_roisnum ? 3 : 2;
 
-        for (size_t i = 0; i < extra_inputs_num; i++) {
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1 + i)));
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        if (inputs_num == 3) {
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+            params.has_roisnum = true;
+        }
+
+        if (primitive->num_outputs == 3) {
+            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
+            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
+        } else {
+            // Legacy multi-output
+            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[inputs_num + 0]));
+            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[inputs_num + 1]));
         }
 
         return params;

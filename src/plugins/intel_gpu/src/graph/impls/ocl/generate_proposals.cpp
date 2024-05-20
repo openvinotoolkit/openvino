@@ -26,8 +26,11 @@ struct generate_proposals_impl
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<generate_proposals>& instance) const override {
         auto args = parent::get_arguments(instance);
-        args.inputs.push_back(instance.output_rois_scores_memory());
-        args.inputs.push_back(instance.output_rois_nums_memory());
+        if (instance.desc()->num_outputs == 1) {
+            // Legacy multi-output
+            args.outputs.push_back(instance.output_rois_scores_memory());
+            args.outputs.push_back(instance.output_rois_nums_memory());
+        }
         return args;
     }
 
@@ -36,16 +39,33 @@ public:
         const auto& primitive = impl_param.typed_desc<generate_proposals>();
         auto params = get_default_params<kernel_selector::generate_proposals_params>(impl_param);
 
-        params.min_size = primitive->min_size;
-        params.nms_threshold  = primitive->nms_threshold;
-        params.pre_nms_count = primitive->pre_nms_count;
-        params.post_nms_count = primitive->post_nms_count;
-        params.normalized = primitive->normalized;
-        params.nms_eta = primitive->nms_eta;
-        params.roi_num_type = primitive->roi_num_type == cldnn::data_types::i32 ? kernel_selector::Datatype::INT32 : kernel_selector::Datatype::INT64;
+        params.min_size = primitive->attrs.min_size;
+        params.nms_threshold  = primitive->attrs.nms_threshold;
+        params.pre_nms_count = primitive->attrs.pre_nms_count;
+        params.post_nms_count = primitive->attrs.post_nms_count;
+        params.normalized = primitive->attrs.normalized;
+        params.nms_eta = primitive->attrs.nms_eta;
 
-        for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        if (impl_param.prog-> is_new_shape_infer()) {
+            params.roi_num_type = to_data_type(primitive->output_data_types[2].value());
+            const size_t num_inputs = primitive->input_size();
+            for (size_t i = 1; i < num_inputs; i++) {
+                params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+            }
+
+            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
+            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
+        } else {
+            params.roi_num_type = primitive->roi_num_type == cldnn::data_types::i32 ? kernel_selector::Datatype::INT32 : kernel_selector::Datatype::INT64;
+            const size_t num_deps = primitive->input_size();
+            OPENVINO_ASSERT(num_deps == 6, "Unexpected deps num: ", num_deps);
+            const size_t num_inputs = num_deps - 2;
+            for (size_t i = 1; i < num_inputs; i++) {
+                params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+            }
+            for (size_t i = num_inputs; i < num_deps; i++) {
+                params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+            }
         }
 
         return params;

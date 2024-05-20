@@ -376,13 +376,22 @@ using BinaryOpTypes = Types<ov::op::v1::Equal,
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, BinaryElementwiseCmpTest, BinaryOpTypes);
 }  // namespace BEC
 
-TEST(type_prop, binary_arithmetic_bad_argument_element_types) {
-    auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{2, 4});
+TEST(type_prop, binary_arithmetic_bool_argument_element_types) {
+    auto param_0 = make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{2, 4});
+    auto param_1 = make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{2, 4});
 
-    OV_EXPECT_THROW(auto bc = make_shared<ov::op::v1::Add>(tv0_2_4_param_0, tv0_2_4_param_1),
+    OV_EXPECT_THROW(std::ignore = make_shared<ov::op::v1::Add>(param_0, param_1),
                     ov::NodeValidationFailure,
-                    HasSubstr("Arguments cannot have boolean element type"));
+                    HasSubstr("This operation does not support inputs with element type: boolean"));
+}
+
+TEST(type_prop, binary_arithmetic_str_argument_element_types) {
+    auto param_0 = make_shared<ov::op::v0::Parameter>(ov::element::string, ov::Shape{2, 4});
+    auto param_1 = make_shared<ov::op::v0::Parameter>(ov::element::string, ov::Shape{2, 4});
+
+    OV_EXPECT_THROW(std::ignore = make_shared<ov::op::v1::Add>(param_0, param_1),
+                    ov::NodeValidationFailure,
+                    HasSubstr("This operation does not support inputs with element type: string"));
 }
 
 TEST(type_prop, binary_arithmetic_bad_argument_shape_with_none_autobroadcast_attribute) {

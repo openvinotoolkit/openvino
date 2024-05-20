@@ -14,7 +14,7 @@ namespace ov {
 namespace threading {
 
 void get_cur_stream_info(const int stream_id,
-                         const bool cpu_reservation,
+                         const bool cpu_pinning,
                          const std::vector<std::vector<int>> proc_type_table,
                          const std::vector<std::vector<int>> streams_info_table,
                          StreamCreateType& stream_type,
@@ -24,7 +24,7 @@ void get_cur_stream_info(const int stream_id,
                          int& max_threads_per_core) {
     int stream_total = 0;
     size_t stream_info_id = 0;
-    bool cpu_reserve = cpu_reservation;
+    bool pinning = cpu_pinning;
     bool ecore_used = false;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         stream_total += std::abs(streams_info_table[i][NUMBER_OF_STREAMS]);
@@ -54,13 +54,13 @@ void get_cur_stream_info(const int stream_id,
     }
 
 #if defined(__APPLE__)
-    cpu_reserve = false;
+    pinning = false;
 #elif defined(_WIN32)
     if (proc_type_table.size() > 1) {
-        cpu_reserve = false;
+        pinning = false;
     }
 #endif
-    if (cpu_reserve) {
+    if (pinning) {
         stream_type = STREAM_WITH_OBSERVE;
     } else {
         stream_type = STREAM_WITHOUT_PARAM;
@@ -84,7 +84,8 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                                  std::vector<std::vector<int>>& _stream_processors,
                                  const int _cpu_status) {
     std::vector<std::vector<int>> streams_table;
-    std::vector<std::vector<std::string>> stream_conditions;
+    std::vector<std::vector<std::pair<std::string, int>>> stream_conditions;
+    std::vector<std::vector<int>> threads_status;  // used to count the number of threads
     std::vector<int> stream_pos;
     std::vector<int> stream_num;
     int num_streams = 0;
@@ -100,13 +101,14 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     }
     num_conditions = static_cast<int>(stream_pos.size());
     _stream_processors.assign(num_streams, std::vector<int>());
-    stream_conditions.assign(num_conditions, std::vector<std::string>());
+    stream_conditions.assign(num_conditions, std::vector<std::pair<std::string, int>>());
+    threads_status.assign(num_conditions, std::vector<int>());
     stream_num.assign(num_conditions, 0);
 
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
-        std::vector<std::string> proc_types;
-        std::vector<std::string> numa_nodes;
-        std::vector<std::string> sockets;
+        std::string proc_type = "";
+        std::string numa_node = "";
+        std::string socket = "";
         if (_streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
             streams_table.push_back(_streams_info_table[i]);
             if (_streams_info_table[i][NUMBER_OF_STREAMS] < 0) {
@@ -118,22 +120,20 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
             condition_idx++;
         }
         if (_streams_info_table[i][PROC_TYPE] > ALL_PROC) {
-            proc_types.push_back(std::to_string(_streams_info_table[i][PROC_TYPE]));
+            proc_type = std::to_string(_streams_info_table[i][PROC_TYPE]);
         } else {
             last_all_proc = true;
         }
         if (_streams_info_table[i][STREAM_NUMA_NODE_ID] >= 0) {
-            numa_nodes.push_back(std::to_string(_streams_info_table[i][STREAM_NUMA_NODE_ID]));
+            numa_node = std::to_string(_streams_info_table[i][STREAM_NUMA_NODE_ID]);
         }
         if (_streams_info_table[i][STREAM_SOCKET_ID] >= 0) {
-            sockets.push_back(std::to_string(_streams_info_table[i][STREAM_SOCKET_ID]));
+            socket = std::to_string(_streams_info_table[i][STREAM_SOCKET_ID]);
         }
-        for (auto t : proc_types) {
-            for (auto n : numa_nodes) {
-                for (auto s : sockets) {
-                    stream_conditions[condition_idx].push_back(t + n + s);
-                }
-            }
+        if (proc_type != "") {
+            stream_conditions[condition_idx].push_back(
+                std::make_pair(proc_type + numa_node + socket, _streams_info_table[i][THREADS_PER_STREAM]));
+            threads_status[condition_idx].push_back(0);
         }
         if (_streams_info_table[i][PROC_TYPE] > ALL_PROC && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             condition_idx++;
@@ -146,8 +146,20 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                                      std::to_string(_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) +
                                      std::to_string(_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
             for (size_t j = 0; j < stream_conditions.size(); j++) {
-                if (std::find(stream_conditions[j].begin(), stream_conditions[j].end(), cpu_string) !=
-                    stream_conditions[j].end()) {
+                auto iter = std::find_if(stream_conditions[j].begin(),
+                                         stream_conditions[j].end(),
+                                         [&](std::pair<std::string, int> item) {
+                                             return cpu_string == item.first;
+                                         });
+                if (iter != stream_conditions[j].end()) {
+                    // process the situation of proc_type = ALL_PROC
+                    if (stream_conditions[j].size() > 1) {
+                        size_t idx = iter - stream_conditions[j].begin();
+                        threads_status[j][idx]++;
+                        if (threads_status[j][idx] >= stream_conditions[j][idx].second) {
+                            stream_conditions[j][idx] = std::make_pair("", 0);
+                        }
+                    }
                     _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                     _cpu_mapping_table[i][CPU_MAP_USED_FLAG] = _cpu_status;
                     if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==

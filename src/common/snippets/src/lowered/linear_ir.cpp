@@ -191,6 +191,17 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
         result.push_back(new_expr);
         expression_map[expr.get()] = new_expr;
     }
+
+    // Checking that the cloning was successful: the cloned part of LinearIR is identical to the original one
+    for (auto result_it = result.cbegin(), original_it = begin; result_it != result.cend(); ++result_it, ++original_it) {
+        const auto& result_expr = *result_it;
+        const auto& original_expr = *original_it;
+        OPENVINO_ASSERT(result_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info() &&
+                        result_expr->get_input_count() == original_expr->get_input_count() &&
+                        result_expr->get_output_count() == original_expr->get_output_count(),
+                        "Expressions after copying aren't matched!");
+    }
+
     return result;
 }
 
@@ -482,9 +493,9 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     const auto output_ports = new_expr_it->get()->get_output_ports();
     for (const auto& old_expr : old_exprs) {
         for (size_t i = 0; i < old_expr->get_input_count(); ++i)
-            m_loop_manager->update_loops_port(loop_ids, old_expr->get_input_port(i), input_ports, true);
+            m_loop_manager->update_loops_port(loop_ids, old_expr->get_input_port(i), input_ports);
         for (size_t i = 0; i < old_expr->get_input_count(); ++i)
-            m_loop_manager->update_loops_port(loop_ids, old_expr->get_output_port(i), output_ports, false);
+            m_loop_manager->update_loops_port(loop_ids, old_expr->get_output_port(i), output_ports);
         erase(find(old_expr));
     }
     return new_expr_it;

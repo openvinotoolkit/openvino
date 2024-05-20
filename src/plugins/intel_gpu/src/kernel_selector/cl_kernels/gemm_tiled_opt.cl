@@ -79,14 +79,20 @@ inline uint FUNC(get_bt_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, u
 
 #if INDIRECT_INPUT0
 inline uint FUNC(get_input0_indirect_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x, __global BEAM_TABLE_TYPE* beam_table) {
+#if INDIRECT_AXIS == 0
     int b_index = BEAM_TABLE_BATCH_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)] : b;
+#elif INDIRECT_AXIS == 1
+    int b_index = BEAM_TABLE_FEATURE_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)] : b;
+#else
+#   error gemm_tiled_opt.cl : Unsupported indirect axis for beam table
+#endif
     return FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b_index, f, w, z, y, x);
 }
 #endif
 
 #if INDIRECT_INPUT1
 inline uint FUNC(get_input1_indirect_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x, __global BEAM_TABLE_TYPE* beam_table) {
-    int b_index = BEAM_TABLE_BATCH_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)] : b;
+    int b_index = beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)];
     return FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_index, f, w, z, y, x);
 }
 #endif
@@ -162,10 +168,15 @@ KERNEL(gemm_tiled_opt)(
 #ifdef BIAS_TERM
     const uint batch_offset_input2 = FUNC_CALL(get_input2_batch_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z);
 #endif // BIAS_TERM
-    uint write_id = 0;
+    uint y_write_id = 0;
+    uint x_write_id = 0;
     const uint batch_offset_output = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X);
-    write_id = 1;
-    const uint batch_offset_output_diff = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X) - batch_offset_output;
+    y_write_id = 1;
+    x_write_id = 0;
+    const uint output_y_pitch = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X) - batch_offset_output;
+    y_write_id = 0;
+    x_write_id = 1;
+    const uint output_x_pitch = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X) - batch_offset_output;
 
     // Start pointers offsets
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
@@ -213,7 +224,13 @@ KERNEL(gemm_tiled_opt)(
     const uint b_raw_global_id = tile_n_offset + sglid;
 
 #if INDIRECT_INPUT0 || INDIRECT_INPUT1
+#if INDIRECT_AXIS == 0
     const char do_indirect_load = BEAM_TABLE_BATCH_NUM > 1;
+#elif INDIRECT_AXIS == 1
+    const char do_indirect_load = BEAM_TABLE_FEATURE_NUM > 1;
+#else
+#   error gemm_tiled_opt.cl : Unsupported indirect axis for beam table
+#endif
 #endif
 
 #if TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
@@ -265,15 +282,11 @@ KERNEL(gemm_tiled_opt)(
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
                     #if TILE_N_NOT_DIVISIBLE
-                if (TILE_N_NOT_DIVISIBLE_CALC) {
-                    unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
-                        b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
-                    }
-                } else {
-                    b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                }
+                        unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
+                            b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
+                        }
                     #else // TILE_N_NOT_DIVISIBLE
-                b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     #endif // TILE_N_NOT_DIVISIBLE
                 #endif // B_VEC_SIZE == 1
                 b_ptr += input1_offset;
@@ -343,7 +356,6 @@ KERNEL(gemm_tiled_opt)(
             unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
                 uint b_load_offset = (k * TILE_K) + b_load_id;
                 uint b_idx = FUNC_CALL(get_input1_indirect_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, b_load_offset, x, beam_table);
-                uint bt_idx = FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, b_load_offset, x);
                 b_tile[b_load_id] = b_raw_global_id >= N ? 0 : input1[b_idx];
             }
         #else
@@ -351,7 +363,6 @@ KERNEL(gemm_tiled_opt)(
                 unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
                     uint b_load_offset = k * TILE_K + b_load_id;
                     uint b_idx = FUNC_CALL(get_input1_indirect_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, b_load_offset, x + sglid + SIMD_WIDTH * b_elem, beam_table);
-                    uint bt_idx = FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, b_load_offset, x + sglid + SIMD_WIDTH * b_elem);
                     b_tile[b_elem][b_load_id] = b_raw_global_id + SIMD_WIDTH * b_elem >= N ? 0 : input1[b_idx];
                 }
             }
@@ -376,11 +387,7 @@ KERNEL(gemm_tiled_opt)(
 
         // Loading A tile and tile C calculation
 #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING && TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
-    #if TILE_K_NOT_DIVISIBLE
-            A_FLOATN a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
-    #else
-            A_FLOATN a_read = BLOCK_READ_A(a_ptr, 0);
-    #endif
+        A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
 #endif
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
@@ -424,13 +431,9 @@ KERNEL(gemm_tiled_opt)(
     #endif // TILE_K > SIMD_WIDTH
                 }
             }
-    #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING 
+    #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING
         // Read A for next dot_id
-        #if TILE_K_NOT_DIVISIBLE
-            a_read = (dot_id + 1 < tile_m_iterations) ? TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0) : 0;
-        #else
-            a_read = (dot_id + 1 < tile_m_iterations) ? BLOCK_READ_A(a_ptr, 0) : 0;
-        #endif
+        a_read = (dot_id + 1 < tile_m_iterations) ? TILE_K_NOT_DIVISIBLE ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0) : 0;
     #endif
 #elif TRANSPOSE_INPUT0 == TRANSPOSE_OTHER // TRANSPOSE_INPUT0
     #if INDIRECT_INPUT0
@@ -477,9 +480,8 @@ KERNEL(gemm_tiled_opt)(
     // Full tile calculation end
 
     // Handle leftovers for K
-#if TILE_K_NOT_DIVISIBLE
-    #if IS_DYNAMIC
-    if (TILE_K_NOT_DIVISIBLE_CALC) {
+#if IS_DYNAMIC
+    if (TILE_K_NOT_DIVISIBLE) {
         // Loading leftovers of the matrix B
         #if TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
         B_FLOATN b_tile[TILE_K];
@@ -515,15 +517,11 @@ KERNEL(gemm_tiled_opt)(
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
                     #if TILE_N_NOT_DIVISIBLE
-                    if (TILE_N_NOT_DIVISIBLE_CALC) {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                             b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
                         }
-                    } else {
-                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                    }
                     #else
-                    b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     #endif // TILE_N_NOT_DIVISIBLE
                 #endif // B_VEC_SIZE == 1
                     b_ptr += input1_offset;
@@ -693,8 +691,7 @@ KERNEL(gemm_tiled_opt)(
             c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
         }
     } // Loading leftovers of the matrix A and tile C calculation end
-    #endif // IS_DYNAMIC
-#endif // TILE_K_NOT_DIVISIBLE
+#endif // IS_DYNAMIC
 
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
     #if IS_DYNAMIC
@@ -732,7 +729,13 @@ KERNEL(gemm_tiled_opt)(
         #endif // HAS_FUSED_OPS
         }
     #else
-        OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid;
+        #if TRANSPOSE_OUTPUT == TRANSPOSE_X_LAST
+        const uint x_pitch = 1;
+        #else
+        const uint x_pitch = output_x_pitch;
+        #endif
+        OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid * x_pitch;
+
         #ifdef BIAS_TERM
         ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
         #else // BIAS_TERM
@@ -743,13 +746,13 @@ KERNEL(gemm_tiled_opt)(
         OUTPUT_TYPE_VEC result = FUSED_OPS_RESULT_VEC;
         unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
             if (b_raw_global_id + SIMD_WIDTH * n_elem < N) {
-                *(d_ptr_tmp + SIMD_WIDTH * n_elem) = result[n_elem];
+                *(d_ptr_tmp + SIMD_WIDTH * n_elem * x_pitch) = result[n_elem];
             }
         }
         #else
         unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
             if (b_raw_global_id + SIMD_WIDTH * n_elem < N) {
-                *(d_ptr_tmp + SIMD_WIDTH * n_elem) = dequantized[n_elem];
+                *(d_ptr_tmp + SIMD_WIDTH * n_elem * x_pitch) = dequantized[n_elem];
             }
         }
         #endif // HAS_FUSED_OPS
@@ -796,7 +799,7 @@ KERNEL(gemm_tiled_opt)(
         #endif // HAS_FUSED_OPS
     #endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
 #endif // IS_DYNAMIC
-        d_ptr += batch_offset_output_diff;
+        d_ptr += output_y_pitch;
 #ifdef BIAS_TERM
         c_ptr += N;
 #endif // BIAS_TERM

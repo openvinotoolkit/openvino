@@ -32,6 +32,7 @@ struct RegionYoloParams {
                      const std::vector<int64_t>& mask,
                      const ov::element::Type& iType,
                      const std::vector<IT>& iValues,
+                     const Shape& output_shape,
                      const std::vector<IT>& oValues,
                      const std::string& testcaseName = "")
         : num(num),
@@ -48,7 +49,7 @@ struct RegionYoloParams {
           inType(iType),
           outType(iType),
           inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)),
+          refData(CreateTensor(output_shape, iType, oValues)),
           testcaseName(testcaseName) {
         inputShape = Shape{batch, channels, height, width};
     }
@@ -75,13 +76,13 @@ struct RegionYoloParams {
 class ReferenceRegionYoloLayerTest : public testing::TestWithParam<RegionYoloParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RegionYoloParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "inputShape=" << param.inputShape << "_";
         result << "iType=" << param.inType << "_";
@@ -138,6 +139,7 @@ std::vector<RegionYoloParams> generateRegionYoloParams() {
             std::vector<T>{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.1f, 0.2f, 0.3f,
                            0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f,
                            0.7f, 0.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f},
+            Shape{1, 6, 2, 2},
             std::vector<T>{0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f,
                            0.1f,     0.2f,     0.3f,     0.4f,     0.5f,     0.6f,     0.7f,     0.8f,
                            0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f}),

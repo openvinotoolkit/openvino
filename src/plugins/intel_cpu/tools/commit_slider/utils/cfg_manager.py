@@ -36,10 +36,15 @@ class CfgManager():
         tmpl = self.cfg["template"]
         tmpJSON = self.readJsonTmpl("bm_perf_for_CI.json")
         devParam = "perfAppropriateDeviation"
+        isFirstFixed = "isFirstFixed"
         if "appCmd" in tmpl:
             tmpJSON["appCmd"] = tmpl["appCmd"]
         else:
             raise("No 'appcmd' in template")
         if devParam in tmpl:
             tmpJSON["runConfig"][devParam] = tmpl[devParam]
+        if isFirstFixed in tmpl and tmpl[isFirstFixed]:
+            tmpJSON["runConfig"]["traversal"] = "firstFixedVersion"
+        else:
+            tmpJSON["runConfig"]["traversal"] = "firstFailedVersion"
         return tmpJSON

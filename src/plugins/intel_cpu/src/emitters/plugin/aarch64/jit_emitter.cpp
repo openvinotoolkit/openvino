@@ -98,15 +98,6 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
                                    const std::vector<size_t>& out_idxs,
                                    const std::vector<size_t>& pool_aux_vec_idxs,
                                    const std::vector<size_t>& pool_aux_gpr_idxs) const {
-    if (pool_aux_vec_idxs.size() < get_aux_vecs_count()) {
-        OPENVINO_THROW("Failed to allocate required number of vector registers");
-    }
-
-    if (pool_aux_gpr_idxs.size() < get_aux_gprs_count()) {
-        OPENVINO_THROW("Failed to allocate required number of gpr registers. Pool size: " +
-            std::to_string(pool_aux_gpr_idxs.size()) + ", required size: " + std::to_string(get_aux_gprs_count()));
-    }
-
     using namespace Xbyak_aarch64::util;
     const bool is_vec_input = (in_out_type_ == emitter_in_out_map::vec_to_vec) ||
                               (in_out_type_ == emitter_in_out_map::vec_to_gpr);
@@ -152,6 +143,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         if (aux_gpr_idxs.size() >= get_aux_gprs_count()) break;
         if ((_idx == Xbyak_aarch64::Operand::X18) ||
             (_idx == Xbyak_aarch64::Operand::X23) ||
+            (_idx == Xbyak_aarch64::Operand::X24) ||
             (_idx == Xbyak_aarch64::Operand::X28)) continue;
 
         if (!is_vec_input) {
@@ -220,7 +212,7 @@ void jit_emitter::store_context(
     // 2.1. store pair registers
     int prev_reg_idx = -1;
     size_t ignore_registers_count = 0;
-    for (size_t reg_idx = 0; reg_idx < vec_regs.size(); reg_idx++) {
+    for (const auto reg_idx : vec_regs) {
         if (ignore_vec_regs.find(reg_idx) != ignore_vec_regs.end()) {
             ignore_registers_count++;
             continue;
