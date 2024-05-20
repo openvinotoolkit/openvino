@@ -26,22 +26,15 @@ KERNEL(roi_align_ref)(const __global INPUT0_TYPE* src_data,
     // Get the batch index of feature map
     const uint b = (uint)src_batches[INPUT2_GET_INDEX(r, 0, 0, 0)];
 
-    // Get ROI`s corners
-    const INPUT1_TYPE x1 =
-        (roi_ptr[0] + (INPUT1_TYPE)OFFSET_SRC) * (INPUT1_TYPE)SPATIAL_SCALE + (INPUT1_TYPE)OFFSET_DST;
-    const INPUT1_TYPE y1 =
-        (roi_ptr[1] + (INPUT1_TYPE)OFFSET_SRC) * (INPUT1_TYPE)SPATIAL_SCALE + (INPUT1_TYPE)OFFSET_DST;
-    const INPUT1_TYPE x2 =
-        (roi_ptr[2] + (INPUT1_TYPE)OFFSET_SRC) * (INPUT1_TYPE)SPATIAL_SCALE + (INPUT1_TYPE)OFFSET_DST;
-    const INPUT1_TYPE y2 =
-        (roi_ptr[3] + (INPUT1_TYPE)OFFSET_SRC) * (INPUT1_TYPE)SPATIAL_SCALE + (INPUT1_TYPE)OFFSET_DST;
+    // Load and parse ROI data struct, make following macros "defined":
+    // - X1
+    // - Y1
+    // - ROI_WIDTH
+    // - ROI_HEIGHT
+    PREPARE_ROI(roi_ptr);
 
-
-    const INPUT1_TYPE roi_width = MAX(x2 - x1, (INPUT1_TYPE)MIN_SIZE);
-    const INPUT1_TYPE roi_height = MAX(y2 - y1, (INPUT1_TYPE)MIN_SIZE);
-
-    const INPUT1_TYPE bin_width = roi_width / POOLED_WIDTH;
-    const INPUT1_TYPE bin_height = roi_height / POOLED_HEIGHT;
+    const INPUT1_TYPE bin_width = ROI_WIDTH / POOLED_WIDTH;
+    const INPUT1_TYPE bin_height = ROI_HEIGHT / POOLED_HEIGHT;
 
     const int sampling_ratio_x = SAMPLING_RATIO == 0 ? (int)ceil(bin_width) : SAMPLING_RATIO;
     const int sampling_ratio_y = SAMPLING_RATIO == 0 ? (int)ceil(bin_height) : SAMPLING_RATIO;
@@ -51,11 +44,18 @@ KERNEL(roi_align_ref)(const __global INPUT0_TYPE* src_data,
 
     OUTPUT_TYPE pooled_value = 0;
     for (unsigned int y_sample_ind = 0; y_sample_ind < sampling_ratio_y; y_sample_ind++) {
-        INPUT1_TYPE sample_y =
-            y1 + (INPUT1_TYPE)y * bin_height + sample_distance_y * ((INPUT1_TYPE)y_sample_ind + (INPUT1_TYPE)0.5f);
+        const INPUT1_TYPE pre_sample_y =
+            Y1 + (INPUT1_TYPE)y * bin_height + sample_distance_y * ((INPUT1_TYPE)y_sample_ind + (INPUT1_TYPE)0.5f);
         for (unsigned int x_sample_ind = 0; x_sample_ind < sampling_ratio_x; x_sample_ind++) {
-            INPUT1_TYPE sample_x =
-                x1 + (INPUT1_TYPE)x * bin_width + sample_distance_x * ((INPUT1_TYPE)x_sample_ind + (INPUT1_TYPE)0.5f);
+            const INPUT1_TYPE pre_sample_x =
+                X1 + (INPUT1_TYPE)x * bin_width + sample_distance_x * ((INPUT1_TYPE)x_sample_ind + (INPUT1_TYPE)0.5f);
+
+            // Transforms point [pre_sample_x,pre_sample_y] to image_space for sampling.
+            // Make following macros "defined":
+            // - SAMPLE_X
+            // - SAMPLE_Y
+            TRANSFORM_POINT_TO_IMAGE_SPACE(pre_sample_x,pre_sample_y);
+
             unsigned int sample_y_low = 0;
             unsigned int sample_x_low = 0;
             unsigned int sample_y_high = 0;
@@ -64,30 +64,30 @@ KERNEL(roi_align_ref)(const __global INPUT0_TYPE* src_data,
             INPUT1_TYPE weight_right = INPUT1_VAL_ZERO;
             INPUT1_TYPE weight_top = INPUT1_VAL_ZERO;
             INPUT1_TYPE weight_bottom = INPUT1_VAL_ZERO;
-            if (sample_x >= -1.0 || sample_x <= INPUT0_SIZE_X || sample_y >= -1.0 || sample_y <= INPUT0_SIZE_Y) {
-                sample_x = MAX(sample_x, INPUT1_VAL_ZERO);
-                sample_y = MAX(sample_y, INPUT1_VAL_ZERO);
+            if (SAMPLE_X >= -1.0 && SAMPLE_X <= INPUT0_SIZE_X && SAMPLE_Y >= -1.0 && SAMPLE_Y <= INPUT0_SIZE_Y) {
+                SAMPLE_X = MAX(SAMPLE_X, INPUT1_VAL_ZERO);
+                SAMPLE_Y = MAX(SAMPLE_Y, INPUT1_VAL_ZERO);
 
-                sample_y_low = (unsigned int)sample_y;
-                sample_x_low = (unsigned int)sample_x;
+                sample_y_low = (unsigned int)SAMPLE_Y;
+                sample_x_low = (unsigned int)SAMPLE_X;
 
                 if (sample_y_low >= INPUT0_SIZE_Y - 1) {
                     sample_y_high = sample_y_low = INPUT0_SIZE_Y - 1;
-                    sample_y = (INPUT1_TYPE)sample_y_low;
+                    SAMPLE_Y = (INPUT1_TYPE)sample_y_low;
                 } else {
                     sample_y_high = sample_y_low + 1;
                 }
 
                 if (sample_x_low >= INPUT0_SIZE_X - 1) {
                     sample_x_high = sample_x_low = INPUT0_SIZE_X - 1;
-                    sample_x = (INPUT1_TYPE)sample_x_low;
+                    SAMPLE_X = (INPUT1_TYPE)sample_x_low;
                 } else {
                     sample_x_high = sample_x_low + 1;
                 }
 
                 // weight calculation for bilinear interpolation
-                weight_top = sample_y - (INPUT1_TYPE)sample_y_low;
-                weight_left = sample_x - (INPUT1_TYPE)sample_x_low;
+                weight_top = SAMPLE_Y - (INPUT1_TYPE)sample_y_low;
+                weight_left = SAMPLE_X - (INPUT1_TYPE)sample_x_low;
                 weight_bottom = INPUT1_VAL_ONE - weight_top;
                 weight_right = INPUT1_VAL_ONE - weight_left;
             }
@@ -109,7 +109,7 @@ KERNEL(roi_align_ref)(const __global INPUT0_TYPE* src_data,
         }
     }
 #if AVG_POOL
-    pooled_value /= sampling_ratio_x * sampling_ratio_x;
+    pooled_value /= sampling_ratio_y * sampling_ratio_x;
 #endif
 
     dst_data[OUTPUT_GET_INDEX(r, c, y, x)] = ACTIVATION((OUTPUT_TYPE)pooled_value, ACTIVATION_PARAMS);

@@ -1132,16 +1132,18 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             std::vector<size_t> real_shape = permute_axes(shape, real_order);
             new_scale_zp_k.resize<float>(real_shape);
             new_scale_zp_v.resize<float>(real_shape);
-            parallel_for2d(L0, B, [&](size_t m, size_t b) {
-                auto idx = static_cast<size_t>(table[b]);
-                for (size_t h = 0; h < H; h++) {
-                    auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
-                    new_scale_zp_k.at<float>({m, b, h, 0}) = old_scale_zp_k.at<float>({m, b_kv, h, 0});
-                    new_scale_zp_k.at<float>({m, b, h, 1}) = old_scale_zp_k.at<float>({m, b_kv, h, 1});
-                    new_scale_zp_v.at<float>({m, b, h, 0}) = old_scale_zp_v.at<float>({m, b_kv, h, 0});
-                    new_scale_zp_v.at<float>({m, b, h, 1}) = old_scale_zp_v.at<float>({m, b_kv, h, 1});
-                }
-            });
+            if (L0 > 0) {
+                parallel_for2d(L0, B, [&](size_t m, size_t b) {
+                    auto idx = static_cast<size_t>(table[b]);
+                    for (size_t h = 0; h < H; h++) {
+                        auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
+                        new_scale_zp_k.at<float>({m, b, h, 0}) = old_scale_zp_k.at<float>({m, b_kv, h, 0});
+                        new_scale_zp_k.at<float>({m, b, h, 1}) = old_scale_zp_k.at<float>({m, b_kv, h, 1});
+                        new_scale_zp_v.at<float>({m, b, h, 0}) = old_scale_zp_v.at<float>({m, b_kv, h, 0});
+                        new_scale_zp_v.at<float>({m, b, h, 1}) = old_scale_zp_v.at<float>({m, b_kv, h, 1});
+                    }
+                });
+            }
 
             m_k_state->set_scale_zp(new_scale_zp_k);
             m_v_state->set_scale_zp(new_scale_zp_v);
