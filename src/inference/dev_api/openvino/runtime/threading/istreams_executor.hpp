@@ -38,19 +38,6 @@ public:
      */
     using Ptr = std::shared_ptr<IStreamsExecutor>;
 
-    enum MsgType{
-        TP,
-        START_INFER,
-        CALL_BACK
-    };
-
-    struct MessageInfo{
-        MsgType msg_type;
-        std::vector<int> rank;
-        void* buf;
-        Task task;
-    };
-
     /**
      * @brief Defines inference thread binding type
      */
