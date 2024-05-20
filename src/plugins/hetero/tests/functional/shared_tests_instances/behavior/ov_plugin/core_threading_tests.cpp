@@ -11,7 +11,10 @@ const Params params[] = {
 };
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(nightly_HETERO, CoreThreadingTest, testing::ValuesIn(params), CoreThreadingTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_HETERO,
+                         CoreThreadingTest,
+                         testing::ValuesIn(params),
+                         CoreThreadingTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(HETERO_Streams,
                          CoreThreadingTestsWithIter,
