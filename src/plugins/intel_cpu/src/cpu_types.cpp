@@ -163,8 +163,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ReduceSumSquare", Type::Reduce},
         {"Broadcast", Type::Broadcast},
         {"EmbeddingSegmentsSum", Type::EmbeddingSegmentsSum},
-        {"EmbeddingBagPackedSum", Type::EmbeddingBagPackedSum},
-        {"EmbeddingBagOffsetsSum", Type::EmbeddingBagOffsetsSum},
+        {"EmbeddingBagPackedSum", Type::EmbeddingBagPacked},
+        {"EmbeddingBagOffsetsSum", Type::EmbeddingBagOffsets},
         {"Gather", Type::Gather},
         {"GatherElements", Type::GatherElements},
         {"GatherND", Type::GatherND},
@@ -242,6 +242,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"RoPE", Type::RoPE},
         {"GatherCompressed", Type::Gather},
         {"CausalMaskPreprocess", Type::CausalMaskPreprocess},
+        {"EmbeddingBagPacked", Type::EmbeddingBagPacked},
+        {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
     };
     return type_to_name_tbl;
 }
@@ -311,6 +313,8 @@ std::string NameFromType(const Type type) {
         CASE(Reduce);
         CASE(Broadcast);
         CASE(EmbeddingSegmentsSum);
+        CASE(EmbeddingBagPacked);
+        CASE(EmbeddingBagOffsets);
         CASE(EmbeddingBagPackedSum);
         CASE(EmbeddingBagOffsetsSum);
         CASE(Gather);

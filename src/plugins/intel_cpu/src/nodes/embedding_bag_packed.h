@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "embedding_bag_sum.h"
+#include "embedding_bag.h"
 #include "node.h"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class EmbeddingBagPackedSum : public Node, public EmbeddingBagSum {
+class EmbeddingBagPacked : public Node, public EmbeddingBag {
 public:
-    EmbeddingBagPackedSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
