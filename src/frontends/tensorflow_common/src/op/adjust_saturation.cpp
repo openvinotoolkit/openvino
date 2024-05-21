@@ -20,6 +20,11 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/concat.hpp"
 
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/floor.hpp"
+
+#include "openvino/op/abs.hpp"
+
 #include <fstream>
 
 using namespace std;
@@ -31,6 +36,86 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
+    shared_ptr<Node> convert_rgb_to_hsv(shared_ptr<Node> images) {
+        // Assume images are in shape [batch, height, width, 3] and dtype float
+
+        // Reduce operations to find max and min across the channel axis
+        auto max_rgb = make_shared<v1::ReduceMax>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
+        auto vv = max_rgb;
+        auto min_rgb = make_shared<v1::ReduceMin>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
+        auto range = make_shared<v1::Subtract>(max_rgb, min_rgb);
+
+        // Compute Saturation (S)
+        auto s = make_shared<v1::Divide>(range, vv);
+
+        // Compute normalization factor (for Hue calculation)
+        auto norm = make_shared<v1::Divide>(
+            make_shared<v0::Constant>(range->get_element_type(), range->get_shape(), vector<float>{1.0f}),
+            make_shared<v1::Multiply>(
+                make_shared<v0::Constant>(range->get_element_type(), range->get_shape(), vector<float>{6.0f}),
+                range
+            )
+        );
+
+        // Split the image tensor into R, G, B channels
+        auto channels = make_shared<v1::Split>(images, make_shared<v0::Constant>(element::i64, Shape{}, 3), 3);
+        auto r = channels->output(0);
+        auto g = channels->output(1);
+        auto b = channels->output(2);
+
+        // Determine which component is the max (V) to compute Hue (H)
+        auto r_eq_v = make_shared<v1::Equal>(r, vv);
+        auto g_eq_v = make_shared<v1::Equal>(g, vv);
+
+        auto hue_case_r = make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(g, b));
+        auto hue_case_g = make_shared<v1::Add>(
+            make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)),
+            make_shared<v0::Constant>(norm->get_element_type(), norm->get_shape(), vector<float>{2.0f / 6.0f})
+        );
+        auto hue_case_b = make_shared<v1::Add>(
+            make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)),
+            make_shared<v0::Constant>(norm->get_element_type(), norm->get_shape(), vector<float>{4.0f / 6.0f})
+        );
+
+        // Select the correct hue based on the maximum component
+        auto hue_temp = make_shared<v1::Select>(r_eq_v, hue_case_r, hue_case_g);
+        auto hh = make_shared<v1::Select>(g_eq_v, hue_case_g, hue_case_b);
+
+        // Return a single node that presumably could be used to extract individual components
+        return make_shared<v0::Concat>(NodeVector{hh, vv, s}, 3); 
+    }
+
+    shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<Node> v) {
+    auto c = make_shared<v1::Multiply>(s, v);
+    auto m = make_shared<v1::Subtract>(v, c);
+    auto dh = make_shared<v1::Multiply>(h, make_shared<v0::Constant>(h->get_element_type(), h->get_shape(), vector<float>{6.0f}));
+
+    // Compute fmodu equivalent in a vectorized manner, ensuring it wraps within [0, 2)
+    auto fmodu = make_shared<v1::FloorMod>(dh, make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{2.0f}));
+
+    auto x = make_shared<v1::Multiply>(c, make_shared<v1::Subtract>(make_shared<v0::Constant>(c->get_element_type(), c->get_shape(), vector<float>{1.0f}), make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, make_shared<v0::Constant>(fmodu->get_element_type(), fmodu->get_shape(), vector<float>{1.0f})))));
+
+    // Map fmodu to RGB categories
+    auto rr = make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{0.0f})), c,
+                 make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{1.0f})), x,
+                    make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{0.0f})));
+    auto gg = make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{2.0f})), c,
+                 make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{3.0f})), x,
+                    make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{0.0f})));
+    auto bb = make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{4.0f})), c,
+                 make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{5.0f})), x,
+                    make_shared<v0::Constant>(dh->get_element_type(), dh->get_shape(), vector<float>{0.0f})));
+
+    // Adding m to each component
+    auto r = make_shared<v1::Add>(rr, m);
+    auto g = make_shared<v1::Add>(gg, m);
+    auto b = make_shared<v1::Add>(bb, m);
+
+    // Return concatenated RGB or individual nodes depending on your system setup
+    return make_shared<v0::Concat>(NodeVector{r, g, b}, -1);  // Assuming last axis concatenation
+}
+
+
 OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AdjustSaturation"});
     auto images = node.get_input(0);
@@ -38,7 +123,6 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     auto node_name = node.get_name();
     // scale = make_shared<v1::ConvertLike>(scale, images);
 
-    auto adjust_saturation = make_shared<v1::Multiply>(images, scale)->output(0);
 
     // START
     // reduce spatial dimensions of images in a format [batch, height, width, channel]
@@ -72,14 +156,11 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
         )
     );
 
-    int num_channels = 3; // for RGB
-    int channel_axis = 3; // typically 3 if channels are last
+    auto channel_axis_node = make_shared<v0::Constant>(element::i64, Shape{}, vector<int64_t>{-1});
 
-    // Create a constant to define the split axis
-    auto channel_axis_node = make_shared<v0::Constant>(element::i64, Shape{}, channel_axis);
+    // Perform the split operation specifying the number of channels directly
+    auto channels = make_shared<v1::Split>(images, channel_axis_node, 3); 
 
-    // Perform the split operation
-    auto channels = make_shared<v1::Split>(images, channel_axis_node, num_channels);
 
     // channels now contains three outputs: [R, G, B], we need to explicitly get each channel
     auto r = channels->output(0);
@@ -106,58 +187,25 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
 
     // END
 
-    set_node_name(node_name, adjust_saturation.get_node_shared_ptr());
-    return {adjust_saturation};
+    scale = make_shared<v1::ConvertLike>(scale, images);
+
+    auto adjust_saturation = make_shared<v1::Multiply>(s, scale);
+
+
+    auto new_ = hsv_to_rgb(hh, adjust_saturation, vv);
+
+    std::ofstream logFile("debug.log", std::ios_base::app);
+    logFile << "Shape of images: " << images.get_shape().to_string() << std::endl;
+    logFile << "Shape of news: " << new_->get_shape().to_string() << std::endl;
+    logFile.close();
+
+    auto adjust_saturation_ = new_->output(0);
+    // auto adjust_saturation_ = make_shared<v1::Multiply>(images, scale)->output(0);
+
+    set_node_name(node_name, adjust_saturation_.get_node_shared_ptr());
+    return {adjust_saturation_};
 }
 
-shared_ptr<Node> convert_rgb_to_hsv(shared_ptr<Node> images) {
-    // Assume images are in shape [batch, height, width, 3] and dtype float
-
-    // Reduce operations to find max and min across the channel axis
-    auto max_rgb = make_shared<v1::ReduceMax>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
-    auto vv = max_rgb;
-    auto min_rgb = make_shared<v1::ReduceMin>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
-    auto range = make_shared<v1::Subtract>(max_rgb, min_rgb);
-
-    // Compute Saturation (S)
-    auto s = make_shared<v1::Divide>(range, vv);
-
-    // Compute normalization factor (for Hue calculation)
-    auto norm = make_shared<v1::Divide>(
-        make_shared<v0::Constant>(range->get_element_type(), range->get_shape(), vector<float>{1.0f}),
-        make_shared<v1::Multiply>(
-            make_shared<v0::Constant>(range->get_element_type(), range->get_shape(), vector<float>{6.0f}),
-            range
-        )
-    );
-
-    // Split the image tensor into R, G, B channels
-    auto channels = make_shared<v1::Split>(images, make_shared<v0::Constant>(element::i64, Shape{}, 3), 3);
-    auto r = channels->output(0);
-    auto g = channels->output(1);
-    auto b = channels->output(2);
-
-    // Determine which component is the max (V) to compute Hue (H)
-    auto r_eq_v = make_shared<v1::Equal>(r, vv);
-    auto g_eq_v = make_shared<v1::Equal>(g, vv);
-
-    auto hue_case_r = make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(g, b));
-    auto hue_case_g = make_shared<v1::Add>(
-        make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)),
-        make_shared<v0::Constant>(norm->get_element_type(), norm->get_shape(), vector<float>{2.0f / 6.0f})
-    );
-    auto hue_case_b = make_shared<v1::Add>(
-        make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)),
-        make_shared<v0::Constant>(norm->get_element_type(), norm->get_shape(), vector<float>{4.0f / 6.0f})
-    );
-
-    // Select the correct hue based on the maximum component
-    auto hue_temp = make_shared<v1::Select>(r_eq_v, hue_case_r, hue_case_g);
-    auto hh = make_shared<v1::Select>(g_eq_v, hue_case_g, hue_case_b);
-
-    // Return a single node that presumably could be used to extract individual components
-    return make_shared<v0::Concat>(NodeVector{hh, vv, s}, 3); 
-}
 
 }  // namespace op
 }  // namespace tensorflow
