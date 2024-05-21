@@ -5,11 +5,11 @@
 #include "transformations/common_optimizations/concat_to_broadcast.hpp"
 
 #include "itt.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "transformations/utils/utils.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
     MATCHER_SCOPE(ConcatToBroadcast);
@@ -19,7 +19,7 @@ ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
         auto first_input_source_output = node->get_input_source_output(0);
 
         // Do not start comparing from 0 (with itself)
-        const auto& input_values = node->input_values();    
+        const auto& input_values = node->input_values();
         auto it = input_values.cbegin();
         std::next(it, 1);
 
@@ -46,13 +46,11 @@ ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
         }
 
         const auto& broadcast_input = concat->input_value(0);
-        auto target_shape = std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{concat->get_default_output().get_shape().size()},
-                                                                                           concat->get_default_output().get_shape());
-
-        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(
-            broadcast_input,
-            target_shape
-        );
+        auto target_shape = 
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                   Shape{concat->get_default_output().get_shape().size()},
+                                                   concat->get_default_output().get_shape());
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_input, target_shape);
         broadcast->set_friendly_name(concat->get_friendly_name());
         ov::replace_node(concat, broadcast);
 
