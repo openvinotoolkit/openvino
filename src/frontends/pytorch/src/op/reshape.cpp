@@ -61,7 +61,7 @@ OutputVector translate_reshape_fx(const NodeContext& context) {
                     auto squeeze = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(context.get_input(0), zero));
                     return {squeeze};
                 } else if (inp_shape.size() == shape_vec.size()) {
-                    // If the input rank is equal to output rank, we can use 0s in place of dynamic dymensions
+                    // If the input rank is equal to output rank, we can use 0s in place of dynamic dimensions
                     for (size_t k = 0; k < shape_vec.size(); k++) {
                         if (shape_vec[k] == -1)
                             shape_vec[k] = 0;
