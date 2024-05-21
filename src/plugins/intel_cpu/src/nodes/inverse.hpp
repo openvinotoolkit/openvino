@@ -54,10 +54,7 @@ private:
                           std::vector<float>& L,
                           std::vector<float>& U,
                           std::vector<size_t>& P,
-                          bool& sign,
                           size_t b);
-
-    void to_adjoint(float* output, std::vector<float>& U, bool sign, size_t b);
 
     void lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b);
 };
