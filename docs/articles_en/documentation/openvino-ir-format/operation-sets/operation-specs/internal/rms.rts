@@ -18,13 +18,6 @@ RMS
 *RMS* operation performs Root Mean Square (RMS) normalization on a given input ``data`` along the last dimension of the input.
 `Reference <https://arxiv.org/abs/1910.07467>`__.
 
-.. code-block:: py
-
-    (x / Sqrt(ReduceMean(x^2, -1) + eps))
-
-
-If the optional ``scale`` input is provided:
-
 
 .. code-block:: py
 
@@ -53,7 +46,7 @@ If the optional ``scale`` input is provided:
 
 * **1**: ``data`` - Input data to be normalized. A tensor of type *T* and arbitrary shape. **Required.**
 
-* **3**: ``scale`` - A tensor of type *T* containing the scale values for . The shape should be broadcastable to the shape of ``data`` tensor. **Required.**
+* **2**: ``scale`` - A tensor of type *T* containing the scale values for . The shape should be broadcastable to the shape of ``data`` tensor. **Required.**
 
 
 **Outputs**
