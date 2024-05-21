@@ -149,8 +149,18 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
 
 OutputVector NodeContext::inputs() const {
     OutputVector res;
-    for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
-        res.push_back(get_input(i));
+    for(size_t i = 0; i < m_decoder_inputs.size(); i++){
+        auto input = m_decoder_inputs.at(i);
+        if (input == 0) {
+            // Case when input can be inlined (possible only for fx decoder)
+            if (m_decoder->is_input_inlined(i)) {
+                auto inlined_input = m_decoder->inlined_input(i);
+                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1, "Incorrect inlined input with index:", i);
+                res.push_back(inlined_input[0]);
+            }
+        }
+        FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
+        res.push_back(m_tensor_map->at(input));
     }
     return res;
 }

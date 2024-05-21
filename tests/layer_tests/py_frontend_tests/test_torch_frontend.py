@@ -744,5 +744,5 @@ class InlinedInputsModel(torch.nn.Module):
 def test_inlined_inputs():
     model = InlinedInputsModel()
     model.eval()
-    model = torch.compile(model, backend="openvino")
+    model = torch.compile(model, backend="openvino", options={"testing": 1})
     model()
