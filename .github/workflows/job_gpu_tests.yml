@@ -79,7 +79,7 @@ jobs:
       - name: Get gtest-parallel script
         run: wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py
 
-      - name: Install GPU Drivers
+      - name: Install compute runtime drivers
         run: |
           wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
           wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
@@ -89,6 +89,14 @@ jobs:
           wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
           wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
           dpkg -i *.deb
+
+      - name: Install media & display runtimes
+        if: ${{ inputs.device == 'dgpu' }}
+        run: |
+          apt-get update && apt-get install -y \
+            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm11 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
 
       - name: Verify devices
         run: clinfo
