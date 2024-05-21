@@ -32,7 +32,7 @@ OutputVector translate_reshape_fx(const NodeContext& context) {
     std::vector<int32_t> shape_vec;
     if (context.get_input_type(1).is<type::List>()) {
         int num_dyn_dims = 0;
-        for (int i = 1; i < num_inputs; i++) {
+        for (size_t i = 1; i < num_inputs; i++) {
             auto shape_input = context.get_input(i);
             if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
                 auto const_val = context.const_input<int32_t>(i);
@@ -62,7 +62,7 @@ OutputVector translate_reshape_fx(const NodeContext& context) {
                     return {squeeze};
                 } else if (inp_shape.size() == shape_vec.size()) {
                     // If the input rank is equal to output rank, we can use 0s in place of dynamic dymensions
-                    for (int k = 0; k < shape_vec.size(); k++) {
+                    for (size_t k = 0; k < shape_vec.size(); k++) {
                         if (shape_vec[k] == -1)
                             shape_vec[k] = 0;
                     }
