@@ -255,10 +255,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab_batch:
-
     .. tab-item:: Python
        :sync: py
+
+       .. _python_tab_batch:
 
        .. list-table::
           :header-rows: 1
@@ -302,10 +302,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab_mean_val:
-
     .. tab-item:: Python
        :sync: py
+
+       .. _python_tab_mean_val:
 
        .. list-table::
           :header-rows: 1
@@ -353,10 +353,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab_scale_val:
-
     .. tab-item:: Python
        :sync: py
+
+       .. _python_tab_scale_val:
 
        .. list-table::
           :header-rows: 1
@@ -404,10 +404,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab_reverse:
-
     .. tab-item:: Python
        :sync: py
+
+       .. _python_tab_reverse:
 
        .. list-table::
           :header-rows: 1
@@ -455,10 +455,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab_source:
-
     .. tab-item:: Python
        :sync: py
+
+       .. _python_tab_source:
 
        .. list-table::
           :header-rows: 1
@@ -504,10 +504,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab_target:
-
     .. tab-item:: Python
        :sync: py
+
+       .. _python_tab_target:
 
        .. list-table::
           :header-rows: 1
@@ -553,10 +553,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab_layout:
-
     .. tab-item:: Python
        :sync: py
+
+       .. _python_tab_layout:
 
        .. list-table::
           :header-rows: 1
@@ -602,10 +602,10 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab_transform:
-
     .. tab-item:: Python
        :sync: py
+
+       .. _python_tab_transform:
 
        .. list-table::
           :header-rows: 1
