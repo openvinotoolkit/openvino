@@ -11,6 +11,7 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 
 #include <sys/types.h>
 
@@ -47,6 +48,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                          context,
                          create_task_executor(plugin, config),
                          nullptr)
+    // : ov::ICompiledModel::ICompiledModel(model, plugin)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
@@ -58,6 +60,17 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
+    }
+    if (m_config.enableSubStreams) {
+        std::cout << "enableSubStreams\n";
+        m_config.enableSubStreams = false;
+        m_subCompileModel = true;
+        auto message = ov::threading::message_manager();
+        std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
+        for (int i = 0; i < 2; i++) {
+            sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, context, m_config));
+        }
+        message->setSubCompileModels(sub_models);
     }
 }
 
@@ -162,6 +175,16 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                                                    get_task_executor(),
                                                                    m_wait_executor,
                                                                    get_callback_executor());
+    if (m_subCompileModel) {
+        auto message = ov::threading::message_manager();
+        auto sub_models = message->getSubCompileModels();
+        std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
+        for (auto model : sub_models) {
+            requests.push_back(model->create_infer_request());
+        }
+        message->setSubInferRequest(requests);
+        async_infer_request->setSubInfer(true);
+    }
     return async_infer_request;
 }
 

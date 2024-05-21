@@ -20,6 +20,8 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/plugin/async_infer_request.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 
 #include <algorithm>
 #include <iterator>
@@ -113,10 +115,36 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 
 void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
+    auto message = ov::threading::message_manager();
+    if (m_asyncRequest->m_sub_infers) {
+        std::cout << "m_asyncRequest->m_sub_infers\n";
+        message->server_wait(message->getSubInferRequest().size());
+        std::cout << "message->getSubInferRequest().size: " << message->getSubInferRequest().size() << std::endl;
+        ov::threading::MessageInfo msg_info;
+        msg_info.msg_type = ov::threading::MsgType::START_INFER;
+        ov::threading::Task task = [&] {
+            SyncInferRequest::sub_streams_infer();
+        };
+        msg_info.task = std::move(task);
+        message->send_message(msg_info);
+        message->infer_wait();
+        // std::cout << "------ infer end -----\n";
+        return;
+    }
+
     setup_stream_graph();
     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     enqueue();
     wait();
+}
+
+void SyncInferRequest::sub_streams_infer() {
+    // sub streams infer
+    auto message = ov::threading::message_manager();
+    auto requests = message->getSubInferRequest();
+    std::cout << "getSubInferRequest\n";
+    // auto inputs = get_inputs();
+    // auto outputs = get_outputs();
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
@@ -130,6 +158,11 @@ std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const
         ret.emplace_back(pair.second, nullptr);
     }
     return ret;
+}
+
+void SyncInferRequest::set_async_request(ov::intel_gpu::AsyncInferRequest* asyncRequest) {
+    m_asyncRequest = asyncRequest;
+    // m_asyncRequest->
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {

@@ -25,6 +25,8 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& in
                             m_infer_request->wait_notify();
                         });
     }
+    // static_cast<SyncInferRequest*>(infer_request.get())->set_async_request(this);
+    m_infer_request->set_async_request(this);
 }
 void AsyncInferRequest::start_async() {
     if (m_infer_request->use_external_queue()) {

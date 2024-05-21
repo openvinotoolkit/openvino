@@ -1,0 +1,212 @@
+From db1e60bcae52107b8344b3f623ce0d13b6a0711c Mon Sep 17 00:00:00 2001
+From: Your Name <you@example.com>
+Date: Mon, 20 May 2024 00:17:48 +0800
+Subject: [PATCH] temp
+
+---
+ samples/cpp/hello_classification/main.cpp     |  2 +-
+ .../intel_gpu/plugin/async_infer_request.hpp  |  5 +++-
+ .../intel_gpu/plugin/compiled_model.hpp       |  1 +
+ .../intel_gpu/runtime/execution_config.hpp    |  2 ++
+ .../intel_gpu/src/plugin/compiled_model.cpp   | 23 +++++++++++++++++++
+ src/plugins/intel_gpu/src/plugin/plugin.cpp   | 18 ++++++++++++++-
+ .../src/plugin/sync_infer_request.cpp         |  5 ++++
+ .../src/runtime/execution_config.cpp          |  1 +
+ 8 files changed, 54 insertions(+), 3 deletions(-)
+
+diff --git a/samples/cpp/hello_classification/main.cpp b/samples/cpp/hello_classification/main.cpp
+index 601e245713..517d01b9e3 100644
+--- a/samples/cpp/hello_classification/main.cpp
++++ b/samples/cpp/hello_classification/main.cpp
+@@ -92,7 +92,7 @@ int tmain(int argc, tchar* argv[]) {
+         model = ppp.build();
+ 
+         // -------- Step 5. Loading a model to the device --------
+-        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
++        ov::CompiledModel compiled_model = core.compile_model(model, device_name, {{"MODEL_DISTRIBUTION_POLICY", "TENSOR_PARALLEL"}});
+ 
+         // -------- Step 6. Create an infer request --------
+         ov::InferRequest infer_request = compiled_model.create_infer_request();
+diff --git a/src/plugins/intel_gpu/include/intel_gpu/plugin/async_infer_request.hpp b/src/plugins/intel_gpu/include/intel_gpu/plugin/async_infer_request.hpp
+index 9b05c359ab..28d17942b0 100644
+--- a/src/plugins/intel_gpu/include/intel_gpu/plugin/async_infer_request.hpp
++++ b/src/plugins/intel_gpu/include/intel_gpu/plugin/async_infer_request.hpp
+@@ -21,8 +21,11 @@ public:
+                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
+ 
+     ~AsyncInferRequest() override;
+-
++    void setSubInfer(bool sub_infer) {
++        m_sub_infers = sub_infer;
++    }
+     void start_async() override;
++    bool m_sub_infers = false;
+ 
+ private:
+     std::shared_ptr<SyncInferRequest> m_infer_request;
+diff --git a/src/plugins/intel_gpu/include/intel_gpu/plugin/compiled_model.hpp b/src/plugins/intel_gpu/include/intel_gpu/plugin/compiled_model.hpp
+index 640cc82c2c..8471e1cb71 100644
+--- a/src/plugins/intel_gpu/include/intel_gpu/plugin/compiled_model.hpp
++++ b/src/plugins/intel_gpu/include/intel_gpu/plugin/compiled_model.hpp
+@@ -70,6 +70,7 @@ private:
+     std::vector<ov::Output<const ov::Node>> m_outputs;
+     std::vector<std::shared_ptr<Graph>> m_graphs;
+     bool m_loaded_from_cache;
++    bool m_subCompileModel = false;
+ };
+ 
+ }  // namespace intel_gpu
+diff --git a/src/plugins/intel_gpu/include/intel_gpu/runtime/execution_config.hpp b/src/plugins/intel_gpu/include/intel_gpu/runtime/execution_config.hpp
+index 0af98bf1e9..ff4aff8f3c 100644
+--- a/src/plugins/intel_gpu/include/intel_gpu/runtime/execution_config.hpp
++++ b/src/plugins/intel_gpu/include/intel_gpu/runtime/execution_config.hpp
+@@ -139,6 +139,7 @@ public:
+     void apply_user_properties(const cldnn::device_info& info);
+ 
+     std::string to_string() const;
++    bool enableSubStreams;
+ 
+ protected:
+     void apply_hints(const cldnn::device_info& info);
+@@ -151,6 +152,7 @@ private:
+     ov::AnyMap internal_properties;
+     ov::AnyMap user_properties;
+ 
++
+     std::map<std::string, PropertyVisibility> supported_properties;
+     std::map<std::string, BaseValidator::Ptr> property_validators;
+ };
+diff --git a/src/plugins/intel_gpu/src/plugin/compiled_model.cpp b/src/plugins/intel_gpu/src/plugin/compiled_model.cpp
+index 2d49b01cd1..ecb0dd64b3 100644
+--- a/src/plugins/intel_gpu/src/plugin/compiled_model.cpp
++++ b/src/plugins/intel_gpu/src/plugin/compiled_model.cpp
+@@ -11,6 +11,7 @@
+ #include "intel_gpu/plugin/graph.hpp"
+ #include "intel_gpu/plugin/compiled_model.hpp"
+ #include "intel_gpu/plugin/async_infer_request.hpp"
++#include "openvino/runtime/threading/cpu_message.hpp"
+ 
+ #include <sys/types.h>
+ 
+@@ -47,6 +48,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
+                          context,
+                          create_task_executor(plugin, config),
+                          nullptr)
++    // : ov::ICompiledModel::ICompiledModel(model, plugin)
+     , m_context(context)
+     , m_config(config)
+     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
+@@ -59,6 +61,17 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
+         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
+         m_graphs.push_back(graph);
+     }
++    if (m_config.enableSubStreams) {
++        std::cout << "enableSubStreams\n";
++        m_config.enableSubStreams = false;
++        m_subCompileModel = true;
++        auto message = ov::threading::message_manager();
++        std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
++        for (int i = 0; i < 2; i++) {
++            sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, context, m_config));
++        }
++        message->setSubCompileModels(sub_models);
++    }
+ }
+ 
+ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
+@@ -162,6 +175,16 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
+                                                                    get_task_executor(),
+                                                                    m_wait_executor,
+                                                                    get_callback_executor());
++    if (m_subCompileModel) {
++        auto message = ov::threading::message_manager();
++        auto sub_models = message->getSubCompileModels();
++        std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
++        for (auto model : sub_models) {
++            requests.push_back(model->create_infer_request());
++        }
++        message->setSubInferRequest(requests);
++        async_infer_request->setSubInfer(true);
++    }
+     return async_infer_request;
+ }
+ 
+diff --git a/src/plugins/intel_gpu/src/plugin/plugin.cpp b/src/plugins/intel_gpu/src/plugin/plugin.cpp
+index dd94f5347b..311634b48a 100644
+--- a/src/plugins/intel_gpu/src/plugin/plugin.cpp
++++ b/src/plugins/intel_gpu/src/plugin/plugin.cpp
+@@ -159,9 +159,13 @@ Plugin::Plugin() {
+ 
+ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
+     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
++
++    std::vector<ov::intel_gpu::RemoteContextImpl::Ptr> context_vector;
++
+     std::string device_id = get_device_id(orig_config);
+ 
+     auto context = get_default_context(device_id);
++    context_vector.push_back(context);
+ 
+     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
+ 
+@@ -170,9 +174,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
+     config.apply_user_properties(context->get_engine().get_device_info());
+ 
+     auto transformed_model = clone_and_transform_model(model, config);
++
++    std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
++        config.get_property(ov::hint::model_distribution_policy.name())
++            .as<std::set<ov::hint::ModelDistributionPolicy>>();
++    if (model_distribution_policy.count(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
++        std::cout << "ov::hint::ModelDistributionPolicy: TENSOR_PARALLEL\n";
++        // get 2 devices with same type
++        auto context = get_default_context("1");
++        context_vector.push_back(context);
++        config.enableSubStreams = true;
++    }
+     {
+         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
+-        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
++        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_vector[0], config);
+     }
+ }
+ 
+@@ -554,6 +569,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
+         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
+         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
+         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
++        ov::PropertyName{ov::hint::model_distribution_policy.name(), PropertyMutability::RW},
+     };
+ 
+     return supported_properties;
+diff --git a/src/plugins/intel_gpu/src/plugin/sync_infer_request.cpp b/src/plugins/intel_gpu/src/plugin/sync_infer_request.cpp
+index 8c6ff2b2d6..8b61470c7b 100644
+--- a/src/plugins/intel_gpu/src/plugin/sync_infer_request.cpp
++++ b/src/plugins/intel_gpu/src/plugin/sync_infer_request.cpp
+@@ -113,6 +113,11 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
+ 
+ void SyncInferRequest::infer() {
+     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
++
++    // if (m_asyncRequest->m_sub_infers) {
++    //     std::cout << "m_asyncRequest->m_sub_infers\n";
++    // }
++
+     setup_stream_graph();
+     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+     enqueue();
+diff --git a/src/plugins/intel_gpu/src/runtime/execution_config.cpp b/src/plugins/intel_gpu/src/runtime/execution_config.cpp
+index 8a57759bff..9f00d586d1 100644
+--- a/src/plugins/intel_gpu/src/runtime/execution_config.cpp
++++ b/src/plugins/intel_gpu/src/runtime/execution_config.cpp
+@@ -55,6 +55,7 @@ void ExecutionConfig::set_default() {
+         std::make_tuple(ov::internal::exclusive_async_requests, false),
+         std::make_tuple(ov::internal::query_model_ratio, 1.0f),
+         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
++        std::make_tuple(ov::hint::model_distribution_policy, ""),
+ 
+         // Legacy API properties
+         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
+-- 
+2.34.1
+

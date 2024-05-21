@@ -186,7 +186,9 @@ public:
 
 std::shared_ptr<MessageManage> message_manager() {
     static MessageManageHolder message_manage;
-    return message_manage.get();
+    auto a = message_manage.get();
+    std::cout << "message: " << message_manage.get() << std::endl;
+    return a;
 }
 
 }  // namespace threading

@@ -159,9 +159,13 @@ Plugin::Plugin() {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
+
+    std::vector<ov::intel_gpu::RemoteContextImpl::Ptr> context_vector;
+
     std::string device_id = get_device_id(orig_config);
 
     auto context = get_default_context(device_id);
+    context_vector.push_back(context);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -170,9 +174,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.apply_user_properties(context->get_engine().get_device_info());
 
     auto transformed_model = clone_and_transform_model(model, config);
+
+    std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
+        config.get_property(ov::hint::model_distribution_policy.name())
+            .as<std::set<ov::hint::ModelDistributionPolicy>>();
+    if (model_distribution_policy.count(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
+        std::cout << "ov::hint::ModelDistributionPolicy: TENSOR_PARALLEL\n";
+        // get 2 devices with same type
+        auto context = get_default_context("1");
+        context_vector.push_back(context);
+        config.enableSubStreams = true;
+    }
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
-        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
+        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_vector[0], config);
     }
 }
 
@@ -554,6 +569,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::model_distribution_policy.name(), PropertyMutability::RW},
     };
 
     return supported_properties;

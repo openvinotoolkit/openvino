@@ -139,6 +139,7 @@ public:
     void apply_user_properties(const cldnn::device_info& info);
 
     std::string to_string() const;
+    bool enableSubStreams;
 
 protected:
     void apply_hints(const cldnn::device_info& info);
@@ -150,6 +151,7 @@ protected:
 private:
     ov::AnyMap internal_properties;
     ov::AnyMap user_properties;
+
 
     std::map<std::string, PropertyVisibility> supported_properties;
     std::map<std::string, BaseValidator::Ptr> property_validators;
