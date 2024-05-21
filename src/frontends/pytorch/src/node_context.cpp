@@ -149,7 +149,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
 
 OutputVector NodeContext::inputs() const {
     OutputVector res;
-    for(size_t i = 0; i < m_decoder_inputs.size(); i++){
+    for (size_t i = 0; i < m_decoder_inputs.size(); i++){
         auto input = m_decoder_inputs.at(i);
         if (input == 0) {
             // Case when input can be inlined (possible only for fx decoder)
