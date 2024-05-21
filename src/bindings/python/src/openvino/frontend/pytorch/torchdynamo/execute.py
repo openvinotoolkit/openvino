@@ -101,8 +101,8 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
 
     flat_args, _ = tree_flatten(args)
     ov_inputs = []
-    for a in flat_args:
-        ov_inputs.append((a if isinstance(a, int) else a.detach().cpu().numpy()))
+    for arg in flat_args:
+        ov_inputs.append((arg if isinstance(arg, int) else arg.detach().cpu().numpy()))
 
     res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
 
