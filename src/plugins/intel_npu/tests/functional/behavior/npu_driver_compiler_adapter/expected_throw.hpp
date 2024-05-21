@@ -65,7 +65,7 @@ public:
 };
 
 TEST_P(DriverCompilerAdapterExpectedThrowNPU, CheckWrongGraphExtAndThrow) {
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     const char* name = "ADAPTER_MANUAL_CONFIG";
     std::string env_value = getEnv(name);
 

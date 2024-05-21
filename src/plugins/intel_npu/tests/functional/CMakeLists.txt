@@ -30,9 +30,6 @@ ov_add_test_target(
         openvino::reference
         openvino::runtime
         openvino::npu_al
-    DEFINES
-        DATA_PATH=\"${DATA_PATH}\"
-        MODELS_PATH=\"${MODELS_PATH}\"
     LABELS
         KMB
 )
