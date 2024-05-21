@@ -1132,6 +1132,7 @@ void primitive_inst::do_runtime_skip_permute() {
     if (!get_node().is_type<permute>()
         || is_output()
         || !get_node().can_be_optimized()
+        || !get_node().is_runtime_skippable()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
         return;
@@ -1140,7 +1141,6 @@ void primitive_inst::do_runtime_skip_permute() {
     auto desc = _node->as<permute>().get_primitive();
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     const auto& permute_order = desc->permute_order;
-
     // Check runtime shape
     // Optimize when the largest value among the actual dim values in case where the permute order
     // is different from the shape index is equal to the multiplied value
@@ -1159,8 +1159,12 @@ void primitive_inst::do_runtime_skip_permute() {
 
     // If the largest value and total size are different, can_be_optimized needs to be reset
     if (size != max_value) {
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value << ") are different" << std::endl;
         set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value
+                               << ") are different" << std::endl;
+
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : reset can_be_optimized to false "
+                               << std::endl;
         return;
     }
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized" << std::endl;
