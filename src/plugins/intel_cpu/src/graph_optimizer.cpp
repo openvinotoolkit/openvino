@@ -927,7 +927,8 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
             continue;
         }
         const auto convert = fullyConnected->getParentEdgeAt(1)->getParent();
-        if (convert->getType() != Type::Convert || convert->getOriginalInputPrecisionAtPort(0) != ov::element::f16 ||
+        if (convert->getType() != Type::Convert ||
+            !one_of(convert->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) ||
             !one_of(convert->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16) ||
             !convert->isConstant()) {
             continue;

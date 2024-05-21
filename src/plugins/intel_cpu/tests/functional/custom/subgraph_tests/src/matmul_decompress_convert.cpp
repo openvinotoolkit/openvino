@@ -211,7 +211,7 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB = ov::test::utils::make_constant(weiConstElemType, inShapeB.get_shape());
-        if (weiConstElemType == ElementType::f16) {
+        if (weiConstElemType == ElementType::f16 || weiConstElemType == ElementType::bf16) {
             inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
         }
@@ -311,15 +311,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP32,
                          testParams2D_FP32_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
-const auto testParams2D_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
-                                                        ::testing::ValuesIn(transposeParams),
-                                                        ::testing::Values(ElementType::f16),
-                                                        ::testing::Values(emptyConfig),
-                                                        ::testing::ValuesIn(filter_specific_params(false)));
+const auto testParams2D_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
+                                                   ::testing::ValuesIn(transposeParams),
+                                                   ::testing::Values(ElementType::f16, ElementType::bf16),
+                                                   ::testing::Values(emptyConfig),
+                                                   ::testing::ValuesIn(filter_specific_params(false)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16,
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D,
                          MatMulDecompressConvertTest,
-                         testParams2D_FP16_smoke,
+                         testParams2D_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
 const auto testParams2D_BF16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
@@ -344,15 +344,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP32,
                          testParams3D_FP32_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
-const auto testParams3D_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
+const auto testParams3D_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                                         ::testing::ValuesIn(transposeParams),
-                                                        ::testing::Values(ElementType::f16),
+                                                        ::testing::Values(ElementType::f16, ElementType::bf16),
                                                         ::testing::Values(emptyConfig),
                                                         ::testing::ValuesIn(filter_specific_params(false)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP16,
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D,
                          MatMulDecompressConvertTest,
-                         testParams3D_FP16_smoke,
+                         testParams3D_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
 const auto testParams3D_BF16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
