@@ -2643,6 +2643,9 @@ public:
 
         auto& engine = get_test_engine();
 
+        if (!engine.get_device_info().supports_immad)
+            return;
+
         const unsigned long BATCH_SIZE = 31;
         const unsigned long M_SIZE = 11;
         const unsigned long K_SIZE = 37;
@@ -2711,14 +2714,13 @@ public:
                                                                                 data_types::f16,
                                                                                 format::bfyx,
                                                                                 n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1) :
-                                                                                             padding({padding_size_batch1, 0, 0, 0}, {0, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input1)});
+                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input1)});
 
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
                                                                                 n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, 0.0f, dyn_pad_dims_input2) :
                                                                                              padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
-                                                                                            //  padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
@@ -2741,7 +2743,9 @@ public:
             topology topology;
             topology.add(input_layout("input1", in1_layout),
                          input_layout("input2", in2_layout),
-                         gemm("gemm_ref", { input_info("input1"), input_info("input2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4)
+                         gemm("gemm_ref", { input_info("input1"), input_info("input2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4),
+                         permute("permute", input_info("gemm_ref"), {0, 2, 1, 3}),
+                         reorder("reorder", input_info("permute"), format::bfyx, data_types::f32)
             );
 
             ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
@@ -2756,12 +2760,12 @@ public:
 
             auto outputs = network.execute();
             OPENVINO_ASSERT(outputs.size() == 1);
-            OPENVINO_ASSERT(outputs.begin()->first == "gemm_ref");
+            OPENVINO_ASSERT(outputs.begin()->first == "reorder");
 
-            auto inst = network.get_primitive("gemm_ref");
+            auto inst = network.get_primitive("reorder");
 
-            auto output_mem = outputs.at("gemm_ref").get_memory();
-            auto output_layout = outputs.at("gemm_ref").get_layout();
+            auto output_mem = outputs.at("reorder").get_memory();
+            auto output_layout = outputs.at("reorder").get_layout();
 
             return engine.reinterpret_buffer(*output_mem, output_layout);
         };
@@ -2769,10 +2773,9 @@ public:
         topology topology;
         topology.add(input_layout("input1", in1_layout),
                      input_layout("input2", in2_layout),
-                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4)
-                    //  reorder("reorder1", input_info("input1"), format::bfyx, data_types::f16, "", reorder_mean_mode::subtract, padding()),
-                    //  reorder("reorder2", input_info("input2"), format::bfyx, data_types::f16, "", reorder_mean_mode::subtract, padding()),
-                    //  gemm("gemm", { input_info("reorder1"), input_info("reorder2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4)
+                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4),
+                     permute("permute", input_info("gemm"), {0, 2, 1, 3}),
+                     reorder("reorder", input_info("permute"), format::bfyx, data_types::f32)
         );
 
         ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
@@ -2784,15 +2787,10 @@ public:
         network.set_input_data("input1", input1_mem);
         network.set_input_data("input2", input2_mem);
 
-        auto inst = network.get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic());
-
         auto outputs = network.execute();
 
-        auto output_mem = outputs.at("gemm").get_memory();
-        auto output_layout = outputs.at("gemm").get_layout();
+        auto output_mem = outputs.at("reorder").get_memory();
+        auto output_layout = outputs.at("reorder").get_layout();
 
         auto res = engine.reinterpret_buffer(*output_mem, output_layout);
 

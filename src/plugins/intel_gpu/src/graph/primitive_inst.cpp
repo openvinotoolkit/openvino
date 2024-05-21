@@ -874,9 +874,7 @@ bool primitive_inst::update_impl() {
             }
         }
         if (!cached_impl) {
-            // if (_dynamic_impl || is_current_impl_dynamic) {
-            // WA: Disable clDNN shape agnostic kernels for gemm
-            if (!_node->is_type<gemm>() && (_dynamic_impl || is_current_impl_dynamic)) {
+            if (_dynamic_impl || is_current_impl_dynamic) {
                 if (async_compilation) {
                     auto& compilation_context = prog->get_compilation_context();
                     compilation_context.push_task(updated_params, [this, &compilation_context, updated_params]() {
