@@ -69,9 +69,8 @@ TEST_F(TransformationTestsF, LoopInputsInvariantAndOutput) {
         auto param1 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
         auto add = std::make_shared<v1::Add>(param0, param1);
         auto result0 = std::make_shared<v0::Result>(add);
-        auto result1 = std::make_shared<v0::Result>(param1);
 
-        auto body = std::make_shared<Model>(OutputVector{condition, result0, result1}, ParameterVector{param0, param1});
+        auto body = std::make_shared<Model>(OutputVector{condition, result0}, ParameterVector{param0, param1});
         loop->set_special_body_ports({-1, 0});
         loop->set_function(body);
 
@@ -100,9 +99,8 @@ TEST_F(TransformationTestsF, LoopInputsNothing) {
     auto param1 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
     auto add = std::make_shared<v1::Add>(param0, param1);
     auto result0 = std::make_shared<v0::Result>(add);
-    auto result1 = std::make_shared<v0::Result>(param1);
 
-    auto body = std::make_shared<Model>(OutputVector{condition, result0, result1}, ParameterVector{param0, param1});
+    auto body = std::make_shared<Model>(OutputVector{condition, result0}, ParameterVector{param0, param1});
     loop->set_special_body_ports({-1, 0});
     loop->set_function(body);
 

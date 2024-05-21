@@ -19,9 +19,103 @@ using namespace ov::element;
 using namespace ov::pass::pattern;
 
 namespace {
-std::shared_ptr<ov::op::v0::Parameter> get_parent_param(const std::shared_ptr<ov::op::v0::Result>& result) {
-    return ov::as_type_ptr<ov::op::v0::Parameter>(result->input_values()[0].get_node_shared_ptr());
-}
+class SubgraphInput {
+public:
+    SubgraphInput() = default;
+    virtual ~SubgraphInput() = default;
+    virtual void add(std::shared_ptr<ov::op::util::SubGraphOp> subgraph) const = 0;
+};
+
+class InvariantInput : public SubgraphInput {
+public:
+    InvariantInput(const std::shared_ptr<ov::op::v0::Parameter>& body_parameter,
+                   const ov::Output<ov::Node>& value) : m_body_parameter(body_parameter), m_value(value) {}
+    void add(std::shared_ptr<ov::op::util::SubGraphOp> subgraph) const override {
+        subgraph->set_invariant_input(m_body_parameter, m_value);
+    }
+private:
+    const std::shared_ptr<ov::op::v0::Parameter> m_body_parameter;
+    const ov::Output<ov::Node> m_value;
+};
+
+class MergedInput : public SubgraphInput {
+public:
+    MergedInput(const std::shared_ptr<ov::op::v0::Parameter>& body_parameter,
+                const ov::Output<ov::Node>& initial_value,
+                const ov::Output<ov::Node>& successive_value) : m_body_parameter(body_parameter),
+                m_initial_value(initial_value), m_successive_value(successive_value) {}
+    void add(std::shared_ptr<ov::op::util::SubGraphOp> subgraph) const override {
+        subgraph->set_merged_input(m_body_parameter,
+                                   m_initial_value,
+                                   m_successive_value);
+    }
+private:
+    const std::shared_ptr<ov::op::v0::Parameter> m_body_parameter;
+    const ov::Output<ov::Node> m_initial_value;
+    const ov::Output<ov::Node> m_successive_value;
+};
+
+class SlicedInput : public SubgraphInput {
+public:
+    SlicedInput(const std::shared_ptr<ov::op::v0::Parameter>& body_parameter,
+                const ov::Output<ov::Node>& value,
+                int64_t start,
+                int64_t stride,
+                int64_t part_size,
+                int64_t end,
+                int64_t axis) : m_body_parameter(body_parameter),
+                m_value(value), m_start(start), m_stride(stride),
+                m_part_size(part_size), m_end(end), m_axis(axis) {}
+    void add(std::shared_ptr<ov::op::util::SubGraphOp> subgraph) const override {
+        subgraph->set_sliced_input(m_body_parameter,
+                                   m_value,
+                                   m_start,
+                                   m_stride,
+                                   m_part_size,
+                                   m_end,
+                                   m_axis);
+    }
+private:
+    const std::shared_ptr<ov::op::v0::Parameter> m_body_parameter;
+    const ov::Output<ov::Node> m_value;
+    const int64_t m_start;
+    const int64_t m_stride;
+    const int64_t m_part_size;
+    const int64_t m_end;
+    const int64_t m_axis;
+};
+
+class SubgraphOutput {
+public:
+    SubgraphOutput() = default;
+    virtual ~SubgraphOutput() = default;
+    virtual void replace(ov::Output<ov::Node>& output) const = 0;
+};
+
+class SimpleSubgraphOutput : public SubgraphOutput {
+public:
+    explicit SimpleSubgraphOutput(const ov::Output<ov::Node>& output) : m_output(output) {}
+    void replace(ov::Output<ov::Node>& output) const override {
+        output.replace(m_output);
+    }
+private:
+    const ov::Output<ov::Node> m_output;
+};
+
+class IterValueSubgraphOutput : public SubgraphOutput {
+public:
+    IterValueSubgraphOutput(const ov::Output<ov::Node>& value,
+                            const std::shared_ptr<ov::op::v5::Loop>& loop,
+                            int64_t iteration) : m_value(value), m_loop(loop), m_iteration(iteration) {}
+    void replace(ov::Output<ov::Node>& output) const override {
+        auto new_output = m_loop->get_iter_value(m_value, m_iteration);
+        output.replace(new_output);
+    }
+private:
+    const ov::Output<ov::Node> m_value;
+    const std::shared_ptr<ov::op::v5::Loop> m_loop;
+    const int64_t m_iteration;
+};
 }  // namespace
 
 ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
@@ -33,9 +127,32 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto loop = as_type_ptr<ov::op::v5::Loop>(pattern_to_output.at(loop_label).get_node_shared_ptr());
-        auto body_model = loop->get_function();
+        // clone model since we will update it for the new loop
+        auto body_model = loop->get_function()->clone();
         const auto body_params = body_model->get_parameters();
         const auto body_results = body_model->get_results();
+
+        const auto loop_special_ports = loop->get_special_body_ports();
+
+        // find Params and Results, that is connected together (except special ports)
+        std::unordered_set<uint64_t> body_value_indexes_to_remove;
+        for (uint64_t body_value_index = 0; body_value_index < body_results.size(); ++body_value_index) {
+            if (loop_special_ports.body_condition_output_idx == static_cast<int64_t>(body_value_index))
+                continue;
+            const auto& parent_node = body_results[body_value_index]->input_values()[0].get_node_shared_ptr();
+            if (!ov::as_type_ptr<ov::op::v0::Parameter>(parent_node))
+                continue;
+            body_value_indexes_to_remove.emplace(body_value_index);
+        }
+        std::unordered_set<uint64_t> body_param_indexes_to_remove;
+        for (uint64_t body_param_index = 0; body_param_index < body_params.size(); ++body_param_index) {
+            const auto consumers = body_params[body_param_index]->get_output_target_inputs(0);
+            if (std::all_of(consumers.begin(), consumers.end(), [](const Input<Node>& consumer) {
+                return dynamic_cast<ov::op::v0::Result*>(consumer.get_node()) != nullptr;
+            })) {
+                body_param_indexes_to_remove.emplace(body_param_index);
+            }
+        }
 
         const auto loop_input_values = loop->input_values();
         const auto& trip_count = loop_input_values[0];
@@ -43,32 +160,43 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
 
         auto new_loop = make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
         new_loop->set_function(body_model);
-        new_loop->set_special_body_ports(loop->get_special_body_ports());
 
+        const auto new_loop_body_condition_output = body_results[loop_special_ports.body_condition_output_idx];
+
+        // collect data about loop inputs
+        std::vector<std::shared_ptr<SubgraphInput>> new_loop_inputs;
+        std::unordered_map<uint64_t, Output<Node>> body_loop_inputs; // body_value index -> loop_input
         for (const auto& input_description : loop->get_input_descriptions()) {
+            // if parameter removed, do not add input_description into new loop
+            if (body_param_indexes_to_remove.find(input_description->m_body_parameter_index) != body_param_indexes_to_remove.end())
+                continue;
             if (const auto merged_input_desc =
                     as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_description)) {
-                if (get_parent_param(body_results[merged_input_desc->m_body_value_index])) {
-                    new_loop->set_invariant_input(body_params[merged_input_desc->m_body_parameter_index],
-                                                  loop_input_values[merged_input_desc->m_input_index]);
+                /* if we have Parameter -> Result, input data is not changed in loop, and we can set up this
+                 * input as "invariant" instead of make it "merged"
+                 */
+                if (body_value_indexes_to_remove.find(merged_input_desc->m_body_value_index) != body_value_indexes_to_remove.end()) {
+                    new_loop_inputs.emplace_back(std::make_shared<InvariantInput>(body_params[merged_input_desc->m_body_parameter_index],
+                                                                             loop_input_values[merged_input_desc->m_input_index]));
+                    body_loop_inputs.emplace(merged_input_desc->m_body_value_index, loop_input_values[merged_input_desc->m_input_index]);
                 } else {
-                    new_loop->set_merged_input(body_params[merged_input_desc->m_body_parameter_index],
-                                               loop_input_values[merged_input_desc->m_input_index],
-                                               body_results[merged_input_desc->m_body_value_index]);
+                    new_loop_inputs.emplace_back(std::make_shared<MergedInput>(body_params[merged_input_desc->m_body_parameter_index],
+                                                                               loop_input_values[merged_input_desc->m_input_index],
+                                                                               body_results[merged_input_desc->m_body_value_index]));
                 }
             } else if (const auto invariant_input_desc =
                            as_type_ptr<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(input_description)) {
-                new_loop->set_invariant_input(body_params[invariant_input_desc->m_body_parameter_index],
-                                              loop_input_values[invariant_input_desc->m_input_index]);
+                new_loop_inputs.emplace_back(std::make_shared<InvariantInput>(body_params[invariant_input_desc->m_body_parameter_index],
+                                                                              loop_input_values[invariant_input_desc->m_input_index]));
             } else if (const auto sliced_input_desc =
                            as_type_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>(input_description)) {
-                new_loop->set_sliced_input(body_params[sliced_input_desc->m_body_parameter_index],
+                new_loop_inputs.emplace_back(std::make_shared<SlicedInput>(body_params[sliced_input_desc->m_body_parameter_index],
                                            loop_input_values[sliced_input_desc->m_input_index],
                                            sliced_input_desc->m_start,
                                            sliced_input_desc->m_stride,
                                            sliced_input_desc->m_part_size,
                                            sliced_input_desc->m_end,
-                                           sliced_input_desc->m_axis);
+                                           sliced_input_desc->m_axis));
             } else {
                 /* unknown input description type
                  * this could only happen if new input description type was added after this transformation
@@ -78,13 +206,8 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             }
         }
 
-        std::unordered_map<size_t, ov::Output<ov::Node>> loop_inputs;  // body_param->instance_id -> loop_input
-        for (const auto& input_description : loop->get_input_descriptions()) {
-            loop_inputs.emplace(body_params[input_description->m_body_parameter_index]->get_instance_id(),
-                                loop_input_values[input_description->m_input_index]);
-        }
-
-        ov::OutputVector new_loop_outputs;
+        // collect data about loop outputs
+        std::vector<std::shared_ptr<SubgraphOutput>> new_loop_outputs;
         int64_t iteration = -1;
         for (const auto& output_description : loop->get_output_descriptions()) {
             iteration = -1;
@@ -92,17 +215,37 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
                     as_type_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(output_description)) {
                 iteration = body_output_desc->m_iteration;
             }
-            const auto& body_result = body_results[output_description->m_body_value_index];
-            if (const auto& body_param = get_parent_param(body_result)) {
-                new_loop_outputs.emplace_back(loop_inputs[body_param->get_instance_id()]);
+            if (body_value_indexes_to_remove.find(output_description->m_body_value_index) != body_value_indexes_to_remove.end()) {
+                new_loop_outputs.emplace_back(std::make_shared<SimpleSubgraphOutput>(body_loop_inputs[output_description->m_body_value_index]));
             } else {
-                new_loop_outputs.emplace_back(new_loop->get_iter_value(body_result, iteration));
+                new_loop_outputs.emplace_back(std::make_shared<IterValueSubgraphOutput>(body_results[output_description->m_body_value_index], new_loop, iteration));
             }
         }
 
+        // remove Params, Results from new loop body
+        for (const auto result_idx : body_value_indexes_to_remove) {
+            body_model->remove_result(body_results[result_idx]);
+        }
+        for (const auto param_idx : body_param_indexes_to_remove) {
+            body_model->remove_parameter(body_params[param_idx]);
+        }
+
+        {
+            const int64_t in_body_condition_output_idx = body_model->get_result_index(new_loop_body_condition_output);
+            const ov::op::v5::Loop::SpecialBodyPorts ports(loop_special_ports.current_iteration_input_idx,
+                                                           in_body_condition_output_idx);
+            new_loop->set_special_body_ports(ports);
+        }
+
+        // connect new loop inputs with body inputs
+        for (const auto& input : new_loop_inputs) {
+            input->add(new_loop);
+        }
+
+        // connect new loop outputs with body outputs
         auto loop_outputs = loop->outputs();
         for (size_t i = 0; i < loop_outputs.size(); ++i) {
-            loop_outputs[i].replace(new_loop_outputs[i]);
+            new_loop_outputs[i]->replace(loop_outputs[i]);
         }
 
         ov::copy_runtime_info(loop, new_loop);
