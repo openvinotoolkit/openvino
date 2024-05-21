@@ -35,7 +35,7 @@ you can decide how to proceed:
 
       This approach assumes you run your model directly.
 
-      .. image:: /docs/articles_en/assets/images/ov_workflow_diagram_convenience.svg
+      .. image:: ./assets/images/ov_workflow_diagram_convenience.svg
          :align: center
          :alt: OpenVINO workflow diagram for convenience
 
@@ -44,7 +44,7 @@ you can decide how to proceed:
       This approach assumes you convert your model to OpenVINO IR explicitly, which means the
       conversion stage is not part of the final application.
 
-      .. image:: /docs/articles_en/assets/images/ov_workflow_diagram_performance.svg
+      .. image:: ./assets/images/ov_workflow_diagram_performance.svg
          :align: center
          :alt: OpenVINO workflow diagram for performance
 
