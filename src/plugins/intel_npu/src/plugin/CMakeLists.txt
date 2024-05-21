@@ -3,6 +3,7 @@
 #
 
 file(GLOB SOURCES "src/*.cpp" "include/*.hpp")
+file(GLOB_RECURSE NPUW_SOURCES "npuw/*.cpp" "npuw/*.hpp")
 
 set(NPU_PLUGIN_TARGET "openvino_intel_npu_plugin")
 set(NPU_PLUGIN_ENGINE_SOURCE_FILE "src/plugin.cpp")
@@ -14,7 +15,7 @@ set(TARGET_NAME ${NPU_PLUGIN_TARGET})
 
 ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
     DEVICE_NAME ${NPU_DEVICE_NAME}
-    SOURCES ${SOURCES}
+    SOURCES ${SOURCES} ${NPUW_SOURCES}
     VERSION_DEFINES_FOR ${NPU_PLUGIN_ENGINE_SOURCE_FILE}
 )
 
@@ -62,5 +63,13 @@ target_include_directories(${TARGET_NAME}
         ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero/include
         ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext
 )
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  target_compile_options(${TARGET_NAME} PRIVATE -mavx2 -mf16c)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  target_compile_options(${TARGET_NAME} PRIVATE /arch:AVX2)
+else()
+  message(AUTHOR_WARNING "Unknown compiler, may miss the AVX2 baseline setting")
+endif()
 
 ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
