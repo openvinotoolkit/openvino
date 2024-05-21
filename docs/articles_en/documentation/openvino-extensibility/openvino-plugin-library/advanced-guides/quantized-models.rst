@@ -33,7 +33,7 @@ The former one is aimed to transform the input data into the target precision wh
 In practice *Dequantize* operations can be propagated forward through the linear operations, such as *Convolution* or *Fully-Connected*,
 and in some cases fused with the following *Quantize* operation for the next layer into the so-called *Requantize* operation (see Fig. 1).
 
-.. image:: /docs/articles_en/assets/images/qdq_propagation.png
+.. image:: ../../../../assets/images/qdq_propagation.png
 
 Figure 1. Quantization operations propagation at runtime. Q, DQ, RQ stand for Quantize, Dequantize, and Requantize correspondingly.
 

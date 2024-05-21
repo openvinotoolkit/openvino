@@ -21,7 +21,7 @@ Intermediate Representation (IR) models are intended for inference, which means 
 There are two inputs in this network: boolean ``phase_train`` which manages state of the graph (train/infer) and
 ``batch_size`` which is a part of batch joining pattern.
 
-.. image:: /docs/articles_en/assets/images/FaceNet.svg
+.. image:: ../../../../../../assets/images/FaceNet.svg
 
 Converting a TensorFlow FaceNet Model to the IR
 ###############################################

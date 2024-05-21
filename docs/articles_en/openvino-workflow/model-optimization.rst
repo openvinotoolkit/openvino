@@ -27,11 +27,11 @@ Post-training Quantization is the fastest way to optimize an arbitrary DL model 
 
 In case of unsatisfactory accuracy or performance after Post-training Quantization, Training-time Optimization can be used as an option.
 
-.. image:: /docs/articles_en/assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
+.. image:: ../assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
 
 Once the model is optimized using the aforementioned methods, it can be used for inference using the regular OpenVINO inference workflow. No changes to the inference code are required.
 
-.. image:: /docs/articles_en/assets/images/WHAT_TO_USE.svg
+.. image:: ../assets/images/WHAT_TO_USE.svg
 
 Additional Resources
 ####################

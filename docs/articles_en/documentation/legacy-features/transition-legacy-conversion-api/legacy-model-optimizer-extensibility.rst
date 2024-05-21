@@ -203,7 +203,7 @@ Model Optimizer does not have value propagation implementation for the operation
 
 Before running partial inference, the graph can be depicted like in the following example:
 
-.. image:: ./docs/articles_en/assets/images/MO_graph_before_partial_inference.svg
+.. image:: ../../../assets/images/MO_graph_before_partial_inference.svg
 
 The difference in a graph structure with a graph during the front phase is not only in the data nodes, but also in the
 edge attributes. Note that an ``out`` attribute is specified for edges **from operation** nodes only, while an ``in``

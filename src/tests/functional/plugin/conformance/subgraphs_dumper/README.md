@@ -16,7 +16,7 @@ uniqueness and matching are defined by implementation of twon interface classes:
 * `read value & assign` extracts stateful graphs.
 
 > NOTE:
-> Please check the following architecture [diagram](/docs/articles_en/assets/images/subgraphs_dumper_arch_diaram.png) to get detailed information.
+> Please check the following architecture [diagram](../../../../../../docs/articles_en/assets/images/subgraphs_dumper_arch_diaram.png) to get detailed information.
 
 ## Build
 
@@ -55,4 +55,4 @@ make ov_subgraphs_dumper_tests
 ```
 
 ## Architecture Diagram
-![SubgraphsDumper Architecture Diagram](/docs/articles_en/assets/images/subgraphs_dumper_arch_diaram.png)
+![SubgraphsDumper Architecture Diagram](../../../../../../docs/articles_en/assets/images/subgraphs_dumper_arch_diaram.png)

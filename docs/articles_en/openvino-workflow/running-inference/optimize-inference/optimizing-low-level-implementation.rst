@@ -32,9 +32,9 @@ This provides much better performance for the networks than batching, especially
        | Requests are executed in parallel with a small number of threads.
        | Layer-wise, the streams imply much less synchronization.
 
-.. |conventional-approach| image:: /docs/articles_en/assets/images/cpu_execution_conventional_approach.svg
+.. |conventional-approach| image:: ../../../assets/images/cpu_execution_conventional_approach.svg
 
-.. |execution-streams| image:: /docs/articles_en/assets/images/cpu_execution_streams.svg
+.. |execution-streams| image:: ../../../assets/images/cpu_execution_streams.svg
 
 Compared to the batching, the parallelism is somewhat transposed (performed over inputs with much less synchronization within CNN ops):
 
@@ -53,9 +53,9 @@ Compared to the batching, the parallelism is somewhat transposed (performed over
      - | |execution-streams-2|
        | Inputs-wise the streams are the “transposed” batch.
 
-.. |large-batch-approach| image:: /docs/articles_en/assets/images/large_batch_approach.svg
+.. |large-batch-approach| image:: ../../../assets/images/large_batch_approach.svg
 
-.. |execution-streams-2| image:: /docs/articles_en/assets/images/cpu_execution_streams_2.svg
+.. |execution-streams-2| image:: ../../../assets/images/cpu_execution_streams_2.svg
 
 
 Keep in mind that :doc:`high-level performance hints <high-level-performance-hints>` allow the implementation to select the optimal number of streams depending on model's compute demands and CPU capabilities, including :doc:`int8 inference <../../model-optimization>` hardware acceleration, number of cores, etc.
@@ -66,7 +66,7 @@ Automatic Batching Internals
 :doc:`Automatic batching <../inference-devices-and-modes/automatic-batching>` performs on-the-fly grouping of inference requests to improve device utilization.
 It relaxes the requirement for an application to saturate devices such as GPU by using a large batch "explicitly". It performs transparent input gathering from individual inference requests followed by the actual batched execution, with no programming effort from the user:
 
-.. image:: /docs/articles_en/assets/images/batch_device.svg
+.. image:: ../../../assets/images/batch_device.svg
 
 Essentially, Automatic Batching shifts asynchronicity from individual requests to groups of requests that constitute the batches. Furthermore, for the execution to be efficient, it is very important that the requests arrive timely, without causing a batching timeout.
 Normally, the timeout should never be hit. It is rather a graceful way to handle the application exit (when the inputs are not arriving anymore, so the full batch is not possible to collect).
