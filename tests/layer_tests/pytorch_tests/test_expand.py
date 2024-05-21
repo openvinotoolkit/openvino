@@ -133,7 +133,7 @@ class TestDynamicExpand(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_expand(dim, op_type), ref_net, f"aten::expand"
+        return aten_expand(dim), ref_net, f"aten::expand"
 
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1)])
     @pytest.mark.precommit_fx_backend
