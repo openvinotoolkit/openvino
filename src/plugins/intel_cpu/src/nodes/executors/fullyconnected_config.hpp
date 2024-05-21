@@ -26,7 +26,7 @@ struct FCAttrs {
     MemoryCPtr decompressionSubtractPtr;
     MemoryCPtr decompressionMultiplyPtr;
     uint64_t dynamicQuantizationGroupSize;
-    Config::ModelType modelType;
+    Config::ModelType modelType = Config::ModelType::Unknown;
 };
 
 using FCConfig = executor::Config<FCAttrs>;

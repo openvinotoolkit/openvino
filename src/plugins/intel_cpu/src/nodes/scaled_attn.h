@@ -50,10 +50,6 @@ public:
 
     ov::element::Type getKVCachePrecision();
 
-    bool isStateful() {
-        return m_config.config.fuse_concat;
-    }
-
 private:
     void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
     void updateBeamTable(const MemoryPtr& mem_beam_idx, size_t new_q_len);
