@@ -18,7 +18,6 @@ namespace utils {
 // global plugin config is set up for conformance
 extern ov::AnyMap global_plugin_config;
 extern std::string target_device;
-extern std::string target_ops;
 extern std::string target_plugin_name;
 extern std::unordered_set<std::string> available_devices;
 

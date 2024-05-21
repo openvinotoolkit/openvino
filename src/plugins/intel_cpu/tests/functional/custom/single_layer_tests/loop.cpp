@@ -175,7 +175,6 @@ protected:
         bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
-        // ov::element::Type in_type;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -249,7 +248,6 @@ protected:
         bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
-        ov::element::Type inType;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -328,7 +326,6 @@ protected:
         bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
-        // ov::element::Type in_type;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
         targetDevice = ov::test::utils::DEVICE_CPU;

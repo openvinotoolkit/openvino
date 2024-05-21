@@ -12,143 +12,16 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/type_ranges.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/acos.hpp"
-#include "openvino/op/acosh.hpp"
-#include "openvino/op/asin.hpp"
-#include "openvino/op/asinh.hpp"
-#include "openvino/op/atan.hpp"
-#include "openvino/op/atanh.hpp"
-#include "openvino/op/batch_norm.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/ceiling.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/cos.hpp"
-#include "openvino/op/cosh.hpp"
-#include "openvino/op/deformable_convolution.hpp"
-#include "openvino/op/depth_to_space.hpp"
-#include "openvino/op/dft.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/einsum.hpp"
-#include "openvino/op/elu.hpp"
-#include "openvino/op/erf.hpp"
-#include "openvino/op/exp.hpp"
-#include "openvino/op/experimental_detectron_generate_proposals.hpp"
-#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
-#include "openvino/op/eye.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/floor.hpp"
-#include "openvino/op/floor_mod.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/gather_nd.hpp"
-#include "openvino/op/gelu.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/hard_sigmoid.hpp"
-#include "openvino/op/hsigmoid.hpp"
-#include "openvino/op/hswish.hpp"
-#include "openvino/op/idft.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/irdft.hpp"
-#include "openvino/op/log.hpp"
-#include "openvino/op/logical_and.hpp"
-#include "openvino/op/logical_not.hpp"
-#include "openvino/op/logical_or.hpp"
-#include "openvino/op/logical_xor.hpp"
-#include "openvino/op/lrn.hpp"
-#include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/matrix_nms.hpp"
-#include "openvino/op/max_pool.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/mish.hpp"
-#include "openvino/op/mod.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/negative.hpp"
-#include "openvino/op/non_max_suppression.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/proposal.hpp"
-#include "openvino/op/random_uniform.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/rdft.hpp"
-#include "openvino/op/reduce_l1.hpp"
-#include "openvino/op/reduce_l2.hpp"
-#include "openvino/op/reduce_logical_and.hpp"
-#include "openvino/op/reduce_logical_or.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/region_yolo.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/rnn_sequence.hpp"
-#include "openvino/op/roi_align.hpp"
-#include "openvino/op/round.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
-#include "openvino/op/scatter_update.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/selu.hpp"
-#include "openvino/op/sigmoid.hpp"
-#include "openvino/op/sign.hpp"
-#include "openvino/op/sin.hpp"
-#include "openvino/op/sinh.hpp"
-#include "openvino/op/softplus.hpp"
-#include "openvino/op/softsign.hpp"
-#include "openvino/op/space_to_batch.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/swish.hpp"
-#include "openvino/op/tan.hpp"
-#include "openvino/op/tanh.hpp"
-#include "openvino/op/topk.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/cum_sum.hpp"
-#include "openvino/op/mvn.hpp"
-#include "openvino/op/gru_cell.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/if.hpp"
-#include "openvino/op/tensor_iterator.hpp"
-#include "openvino/op/group_normalization.hpp"
-#include "openvino/op/reverse_sequence.hpp"
-#include "openvino/op/gather_tree.hpp"
-#include "openvino/op/deformable_psroi_pooling.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/psroi_pooling.hpp"
-#include "ov_ops/augru_sequence.hpp"
+#include "openvino/op/ops.hpp"
 #include "ov_ops/augru_cell.hpp"
-#include "openvino/op/roll.hpp"
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/squared_difference.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/loop.hpp"
-#include "openvino/op/squared_difference.hpp"
-#include "openvino/op/avg_pool.hpp"
-#include "openvino/op/ctc_loss.hpp"
-#include "openvino/op/grid_sample.hpp"
-#include "openvino/op/multinomial.hpp"
-#include "openvino/op/embeddingbag_offsets_sum.hpp"
-#include "openvino/op/generate_proposals.hpp"
-#include "openvino/op/roi_pooling.hpp"
-#include "openvino/op/shuffle_channels.hpp"
-#include "openvino/op/slice.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 namespace ov {
 namespace test {
 namespace utils {
 
+// NOTE: Default ranges are collected by data type and have resolution 1(for real types too)
+// to set up correct ranges and resolutions, please, configure range for Op in inputRanges structure
 struct Range {
     std::vector<ov::test::utils::InputGenerateData> int_port_ranges;
     std::vector<ov::test::utils::InputGenerateData> real_port_ranges;
@@ -273,22 +146,24 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v4::Interpolate::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v0::LRN::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v1::Pad::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
-    {ov::op::v3::Broadcast::get_type_info_static(), Range({{0, 200}}, {{0, 2000, 32768}})},
-    {ov::op::v5::NonMaxSuppression::get_type_info_static(), Range({{0, 15}, {0, 1, 1000, 1, true}},
-                                                                  {{0, 8, 32}, {0, 1, 1000, 1, true}})},
-    {ov::op::v9::NonMaxSuppression::get_type_info_static(), Range({{0, 15}, {0, 1, 1000, 1, true}},
-                                                                  {{0, 8, 32}, {0, 1, 1000, 1, true}})},
-    {ov::op::v8::MatrixNms::get_type_info_static(), Range({{0, 15}, {0, 1, 1000, 1, true}},
-                                                          {{0, 8, 32}, {0, 1, 1000, 1, true}})},
-    {ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::get_type_info_static(), Range({{1, 0, 1, 1}}, {{1, 0, 1, 1}})},
-    {ov::op::v6::ExperimentalDetectronPriorGridGenerator::get_type_info_static(), Range({{0, 0, 1}},
-                                                                                        {{-100, 200, 2, 1}, {0, 0, 1, 1, true}, {0, 0, 1, 1, true}})},
-    {ov::op::v8::DeformableConvolution::get_type_info_static(), Range({{0, 15}, {0, 2, 10, 1, true}, {0, 1, 20, 1, true}},
-                                                                      {{0, 8, 32}, {0, 2, 10, 1, true}, {0, 1, 20, 1, true}})},
+    {ov::op::v3::Broadcast::get_type_info_static(), Range({{0, 200}, {0, 10, 1, 1, true}, {0, 10, 1, 1, true}}, {{0, 2000, 32768}})},
+    {ov::op::v5::NonMaxSuppression::get_type_info_static(),
+        Range({{0, 15}, {0, 1, 1000, 1, true}}, {{0, 8, 32}, {0, 1, 1000, 1, true}})},
+    {ov::op::v9::NonMaxSuppression::get_type_info_static(),
+        Range({{0, 15}, {0, 1, 1000, 1, true}}, {{0, 8, 32}, {0, 1, 1000, 1, true}})},
+    {ov::op::v8::MatrixNms::get_type_info_static(),
+        Range({{0, 15}, {0, 1, 1000, 1, true}}, {{0, 8, 32}, {0, 1, 1000, 1, true}})},
+    {ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::get_type_info_static(),
+        Range({{1, 0, 1, 1}}, {{1, 0, 1, 1}})},
+    {ov::op::v6::ExperimentalDetectronPriorGridGenerator::get_type_info_static(),
+        Range({{0, 0, 1}}, {{-100, 200, 2, 1}, {0, 0, 1, 1, true}, {0, 0, 1, 1, true}})},
+    {ov::op::v8::DeformableConvolution::get_type_info_static(),
+        Range({{0, 15}, {0, 2, 10, 1, true}, {0, 1, 20, 1, true}},
+              {{0, 8, 32}, {0, 2, 10, 1, true}, {0, 1, 20, 1, true}})},
     {ov::op::v5::GRUSequence::get_type_info_static(), Range({{0, 15}, {0, 15}, {0, 10, 1, 1, true}}, {{0, 8, 32}})},
     {ov::op::v5::BatchNormInference::get_type_info_static(), Range({{0, 3}}, {{0, 3, 1}})},
-    {ov::op::v5::RNNSequence::get_type_info_static(),  Range({{0, 15}, {0, 15}, {0, 10, 1, 1, true}},
-                                                             {{0, 8, 32}, {0, 8, 32}, {0, 10, 1, 1, true}})},
+    {ov::op::v5::RNNSequence::get_type_info_static(),
+        Range({{0, 15}, {0, 15}, {0, 10, 1, 1, true}}, {{0, 8, 32}, {0, 8, 32}, {0, 10, 1, 1, true}})},
     {ov::op::v1::LogicalAnd::get_type_info_static(), Range({{0, 2}}, {{0, 2}})},
     {ov::op::v1::LogicalNot::get_type_info_static(), Range({{0, 2}}, {{0, 2}})},
     {ov::op::v1::LogicalOr::get_type_info_static(), Range({{0, 2}}, {{0, 2}})},
@@ -298,12 +173,14 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v1::Reshape::get_type_info_static(), Range({{-1000, 2000}, {0, 256, 1, 1, true}}, {{-100, 200, 32768}})},
     {ov::op::v3::TopK::get_type_info_static(), Range({{-1000, 2000}, {0, 1000, 1, 1, true}}, {{-1000, 2000, 32768}})},
     {ov::op::v11::TopK::get_type_info_static(), Range({{-1000, 2000}, {0, 1000, 1, 1, true}}, {{-1000, 2000, 32768}})},
-    {ov::op::v4::Range::get_type_info_static(), Range({{0, 15}, {1, 1000, 1, 1, true}},
-                                                      {{-1000, 2000, 32768}, {1, 1000, 1, 1, true}})},
-    {ov::op::v3::ROIAlign::get_type_info_static(), Range({{0, 15}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}},
-                                                         {{-1000, 2000, 32768}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}})},
-    {ov::op::v9::ROIAlign::get_type_info_static(), Range({{0, 15}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}},
-                                                         {{-1000, 2000, 32768}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}})},
+    {ov::op::v4::Range::get_type_info_static(),
+        Range({{0, 15}, {1, 1000, 1, 1, true}}, {{-1000, 2000, 32768}, {1, 1000, 1, 1, true}})},
+    {ov::op::v3::ROIAlign::get_type_info_static(),
+        Range({{0, 15}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}},
+              {{-1000, 2000, 32768}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}})},
+    {ov::op::v9::ROIAlign::get_type_info_static(),
+        Range({{0, 15}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}},
+              {{-1000, 2000, 32768}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}})},
     {ov::op::v0::Convert::get_type_info_static(), Range({{0, 1000}}, {{-100, 200, 32768}})},
     {ov::op::v0::FakeQuantize::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v0::FakeQuantize::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
@@ -340,16 +217,23 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v4::LSTMCell::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v13::ScaledDotProductAttention::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v1::Transpose::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
-    {ov::op::v5::Loop::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v5::Loop::get_type_info_static(), Range({{1, 10, 1, 1, true}, {0, 2, 1, 1, true}, {0, 15}}, {{0, 8, 32}})},
     {ov::op::v0::SquaredDifference::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v4::CTCLoss::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v9::GridSample::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v13::Multinomial::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v3::EmbeddingBagOffsetsSum::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v15::EmbeddingBagOffsets::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v9::GenerateProposals::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v0::ROIPooling::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v0::ShuffleChannels::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
-    {ov::op::v8::Slice::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v8::Slice::get_type_info_static(),
+        Range({{0, 15}, {0, 15, 1, 1, true}, {0, 15, 1, 1, true}, {1, 5, 1, 1, true}, {0, 15, 1, 1, true}}, {{0, 8, 32}})},
+    {ov::op::v3::EmbeddingBagPackedSum::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v3::EmbeddingSegmentsSum::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v15::EmbeddingBagPacked::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::GRN::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v1::Add::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
 };
 
 class ModelRange {

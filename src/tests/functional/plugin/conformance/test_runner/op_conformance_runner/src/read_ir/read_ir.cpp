@@ -260,24 +260,6 @@ void ReadIRTest::SetUp() {
     if (inputShapes.empty()) {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
     }
-    if (!ov::test::utils::target_ops.empty()) {
-        std::regex op_regexp = std::regex(ov::test::utils::target_ops);
-        bool op_exists = false;
-        for (const auto& node : function->get_ops()) {
-            if (ov::op::util::is_constant(node) ||
-                ov::op::util::is_parameter(node)) {
-                continue;
-            }
-            auto a = node->get_type_name();
-            if (std::regex_match(node->get_type_name(), op_regexp)) {
-                op_exists = true;
-                break;
-            }
-        }
-        if (!op_exists) {
-             GTEST_SKIP() << "The graph is not contains requeried ops: " << ov::test::utils::target_ops << std::endl;
-        }
-    }
     std::cout << "[ CONFORMANCE ] Influence coefficient: " << rel_influence_coef << std::endl;
     init_input_shapes(inputShapes);
     is_report_stages = true;

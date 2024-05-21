@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 20234 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
-#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -23,7 +23,7 @@ using namespace ov::util;
 using ov::Shape;
 using ov::op::v0::Parameter;
 using ov::op::v0::Result;
-using ov::op::v1::Add;
+using ov::op::v0::Concat;
 using ov::op::v0::Relu;
 using ov::op::v1::ReduceMean;
 using ov::op::v1::FloorMod;
@@ -32,8 +32,8 @@ using ov::op::v1::Reshape;
 TEST(RangesTests, ranges_by_type_real) {
     auto p0 = std::make_shared<Parameter>(ov::element::f16, Shape{3});
     auto p1 = std::make_shared<Parameter>(ov::element::f16, Shape{3});
-    auto add = std::make_shared<Add>(p0, p1);
-    auto func = std::make_shared<ov::Model>(add, ov::ParameterVector{p0, p1});
+    auto concat = std::make_shared<Concat>(ov::OutputVector{p0, p1}, 0);
+    auto func = std::make_shared<ov::Model>(concat, ov::ParameterVector{p0, p1});
 
     ov::test::utils::ModelRange modelRange;
     modelRange.find_mode_ranges(func);
@@ -49,8 +49,8 @@ TEST(RangesTests, ranges_by_type_real) {
     ASSERT_EQ(real_range->range, range);
     ASSERT_EQ(real_range->resolution, 1);
 
-    for (size_t port = 0; port < add->get_input_size(); ++port) {
-        ov::Tensor tensor1 = modelRange.generate_input(add, port, Shape{3});
+    for (size_t port = 0; port < concat->get_input_size(); ++port) {
+        ov::Tensor tensor1 = modelRange.generate_input(concat, port, Shape{3});
         auto data1 = tensor1.data<ov::float16>();
         for (size_t i = 0; i < shape_size(tensor1.get_shape()); ++i) {
             double value = data1[i];
@@ -63,8 +63,8 @@ TEST(RangesTests, ranges_by_type_real) {
 TEST(RangesTests, ranges_by_type_int) {
     auto p0 = std::make_shared<Parameter>(ov::element::i8, Shape{3});
     auto p1 = std::make_shared<Parameter>(ov::element::i8, Shape{3});
-    auto add = std::make_shared<Add>(p0, p1);
-    auto func = std::make_shared<ov::Model>(add, ov::ParameterVector{p0, p1});
+    auto concat = std::make_shared<Concat>(ov::OutputVector{p0, p1}, 0);
+    auto func = std::make_shared<ov::Model>(concat, ov::ParameterVector{p0, p1});
 
     ov::test::utils::ModelRange modelRange;
     modelRange.find_mode_ranges(func);
@@ -76,8 +76,8 @@ TEST(RangesTests, ranges_by_type_int) {
     ASSERT_EQ(int_range->range, range);
     ASSERT_EQ(int_range->resolution, 1);
 
-    for (size_t port = 0; port < add->get_input_size(); ++port) {
-        ov::Tensor tensor1 = modelRange.generate_input(add, port, Shape{3});
+    for (size_t port = 0; port < concat->get_input_size(); ++port) {
+        ov::Tensor tensor1 = modelRange.generate_input(concat, port, Shape{3});
         auto data1 = tensor1.data<int8_t>();
         for (size_t i = 0; i < shape_size(tensor1.get_shape()); ++i) {
             double value = data1[i];
@@ -92,9 +92,9 @@ TEST(RangesTests, intersection_real) {
     auto p1 = std::make_shared<Parameter>(ov::element::f32, Shape{3});
 
     auto relu = std::make_shared<Relu>(p0);
-    auto add = std::make_shared<Add>(p1, relu);
+    auto concat = std::make_shared<Concat>(ov::OutputVector{p1, relu}, 0);
 
-    auto func = std::make_shared<ov::Model>(add, ov::ParameterVector{p0, p1});
+    auto func = std::make_shared<ov::Model>(concat, ov::ParameterVector{p0, p1});
 
     ov::test::utils::ModelRange modelRange;
     modelRange.find_mode_ranges(func);
@@ -113,18 +113,18 @@ TEST(RangesTests, intersection_real) {
         ASSERT_LE(value, relu_range_ref.range);
     }
 
-    auto add_range_ref = ov::test::utils::rangeByType.get_range(ov::element::f32);
-    auto add_range = modelRange.get_range_for_param(p1);
-    ASSERT_EQ(add_range->start_from, add_range_ref.start_from);
-    ASSERT_EQ(add_range->range, add_range_ref.range);
-    ASSERT_EQ(add_range->resolution, add_range_ref.resolution);
+    auto concat_range_ref = ov::test::utils::rangeByType.get_range(ov::element::f32);
+    auto concat_range = modelRange.get_range_for_param(p1);
+    ASSERT_EQ(concat_range->start_from, concat_range_ref.start_from);
+    ASSERT_EQ(concat_range->range, concat_range_ref.range);
+    ASSERT_EQ(concat_range->resolution, concat_range_ref.resolution);
 
-    ov::Tensor tensor2 = modelRange.generate_input(add, 0, Shape{3});
+    ov::Tensor tensor2 = modelRange.generate_input(concat, 0, Shape{3});
     auto data2 = tensor1.data<float>();
     for (size_t i = 0; i < shape_size(tensor2.get_shape()); ++i) {
         double value = data2[i];
-        ASSERT_GE(value, add_range_ref.start_from);
-        ASSERT_LE(value, add_range_ref.range);
+        ASSERT_GE(value, concat_range_ref.start_from);
+        ASSERT_LE(value, concat_range_ref.range);
     }
 }
 
@@ -133,9 +133,9 @@ TEST(RangesTests, intersection_integral) {
     auto p1 = std::make_shared<Parameter>(ov::element::i32, Shape{3});
 
     auto relu = std::make_shared<Relu>(p0);
-    auto add = std::make_shared<Add>(p1, relu);
+    auto concat = std::make_shared<Concat>(ov::OutputVector{p1, relu}, 0);
 
-    auto func = std::make_shared<ov::Model>(add, ov::ParameterVector{p0, p1});
+    auto func = std::make_shared<ov::Model>(concat, ov::ParameterVector{p0, p1});
 
     ov::test::utils::ModelRange modelRange;
     modelRange.find_mode_ranges(func);
@@ -154,18 +154,18 @@ TEST(RangesTests, intersection_integral) {
         ASSERT_LE(value, relu_range_ref.range);
     }
 
-    auto add_range_ref = ov::test::utils::rangeByType.get_range(ov::element::f32);
-    auto add_range = modelRange.get_range_for_param(p1);
-    ASSERT_EQ(add_range->start_from, add_range_ref.start_from);
-    ASSERT_EQ(add_range->range, add_range_ref.range);
-    ASSERT_EQ(add_range->resolution, add_range_ref.resolution);
+    auto concat_range_ref = ov::test::utils::rangeByType.get_range(ov::element::f32);
+    auto concat_range = modelRange.get_range_for_param(p1);
+    ASSERT_EQ(concat_range->start_from, concat_range_ref.start_from);
+    ASSERT_EQ(concat_range->range, concat_range_ref.range);
+    ASSERT_EQ(concat_range->resolution, concat_range_ref.resolution);
 
-    ov::Tensor tensor2 = modelRange.generate_input(add, 0, Shape{3});
+    ov::Tensor tensor2 = modelRange.generate_input(concat, 0, Shape{3});
     auto data2 = tensor1.data<int32_t>();
     for (size_t i = 0; i < shape_size(tensor2.get_shape()); ++i) {
         double value = data2[i];
-        ASSERT_GE(value, add_range_ref.start_from);
-        ASSERT_LE(value, add_range_ref.range);
+        ASSERT_GE(value, concat_range_ref.start_from);
+        ASSERT_LE(value, concat_range_ref.range);
     }
 }
 
@@ -177,9 +177,9 @@ TEST(RangesTests, spetial_ranges) {
     auto p2 = std::make_shared<Parameter>(ov::element::i32, Shape{1});
     p2->set_friendly_name("p2");
 
-    auto add = std::make_shared<Add>(p0, p1);
-    add->set_friendly_name("add");
-    auto reshape = std::make_shared<Reshape>(add, p2, true);
+    auto concat = std::make_shared<Concat>(ov::OutputVector{p0, p1}, 1);
+    concat->set_friendly_name("Concat");
+    auto reshape = std::make_shared<Reshape>(concat, p2, true);
     reshape->set_friendly_name("reshape");
 
     auto res = std::make_shared<Result>(reshape);
@@ -195,7 +195,7 @@ TEST(RangesTests, spetial_ranges) {
     ASSERT_EQ(real_range->range, main_range.range);
     ASSERT_EQ(real_range->resolution, main_range.resolution);
 
-    ov::Tensor tensor1 = modelRange.generate_input(add, 0, Shape{1, 2, 3});
+    ov::Tensor tensor1 = modelRange.generate_input(concat, 0, Shape{1, 2, 3});
     auto data1 = tensor1.data<float>();
     for (size_t i = 0; i < shape_size(tensor1.get_shape()); ++i) {
         double value = data1[i];
@@ -224,8 +224,8 @@ TEST(RangesTests, intersection_range) {
     auto p2 = std::make_shared<Parameter>(ov::element::i32, Shape{1});
 
     auto relu = std::make_shared<Relu>(p0);
-    auto add = std::make_shared<Add>(p1, relu);
-    auto reduce = std::make_shared<ReduceMean>(add, p2, true);
+    auto concat = std::make_shared<Concat>(ov::OutputVector{p1, relu}, 1);
+    auto reduce = std::make_shared<ReduceMean>(concat, p2, true);
 
     auto func = std::make_shared<ov::Model>(reduce, ov::ParameterVector{p0, p1, p2});
 

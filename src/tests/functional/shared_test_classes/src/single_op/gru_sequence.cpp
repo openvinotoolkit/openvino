@@ -62,7 +62,6 @@ void GRUSequenceTest::SetUp() {
     ov::op::RecurrentSequenceDirection direction;
     InputLayerType wbr_type;
     ov::test::utils::SequenceTestsMode mode;
-    // ov::element::Type_t in_type = ov::element::undefined;
     std::tie(mode, shapes, activations, clip, linear_before_reset, direction, wbr_type,
             inType, targetDevice) = this->GetParam();
     outType = inType;

@@ -46,7 +46,6 @@ static const char ignore_crash_message[] = "Optional. Allow to not terminate the
                                            "This is organized with custom crash handler. Please, note, that handler work for test body,"
                                            "if crash happened on SetUp/TearDown stage, the process will be terminated.";
 static const char reference_cache_dir_message[] = "Optional. Set the directory with reference cache";
-static const char target_ops_message[] = "Optional.";
 
 
 DEFINE_bool(h, false, help_message);
@@ -63,7 +62,6 @@ DEFINE_string(shape_mode, "", shape_mode_message);
 DEFINE_uint32(test_timeout, UINT_MAX, test_timeout_message);
 DEFINE_uint32(ignore_crash, false, ignore_crash_message);
 DEFINE_string(ref_dir, "", reference_cache_dir_message);
-DEFINE_string(target_ops, "", target_ops_message);
 
 /**
 * @brief This function shows a help message
@@ -85,7 +83,6 @@ static void showUsage() {
     std::cout << "    --plugin_lib_name                " << output_folder_message << std::endl;
     std::cout << "    --shape_mode  \"<value>\"          " << shape_mode_message << std::endl;
     std::cout << "    --test_timeout  \"<value>\"        " << test_timeout_message << std::endl;
-    std::cout << "    --target_ops  \"<value>\"        " << target_ops_message << std::endl;
     std::cout << "    --ignore_crash                     " << ignore_crash_message << std::endl;
     std::cout << "    --ref_dir  \"<paths>\"             " << reference_cache_dir_message << std::endl;
 }
