@@ -285,7 +285,7 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    std::unique_ptr<jit_exp_emitter> exp_emitter;  
+    std::unique_ptr<jit_exp_emitter> exp_emitter; 
 
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
 
