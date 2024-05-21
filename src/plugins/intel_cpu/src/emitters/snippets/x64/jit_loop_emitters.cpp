@@ -4,7 +4,7 @@
 
 #include "jit_loop_emitters.hpp"
 
-#include "jit_kernel_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -218,12 +218,12 @@ void jit_loop_end_dynamic_emitter::emit_code(const std::vector<size_t> &in, cons
 
 void jit_loop_end_dynamic_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     Xbyak::Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
-    Xbyak::Reg64 reg_work_amount = Xbyak::Reg64(static_cast<int>(in[in.size() - 2]));
+    Xbyak::Reg64 reg_work_amount = Xbyak::Reg64(static_cast<int>(in[in.size() - 1]));
     Xbyak::Reg64 reg_increments = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
     const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
 
     std::vector<Xbyak::Reg64> data_ptr_regs;
-    transform_idxs_to_regs(std::vector<size_t>(in.begin(), in.end() - 2), data_ptr_regs);
+    transform_idxs_to_regs(std::vector<size_t>(in.begin(), in.end() - 1), data_ptr_regs);
 
     // todo: Note that we can pre-save reg_loop_args_ptr in jit_loop_begin_dynamic_emitter and pass it here like work_amount_reg
     //        this would save us one dereferencing here and in finalization offsets

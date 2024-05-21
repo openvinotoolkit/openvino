@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace intel_cpu {

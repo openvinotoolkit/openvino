@@ -51,6 +51,9 @@ protected:
             case dnnl::memory::format_tag::ab: return dnnl::memory::format_tag::ba;
             case dnnl::memory::format_tag::abc: return dnnl::memory::format_tag::acb;
             case dnnl::memory::format_tag::abcd: return dnnl::memory::format_tag::abdc;
+            // Whitelist format from transpose-gemm optimizing out
+            case dnnl::memory::format_tag::acbd: return dnnl::memory::format_tag::acdb;
+            case dnnl::memory::format_tag::adbc: return dnnl::memory::format_tag::adcb;
             default: throw std::runtime_error("Unsupported fmt in transpose_format gemm function");
         }
     }
@@ -328,6 +331,10 @@ attach_gemm_onednn::attach_gemm_onednn() {
         format::byxf,
         format::byfx,
         format::bxfy,
+        format::fybx,  //format used for gemm fusion
+        format::fyxb,  //format used for gemm fusion
+        format::xbfy, // format used for gemm fusion
+        format::ybfx, // format used for gemm fusion
         format::bfzyx,
         format::bfwzyx,
     };
