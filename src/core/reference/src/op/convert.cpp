@@ -46,16 +46,6 @@ void jit_convert_vec<float16, float>(jit::Generator& gen, const Xbyak::RegExp& s
 }
 
 template <>
-void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
-    auto f16vec = gen.xmm3;
-    auto f32vec = gen.ymm4;
-
-    gen.vmovups(f32vec, gen.yword[src]);
-    gen.vcvtps2ph(f16vec, f32vec, 0);
-    gen.vmovdqu(gen.xword[dst], f16vec);
-}
-
-template <>
 void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
