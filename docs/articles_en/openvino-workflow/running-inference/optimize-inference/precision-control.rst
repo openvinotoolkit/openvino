@@ -103,6 +103,10 @@ The accuracy of an INT8 model with FP32 is nearly the same as of an FP16 model w
 Additionally, selective FP32 execution of ops on CPU plugin together with the NNCF ``bf16``
 calibration could potentially mitigate the accuracy loss.
 
+However, the solutions mentioned above would, unfortunately, also result in significant performance drop during a large batch size inference task on machines with Intel AMX-BF16 SPR. In such cases, the fused multiply-add operation (FMA) is used instead of AMX.
+Also, in a compute-bound case, such as the LLM batch inference/serving, these work-arounds would drastically reduce the throughput by more than 60%. 
+
+
 
 Additional Resources
 ####################
