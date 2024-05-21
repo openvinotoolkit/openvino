@@ -15,8 +15,7 @@ class TestAdjustSaturation(CommonTFLayerTest):
         images_shape = inputs_info['images:0']
         inputs_data = {}
         inputs_data['images:0'] = np.random.rand(*images_shape).astype(self.input_type)
-        # inputs_data['scale:0'] = np.random.rand()
-        inputs_data['scale:0'] = 1.0
+        inputs_data['scale:0'] = np.random.rand()
         return inputs_data
 
     def create_adjust_saturation_net(self, input_shape, input_type):
@@ -35,7 +34,7 @@ class TestAdjustSaturation(CommonTFLayerTest):
     # Each input is a tensor of at least 3 dimensions. 
     # The last dimension is interpreted as channels, and must be three.
     test_data_basic = [
-        dict(input_shape=[1, 1, 3], input_type=np.float32),
+        dict(input_shape=[1, 1, 2, 3], input_type=np.float32),
         # dict(input_shape=[5, 25, 15, 3], input_type=np.float32),
         # dict(input_shape=[3, 4, 8, 10, 3], input_type=np.float32),
     ]
