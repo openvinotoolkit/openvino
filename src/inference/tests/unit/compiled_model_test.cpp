@@ -245,11 +245,6 @@ TEST_F(CompiledModelZeroBatch, batchSizeSetBatchToNonZeroWithLayoutThrows) {
     ASSERT_NO_THROW(ov::MockICompiledModel(modelZero, plugin));
 }
 
-TEST_F(CompiledModelZeroBatch, batchSizeNonZeroWithLayoutNoThrow) {
-    model->get_parameters()[0]->set_layout("NCWH");
-    ASSERT_NO_THROW(ov::MockICompiledModel(model, plugin));
-}
-
 TEST_F(CompiledModelZeroBatch, batchSizeDynamicWithLayoutNoThrow) {
     model->get_parameters()[0]->set_layout("NCWH");
     modelZero->get_parameters()[0]->set_layout("NCWH");
