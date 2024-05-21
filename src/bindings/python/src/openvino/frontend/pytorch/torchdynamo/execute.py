@@ -129,7 +129,7 @@ class OpenVINOGraphModule(torch.nn.Module):
         try:
             result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id, options=self.options)
         except Exception:
-            logger.warning("OpenVINO execution failed. Falling back to native PyTorch execution.")
+            logger.debug("OpenVINO execution failed. Falling back to native PyTorch execution.")
             self.perm_fallback = True
             return self.gm(*args)
 
