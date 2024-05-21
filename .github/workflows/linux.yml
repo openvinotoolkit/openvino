@@ -469,7 +469,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-32gb'
       # image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
-      test-string: format('{"image"\:\ "{0}", "volumes"\:\ ["/mount:/mount"], "options"\:\ "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64)
+      test-string: ${{ format('{"image"\:\ "{0}", "volumes"\:\ ["/mount:/mount"], "options"\:\ "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64) }}
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
 
@@ -482,7 +482,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-32gb'
       # image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
-      test-string: format('{{"image"\:\ "{0}", "volumes"\:\ ["/mount:/mount"], "options"\:\ "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64)
+      test-string: ${{ format('{{"image"\:\ "{0}", "volumes"\:\ ["/mount:/mount"], "options"\:\ "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64) }}
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
 
