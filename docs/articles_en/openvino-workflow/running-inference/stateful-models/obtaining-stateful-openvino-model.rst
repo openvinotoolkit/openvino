@@ -57,13 +57,13 @@ Parameter/Result tensor names. If there are no tensor names,
 
          .. tab-item:: Using tensor names
 
-            .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
                :language: cpp
                :fragment: [ov:make_stateful_tensor_names]
 
          .. tab-item:: Using Parameter/Result operations
 
-            .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
                :language: cpp
                :fragment: [ov:make_stateful_ov_nodes]
 
@@ -112,7 +112,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:get_ov_model]
 
@@ -127,7 +127,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:reshape_ov_model]
 
@@ -141,7 +141,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:apply_low_latency_2]
 
@@ -157,7 +157,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:low_latency_2_use_parameters]
 
@@ -176,7 +176,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:low_latency_2]
 
@@ -206,7 +206,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:replace_const]
 
@@ -247,7 +247,7 @@ a sink from `ov::Model` after deleting the node from the graph with the `delete_
 
    .. tab-item:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:state_network]
 

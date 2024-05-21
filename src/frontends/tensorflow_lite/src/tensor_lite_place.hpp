@@ -7,10 +7,10 @@
 #include <utility>
 
 #include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/tensorflow_lite/quantization_info.hpp"
+#include "openvino/frontend/tensorflow_lite/sparsity_info.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "place.hpp"
-#include "quantization_info.hpp"
-#include "sparsity_info.hpp"
 
 namespace ov {
 namespace frontend {

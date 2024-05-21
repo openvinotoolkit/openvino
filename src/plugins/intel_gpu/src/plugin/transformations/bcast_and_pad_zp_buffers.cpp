@@ -12,6 +12,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 
@@ -79,7 +80,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
 
     auto convolution_m = wrap_type<op::Convolution>({ input_m, weights_m, bias_m, azp_m, wzp_m, cmp_m });
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;

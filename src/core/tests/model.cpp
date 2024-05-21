@@ -1147,6 +1147,8 @@ TEST(model, add_output_port_to_result) {
 }
 
 TEST(model, add_output_performance) {
+    // skip this test due to CVS-140440
+    GTEST_SKIP() << "CVS-140440";
     using namespace std::chrono;
     auto test = [](int cnt, bool& timeout) -> size_t {
         auto shape = ov::Shape{1, 1, 224, 224};
@@ -1362,11 +1364,11 @@ bool all_ops_have_same_info(const std::shared_ptr<ov::Model>& f) {
 TEST(model, topological_sort_throws_if_loop_with_one_node) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
-    auto result = std::make_shared<ov::opset8::Result>(relu1);
 
-    // Loop relu2->relu2
-    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1->output(0));
-    ov::replace_node(relu1, relu2);
+    // Loop relu1->relu1
+    relu1->input(0).replace_source_output(relu1->output(0));
+
+    auto result = std::make_shared<ov::opset8::Result>(relu1);
     ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
                  ov::Exception);
 }

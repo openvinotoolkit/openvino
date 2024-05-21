@@ -55,7 +55,7 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
         std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, last_convert_m, mul_m});
     auto gather_m = wrap_type<ov::op::v8::Gather>({dicts_input_m, any_input(), wrap_type<ov::op::v0::Constant>()});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(gather_m));
         OPENVINO_ASSERT(pattern_map.count(mul_const_m));
@@ -107,24 +107,31 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
         std::shared_ptr<ov::Node> gather_input_zp = optional_zero_point;
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
 
+        // If Convert exists in scale branch, this means that the Scale Constant is stored in non-FP32 precision
+        // The Convert is inserted here to maintain graph correctness. GatherCompressed's output should
+        // follow the Convert's destination precision. The Convert should be kept, and later let the
+        // plugin to decide whether the Convert could be optimized
+        if (pattern_map.count(last_convert_m)) {
+            auto last_covert_node = pattern_map.at(last_convert_m).get_node_shared_ptr();
+            gather_input_scale = last_covert_node->clone_with_new_inputs({scale});
+            ov::copy_runtime_info(last_covert_node, gather_input_scale);
+            gather_input_scale->set_friendly_name(last_covert_node->get_friendly_name());
+        }
+
         std::shared_ptr<ov::Node> new_gather_node = nullptr;
         if (with_zero_point) {
-            new_gather_node =
-                std::make_shared<ov::op::internal::GatherCompressed>(gather_input_a,
-                                                                     gather_input_b,
-                                                                     gather_input_c,
-                                                                     gather_node->get_batch_dims(),
-                                                                     gather_input_scale,
-                                                                     gather_input_zp,
-                                                                     gather_node->get_output_element_type(0));
+            new_gather_node = std::make_shared<ov::op::internal::GatherCompressed>(gather_input_a,
+                                                                                   gather_input_b,
+                                                                                   gather_input_c,
+                                                                                   gather_node->get_batch_dims(),
+                                                                                   gather_input_scale,
+                                                                                   gather_input_zp);
         } else {
-            new_gather_node =
-                std::make_shared<ov::op::internal::GatherCompressed>(gather_input_a,
-                                                                     gather_input_b,
-                                                                     gather_input_c,
-                                                                     gather_node->get_batch_dims(),
-                                                                     gather_input_scale,
-                                                                     gather_node->get_output_element_type(0));
+            new_gather_node = std::make_shared<ov::op::internal::GatherCompressed>(gather_input_a,
+                                                                                   gather_input_b,
+                                                                                   gather_input_c,
+                                                                                   gather_node->get_batch_dims(),
+                                                                                   gather_input_scale);
         }
 
         transformation_callback(new_gather_node);

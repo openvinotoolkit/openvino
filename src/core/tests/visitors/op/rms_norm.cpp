@@ -13,7 +13,7 @@ using ov::op::v0::Parameter;
 using ov::test::NodeBuilder;
 
 TEST(attributes, rms_norm_v14_attr_comp_type_default) {
-    using ov::op::v14::RMSNorm;
+    using ov::op::internal::RMSNorm;
     NodeBuilder::opset().insert<RMSNorm>();
 
     const auto data = std::make_shared<Parameter>(ov::element::f16, PartialShape{2, 3, 8, 6});
@@ -31,7 +31,7 @@ TEST(attributes, rms_norm_v14_attr_comp_type_default) {
 }
 
 TEST(attributes, rms_norm_v14_attr_comp_type_custom) {
-    using ov::op::v14::RMSNorm;
+    using ov::op::internal::RMSNorm;
     NodeBuilder::opset().insert<RMSNorm>();
 
     const auto data = std::make_shared<Parameter>(ov::element::f16, PartialShape{2, 3, 8, 6});

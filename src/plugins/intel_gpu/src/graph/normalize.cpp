@@ -18,7 +18,7 @@ layout normalize_inst::calc_output_layout(normalize_node const& node, kernel_imp
     auto output_type = input_node_layout.data_type;
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     } else if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
         output_type = data_types::f32;
     }

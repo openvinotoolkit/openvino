@@ -61,21 +61,21 @@ of ``ov::RemoteContext`` derived classes.
          .. tab-item:: Create from cl_context
             :sync: create-from-cl-context
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_cl_context]
 
          .. tab-item:: Create from cl_queue
             :sync: create-from-cl-queue
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_cl_queue]
 
          .. tab-item:: Create from ID3D11Device
             :sync: create-from-id3d11device
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_d3d_device]
 
@@ -87,21 +87,21 @@ of ``ov::RemoteContext`` derived classes.
          .. tab-item:: Create from cl_context
             :sync: create-from-cl-context
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_cl_context]
 
          .. tab-item:: Create from cl_queue
             :sync: create-from-cl-queue
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_cl_queue]
 
          .. tab-item:: Create from ID3D11Device
             :sync: create-from-id3d11device
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_d3d_device]
 
@@ -113,21 +113,21 @@ of ``ov::RemoteContext`` derived classes.
          .. tab-item:: Create from cl_context
             :sync: create-from-cl-context
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_cl_context]
 
          .. tab-item:: Create from cl_queue
             :sync: create-from-cl-queue
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_cl_queue]
 
          .. tab-item:: Create from VADisplay
             :sync: create-from-vadisplay
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_va_display]
 
@@ -139,21 +139,21 @@ of ``ov::RemoteContext`` derived classes.
          .. tab-item:: Create from cl_context
             :sync: create-from-cl-context
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_cl_context]
 
          .. tab-item:: Create from cl_queue
             :sync: create-from-cl-queue
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_cl_queue]
 
          .. tab-item:: Create from VADisplay
             :sync: create-from-vadisplay
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_va_display]
 
@@ -177,14 +177,14 @@ To request the current default context of the plugin, use one of the following m
          .. tab-item:: Get context from Core
             :sync: get-context-core
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [default_context_from_core]
 
          .. tab-item:: Get context from compiled model
             :sync: get-context-compiled-model
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [default_context_from_model]
 
@@ -196,14 +196,14 @@ To request the current default context of the plugin, use one of the following m
          .. tab-item:: Get context from Core
             :sync: get-context-core
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [default_context_from_core]
 
          .. tab-item:: Get context from compiled model
             :sync: get-context-compiled-model
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [default_context_from_model]
 
@@ -231,35 +231,35 @@ For more details, see the code snippets below:
          .. tab-item:: USM pointer
             :sync: usm-pointer
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_usm_pointer]
 
          .. tab-item:: cl_mem
             :sync: cl-mem
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_cl_mem]
 
          .. tab-item:: cl::Buffer
             :sync: buffer
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_cl_buffer]
 
          .. tab-item:: cl::Image2D
             :sync: image2D
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_cl_image]
 
          .. tab-item:: biplanar NV12 surface
             :sync: biplanar-nv12-surface
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_nv12_surface]
 
@@ -271,21 +271,21 @@ For more details, see the code snippets below:
          .. tab-item:: USM host memory
             :sync: usm-host-memory
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [allocate_usm_host]
 
          .. tab-item:: USM device memory
             :sync: usm-device-memory
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [allocate_usm_device]
 
          .. tab-item:: cl::Buffer
             :sync: buffer
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
                :language: cpp
                :fragment: [allocate_cl_buffer]
 
@@ -299,35 +299,35 @@ For more details, see the code snippets below:
          .. tab-item:: USM pointer
             :sync: usm-pointer
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [wrap_usm_pointer]
 
          .. tab-item:: cl_mem
             :sync: cl-mem
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [wrap_cl_mem]
 
          .. tab-item:: cl::Buffer
             :sync: buffer
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
               :language: c
               :fragment: [wrap_cl_buffer]
 
          .. tab-item:: cl::Image2D
             :sync: image2D
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [wrap_cl_image]
 
          .. tab-item:: biplanar NV12 surface
             :sync: biplanar-nv12-surface
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [create_nv12_surface]
 
@@ -339,14 +339,14 @@ For more details, see the code snippets below:
          .. tab-item:: USM host memory
             :sync: usm-host-memory
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [allocate_usm_host]
 
          .. tab-item:: USM device memory
             :sync: usm-device-memory
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
                :language: c
                :fragment: [allocate_usm_device]
 
@@ -379,28 +379,28 @@ should be added before model compilation:
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.cpp
                :language: cpp
                :fragment: [init_preproc]
 
          .. tab-item:: C
             :sync: c
 
-            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes_c.cpp
                :language: c
                :fragment: [init_preproc]
 
    .. tab-item:: single-plane
       :sync: single-plane
 
-      .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_single_plane.cpp
          :language: cpp
          :fragment: [init_preproc]
 
    .. tab-item:: NV12 to Grey
       :sync: nv12-grey
 
-      .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_to_gray.cpp
          :language: cpp
          :fragment: [init_preproc]
 
@@ -424,28 +424,28 @@ inputs need to be set via the ``ov::InferRequest::set_tensors`` method with vect
                .. tab-item:: C++
                   :sync: cpp
 
-                  .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
+                  .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.cpp
                      :language: cpp
                      :fragment: [single_batch]
 
                .. tab-item:: C
                   :sync: cpp
 
-                  .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
+                  .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes_c.cpp
                      :language: c
                      :fragment: [single_batch]
 
          .. tab-item:: single-plane
             :sync: single-plane
 
-            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_single_plane.cpp
                :language: cpp
                :fragment: [single_batch]
 
          .. tab-item:: NV12 to Grey
             :sync: nv12-grey
 
-            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_to_gray.cpp
                :language: cpp
                :fragment: [single_batch]
 
@@ -457,21 +457,21 @@ inputs need to be set via the ``ov::InferRequest::set_tensors`` method with vect
          .. tab-item:: two-plane
             :sync: two-plane
 
-            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.cpp
                :language: cpp
                :fragment: [batched_case]
 
          .. tab-item:: single-plane
             :sync: single-plane
 
-            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_single_plane.cpp
                :language: cpp
                :fragment: [batched_case]
 
          .. tab-item:: NV12 to Grey
             :sync: nv12-grey
 
-            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_to_gray.cpp
                :language: cpp
                :fragment: [batched_case]
 
@@ -492,7 +492,7 @@ on waiting for the completion of inference. The pseudo-code may look as follows:
 
 .. dropdown:: Queue and context sharing example
 
-   .. doxygensnippet:: docs/snippets/gpu/queue_sharing.cpp
+   .. doxygensnippet:: docs/articles_en/assets/snippets/queue_sharing.cpp
       :language: cpp
       :fragment: [queue_sharing]
 
@@ -533,13 +533,13 @@ To see pseudo-code of usage examples, refer to the sections below.
 
    This example uses the OpenCL context obtained from a compiled model object.
 
-   .. doxygensnippet:: docs/snippets/gpu/context_sharing.cpp
+   .. doxygensnippet:: docs/articles_en/assets/snippets/context_sharing.cpp
       :language: cpp
       :fragment: [context_sharing_get_from_ov]
 
 .. dropdown:: Running GPU Plugin Inference within User-Supplied Shared Context
 
-   .. doxygensnippet:: docs/snippets/gpu/context_sharing.cpp
+   .. doxygensnippet:: docs/articles_en/assets/snippets/context_sharing.cpp
       :language: cpp
       :fragment: [context_sharing_user_handle]
 
@@ -550,14 +550,14 @@ To see pseudo-code of usage examples, refer to the sections below.
       .. tab-item:: C++
          :sync: cpp
 
-         .. doxygensnippet:: docs/snippets/gpu/context_sharing_va.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/context_sharing_va.cpp
             :language: cpp
             :fragment: [context_sharing_va]
 
       .. tab-item:: C
          :sync: c
 
-         .. doxygensnippet:: docs/snippets/gpu/context_sharing_va_c.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/context_sharing_va_c.cpp
             :language: c
             :fragment: [context_sharing_va]
 
