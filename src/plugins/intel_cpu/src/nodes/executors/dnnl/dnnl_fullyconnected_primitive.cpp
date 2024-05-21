@@ -52,6 +52,7 @@ size_t DnnlFCPrimitive::Key::hash() const {
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, sparseWeights);
     seed = hash_combine(seed, transposedWeights);
+    seed = hash_combine(seed, modelType);
 
     return seed;
 }
@@ -73,7 +74,7 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
     }
 
     result = result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights &&
-             transposedWeights == rhs.transposedWeights;
+             transposedWeights == rhs.transposedWeights && modelType == rhs.modelType;
 
     return result;
 }
@@ -95,6 +96,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
         shapeAgnosticData->primAttrs.attr,
         attrs.sparseWeights,
         attrs.weightsNonTransposed,
+        attrs.modelType
     };
 
     auto builder = [&context](const Key& dnnlKey) {
@@ -110,9 +112,21 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 }
 
 bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
-                                                  const ov::element::Type weightsType) {
-    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && one_of(inputType, f32, bf16) &&
-           one_of(weightsType, u8, i8, nf4, u4, i4);
+                                                  const ov::element::Type weightsType,
+                                                  const ov::intel_cpu::Config::ModelType modelType) {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, i8, nf4, u4, i4))
+            return true;
+
+        if (modelType == ov::intel_cpu::Config::ModelType::LLM) {
+            // f16c kernel saves memory footprint with additional decompression computational overhead
+            // which is only meaningful on LLM with small batch-size.
+            // TODO: fall-back to use f32 weights on large batch-size
+            if (inputType == f32 && weightsType == f16)
+                return true;
+        }
+    }
+    return false;
 }
 
 bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
@@ -340,7 +354,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
-    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
+    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision(), attrs.modelType);
     const auto useDynamicQuantization = useWeightsDecompression &&
         useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc,
                                    attrs.decompressionMultiplyPtr, attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed);
@@ -413,7 +427,7 @@ DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                      engine,
                                      implPriorities,
                                      key.sparseWeights,
-                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision()))),
+                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
       m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),
