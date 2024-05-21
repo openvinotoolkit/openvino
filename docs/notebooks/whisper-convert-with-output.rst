@@ -320,7 +320,7 @@ original model pipeline for audio transcribing after replacing the
 original models with OpenVINO IR versions.
 
 Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -351,6 +351,18 @@ select device from dropdown list for running inference using OpenVINO
 
 
 .. code:: ipython3
+
+    # Fetch `notebook_utils` module
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    from notebook_utils import download_file
+
+    if not Path("./utils.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/whisper-subtitles-generation/utils.py")
 
     from utils import (
         patch_whisper_for_ov_inference,

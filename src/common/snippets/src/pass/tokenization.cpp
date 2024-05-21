@@ -83,7 +83,7 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     manager.register_pass<ExtractReshapesFromMHA>();
     manager.register_pass<TokenizeMHASnippets>(m_config);
     manager.register_pass<TokenizeGNSnippets>();
-    manager.register_pass<TokenizeSnippets>();
+    manager.register_pass<TokenizeSnippets>(m_config);
     manager.register_pass<CommonOptimizations>(m_config);
     manager.run_passes(m);
 

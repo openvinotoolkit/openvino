@@ -645,7 +645,7 @@ inference faster. The optimization process contains the following steps:
 
 .. code:: ipython3
 
-    IMAGE_ENCODER_PATH_INT8 = IMAGE_ENCODER_PATH.parent / IMAGE_ENCODER_PATH.name.replace(".xml", "-int4.xml")
+    IMAGE_ENCODER_PATH_INT8 = IMAGE_ENCODER_PATH.parent / IMAGE_ENCODER_PATH.name.replace(".xml", "-int8.xml")
     
     
     import requests
@@ -1224,7 +1224,7 @@ Select device
 
     use_int8_image_encoder = widgets.Checkbox(
         value=IMAGE_ENCODER_PATH_INT8.exists(),
-        description="INT4 language model",
+        description="INT8 image encoder",
         disabled=not IMAGE_ENCODER_PATH_INT8.exists(),
     )
     
