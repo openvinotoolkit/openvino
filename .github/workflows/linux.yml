@@ -697,7 +697,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'gpu' ]"
+      runner: "[ 'self-hosted', 'igpu' ]"
       container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri:/dev/dri"}'
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
