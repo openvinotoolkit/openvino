@@ -56,6 +56,7 @@ OutputVector translate_slice_common(const NodeContext& context, const size_t num
     ov::Output<ov::Node> end;
     if (!context.input_is_none(end_idx)) {
         end = context.get_input(end_idx);
+        // TODO: Find a better way to solve the issue with dynamic ranks for "end"
         if ((stop_dynamic_rank_unsqueeze && end.get_partial_shape().rank().is_dynamic()) ||
             (!(end.get_partial_shape().rank().is_dynamic()) && end.get_partial_shape().rank().get_length() == 0)) {
             end = context.mark_node(std::make_shared<v0::Unsqueeze>(end, axis_0));
