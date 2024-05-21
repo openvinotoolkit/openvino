@@ -32,11 +32,14 @@ public:
     TSForwardBase() = default;
 
     template <class... Types>
-    void create_pattern(bool const_transpose_input, std::vector<size_t> transpose_indices = {}) {
-        m_const_transpose_input = const_transpose_input;
-        m_tranpose_indices = std::move(transpose_indices);
+    void create_pattern(std::vector<size_t> transpose_indices = {},
+                        const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                                                 const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>&
+                            if_transpose_sinkable = utils::if_transpose_sinkable_default) {
+        m_if_transpose_sinkable = if_transpose_sinkable;
+        m_transpose_indices = std::move(transpose_indices);
         m_pattern = ov::pass::pattern::wrap_type<Types...>([&](const Output<Node>& output) -> bool {
-            return if_node_has_transpose_inputs(output, m_const_transpose_input, m_tranpose_indices);
+            return if_node_has_transpose_inputs(output, m_transpose_indices, m_if_transpose_sinkable);
         });
     }
 
@@ -53,11 +56,15 @@ protected:
                                 const utils::TransposeInputsInfo& transpose_info);
 
 private:
-    static bool if_node_has_transpose_inputs(const Output<Node>& output,
-                                             bool const_transpose_input,
-                                             const std::vector<size_t>& transpose_indices);
+    static bool if_node_has_transpose_inputs(
+        const Output<Node>& output,
+        const std::vector<size_t>& transpose_indices,
+        const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                                 const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>&);
 
     std::shared_ptr<Node> m_pattern;
-    bool m_const_transpose_input = true;
-    std::vector<size_t> m_tranpose_indices;
+    std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                       const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>
+        m_if_transpose_sinkable = utils::if_transpose_sinkable_default;
+    std::vector<size_t> m_transpose_indices;
 };

@@ -12,7 +12,7 @@ OpenVINO Graph Rewrite Pass
 ``ov::pass::GraphRewrite`` serves for running multiple matcher passes on ``ov::Model`` in a single graph traversal.
 Example:
 
-.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/template_pattern_transformation.cpp
    :language: cpp
    :fragment: [matcher_pass:graph_rewrite]
 

@@ -246,6 +246,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<PERFORMANCE_HINT>();
           }}},
+        {ov::hint::execution_mode.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<EXECUTION_MODE_HINT>();
+          }}},
         {ov::hint::num_requests.name(),
          {true,
           ov::PropertyMutability::RO,
