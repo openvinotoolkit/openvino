@@ -2717,7 +2717,8 @@ public:
                                                                                 data_types::f16,
                                                                                 format::bfyx,
                                                                                 n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, 0.0f, dyn_pad_dims_input2) :
-                                                                                             padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
+                                                                                             padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
+                                                                                            //  padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
@@ -2768,9 +2769,10 @@ public:
         topology topology;
         topology.add(input_layout("input1", in1_layout),
                      input_layout("input2", in2_layout),
-                     reorder("reorder1", input_info("input1"), format::bfyx, data_types::f16, "", reorder_mean_mode::subtract, padding()),
-                     reorder("reorder2", input_info("input2"), format::bfyx, data_types::f16, "", reorder_mean_mode::subtract, padding()),
-                     gemm("gemm", { input_info("reorder1"), input_info("reorder2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4)
+                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4)
+                    //  reorder("reorder1", input_info("input1"), format::bfyx, data_types::f16, "", reorder_mean_mode::subtract, padding()),
+                    //  reorder("reorder2", input_info("input2"), format::bfyx, data_types::f16, "", reorder_mean_mode::subtract, padding()),
+                    //  gemm("gemm", { input_info("reorder1"), input_info("reorder2") }, data_types::f16, false, false, 1.0f, 0.0f, 4, 4)
         );
 
         ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
