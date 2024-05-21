@@ -48,7 +48,7 @@ OutputVector translate_expand_fx(const NodeContext& context) {
     std::vector<int32_t> shape_vec;
     auto sizes = context.get_input(1);
     if (num_inputs != 2) {
-        for (int i = 1; i < num_inputs; i++) {
+        for (size_t i = 1; i < num_inputs; i++) {
             auto a = context.get_input_from_visible_context(i).get_node_shared_ptr();
             auto shape_input = context.get_input(i);
             if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(a) ||
