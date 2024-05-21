@@ -33,7 +33,7 @@ OutputVector translate_reshape_fx(const NodeContext& context) {
     if (context.get_input_type(1).is<type::List>()) {
         int num_dyn_dims = 0;
         for (size_t i = 1; i < num_inputs; i++) {
-            auto shape_input = context.get_input(i);
+            auto shape_input = context.get_input(static_cast<int>(i));
             if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
                 auto const_val = context.const_input<int32_t>(i);
                 shape_vec.push_back(const_val);
