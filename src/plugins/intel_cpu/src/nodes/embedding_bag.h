@@ -10,9 +10,10 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class EmbeddingBagSum {
+class EmbeddingBag {
 public:
-    EmbeddingBagSum(
+    enum class Reduction { SUM, MEAN };
+    EmbeddingBag(
             const std::shared_ptr<ov::Node>&,
             size_t requiredInputsNum,
             size_t indicesIdx,
@@ -22,7 +23,7 @@ public:
     void execute(const uint8_t* srcData, const uint8_t* weightsData, const ov::element::Type &srcPrc,
                  const VectorDims& inDims, const MemoryPtr& outMemory);
 
-    ~EmbeddingBagSum() = default;
+    ~EmbeddingBag() = default;
 
 protected:
     virtual void initFromInputs() = 0;
@@ -44,6 +45,7 @@ protected:
     const size_t PER_SAMPLE_WEIGHTS_IDX;
     const size_t DEFAULT_INDEX_IDX;
 
+    Reduction _reduction = Reduction::SUM;
     bool _withWeights = false;
     size_t _embDepth = 0;
     std::string _layerName;
