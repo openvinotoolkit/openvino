@@ -44,7 +44,7 @@ foreach(_onnx_target onnx onnx_proto)
         $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
 endforeach()
 
-if(WIN32 AND MINGW)
+if(MINGW)
     # OPTIONAL is a reserved word for mingw at least
     target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
 endif()
