@@ -8,7 +8,6 @@
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
 #include "memory_state.h"
-#include "nodes/memory.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"

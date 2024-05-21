@@ -18,8 +18,6 @@
 #include "openvino/cc/factory.h"
 #include "openvino/core/node.hpp"
 #include <nodes/common/blocked_desc_creator.h>
-#include "cpu_types.h"
-#include "cpu_shape.h"
 #include "nodes/node_config.h"
 #include <shape_inference/shape_inference_cpu.hpp>
 #include "perf_count.h"

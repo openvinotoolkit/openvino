@@ -184,10 +184,7 @@ public:
     }
 
     Status getStatus() const {return status;}
-    const std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>>&
-    getInternalStateNodes() const {
-        return internalStateNodes;
-    }
+    const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
     void InitGraph(bool optimize = true);
 
 protected:
@@ -229,7 +226,6 @@ protected:
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
-    void SearchInternalStateNodes();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
@@ -247,7 +243,6 @@ private:
     std::map<std::size_t, NodePtr> outputNodesMap;
 
     std::unordered_map<std::size_t, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
-    std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
