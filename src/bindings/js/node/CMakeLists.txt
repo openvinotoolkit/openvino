@@ -13,7 +13,7 @@ if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LES
 endif()
 
 if(WIN32)
-    set(CMAKE_SHARED_LINKER_FLAGS /DELAYLOAD:NODE.EXE)
+    set(CMAKE_SHARED_LINKER_FLAGS /DELAYLOAD:NODE.EXE delayimp.lib)
     set(CMAKE_JS_LIB ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node.lib)
     set(CMAKE_JS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/win_delay_load_hook.cc)
 
@@ -77,7 +77,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${CMAKE_JS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime delayimp.lib ${CMAKE_JS_LIB})
 
 message(WARNING "== MSVC '${MSVC}'")
 message(WARNING "== CMAKE_JS_NODELIB_DEF '${CMAKE_JS_NODELIB_DEF}'")
