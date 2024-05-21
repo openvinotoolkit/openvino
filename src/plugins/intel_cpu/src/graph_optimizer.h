@@ -52,7 +52,6 @@ private:
     void RemoveMemoryInputConvert(Graph &graph);
     void RemoveConvertMemoryOutput(Graph &graph);
     void MatchSdpaKvCache(Graph &graph);
-    void HintForLLMWorkloads(Graph &graph);
 
     // Method checks that after the sequential execution of Transpose and Reorder nodes,
     // the order of the elements in the memory (physical layout) will not change.

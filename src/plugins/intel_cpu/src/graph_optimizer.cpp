@@ -183,9 +183,6 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     MatchSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "HintForLLMWorkloads");
-    HintForLLMWorkloads(graph);
-
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
     graph.RemoveDroppedEdges();
 }
@@ -3143,32 +3140,6 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
 
         graph.AddNode(memInputSdpa);
         graph.AddNode(memOutputStub);
-    }
-}
-
-void GraphOptimizer::HintForLLMWorkloads(Graph &graph) {
-    auto& graphNodes = graph.GetNodes();
-
-    bool has_stateful_sdpa = false;
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        auto node = graphNodes[i];
-        if (node->getType() != Type::ScaledDotProductAttention)
-            continue;
-        auto sdpa = std::dynamic_pointer_cast<node::ScaledDotProductAttention>(node);
-        if (sdpa && sdpa->isStateful()) {
-            has_stateful_sdpa = true;
-            break;
-        }
-    }
-
-    if (!has_stateful_sdpa)
-        return;
-
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        const auto fcNode = dynamic_cast<node::FullyConnected*>(graphNodes[i].get());
-        if (fcNode == nullptr)
-            continue;
-        fcNode->hintLLMWorkload();
     }
 }
 
