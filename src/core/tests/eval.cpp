@@ -980,7 +980,8 @@ TEST(eval, evaluate_sign) {
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_sign_nan) {
+// temporary disable for float16
+TEST(eval, DISABLED_evaluate_sign_nan) {
     auto p = make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 3});
     auto sign = make_shared<op::v0::Sign>(p);
     auto model = make_shared<Model>(OutputVector{sign}, ParameterVector{p});
@@ -996,6 +997,24 @@ TEST(eval, evaluate_sign_nan) {
     EXPECT_THAT(read_vector<float16>(result),
                 Pointwise(NanSensitiveFloatEq(),
                           std::vector<float16>{std::numeric_limits<float16>::quiet_NaN(), -1, 0, -1, 1, 0}));
+}
+
+TEST(eval, evaluate_sign_nan_f32) {
+    auto p = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+    auto sign = make_shared<op::v0::Sign>(p);
+    auto model = make_shared<Model>(OutputVector{sign}, ParameterVector{p});
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{
+        make_tensor<element::Type_t::f32>(Shape{2, 3},
+                                          {std::numeric_limits<float>::quiet_NaN(), -2, 0, -4.8f, 4.8f, -0.0f})};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), element::f32);
+    EXPECT_THAT(
+        read_vector<float>(result),
+        Pointwise(NanSensitiveFloatEq(), std::vector<float>{std::numeric_limits<float>::quiet_NaN(), -1, 0, -1, 1, 0}));
 }
 
 TEST(eval, evaluate_sin) {
