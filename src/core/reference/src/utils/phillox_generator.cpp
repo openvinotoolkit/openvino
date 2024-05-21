@@ -69,7 +69,7 @@ void OpenvinoPhilloxGenerator::execute_single_round() {
 
     // Unite counter and n into uint64 values.
     m_n = unite_high_low(n_lr.second, n_lr.first);
-    m_operator_seed = unite_high_low(counter_lr.second, counter_lr.first); 
+    m_operator_seed = unite_high_low(counter_lr.second, counter_lr.first);
 }
 
 void OpenvinoPhilloxGenerator::increment_key() {
@@ -206,6 +206,12 @@ void TensorflowPhilloxGenerator::skip_one() {
     }
 }
 
+void TensorflowPhilloxGenerator::skip_256() {
+    for (u_char i = 0; i < 256; ++i) {
+        skip_one();
+    }
+}
+
 void TensorflowPhilloxGenerator::raise_key() {
     m_key[0] += _TENSORFLOW_kPhiloxW32A;
     m_key[1] += _TENSORFLOW_kPhiloxW32B;
@@ -256,7 +262,8 @@ PhilloxOutput TensorflowPhilloxGenerator::random() {
     result[2] = m_counter[2];
     result[3] = m_counter[3];
 
-    skip_one();
+    // skip_one();
+    skip_256();
 
     return result;
 }

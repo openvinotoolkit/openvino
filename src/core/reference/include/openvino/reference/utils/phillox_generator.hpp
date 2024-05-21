@@ -8,6 +8,9 @@
 #include <vector>
 
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/attr_types.hpp"
+
+using PhilloxAlignment = ov::op::PhilloxAlignment;
 
 namespace ov {
 
@@ -59,6 +62,10 @@ public:
         return m_output_size;
     }
 
+    PhilloxAlignment get_alignment() const {
+        return m_alignment;
+    }
+
     /// \brief Setter for the global seed
     /// \param global_seed The new global seed for the Phillox algorithm
     void set_global_seed(const uint64_t global_seed) {
@@ -80,11 +87,13 @@ protected:
     PhilloxGenerator(const uint64_t global_seed,
                      const uint64_t operator_seed,
                      const size_t output_size,
-                     const std::pair<uint64_t, uint64_t> previous_state)
+                     const std::pair<uint64_t, uint64_t> previous_state,
+                     const PhilloxAlignment alignment)
         : m_global_seed(global_seed),
           m_operator_seed(operator_seed),
           m_previous_state(previous_state),
-          m_output_size(output_size) {}
+          m_output_size(output_size),
+          m_alignment(alignment) {}
 
     uint64_t m_global_seed = 0;
     uint64_t m_operator_seed = 0;
@@ -92,6 +101,7 @@ protected:
 
 private:
     size_t m_output_size = 0;
+    const PhilloxAlignment m_alignment;
 };
 
 /// \brief OpenVINO specialization of the PhilloxGenerator class.
@@ -103,7 +113,7 @@ public:
     OpenvinoPhilloxGenerator(const uint64_t global_seed,
                              const uint64_t operator_seed,
                              const std::pair<uint64_t, uint64_t> previous_state)
-        : PhilloxGenerator(global_seed, operator_seed, 4, previous_state) {
+        : PhilloxGenerator(global_seed, operator_seed, 4, previous_state, PhilloxAlignment::OPENVINO) {
         // Initialize Phillox constants: key, counter, n
         if (previous_state.second > 0) {
             set_operator_seed(previous_state.second);
@@ -161,7 +171,8 @@ public:
     /// \brief Constructor for the PytorchPhilloxGenerator class.
     /// \param global_seed The operator seed for the Phillox algorithm
     /// Note: PyTorch specialization of Phillox algorithm does not use operator seed.
-    PytorchPhilloxGenerator(const uint64_t global_seed) : PhilloxGenerator(global_seed, 0, 2, {0, 0}) {
+    PytorchPhilloxGenerator(const uint64_t global_seed)
+        : PhilloxGenerator(global_seed, 0, 2, {0, 0}, PhilloxAlignment::PYTORCH) {
         m_seeded = true;
         m_state[0] = global_seed & 0xffffffff;
         m_left = 1;
@@ -203,8 +214,11 @@ public:
     /// \brief Constructor for the TensorflowPhilloxGenerator class.
     /// \param global_seed The global seed for the Phillox algorithm
     /// \param operator_seed The operator seed for the Phillox algorithm
-    TensorflowPhilloxGenerator(const uint64_t global_seed, const uint64_t operator_seed, const std::pair<uint64_t, uint64_t> previous_state, uint64_t elements_count)
-        : PhilloxGenerator(global_seed, operator_seed, 4, previous_state) {
+    TensorflowPhilloxGenerator(const uint64_t global_seed,
+                               const uint64_t operator_seed,
+                               const std::pair<uint64_t, uint64_t> previous_state,
+                               uint64_t elements_count)
+        : PhilloxGenerator(global_seed, operator_seed, 4, previous_state, PhilloxAlignment::TENSORFLOW) {
         m_key[0] = static_cast<uint32_t>(global_seed);
         m_key[1] = static_cast<uint32_t>(global_seed >> 32);
         m_counter[0] = static_cast<uint32_t>(previous_state.first);
@@ -236,12 +250,35 @@ public:
 private:
     void skip(uint64_t count);
     void skip_one();
+    void skip_256();
     void raise_key();
     void compute_single_round();
 
     std::array<uint32_t, 2> m_key;
     std::array<uint32_t, 4> m_counter;
 };
+
+static std::shared_ptr<PhilloxGenerator> make_phillox_generator(uint64_t seed,
+                                                                uint64_t seed2,
+                                                                std::pair<uint64_t, uint64_t> prev_state,
+                                                                size_t elem_count,
+                                                                PhilloxAlignment alignment) {
+    switch (alignment) {
+    case PhilloxAlignment::OPENVINO:
+        // Openvino uses seeds as a {key, counter} pair
+        // seed -> global_seed <-> key
+        // seed2 -> operator_seed <-> counter
+        return std::make_shared<OpenvinoPhilloxGenerator>(seed, seed2, prev_state);
+    case PhilloxAlignment::TENSORFLOW:
+        // Very similar algorithm
+        return std::make_shared<TensorflowPhilloxGenerator>(seed, seed2, prev_state, elem_count);
+    case PhilloxAlignment::PYTORCH:
+        // Completely different algorithm that uses only a single seed
+        return std::make_shared<PytorchPhilloxGenerator>(seed);
+    default:
+        OPENVINO_THROW("Unknown Phillox algorithm alignment option selected.");
+    }
+}
 
 }  // namespace phillox
 
