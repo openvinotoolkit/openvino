@@ -51,7 +51,9 @@ OutputVector translate_expand_fx(const NodeContext& context) {
         for (int i = 1; i < num_inputs; i++) {
             auto a = context.get_input_from_visible_context(i).get_node_shared_ptr();
             auto shape_input = context.get_input(i);
-            if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(a) || shape_input.get_partial_shape().rank().is_dynamic() || shape_input.get_partial_shape().rank().get_length() == 0) {
+            if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(a) ||
+                shape_input.get_partial_shape().rank().is_dynamic() ||
+                shape_input.get_partial_shape().rank().get_length() == 0) {
                 shape_vec.push_back(-1);
             } else {
                 auto val = context.const_input<int32_t>(i);

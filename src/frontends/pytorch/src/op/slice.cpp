@@ -18,7 +18,9 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_slice_common(const NodeContext& context, const size_t num_inputs, const bool stop_dynamic_rank_unsqueeze = true) {
+OutputVector translate_slice_common(const NodeContext& context,
+                                    const size_t num_inputs,
+                                    const bool stop_dynamic_rank_unsqueeze = true) {
     // aten::slice.t(t[] l, int? start=None, int? end=None, int step=1) -> (t[])
     // aten::slice.Tensor(Tensor(a) self, int dim=0, int? start=None, int? end=None, int step=1) -> (Tensor(a))
     ov::Output<ov::Node> dim;
