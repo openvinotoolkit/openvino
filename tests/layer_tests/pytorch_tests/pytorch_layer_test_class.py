@@ -88,7 +88,7 @@ class PytorchLayerTest:
         ov_inputs = flattenize_inputs(inputs)
 
         if self.use_torch_compile_backend():
-            self.torch_compile_backend_test(model, torch_inputs, custom_eps)
+            self.torch_compile_backend_test(model, torch_inputs, custom_eps, **kwargs)
         else:
             if self.use_torch_export():
                 from openvino import convert_model
@@ -252,7 +252,7 @@ class PytorchLayerTest:
         om.validate_nodes_and_infer_types()
         return om
 
-    def torch_compile_backend_test(self, model, inputs, custom_eps):
+    def torch_compile_backend_test(self, model, inputs, custom_eps, **kwargs):
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()
@@ -261,8 +261,15 @@ class PytorchLayerTest:
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()
+            options={"testing": 1,}
+            if ("aot_autograd" in kwargs):
+                options.update({"aot_autograd": True,})
+            dynamic = False
+            if ("dynamic" in kwargs):
+                dynamic = kwargs["dynamic"]
+
             ov_model = torch.compile(
-                model, backend="openvino", options={"testing": 1})
+                model, backend="openvino", dynamic=dynamic, options=options)
             ov_res = ov_model(*inputs)
 
         if not isinstance(fw_res, (tuple)):
