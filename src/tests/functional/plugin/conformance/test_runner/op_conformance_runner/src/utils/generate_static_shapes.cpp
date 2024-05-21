@@ -156,7 +156,7 @@ InputShape generatePoolingShape(const ov::PartialShape& partialShape, const Stri
     }
     return InputShape{partialShape, staticShapes};
 }
-} // pooling
+} // namespace pooling
 
 InputShape generate(const std::shared_ptr<ov::op::v1::MaxPool>& node,
                    size_t port) {
