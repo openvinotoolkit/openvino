@@ -137,7 +137,8 @@ public:
 
         if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
              impl_param.input_layouts[0].data_type == data_types::i8) &&
-             impl_param.input_layouts[1].data_type == data_types::i8) {
+            (impl_param.input_layouts[1].data_type == data_types::i8 ||
+             impl_param.input_layouts[1].data_type == data_types::u8)) {
             if (!primitive->weights_zero_points.empty() && !primitive->activations_zero_points.empty()) {
                 conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS;
             } else if (!primitive->weights_zero_points.empty()) {
