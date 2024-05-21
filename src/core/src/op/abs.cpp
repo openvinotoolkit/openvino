@@ -6,6 +6,9 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/tensor_util.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/reference/abs.hpp"
 
 namespace ov {
@@ -21,6 +24,20 @@ struct Evaluate : ov::element::NoAction<bool> {
         return true;
     }
 };
+
+static bool evaluate_bound(const ov::op::v0::Abs* op, TensorVector& output_values, bool is_lower) {
+    const auto &lv = op->get_input_tensor(0).get_lower_value(), &uv = op->get_input_tensor(0).get_upper_value();
+    if (!lv || !uv || !op->has_evaluate())
+        return false;
+    TensorVector lower_output{ov::Tensor(lv.get_element_type(), lv.get_shape())},
+        upper_output{ov::Tensor(uv.get_element_type(), uv.get_shape())};
+    if (!op->evaluate(lower_output, {lv}) || !op->evaluate(upper_output, {uv}))
+        return false;
+    if (is_lower)
+        return v1::Minimum().evaluate(output_values, {lower_output[0], upper_output[0]});
+    else
+        return v1::Maximum().evaluate(output_values, {lower_output[0], upper_output[0]});
+}
 }  // namespace abs
 
 namespace v0 {
@@ -68,6 +85,28 @@ bool Abs::has_evaluate() const {
     default:
         return false;
     }
+}
+
+bool Abs::evaluate_lower(TensorVector& output_values) const {
+    return ov::op::abs::evaluate_bound(this, output_values, true);
+}
+
+bool Abs::evaluate_upper(TensorVector& output_values) const {
+    return ov::op::abs::evaluate_bound(this, output_values, false);
+}
+
+bool Abs::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    const auto& non_negative = ov::util::greater_equal(get_input_tensor(0).get_lower_value(), 0);
+    const auto& input_symbols = get_input_tensor(0).get_value_symbol();
+    if (!non_negative || input_symbols.size() != ov::shape_size(non_negative.get_shape()))
+        return false;
+    auto non_negative_ptr = non_negative.data<char>();
+    output_symbols.resize(1);
+    output_symbols[0].resize(input_symbols.size(), nullptr);
+    for (size_t i = 0; i < input_symbols.size(); ++i)
+        if (non_negative_ptr[i])
+            output_symbols[0][i] = input_symbols[i];
+    return true;
 }
 }  // namespace v0
 }  // namespace op

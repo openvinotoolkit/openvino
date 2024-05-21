@@ -331,6 +331,10 @@ attach_gemm_onednn::attach_gemm_onednn() {
         format::byxf,
         format::byfx,
         format::bxfy,
+        format::fybx,  //format used for gemm fusion
+        format::fyxb,  //format used for gemm fusion
+        format::xbfy, // format used for gemm fusion
+        format::ybfx, // format used for gemm fusion
         format::bfzyx,
         format::bfwzyx,
     };
