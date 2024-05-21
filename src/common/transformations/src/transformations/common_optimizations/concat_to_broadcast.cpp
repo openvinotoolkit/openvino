@@ -46,7 +46,7 @@ ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
         }
 
         const auto& broadcast_input = concat->input_value(0);
-        auto target_shape = 
+        auto target_shape =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                    Shape{concat->get_default_output().get_shape().size()},
                                                    concat->get_default_output().get_shape());
