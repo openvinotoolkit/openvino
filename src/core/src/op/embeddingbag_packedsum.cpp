@@ -27,4 +27,8 @@ std::shared_ptr<Node> op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const
         OPENVINO_THROW("Incorrect number of arguments");
     }
 }
+bool op::v3::EmbeddingBagPackedSum::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v3_EmbeddingBagPackedSum_visit_attributes);
+    return true;
+}
 }  // namespace ov

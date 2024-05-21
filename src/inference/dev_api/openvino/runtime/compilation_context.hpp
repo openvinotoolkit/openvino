@@ -11,13 +11,13 @@
 #include <string>
 
 #include "openvino/core/any.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
-class Tensor;
-class Model;
-
-struct ModelCache final {
+class OPENVINO_RUNTIME_API ModelCache {
+public:
     static std::string calculate_file_info(const std::string& filePath);
 
     static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions);
@@ -37,15 +37,15 @@ public:
     CompiledBlobHeader();
     CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo, const std::string& runtimeInfo);
 
-    const std::string& getIeVersion() const {
+    const std::string& get_openvino_version() const {
         return m_ieVersion;
     }
 
-    const std::string& getFileInfo() const {
+    const std::string& get_file_info() const {
         return m_fileInfo;
     }
 
-    const std::string& getRuntimeInfo() const {
+    const std::string& get_runtime_info() const {
         return m_runtimeInfo;
     }
 
