@@ -41,9 +41,9 @@ std::shared_ptr<ov::Model> OVIterationChaining::getIterativeFunction() {
     auto params = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, pshape);
     params->get_output_tensor(0).set_names({"input_tensor_0"});
     params->set_friendly_name("param_0");
-    auto concat_const = ov::test::utils::deprecated::make_constant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
+    auto concat_const = ov::test::utils::make_constant(element::Type_t::f32, {1, 16});
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{params, concat_const}, 0 /*axis*/);
-    auto eltwise_const = ov::test::utils::deprecated::make_constant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
+    auto eltwise_const = ov::test::utils::make_constant(element::Type_t::f32, {1, 16});
     auto eltwise = ov::test::utils::make_eltwise(concat, eltwise_const, ov::test::utils::EltwiseTypes::ADD);
     concat->get_output_tensor(0).set_names({"result_tensor_0"});
     concat->set_friendly_name("result_0");

@@ -67,6 +67,8 @@ public:
     virtual uint64_t getAllocMemSize() const;
     virtual uint64_t getTotalMemSize() const;
     virtual ov::device::PCIInfo getPciInfo() const;
+    virtual ov::device::Type getDeviceType() const;
+    virtual std::map<ov::element::Type, float> getGops() const;
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,

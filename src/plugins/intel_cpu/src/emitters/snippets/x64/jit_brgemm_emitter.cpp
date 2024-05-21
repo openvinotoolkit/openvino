@@ -3,7 +3,6 @@
 //
 
 #include "jit_brgemm_emitter.hpp"
-#include "jit_kernel_emitter.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include <cpu/x64/brgemm/brgemm.hpp>
