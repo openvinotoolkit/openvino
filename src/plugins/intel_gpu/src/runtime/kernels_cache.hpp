@@ -56,6 +56,7 @@ public:
         source_code source;
         std::string options;
         bool dump_custom_program;
+        bool has_microkernels;
         std::map<std::string, std::pair<kernel_impl_params, size_t>> entry_point_to_id;
 
         explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::vector<std::string>& batch_header_str)
@@ -66,6 +67,7 @@ public:
               source(std::move(batch_header_str)),
               options(_options),
               dump_custom_program(false),
+              has_microkernels(false),
               entry_point_to_id({}) {
         }
     };

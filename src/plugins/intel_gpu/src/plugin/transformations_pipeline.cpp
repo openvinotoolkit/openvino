@@ -316,6 +316,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (!config.get_property(ov::intel_gpu::hint::enable_sdpa_optimization))
                 return false;
 
+            // For platforms with DPAS support we don't have any shape-based limitations
+            if (device_info.supports_immad)
+                return true;
+
             auto sdpa = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(node);
             const auto& query_ps = sdpa->get_input_partial_shape(0);
             const auto& key_ps = sdpa->get_input_partial_shape(1);

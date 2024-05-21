@@ -5,6 +5,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
 #include "program_node.h"
@@ -32,7 +33,6 @@
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
 #include "activation_inst.h"
-#include "depth_to_space_inst.h"
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -44,9 +44,9 @@
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
 
 #include "runtime/kernels_cache.hpp"
-#include "kernel_base.h"
 
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace {
@@ -1092,6 +1092,8 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.driverVersion = device_info.driver_version;
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
+    params.engineInfo.ip_version = device_info.ip_version;
+    params.engineInfo.arch = kernel_selector::gpu_arch(static_cast<std::underlying_type<gpu_arch>::type>(device_info.arch));
 
     auto impl_forcing = config.get_property(ov::intel_gpu::force_implementations);
 

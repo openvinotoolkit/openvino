@@ -37,8 +37,31 @@
 #include <malloc.h>
 #endif
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
+#include "gpu/intel/microkernels/fuser.hpp"
+#endif
+
 namespace {
 std::mutex cacheAccessMutex;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+cl::Program fuse_microkernels(const cl::Context& context, const cl::Device& device, cl::Program& program, const std::string& code) {
+    using namespace dnnl::impl::gpu::intel;
+    std::vector<std::vector<uint8_t>> binaries = program.getInfo<CL_PROGRAM_BINARIES>();
+    OPENVINO_ASSERT(binaries.size() == 1);
+    std::vector<uint8_t> binary = binaries[0];
+    micro::fuseMicrokernels(binary, code.c_str());
+
+    cl::Program::Binaries fused_binary = { binary };
+    cl::Program fused_program(context, {device}, fused_binary);
+    fused_program.build({device});
+
+    return fused_program;
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 std::string reorder_options(const std::string& org_options) {
     std::stringstream ss(org_options);
@@ -168,6 +191,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             current_batch.source.push_back(std::move(full_code));
             current_batch.kernels_counter++;
+
+            current_batch.has_microkernels |= kernel_string->has_microkernels;
         }
     }
 
@@ -287,6 +312,17 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
 
                 dump_file << "*/\n";
             }
+
+            if (batch.has_microkernels) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                OPENVINO_ASSERT(batch.kernels_counter == 1);
+                // Do we need full source code here (with batch headers)?
+                program = fuse_microkernels(cl_build_engine.get_cl_context(), cl_build_engine.get_cl_device(), program, batch.source.back());
+#else  // ENABLE_ONEDNN_FOR_GPU
+                OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
+#endif  // ENABLE_ONEDNN_FOR_GPU
+            }
+
 
             program.createKernels(&kernels);
 
