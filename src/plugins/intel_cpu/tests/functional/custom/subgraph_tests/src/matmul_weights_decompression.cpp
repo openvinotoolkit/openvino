@@ -415,7 +415,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_default_dyn_quant_gro
 
 const std::vector<ov::test::ElementType> sym_weights_precisions_dyn_quant = {ov::element::i8, ov::element::i4};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulSymCompressedWeights_non_default_dyn_quant_group_sizes,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_sym_non_default_dyn_quant_group_sizes,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic_dyn_quant),
                                             ::testing::ValuesIn(sym_weights_precisions_dyn_quant),
