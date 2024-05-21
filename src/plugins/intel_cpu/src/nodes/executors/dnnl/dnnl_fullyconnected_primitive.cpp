@@ -51,6 +51,7 @@ size_t DnnlFCPrimitive::Key::hash() const {
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, sparseWeights);
     seed = hash_combine(seed, transposedWeights);
+    seed = hash_combine(seed, modelType);
 
     return seed;
 }
@@ -72,7 +73,7 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
     }
 
     result = result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights &&
-             transposedWeights == rhs.transposedWeights;
+             transposedWeights == rhs.transposedWeights && modelType == rhs.modelType;
 
     return result;
 }
@@ -83,9 +84,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                                                          const DnnlShapeAgnosticDataPtr& shapeAgnosticData) {
     const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
     const auto& weiDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
-    const DnnlMemoryDescPtr biaDesc = memory.at(ARG_BIAS)->getDescPtr()->getCurrentMemSize() != 0
-                                          ? MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr())
-                                          : DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc{});
+    const auto& biaDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr());
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
     Key dnnlFCKey{
@@ -96,6 +95,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
         shapeAgnosticData->primAttrs.attr,
         attrs.sparseWeights,
         attrs.weightsNonTransposed,
+        attrs.modelType
     };
 
     auto builder = [&context](const Key& dnnlKey) {
@@ -111,9 +111,21 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 }
 
 bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
-                                                  const ov::element::Type weightsType) {
-    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && one_of(inputType, f32, bf16) &&
-           one_of(weightsType, u8, nf4, u4, i4);
+                                                  const ov::element::Type weightsType,
+                                                  const ov::intel_cpu::Config::ModelType modelType) {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, nf4, u4, i4))
+            return true;
+
+        if (modelType == ov::intel_cpu::Config::ModelType::LLM) {
+            // f16c kernel saves memory footprint with additional decompression computational overhead
+            // which is only meaningful on LLM with small batch-size.
+            // TODO: fall-back to use f32 weights on large batch-size
+            if (inputType == f32 && weightsType == f16)
+                return true;
+        }
+    }
+    return false;
 }
 
 bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
@@ -188,7 +200,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 isINT8,
                                 1 << 0,
                                 attrs.dequantizationScales,
-                                attrs.withBias,
+                                !memory.at(ARG_BIAS)->getDesc().empty(),
                                 outputDataType);
 
     if (attrs.decompressionMultiplyPtr)
@@ -314,9 +326,10 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     DEBUG_LOG("Creating shape agnostic data");
     auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
+    const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
-    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
+    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision(), attrs.modelType);
     const auto useDynamicQuantization = useWeightsDecompression &&
         useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc,
                                    attrs.decompressionMultiplyPtr, attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed);
@@ -339,13 +352,9 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const dnnl::memory::desc srcDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc)->getDnnlDesc();
     const dnnl::memory::desc weiDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc)->getDnnlDesc();
     const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
+    const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
+
     const auto useSparseWeights = attrs.sparseWeights;
-
-    const dnnl::memory::desc biaDnnlDesc =
-        memory.at(ARG_BIAS)->getDescPtr()->getCurrentMemSize() != 0
-            ? MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr())->getDnnlDesc()
-            : dnnl::memory::desc{};
-
     const auto primDesc = createPrimitiveDesc(srcDnnlDesc,
                                               weiDnnlDesc,
                                               biaDnnlDesc,
@@ -392,7 +401,7 @@ DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                      engine,
                                      implPriorities,
                                      key.sparseWeights,
-                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision()))),
+                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
       m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),

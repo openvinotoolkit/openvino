@@ -22,8 +22,13 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseAdd,
                                      Algorithm::EltwiseClamp,
                                      Algorithm::EltwiseDivide,
+                                     Algorithm::EltwiseElu,
                                      Algorithm::EltwiseEqual,
                                      Algorithm::EltwiseExp,
+                                     Algorithm::EltwiseHswish,
+                                     Algorithm::EltwiseMaximum,
+                                     Algorithm::EltwiseMinimum,
+                                     Algorithm::EltwiseMish,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
                                      Algorithm::EltwisePowerStatic,
@@ -31,7 +36,9 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseRelu,
                                      Algorithm::EltwiseSelect,
                                      Algorithm::EltwiseSigmoid,
-                                     Algorithm::EltwiseSubtract);
+                                     Algorithm::EltwiseSubtract,
+                                     Algorithm::EltwiseSwish,
+                                     Algorithm::EltwiseTanh);
     if (!is_supported) {
         return false;
     }

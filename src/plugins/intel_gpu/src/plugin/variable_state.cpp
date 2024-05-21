@@ -11,7 +11,6 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-
 #include <memory>
 
 namespace ov {
@@ -57,11 +56,44 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 }
 
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
-    m_layout.set_partial_shape(state->get_shape());
-    size_t rank = state->get_shape().size();
-    m_layout.data_padding = cldnn::padding(std::vector<int32_t>(rank, 0), std::vector<int32_t>(rank, 0), 0, m_layout.data_padding.get_dynamic_pad_dims());
+    auto src_shape = state->get_shape();
+    size_t src_rank = src_shape.size();
+    m_layout.data_padding = cldnn::padding(std::vector<int32_t>(src_rank, 0),
+                                           std::vector<int32_t>(src_rank, 0),
+                                           0,
+                                           m_layout.data_padding.get_dynamic_pad_dims());
+    auto src_stride = state->get_strides();
+    for (size_t i = 0; i < src_rank; ++i) {
+        src_stride[i] = src_stride[i] / (state->get_element_type().bitwidth()/8);
+    }
+    m_layout.set_partial_shape(src_shape);
     update_device_buffer();
-    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream());
+
+    // check whether the src tensor is padded
+    std::vector<size_t> src_stride_no_pad(src_rank, 1);
+    std::vector<int32_t> upper_pad(std::max<size_t>(src_rank, 4), 0);
+    std::vector<int32_t> lower_pad(std::max<size_t>(src_rank, 4), 0);
+    for (int32_t i = static_cast<int32_t>(src_stride.size()) - 1; i >= 0; --i) {
+        if (i <= static_cast<int32_t>(src_stride.size()) - 2)
+            src_stride_no_pad[i] = src_stride_no_pad[i + 1] * src_shape[i + 1];
+        if (src_stride[i] != src_stride_no_pad[i]) {
+            OPENVINO_ASSERT(src_stride[i] > src_stride_no_pad[i]);
+            size_t padded_size = src_stride[i] / src_stride[i + 1];
+            size_t non_padded_size = src_stride_no_pad[i] / src_stride_no_pad[i + 1];
+            int32_t pad_dim_legacy = i + 1;
+            if (pad_dim_legacy >= 2) {
+                int32_t spatial_axis = pad_dim_legacy - 2;
+                int32_t spatial_size = std::max<int32_t>(static_cast<int32_t>(src_rank), 4) - 2;
+                pad_dim_legacy = spatial_size - spatial_axis - 1 + 2;
+            }
+            upper_pad[pad_dim_legacy] = static_cast<int32_t>(padded_size) - static_cast<int32_t>(non_padded_size);
+        }
+    }
+    cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad, 0.f);
+    auto src_fmt = cldnn::format::get_default_format(src_rank);
+    auto src_layout = cldnn::layout(ov::PartialShape(src_shape), state->get_element_type(), src_fmt, src_padd);
+
+    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream(), src_layout);
     set();
 }
 
@@ -77,7 +109,7 @@ void VariableState::update_device_buffer() {
         const auto alloc_type = m_context->get_engine().use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
         const auto current_buf_size = m_layout.get_buffer_size().sizes();
         ov::Shape current_shape(current_buf_size.begin(), current_buf_size.end());
-        const auto alloc_shape = predict_shape(m_name, current_shape, m_layout.data_type, *m_shape_predictor);
+        const auto alloc_shape = predict_shape(m_name, cldnn::layout(current_shape, m_layout.data_type, m_layout.format), *m_shape_predictor);
         const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());

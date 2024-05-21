@@ -8,7 +8,6 @@
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
 #include "memory_state.h"
-#include "nodes/memory.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
@@ -65,7 +64,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0});
     } else {
         m_callback_executor = m_task_executor;
     }
@@ -202,12 +201,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     };
 
     if (name == ov::supported_properties) {
-        return std::vector<ov::PropertyName>{
+        std::vector<ov::PropertyName> ro_properties{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
             RO_property(ov::optimal_number_of_infer_requests.name()),
             RO_property(ov::num_streams.name()),
-            RO_property(ov::affinity.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
             RO_property(ov::hint::inference_precision.name()),
@@ -226,6 +224,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::optimal_batch_size.name()),
         };
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ro_properties.insert(ro_properties.end(), RO_property(ov::affinity.name()));
+        OPENVINO_SUPPRESS_DEPRECATED_END
+
+        return ro_properties;
     }
 
     if (name == ov::model_name) {

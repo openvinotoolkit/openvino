@@ -63,7 +63,7 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
         const auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
         const auto two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));
 
-        const auto padding =
+        const auto& padding =
             context.input_is_none(3)
                 ? context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{pads.size()}, 0))->output(0)
                 : get_input_as_i32(context, 3);
@@ -84,7 +84,7 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
         const auto shape_of_mp = context.mark_node(std::make_shared<v3::ShapeOf>(mp, element::i32));
         const auto gth_out_dims = context.mark_node(std::make_shared<v8::Gather>(shape_of_mp, dim_idxs, zero));
         const auto out_sub_one = context.mark_node(std::make_shared<v1::Subtract>(gth_out_dims, one));
-        const auto stride_node = use_kernel ? context.get_input(1) : context.get_input(2);
+        const auto& stride_node = use_kernel ? context.get_input(1) : context.get_input(2);
         const auto stride_node_i32 = context.mark_node(std::make_shared<v0::Convert>(stride_node, element::i32));
         const auto out_mul_stride = context.mark_node(std::make_shared<v1::Multiply>(out_sub_one, stride_node_i32));
 
@@ -94,7 +94,8 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
 
         // apply padding on input clear pads attribute
         const auto pb = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, padding}, 0));
-        const auto pe = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, selected_pads}, 0));
+        const auto& pe =
+            context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, selected_pads}, 0));
         auto minus_inf =
             context.mark_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}));
         minus_inf = context.mark_node(std::make_shared<v1::ConvertLike>(minus_inf, input));

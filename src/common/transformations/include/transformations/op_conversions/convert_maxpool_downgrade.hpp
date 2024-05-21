@@ -11,6 +11,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertMaxPool8ToMaxPool1;
+class TRANSFORMATIONS_API ConvertMaxPool14ToMaxPool8;
 
 }  // namespace pass
 }  // namespace ov
@@ -23,4 +24,14 @@ class ov::pass::ConvertMaxPool8ToMaxPool1 : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMaxPool8ToMaxPool1");
     ConvertMaxPool8ToMaxPool1();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief ConvertMaxPool14ToMaxPool8 converts v14::MaxPool into v8::MaxPool.
+ */
+class ov::pass::ConvertMaxPool14ToMaxPool8 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ConvertMaxPool14ToMaxPool8", "0");
+    ConvertMaxPool14ToMaxPool8();
 };

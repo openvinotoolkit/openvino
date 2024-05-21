@@ -242,6 +242,28 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
+    def query_state(self) -> None:
+        """Gets state control interface for the underlaying infer request.
+
+        :return: List of VariableState objects.
+        :rtype: List[openvino.runtime.VariableState]
+        """
+        if self._infer_request is None:
+            self._infer_request = self.create_infer_request()
+
+        return self._infer_request.query_state()
+
+    def reset_state(self) -> None:
+        """Resets all internal variable states of the underlaying infer request.
+
+        Resets all internal variable states to a value specified as default for
+        the corresponding `ReadValue` node.
+        """
+        if self._infer_request is None:
+            self._infer_request = self.create_infer_request()
+
+        return self._infer_request.reset_state()
+
     def infer_new_request(self, inputs: Any = None) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 

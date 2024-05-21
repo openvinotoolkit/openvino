@@ -3,11 +3,14 @@
 //
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include <common/memory_desc_wrapper.hpp>
 #include "nodes/reorder.h"
+#include "utils/debug_capabilities.h"
 #if defined(__linux__)
 #    include <sys/syscall.h> /* Definition of SYS_* constants */
 #    include <unistd.h>
+#    include <cstring> /* strerror(errno) */
 #endif
 
 namespace ov {
@@ -395,7 +398,11 @@ StringMemory::OvString* StringMemory::StringMemoryMngr::getStringPtr() const noe
 bool StringMemory::StringMemoryMngr::resize(size_t size) {
     bool sizeChanged = false;
     if (size > m_str_upper_bound) {
-        auto ptr = new OvString[size];
+        if (size > PTRDIFF_MAX) {
+            OPENVINO_THROW("Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
+        }
+        auto ptr_size = static_cast<ptrdiff_t>(size); // WA for warning alloc-size-larger-than
+        auto ptr = new OvString[ptr_size];
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
@@ -630,9 +637,11 @@ bool mbind_move(void* data, size_t size, int targetNode) {
         mask = 1ul << realNode;
         flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
     }
+
     auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask, sizeof(mask) * 8, flags);
     if (rc < 0) {
-        perror("mbind failed");
+        DEBUG_LOG("mbind failed: ", strerror(errno));
+        return false;
     }
     return true;
 }

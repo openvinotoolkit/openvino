@@ -49,7 +49,7 @@ Napi::Value CompiledModelWrap::get_output(const Napi::CallbackInfo& info) {
         return get_node(
             info,
             static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const>(&ov::CompiledModel::output),
-            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&)const>(
+            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&) const>(
                 &ov::CompiledModel::output),
             static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const>(
                 &ov::CompiledModel::output));
@@ -75,7 +75,7 @@ Napi::Value CompiledModelWrap::get_input(const Napi::CallbackInfo& info) {
         return get_node(
             info,
             static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const>(&ov::CompiledModel::input),
-            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&)const>(
+            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&) const>(
                 &ov::CompiledModel::input),
             static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const>(
                 &ov::CompiledModel::input));
@@ -99,7 +99,7 @@ Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
 Napi::Value CompiledModelWrap::get_node(
     const Napi::CallbackInfo& info,
     const ov::Output<const ov::Node>& (ov::CompiledModel::*func)() const,
-    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const,
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&) const,
     const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const) {
     if (info.Length() == 0) {
         return Output<const ov::Node>::wrap(info.Env(), (_compiled_model.*func)());

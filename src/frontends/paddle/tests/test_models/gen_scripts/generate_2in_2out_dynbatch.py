@@ -2,10 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import paddle
-from paddle import fluid
 import numpy as np
 import os
 import sys
+from save_model import saveModel 
+
+if paddle.__version__ >= '2.6.0':
+    import paddle.base as fluid
+else:
+    from paddle import fluid
 
 
 paddle.enable_static()
@@ -58,5 +63,8 @@ inp_dict = {'inputX1': inp_blob1, 'inputX2': inp_blob2}
 var = [relu3a, relu3b]
 res_paddle = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
 
-fluid.io.save_inference_model(os.path.join(sys.argv[1], "2in_2out_dynbatch"), list(inp_dict.keys()), var, exe,
-                              model_filename="2in_2out_dynbatch.pdmodel", params_filename="2in_2out_dynbatch.pdiparams")
+mode_name = "2in_2out_dynbatch"
+feed_vars = [x1, x2]
+fetch_list = [relu3a, relu3b]
+inputs = [inp_blob1, inp_blob2]
+saveModel(mode_name, exe, feed_vars, fetch_list, inputs, [res_paddle[0], res_paddle[1]], target_dir=sys.argv[1])

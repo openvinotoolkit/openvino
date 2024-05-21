@@ -8,6 +8,7 @@
 #include <openvino/opsets/opset12.hpp>
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset14.hpp>
+#include <openvino/opsets/opset15.hpp>
 #include <openvino/opsets/opset2.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
@@ -22,6 +23,7 @@
 #include "augru_sequence_shape_inference.hpp"
 #include "avg_pool_shape_inference.hpp"
 #include "batch_to_space_shape_inference.hpp"
+#include "col2im_shape_inference.hpp"
 #include "binary_convolution_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
@@ -90,6 +92,7 @@
 #include "reshape_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
 #include "reverse_shape_inference.hpp"
+#include "rms_norm_shape_inference.hpp"
 #include "rnn_cell_shape_inference.hpp"
 #include "rnn_sequence_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
@@ -398,6 +401,10 @@ using IStaticShapeInferFactory =
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // opset15
+    _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagOffsets, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagPacked, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Col2Im, ShapeInferTA, util::bit::mask(1, 2)),
     // opset14
     _OV_OP_SHAPE_INFER_MASK_REG(opset14::Inverse, ShapeInferTA, util::bit::mask()),
     // opset13
@@ -559,6 +566,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     //
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUCell, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
 };
 // clang-format on
 

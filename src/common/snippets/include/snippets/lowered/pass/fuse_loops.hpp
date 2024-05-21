@@ -15,7 +15,7 @@ namespace pass {
 
 /**
  * @interface FuseLoops
- * @brief The pass fuses marking Loops. The transformations support the following fusions of loops:
+ * @brief The pass fuses marking Unified Loops. The transformations support the following fusions of loops:
  *
  *        - Upper Loop is fused into the Current Loop
  *             Loop_0 (Upper)                 |
@@ -42,22 +42,21 @@ public:
     FuseLoops();
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
-    static bool can_be_fused(const LinearIR::LoopManager::LoopInfoPtr& loop_upper, const LinearIR::LoopManager::LoopInfoPtr& loop_lower);
+    static bool can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const UnifiedLoopInfoPtr& loop_lower);
 
 private:
      // This method checks that all ports which connect lower and upper loops are incremented.
     // This helps to avoid fusing for the ports with incompleted data
-    static bool loop_ports_are_compatible(const LinearIR::LoopManager::LoopInfoPtr& loop_upper,
-                                          const LinearIR::LoopManager::LoopInfoPtr& loop_lower);
-    static bool fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
-                                        const std::shared_ptr<ExpressionPort>& current_entry_point,
+    static bool loop_ports_are_compatible(const LoopInfoPtr& loop_upper, const LoopInfoPtr& loop_lower);
+    static bool fuse_upper_into_current(LinearIR& linear_ir, const LoopManagerPtr& loop_manager,
+                                        const std::shared_ptr<ExpressionPort>& current_input_port,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos);
-    static bool fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
-                                        const std::shared_ptr<ExpressionPort>& current_entry_point,
+    static bool fuse_lower_into_current(LinearIR& linear_ir, const LoopManagerPtr& loop_manager,
+                                        const std::shared_ptr<ExpressionPort>& current_input_port,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos);
-    static void move(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
+    static void move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id,
                      LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos, LinearIR::constExprIt pos);
 };
 

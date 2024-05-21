@@ -30,8 +30,8 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             auto softmax = pattern_to_output[m_softmax].get_node_shared_ptr();
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
 
-            const auto input_shape = reshape0->get_input_partial_shape(0);
-            const auto output_shape = reshape1->get_output_partial_shape(0);
+            const auto& input_shape = reshape0->get_input_partial_shape(0);
+            const auto& output_shape = reshape1->get_output_partial_shape(0);
             if (input_shape.is_dynamic() || output_shape.is_dynamic() ||
                 input_shape.get_shape() != output_shape.get_shape())
                 return false;

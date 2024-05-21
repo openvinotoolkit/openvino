@@ -15,22 +15,10 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopManager = LinearIR::LoopManager;
-using LoopInfoPtr = LoopManager::LoopInfoPtr;
-
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
 size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
-    const auto layout = port.get_descriptor_ptr()->get_layout();
-    const auto shape = port.get_descriptor_ptr()->get_shape();
-    size_t last_dim_idx = 0;
-    if (port.get_type() == ExpressionPort::Type::Input)
-        last_dim_idx = utils::get_input_dim_idx(layout, 0);
-    else if (port.get_type() == ExpressionPort::Type::Output)
-        last_dim_idx = utils::get_output_dim_idx(layout, 0);
-    else
-        OPENVINO_THROW("Unsupported type of expression port");
-    const auto dim = shape[last_dim_idx];
+    const auto dim = port.get_descriptor_ptr()->get_shape()[utils::get_dim_idx(port, 0)];
     return utils::is_dynamic_value(dim) ? m_vector_size : std::min(dim, m_vector_size);
 }
 
@@ -42,7 +30,8 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
     const auto& data_out = data_expr->get_output_port_connector(0);
     for (const auto& consumer_input : data_out->get_consumers()) {
         const auto& consumer_expr = consumer_input.get_expr();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(consumer_expr->get_node());
+        const auto& consumer = consumer_expr->get_node();
+        const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(consumer);
         if (ma && ma->is_memory_access_input_port(consumer_input.get_index()))
             return false;
 
@@ -63,7 +52,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto& parent_expr = parent_output.get_expr();
     const auto port = parent_output.get_index();
     const auto& parent = parent_expr->get_node();
-    const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent);
+    const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent);
     if (ma && ma->is_memory_access_output_port(port))
         return false;
 

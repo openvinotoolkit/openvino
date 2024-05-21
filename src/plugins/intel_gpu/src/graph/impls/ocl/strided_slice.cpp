@@ -12,11 +12,36 @@
 
 namespace {
 template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
-std::vector<T>& pad_vector_to_size(std::vector<T>& data, size_t size, DT value) {
-    for (size_t i = data.size(); i < size; ++i) {
-        data.push_back(static_cast<T>(value));
+void pad_vector_to_size(std::vector<T>& data, size_t size, DT value, const std::vector<int64_t>& ellipsis_mask) {
+    bool apply_ellipsis_mask = std::count(ellipsis_mask.begin(), ellipsis_mask.end(), 1) == 1;
+    if (apply_ellipsis_mask && data.size() == ellipsis_mask.size()) {
+        std::vector<T> temp;
+        size_t ellipsis_pos1 = 0;
+        for (size_t i = 0; i < ellipsis_mask.size(); i++) {
+            if (ellipsis_mask[i] == 1) {
+                ellipsis_pos1 = i;
+                break;
+            }
+        }
+
+        size_t dims_after = data.size() - ellipsis_pos1 - 1;
+        size_t ellipsis_pos2 = size - dims_after - 1;;
+
+        for (size_t i = 0; i < ellipsis_pos1; i++)
+            temp.push_back(data[i]);
+
+        for (size_t i = ellipsis_pos1; i < ellipsis_pos2 + 1; i++)
+            temp.push_back(value);
+
+        for (size_t i = 1; i < size - ellipsis_pos2; i++)
+            temp.push_back(data[i + ellipsis_pos1]);
+
+        data = temp;
+    } else {
+        for (size_t i = data.size(); i < size; ++i) {
+            data.push_back(static_cast<T>(value));
+        }
     }
-    return data;
 }
 
 template <typename T, typename MT>
@@ -74,7 +99,7 @@ public:
 
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
         if (!begin.empty() && !params.has_dynamic_tensors()) {
-            pad_vector_to_size(begin, dims_num, 0);
+            pad_vector_to_size(begin, dims_num, 0, prim->ellipsis_mask);
             params.begin_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(begin);
         } else {
@@ -91,7 +116,7 @@ public:
             return offset;
         };
         if (!end.empty() && !params.has_dynamic_tensors()) {
-            pad_vector_to_size(end, dims_num, 1);
+            pad_vector_to_size(end, dims_num, 1, prim->ellipsis_mask);
             params.end_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(end);
         } else {
@@ -108,7 +133,7 @@ public:
             return offset;
         };
         if (!strides.empty() && !params.has_dynamic_tensors()) {
-            pad_vector_to_size(strides, dims_num, 1);
+            pad_vector_to_size(strides, dims_num, 1, prim->ellipsis_mask);
             params.stride_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(strides);
         } else {
@@ -122,19 +147,22 @@ public:
         auto end_mask_ = prim->end_mask;
         auto new_axis_mask_ = prim->new_axis_mask;
         auto shrink_axis_mask_ = prim->shrink_axis_mask;
+        auto ellipsis_mask_ = prim->ellipsis_mask;
 
         std::vector<uint8_t> begin_mask(begin_mask_.begin(), begin_mask_.end());
         std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
         std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
         std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
+        std::vector<uint8_t> ellipsis_mask(ellipsis_mask_.begin(), ellipsis_mask_.end());
         params.end_mask = std::move(end_mask);
-        pad_vector_to_size(params.end_mask, dims_num, 0);
+        pad_vector_to_size(params.end_mask, dims_num, 0, prim->ellipsis_mask);
         params.begin_mask = std::move(begin_mask);
-        pad_vector_to_size(params.begin_mask, dims_num, 0);
+        pad_vector_to_size(params.begin_mask, dims_num, 0, prim->ellipsis_mask);
 
         params.new_axis_mask = new_axis_mask;
         params.shrink_axis_mask = shrink_axis_mask;
-        pad_vector_to_size(params.shrink_axis_mask, dims_num, 0);
+        params.ellipsis_mask = ellipsis_mask;
+        pad_vector_to_size(params.shrink_axis_mask, dims_num, 0, prim->ellipsis_mask);
 
         std::vector<size_t> logical_dims = params.inputs[0].LogicalDims();
         std::reverse(logical_dims.begin(), logical_dims.end());  // get dims in bfyx order
@@ -202,8 +230,13 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 

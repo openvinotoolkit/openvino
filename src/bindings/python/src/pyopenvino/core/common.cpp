@@ -37,24 +37,34 @@ py::dtype get_dtype(const ov::element::Type& ov_type) {
     return ov_type_to_dtype().at(ov_type);
 }
 
-const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
-    static const std::map<std::string, ov::element::Type> dtype_to_ov_type_mapping = {
-        {"float16", ov::element::f16},
-        {"float32", ov::element::f32},
-        {"float64", ov::element::f64},
-        {"int8", ov::element::i8},
-        {"int16", ov::element::i16},
-        {"int32", ov::element::i32},
-        {"int64", ov::element::i64},
-        {"uint8", ov::element::u8},
-        {"uint16", ov::element::u16},
-        {"uint32", ov::element::u32},
-        {"uint64", ov::element::u64},
-        {"bool", ov::element::boolean},
-        {"bytes_", ov::element::string},
-        {"str_", ov::element::string},
-        {"bytes", ov::element::string},
-        {"str", ov::element::string},
+const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
+    static const std::map<int, ov::element::Type> dtype_to_ov_type_mapping = {
+        {23, ov::element::f16},  // float16
+        {11, ov::element::f32},  // float32
+        {12, ov::element::f64},  // float64
+        {1, ov::element::i8},    // int8
+        {3, ov::element::i16},   // int16
+#ifdef _WIN32
+        {7, ov::element::i32},  // int32
+        {9, ov::element::i64},  // int64
+#else
+        {5, ov::element::i32},  // int32
+        {7, ov::element::i64},  // int64
+#endif
+        {2, ov::element::u8},   // uint8
+        {4, ov::element::u16},  // uint16
+#ifdef _WIN32
+        {8, ov::element::u32},   // uint32
+        {10, ov::element::u64},  // uint64
+#else
+        {6, ov::element::u32},  // uint32
+        {8, ov::element::u64},  // uint64
+#endif
+        {0, ov::element::boolean},  // bool
+        {18, ov::element::string},  // bytes_
+        {19, ov::element::string},  // str_
+        {18, ov::element::string},  // bytes
+        {19, ov::element::string},  // str
     };
     return dtype_to_ov_type_mapping;
 }
@@ -66,7 +76,7 @@ ov::element::Type get_ov_type(const py::array& array) {
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
     }
-    return dtype_to_ov_type().at(py::str(array.dtype()));
+    return dtype_num_to_ov_type().at(array.dtype().num());
 }
 
 ov::element::Type get_ov_type(py::dtype& dtype) {
@@ -76,7 +86,7 @@ ov::element::Type get_ov_type(py::dtype& dtype) {
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
     }
-    return dtype_to_ov_type().at(py::str(dtype));
+    return dtype_num_to_ov_type().at(dtype.num());
 }
 
 };  // namespace type_helpers
@@ -280,7 +290,115 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     return py::array(dtype, t.get_shape(), t.get_strides(), t.data());
 }
 
+py::array array_from_constant_copy(ov::op::v0::Constant&& c) {
+    const auto& ov_type = c.get_element_type();
+    const auto dtype = Common::type_helpers::get_dtype(ov_type);
+    if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+        return py::array(dtype, c.get_byte_size(), c.get_data_ptr());
+    }
+    return py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr());
+}
+
+py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtype) {
+    // floating
+    if (dst_dtype.is(py::dtype("float64"))) {
+        return array_helpers::array_from_constant_cast<double>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    } else if (dst_dtype.is(py::dtype("float32"))) {
+        return array_helpers::array_from_constant_cast<float>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    } else if (dst_dtype.is(py::dtype("float16"))) {
+        return array_helpers::array_from_constant_cast<ov::float16>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    }
+    // signed
+    else if (dst_dtype.is(py::dtype("int64"))) {
+        return array_helpers::array_from_constant_cast<int64_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    } else if (dst_dtype.is(py::dtype("int32"))) {
+        return array_helpers::array_from_constant_cast<int32_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    } else if (dst_dtype.is(py::dtype("int16"))) {
+        return array_helpers::array_from_constant_cast<int16_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    } else if (dst_dtype.is(py::dtype("int8"))) {
+        return array_helpers::array_from_constant_cast<int8_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    }
+    // unsigned
+    else if (dst_dtype.is(py::dtype("uint64"))) {
+        return array_helpers::array_from_constant_cast<uint64_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    } else if (dst_dtype.is(py::dtype("uint32"))) {
+        return array_helpers::array_from_constant_cast<uint32_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    } else if (dst_dtype.is(py::dtype("uint16"))) {
+        return array_helpers::array_from_constant_cast<uint16_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    } else if (dst_dtype.is(py::dtype("uint8"))) {
+        return array_helpers::array_from_constant_cast<uint8_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+    }
+    // other
+    else if (dst_dtype.is(py::dtype("bool"))) {
+        const auto& ov_type = c.get_element_type();
+        switch (ov_type) {
+        case ov::element::f32:
+            return array_helpers::array_from_constant_cast_bool<float>(std::forward<ov::op::v0::Constant>(c),
+                                                                       dst_dtype);
+        case ov::element::f64:
+            return array_helpers::array_from_constant_cast_bool<double>(std::forward<ov::op::v0::Constant>(c),
+                                                                        dst_dtype);
+        case ov::element::f16:
+            return array_helpers::array_from_constant_cast_bool<ov::float16>(std::forward<ov::op::v0::Constant>(c),
+                                                                             dst_dtype);
+        default:
+            return array_helpers::array_from_constant_cast<ov::fundamental_type_for<ov::element::boolean>>(
+                std::forward<ov::op::v0::Constant>(c),
+                dst_dtype);
+        }
+    } else {
+        OPENVINO_THROW("Constant cannot be casted to specified dtype!");
+    }
+}
+
+py::array array_from_constant_view(ov::op::v0::Constant&& c) {
+    const auto& ov_type = c.get_element_type();
+    const auto dtype = Common::type_helpers::get_dtype(ov_type);
+    if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+        return py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
+    }
+    return py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
+}
+
 };  // namespace array_helpers
+
+namespace constant_helpers {
+std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
+    auto element_type = self.get_element_type();
+    auto shape = self.get_shape();
+    if (element_type == ov::element::boolean) {
+        return _get_byte_strides<char>(shape);
+    } else if (element_type == ov::element::f16 || element_type == ov::element::bf16) {
+        // WA for bf16, returned as f16 array
+        return _get_byte_strides<ov::float16>(shape);
+    } else if (element_type == ov::element::f32) {
+        return _get_byte_strides<float>(shape);
+    } else if (element_type == ov::element::f64) {
+        return _get_byte_strides<double>(shape);
+    } else if (element_type == ov::element::i8 || element_type == ov::element::i4) {
+        // WA for i4, returned as int8 array
+        return _get_byte_strides<int8_t>(shape);
+    } else if (element_type == ov::element::i16) {
+        return _get_byte_strides<int16_t>(shape);
+    } else if (element_type == ov::element::i32) {
+        return _get_byte_strides<int32_t>(shape);
+    } else if (element_type == ov::element::i64) {
+        return _get_byte_strides<int64_t>(shape);
+    } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
+               element_type == ov::element::nf4) {
+        // WA for u1, u4, nf4, all returned as packed uint8 arrays
+        return _get_byte_strides<uint8_t>(shape);
+    } else if (element_type == ov::element::u16) {
+        return _get_byte_strides<uint16_t>(shape);
+    } else if (element_type == ov::element::u32) {
+        return _get_byte_strides<uint32_t>(shape);
+    } else if (element_type == ov::element::u64) {
+        return _get_byte_strides<uint64_t>(shape);
+    } else {
+        throw std::runtime_error("Unsupported data type!");
+    }
+}
+};  // namespace constant_helpers
 
 template <>
 ov::op::v0::Constant create_copied(py::array& array) {
