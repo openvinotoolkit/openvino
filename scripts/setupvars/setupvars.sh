@@ -10,7 +10,7 @@ abs_path () {
     pwd -P
 }
 
-SCRIPT_DIR="$(abs_path "${BASH_SOURCE[0]}")" >/dev/null 2>&1
+SCRIPT_DIR="$(abs_path "${BASH_SOURCE:-$0}")" >/dev/null 2>&1
 INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
