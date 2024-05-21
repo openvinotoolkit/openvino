@@ -55,7 +55,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
 
             // do shift
             auto count = _ptr->getSize() / _ptr->getDesc().getPrecision().size();
-            if(dst_wdt == ov::element::u8) {
+            if (dst_wdt == ov::element::u8) {
                 auto* data = _ptr->getDataAs<uint8_t>();
                 for (size_t i = 0; i < count; i++) {
                     data[i] = data[i] + 128;
@@ -72,7 +72,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
             }
             return _ptr;
         }
-        
+
         Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
         auto rtCache = context->getRuntimeCache();
