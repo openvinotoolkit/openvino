@@ -75,7 +75,7 @@ void BufferAllocationTest::ApplyTransformations(const std::shared_ptr<ov::snippe
     pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
     pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
     pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
-    pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, m_is_buffer_optimized);
+    pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_is_buffer_optimized);
     pipeline.run(m_linear_ir);
 }
 
@@ -87,7 +87,7 @@ void BufferAllocationTest::Validate() {
         }
     }
     EXPECT_EQ(gprs.size(), m_expected_count);
-    EXPECT_EQ(m_buffer_scratchpad, m_expected_size);
+    EXPECT_EQ(m_linear_ir.get_buffer_scratchpad_size(), m_expected_size);
 }
 
 std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel() const {

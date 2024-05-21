@@ -87,7 +87,7 @@ protected:
         pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
         pipeline.register_pass<ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape>();
-        pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, m_is_buffer_optimized);
+        pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_is_buffer_optimized);
         pipeline.run(m_linear_ir);
     }
 
@@ -99,7 +99,7 @@ protected:
             }
         }
         EXPECT_EQ(gprs.size(), m_expected_count);
-        EXPECT_EQ(m_buffer_scratchpad, m_expected_size);
+        EXPECT_EQ(m_linear_ir.get_buffer_scratchpad_size(), m_expected_size);
     }
 
     virtual std::shared_ptr<ov::Model> GetModel() const = 0;
@@ -113,7 +113,6 @@ protected:
                 output, std::make_shared<ov::snippets::lowered::PortDescriptor>(output, subtensor));
     }
 
-    size_t m_buffer_scratchpad = 0;
     ov::snippets::lowered::LinearIR m_linear_ir;
 
     size_t m_expected_size = 0;
