@@ -100,7 +100,6 @@ public:
     static dnnl_primitive_desc_t clone_primitive_desc(const_dnnl_primitive_desc_t cprim_desc);
     static dnnl_memory_desc_t clone_desc(const_dnnl_memory_desc_t cdesc);
     static const char* query_pd_info(const_dnnl_primitive_desc_t pd);
-    static dnnl::algorithm convertToDnnlAlgorithm(Algorithm alg);
     static bool isUnarySupportedAsPostOp(Algorithm alg);
 };
 

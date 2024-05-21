@@ -30,6 +30,8 @@ public:
     uint64_t getAllocMemSize() const override;
     uint64_t getTotalMemSize() const override;
     ov::device::PCIInfo getPciInfo() const override;
+    std::map<ov::element::Type, float> getGops() const override;
+    ov::device::Type getDeviceType() const override;
 
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const std::shared_ptr<IExecutor>& executor,
@@ -46,6 +48,11 @@ private:
     ze_device_properties_t device_properties = {};
 
     ze_pci_ext_properties_t pci_properties = {};
+
+    std::map<ov::element::Type, float> device_gops = {{ov::element::f32, 0.f},
+                                                      {ov::element::f16, 0.f},
+                                                      {ov::element::u8, 0.f},
+                                                      {ov::element::i8, 0.f}};
 
     uint32_t _group_ordinal;
 

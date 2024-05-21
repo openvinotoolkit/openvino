@@ -16,11 +16,12 @@ const std::vector<ov::AnyMap> inproperties = {
     {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVClassCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI, "AUTO:TEMPLATE"),
-                                            ::testing::ValuesIn(inproperties)),
-                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_BehaviorTests,
+    OVClassCompiledModelPropertiesIncorrectTests,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI, "AUTO:TEMPLATE", ov::test::utils::DEVICE_AUTO),
+                       ::testing::ValuesIn(inproperties)),
+    OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 #if (defined(__APPLE__) || defined(_WIN32))
 auto default_affinity = [] {

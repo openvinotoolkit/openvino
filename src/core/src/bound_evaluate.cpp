@@ -8,6 +8,7 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -446,21 +447,21 @@ bool ov::interval_bound_evaluator(const Node* node,
 
         auto concated_shape = all_variants_for_ith_output[0].get_shape();
         concated_shape[0] = all_variants_for_ith_output.size();
-        auto concat = Tensor(all_variants_for_ith_output[0].get_element_type(), concated_shape);
-        auto concat_out = TensorVector{concat};
+        auto concat = TensorVector{Tensor(all_variants_for_ith_output[0].get_element_type(), concated_shape)};
         auto c = op::v0::Concat();
         c.set_axis(0);
-        c.evaluate(concat_out, all_variants_for_ith_output);
+        c.evaluate(concat, all_variants_for_ith_output);
 
         auto fake_param =
             std::make_shared<op::v0::Parameter>(all_variants_for_ith_output[0].get_element_type(), concated_shape);
         auto reduce_min_op = op::v1::ReduceMin(fake_param, zero, false);
         auto lower_out = ov::TensorVector{lower_output_values[i]};
-        reduce_min_op.evaluate(lower_out, {concat, zero_t});
+        concat.push_back(zero_t);
+        reduce_min_op.evaluate(lower_out, concat);
 
         auto reduce_max_op = op::v1::ReduceMax(fake_param, zero, false);
         auto upper_out = ov::TensorVector{upper_output_values[i]};
-        reduce_max_op.evaluate(upper_out, {concat, zero_t});
+        reduce_max_op.evaluate(upper_out, concat);
 
         if (!upper_output_values[i]) {
             fully_defined = false;
@@ -483,27 +484,6 @@ bool ov::interval_bound_evaluator(const Node* node,
         }
     }
     return fully_defined;
-}
-
-bool ov::tensor_is_non_negative(const Tensor& bound) {
-    const auto bound_constant =
-        std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
-    const auto zero_constant = op::v0::Constant::create(bound.get_element_type(), {1}, {0});
-    OutputVector greater(1);
-
-    bool folded = std::make_shared<op::v1::GreaterEqual>(bound_constant, zero_constant)
-                      ->constant_fold(greater, {bound_constant, zero_constant});
-    OPENVINO_ASSERT(folded);
-
-    auto axes_vector = std::vector<int64_t>(greater[0].get_shape().size());
-    std::iota(axes_vector.begin(), axes_vector.end(), 0);
-    const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
-
-    OutputVector all(1);
-    folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
-    OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
-    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
-    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ov::tensor_has_max_value(const Tensor& bound) {
