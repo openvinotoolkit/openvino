@@ -14,10 +14,13 @@
 
 #include "partitioning/partitioning.hpp"
 
+namespace intel_npu {
+class Plugin;
+}
+
 namespace ov {
 namespace npuw {
 
-class Plugin;
 class InferRequest;
 class ThinInferRequest;
 
@@ -53,7 +56,7 @@ private:
     bool m_finalized = false;
     void reset_io();
 
-    std::shared_ptr<const Plugin> get_npuw_plugin() const;
+    std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
 
     std::shared_ptr<ov::ISyncInferRequest> create_just_sync_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;

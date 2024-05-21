@@ -57,6 +57,8 @@ target_link_libraries(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>
 )
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE

@@ -12,10 +12,14 @@
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/config/npuw.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+
+#include "npuw/config.hpp"
+#include "npuw/compiled_model.hpp"
 
 using namespace intel_npu;
 
@@ -172,6 +176,7 @@ Plugin::Plugin()
     registerCommonOptions(*_options);
     registerCompilerOptions(*_options);
     registerRunTimeOptions(*_options);
+    registerNPUWOptions(*_options);
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
@@ -506,6 +511,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
           }}},
+        {ov::intel_npu::from_npuw.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<FROM_NPUW>();
+          }}},
     };
 
     for (auto& property : _properties) {
@@ -555,6 +566,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "merge_configs");
     auto localConfig = merge_configs(_globalConfig, any_copy(properties));
+
+    // Before going any further: if
+    // ... 1 - NPUW mode is activated
+    // ... 2 - this request is NOT coming from NPUW,
+    // activate the NPUW path
+    if (ov::npuw::get_env({"OV_USE_NPUW"}, "NO") == std::string("YES")
+        && !localConfig.has<FROM_NPUW>() ) {
+        auto config = ov::npuw::Configuration{properties};
+        return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), config);
+    }
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {

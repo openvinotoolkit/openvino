@@ -18,10 +18,36 @@
 #include "openvino/core/parallel.hpp"
 #include "plugin.hpp"
 #include "properties.hpp"
+#include "npu_private_properties.hpp"
 #include "logging.hpp"
 #include "config.hpp"
 #include "util.hpp"
 #include "accuracy/comparator.hpp"
+
+// required for get_properties_per_device()
+#include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
+
+
+namespace ov {
+namespace npuw {
+namespace {
+ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                     const std::string& device_priorities,
+                                                     const ov::AnyMap& properties) {
+    auto device_names = ov::DeviceIDParser::get_hetero_devices(device_priorities);
+    DeviceProperties device_properties;
+    for (const auto& device_name : device_names) {
+        auto properties_it = device_properties.find(device_name);
+        if (device_properties.end() == properties_it)
+            device_properties[device_name] = plugin->get_core()->get_supported_property(device_name, properties);
+    }
+    return device_properties;
+}
+} // anonymous namespace
+} // namespace npuw
+} // namespace ov
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -35,8 +61,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             "OPENVINO_NPUW_DEVICES"
         }, "NPU,CPU");
     m_dev_list = ov::DeviceIDParser::get_hetero_devices(dev_list_str);
-    m_meta_devices = get_npuw_plugin()->get_properties_per_device(dev_list_str,
-                                                                  m_cfg.get_device_properties());
+    m_meta_devices = ov::npuw::get_properties_per_device(plugin,
+                                                         dev_list_str,
+                                                         m_cfg.get_device_properties());
 
     bool dumpDotFile = m_cfg.dump_graph;
     if (std::getenv("OPENVINO_NPUW_VISUALIZE"))
@@ -450,6 +477,9 @@ ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& subm
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
+    if (ov::npuw::util::starts_with(device, "NPU")) {
+        device_config.insert(ov::intel_npu::from_npuw("YES"));
+    }
     return core->compile_model(submodel, device, device_config);
 }
 
@@ -492,10 +522,10 @@ std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() co
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<const ov::npuw::Plugin> ov::npuw::CompiledModel::get_npuw_plugin() const {
+std::shared_ptr<const ::intel_npu::Plugin> ov::npuw::CompiledModel::get_npuw_plugin() const {
     auto plugin = get_plugin();
     OPENVINO_ASSERT(plugin);
-    auto npuw_plugin = std::dynamic_pointer_cast<const ov::npuw::Plugin>(plugin);
+    auto npuw_plugin = std::dynamic_pointer_cast<const ::intel_npu::Plugin>(plugin);
     OPENVINO_ASSERT(npuw_plugin);
     return npuw_plugin;
 }
@@ -541,7 +571,7 @@ ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {
     } else if (ov::device::properties == name) {
         ov::AnyMap all_devices = {};
         for (auto i = 0; i < m_compiled_submodels.size(); ++i) {
-            auto comp_model_desc = m_compiled_submodels[i]; 
+            auto comp_model_desc = m_compiled_submodels[i];
             if (!comp_model_desc.compiled_model) // Handle if optimized out
                 continue;
             ov::AnyMap device_properties = {};
