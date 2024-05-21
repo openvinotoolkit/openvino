@@ -17,8 +17,8 @@ op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<
 void op::v8::AdaptiveAvgPool::validate_and_infer_types() {
     OV_OP_SCOPE(v8_AdaptiveAvgPool_validate_and_infer_types);
 
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
-    set_output_type(0, get_input_element_type(0), output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 std::shared_ptr<Node> op::v8::AdaptiveAvgPool::clone_with_new_inputs(const OutputVector& new_args) const {

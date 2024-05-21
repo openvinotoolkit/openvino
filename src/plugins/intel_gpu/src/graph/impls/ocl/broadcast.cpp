@@ -70,7 +70,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         auto output_rank = output_pshape.size();
 
         if (primitive->axes_mapping.empty()) {
-            bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
             if (!broadcastable(input_pshape, output_pshape, use_new_shape_infer)) {
                 input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_pshape.size());
             } else {
@@ -129,8 +129,13 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 

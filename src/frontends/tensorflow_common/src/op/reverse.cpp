@@ -106,7 +106,7 @@ OutputVector translate_reverse_op(const NodeContext& node) {
 OutputVector translate_reverse_v2_op(const NodeContext& node) {
     // The second input of ReverseV2 is a vector of axes along which
     // elements of the input tensor are reversed
-    default_op_checks(node, 2, {"ReverseV2"});
+    default_op_checks(node, 2, {"ReverseV2", "REVERSE_V2"});
     auto input = node.get_input(0);
 
     // the translator is able to convert ReverseV2 only

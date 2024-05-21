@@ -56,11 +56,26 @@ def get_models_list_not_skipped(model_list_file: str, skip_list_file: str):
 
 def compare_two_tensors(ov_res, fw_res, eps):
     is_ok = True
-    if not np.allclose(ov_res, fw_res, atol=eps, rtol=eps, equal_nan=True):
+    if ov_res.dtype.type == str or ov_res.dtype.type == np.str_ or ov_res.dtype.type == np.object_:
+        ov_res = ov_res.astype('U')
+        # TF can represent string tensors in different format: array of bytestreams
+        # so we have to align formats of both string tensors, for example, to unicode
+        if ov_res.dtype.type != fw_res.dtype.type:
+            try:
+                fw_res = fw_res.astype('U')
+            except:
+                # ref_array of object type and each element must be utf-8 decoded
+                utf8_decoded_elems = [elem.decode('UTF-8') for elem in fw_res.flatten()]
+                fw_res = np.array(utf8_decoded_elems, dtype=str).reshape(fw_res.shape)
+        is_ok = np.array_equal(ov_res, fw_res)
+    elif ov_res.dtype == bool:
+        is_ok = np.array_equal(ov_res, fw_res)
+    elif not np.allclose(ov_res, fw_res, atol=eps, rtol=eps, equal_nan=True):
         is_ok = False
         max_diff = np.abs(ov_res.astype(np.float32) - fw_res.astype(np.float32)).max()
         print("Max diff is {}".format(max_diff))
-    else:
+
+    if is_ok:
         print("Accuracy validation successful!\n")
         print("absolute eps: {}, relative eps: {}".format(eps, eps))
     return is_ok

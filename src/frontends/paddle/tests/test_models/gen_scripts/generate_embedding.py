@@ -91,8 +91,8 @@ def embedding(name: str, ids, vocab_size, embedding_dim, padding_idx=None, spars
             feed=input_dict,
             fetch_list=output_vars_list)
 
-        saveModel(name, exe, feedkeys=[node_ids], fetchlist=output_vars_list, inputs=list(
-            input_dict.values()), outputs=infer_results, target_dir=sys.argv[1], use_static_api=True)
+        saveModel(name, exe, feed_vars=[node_ids], fetchlist=output_vars_list, inputs=list(
+            input_dict.values()), outputs=infer_results, target_dir=sys.argv[1])
 
         #
         outputs = dict()
