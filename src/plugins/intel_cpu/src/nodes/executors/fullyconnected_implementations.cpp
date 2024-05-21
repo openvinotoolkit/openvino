@@ -155,7 +155,7 @@ ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Con
 }
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noWeightsDecompression(const FCConfig& config) {
-    return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
+    return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
 }
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noSparseDecompression(const FCConfig& config) {
