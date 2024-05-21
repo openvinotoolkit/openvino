@@ -50,7 +50,7 @@ OutputVector translate_expand_fx(const NodeContext& context) {
     if (num_inputs != 2) {
         for (size_t i = 1; i < num_inputs; i++) {
             auto a = context.get_input_from_visible_context(i).get_node_shared_ptr();
-            auto shape_input = context.get_input(i);
+            auto shape_input = context.get_input(static_cast<int>(i));
             if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(a) ||
                 shape_input.get_partial_shape().rank().is_dynamic() ||
                 shape_input.get_partial_shape().rank().get_length() == 0) {
