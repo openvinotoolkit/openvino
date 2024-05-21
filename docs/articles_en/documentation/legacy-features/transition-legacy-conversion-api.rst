@@ -258,8 +258,6 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
     .. tab-item:: Python
        :sync: py
 
-       .. _python_tab_batch:
-
        .. list-table::
           :header-rows: 1
 
@@ -295,7 +293,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --batch 2 --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab_batch>`_ .
+            - Not available in OVC tool. To view the equivalent Python API, switch to the **Python** tab above.
 
 ``mean_values``
 ################
@@ -304,8 +302,6 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-
-       .. _python_tab_mean_val:
 
        .. list-table::
           :header-rows: 1
@@ -346,7 +342,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --mean_values [0.5,0.5,0.5] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab_mean_val>`_ .
+            - Not available in OVC tool. To view the equivalent Python API, switch to the **Python** tab above.
 
 ``scale_values``
 #################
@@ -355,8 +351,6 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-
-       .. _python_tab_scale_val:
 
        .. list-table::
           :header-rows: 1
@@ -397,7 +391,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --scale_values [255,255,255] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab_scale_val>`_ .
+            - Not available in OVC tool. To view the equivalent Python API, switch to the **Python** tab above.
 
 ``reverse_input_channels``
 ###########################
@@ -406,8 +400,6 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-
-       .. _python_tab_reverse:
 
        .. list-table::
           :header-rows: 1
@@ -448,7 +440,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --reverse_input_channels --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab_reverse>`_ .
+            - Not available in OVC tool. To view the equivalent Python API, switch to the **Python** tab above.
 
 ``source_layout``
 ##################
@@ -458,7 +450,6 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
     .. tab-item:: Python
        :sync: py
 
-       .. _python_tab_source:
 
        .. list-table::
           :header-rows: 1
@@ -497,7 +488,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --source_layout input_name(NHWC) --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab_source>`_ .
+            - Not available in OVC tool. To view the equivalent Python API, switch to the **Python** tab above.
 
 ``target_layout``
 ##################
@@ -506,8 +497,6 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-
-       .. _python_tab_target:
 
        .. list-table::
           :header-rows: 1
@@ -546,7 +535,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --target_layout input_name(NHWC) --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab_target>`_ .
+            - Not available in OVC tool. To view the equivalent Python API, switch to the **Python** tab above.
 
 ``layout``
 ###########
@@ -555,8 +544,6 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-
-       .. _python_tab_layout:
 
        .. list-table::
           :header-rows: 1
@@ -595,7 +582,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --layout "input_name(NCHW->NHWC)" --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab_layout>`_ .
+            - Not available in OVC tool. To view the equivalent Python API, switch to the **Python** tab above.
 
 ``transform``
 ##############
@@ -604,8 +591,6 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
     .. tab-item:: Python
        :sync: py
-
-       .. _python_tab_transform:
 
        .. list-table::
           :header-rows: 1
@@ -643,7 +628,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --transform LowLatency2[use_const_initializer=False],Pruning,MakeStateful[param_res_names={'input_name':'output_name'}] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab_transform>`_ .
+            - Not available in OVC tool. To view the equivalent Python API, switch to the **Python** tab above.
 
 Cutting Off Parts of a Model
 ############################
