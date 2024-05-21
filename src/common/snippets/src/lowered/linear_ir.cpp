@@ -18,22 +18,19 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-LinearIR::LinearIR(Config config)
-    : m_shape_infer{},
+LinearIR::LinearIR(Config config, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+    : m_expressions{},
       m_parameter_expressions{},
       m_result_expressions{},
       m_config(std::move(config)),
       m_loop_manager(std::make_shared<LoopManager>()),
-      m_shape_infer_factory{} {}
+      m_shape_infer_factory(factory),
+      m_shape_infer(std::make_shared<LIRShapeInfer>(m_expressions, m_parameter_expressions, m_result_expressions)) {}
 
 LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
                    Config config)
-    : m_parameter_expressions{},
-      m_result_expressions{},
-      m_config{std::move(config)},
-      m_loop_manager(std::make_shared<LoopManager>()),
-      m_shape_infer_factory(factory) {
+    : LinearIR(config, factory) {
     constExprIt last_param = m_expressions.end();
     for (const auto& n : get_ordered_ops(model)) {
         constExprIt insertion_pos = m_expressions.end();
@@ -55,7 +52,6 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
         m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(param_expr->get_output_port_descriptor(0)->get_shape());
     for (const auto& result_expr : m_result_expressions)
         m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(result_expr->get_input_port_descriptor(0)->get_shape());
-    m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_parameter_expressions, m_result_expressions);
 }
 
 ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n) {
@@ -410,16 +406,16 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     return replace_with_expr(old_exprs, new_expr, insertion_place);
 }
 
-LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, container& param_exprs, container& result_exprs)
+LinearIR::LIRShapeInfer::LIRShapeInfer(const container& body_exprs, const container& param_exprs, const container& result_exprs)
                                        : ShapeInferSnippetsNode(),
-                                         m_exprs{std::make_shared<container>(body_exprs)},
-                                         m_input_exprs{std::make_shared<container>(param_exprs)},
-                                         m_output_exprs{std::make_shared<container>(result_exprs)} {
+                                         m_exprs(body_exprs),
+                                         m_input_exprs(param_exprs),
+                                         m_output_exprs(result_exprs) {
     // Note that if all output shapes are static, as in the case when the first shape infer was performed on nGraph,
     // we can treat them as the last result
     std::vector<VectorDims> outputDims;
-    outputDims.reserve(m_output_exprs->size());
-    for (const auto& expr : *m_output_exprs) {
+    outputDims.reserve(m_output_exprs.size());
+    for (const auto& expr : m_output_exprs) {
         const auto &shape = expr->get_input_port_descriptor(0)->get_shape();
         if (utils::is_dynamic_vdims(shape)) {
             outputDims.clear();
@@ -431,19 +427,19 @@ LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, container& param_e
 }
 
 IShapeInferSnippets::Result LinearIR::LIRShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(m_input_exprs->size() == input_shapes.size(), "Got invalid number of input shapes in LIR ShapeInfer");
+    OPENVINO_ASSERT(m_input_exprs.size() == input_shapes.size(), "Got invalid number of input shapes in LIR ShapeInfer");
     size_t input_count = 0;
-    for (const auto& expr : *m_input_exprs)
+    for (const auto& expr : m_input_exprs)
         expr->get_output_port_descriptor(0)->set_shape(input_shapes[input_count++]);
 
-    for (const auto& expr : *m_exprs) {
+    for (const auto& expr : m_exprs) {
         if (expr->needShapeInfer())
             expr->updateShapes();
     }
 
     std::vector<VectorDims> outputDims;
-    outputDims.reserve(m_output_exprs->size());
-    for (const auto& expr : *m_output_exprs) {
+    outputDims.reserve(m_output_exprs.size());
+    for (const auto& expr : m_output_exprs) {
         outputDims.push_back(expr->get_input_port_descriptor(0)->get_shape());
     }
     m_last_result = {outputDims, ShapeInferStatus::success};

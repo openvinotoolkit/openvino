@@ -70,7 +70,7 @@ public:
     using exprReverseIt = container::reverse_iterator;
     using constExprReverseIt = container::const_reverse_iterator;
 
-    LinearIR(Config config = {});
+    LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
     LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
@@ -254,17 +254,15 @@ public:
     }
 
 private:
-    std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
-
     class LIRShapeInfer : public ShapeInferSnippetsNode {
     public:
-        explicit LIRShapeInfer(container& body_exprs, container& param_exprs, container& result_exprs);
+        explicit LIRShapeInfer(const container& body_exprs, const container& param_exprs, const container& result_exprs);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 
     private:
-        const std::shared_ptr<container> m_exprs = nullptr;
-        const std::shared_ptr<container> m_input_exprs {};
-        const std::shared_ptr<container> m_output_exprs {};
+        const container& m_exprs;
+        const container& m_input_exprs;
+        const container& m_output_exprs;
     };
 
     static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
@@ -283,6 +281,7 @@ private:
     Config m_config{};
     LoopManagerPtr m_loop_manager;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
+    std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
     bool m_is_dynamic = false;
 
     size_t m_buffer_scratchpad_size = 0;
