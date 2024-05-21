@@ -285,14 +285,14 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    std::unique_ptr<jit_exp_emitter> exp_emitter; 
+    std::unique_ptr<jit_exp_emitter> exp_emitter;
 
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
-  
+
 class jit_mod_emitter : public jit_emitter {
 public:
     jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
@@ -313,7 +313,7 @@ private:
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
-  
+
 class jit_mul_add_emitter : public jit_emitter {
 public:
     jit_mul_add_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
