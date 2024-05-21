@@ -79,6 +79,7 @@
 #include "nodes/reverse_sequence.h"
 #include "nodes/rnn.h"
 #include "nodes/roi_align.h"
+#include "nodes/roi_align_rotated.h"
 #include "nodes/roi_pooling.h"
 #include "nodes/roll.h"
 #include "nodes/rope.h"
@@ -194,12 +195,14 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(NonMaxSuppression, Type::NonMaxSuppression);
     INTEL_CPU_NODE(ROIPooling, Type::ROIPooling);
     INTEL_CPU_NODE(ROIAlign, Type::ROIAlign);
+    INTEL_CPU_NODE(ROIAlignRotated, Type::ROIAlignRotated);
     INTEL_CPU_NODE(TopK, Type::TopK);
     INTEL_CPU_NODE(Proposal, Type::Proposal);
     INTEL_CPU_NODE(RegionYolo, Type::RegionYolo);
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
+    INTEL_CPU_NODE(Subgraph, Type::Subgraph);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
@@ -207,7 +210,6 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
-    INTEL_CPU_NODE(Snippet, Type::Subgraph);
 #endif
 }
 

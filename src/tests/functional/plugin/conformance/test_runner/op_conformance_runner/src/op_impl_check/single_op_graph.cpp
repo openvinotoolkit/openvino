@@ -961,6 +961,19 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::ROIAlign>&
     return std::make_shared<ov::Model>(results, params, "ROIAlignGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::ROIAlignRotated>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 16, 16}})};
+    const auto coords = std::make_shared<ov::op::v0::Constant>(
+        ov::element::f32,
+        ov::Shape{1, static_cast<size_t>(node->get_rois_input_second_dim_size())},
+        std::vector<float>(node->get_rois_input_second_dim_size(), 0));
+    const auto roisIdx =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+    auto new_node = std::make_shared<ov::op::v14::ROIAlignRotated>(params.at(0), coords, roisIdx, 2, 2, 2, 1, true);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(new_node)};
+    return std::make_shared<ov::Model>(results, params, "ROIAlignRotatedGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::ROIPooling> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 3, 8, 8}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 5}})};
@@ -1335,14 +1348,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::FakeConve
     const auto op = std::make_shared<ov::op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, scale, shift}, "FakeConvert");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::RMSNorm>& node) {
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 8, 6});
-    const auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{-1});
-    const auto rms = std::make_shared<ov::op::v14::RMSNorm>(data, axes, 1e-5);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rms)};
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "RMSNorm");
 }
 
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {

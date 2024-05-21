@@ -133,6 +133,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_PrintInputDataShapes",  "Print data_shapes of input layers for benchmark_app.");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
     message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
+    message_list.emplace_back("OV_GPU_DisableOnednnPermuteFusion", "Disable permute fusion for onednn gemm (no effect for integrated GPU)");
     message_list.emplace_back("OV_GPU_DisableOnednnOptPostOps", "Disable onednn optimize post operators");
     message_list.emplace_back("OV_GPU_DumpProfilingData", "Enables dump of extended profiling information to specified directory."
                               " Please use OV_GPU_DumpProfilingDataPerIter=1 env variable to collect performance per iteration."
@@ -176,6 +177,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableBuildTimeWeightReorderForDynamicNodes", "Disable build time weight reorder for dynmaic nodes.");
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
+    message_list.emplace_back("OV_GPU_DisableFakeAlignment", "Disable fake alignment");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
     message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in "
                               "the following order: number of iterations for pre-allocation(int), max size of single iteration in bytes(int), "
@@ -210,6 +212,7 @@ debug_configuration::debug_configuration()
         , print_input_data_shapes(0)
         , disable_usm(0)
         , disable_onednn(0)
+        , disable_onednn_permute_fusion(0)
         , disable_onednn_opt_post_ops(0)
         , dump_profiling_data(std::string(""))
         , dump_profiling_data_per_iter(0)
@@ -236,7 +239,8 @@ debug_configuration::debug_configuration()
         , disable_memory_reuse(0)
         , disable_build_time_weight_reorder_for_dynamic_nodes(0)
         , disable_runtime_skip_reorder(0)
-        , disable_primitive_fusing(0) {
+        , disable_primitive_fusing(0)
+        , disable_fake_alignment(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -255,6 +259,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersResult", dump_layers_result);
     get_gpu_debug_env_var("DumpLayersInput", dump_layers_input);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
+    get_gpu_debug_env_var("DisableOnednnPermuteFusion", disable_onednn_permute_fusion);
     get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
     get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
     get_gpu_debug_env_var("DumpProfilingDataPerIter", dump_profiling_data_per_iter);
@@ -283,6 +288,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableBuildTimeWeightReorderForDynamicNodes", disable_build_time_weight_reorder_for_dynamic_nodes);
     get_gpu_debug_env_var("DisableRuntimeSkipReorder", disable_runtime_skip_reorder);
     get_gpu_debug_env_var("DisablePrimitiveFusing", disable_primitive_fusing);
+    get_gpu_debug_env_var("DisableFakeAlignment", disable_fake_alignment);
     std::string dump_iteration_str;
     get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
     std::string mem_preallocation_params_str;
