@@ -153,7 +153,7 @@ ExecutorPtr FullyConnected::createExecutor() {
 
         // must call in dynamic
         auto dstMemoryBuffer = getDstMemoryAtPort(0);
-        auto select_dst = split_v(dstMemoryBuffer, -1, w_rank, w_size);
+        auto select_dst = split_v(dstMemoryBuffer, -1, w_rank, w_size, false);
         memory[ARG_DST] = select_dst;
     }
     if (tp_mode == 3) {
@@ -499,7 +499,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
 }
 
-MemoryPtr FullyConnected::split_h(const MemoryPtr src, int dim, int w_rank, int w_size) {
+MemoryPtr FullyConnected::split_h(const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill) {
     auto desc = src->getDescPtr();
     auto shape = src->getShape();
     auto dims = shape.getDims();
@@ -533,7 +533,7 @@ MemoryPtr FullyConnected::split_h(const MemoryPtr src, int dim, int w_rank, int 
 }
 
 
-MemoryPtr FullyConnected::split_v(const MemoryPtr src, int dim, int w_rank, int w_size) {
+MemoryPtr FullyConnected::split_v(const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill) {
     auto desc = src->getDescPtr();
     auto shape = src->getShape();
     auto dims = shape.getDims();
@@ -557,6 +557,9 @@ MemoryPtr FullyConnected::split_v(const MemoryPtr src, int dim, int w_rank, int 
     new_dims[dim] = dims[dim] / w_size;
     auto new_desc = desc->cloneWithNewDims(new_dims, true);
     MemoryPtr ptr = std::make_shared<Memory>(context->getEngine(), new_desc);
+    if (!need_fill) {
+        return ptr;
+    }
     // copy
     auto srcPtr = static_cast<uint8_t*>(src->getData());
     auto dstPtr = static_cast<uint8_t*>(ptr->getData());

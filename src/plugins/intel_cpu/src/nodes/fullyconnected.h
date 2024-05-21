@@ -63,8 +63,8 @@ public:
     void fuseDecompressionMultiply(const MemoryCPtr& memory);
     void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
-    MemoryPtr split_h(const MemoryPtr src, int dim, int w_rank, int w_size);
-    MemoryPtr split_v(const MemoryPtr src, int dim, int w_rank, int w_size);
+    MemoryPtr split_h(const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill=true);
+    MemoryPtr split_v(const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill=true);
     void allreduce(void *send_buf, void *recv_buf, size_t count, ov::element::Type dtype);
 
 protected:
