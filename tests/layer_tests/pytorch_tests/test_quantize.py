@@ -115,7 +115,7 @@ class TestDecomposedQuantizePerTensorDequantize(PytorchLayerTest):
             quant_max = 255
         self._test(quantized_decomposed_quantize_per_tensor_aten_dequantize(scale,
                 zero_point, quant_min, quant_max, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
-                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, custom_eps=0.2)
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, custom_eps=0.15)
 
 class TestQuantizePerChannelDequantize(PytorchLayerTest):
     def _prepare_input(self):
@@ -200,4 +200,4 @@ class TestDecomposedQuantizePerChannelDequantize(PytorchLayerTest):
             quant_max = 255
         self._test(quantized_decomposed_quantize_per_channel_aten_dequantize(scale,
                 zero_point, quant_min, quant_max, dtype, axis), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
-                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, custom_eps=0.2)
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, custom_eps=0.15)
