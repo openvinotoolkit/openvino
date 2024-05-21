@@ -60,7 +60,7 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(
             } else {
                 replacement = batch_dim;
             }
-            replace_node(gather, batch_dim);
+            replace_node(gather, replacement);
             return true;
         }
     };
