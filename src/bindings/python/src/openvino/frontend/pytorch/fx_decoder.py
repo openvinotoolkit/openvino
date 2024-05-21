@@ -57,7 +57,6 @@ class TorchFXPythonDecoder (Decoder):
                     self._outputs = [(arg[0], self._nodes.index(arg[1]))
                                      for arg in uargs if arg[1] is not None]
             for idx, shape in enumerate(found_shapes):
-                new_shape=[]
                 if shape is not None:
                     new_shape=[]
                     for dim in range(0, len(shape)):
