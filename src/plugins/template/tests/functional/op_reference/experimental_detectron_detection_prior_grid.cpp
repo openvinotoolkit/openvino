@@ -91,10 +91,14 @@ public:
     virtual void Validate() override {
         if (const auto comparison_size = GetParam().actualComparisonSize) {
             ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
-            actualOutData.clear();
-            for (const auto& output : executableNetwork.outputs())
-                actualOutData.emplace_back(inferRequest.get_tensor(output));
 
+            actualOutData.clear();
+            actualOutData.emplace_back(inferRequest.get_tensor(executableNetwork.output(0)));
+
+            // Shape matters: the trick is that hard-coded expected data is "shorter" than runtime inferred data. This
+            // is due to huge size of the tensor and in such case the test provides a part of reference values for
+            // comparison to avoid huge file size.
+            ASSERT_EQ(refOutData[0].get_shape(), actualOutData[0].get_shape());
             const auto shape = Shape{comparison_size};
             const auto expected = Tensor{refOutData[0].get_element_type(), shape, refOutData[0].data()};
             const auto inferred = Tensor{actualOutData[0].get_element_type(), shape, actualOutData[0].data()};
