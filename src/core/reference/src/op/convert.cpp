@@ -477,7 +477,7 @@ void convert<float16, float>(const float16* arg, float* out, size_t count) {
 
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<float, float16, true>(arg, out, count);
 }
 
 template <>
