@@ -323,13 +323,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // 2) Indirect inputs support
         // 3) GQA related optimization (Broadcast fusion)
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
-            // Known limitations:
-            // - The head size of all Q, K, and V inputs should be the same static value
-            // - The head size should be divisible by 16
-            // - All inputs and outputs must have the same data type
-            // - The number of dimensions for each input is expected to be 4
-            // - SDPA impl could be slower on GPUs with IMMAD support in non-LLM scenarios,
-            //   because oneDNN can be used for those cases - SDPA requires DPAS support
             auto sdpa = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(node);
             const auto& query_ps = sdpa->get_input_partial_shape(0);
             const auto& key_ps = sdpa->get_input_partial_shape(1);
@@ -341,10 +334,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return use_sdpa;
             }
 
+            // Known limitations:
+            // - SDPA impl could be slower in non-LLM scenarios than decomposed version
+            if (func->get_variables().size() == 0)
+                return false;
+
+            // - The data type of SDPA should be fp16
+            if (sdpa->get_output_element_type(0) != ov::element::f16)
+                return false;
+
+            // - The number of dimensions for each input is expected to be 4
             if (query_ps.size() != 4 || key_ps.size() != 4 || value_ps.size() != 4) {
                 return false;
             }
 
+            // - The head size of all Q, K, and V inputs should be the same static value
             if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[query_ps.size() - 1].is_dynamic()) {
                 return false;
             }
@@ -354,6 +358,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
+            // - The head size should be divisible by 16
             const auto optimal_subgroup_size = 16;
             if (query_ps[query_ps.size() - 1].is_dynamic() ||
                 query_ps[query_ps.size() - 1].get_length() > 256 ||

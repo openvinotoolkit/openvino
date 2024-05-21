@@ -234,7 +234,7 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
         ScalarDescriptor num_of_partitions_scalar;
         num_of_partitions_scalar.t = ScalarDescriptor::Types::UINT32;
-        num_of_partitions_scalar.v.u32 = num_of_partitions;
+        num_of_partitions_scalar.v.u32 = static_cast<uint32_t>(num_of_partitions);
 
         auto dispatch_data3 = SetDefault(prim_params, 2);
         kernel_data.kernels[2].params.workGroups.global = dispatch_data3.gws;

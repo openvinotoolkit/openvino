@@ -34,6 +34,9 @@ struct scaled_dot_product_attention_impl : typed_primitive_impl_ocl<scaled_dot_p
         kernel_selector::sdpa_configuration config;
 
         auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
+            if (order.empty())
+                return pshape;
+
             auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
             for (size_t i = 0; i < order.size(); i++) {
                 transposed_pshape[i] = pshape[order[i]];

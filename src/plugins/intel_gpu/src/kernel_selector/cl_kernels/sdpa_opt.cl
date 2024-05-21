@@ -102,6 +102,7 @@ inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 #ifdef SDPA_STAGE_0
 
 #if TARGET_SEQ_LEN_BLOCK_SIZE == 1
+/* This version is used for 2nd token */
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sdpa_opt)(
@@ -529,6 +530,7 @@ KERNEL(sdpa_opt)(
 }
 
 #else
+/* This version is used for 1st token */
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sdpa_opt)(

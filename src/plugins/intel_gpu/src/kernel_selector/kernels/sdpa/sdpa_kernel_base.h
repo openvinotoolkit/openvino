@@ -51,14 +51,30 @@ struct TransposedDimensionAccessHelperJit : DimensionAccessHelperJit, Transposed
     std::string f() { return dims_sizes[transposed_order[1]]; }
     std::string b() { return dims_sizes[transposed_order[0]]; }
 
-    std::pair<std::string, std::string> x_pad() { return {pad_before_after_sizes[(transposed_order[7] * 2) + 0], pad_before_after_sizes[(transposed_order[7] * 2) + 1]}; }
-    std::pair<std::string, std::string> y_pad() { return {pad_before_after_sizes[(transposed_order[6] * 2) + 0], pad_before_after_sizes[(transposed_order[6] * 2) + 1]}; }
-    std::pair<std::string, std::string> z_pad() { return {pad_before_after_sizes[(transposed_order[5] * 2) + 0], pad_before_after_sizes[(transposed_order[5] * 2) + 1]}; }
-    std::pair<std::string, std::string> w_pad() { return {pad_before_after_sizes[(transposed_order[4] * 2) + 0], pad_before_after_sizes[(transposed_order[4] * 2) + 1]}; }
-    std::pair<std::string, std::string> v_pad() { return {pad_before_after_sizes[(transposed_order[3] * 2) + 0], pad_before_after_sizes[(transposed_order[3] * 2) + 1]}; }
-    std::pair<std::string, std::string> u_pad() { return {pad_before_after_sizes[(transposed_order[2] * 2) + 0], pad_before_after_sizes[(transposed_order[2] * 2) + 1]}; }
-    std::pair<std::string, std::string> f_pad() { return {pad_before_after_sizes[(transposed_order[1] * 2) + 0], pad_before_after_sizes[(transposed_order[1] * 2) + 1]}; }
-    std::pair<std::string, std::string> b_pad() { return {pad_before_after_sizes[(transposed_order[0] * 2) + 0], pad_before_after_sizes[(transposed_order[0] * 2) + 1]}; }
+    std::pair<std::string, std::string> x_pad() {
+        return {pad_before_after_sizes[(transposed_order[7] * 2) + 0], pad_before_after_sizes[(transposed_order[7] * 2) + 1]};
+    }
+    std::pair<std::string, std::string> y_pad() {
+        return {pad_before_after_sizes[(transposed_order[6] * 2) + 0], pad_before_after_sizes[(transposed_order[6] * 2) + 1]};
+    }
+    std::pair<std::string, std::string> z_pad() {
+        return {pad_before_after_sizes[(transposed_order[5] * 2) + 0], pad_before_after_sizes[(transposed_order[5] * 2) + 1]};
+    }
+    std::pair<std::string, std::string> w_pad() {
+        return {pad_before_after_sizes[(transposed_order[4] * 2) + 0], pad_before_after_sizes[(transposed_order[4] * 2) + 1]};
+    }
+    std::pair<std::string, std::string> v_pad() {
+        return {pad_before_after_sizes[(transposed_order[3] * 2) + 0], pad_before_after_sizes[(transposed_order[3] * 2) + 1]};
+    }
+    std::pair<std::string, std::string> u_pad() {
+        return {pad_before_after_sizes[(transposed_order[2] * 2) + 0], pad_before_after_sizes[(transposed_order[2] * 2) + 1]};
+    }
+    std::pair<std::string, std::string> f_pad() {
+        return {pad_before_after_sizes[(transposed_order[1] * 2) + 0], pad_before_after_sizes[(transposed_order[1] * 2) + 1]};
+    }
+    std::pair<std::string, std::string> b_pad() {
+        return {pad_before_after_sizes[(transposed_order[0] * 2) + 0], pad_before_after_sizes[(transposed_order[0] * 2) + 1]};
+    }
 };
 
 struct GQA_configuration {
