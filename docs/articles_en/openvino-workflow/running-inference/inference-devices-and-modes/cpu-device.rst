@@ -39,14 +39,14 @@ the ``ov::Core::compile_model()`` method:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.py
          :language: py
          :fragment: [compile_model_default]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.cpp
          :language: cpp
          :fragment: [compile_model_default]
 
@@ -118,14 +118,14 @@ to query ``ov::device::capabilities`` property, which should contain ``FP16`` or
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference0.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference0.cpp
          :language: cpp
          :fragment: [part0]
 
@@ -141,14 +141,14 @@ the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part1]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference1.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference1.cpp
          :language: cpp
          :fragment: [part1]
 
@@ -160,14 +160,14 @@ To infer the model in ``f32`` precision instead of half-precision (``bf16`` or `
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part2]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference2.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference2.cpp
          :language: cpp
          :fragment: [part2]
 
@@ -211,14 +211,14 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.py
          :language: py
          :fragment: [compile_model_multi]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.cpp
          :language: cpp
          :fragment: [compile_model_multi]
 
@@ -266,14 +266,14 @@ with the static input shape to get the best performance.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/dynamic_shape.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/dynamic_shape.py
          :language: py
          :fragment: [static_shape]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/dynamic_shape.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/dynamic_shape.cpp
          :language: cpp
          :fragment: [static_shape]
 
@@ -423,14 +423,14 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_denormals.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_denormals.py
          :language: python
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_denormals.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_denormals.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
@@ -467,14 +467,14 @@ Code examples of how to use ``sparse_weights_decompression_rate``:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_sparse_weights_decompression.py
          :language: python
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_sparse_weights_decompression.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
