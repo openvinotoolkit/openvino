@@ -12,11 +12,6 @@ on:
         type: string
         required: false
         default: '{"image": null}'
-      test-string:
-        description: 'test'
-        type: string
-        required: false
-        default: '{"image": null}'
       sccache-azure-key-prefix:
         description: 'Key prefix for the cache folder on the Azure'
         type: string
@@ -48,9 +43,6 @@ jobs:
       - name: Set apt retries
         if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
-      - name: Echo Test String
-        run: echo ${{ inputs.test-string }}
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4

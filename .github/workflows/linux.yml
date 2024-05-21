@@ -455,35 +455,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      # image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
-      test-string: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
-
-  ONNX_Runtime_2:
-    name: ONNX Runtime Integration 2
-    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
-      fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
-    needs: [ Build, Smart_CI, Docker ]
-    uses: ./.github/workflows/job_onnx_runtime.yml
-    with:
-      runner: 'aks-linux-16-cores-32gb'
-      # image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
-      test-string: ${{ format('{"image"\:\ "{0}", "volumes"\:\ ["/mount:/mount"], "options"\:\ "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64) }}
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
-
-  ONNX_Runtime_3:
-    name: ONNX Runtime Integration 3
-    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
-      fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
-    needs: [ Build, Smart_CI, Docker ]
-    uses: ./.github/workflows/job_onnx_runtime.yml
-    with:
-      runner: 'aks-linux-16-cores-32gb'
-      # image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
-      test-string: ${{ format('{{"image"\:\ "{0}", "volumes"\:\ ["/mount:/mount"], "options"\:\ "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64) }}
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      container: ${{ format('{{"image"\:\ "{0}", "volumes"\:\ ["/mount:/mount"], "options"\:\ "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64) }}
       sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
 
   ONNX_Models:
