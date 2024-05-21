@@ -57,7 +57,7 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
 |
 |
 
-.. image:: _static/images/openvino-overview-diagram.jpg
+.. image:: /docs/articles_en/assets/images/openvino-overview-diagram.jpg
    :align: center
    :alt: openvino diagram
 

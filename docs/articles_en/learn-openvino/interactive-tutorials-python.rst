@@ -51,7 +51,7 @@ Additional Resources
 .. |binder logo| image:: /docs/articles_en/assets/images/launch_in_binder.svg
    :class: notebook-badge-p
    :alt: Binder button
-.. |colab logo| image:: ../_static/images/open_in_colab.svg
+.. |colab logo| image:: /docs/articles_en/assets/images/open_in_colab.svg
    :class: notebook-badge-p
    :alt: Google Colab button
 

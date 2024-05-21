@@ -47,7 +47,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
-.. image:: ../../_static/images/ovsa_diagram.svg
+.. image:: /docs/articles_en/assets/images/ovsa_diagram.svg
 
 The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in `this document. <https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md>`__
 
@@ -744,7 +744,7 @@ The following figure describes the interactions between the Model Developer, Ind
 
    The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named ``ovsa_isv``. It is possible to have all roles set up on the same Host Machine.
 
-.. image:: ../../_static/images/ovsa_example.svg
+.. image:: /docs/articles_en/assets/images/ovsa_example.svg
 
 Model Developer Instructions
 ++++++++++++++++++++++++++++

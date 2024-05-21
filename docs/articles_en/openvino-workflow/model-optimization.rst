@@ -31,7 +31,7 @@ In case of unsatisfactory accuracy or performance after Post-training Quantizati
 
 Once the model is optimized using the aforementioned methods, it can be used for inference using the regular OpenVINO inference workflow. No changes to the inference code are required.
 
-.. image:: ../_static/images/WHAT_TO_USE.svg
+.. image:: /docs/articles_en/assets/images/WHAT_TO_USE.svg
 
 Additional Resources
 ####################
