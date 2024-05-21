@@ -424,6 +424,7 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     TReg r = TReg(out_vec_idxs[0]);
 
     h->uni_fdiv(r.s, divend.s, divisor.s);
+    h->frintz(r.s, r.s);
     h->uni_fmul(r.s, r.s, divisor.s);
     h->uni_fsub(r.s, divend.s, r.s);
 }
