@@ -41,7 +41,7 @@ def test_graph_preprocess_mean_vector():
 
     ppp = PrePostProcessor(model)
     ppp.input().tensor().set_layout(layout)
-    ppp.input().preprocess().mean([1., 2.])
+    ppp.input().preprocess().mean([1.0, 2.0])
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ordered_ops()]
@@ -88,10 +88,10 @@ def test_graph_preprocess_mean_scale_convert():
     ppp = PrePostProcessor(model)
     inp2 = ppp.input(1)
     inp2.tensor().set_element_type(Type.i32)
-    inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
+    inp2.preprocess().convert_element_type(Type.f32).mean(1.0).scale(2.0)
     inp2.preprocess().convert_element_type()
     inp1 = ppp.input(0)
-    inp1.preprocess().convert_element_type(Type.f32).mean(1.).custom(custom_preprocess)
+    inp1.preprocess().convert_element_type(Type.f32).mean(1.0).custom(custom_preprocess)
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
@@ -127,9 +127,9 @@ def test_graph_preprocess_input_output_by_name():
     ppp = PrePostProcessor(model)
     inp2 = ppp.input("B")
     inp2.tensor().set_element_type(Type.i32)
-    inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
+    inp2.preprocess().convert_element_type(Type.f32).mean(1.0).scale(2.0)
     inp1 = ppp.input("A")
-    inp1.preprocess().convert_element_type(Type.f32).mean(1.)
+    inp1.preprocess().convert_element_type(Type.f32).mean(1.0)
     out1 = ppp.output("A")
     out1.postprocess().custom(custom_preprocess)
     out2 = ppp.output("B")
@@ -168,6 +168,7 @@ def test_graph_preprocess_output_postprocess():
     @custom_preprocess_function
     def custom_postprocess(output: Output):
         return ops.abs(output)
+
     ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
@@ -210,7 +211,7 @@ def test_graph_preprocess_spatial_static_shape():
     ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout).set_spatial_static_shape(2, 2).set_color_format(color_format)
-    inp.preprocess().convert_element_type(Type.f32).mean([1., 2., 3.])
+    inp.preprocess().convert_element_type(Type.f32).mean([1.0, 2.0, 3.0])
     inp.model().set_layout(layout)
     out = ppp.output()
     out.tensor().set_layout(layout).set_element_type(Type.f32)
@@ -302,9 +303,9 @@ def test_graph_preprocess_set_from_np_infer():
         axis = ops.constant(np.array([0, 1, 2]), dtype=np.int32)
         return ops.slice(out_node, start, stop, step, axis)
 
-    input_data = np.array([[[0, 1, 2], [3, 4, 5], [6, 7, 8]],
-                           [[9, 10, 11], [12, 13, 14], [15, 16, 17]],
-                           [[18, 19, 20], [21, 22, 23], [24, 25, 26]]]).astype(np.int32)
+    input_data = np.array([[[0, 1, 2], [3, 4, 5], [6, 7, 8]], [[9, 10, 11], [12, 13, 14], [15, 16, 17]], [[18, 19, 20], [21, 22, 23], [24, 25, 26]]]).astype(
+        np.int32
+    )
 
     ppp = PrePostProcessor(model)
     inp = ppp.input()
@@ -346,36 +347,38 @@ def test_graph_preprocess_set_memory_type():
 
 @pytest.mark.parametrize(
     ("algorithm", "color_format1", "color_format2", "is_failing"),
-    [(ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.BGR, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.RGB, ColorFormat.I420_SINGLE_PLANE, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.RGB, ColorFormat.I420_THREE_PLANES, True),
-     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.NV12_SINGLE_PLANE, True),
-     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.RGBX, True),
-     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.BGRX, True),
-     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.NV12_TWO_PLANES, True),
-     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.I420_SINGLE_PLANE, True),
-     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.RGB, ColorFormat.UNDEFINED, True),
-     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.RGB, ColorFormat.BGR, False),
-     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGB, False),
-     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGBX, True),
-     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.BGRX, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_SINGLE_PLANE, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_THREE_PLANES, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True),
-     (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.UNDEFINED, ColorFormat.BGR, True),
-     (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.NV12_SINGLE_PLANE, True),
-     (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.RGBX, True),
-     (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.BGRX, True),
-     (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.NV12_TWO_PLANES, True),
-     (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.UNDEFINED, ColorFormat.I420_SINGLE_PLANE, True),
-     (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.RGB, ColorFormat.UNDEFINED, True),
-     (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.RGB, ColorFormat.BGR, False),
-     (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.RGB, False),
-     (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.RGBX, True),
-     (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.BGRX, True),
-     ])
+    [
+        (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.BGR, True),
+        (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.RGB, ColorFormat.I420_SINGLE_PLANE, True),
+        (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.RGB, ColorFormat.I420_THREE_PLANES, True),
+        (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.NV12_SINGLE_PLANE, True),
+        (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.RGBX, True),
+        (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.BGRX, True),
+        (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.NV12_TWO_PLANES, True),
+        (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.I420_SINGLE_PLANE, True),
+        (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.RGB, ColorFormat.UNDEFINED, True),
+        (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.RGB, ColorFormat.BGR, False),
+        (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGB, False),
+        (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGBX, True),
+        (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.BGRX, True),
+        (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_SINGLE_PLANE, True),
+        (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_THREE_PLANES, True),
+        (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
+        (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
+        (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True),
+        (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.UNDEFINED, ColorFormat.BGR, True),
+        (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.NV12_SINGLE_PLANE, True),
+        (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.RGBX, True),
+        (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.BGRX, True),
+        (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.NV12_TWO_PLANES, True),
+        (ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.UNDEFINED, ColorFormat.I420_SINGLE_PLANE, True),
+        (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.RGB, ColorFormat.UNDEFINED, True),
+        (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.RGB, ColorFormat.BGR, False),
+        (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.RGB, False),
+        (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.RGBX, True),
+        (ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.BGRX, True),
+    ],
+)
 def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_failing):
     shape = [1, 3, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -387,7 +390,7 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
     custom_processor = PrePostProcessor(model)
     inp = custom_processor.input()
     inp.tensor().set_layout(layout1).set_color_format(color_format1, [])
-    inp.preprocess().mean(1.).resize(algorithm, 3, 3)
+    inp.preprocess().mean(1.0).resize(algorithm, 3, 3)
     inp.preprocess().convert_layout(layout2).convert_color(color_format2)
 
     if is_failing:
@@ -414,9 +417,11 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
 
 @pytest.mark.parametrize(
     ("color_format1", "color_format2", "tensor_in_shape", "model_in_shape"),
-    [(ColorFormat.RGB, ColorFormat.GRAY, [1, 3, 3, 3], [1, 3, 3, 1]),
-     (ColorFormat.BGR, ColorFormat.GRAY, [1, 3, 3, 3], [1, 3, 3, 1]),
-     ])
+    [
+        (ColorFormat.RGB, ColorFormat.GRAY, [1, 3, 3, 3], [1, 3, 3, 1]),
+        (ColorFormat.BGR, ColorFormat.GRAY, [1, 3, 3, 3], [1, 3, 3, 1]),
+    ],
+)
 def test_graph_preprocess_convert_color(color_format1, color_format2, tensor_in_shape, model_in_shape):
     parameter_a = ops.parameter(model_in_shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -445,7 +450,7 @@ def test_graph_preprocess_postprocess_layout():
     ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
-    inp.preprocess().mean(1.).convert_layout(layout2).reverse_channels()
+    inp.preprocess().mean(1.0).convert_layout(layout2).reverse_channels()
     out = ppp.output()
     out.postprocess().convert_layout([0, 1, 2, 3])
     model = ppp.build()
@@ -477,7 +482,7 @@ def test_graph_preprocess_reverse_channels():
     ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
-    inp.preprocess().mean(1.).reverse_channels()
+    inp.preprocess().mean(1.0).reverse_channels()
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
@@ -535,7 +540,7 @@ def test_graph_preprocess_resize_algorithm():
     ppp = PrePostProcessor(model)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
-    inp.preprocess().mean(1.).resize(resize_alg, 3, 3)
+    inp.preprocess().mean(1.0).resize(resize_alg, 3, 3)
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
@@ -555,7 +560,8 @@ def test_graph_preprocess_resize_algorithm():
 
 
 def test_graph_preprocess_model():
-    model = bytes(b"""<net name="add_model" version="10">
+    model = bytes(
+        b"""<net name="add_model" version="10">
     <layers>
     <layer id="0" name="x" type="Parameter" version="opset1">
         <data element_type="i32" shape="2,2,2"/>
@@ -613,7 +619,8 @@ def test_graph_preprocess_model():
     <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
     <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
     </edges>
-</net>""")
+</net>"""
+    )
     core = Core()
     model = core.read_model(model=model)
 
@@ -623,7 +630,7 @@ def test_graph_preprocess_model():
 
     ppp = PrePostProcessor(model)
     ppp.input(1).preprocess().convert_element_type(Type.f32).scale(0.5)
-    ppp.input(0).preprocess().convert_element_type(Type.f32).mean(5.)
+    ppp.input(0).preprocess().convert_element_type(Type.f32).mean(5.0)
     ppp.output(0).postprocess().custom(custom_preprocess)
     model = ppp.build()
 
@@ -670,9 +677,7 @@ def test_graph_preprocess_dump():
     assert "convert layout " + Layout("NCHW").to_string() in p_str
 
 
-@pytest.mark.parametrize(
-    ("layout", "layout_str"),
-    [("NHCW", "[N,H,C,W]"), ("NHWC", "[N,H,W,C]")])
+@pytest.mark.parametrize(("layout", "layout_str"), [("NHCW", "[N,H,C,W]"), ("NHWC", "[N,H,W,C]")])
 def test_graph_set_layout_by_string(layout, layout_str):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
@@ -685,9 +690,7 @@ def test_graph_set_layout_by_string(layout, layout_str):
     assert f"{layout_str}" in p_str
 
 
-@pytest.mark.parametrize(
-    ("layout", "layout_str"),
-    [(Layout("NHCW"), "[N,H,C,W]"), (Layout("NHWC"), "[N,H,W,C]")])
+@pytest.mark.parametrize(("layout", "layout_str"), [(Layout("NHCW"), "[N,H,C,W]"), (Layout("NHWC"), "[N,H,W,C]")])
 def test_graph_set_layout_by_layout_class(layout, layout_str):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
@@ -700,9 +703,7 @@ def test_graph_set_layout_by_layout_class(layout, layout_str):
     assert f"{layout_str}" in p_str
 
 
-@pytest.mark.parametrize(
-    ("layout"),
-    [("1-2-3D"), ("5-5")])
+@pytest.mark.parametrize(("layout"), [("1-2-3D"), ("5-5")])
 def test_graph_set_layout_by_str_thow_exception(layout):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
@@ -743,7 +744,12 @@ def test_pad_vector_constant_layout(pads_begin, pads_end, values, mode):
     assert list(model.get_output_shape(0)) == shape
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [[0, 0, -2, 0], [0, 0, -4, 1], 0, PaddingMode.CONSTANT], pytest.raises(TypeError), "Incorrect value for pads_begin and pads_end")
+@pytest.mark.parametrize(
+    ("pads_begin", "pads_end", "values", "mode"),
+    [[0, 0, -2, 0], [0, 0, -4, 1], 0, PaddingMode.CONSTANT],
+    pytest.raises(TypeError),
+    "Incorrect value for pads_begin and pads_end",
+)
 def test_pad_vector_out_of_range(pads_begin, pads_end, values, mode):
     shape = [1, 3, 5, 5]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -757,7 +763,12 @@ def test_pad_vector_out_of_range(pads_begin, pads_end, values, mode):
     assert list(model.get_output_shape(0)) == shape
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [[0, 0, 2, 0, 1], [0, 0, 4, 1, 1], 0, PaddingMode.CONSTANT], pytest.raises(TypeError), "Incorrect size for pads_begin and pads_end")
+@pytest.mark.parametrize(
+    ("pads_begin", "pads_end", "values", "mode"),
+    [[0, 0, 2, 0, 1], [0, 0, 4, 1, 1], 0, PaddingMode.CONSTANT],
+    pytest.raises(TypeError),
+    "Incorrect size for pads_begin and pads_end",
+)
 def test_pad_vector_dim_mismatch(pads_begin, pads_end, values, mode):
     shape = [1, 3, 5, 5]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
