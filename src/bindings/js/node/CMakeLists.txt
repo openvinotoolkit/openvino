@@ -18,7 +18,7 @@ if(WIN32)
 
     set(CMAKE_JS_NODELIB_DEF ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node-lib.def)
     set(CMAKE_JS_NODELIB_TARGET ${CMAKE_JS_LIB})
-    set(CMAKE_DELAY_LIB delayimp.lib)
+    set(DELAYIMP_LIB delayimp.lib)
 endif()
 
 cmake_minimum_required(VERSION 3.14)
@@ -77,7 +77,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${CMAKE_DELAY_LIB} ${CMAKE_JS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
 
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
     # Generate node.lib
