@@ -19,6 +19,12 @@ using namespace ov::element;
 using namespace ov::pass::pattern;
 
 namespace {
+/*
+ * As we remove some body model parameters and results, we divide obtaining previous loop input/output
+ * descriptions and setting new loop descriptions. We remove parameters and results between these two
+ * steps. The next classes are served to store data from previous loop and set up input/output data
+ * to the new loop.
+ */
 class SubgraphInput {
 public:
     SubgraphInput() = default;
@@ -116,6 +122,35 @@ private:
     const std::shared_ptr<ov::op::v5::Loop> m_loop;
     const int64_t m_iteration;
 };
+
+// find Result nodes that are connected directly to Parameter node (except body condition output)
+std::unordered_set<uint64_t> find_body_value_indexes_to_remove(const ov::ResultVector& body_results,
+                                                               int64_t body_condition_output_idx) {
+    std::unordered_set<uint64_t> body_value_indexes_to_remove;
+    for (uint64_t body_value_index = 0; body_value_index < body_results.size(); ++body_value_index) {
+        if (body_condition_output_idx == static_cast<int64_t>(body_value_index))
+            continue;
+        const auto parent_node = body_results[body_value_index]->input_values()[0].get_node();
+        if (!dynamic_cast<ov::op::v0::Parameter*>(parent_node))
+            continue;
+        body_value_indexes_to_remove.emplace(body_value_index);
+    }
+    return body_value_indexes_to_remove;
+}
+
+// find Parameter nodes that have only Result nodes as consumers
+std::unordered_set<uint64_t> find_body_param_indexes_to_remove(const ov::ParameterVector& body_params) {
+    std::unordered_set<uint64_t> body_param_indexes_to_remove;
+    for (uint64_t body_param_index = 0; body_param_index < body_params.size(); ++body_param_index) {
+        const auto consumers = body_params[body_param_index]->get_output_target_inputs(0);
+        if (std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+            return dynamic_cast<ov::op::v0::Result*>(consumer.get_node()) != nullptr;
+        })) {
+            body_param_indexes_to_remove.emplace(body_param_index);
+        }
+    }
+    return body_param_indexes_to_remove;
+}
 }  // namespace
 
 ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
@@ -135,24 +170,8 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         const auto loop_special_ports = loop->get_special_body_ports();
 
         // find Params and Results, that is connected together (except special ports)
-        std::unordered_set<uint64_t> body_value_indexes_to_remove;
-        for (uint64_t body_value_index = 0; body_value_index < body_results.size(); ++body_value_index) {
-            if (loop_special_ports.body_condition_output_idx == static_cast<int64_t>(body_value_index))
-                continue;
-            const auto& parent_node = body_results[body_value_index]->input_values()[0].get_node_shared_ptr();
-            if (!ov::as_type_ptr<ov::op::v0::Parameter>(parent_node))
-                continue;
-            body_value_indexes_to_remove.emplace(body_value_index);
-        }
-        std::unordered_set<uint64_t> body_param_indexes_to_remove;
-        for (uint64_t body_param_index = 0; body_param_index < body_params.size(); ++body_param_index) {
-            const auto consumers = body_params[body_param_index]->get_output_target_inputs(0);
-            if (std::all_of(consumers.begin(), consumers.end(), [](const Input<Node>& consumer) {
-                return dynamic_cast<ov::op::v0::Result*>(consumer.get_node()) != nullptr;
-            })) {
-                body_param_indexes_to_remove.emplace(body_param_index);
-            }
-        }
+        const auto body_value_indexes_to_remove = find_body_value_indexes_to_remove(body_results, loop_special_ports.body_condition_output_idx);
+        const auto body_param_indexes_to_remove = find_body_param_indexes_to_remove(body_params);
 
         const auto loop_input_values = loop->input_values();
         const auto& trip_count = loop_input_values[0];
@@ -161,11 +180,16 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         auto new_loop = make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
         new_loop->set_function(body_model);
 
-        const auto new_loop_body_condition_output = body_results[loop_special_ports.body_condition_output_idx];
+        // save it to set up new loop special ports after removing body model results
+        const auto& new_loop_body_condition_output = body_results[loop_special_ports.body_condition_output_idx];
 
         // collect data about loop inputs
         std::vector<std::shared_ptr<SubgraphInput>> new_loop_inputs;
-        std::unordered_map<uint64_t, Output<Node>> body_loop_inputs; // body_value index -> loop_input
+        /*
+         * This map {body_value index -> loop_input} is needed to simplify searching new loop input node in
+         * output descriptors management step.
+         */
+        std::unordered_map<uint64_t, Output<Node>> body_loop_inputs;
         for (const auto& input_description : loop->get_input_descriptions()) {
             // if parameter removed, do not add input_description into new loop
             if (body_param_indexes_to_remove.find(input_description->m_body_parameter_index) != body_param_indexes_to_remove.end())
@@ -173,7 +197,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             if (const auto merged_input_desc =
                     as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_description)) {
                 /* if we have Parameter -> Result, input data is not changed in loop, and we can set up this
-                 * input as "invariant" instead of make it "merged"
+                 * input as "invariant" instead of making it "merged"
                  */
                 if (body_value_indexes_to_remove.find(merged_input_desc->m_body_value_index) != body_value_indexes_to_remove.end()) {
                     new_loop_inputs.emplace_back(std::make_shared<InvariantInput>(body_params[merged_input_desc->m_body_parameter_index],
@@ -230,6 +254,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             body_model->remove_parameter(body_params[param_idx]);
         }
 
+        // set up new loop special body ports
         {
             const int64_t in_body_condition_output_idx = body_model->get_result_index(new_loop_body_condition_output);
             const ov::op::v5::Loop::SpecialBodyPorts ports(loop_special_ports.current_iteration_input_idx,
