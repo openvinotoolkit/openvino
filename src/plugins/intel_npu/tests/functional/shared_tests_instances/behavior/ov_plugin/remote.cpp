@@ -16,13 +16,6 @@ std::vector<std::pair<ov::AnyMap, ov::AnyMap>> generate_remote_params() {
     return {{}};
 }
 
-auto AutoBatchConfigs = []() {
-    return std::vector<ov::AnyMap>{// explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain NPU)
-                                   {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_NPU) + "(4)"},
-                                    // no timeout to avoid increasing the test time
-                                    {ov::auto_batch_timeout.name(), "0 "}}};
-};
-
 // [Tracking number: E#110088]
 // NPU plugin does not support `Remote Tensors` yet
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_BehaviorTests, OVRemoteTest,

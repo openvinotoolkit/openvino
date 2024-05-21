@@ -15,6 +15,8 @@
 
 using CompileWithDummy_NPU3720 = ov::test::behavior::OVInferRequestTests;
 
+std::shared_ptr<ov::Model> buildSingleLayerClampNetwork();
+
 std::shared_ptr<ov::Model> buildSingleLayerClampNetwork() {  // Clamp is not supported in SW
     ov::Shape inputShape = {1, 3, 4, 3};
     ov::element::Type netPrecision = ov::element::f32;

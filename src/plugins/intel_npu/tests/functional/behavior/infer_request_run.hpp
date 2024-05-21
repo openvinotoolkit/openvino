@@ -328,12 +328,12 @@ TEST_P(BatchingRunTests, SetInputTensorInfer) {
     auto actual_tensor = inference_request.get_output_tensor(0);
     auto* actual = actual_tensor.data<float>();
     auto* input_data = tensor.data<float>();
-    for (auto i = 0; i < shape_size; ++i) {
+    for (size_t i = 0; i < shape_size; ++i) {
         input_data[i] = 5.f;
     }
 
     inference_request.infer();  // Adds '1' to each element
-    for (auto i = 0; i < shape_size; ++i) {
+    for (size_t i = 0; i < shape_size; ++i) {
         EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 }

@@ -45,6 +45,8 @@ public:
     }
 };
 
+std::shared_ptr<ov::Model> createModelWithUnknownNode();
+
 std::shared_ptr<ov::Model> createModelWithUnknownNode() {
     const ov::Shape input_shape = {1, 4096};
     const ov::element::Type precision = ov::element::f32;

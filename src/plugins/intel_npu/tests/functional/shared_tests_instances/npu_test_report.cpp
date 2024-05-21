@@ -13,6 +13,8 @@ namespace ov::test::utils {
 const std::array<std::string, static_cast<int>(VpuTestStage::LAST_VALUE)> VpuTestReport::stages = {
         "RUN", "COMPILED", "IMPORTED", "INFERRED", "VALIDATED", "SKIPPED_EXCEPTION"};
 
+std::string testName(const testing::TestInfo* testInfo);
+
 std::string testName(const testing::TestInfo* testInfo) {
     const std::string name(testInfo->test_case_name());
     auto npos = name.find("/");

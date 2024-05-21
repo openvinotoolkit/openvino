@@ -11,13 +11,12 @@ namespace {
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> driverCompilerConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
+const std::vector<ov::AnyMap> configs = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompileAndInferRequest,
                          ::testing::Combine(::testing::Values(getConstantGraph(ov::element::f32)),
                                             ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          ov::test::utils::appendPlatformTypeTestName<OVCompileAndInferRequest>);
 
 }  // namespace

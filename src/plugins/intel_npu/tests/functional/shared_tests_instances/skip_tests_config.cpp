@@ -144,11 +144,15 @@ private:
     intel_npu::Logger _log = intel_npu::Logger("SkipRegistry", ov::log::Level::INFO);
 };
 
+std::string getCurrentTestName();
+
 std::string getCurrentTestName() {
     const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
     const auto currentTestName = currentTestInfo->test_case_name() + std::string(".") + currentTestInfo->name();
     return currentTestName;
 }
+
+std::vector<std::string> disabledTestPatterns();
 
 std::vector<std::string> disabledTestPatterns() {
     // Initialize skip registry

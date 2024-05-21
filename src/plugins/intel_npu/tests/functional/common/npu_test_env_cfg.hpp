@@ -67,43 +67,17 @@ std::string appendPlatformTypeTestName(testing::TestParamInfo<typename T::ParamT
 }  // namespace ov::test::utils
 
 namespace InferRequestParamsAnyMapTestName {
-static std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequestParams> obj) {
-    std::string targetDevice;
-    ov::AnyMap configuration;
-    std::tie(targetDevice, configuration) = obj.param;
-    std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
-    targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
-    std::ostringstream result;
-    result << "targetDevice=" << targetDevice << "_";
-    if (!configuration.empty()) {
-        for (auto& configItem : configuration) {
-            result << "configItem=" << configItem.first << "_";
-            configItem.second.print(result);
-            result << "_";
-        }
-    }
-    return result.str();
-}
+
+std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequestParams> obj);
+
 }  // namespace InferRequestParamsAnyMapTestName
 
 namespace InferRequestParamsMapTestName {
+
 typedef std::tuple<std::string,                        // Device name
                    std::map<std::string, std::string>  // Config
                    >
         InferRequestParams;
-static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
-    std::string targetDevice;
-    std::map<std::string, std::string> configuration;
-    std::tie(targetDevice, configuration) = obj.param;
-    std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
-    targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
-    std::ostringstream result;
-    result << "targetDevice=" << targetDevice << "_";
-    if (!configuration.empty()) {
-        for (auto& configItem : configuration) {
-            result << "configItem=" << configItem.first << "_" << configItem.second << "_";
-        }
-    }
-    return result.str();
-}
+std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj);
+
 }  // namespace InferRequestParamsMapTestName
