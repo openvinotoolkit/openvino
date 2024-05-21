@@ -255,7 +255,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
 .. tab-set::
 
-    .. _python_tab:
+    .. _python_tab_batch:
 
     .. tab-item:: Python
        :sync: py
@@ -295,14 +295,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --batch 2 --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab>`_ .
+            - Not available in OVC tool. `Check Python API tab <#python_tab_batch>`_ .
 
 ``mean_values``
 ################
 
 .. tab-set::
 
-    .. _python_tab:
+    .. _python_tab_mean_val:
 
     .. tab-item:: Python
        :sync: py
@@ -346,14 +346,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --mean_values [0.5,0.5,0.5] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab>`_ .
+            - Not available in OVC tool. `Check Python API tab <#python_tab_mean_val>`_ .
 
 ``scale_values``
 #################
 
 .. tab-set::
 
-    .. _python_tab:
+    .. _python_tab_scale_val:
 
     .. tab-item:: Python
        :sync: py
@@ -397,14 +397,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --scale_values [255,255,255] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab>`_ .
+            - Not available in OVC tool. `Check Python API tab <#python_tab_scale_val>`_ .
 
 ``reverse_input_channels``
 ###########################
 
 .. tab-set::
 
-    .. _python_tab:
+    .. _python_tab_reverse:
 
     .. tab-item:: Python
        :sync: py
@@ -448,14 +448,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --reverse_input_channels --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab>`_ .
+            - Not available in OVC tool. `Check Python API tab <#python_tab_reverse>`_ .
 
 ``source_layout``
 ##################
 
 .. tab-set::
 
-    .. _python_tab:
+    .. _python_tab_source:
 
     .. tab-item:: Python
        :sync: py
@@ -497,14 +497,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --source_layout input_name(NHWC) --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab>`_ .
+            - Not available in OVC tool. `Check Python API tab <#python_tab_source>`_ .
 
 ``target_layout``
 ##################
 
 .. tab-set::
 
-    .. _python_tab:
+    .. _python_tab_target:
 
     .. tab-item:: Python
        :sync: py
@@ -546,14 +546,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --target_layout input_name(NHWC) --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab>`_ .
+            - Not available in OVC tool. `Check Python API tab <#python_tab_target>`_ .
 
 ``layout``
 ###########
 
 .. tab-set::
 
-    .. _python_tab:
+    .. _python_tab_layout:
 
     .. tab-item:: Python
        :sync: py
@@ -595,14 +595,14 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --layout "input_name(NCHW->NHWC)" --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab>`_ .
+            - Not available in OVC tool. `Check Python API tab <#python_tab_layout>`_ .
 
 ``transform``
 ##############
 
 .. tab-set::
 
-    .. _python_tab:
+    .. _python_tab_transform:
 
     .. tab-item:: Python
        :sync: py
@@ -643,7 +643,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --transform LowLatency2[use_const_initializer=False],Pruning,MakeStateful[param_res_names={'input_name':'output_name'}] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. `Check Python API tab <#python_tab>`_ .
+            - Not available in OVC tool. `Check Python API tab <#python_tab_transform>`_ .
 
 Cutting Off Parts of a Model
 ############################
