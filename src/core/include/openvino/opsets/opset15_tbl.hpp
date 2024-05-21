@@ -13,5 +13,6 @@ _OPENVINO_OP_REG(Convert, ov::op::v0)
 _OPENVINO_OP_REG(ShapeOf, ov::op::v3)
 
 // New operations added in opset15
-_OPENVINO_OP_REG(RMSNorm, ov::op::v14)
 _OPENVINO_OP_REG(ScatterNDUpdate, ov::op::v15)
+_OPENVINO_OP_REG(EmbeddingBagPacked, ov::op::v15)
+_OPENVINO_OP_REG(EmbeddingBagOffsets, ov::op::v15)

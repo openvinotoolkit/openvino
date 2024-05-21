@@ -19,7 +19,7 @@ constexpr size_t cSimpleMemCopyOpDivider = 4UL;
 constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
-    std::vector<size_t> v = {/*32,*/ 16, 8, 4, /*2,*/ 1};
+    std::vector<size_t> v = {/*32,*/ 16, 8, 4, 2, 1};
     auto is_divided = [input_size](size_t i) {
         return input_size % i == 0;
     };
@@ -146,9 +146,12 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     }
 
     if (!params.fused_ops.empty()) {
-        const std::vector<std::string> original_output_order = {"b_idx", "f_idx", "y_idx", "x_idx"};
+        const std::vector<std::string> original_output_order = {"b_idx", "f_out_idx", "y_out_idx", "x_idx"};
         const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
-        const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size};
+        Tensor::DataChannelName channel = (IsSimpleMemCopyOperation(params) || Is3DTranspose(params)) ? Tensor::DataChannelName::X \
+                                          : Tensor::DataChannelName::Y;
+        const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size, LoadType::LT_UNALIGNED, \
+                                                BoundaryCheck::ENABLED, IndexType::TENSOR_COORD, channel};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_vec}));
     }
     return jit;

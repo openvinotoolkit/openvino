@@ -81,7 +81,7 @@ OutputVector base_translate_upsample(const NodeContext& context,
 }  // namespace
 
 OutputVector translate_upsample_linear1d(const NodeContext& context) {
-    return base_translate_upsample(context, v11::Interpolate::InterpolateMode::LINEAR_ONNX, 1);
+    return base_translate_upsample(context, v11::Interpolate::InterpolateMode::LINEAR, 1);
 };
 
 OutputVector translate_upsample_bilinear2d(const NodeContext& context) {
