@@ -394,6 +394,7 @@ void primitive_inst::update_shape() {
     }
 
     if (has_runtime_deps) {
+        std::cout << "Runtime deps\n";
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape_sync: " + id()));
         if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
@@ -1455,7 +1456,11 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     {
         GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::inference);
+        auto time0 = std::chrono::high_resolution_clock::now();
         auto ev = _impl->execute(dependencies, *this);
+        auto time1 = std::chrono::high_resolution_clock::now();
+        auto time_res0 = std::chrono::duration_cast<std::chrono::microseconds>(time1 - time0).count();
+        GPU_DEBUG_TRACE_DETAIL << "Enqueu time = " << time_res0 << "\n";
 
         GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
             get_network().get_stream().wait_for_events({ev});
