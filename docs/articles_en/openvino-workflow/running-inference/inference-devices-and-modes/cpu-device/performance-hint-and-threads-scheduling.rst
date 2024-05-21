@@ -124,14 +124,14 @@ User can use the following properties to limit available CPU resource for model 
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/multi_threading.py
          :language: python
          :fragment: [ov:intel_cpu:multi_threading:part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/multi_threading.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:multi_threading:part0]
 
@@ -147,14 +147,14 @@ In some use cases, OpenVINO Runtime will enable CPU threads pinning by default f
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/multi_threading.py
          :language: python
          :fragment: [ov:intel_cpu:multi_threading:part1]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/multi_threading.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:multi_threading:part1]
 
