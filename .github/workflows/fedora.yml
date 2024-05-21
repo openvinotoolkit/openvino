@@ -125,7 +125,6 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DCPACK_GENERATOR=TGZ \
@@ -160,7 +159,9 @@ jobs:
 
       - name: Build RPM packages
         run: |
-          cmake -DCPACK_GENERATOR=RPM \
+          cmake -UTBB* \
+                -DCPACK_GENERATOR=RPM \
+                -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_TESTS=OFF \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --target package --verbose

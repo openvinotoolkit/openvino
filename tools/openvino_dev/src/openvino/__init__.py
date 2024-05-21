@@ -50,6 +50,7 @@ try:
 
     from openvino._pyopenvino import RemoteContext
     from openvino._pyopenvino import RemoteTensor
+    from openvino._pyopenvino import Op
 
     # libva related:
     from openvino._pyopenvino import VAContext

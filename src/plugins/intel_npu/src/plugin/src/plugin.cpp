@@ -234,6 +234,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<PERFORMANCE_HINT>();
           }}},
+        {ov::hint::execution_mode.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<EXECUTION_MODE_HINT>();
+          }}},
         {ov::hint::num_requests.name(),
          {true,
           ov::PropertyMutability::RW,
@@ -355,6 +361,22 @@ Plugin::Plugin()
           ov::PropertyMutability::RO,
           [&](const Config& config) {
               return _metrics->GetGops(get_specified_device_name(config));
+          }}},
+        {ov::device::type.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetDeviceType(get_specified_device_name(config));
+          }}},
+        {ov::execution_devices.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              if (_metrics->GetAvailableDevicesNames().size() > 1) {
+                  return std::string("NPU." + config.get<DEVICE_ID>());
+              } else {
+                  return std::string("NPU");
+              }
           }}},
         // OV Internals
         // =========

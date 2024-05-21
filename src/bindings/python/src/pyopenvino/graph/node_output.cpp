@@ -24,6 +24,24 @@ void def_type_dependent_functions<const ov::Node>(
 template <>
 void def_type_dependent_functions<ov::Node>(
     py::class_<ov::Output<ov::Node>, std::shared_ptr<ov::Output<ov::Node>>>& output) {
+    output.def("set_names",
+               &ov::Output<ov::Node>::set_names,
+               py::arg("names"),
+               R"(
+            Set tensor names associated with this output.
+
+            :param names: Set of tensor names.
+            :type names: Set[str]
+            )");
+    output.def("add_names",
+               &ov::Output<ov::Node>::add_names,
+               py::arg("names"),
+               R"(
+            Add tensor names associated with this output.
+
+            :param names: Set of tensor names.
+            :type names: Set[str]
+            )");
     output.def("remove_target_input",
                &ov::Output<ov::Node>::remove_target_input,
                py::arg("target_input"),
