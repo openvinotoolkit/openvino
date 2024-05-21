@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "compilation_context.hpp"
-
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -14,6 +12,7 @@
 #include "itt.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
@@ -25,21 +24,11 @@
 #endif
 
 namespace ov {
-
 template <typename T>
 static uint64_t hash_combine(uint64_t seed, const T& a) {
     // Hash combine formula from boost
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
-
-template <typename T>
-static int32_t as_int32_t(T v) {
-    return static_cast<int32_t>(v);
-}
-
-}  // namespace ov
-
-namespace ov {
 
 std::string ModelCache::calculate_file_info(const std::string& filePath) {
     uint64_t seed = 0;
@@ -76,17 +65,17 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {
-        seed = ov::hash_combine(seed, kvp.first + kvp.second.as<std::string>());
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
 
     // 3. Add runtime information which may not be serialized
     for (const auto& op : model->get_ordered_ops()) {
         const auto& rt = op->get_rt_info();
         for (const auto& rtMapData : rt) {
-            seed = ov::hash_combine(seed, rtMapData.first);
+            seed = hash_combine(seed, rtMapData.first);
             std::stringstream strm;
             rtMapData.second.print(strm);
-            seed = ov::hash_combine(seed, strm.str());
+            seed = hash_combine(seed, strm.str());
         }
     }
 
@@ -94,7 +83,7 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 }
 
 std::string ModelCache::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - ModelName");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
     uint64_t seed = 0;
     try {
         seed = hash_combine(seed, ov::util::get_absolute_file_path(modelName));
@@ -111,7 +100,7 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
 std::string ModelCache::compute_hash(const std::string& modelStr,
                                      const ov::Tensor& tensor,
                                      const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model Memory");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
     uint64_t seed = 0;
     // model string
     seed = hash_combine(seed, modelStr);
