@@ -237,6 +237,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Abs,         {{}}},
         {Exp,         {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
+        {Elu,         {{0.1f}}},
         {Relu,        {{}}},
         {Tanh,        {{}}},
     };

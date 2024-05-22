@@ -77,6 +77,7 @@ bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &nod
     // Skip them here, when they are supported by Snippets ARM. Ticket: 141170.
     return ov::is_type<ov::op::v0::Abs>(node) ||
            ov::is_type<ov::op::v0::Clamp>(node) ||
+           ov::is_type<ov::op::v0::Elu>(node) ||
            ov::is_type<ov::op::v0::Relu>(node) ||
            ov::is_type<ov::op::v0::Tanh>(node);
 }

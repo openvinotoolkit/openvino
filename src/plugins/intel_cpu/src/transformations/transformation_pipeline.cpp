@@ -949,8 +949,9 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v1::Add>(n) ||
                 ov::is_type<ov::op::v0::Clamp>(n) ||
                 ov::is_type<ov::op::v1::Divide>(n) ||
-                ov::is_type<ov::op::v1::Multiply>(n) ||
+                ov::is_type<ov::op::v0::Elu>(n) ||
                 ov::is_type<ov::op::v0::Exp>(n) ||
+                ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Relu>(n) ||
                 ov::is_type<ov::op::v0::Tanh>(n));
 #else
