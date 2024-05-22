@@ -163,7 +163,7 @@ else()
 endif()
 
 # use system TBB only for Debian / RPM packages
-if(CPACK_GENERATOR MATCHES "(DEB|RPM)")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
     set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 else()
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
