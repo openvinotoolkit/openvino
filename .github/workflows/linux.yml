@@ -69,7 +69,6 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_20_04_x64
-            ov_build/ubuntu_22_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -683,7 +682,8 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: >-
+        ${{ format('{{"image": "{0}", "volumes": ["/mount:/mount"]}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64) }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 

@@ -327,8 +327,9 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      sccache-azure-key-prefix: 'ubuntu22_aarch64_onnxruntime'
+      container: >-
+        ${{ format('{{"image": "{0}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64) }}
+      sccache-azure-key-prefix: 'ubuntu20_aarch64_onnxruntime'
 
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
