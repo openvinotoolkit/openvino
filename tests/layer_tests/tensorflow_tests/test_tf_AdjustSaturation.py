@@ -18,17 +18,19 @@ class TestAdjustSaturation(CommonTFLayerTest):
         images_shape = inputs_info['images:0']
         inputs_data = {}
         inputs_data['images:0'] = np.random.rand(*images_shape).astype(self.input_type)
-        inputs_data['images:0'] = np.array([[
-                [[0.1, 0.2, 0.3],
-                [0.4, 0.5, 0.6]]
-                ]]).astype(np.float32)
-        # inputs_data['scale:0'] = np.random.rand()
-        inputs_data['scale:0'] = 2.1
-        hsv = rgb_to_hsv( inputs_data['images:0'])
-        hsv[...,1] =  np.clip(hsv[...,1]*inputs_data['scale:0'], 0.0, 1.0)
-        rgb = hsv_to_rgb(hsv)
-        logger.info(hsv)
-        logger.info(rgb)
+        inputs_data['scale:0'] = np.random.rand()
+        
+        # inputs_data['images:0'] = np.array([
+        #         [[0.4, 0.2, 0.3],
+        #         [0.9, 0.5, 0.6]]
+        #         ]).astype(np.float32)
+        # inputs_data['scale:0'] = 2.1
+        # hsv = rgb_to_hsv( inputs_data['images:0'])
+        # hsv[...,1] =  np.clip(hsv[...,1]*inputs_data['scale:0'], 0.0, 1.0)
+        # rgb = hsv_to_rgb(hsv)
+        # logger.info(hsv)
+        # logger.info(rgb)
+        
         return inputs_data
 
     def create_adjust_saturation_net(self, input_shape, input_type):
@@ -47,9 +49,9 @@ class TestAdjustSaturation(CommonTFLayerTest):
     # Each input is a tensor of at least 3 dimensions. 
     # The last dimension is interpreted as channels, and must be three.
     test_data_basic = [
-        # dict(input_shape=[1, 2, 3], input_type=np.float32),
-        dict(input_shape=[1, 1, 2, 3], input_type=np.float32),
-        # dict(input_shape=[1, 2, 3, 1, 3], input_type=np.float32),
+        dict(input_shape=[5, 5, 3], input_type=np.float32),
+        dict(input_shape=[2, 3, 4, 3], input_type=np.float32),
+        dict(input_shape=[1, 2, 3, 3, 3], input_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
