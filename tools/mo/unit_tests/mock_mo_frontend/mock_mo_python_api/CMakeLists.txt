@@ -25,13 +25,10 @@ set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_mo_python_api.cpp)
 
 source_group("src" FILES ${PYBIND_FE_SRC})
 
-if(Python3_VERSION_MINOR GREATER_EQUAL 11)
-    set(pybind11_min_version 2.9.2)
-else()
-    set(pybind11_min_version 2.8.0)
-endif()
 if(CMAKE_CROSSCOMPILING)
     set(pybind11_min_version 2.12.0)
+else()
+    set(pybind11_min_version 2.10.0)
 endif()
 # search for FindPython3.cmake instead of legacy modules
 set(PYBIND11_FINDPYTHON ON)
