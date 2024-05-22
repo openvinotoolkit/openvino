@@ -336,10 +336,38 @@ const std::vector<CPUSpecificParams>& cpuParams_4D() {
     return cpuParams_4D;
 }
 
+const std::vector<CPUSpecificParams>& cpuParams_4D_Planar() {
+    static const std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
+    };
+    return cpuParams_4D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_4D_PerChannel() {
+    static const std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+    };
+    return cpuParams_4D;
+}
+
 const std::vector<CPUSpecificParams>& cpuParams_5D() {
     static const std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
+    };
+    return cpuParams_5D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_5D_Planar() {
+    static const std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
+    };
+    return cpuParams_5D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_5D_PerChannel() {
+    static const std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
     };
     return cpuParams_5D;
 }

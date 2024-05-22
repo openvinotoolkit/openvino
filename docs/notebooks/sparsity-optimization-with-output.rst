@@ -51,20 +51,8 @@ Prerequisites
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -85,29 +73,16 @@ Imports
 
 .. parsed-literal::
 
-    OpenVINO Tokenizer version is not compatible with OpenVINO version. Installed OpenVINO version: 2024.0.0,OpenVINO Tokenizers requires . OpenVINO Tokenizers models will not be added during export.
-
-
-.. parsed-literal::
-
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
 .. parsed-literal::
 
-    2024-04-18 00:51:56.238501: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-18 00:51:56.274301: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-05-07 01:29:43.114992: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-07 01:29:43.150328: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-18 00:51:56.850457: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    2024-05-07 01:29:43.748064: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
 
 
@@ -144,6 +119,8 @@ model card on Hugging Face.
 
 .. parsed-literal::
 
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+      warnings.warn(
     Compiling the model to CPU ...
 
 
@@ -220,26 +197,18 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
     [ INFO ] 
     [ INFO ] Device info:
-
-
-.. parsed-literal::
-
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-
-
-.. parsed-literal::
-
-    [ INFO ] Read model took 61.16 ms
+    [ INFO ] Read model took 68.64 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -250,11 +219,7 @@ as an example. It is recommended to tune based on your applications.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-
-
-.. parsed-literal::
-
-    [ INFO ] Reshape model took 22.79 ms
+    [ INFO ] Reshape model took 30.26 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -263,11 +228,7 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-
-
-.. parsed-literal::
-
-    [ INFO ] Compile model took 1249.77 ms
+    [ INFO ] Compile model took 1217.01 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -282,6 +243,7 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
     [ INFO ]   ENABLE_CPU_PINNING: True
     [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]   ENABLE_HYPER_THREADING: True
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
@@ -298,25 +260,17 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-
-
-.. parsed-literal::
-
-    [ INFO ] First inference took 28.22 ms
-
-
-.. parsed-literal::
-
+    [ INFO ] First inference took 25.94 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            9052 iterations
-    [ INFO ] Duration:         60042.04 ms
+    [ INFO ] Count:            9352 iterations
+    [ INFO ] Duration:         60034.37 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        26.38 ms
-    [ INFO ]    Average:       26.41 ms
-    [ INFO ]    Min:           24.29 ms
-    [ INFO ]    Max:           41.86 ms
-    [ INFO ] Throughput:   150.76 FPS
+    [ INFO ]    Median:        25.33 ms
+    [ INFO ]    Average:       25.43 ms
+    [ INFO ]    Min:           23.63 ms
+    [ INFO ]    Max:           39.24 ms
+    [ INFO ] Throughput:   155.78 FPS
 
 
 Benchmark quantized sparse inference performance
@@ -362,26 +316,18 @@ for which a layer will be enabled.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
     [ INFO ] 
     [ INFO ] Device info:
-
-
-.. parsed-literal::
-
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-
-
-.. parsed-literal::
-
-    [ INFO ] Read model took 68.00 ms
+    [ INFO ] Read model took 65.15 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -392,11 +338,7 @@ for which a layer will be enabled.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-
-
-.. parsed-literal::
-
-    [ INFO ] Reshape model took 23.17 ms
+    [ INFO ] Reshape model took 30.54 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -407,18 +349,18 @@ for which a layer will be enabled.
     [Step 7/11] Loading the model to the device
     [ ERROR ] Exception from src/inference/src/cpp/core.cpp:106:
     Exception from src/inference/src/dev/plugin.cpp:54:
-    Exception from src/plugins/intel_cpu/src/config.cpp:208:
+    Exception from src/plugins/intel_cpu/src/config.cpp:226:
     Wrong value for property key CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE. Expected only float numbers
     
     
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
         compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 515, in compile_model
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 521, in compile_model
         super().compile_model(model, device_name, {} if config is None else config),
     RuntimeError: Exception from src/inference/src/cpp/core.cpp:106:
     Exception from src/inference/src/dev/plugin.cpp:54:
-    Exception from src/plugins/intel_cpu/src/config.cpp:208:
+    Exception from src/plugins/intel_cpu/src/config.cpp:226:
     Wrong value for property key CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE. Expected only float numbers
     
     
