@@ -94,6 +94,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
     jitters[ov::op::v0::Clamp::get_type_info_static()] = CREATE_CPU_EMITTER(jit_clamp_emitter);
     jitters[ov::op::v0::Elu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_elu_emitter);
     jitters[ov::op::v0::Exp::get_type_info_static()] = CREATE_CPU_EMITTER(jit_exp_emitter);
+    jitters[ov::op::v4::HSwish::get_type_info_static()] = CREATE_CPU_EMITTER(jit_hswish_emitter);
     jitters[ov::op::v0::Relu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_relu_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
 
