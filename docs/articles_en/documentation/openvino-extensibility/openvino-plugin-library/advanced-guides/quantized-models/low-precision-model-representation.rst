@@ -24,7 +24,7 @@ In order to be able to execute a particular DL operation in low-precision all it
 between operation and data blobs.  The figure below shows an example of quantized Convolution which contains two FakeQuantize nodes: one for
 weights and one for activations (bias is quantized using the same parameters).
 
-.. image:: ../../../../../_static/images/IE_PLUGIN_DG/images/quantized_convolution.png
+.. image:: ../../../../../assets/images/quantized_convolution.png
 
 
 Starting from OpenVINO 2020.2 release all the quantized models are represented in the compressed form. It means that the weights
@@ -32,4 +32,4 @@ of low-precision operations are converted into the target precision (e.g. INT8).
 The rest of the parameters can be represented in FLOAT32 or FLOAT16 precision depending on the input full-precision model used in
 the quantization process. Fig. 2 below shows an example of the part of the compressed IR.
 
-.. image:: ../../../../../_static/images/IE_PLUGIN_DG/images/quantized_model_example.png
+.. image:: ../../../../../assets/images/quantized_model_example.png

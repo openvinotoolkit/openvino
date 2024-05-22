@@ -16,7 +16,7 @@ output. In contrast, for a "stateless" model to pass data between runs, all prod
 returned as output and needs to be handled by the application itself for reuse at the next
 execution.
 
-.. image:: ../../_static/images/stateful_model_example.svg
+.. image:: ../../assets/images/stateful_model_example.svg
    :alt: example comparison between stateless and stateful model implementations
    :align: center
    :scale: 90 %
@@ -113,7 +113,7 @@ states.
   each run performed in a different infer request than the previous one would require the state
   to be set "manually", using the ``ov::VariableState::set_state`` method.
 
-.. image:: ../../_static/images/stateful_model_init_subgraph.svg
+.. image:: ../../assets/images/stateful_model_init_subgraph.svg
    :alt: diagram of how initial state value is set or reset
    :align: center
    :scale: 100 %

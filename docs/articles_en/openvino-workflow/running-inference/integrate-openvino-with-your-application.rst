@@ -26,7 +26,7 @@ for Windows PowerShell, or ``setupvars.bat`` for Windows CMD). Otherwise, the ``
 variable won't be configured properly to pass ``find_package`` calls.
 
 
-.. image:: ../../_static/images/IMPLEMENT_PIPELINE_with_API_C.svg
+.. image:: ../../assets/images/IMPLEMENT_PIPELINE_with_API_C.svg
 
 
 Step 1. Create OpenVINO Runtime Core

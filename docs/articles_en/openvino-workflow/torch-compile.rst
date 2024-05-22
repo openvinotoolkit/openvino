@@ -35,7 +35,7 @@ any additional PyTorch-based tracing/scripting.
 
 Execution diagram:
 
-.. image:: ../_static/images/torch_compile_backend_openvino.svg
+.. image:: ../assets/images/torch_compile_backend_openvino.svg
    :width: 992px
    :height: 720px
    :scale: 60%

@@ -153,7 +153,7 @@ For example, to install and configure dependencies required for working with Ten
 For more details on the openvino-dev PyPI package, see `pypi.org <https://pypi.org/project/openvino-dev/2023.2.0>`__ .
 
 Step 5. Test the Installation
-+++++++++++++++++++++++++++++
+------------------------------
 
 To verify the package is properly installed, run the command below (this may take a few seconds):
 
@@ -173,7 +173,7 @@ Learn more about OpenVINO and use it in your own application by trying out some 
 Get started with Python
 +++++++++++++++++++++++
 
-.. image:: ../../_static/images/get_started_with_python.gif
+.. image:: ../../assets/images/get_started_with_python.gif
   :width: 400
 
 Try the `Python Quick Start Example <../../notebooks/vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
@@ -187,7 +187,7 @@ Visit the :doc:`Tutorials <../../learn-openvino/interactive-tutorials-python>` p
 Get started with C++
 ++++++++++++++++++++
 
-.. image:: ../../_static/images/get_started_with_cpp.jpg
+.. image:: ../../assets/images/get_started_with_cpp.jpg
   :width: 400
 
 

@@ -41,7 +41,7 @@ The subgraph with quantized `Add` operation before transformation:
     y_{ch,i}=(scale1_{ch} * (x1_{ch,i} - shift1_{ch})) + (scale2_{ch} * (x2_{ch,i} - shift2_{ch}))
 
 
-.. image:: /../../../docs/sphinx_setup/_static/images/add.common.png
+.. image:: ../../../../../../../assets/images/add.common.png
 
 
 Subgraph after transformation
@@ -66,4 +66,4 @@ where:
     shift1_{ch}' = shift1_{ch} + scale2_{ch} * shift2_{ch} / scale1_{ch}
 
 
-.. image::  /../../../docs/sphinx_setup/_static/images/add.transformed.png
+.. image::../../../../../../../assets/images/add.transformed.png

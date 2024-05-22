@@ -61,7 +61,7 @@ Granularity of Major Distribution Types
 
 The granularity of OpenVINO packages may vary for different distribution types. For example, the PyPI distribution of OpenVINO has a `single 'openvino' package <https://pypi.org/project/openvino/>`__ that contains all the runtime libraries and plugins, while a :doc:`local distribution <deployment-locally/local-distribution-libraries>` is a more configurable type providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
-.. image:: ../_static/images/deployment_simplified.svg
+.. image:: ../assets/images/deployment_simplified.svg
 
 
 - The main library ``openvino`` is used by users' C++ applications to link against with. For C language applications, ``openvino_c`` is additionally required for distribution. The library includes OpenVINO API 2.0.

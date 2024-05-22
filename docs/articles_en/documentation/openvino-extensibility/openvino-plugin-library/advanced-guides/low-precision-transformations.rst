@@ -79,7 +79,7 @@ If operation is not supported by LPT then dequantization operation will not be p
 
 For example, if you would like to infer a model with ``Convolution`` operation in low precision then the model can look as on picture below:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.common.svg
    :alt: Quantized Convolution
 
 There are several supported quantization approaches on activations and on weights. All supported approaches are described in `Quantization approaches <#quantization-approaches>`__ section below. In demonstrated model `FakeQuantize operation quantization <#fakequantize-operation>`__ approach is used.
@@ -104,7 +104,7 @@ FakeQuantize operation
 
 In this case ``FakeQuantize`` operation is used on activations and quantized constant on weights. Original input model:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.common.svg
    :alt: Original model with FakeQuantize
 
 
@@ -113,7 +113,7 @@ Quantize and dequantization operations
 
 In this case ``FakeQuantize`` operation and ``Convert`` are used as quantize operation and return quantized low precision tensor. After quantize operation on activations there are ``Convert`` and dequantization operations to compensate decomposition. Original input model:
 
-.. image:: ../../../../_static/images/model_qdq_and_convolution.common.svg
+.. image:: ../../../../assets/images/model_qdq_and_convolution.common.svg
    :alt: Original model with Q/DQ
 
 In both cases result is the same. In LPT result model you can see that:
@@ -129,7 +129,7 @@ In both cases result is the same. In LPT result model you can see that:
 
 LPT result model:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.transformed.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.transformed.svg
    :alt: Result model
 
 Low precision transformations pipeline
@@ -137,7 +137,7 @@ Low precision transformations pipeline
 
 LPT transformation pipeline has several steps. For each transformation inside one step pattern matcher is unique per transformation, but each operation can be assigned to several transformations.
 
-.. image:: ../../../../_static/images/low_precision_transformation_pipeline.svg
+.. image:: ../../../../assets/images/low_precision_transformation_pipeline.svg
    :alt: Low precision transformations pipeline
 
 Inside each step LPT transformations handle input model operation by operation, applying transformation matching pattern for each transformation from the step to an operation, and execute transformation if pattern is matched. Decomposition transformation decomposes ``FakeQuantize`` to quantize and dequantization operations. Dequantization operations from previous transformation result is used for the current one and so on, until the end of the model is achieved.
@@ -227,12 +227,12 @@ Decomposition transformations decompose the ``FakeQuantize`` operation to: quant
 
 Original ``FakeQuantize``:
 
-.. image:: ../../../../_static/images/fq.common.svg
+.. image:: ../../../../assets/images/fq.common.svg
    :alt: FakeQuantize operation before LPT
 
 ``FakeQuantize`` after decomposition to quantization and dequantization operations:
 
-.. image:: ../../../../_static/images/fq.transformed.svg
+.. image:: ../../../../assets/images/fq.transformed.svg
    :alt: FakeQuantize operation after LPT
 
 Dequantization operations handling transformations
@@ -242,12 +242,12 @@ In this step, LPT transformations fuse dequantization operations or move them th
 
 Original ``Convolution`` operation in FP32 with dequantization operations before:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.common.svg
    :alt: Convolution operation before LPT
 
 ``Convolution`` operation in INT8 after decomposition and dequantization operations handling:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.transformed.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.transformed.svg
    :alt: Convolution operation after LPT
 
 
@@ -270,12 +270,12 @@ There are more details in developer guide :doc:`Cleanup transformations <low-pre
 
 ``FakeQuantize`` operation with not handled dequantization operations:
 
-.. image:: ../../../../_static/images/fq.transformed.svg
+.. image:: ../../../../assets/images/fq.transformed.svg
    :alt: TODO: FakeQuantize operation with dequantization operations before LPT
 
 ``FakeQuantize`` operation with fused dequantization operations:
 
-.. image:: ../../../../_static/images/fq.common.svg
+.. image:: ../../../../assets/images/fq.common.svg
    :alt: TODO: FakeQuantize operation with fused operations after LPT
 
 
