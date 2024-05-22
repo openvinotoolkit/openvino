@@ -446,6 +446,28 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
 };
 
 template<>
+struct ConvertPrecision<std::tuple<ov::float16, float>> {
+    void operator()(ConvertContext & ctx) {
+        auto src = static_cast<const ov::float16 *>(ctx.srcPtr);
+        auto dst = static_cast<float *>(ctx.dstPtr);
+
+        if (ctx.interimPrc.is_real()) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<float>(src[i]);
+            });
+        } else {
+            float lbound, ubound;
+            std::tie(lbound, ubound) = ctx.range<ov::float16>();
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = std::trunc(std::max(std::min(static_cast<float>(src[i]), ubound), lbound));
+            });
+        }
+
+        ctx.converted = true;
+    }
+};
+
+template<>
 struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
     void operator()(ConvertContext & ctx) {
         auto src = static_cast<const ov::float16 *>(ctx.srcPtr);
