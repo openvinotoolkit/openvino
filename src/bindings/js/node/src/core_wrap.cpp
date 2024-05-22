@@ -39,7 +39,7 @@ std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::
     return std::make_tuple(properties, device_name);
 }
 
-CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
+CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {} 
 
 Napi::Function CoreWrap::get_class(Napi::Env env) {
     return DefineClass(env,
@@ -373,5 +373,35 @@ void CoreWrap::add_extension(const Napi::CallbackInfo& info) {
         _core.add_extension(library_path);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
+    }
+}
+
+Napi::Value CoreWrap::query_model(const Napi::CallbackInfo& info) {
+    try {
+        if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsString()) {
+            reportError(info.Env(), "query_model expects at least two arguments: a model object and a device name.");
+            return info.Env().Undefined();
+        }
+
+        auto model_wrap = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject());
+        auto model = model_wrap->get_model();
+        std::string device_name = info[1].ToString();
+
+        ov::AnyMap properties;
+        if (info.Length() == 3 && info[2].IsObject()) {
+            properties = to_anyMap(info.Env(), info[2]);
+        }
+
+        auto result = _core.query_model(model, device_name, properties);
+
+        Napi::Object js_result = Napi::Object::New(info.Env());
+        for (const auto& kv : result) {
+            js_result.Set(kv.first, kv.second);
+        }
+
+        return js_result;
+    } catch (std::runtime_error& err) {
+        reportError(info.Env(), err.what());
+        return info.Env().Undefined();
     }
 }
