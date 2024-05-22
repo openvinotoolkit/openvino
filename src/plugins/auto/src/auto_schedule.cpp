@@ -170,7 +170,7 @@ void AutoSchedule::init() {
                                                 ? device_config[ov::cache_dir.name()].as<std::string>()
                                                 : m_context->m_ov_core->get_property("", ov::cache_dir);
 
-                    if (!m_context->m_is_set_startup_fallback && !cache_dir.empty()) {
+                    if (m_context->m_startup_fallback && !cache_dir.empty()) {
                         const auto properties =
                             m_context->m_ov_core->create_compile_config(ov::DeviceIDParser(device).get_device_name(),
                                                                         device_config);
