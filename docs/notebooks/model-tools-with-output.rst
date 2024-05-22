@@ -10,27 +10,27 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `OpenVINO and Open Model Zoo
-   Tools <#OpenVINO-and-Open-Model-Zoo-Tools>`__
--  `Preparation <#Preparation>`__
+   Tools <#openvino-and-open-model-zoo-tools>`__
+-  `Preparation <#preparation>`__
 
-   -  `Model Name <#Model-Name>`__
-   -  `Imports <#Imports>`__
-   -  `Settings and Configuration <#Settings-and-Configuration>`__
+   -  `Model Name <#model-name>`__
+   -  `Imports <#imports>`__
+   -  `Settings and Configuration <#settings-and-configuration>`__
 
 -  `Download a Model from Open Model
-   Zoo <#Download-a-Model-from-Open-Model-Zoo>`__
+   Zoo <#download-a-model-from-open-model-zoo>`__
 -  `Convert a Model to OpenVINO IR
-   format <#Convert-a-Model-to-OpenVINO-IR-format>`__
--  `Get Model Information <#Get-Model-Information>`__
--  `Run Benchmark Tool <#Run-Benchmark-Tool>`__
+   format <#convert-a-model-to-openvino-ir-format>`__
+-  `Get Model Information <#get-model-information>`__
+-  `Run Benchmark Tool <#run-benchmark-tool>`__
 
    -  `Benchmark with Different
-      Settings <#Benchmark-with-Different-Settings>`__
+      Settings <#benchmark-with-different-settings>`__
 
 OpenVINO and Open Model Zoo Tools
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO and Open Model Zoo tools are listed in the table below.
 
@@ -64,12 +64,12 @@ OpenVINO and Open Model Zoo tools are listed in the table below.
 Preparation
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model Name
 ~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Set ``model_name`` to the name of the Open Model Zoo model to use in
 this notebook. Refer to the list of
@@ -87,7 +87,7 @@ pre-trained models for a full list of models that can be used. Set
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -110,7 +110,7 @@ Imports
 Settings and Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Set the file and directory paths. By default, this notebook downloads
 models from Open Model Zoo to the ``open_model_zoo_models`` directory in
@@ -149,7 +149,7 @@ The following settings can be changed:
 Download a Model from Open Model Zoo
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Specify, display and run the Model Downloader command to download the
 model.
@@ -189,7 +189,7 @@ Downloading mobilenet-v2-pytorch…
 Convert a Model to OpenVINO IR format
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Specify, display and run the Model Converter command to convert the
 model to OpenVINO IR format. Model conversion may take a while. The
@@ -245,7 +245,7 @@ Converting mobilenet-v2-pytorch…
 Get Model Information
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Info Dumper prints the following information for Open Model Zoo
 models:
@@ -321,7 +321,7 @@ file.
 Run Benchmark Tool
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 By default, Benchmark Tool runs inference for 60 seconds in asynchronous
 mode on CPU. It returns inference speed as latency (milliseconds per
@@ -426,7 +426,7 @@ seconds…
 Benchmark with Different Settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``benchmark_app`` tool displays logging information that is not
 always necessary. A more compact result is achieved when the output is

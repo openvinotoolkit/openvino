@@ -42,21 +42,21 @@ post <https://opensource.googleblog.com/2024/02/magika-ai-powered-fast-and-effic
 In this tutorial we consider how to bring OpenVINO power into Magika.
 #### Table of contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Define model loading class <#Define-model-loading-class>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Define model loading class <#define-model-loading-class>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
-   -  `Select device <#Select-device>`__
-   -  `Create model <#Create-model>`__
-   -  `Run inference on bytes input <#Run-inference-on-bytes-input>`__
-   -  `Run inference on file input <#Run-inference-on-file-input>`__
+   -  `Select device <#select-device>`__
+   -  `Create model <#create-model>`__
+   -  `Run inference on bytes input <#run-inference-on-bytes-input>`__
+   -  `Run inference on file input <#run-inference-on-file-input>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ ## Prerequisites
+ ## Prerequisites
 
 .. code:: ipython3
 
@@ -73,7 +73,7 @@ Prerequisites
 Define model loading class
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 At inference time Magika uses ONNX as an inference engine to ensure
 files are identified in a matter of milliseconds, almost as fast as a
@@ -225,14 +225,14 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now let’s check model inference result.
 
 Select device
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, please, select one of represented devices from
 dropdown list.
@@ -264,7 +264,7 @@ dropdown list.
 Create model
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As we discussed above, our OpenVINO extended ``OVMagika`` class has the
 same API like original one. Let’s try to create interface instance and
@@ -277,7 +277,7 @@ launch it on different input formats
 Run inference on bytes input
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -293,7 +293,7 @@ Run inference on bytes input
 Run inference on file input
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -316,7 +316,7 @@ Run inference on file input
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can try model on own files. Upload file into input file window,
 click submit button and look on predicted file types.
@@ -364,7 +364,7 @@ click submit button and look on predicted file types.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

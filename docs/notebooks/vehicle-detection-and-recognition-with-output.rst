@@ -20,30 +20,30 @@ As a result, you can get:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Download Models <#Download-Models>`__
--  `Load Models <#Load-Models>`__
+-  `Imports <#imports>`__
+-  `Download Models <#download-models>`__
+-  `Load Models <#load-models>`__
 
-   -  `Get attributes from model <#Get-attributes-from-model>`__
-   -  `Helper function <#Helper-function>`__
-   -  `Read and display a test image <#Read-and-display-a-test-image>`__
+   -  `Get attributes from model <#get-attributes-from-model>`__
+   -  `Helper function <#helper-function>`__
+   -  `Read and display a test image <#read-and-display-a-test-image>`__
 
 -  `Use the Detection Model to Detect
-   Vehicles <#Use-the-Detection-Model-to-Detect-Vehicles>`__
+   Vehicles <#use-the-detection-model-to-detect-vehicles>`__
 
-   -  `Detection Processing <#Detection-Processing>`__
-   -  `Recognize vehicle attributes <#Recognize-vehicle-attributes>`__
+   -  `Detection Processing <#detection-processing>`__
+   -  `Recognize vehicle attributes <#recognize-vehicle-attributes>`__
 
-      -  `Recognition processing <#Recognition-processing>`__
+      -  `Recognition processing <#recognition-processing>`__
 
-   -  `Combine two models <#Combine-two-models>`__
+   -  `Combine two models <#combine-two-models>`__
 
 .. |flowchart| image:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
 
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Import the required modules.
 
@@ -92,7 +92,7 @@ Import the required modules.
 Download Models
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download pretrained models from
 https://storage.openvinotoolkit.org/repositories/open_model_zoo. If the
@@ -172,7 +172,7 @@ model is already downloaded, this step is skipped.
 Load Models
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This tutorial requires a detection model and a recognition model. After
 downloading the models, initialize OpenVINO Runtime, and use
@@ -234,7 +234,7 @@ specified device.
 Get attributes from model
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Use ``input_keys.shape`` to get data shapes.
 
@@ -255,7 +255,7 @@ Use ``input_keys.shape`` to get data shapes.
 Helper function
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``plt_show()`` function is used to show image.
 
@@ -275,7 +275,7 @@ The ``plt_show()`` function is used to show image.
 Read and display a test image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The input shape of detection model is ``[1, 3, 256, 256]``. Therefore,
 you need to resize the image to ``256 x 256``, and expand the batch
@@ -314,7 +314,7 @@ channel with ``expand_dims`` function.
 Use the Detection Model to Detect Vehicles
 ------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. figure:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
    :alt: pipline
@@ -348,7 +348,7 @@ Delete unused dims and filter out results that are not used.
 Detection Processing
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 With the function below, you change the ratio to the real position in
 the image and filter out low-confidence results.
@@ -401,7 +401,7 @@ the image and filter out low-confidence results.
 Recognize vehicle attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select one of the detected boxes. Then, crop to an area containing a
 vehicle to test with the recognition model. Again, you need to resize
@@ -426,7 +426,7 @@ the input image and run inference.
 Recognition processing
 ''''''''''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The result contains colors of the vehicles (white, gray, yellow, red,
 green, blue, black) and types of vehicles (car, bus, truck, van). Next,
@@ -479,7 +479,7 @@ determine the maximum probability as the result.
 Combine two models
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Congratulations! You successfully used a detection model to crop an
 image with a vehicle and recognize the attributes of a vehicle.

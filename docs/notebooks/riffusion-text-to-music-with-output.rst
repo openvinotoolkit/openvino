@@ -77,21 +77,21 @@ audio generation.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion pipeline in Optimum
-   Intel <#Stable-Diffusion-pipeline-in-Optimum-Intel>`__
+   Intel <#stable-diffusion-pipeline-in-optimum-intel>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Prepare postprocessing for reconstruction audio from spectrogram
-   image <#Prepare-postprocessing-for-reconstruction-audio-from-spectrogram-image>`__
--  `Run Inference pipeline <#Run-Inference-pipeline>`__
--  `Interactive demo <#Interactive-demo>`__
+   image <#prepare-postprocessing-for-reconstruction-audio-from-spectrogram-image>`__
+-  `Run Inference pipeline <#run-inference-pipeline>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -101,7 +101,7 @@ Prerequisites
 Stable Diffusion pipeline in Optimum Intel
 ------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As the riffusion model architecture is the same as Stable Diffusion, we
 can use it with the Stable Diffusion pipeline for text-to-image
@@ -140,7 +140,7 @@ running.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -202,7 +202,7 @@ select device from dropdown list for running inference using OpenVINO
 Prepare postprocessing for reconstruction audio from spectrogram image
 ----------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The riffusion model generates an audio spectrogram image, which can be
 used to reconstruct audio. However, the spectrogram images from the
@@ -366,7 +366,7 @@ from a spectrogram image using Griffin-Lim Algorithm.
 Run Inference pipeline
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The diagram below briefly describes the workflow of our pipeline
 
@@ -497,7 +497,7 @@ without the other. More explanation of how it works can be found in this
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -588,7 +588,7 @@ Interactive demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
