@@ -38,30 +38,30 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `Serving with OpenVINO Model
-   Server <#serving-with-openvino-model-server>`__
--  `Step 1: Prepare Docker <#step-1-prepare-docker>`__
+   Server <#Serving-with-OpenVINO-Model-Server>`__
+-  `Step 1: Prepare Docker <#Step-1:-Prepare-Docker>`__
 -  `Step 2: Preparing a Model
-   Repository <#step-2-preparing-a-model-repository>`__
+   Repository <#Step-2:-Preparing-a-Model-Repository>`__
 -  `Step 3: Start the Model Server
-   Container <#step-3-start-the-model-server-container>`__
+   Container <#Step-3:-Start-the-Model-Server-Container>`__
 -  `Step 4: Prepare the Example Client
-   Components <#step-4-prepare-the-example-client-components>`__
+   Components <#Step-4:-Prepare-the-Example-Client-Components>`__
 
-   -  `Prerequisites <#prerequisites>`__
-   -  `Imports <#imports>`__
-   -  `Request Model Status <#request-model-status>`__
-   -  `Request Model Metadata <#request-model-metadata>`__
-   -  `Load input image <#load-input-image>`__
+   -  `Prerequisites <#Prerequisites>`__
+   -  `Imports <#Imports>`__
+   -  `Request Model Status <#Request-Model-Status>`__
+   -  `Request Model Metadata <#Request-Model-Metadata>`__
+   -  `Load input image <#Load-input-image>`__
    -  `Request Prediction on a Numpy
-      Array <#request-prediction-on-a-numpy-array>`__
-   -  `Visualization <#visualization>`__
+      Array <#Request-Prediction-on-a-Numpy-Array>`__
+   -  `Visualization <#Visualization>`__
 
--  `References <#references>`__
+-  `References <#References>`__
 
 Serving with OpenVINO Model Server
 ----------------------------------
 
- OpenVINO Model Server (OVMS) is
+`back to top ⬆️ <#Table-of-contents:>`__ OpenVINO Model Server (OVMS) is
 a high-performance system for serving models. Implemented in C++ for
 scalability and optimized for deployment on Intel architectures, the
 model server uses the same architecture and API as TensorFlow Serving
@@ -79,7 +79,7 @@ To quickly start using OpenVINO™ Model Server, follow these steps:
 Step 1: Prepare Docker
 ----------------------
 
- Install `Docker
+`back to top ⬆️ <#Table-of-contents:>`__ Install `Docker
 Engine <https://docs.docker.com/engine/install/>`__, including its
 `post-installation <https://docs.docker.com/engine/install/linux-postinstall/>`__
 steps, on your development system. To verify installation, test it,
@@ -120,7 +120,7 @@ image and a message.
 Step 2: Preparing a Model Repository
 ------------------------------------
 
- The models need to be placed
+`back to top ⬆️ <#Table-of-contents:>`__ The models need to be placed
 and mounted in a particular directory structure and according to the
 following rules:
 
@@ -235,7 +235,7 @@ following rules:
 Step 3: Start the Model Server Container
 ----------------------------------------
 
- Pull and start the container:
+`back to top ⬆️ <#Table-of-contents:>`__ Pull and start the container:
 
 Searching for an available serving port in local.
 
@@ -705,7 +705,7 @@ available port on your system. For example:\ ``-p 9020:9000``
 Step 4: Prepare the Example Client Components
 ---------------------------------------------
 
- OpenVINO Model Server exposes
+`back to top ⬆️ <#Table-of-contents:>`__ OpenVINO Model Server exposes
 two sets of APIs: one compatible with ``TensorFlow Serving`` and another
 one, with ``KServe API``, for inference. Both APIs work on ``gRPC`` and
 ``REST``\ interfaces. Supporting two sets of APIs makes OpenVINO Model
@@ -716,7 +716,7 @@ TensorFlow Serving API client for object detection.
 Prerequisites
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install necessary packages.
 
@@ -733,7 +733,7 @@ Install necessary packages.
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -745,7 +745,7 @@ Imports
 Request Model Status
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -765,7 +765,7 @@ Request Model Status
 Request Model Metadata
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -781,7 +781,7 @@ Request Model Metadata
 Load input image
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -826,7 +826,7 @@ Load input image
 Request Prediction on a Numpy Array
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -853,7 +853,7 @@ Request Prediction on a Numpy Array
 Visualization
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -939,7 +939,7 @@ command:
 References
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 1. `OpenVINO™ Model Server
    documentation <https://docs.openvino.ai/2024/ovms_what_is_openvino_model_server.html>`__
