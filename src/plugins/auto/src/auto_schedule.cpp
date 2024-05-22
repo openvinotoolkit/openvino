@@ -306,7 +306,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
             device_config.insert(ov::intel_gpu::hint::host_task_priority(ov::hint::Priority::HIGH));
             int max_threads = 0;
             try {
-                max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
+                m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
                 auto proc_type_table = get_org_proc_type_table();
                 max_threads = proc_type_table[0][MAIN_CORE_PROC] != 0 ? proc_type_table[0][MAIN_CORE_PROC]
                                                                       : proc_type_table[0][EFFICIENT_CORE_PROC];
