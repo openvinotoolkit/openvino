@@ -35,6 +35,9 @@ JitConstants SDPAKernelRef::GetJitConstants(const sdpa_params& params) const {
     auto acc_dt = params.inputs[0].GetDType();
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
 
+    TransposedDimensionAccessHelperJit dims_q(params.inputs[0], params.input0_order);
+    jit.AddConstant(MakeJitConstant("HEAD_SIZE", dims_q.x()));
+
     return jit;
 }
 

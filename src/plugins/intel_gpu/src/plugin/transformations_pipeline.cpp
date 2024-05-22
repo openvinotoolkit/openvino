@@ -143,19 +143,6 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 
-template <typename T>
-T convert_to(const std::string &str) {
-    std::istringstream ss(str);
-    T res;
-    ss >> res;
-    return res;
-}
-
-template <>
-std::string convert_to(const std::string &str) {
-    return str;
-}
-
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -318,21 +305,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
-        // Disable SDPA decomposition once additional transformations are added:
-        // 1) Input/Output Transpose fusion
-        // 2) Indirect inputs support
-        // 3) GQA related optimization (Broadcast fusion)
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
+            if (!config.get_property(ov::intel_gpu::hint::enable_sdpa_optimization))
+                return false;
+
             auto sdpa = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(node);
             const auto& query_ps = sdpa->get_input_partial_shape(0);
             const auto& key_ps = sdpa->get_input_partial_shape(1);
             const auto& value_ps = sdpa->get_input_partial_shape(2);
-
-            if (const auto env_var = std::getenv("USE_SDPA")) {
-                bool use_sdpa = convert_to<bool>(env_var);
-                std::cout << "Use SDPA forced to " << (use_sdpa ? "TRUE" : "FALSE") << "\n";
-                return use_sdpa;
-            }
 
             // Known limitations:
             // - SDPA impl could be slower in non-LLM scenarios than decomposed version

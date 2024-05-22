@@ -97,7 +97,6 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
 
     TransposedDimensionAccessHelperJit dims_q(params.inputs[0], params.input0_order);
     jit.AddConstant(MakeJitConstant("TARGET_SEQ_LEN", dims_q.y()));
-    jit.AddConstant(MakeJitConstant("HEAD_SIZE", dims_q.x()));
     jit.AddConstant(MakeJitConstant("NUM_HEADS", dims_q.f()));
 
     TransposedDimensionAccessHelperJit dims_k(params.inputs[1], params.input1_order);

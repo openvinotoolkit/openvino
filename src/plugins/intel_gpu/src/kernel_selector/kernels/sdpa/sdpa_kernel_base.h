@@ -77,9 +77,6 @@ struct TransposedDimensionAccessHelperJit : DimensionAccessHelperJit, Transposed
     }
 };
 
-struct GQA_configuration {
-};
-
 struct sdpa_configuration {
     int64_t head_size = -1;
     int64_t heads_num = -1;
