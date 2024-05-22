@@ -101,6 +101,11 @@ On platforms that natively support half-precision calculations (``bfloat16`` or 
 of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
 Thus, no special steps are required to run a model with ``bf16`` or ``f16`` inference precision.
 
+.. important::
+
+   The ``bf16`` floating-point precision appears to have some limitations that impact the
+   inference accuracy in LLM models. For more details, refer to this :ref:`article <limited_inference_precision>`.
+
 Using the half-precision provides the following performance benefits:
 
 - ``bfloat16`` and ``float16`` data types enable Intel® Advanced Matrix Extension (AMX) on 4+ generation Intel® Xeon® Scalable Processors, resulting in significantly faster computations on the corresponding hardware compared to AVX512 or AVX2 instructions in many deep learning operation implementations.
