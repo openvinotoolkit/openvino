@@ -37,35 +37,37 @@ py::dtype get_dtype(const ov::element::Type& ov_type) {
     return ov_type_to_dtype().at(ov_type);
 }
 
-const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
-    static const std::map<int, ov::element::Type> dtype_to_ov_type_mapping = {
-        {23, ov::element::f16},  // float16
-        {11, ov::element::f32},  // float32
-        {12, ov::element::f64},  // float64
-        {1, ov::element::i8},    // int8
-        {3, ov::element::i16},   // int16
-#ifdef _WIN32
-        {7, ov::element::i32},  // int32
-        {9, ov::element::i64},  // int64
-#else
-        {5, ov::element::i32},  // int32
-        {7, ov::element::i64},  // int64
-#endif
-        {2, ov::element::u8},   // uint8
-        {4, ov::element::u16},  // uint16
-#ifdef _WIN32
-        {8, ov::element::u32},   // uint32
-        {10, ov::element::u64},  // uint64
-#else
-        {6, ov::element::u32},  // uint32
-        {8, ov::element::u64},  // uint64
-#endif
-        {0, ov::element::boolean},  // bool
-        {18, ov::element::string},  // bytes_
-        {19, ov::element::string},  // str_
-        {18, ov::element::string},  // bytes
-        {19, ov::element::string},  // str
+std::map<int, ov::element::Type> init_num_to_ov_type() {
+    static const std::map<std::string, ov::element::Type> str_to_type_mapping = {
+        {"float16", ov::element::f16},
+        {"float32", ov::element::f32},
+        {"float64", ov::element::f64},
+        {"int8", ov::element::i8},
+        {"int16", ov::element::i16},
+        {"int32", ov::element::i32},
+        {"int64", ov::element::i64},
+        {"uint8", ov::element::u8},
+        {"uint16", ov::element::u16},
+        {"uint32", ov::element::u32},
+        {"uint64", ov::element::u64},
+        {"bool", ov::element::boolean},
+        {"bytes_", ov::element::string},
+        {"str_", ov::element::string},
+        {"bytes", ov::element::string},
+        {"str", ov::element::string},
     };
+
+    std::map<int, ov::element::Type> int_to_type_mapping;
+
+    for (const auto& e : str_to_type_mapping) {
+        int_to_type_mapping[py::dtype(e.first).num()] = e.second;
+    }
+
+    return int_to_type_mapping;
+}
+
+const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
+    static const std::map<int, ov::element::Type> dtype_to_ov_type_mapping = init_num_to_ov_type();
     return dtype_to_ov_type_mapping;
 }
 
