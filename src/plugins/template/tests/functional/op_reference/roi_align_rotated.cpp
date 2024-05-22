@@ -102,7 +102,7 @@ private:
         const auto roisIdx = std::make_shared<op::v0::Constant>(params.roiBatchIdxs.type,
                                                                 params.roiBatchIdxs.shape,
                                                                 params.roiBatchIdxs.data.data());
-        const auto roi_align_rot = std::make_shared<op::v14::ROIAlignRotated>(featureMap,
+        const auto roi_align_rot = std::make_shared<op::v15::ROIAlignRotated>(featureMap,
                                                                               coords,
                                                                               roisIdx,
                                                                               params.pooledH,

@@ -1,14 +1,14 @@
-.. {#openvino_docs_ops_detection_ROIAlignRotated_14}
+.. {#openvino_docs_ops_detection_ROIAlignRotated_15}
 ROIAlignRotated
 ===============
 
 
 .. meta::
-  :description: Learn about ROIAlignRotated-14 - an object detection operation, 
+  :description: Learn about ROIAlignRotated-15 - an object detection operation,
                 which can be performed on three required input tensors.
 
 
-**Versioned name**: *ROIAlignRotated-14*
+**Versioned name**: *ROIAlignRotated-15*
 
 **Category**: *Object detection*
 
@@ -56,7 +56,7 @@ Each ROI box's center is shifted by [-0.5, -0.5] before pooling to achive better
 * *spatial_scale*
 
   * **Description**: *spatial_scale* is a multiplicative spatial scale factor to that is applied to the ROI box(height, weight and center vector) before pooling.
-   WARNING! 
+   WARNING!
    Spatial scale is also applied to the center point of the ROI box. It means that scaling does not only change the size of the ROI box, but also its position.
    For example, if the spatial scale is 2.0, ROI box center is [0.5, 0.5], box width is 1.0 and box height is 1.0, then after scaling the ROI box center will be [1.0, 1.0], box width will be 2.0 and box height will be 2.0.
   * **Range of values**: a positive floating-point number
@@ -67,7 +67,7 @@ Each ROI box's center is shifted by [-0.5, -0.5] before pooling to achive better
 
   * **Description**:  If True, the angle for each ROI represents a clockwise rotation, otherwise - counterclockwise rotation.
   * **Type**: ``bool``
-  * **Default value**: False  
+  * **Default value**: False
   * **Required**: *no*
 
 **Inputs**:

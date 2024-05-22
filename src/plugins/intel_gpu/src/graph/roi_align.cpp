@@ -50,7 +50,7 @@ std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& no
     output_shapes = shape_infer(&op, input_shapes);
 
     if (primitive->roi_mode == roi_align::ROIMode::rotated) {
-        PERFORM_SHAPE_INFERENCE(ov::op::v14::ROIAlignRotated);
+        PERFORM_SHAPE_INFERENCE(ov::op::v15::ROIAlignRotated);
     } else {
         PERFORM_SHAPE_INFERENCE(ov::op::v3::ROIAlign);
     }

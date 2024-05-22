@@ -56,7 +56,7 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto clockwise = static_cast<bool>(node.get_attribute_value<int64_t>("clockwise", 0));
 
-    return {std::make_shared<v14::ROIAlignRotated>(data,
+    return {std::make_shared<v15::ROIAlignRotated>(data,
                                                    rois,
                                                    rois_batch_idx,
                                                    static_cast<int>(pooled_h),

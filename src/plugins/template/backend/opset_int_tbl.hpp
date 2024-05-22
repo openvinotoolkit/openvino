@@ -162,7 +162,8 @@ _OPENVINO_OP_REG(Multinomial, ov::op::v13)
 _OPENVINO_OP_REG(Inverse, ov::op::v14)
 _OPENVINO_OP_REG(AvgPool, ov::op::v14)
 _OPENVINO_OP_REG(MaxPool, ov::op::v14)
-_OPENVINO_OP_REG(ROIAlignRotated, ov::op::v14)
+
+_OPENVINO_OP_REG(ROIAlignRotated, ov::op::v15)
 
 _OPENVINO_OP_REG(EmbeddingBagOffsets, op::v15)
 _OPENVINO_OP_REG(EmbeddingBagPacked, op::v15)
