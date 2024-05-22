@@ -64,6 +64,8 @@ protected:
                                       dnnl::memory::data_type& out_dt,
                                       dnnl::memory::dims& in0_dims,
                                       dnnl::memory::dims& in1_dims,
+                                      dnnl::memory::dims& in0_strides,
+                                      dnnl::memory::dims& in1_strides,
                                       dnnl::memory::dims& out_dims,
                                       dnnl::memory::format_tag& in0_fmt,
                                       dnnl::memory::format_tag& in1_fmt,
@@ -111,6 +113,22 @@ protected:
         in1_fmt = onednn::convert_gemm_data_format(in1_dims, in1_l.format);
         out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
 
+        if (in0_l.data_padding) {
+            dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_tensor(in0_l.get_buffer_size(), rank, batched_dims_can_be_removed);
+            if (prim->transpose_input0) {
+                std::swap(in0_padded_dims[in0_padded_dims.size() - 1], in0_padded_dims[in0_padded_dims.size() - 2]);
+            }
+            in0_strides = onednn::get_strides(in0_padded_dims);
+        }
+
+        if (in1_l.data_padding) {
+            dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_tensor(in1_l.get_buffer_size(), rank, batched_dims_can_be_removed);
+            if (prim->transpose_input1) {
+                std::swap(in1_padded_dims[in1_padded_dims.size() - 1], in1_padded_dims[in1_padded_dims.size() - 2]);
+            }
+            in1_strides = onednn::get_strides(in1_padded_dims);
+        }
+
         if (prim->transpose_input0) {
             in0_fmt = transpose_format(in0_fmt);
             std::swap(in0_dims[in0_dims.size() - 1], in0_dims[in0_dims.size() - 2]);
@@ -130,6 +148,19 @@ protected:
         }
     }
 
+    static dnnl::memory::desc get_input_memory_desc(const dnnl::memory::dims& dims,
+                                                    dnnl::memory::data_type dt,
+                                                    dnnl::memory::format_tag fmt,
+                                                    const dnnl::memory::dims& strides) {
+        dnnl::memory::desc res;
+        if (strides.empty()) {
+            res = dnnl::memory::desc(dims, dt, fmt);
+        } else {
+            res = dnnl::memory::desc(dims, dt, strides);
+        }
+        return res;
+    }
+
     static std::shared_ptr<dnnl::matmul::primitive_desc> get_gemm_primitive_descriptor(const kernel_impl_params& impl_params,
                                                                                        const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
         auto& engine = impl_params.prog->get_engine();
@@ -146,16 +177,19 @@ protected:
         dnnl::memory::dims out_dims;
         dnnl::memory::dims bias_dims;
 
+        dnnl::memory::dims in0_strides;
+        dnnl::memory::dims in1_strides;
+
         dnnl::memory::format_tag in0_fmt;
         dnnl::memory::format_tag in1_fmt;
         dnnl::memory::format_tag out_fmt;
         dnnl::memory::format_tag bias_fmt;
 
-        get_gemm_primitive_md(impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, out_dims, in0_fmt, in1_fmt, out_fmt,
-                              gemm_with_bias, bias_dt, bias_dims, bias_fmt);
+        get_gemm_primitive_md(impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, in0_strides, in1_strides,
+                              out_dims, in0_fmt, in1_fmt, out_fmt, gemm_with_bias, bias_dt, bias_dims, bias_fmt);
 
-        dnnl::memory::desc in0_md(in0_dims, in0_dt, in0_fmt);
-        dnnl::memory::desc in1_md(in1_dims, in1_dt, in1_fmt);
+        dnnl::memory::desc in0_md = get_input_memory_desc(in0_dims, in0_dt, in0_fmt, in0_strides);
+        dnnl::memory::desc in1_md = get_input_memory_desc(in1_dims, in1_dt, in1_fmt, in1_strides);
         dnnl::memory::desc out_md(out_dims, out_dt, out_fmt);
 
         if (gemm_with_bias) {
@@ -199,13 +233,16 @@ public:
         dnnl::memory::dims out_dims;
         dnnl::memory::dims bias_dims;
 
+        dnnl::memory::dims in0_strides;
+        dnnl::memory::dims in1_strides;
+
         dnnl::memory::format_tag in0_fmt;
         dnnl::memory::format_tag in1_fmt;
         dnnl::memory::format_tag out_fmt;
         dnnl::memory::format_tag bias_fmt;
 
-        get_gemm_primitive_md(*impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, out_dims, in0_fmt, in1_fmt, out_fmt,
-                              gemm_with_bias, bias_dt, bias_dims, bias_fmt);
+        get_gemm_primitive_md(*impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, in0_strides, in1_strides,
+                              out_dims, in0_fmt, in1_fmt, out_fmt, gemm_with_bias, bias_dt, bias_dims, bias_fmt);
 
         ob << make_data(&in0_dt, sizeof(dnnl::memory::data_type));
         ob << make_data(&in1_dt, sizeof(dnnl::memory::data_type));
@@ -214,6 +251,9 @@ public:
         ob << in0_dims;
         ob << in1_dims;
         ob << out_dims;
+
+        ob << in0_strides;
+        ob << in1_strides;
 
         ob << make_data(&in0_fmt, sizeof(dnnl::memory::format_tag));
         ob << make_data(&in1_fmt, sizeof(dnnl::memory::format_tag));
@@ -248,6 +288,9 @@ public:
         dnnl::memory::dims out_dims;
         dnnl::memory::dims bias_dims;
 
+        dnnl::memory::dims in0_strides;
+        dnnl::memory::dims in1_strides;
+
         dnnl::memory::format_tag in0_fmt = dnnl::memory::format_tag::undef;
         dnnl::memory::format_tag in1_fmt = dnnl::memory::format_tag::undef;
         dnnl::memory::format_tag out_fmt = dnnl::memory::format_tag::undef;
@@ -261,6 +304,9 @@ public:
         ib >> in1_dims;
         ib >> out_dims;
 
+        ib >> in0_strides;
+        ib >> in1_strides;
+
         ib >> make_data(&in0_fmt, sizeof(dnnl::memory::format_tag));
         ib >> make_data(&in1_fmt, sizeof(dnnl::memory::format_tag));
         ib >> make_data(&out_fmt, sizeof(dnnl::memory::format_tag));
@@ -271,8 +317,8 @@ public:
             ib >> make_data(&bias_fmt, sizeof(dnnl::memory::format_tag));
         }
 
-        dnnl::memory::desc in0_md(in0_dims, in0_dt, in0_fmt);
-        dnnl::memory::desc in1_md(in1_dims, in1_dt, in1_fmt);
+        dnnl::memory::desc in0_md = get_input_memory_desc(in0_dims, in0_dt, in0_fmt, in0_strides);
+        dnnl::memory::desc in1_md = get_input_memory_desc(in1_dims, in1_dt, in1_fmt, in1_strides);
         dnnl::memory::desc out_md(out_dims, out_dt, out_fmt);
 
         if (gemm_with_bias) {
