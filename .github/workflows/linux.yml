@@ -455,8 +455,6 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-32gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      #container: >-
-      #  ${{ format('{{"image": "{0}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64) }}
       sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
 
   ONNX_Models:
@@ -684,8 +682,6 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
-      #container: >-
-      #  ${{ format('{{"image": "{0}", "volumes": ["/mount:/mount"]}}', fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64) }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
