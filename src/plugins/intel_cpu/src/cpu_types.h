@@ -69,6 +69,8 @@ enum class Type {
     Interpolate,
     Reduce,
     Broadcast,
+    EmbeddingBagPacked,
+    EmbeddingBagOffsets,
     EmbeddingSegmentsSum,
     EmbeddingBagPackedSum,
     EmbeddingBagOffsetsSum,
