@@ -91,7 +91,6 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
 
-
     if (!(_initStructs->getDriverExtVersion() < ZE_GRAPH_EXT_VERSION_1_6)) {
         zeroUtils::throwOnFail(
             "pfnDeviceGetGraphProperties2",
