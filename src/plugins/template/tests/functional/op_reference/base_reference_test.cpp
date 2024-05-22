@@ -91,8 +91,13 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
     ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size())
         << "Incorrect byte size for blob with index " << blob_idx;
 
+    // compare() get fundamental element type with element_type_traits firstly and cast data to relative ov type with
+    // 'from' types listed below have a fundamental analogue as int8_t, but int8_t is converted only to i8 with from
+    std::vector<ov::element::Type> raw_data_comp_only =
+        {ov::element::u1, ov::element::u2, ov::element::u3, ov::element::u4, ov::element::u6, ov::element::i4};
     const auto& element_type = refBlob.get_element_type();
-    if (!legacy_compare) {
+    if (!legacy_compare &&
+        std::find(raw_data_comp_only.begin(), raw_data_comp_only.end(), element_type) == raw_data_comp_only.end()) {
         switch (element_type) {
         case ov::element::boolean:
         case ov::element::bf16:
@@ -107,9 +112,17 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
         case ov::element::u16:
         case ov::element::u32:
         case ov::element::u64:
+        case ov::element::f8e4m3:
+        case ov::element::f8e5m2:
             ov::test::utils::compare(refBlob, outBlob, abs_threshold, threshold);
-            return;
+            break;
+        case ov::element::string:
+            ov::test::utils::compare_str(refBlob, outBlob);
+            break;
+        default:
+            FAIL() << "Comparator for " << element_type << " element type isn't supported";
         }
+        return;
     }
 
     const auto actual_comparision_size = refBlob.get_size();
