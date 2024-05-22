@@ -27,8 +27,6 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/clamp.hpp"
 
-#include <fstream>
-
 using namespace std;
 using namespace ov;
 using namespace ov::op;
@@ -137,28 +135,17 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     auto gg_options = NodeVector{x, c, c, x, zeros, zeros};
     auto bb_options = NodeVector{zeros, zeros, x, c, c, x};
 
-    std::ofstream logFile("debug.log", std::ios_base::app);
-    logFile << "Shape of x: " << x->get_shape().to_string() << std::endl;
-    logFile << "Shape of c: " << c->get_shape().to_string() << std::endl;
-    logFile << "Shape of zero: " << zeros->get_shape().to_string() << std::endl;
-    logFile << "Shape of h: " << h_category->get_shape().to_string() << std::endl;
-
     auto rr_concat = make_shared<v0::Concat>(rr_options, -1); 
     auto gg_concat = make_shared<v0::Concat>(gg_options, -1);
     auto bb_concat = make_shared<v0::Concat>(bb_options, -1);
-
-    logFile << "Shape of rr_concat: " << rr_concat->get_shape().to_string() << std::endl;
     
     // Use a gather operation to select the correct channel values based on h_category
     int batch_dim = s->get_shape().size() - 1;
-    logFile << "batch_dim " << batch_dim << std::endl;
+
     auto axis = make_shared<v0::Constant>(element::i32, Shape{}, -1);
     auto rr = make_shared<v8::Gather>(rr_concat, h_category, axis, batch_dim);
     auto gg = make_shared<v8::Gather>(gg_concat, h_category, axis, batch_dim);
     auto bb = make_shared<v8::Gather>(bb_concat, h_category, axis, batch_dim);
-
-    logFile << "Shape of rr: " << rr->get_shape().to_string() << std::endl;
-    logFile.close();
 
     // Adding m to each component
     auto r = make_shared<v1::Add>(rr, m);
@@ -169,16 +156,11 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     return make_shared<v0::Concat>(NodeVector{r, g, b}, -1); 
 }
 
-
 OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AdjustSaturation"});
     auto images = node.get_input(0);
     auto scale = node.get_input(1);
     auto node_name = node.get_name();
-
-    std::ofstream logFile("debug.log", std::ios_base::app);
-    logFile << "START" << std::endl;
-    logFile << "Shape of images: " << images.get_shape().to_string() << std::endl;
 
     auto type = images.get_element_type();
 
@@ -193,15 +175,11 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
 
     auto new_images = hsv_to_rgb(hh, ss_adjust, vv, type);
 
-    logFile << "Shape of news: " << new_images->get_shape().to_string() << std::endl;
-    logFile.close();
-
     auto adjust_saturation = new_images->output(0);
 
     set_node_name(node_name, adjust_saturation.get_node_shared_ptr());
     return {adjust_saturation};
 }
-
 
 }  // namespace op
 }  // namespace tensorflow
