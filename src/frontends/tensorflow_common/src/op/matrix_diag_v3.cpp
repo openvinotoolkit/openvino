@@ -67,8 +67,7 @@ OutputVector translate_matrix_diag_v3_op(const NodeContext& node) {
     auto one_dim = make_shared<v0::Constant>(last_dim->get_element_type(), Shape{1}, std::vector<int64_t>{1});
     auto padding_shape = make_shared<v0::Concat>(OutputVector({one_dim, diag_shape, last_dim}), 0);
     auto padding =
-        make_shared<v3::Broadcast>(make_shared<v0::Constant>(diagonal_type, Shape{1}, std::vector<int64_t>{0}),
-                                   padding_shape);
+        make_shared<v3::Broadcast>(padding_value, padding_shape);
 
     // 4. concatenate to get input tensor with zero padding of a shape [1, I, J, ..., M, N, N + 1]
     auto zero_padded_diag = make_shared<v0::Concat>(OutputVector({unsqueeze_diag, padding}), -1);
