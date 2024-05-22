@@ -1,0 +1,4 @@
+facebook/opt-125m
+hf-tiny-model-private/tiny-random-CodeGenForCausalLM
+hf-tiny-model-private/tiny-random-GPT2LMHeadModel
+hf-tiny-model-private/tiny-random-OPTForCausalLM

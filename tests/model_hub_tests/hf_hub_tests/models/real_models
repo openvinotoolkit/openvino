@@ -1,0 +1,87 @@
+# RuntimeError: Check 'unregistered_parameters.str().empty()': microsoft/Phi-3-mini-128k-instruct
+# RuntimeError: Check 'unregistered_parameters.str().empty()': microsoft/Phi-3-mini-4k-instruct
+# passed microsoft/phi-2
+# passed microsoft/phi-1_5
+# passed EleutherAI/gpt-neo-125m
+# passed EleutherAI/gpt-neo-125m
+# passed EleutherAI/gpt-neo-1.3B
+# passed EleutherAI/gpt-j-6b
+EleutherAI/pythia-160m
+# EleutherAI/gpt-neox-20b
+# optimum-intel: Trying to export a aquila model, that is a custom or unsupported architecture: BAAI/AquilaChat2-7B
+# optimum-intel: Trying to export a aquila model, that is a custom or unsupported architecture: BAAI/Aquila-7B
+# optimum-intel: Trying to export a aquila model, that is a custom or unsupported architecture: BAAI/AquilaChat-7B
+# passed: baichuan-inc/Baichuan2-7B-Chat
+# Exception from src/core/src/shape_util.cpp:65:: baichuan-inc/Baichuan-7B
+bigscience/bloomz-1b7
+bigscience/bloomz-560m
+# passed: THUDM/chatglm2-6b
+# passed: THUDM/chatglm3-6b
+databricks/dolly-v2-3b
+# Exception from src/core/src/shape_util.cpp:65: tiiuae/falcon-7b
+tiiuae/falcon-rw-7b
+# passed google/gemma-2b
+# passed google/gemma-7b
+# passed openai-community/gpt2
+# passed openai-community/gpt2-xl
+# passed gpt2
+# passed gpt2-xl
+# RuntimeError: Check 'unregistered_parameters.str().empty()': bigcode/starcoderbase-3b
+bigcode/starcoder2-3b
+# RuntimeError: Check 'unregistered_parameters.str().empty()': bigcode/gpt_bigcode-santacoder
+# passed: nomic-ai/gpt4all-j
+# RuntimeError: Check 'unregistered_parameters.str().empty()': nomic-ai/gpt4all-mpt
+# optimum-intel: Trying to export a RefinedWebModel model, that is a custom or unsupported architecture: nomic-ai/gpt4all-falcon
+# passed: stabilityai/stablelm-3b-4e1t
+# passed: stabilityai/stablelm-2-zephyr-1_6b
+# optimum-intel: Trying to export a internlm model, that is a custom or unsupported architecture: internlm/internlm-chat-7b
+# optimum-intel: PermissionError: [Errno 13] Permission denied: internlm/internlm2-7b
+# core42/jais-13b
+# core42/jais-13b-chat
+# passed: meta-llama/Llama-2-7b-hf
+# passed: meta-llama/Meta-Llama-3-8B-Instruct
+# passed: meta-llama/CodeLlama-7b-hf
+# passed: lmsys/vicuna-7b-v1.3
+# young-geng/koala
+# passed: openlm-research/open_llama_3b
+# passed: openlm-research/open_llama_3b_v2
+openbmb/MiniCPM-2B-sft-bf16
+openbmb/MiniCPM-2B-dpo-bf16
+# passed: mistralai/Mistral-7B-v0.1
+# passed: mistralai/Mistral-7B-Instruct-v0.1
+# mistralai/Mixtral-8x7B-v0.1
+# mistralai/Mixtral-8x7B-Instruct-v0.1
+# optimum-intel: Trying to export a mosaic-gpt model, that is a custom or unsupported architecture: mosaicml/mpt-1b-redpajama-200b
+# RuntimeError: Check 'unregistered_parameters.str().empty()': mosaicml/mpt-7b
+# mosaicml/mpt-30b
+# passed: allenai/OLMo-1B-hf
+# passed: allenai/OLMo-7B-hf
+# OrionStarAI/Orion-14B-Base
+# OrionStarAI/Orion-14B-Chat
+Qwen/Qwen-7B
+Qwen/Qwen-7B-Chat
+Qwen/Qwen1.5-0.5B
+Qwen/Qwen1.5-7B-Chat
+# Qwen/Qwen1.5-MoE-A2.7B
+# Qwen/Qwen1.5-MoE-A2.7B-Chat
+# optimum-intel: Trying to export a xverse model, that is a custom or unsupported architecture: xverse/XVERSE-7B-Chat
+# xverse/XVERSE-MoE-A4.2B
+# passed: 01-ai/Yi-6B
+# passed: Salesforce/codegen-350M-multi
+# passed: Salesforce/codegen-350M-nl
+# passed, but with export=False: OpenVINO/codegen25-7b-multi-fp16-ov
+# optimum-intel: AttributeError: 'NoneType' object has no attribute 'device': Salesforce/codegen2-1b
+# optimum-intel: TypeError: Object of type method is not JSON serializable: Salesforce/xgen-7b-8k-base
+rinna/bilingual-gpt-neox-4b
+# RuntimeError: Check 'unregistered_parameters.str().empty()': facebook/opt-350m
+# RuntimeError: Check 'rt_info.find("eos_token_id") != rt_info.end(): facebook/incoder-1B
+# optimum-intel: IndexError: tuple index out of range: facebook/blenderbot-3B
+google/pegasus-big_patent
+google/pegasus-large
+# CPU: head size must be multiple of 16, current: 100: pankajmathur/orca_mini_3b
+# passed: togethercomputer/RedPajama-INCITE-Chat-3B-v1
+# Looks like the models below are invalid:
+# optimum-intel: DeciCoderAttention.forward() got an unexpected keyword argument 'cache_position': Deci/DeciCoder-1b
+# optimum-intel: The generation config instance is invalid -- `.validate()` throws warnings and/or exceptions: openchat/openchat_3.5
+# optimum-intel: The generation config instance is invalid -- `.validate(): lmsys/vicuna-7b-v1.5
+# optimum-intel: The generation config instance is invalid -- `.validate(): lmsys/longchat-7b-v1.5-32k
