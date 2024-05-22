@@ -65,12 +65,14 @@ def col2im(
 
     :return:   The new node performing Col2Im operation.
     """
-    for param in [strides, dilations]:
-        if param is None:
-            param = [1, 1]
-    for param in [pads_begin, pads_end]:
-        if param is None:
-            param = [0, 0]
+    if strides is None:
+        strides = [1, 1]
+    if dilations is None:
+        dilations = [1, 1]
+    if pads_begin is None:
+        pads_begin = [0, 0]
+    if pads_end is None:
+        pads_end = [0, 0]
     return _get_node_factory_opset15().create(
         "Col2Im",
         as_nodes(data, output_size, kernel_size, name=name),
