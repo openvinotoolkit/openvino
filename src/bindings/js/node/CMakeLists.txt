@@ -18,6 +18,7 @@ if(WIN32)
 
     set(CMAKE_JS_NODELIB_DEF ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node-lib.def)
     set(CMAKE_JS_NODELIB_TARGET ${CMAKE_JS_LIB})
+    set(DELAYIMP_LIB delayimp.lib)
 endif()
 
 cmake_minimum_required(VERSION 3.14)
@@ -25,7 +26,7 @@ cmake_minimum_required(VERSION 3.14)
 project(ov_node_addon)
 
 set(CMAKE_CXX_STANDARD 17)
-add_definitions(-DNAPI_VERSION=6)
+add_definitions(-DNAPI_VERSION=8)
 
 include(FetchContent)
 
@@ -76,11 +77,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${CMAKE_JS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
 
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
-  # Generate node.lib
-  execute_process(COMMAND ${CMAKE_AR} /def:${CMAKE_JS_NODELIB_DEF} /out:${CMAKE_JS_NODELIB_TARGET} ${CMAKE_STATIC_LINKER_FLAGS})
+    # Generate node.lib
+    execute_process(COMMAND ${CMAKE_AR} /def:${CMAKE_JS_NODELIB_DEF} /out:${CMAKE_JS_NODELIB_TARGET} ${CMAKE_STATIC_LINKER_FLAGS})
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
