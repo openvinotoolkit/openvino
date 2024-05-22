@@ -599,10 +599,11 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
     }
 }
 
-// N and K must be multiple of 16
+// N must be multiple of 16
 template<typename TDST, typename TSRC>
-void transpose_16Nx16K(TDST* dst, TSRC* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
-    for (size_t k = 0; k < K; k += 16) {
+void transpose_16NxK(TDST* dst, TSRC* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+    size_t k = 0;
+    for (; k + 16 <= K; k += 16) {
         for (size_t n = 0; n < N; n += 16) {
             transpose_16x16_kernel(dst + n, src + n * src_stride, dst_stride, src_stride);
         }
@@ -610,19 +611,24 @@ void transpose_16Nx16K(TDST* dst, TSRC* src, TDST* tmp, size_t N, size_t K, size
         dst += 16 * dst_stride;
         src += 16;
     }
+    if (k < K) {
+        for (size_t n = 0; n < N; n += 16) {
+            transpose_16xK_kernel(dst + n, src + n * src_stride, K - k, dst_stride, src_stride);
+        }
+    }
 }
 
 #if defined(HAVE_AVX512F)
-static void transpose_16Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+static void transpose_16NxK(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // will treat as uint32_t transpose
     auto s = reinterpret_cast<uint32_t*>(src);
     auto d = reinterpret_cast<uint32_t*>(dst);
-    transpose_16Nx16K(d, s, reinterpret_cast<uint32_t*>(0), N, K >> 1, dst_stride, src_stride >> 1);
+    transpose_16NxK(d, s, reinterpret_cast<uint32_t*>(0), N, K >> 1, dst_stride, src_stride >> 1);
 }
 #endif
 
 template<typename TDST>
-void transpose_16Nx16K(TDST* dst, uint8_t* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+void transpose_16NxK(TDST* dst, uint8_t* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -634,7 +640,7 @@ void transpose_16Nx16K(TDST* dst, uint8_t* src, TDST* tmp, size_t N, size_t K, s
         s += src_stride + 2 * sizeof(float);
         t += src_stride;
     }
-    transpose_16Nx16K(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
+    transpose_16NxK(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
 }
 
 // dequant f16/u8 to float
@@ -664,55 +670,55 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K) {
 
 #if defined(HAVE_AVX512F)
 // pack bf16/u8 to bf16
-static void pack_32x32_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t stride) {
+static void pack_32x32_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     for (size_t i = 0; i < 16; i++) {
         auto a = _mm512_loadu_si512(src);               // [a1  a2  a3 a4 | a5  a6  a7 a8]   total 512-bits in 8 64bits unit
-        auto b = _mm512_loadu_si512(src + stride);      // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
+        auto b = _mm512_loadu_si512(src + src_stride);  // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
         a = _mm512_permutexvar_epi64(midx, a);          // [a1 a5 | a2 a6 | a3 a7 | a4 a8]
         b = _mm512_permutexvar_epi64(midx, b);          // [b1 b5 | b2 b6 | b3 b7 | b4 b8]
         auto B0 = _mm512_unpacklo_epi16(a, b);          // [ a1&b1  a2&b2   a3&b3   a4&b4] for each 128-bits lane, interleave word in low 64 bits
         auto B1 = _mm512_unpackhi_epi16(a, b);          // [ a5&b5  a6&b6   a7&b7   a8&b8] for each 128-bits lane, interleave word in high 64 bits
         _mm512_storeu_si512(dst, B0);
         _mm512_storeu_si512(dst + 32, B1);
-        src += 2 * stride;
-        dst += 2 * stride;
+        src += 2 * src_stride;
+        dst += 2 * dst_stride;
     }
 }
 
-static void pack_32x16_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t stride) {
+static void pack_32x16_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     for (size_t i = 0; i < 16; i++) {
         auto x = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src));               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
-        auto y = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src + stride));      // [b1  b2  b3 b4]   total 256-bits
+        auto y = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src + src_stride));  // [b1  b2  b3 b4]   total 256-bits
         auto a = _mm512_castsi256_si512(x);
         auto b = _mm512_castsi256_si512(y);
         a = _mm512_permutexvar_epi64(midx, a);                                      // [a1 x | a2 x | a3 x | a4 x]
         b = _mm512_permutexvar_epi64(midx, b);                                      // [b1 x | b2 x | b3 x | b4 x]
         auto B0 = _mm512_unpacklo_epi16(a, b);
         _mm512_storeu_si512(dst, B0);
-        src += 2 * stride;
-        dst += 2 * stride;
+        src += 2 * src_stride;
+        dst += 2 * dst_stride;
     }
 }
 
-static void pack_32Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     for (size_t n = 0; n < N; n += 32) {
         size_t k = 0;
         for (; k + 32 <= K; k += 32) {
-            pack_32x32_kernel(dst + k * 2, src + k, stride);
+            pack_32x32_kernel(dst + k * 2, src + k, dst_stride, src_stride);
         }
         if (k < K)
-            pack_32x16_kernel(dst + k * 2, src + k, stride);
+            pack_32x16_kernel(dst + k * 2, src + k, dst_stride, src_stride);
 
-        dst += 32 * stride;
-        src += 32 * stride;
+        dst += 32 * dst_stride;
+        src += 32 * src_stride;
     }
 }
 
-static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -721,15 +727,15 @@ static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, siz
     for (size_t n = 0; n < N; n ++) {
         auto f = reinterpret_cast<float*>(s);
         attn_dequant_u8_kernel(s + 2 * sizeof(float), t, K, f[0], f[1]);
-        s += stride + 2 * sizeof(float);
-        t += stride;
+        s += src_stride + 2 * sizeof(float);
+        t += src_stride;
     }
-    pack_32Nx16K(dst, tmp, reinterpret_cast<ov::bfloat16*>(0), N, K, stride);
+    pack_32Nx16K(dst, tmp, reinterpret_cast<ov::bfloat16*>(0), N, K, dst_stride, src_stride);
 }
 #endif
 
 template<typename T>
-static void pack_32Nx16K(float* dst, T* src, float* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32Nx16K(float* dst, T* src, float* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // never called
     OPENVINO_THROW("pack_32Nx16K: should not be called.");
 }
@@ -858,7 +864,7 @@ struct MHAHelper {
 
     void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
         _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * _S});
-        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * _S});
+        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * rnd_up(_S, _block_size)});
     }
 
     // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
@@ -1307,7 +1313,7 @@ struct MHA {
             auto ithr = parallel_get_thread_num();
             auto* k_ptr = k_cache.ptr<KVCACHE_TYPE>(block_number, hk);
             auto* v_ptr = v_cache.ptr<KVCACHE_TYPE>(block_number, hk);
-            transpose_16Nx16K(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+            transpose_16NxK(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                 k_ptr,
                 _helper._output.template ptr<DATA_TYPE>(ithr),
                 _helper._block_size,
@@ -1318,6 +1324,7 @@ struct MHA {
                     _helper._output.template ptr<DATA_TYPE>(ithr),
                     _helper._block_size,
                     _helper._S,
+                    rnd_up(_helper._S, _helper._block_size),
                     _helper._S);
             } else {
                 // need to decompress
