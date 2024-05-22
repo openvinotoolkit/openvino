@@ -208,12 +208,12 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         const auto body_param_indexes_to_remove = find_body_param_indexes_to_remove(body_params, body_condition_output);
 
         const auto subgraph_input_values = subgraph->input_values();
-        const auto& trip_count = subgraph_input_values[0];
-        const auto& exec_cond = subgraph_input_values[1];
 
         std::shared_ptr<op::util::SubGraphOp> new_subgraph;
         std::shared_ptr<ov::op::v5::Loop> new_loop;
         if (loop) {
+            const auto& trip_count = subgraph_input_values[0];
+            const auto& exec_cond = subgraph_input_values[1];
             new_subgraph = make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
             new_loop = as_type_ptr<ov::op::v5::Loop>(new_subgraph);
         } else {
