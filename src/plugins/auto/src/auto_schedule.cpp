@@ -307,17 +307,16 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
             int max_threads = 0;
             try {
                 max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
+                auto proc_type_table = get_org_proc_type_table();
+                max_threads = proc_type_table[0][MAIN_CORE_PROC] != 0 ? proc_type_table[0][MAIN_CORE_PROC]
+                                                                      : proc_type_table[0][EFFICIENT_CORE_PROC];
+                if (device_config.insert(ov::compilation_num_threads(max_threads)).second)
+                    LOG_DEBUG_TAG("gpu streams number for compiling: %d", max_threads);
+                else
+                    LOG_DEBUG_TAG("user defined compiling threads: %d",
+                                  device_config[ov::compilation_num_threads.name()].as<int32_t>());
             } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
-            }
-            if (max_threads == static_cast<int>(std::thread::hardware_concurrency())) {
-                int thread_num = max_threads / 2;
-                m_compile_context[ACTUALDEVICE].m_device_info.config.insert(ov::compilation_num_threads(thread_num));
-                LOG_DEBUG_TAG("gpu streams number for compiling: %d", thread_num);
-            } else {
-                // user set the compiling threads num
-                // use the user's val anyway
-                LOG_DEBUG_TAG("user defined compiling threads: %d", max_threads);
             }
         }
     }
