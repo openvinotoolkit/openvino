@@ -102,7 +102,7 @@ Higher accuracy drop may occur when inferring **dolly-v2-12b**, **dolly-v2-3b**,
 precision representation.
 
 To solve the issue, you might use an INT8 model and force the FP32 inference precision.
-The accuracy of an INT8 model with FP32 is nearly the same as of an FP16 model with ``bf16``.
+The accuracy of an INT8 model with FP32 is nearly the same as of an FP16 model with ``f32``.
 Additionally, selective FP32 execution of ops on CPU plugin together with the NNCF ``bf16``
 calibration could potentially mitigate the accuracy loss.
 
