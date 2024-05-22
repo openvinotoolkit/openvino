@@ -12,6 +12,7 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     , m_npuw_model(compiled_model)
     , m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
     m_subrequests.resize(m_num_submodels, {});
+    m_subrequest_devices.resize(m_num_submodels, {});
     m_completion_cbs.resize(m_num_submodels, {});
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
