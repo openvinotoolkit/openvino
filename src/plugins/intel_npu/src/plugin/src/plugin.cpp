@@ -577,6 +577,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), config);
     }
 
+    // The FROM_NPUW check passed - so (due to some high coupling between compiler
+    // and plugin options) remove it for now.
+    // FIXME{{{: This is ugly and must be reconsidered!!!
+    auto props_no_npuw = properties;
+    props_no_npuw.erase(FROM_NPUW::key().data());
+    localConfig = merge_configs(_globalConfig, any_copy(props_no_npuw));
+    // FIXME}}}
+
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
