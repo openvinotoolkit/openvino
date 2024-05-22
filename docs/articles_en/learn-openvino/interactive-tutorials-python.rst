@@ -48,10 +48,10 @@ Additional Resources
 * `Google Colab <https://colab.research.google.com/>`__
 
 
-.. |binder logo| image:: ../_static/images/launch_in_binder.svg
+.. |binder logo| image:: ../assets/images/launch_in_binder.svg
    :class: notebook-badge-p
    :alt: Binder button
-.. |colab logo| image:: ../_static/images/open_in_colab.svg
+.. |colab logo| image:: ../assets/images/open_in_colab.svg
    :class: notebook-badge-p
    :alt: Google Colab button
 
