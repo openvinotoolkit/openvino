@@ -158,19 +158,19 @@ ExecutorPtr FullyConnected::createExecutor() {
     }
     if (tp_mode == 3) {
         auto srcMemoryBuffer = getSrcMemoryAtPort(DATA_ID);
-        auto select_src = split_h(srcMemoryBuffer, 0, w_rank, w_size);
+        auto select_src = split_h(srcMemoryBuffer, 0, w_rank, w_size, false);
         memory[ARG_SRC] = select_src;
 
-        if (attrs.withBias && w_rank == 0) {
-            auto bias = getSrcMemoryAtPort(BIAS_ID);
-            auto select_bias = split_v(bias, 0, w_rank, w_size);
-            memory[ARG_BIAS] = select_bias;
-        } else {
-            memory[ARG_BIAS] = MemoryDescUtils::makeEmptyMemory(context);
-        }
+        // if (attrs.withBias) {
+        //     auto bias = getSrcMemoryAtPort(BIAS_ID);
+        //     auto select_bias = split_v(bias, 0, w_rank, w_size);
+        //     memory[ARG_BIAS] = select_bias;
+        // } else {
+        //     memory[ARG_BIAS] = MemoryDescUtils::makeEmptyMemory(context);
+        // }
 
         auto dstMemoryBuffer = getDstMemoryAtPort(0);
-        auto select_dst = split_h(dstMemoryBuffer, 0, w_rank, w_size);
+        auto select_dst = split_h(dstMemoryBuffer, 0, w_rank, w_size, false);
         memory[ARG_DST] = select_dst;
     }
     // std::cout << "[dbg] w_rank: " << w_rank
@@ -525,6 +525,10 @@ MemoryPtr FullyConnected::split_h(const MemoryPtr src, int dim, int w_rank, int 
     new_dims[dim] = dims[dim] / w_size;
     // const int stride = dims[dim] / w_size;
     auto new_desc = desc->cloneWithNewDims(new_dims, true);
+    if (!need_fill) {
+        MemoryPtr ptr = std::make_shared<Memory>(context->getEngine(), new_desc, nullptr);
+        return ptr;
+    }
     auto srcPtr = static_cast<uint8_t*>(src->getData());
     const size_t stride = src->getSize() / w_size;
 
@@ -614,7 +618,7 @@ void FullyConnected::createPrimitive() {
         memory[ARG_WEI] = cached_splited_weight;
 
         // bias
-        if (attrs.withBias && w_rank == 0) {
+        if (attrs.withBias) {
             auto bias = getSrcMemoryAtPort(BIAS_ID);
             auto select_bias = split_h(bias, 0, w_rank, w_size);
             cached_splited_bias = select_bias;
@@ -656,7 +660,16 @@ void FullyConnected::createPrimitive() {
         // no change for create primitive.
         memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
         memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
-        memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
+        if (attrs.withBias) {
+            auto bias = getSrcMemoryAtPort(BIAS_ID);
+            auto select_bias = split_v(bias, 0, w_rank, w_size);
+            cached_splited_bias = select_bias;
+        } else {
+            cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
+        }
+
+        // memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
+        memory[ARG_BIAS] = cached_splited_bias;
         memory[ARG_DST] = getDstMemoryAtPort(0);
     } else {
         memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
