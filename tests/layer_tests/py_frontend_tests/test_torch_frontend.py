@@ -720,7 +720,7 @@ def test_patched_16bit_model_converts():
     res_fp16 = cm_fp16([x.numpy() for x in example])
     np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
-    
+
     model_bf16 = copy.deepcopy(model_ref).bfloat16()
     patch_model.__make_16bit_traceable(model_bf16)
     # the approach with patching only works for node with no grad
@@ -731,3 +731,18 @@ def test_patched_16bit_model_converts():
     res_bf16 = cm_bf16([x.numpy() for x in example])
     np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
+
+
+class InlinedInputsModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self):
+        return torch.arange(2048)
+
+
+def test_inlined_inputs():
+    model = InlinedInputsModel()
+    model.eval()
+    model = torch.compile(model, backend="openvino", options={"testing": 1})
+    model()
