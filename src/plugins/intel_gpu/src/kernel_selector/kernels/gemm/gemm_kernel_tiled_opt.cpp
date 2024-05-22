@@ -135,10 +135,10 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
     jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
     if (params.has_dynamic_tensors()) {
-        DimensionAccessHelper dims0(params.inputs[0]);
-        DimensionAccessHelper dims1(params.inputs[1]);
-        DimensionAccessHelper dims0_padded(params.inputs[0], true);
-        DimensionAccessHelper dims1_padded(params.inputs[1], true);
+        DimensionAccessHelperJit dims0(params.inputs[0]);
+        DimensionAccessHelperJit dims1(params.inputs[1]);
+        DimensionAccessHelperJit dims0_padded(params.inputs[0], true);
+        DimensionAccessHelperJit dims1_padded(params.inputs[1], true);
         // Note: Actually currently this kernel is not being selected if it is shape agnostic impl && transposed inputs
         // Because we cannot get the original rank
         auto input0_dims = ConvTo8dims(params.input0_order);
