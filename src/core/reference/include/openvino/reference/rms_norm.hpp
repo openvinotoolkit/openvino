@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include "openvino/reference/add.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/reference/divide.hpp"
 #include "openvino/reference/multiply.hpp"
 #include "openvino/reference/power.hpp"
@@ -72,5 +73,33 @@ void rms_norm(const T* in,
     rms_norm(in, axes, out, in_shape, eps);
     multiply(out, scale, out, in_shape, scale_shape, op::AutoBroadcastType::NUMPY);
 }
+
+/**
+ * @brief Reference implementation of RMS operator with output type conversion
+ *
+ *  Math Formula: Convert((x / Sqrt(ReduceMean(x^2, axes) + eps)) * scale), T_OUT)
+ *
+ * @param in           Input pointer to data
+ * @param axes         Axes for reduce mean calculation
+ * @param out          Output pointer to results
+ * @param in_shape     Shape of the input Tensor
+ * @param eps          Epsilon for not dividing by zero while normalizing the value
+ * @param scale_shape  Shape of the scale Tensor
+ * @param scale        Input pointer to scale
+ *
+ */
+template <class T_IN, class T_OUT>
+void rms_norm_mul_convert_out(const T_IN* in,
+                              const AxisSet& axes,
+                              T_OUT* out,
+                              const Shape& in_shape,
+                              double eps,
+                              const Shape& scale_shape,
+                              const T_IN* scale) {
+    std::vector<T_IN> tmp_out(shape_size(in_shape));
+    rms_norm(in, axes, tmp_out.data(), in_shape, eps, scale_shape, scale);
+    convert(tmp_out.data(), out, tmp_out.size());
+}
+
 }  // namespace reference
 }  // namespace ov
