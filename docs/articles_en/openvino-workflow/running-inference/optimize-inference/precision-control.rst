@@ -90,21 +90,27 @@ where the current device does not have the required hardware capabilities).
    for ``inference_precision`` attribute, because quantization cannot be done in Runtime.
 
 
+.. _limited_inference_precision:
+
 Limitation of the ``bf16`` inference precision
 ++++++++++++++++++++++++++++++++++++++++++++++
 
 It is important to mention that inferring FP16 and FP32 LLM models with the ``bf16`` runtime
 precision may result in higher accuracy loss than the pre-determined threshold of 0.5%.
-Higher accuracy drop may occur when inferring original Pytorch models with ``bf16``, and is
-caused by a limited precision representation.
+Higher accuracy drop may occur when inferring **dolly-v2-12b**, **dolly-v2-3b**, and
+**gpt-neox-20b** original Pytorch models with ``bf16``, and is caused by a limited
+precision representation.
 
 To solve the issue, you might use an INT8 model and force the FP32 inference precision.
 The accuracy of an INT8 model with FP32 is nearly the same as of an FP16 model with ``bf16``.
 Additionally, selective FP32 execution of ops on CPU plugin together with the NNCF ``bf16``
 calibration could potentially mitigate the accuracy loss.
 
-However, the solutions mentioned above would, unfortunately, also result in significant performance drop during a large batch size inference task on machines with Intel AMX-BF16 SPR. In such cases, the fused multiply-add operation (FMA) is used instead of AMX.
-Also, in a compute-bound case, such as the LLM batch inference/serving, these work-arounds would drastically reduce the throughput by more than 60%. 
+However, the solutions mentioned above would, unfortunately, also result in significant
+performance drop during a large batch size inference task on machines with Intel AMX-BF16 SPR.
+In such cases, the fused multiply-add operation (FMA) is used instead of AMX. Also,
+in a compute-bound case, such as the LLM batch inference/serving, these workarounds
+would drastically reduce the throughput by more than 60%.
 
 
 

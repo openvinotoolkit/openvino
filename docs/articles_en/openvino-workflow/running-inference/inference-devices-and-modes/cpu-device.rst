@@ -104,7 +104,7 @@ Thus, no special steps are required to run a model with ``bf16`` or ``f16`` infe
 .. important::
 
    The ``bf16`` floating-point precision appears to have some limitations that impact the
-   inference accuracy in LLM models. For more details, refer to this :ref:`article <limitation-of-the-bf16-inference-precision>`.
+   inference accuracy in LLM models. For more details, refer to this :ref:`article <limited_inference_precision>`.
 
 Using the half-precision provides the following performance benefits:
 
