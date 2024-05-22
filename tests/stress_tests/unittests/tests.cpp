@@ -80,6 +80,7 @@ TEST_P(UnitTestSuite, recreate_and_infer_in_thread) {
     runTest(test_recreate_and_infer_in_thread, GetParam());
 }
 
+
 // tests_pipelines/tests_pipelines_full_pipeline.cpp
 
 INSTANTIATE_TEST_SUITE_P(StressUnitTests, UnitTestSuiteNoModel,
