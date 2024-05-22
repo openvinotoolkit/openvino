@@ -71,6 +71,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     // Determine which component is the max (V) to compute Hue (H)
     auto r_eq_v = make_shared<v1::Equal>(r, vv);
     auto g_eq_v = make_shared<v1::Equal>(g, vv);
+    // auto b_eq_v = make_shared<v1::Equal>(b, vv);
 
     // r == vv: hh = norm * (g - b)
     auto hue_case_r = make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(g, b));
@@ -78,21 +79,29 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     // g == vv: hh = norm * (b - r) + 2.0 / 6.0
     auto hue_case_g = make_shared<v1::Add>(
         make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)),
-        make_shared<v0::Constant>(type, norm->get_shape(), vector<float>{2.0f / 6.0f})
+        make_shared<v0::Constant>(element::f32, Shape{}, std::vector<float>{2.0f / 6.0f})
     );
 
     // b == vv: hh = norm * (r - g) + 4.0 / 6.0
     auto hue_case_b = make_shared<v1::Add>(
         make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)),
-        make_shared<v0::Constant>(type, norm->get_shape(), vector<float>{4.0f / 6.0f})
+        make_shared<v0::Constant>(element::f32, Shape{}, std::vector<float>{4.0f / 6.0f})
     );
 
     // Select hue based on the maximum component
-    auto hue_temp = make_shared<v1::Select>(r_eq_v, hue_case_r, hue_case_g);
-    auto hh = make_shared<v1::Select>(g_eq_v, hue_case_g, hue_case_b);
+    // Check if `r` is the max, otherwise check if `g` is the max, if not use `b`'s hue
+    auto hh = make_shared<v1::Select>(
+        r_eq_v,
+        hue_case_r,  // Use hue_case_r if r is max
+        make_shared<v1::Select>(
+            g_eq_v,
+            hue_case_g,  // Use hue_case_g if g is max
+            hue_case_b   // Use hue_case_b otherwise (b is max)
+        )
+    );
 
-    auto zero = make_shared<v0::Constant>(element::f32, Shape{}, 0.0f);
-    auto one = make_shared<v0::Constant>(element::f32, Shape{}, 1.0f);
+    auto zero = make_shared<v0::Constant>(type, Shape{}, 0.0f);
+    auto one = make_shared<v0::Constant>(type, Shape{}, 1.0f);
 
     // hh < 0.0: hh = hh + 1
     auto hh_normalized = make_shared<v1::Select>(make_shared<v1::Less>(hh, zero), make_shared<v1::Add>(hh, one), hh);
