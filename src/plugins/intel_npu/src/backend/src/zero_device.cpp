@@ -99,7 +99,6 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     }
 
     log.debug("ZeroDevice::ZeroDevice - init completed");
-
 }
 
 std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
