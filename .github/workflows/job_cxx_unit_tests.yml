@@ -162,53 +162,61 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Common test utils tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
-        if: fromJSON(inputs.affected-components).CPU.test
+        # if: fromJSON(inputs.affected-components).CPU.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
-        if: fromJSON(inputs.affected-components).CPU.test
+        # if: fromJSON(inputs.affected-components).CPU.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
       - name: ov_subgraphs_dumper_tests tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_subgraphs_dumper_tests.xml
 
       - name: Template OpImpl tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
-        if: fromJSON(inputs.affected-components).AUTO.test
+        # if: fromJSON(inputs.affected-components).AUTO.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
-        if: fromJSON(inputs.affected-components).AUTO.test
+        # if: fromJSON(inputs.affected-components).AUTO.test
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
-        if: fromJSON(inputs.affected-components).TEMPLATE.test
+        # if: fromJSON(inputs.affected-components).TEMPLATE.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
@@ -216,44 +224,51 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
       - name: OV utils unit tests
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_util_tests.xml
 
       - name: OpenVINO C API tests
-        if: fromJSON(inputs.affected-components).C_API.test
+        # if: fromJSON(inputs.affected-components).C_API.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
-        if: fromJSON(inputs.affected-components).AUTO_BATCH.test
+        # if: fromJSON(inputs.affected-components).AUTO_BATCH.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
-        if: fromJSON(inputs.affected-components).AUTO_BATCH.test
+        # if: fromJSON(inputs.affected-components).AUTO_BATCH.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
 
       - name: Proxy Plugin func tests
-        if: fromJSON(inputs.affected-components).PROXY.test
+        # if: fromJSON(inputs.affected-components).PROXY.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
-        if: fromJSON(inputs.affected-components).HETERO.test
+        # if: fromJSON(inputs.affected-components).HETERO.test
+        if: ${{ always() }}
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
-        if: fromJSON(inputs.affected-components).HETERO.test
+        # if: fromJSON(inputs.affected-components).HETERO.test
+        if: ${{ always() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*"

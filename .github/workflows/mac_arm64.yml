@@ -4,25 +4,25 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#  push:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-#    branches:
-#      - master
-#      - 'releases/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -180,7 +180,7 @@ jobs:
         run: |
           cmake \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES=${{ OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
