@@ -35,8 +35,8 @@ class TestAdjustSaturation(CommonTFLayerTest):
     # The last dimension is interpreted as channels, and must be three.
     test_data_basic = [
         dict(input_shape=[1, 1, 2, 3], input_type=np.float32),
-        # dict(input_shape=[5, 25, 15, 3], input_type=np.float32),
-        # dict(input_shape=[3, 4, 8, 10, 3], input_type=np.float32),
+        # dict(input_shape=[2, 3, 4, 3], input_type=np.float32),
+        # dict(input_shape=[1, 2, 3, 1, 3], input_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
