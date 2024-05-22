@@ -59,7 +59,8 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     );
 
     // Split the image tensor into R, G, B channels
-    auto channels = make_shared<v1::Split>(images, make_shared<v0::Constant>(element::i64, Shape{}, 3), 3);
+    int batch_dim = images->get_shape().size() - 1;
+    auto channels = make_shared<v1::Split>(images, make_shared<v0::Constant>(element::i64, Shape{}, batch_dim), 3);
     auto r = channels->output(0);
     auto g = channels->output(1);
     auto b = channels->output(2);
@@ -139,10 +140,12 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     logFile << "Shape of rr_concat: " << rr_concat->get_shape().to_string() << std::endl;
     
     // Use a gather operation to select the correct channel values based on h_category
+    int batch_dim = s->get_shape().size() - 1;
+    logFile << "batch_dim " << batch_dim << std::endl;
     auto axis = make_shared<v0::Constant>(element::i32, Shape{}, -1);
-    auto rr = make_shared<v8::Gather>(rr_concat, h_category, axis, 3);
-    auto gg = make_shared<v8::Gather>(gg_concat, h_category, axis, 3);
-    auto bb = make_shared<v8::Gather>(bb_concat, h_category, axis, 3);
+    auto rr = make_shared<v8::Gather>(rr_concat, h_category, axis, batch_dim);
+    auto gg = make_shared<v8::Gather>(gg_concat, h_category, axis, batch_dim);
+    auto bb = make_shared<v8::Gather>(bb_concat, h_category, axis, batch_dim);
 
     logFile << "Shape of rr: " << rr->get_shape().to_string() << std::endl;
     logFile.close();
@@ -163,6 +166,10 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     auto scale = node.get_input(1);
     auto node_name = node.get_name();
 
+    std::ofstream logFile("debug.log", std::ios_base::app);
+    logFile << "START" << std::endl;
+    logFile << "Shape of images: " << images.get_shape().to_string() << std::endl;
+
     auto type = images.get_element_type();
 
     auto hsv_components = convert_rgb_to_hsv(images.get_node_shared_ptr(), type);
@@ -176,10 +183,8 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
 
     auto new_images = hsv_to_rgb(hh, ss_adjust, vv, type);
 
-    // std::ofstream logFile("debug.log", std::ios_base::app);
-    // logFile << "Shape of images: " << images.get_shape().to_string() << std::endl;
-    // logFile << "Shape of news: " << new_images->get_shape().to_string() << std::endl;
-    // logFile.close();
+    logFile << "Shape of news: " << new_images->get_shape().to_string() << std::endl;
+    logFile.close();
 
     auto adjust_saturation = new_images->output(0);
 
