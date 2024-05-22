@@ -21,11 +21,10 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
-
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/floor.hpp"
-
 #include "openvino/op/abs.hpp"
+#include "openvino/op/less.hpp"
 
 #include <fstream>
 
@@ -40,23 +39,12 @@ namespace op {
 
 // shared_ptr<Node> convert_rgb_to_hsv(shared_ptr<Node> images) {
 shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_rgb_to_hsv(shared_ptr<Node> images, element::Type type) {
-    // Assume images are in shape [batch, height, width, 3] and dtype float
 
-    // Reduce operations to find max and min across the channel axis
+    // Find max and min across channel axis. Max = Value (V)
     auto max_rgb = make_shared<v1::ReduceMax>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
-    auto vv = max_rgb;
     auto min_rgb = make_shared<v1::ReduceMin>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
     auto range = make_shared<v1::Subtract>(max_rgb, min_rgb);
-
-    // auto greater_than_zero = make_shared<v1::Greater>(max_rgb, make_shared<v0::Constant>(type, max_rgb->get_shape(), std::vector<float>{0}));
-
-    // auto safe_vv = make_shared<v1::Select>(greater_than_zero, max_rgb, make_shared<v0::Constant>(type, max_rgb->get_shape(), std::vector<float>{1}));
-
-    // // Now compute saturation where safe_vv is used to avoid division by zero
-    // auto saturation = make_shared<v1::Divide>(range, safe_vv);
-
-    // // Use the original max_rgb to set saturation to 0 where vv is 0
-    // auto corrected_saturation = make_shared<v1::Select>(greater_than_zero, saturation, make_shared<v0::Constant>(type, saturation->get_shape(), std::vector<float>{0}));
+    auto vv = max_rgb;
 
     // Compute Saturation (S)
     auto ss = make_shared<v1::Divide>(range, vv);
@@ -76,26 +64,42 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     auto g = channels->output(1);
     auto b = channels->output(2);
 
+    // Compute Hue (H)
+    
     // Determine which component is the max (V) to compute Hue (H)
     auto r_eq_v = make_shared<v1::Equal>(r, vv);
     auto g_eq_v = make_shared<v1::Equal>(g, vv);
 
+    // r == vv: hh = norm * (g - b)
     auto hue_case_r = make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(g, b));
+
+    // g == vv: hh = norm * (b - r) + 2.0 / 6.0
     auto hue_case_g = make_shared<v1::Add>(
         make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)),
         make_shared<v0::Constant>(type, norm->get_shape(), vector<float>{2.0f / 6.0f})
     );
+
+    // b == vv: hh = norm * (r - g) + 4.0 / 6.0
     auto hue_case_b = make_shared<v1::Add>(
         make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)),
         make_shared<v0::Constant>(type, norm->get_shape(), vector<float>{4.0f / 6.0f})
     );
 
-    // Select the correct hue based on the maximum component
+    // Select hue based on the maximum component
     auto hue_temp = make_shared<v1::Select>(r_eq_v, hue_case_r, hue_case_g);
     auto hh = make_shared<v1::Select>(g_eq_v, hue_case_g, hue_case_b);
 
+    auto zero = make_shared<v0::Constant>(element::f32, Shape{}, 0.0f);
+    auto one = make_shared<v0::Constant>(element::f32, Shape{}, 1.0f);
+
+    // hh < 0.0: hh = hh + 1
+    auto hh_normalized = make_shared<v1::Select>(make_shared<v1::Less>(hh, zero), make_shared<v1::Add>(hh, one), hh);
+
+    // range = 0.0: hh = 0
+    auto hh_final = make_shared<v1::Select>(make_shared<v1::Equal>(range, zero), zero, hh_normalized);
+
+    return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
     // return make_shared<v0::Concat>(NodeVector{hh, vv, s}, -1); 
-    return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh, ss, vv);
 }
 
 shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<Node> v, element::Type type) {
@@ -177,11 +181,10 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     // logFile << "Shape of news: " << new_images->get_shape().to_string() << std::endl;
     // logFile.close();
 
-    auto adjust_saturation_ = new_images->output(0);
-    // auto adjust_saturation_ = make_shared<v1::Multiply>(images, scale)->output(0);
+    auto adjust_saturation = new_images->output(0);
 
-    set_node_name(node_name, adjust_saturation_.get_node_shared_ptr());
-    return {adjust_saturation_};
+    set_node_name(node_name, adjust_saturation.get_node_shared_ptr());
+    return {adjust_saturation};
 }
 
 
