@@ -52,15 +52,15 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
 RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& params) const {
     DispatchData dispatchData;
     const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
 
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
     dispatchData.gws = {input.Batch().v,
                         input.Feature().v,
-                        Align(params.head_cnt * (params.rotary_ndims / 2), 64)};
-    dispatchData.lws = {1, 1, 64};
-
-    if (params.is_chatglm && params.head_size > params.rotary_ndims) {
-        dispatchData.gws[1] *= params.head_size - params.rotary_ndims;
-    }
+                        params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, input.GetLayout(), output.GetLayout(), dims_by_gws);
 
     return dispatchData;
 }
