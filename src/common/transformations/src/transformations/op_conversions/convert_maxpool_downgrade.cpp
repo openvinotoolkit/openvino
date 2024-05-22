@@ -112,7 +112,12 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
             const auto pads_len = node_registry.make<Constant>(element::i64, Shape{}, pads_size);
             const auto pads_remaining =
                 node_registry.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 0});
-
+            for(int i = 0; i < padding_begin.size(); i++) {
+                std::cout << "\n" << padding_begin[i] << " ";
+            }
+            for(int i = 0; i < padding_end.size(); i++) {
+                std::cout << "\n" << padding_end[i] << " ";
+            }
             // gather input spatial dims and prepare for compare as values (in_dim + pad)
             const auto end = node_registry.make<Constant>(element::i64, Shape{}, pads_size + 2);
             const auto dim_idxs = node_registry.make<Range>(two, end, one, element::i64);
@@ -139,7 +144,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
             const auto selected_pads = node_registry.make<Select>(in_gt_out, padding_end_node, zero);
 
             // apply padding on input clear pads attribute
-            const auto pb = node_registry.make<Concat>(OutputVector{pads_remaining->output(0), padding_end_node}, 0);
+            const auto pb = node_registry.make<Concat>(OutputVector{pads_remaining->output(0), padding_begin_node}, 0);
             const auto pe = node_registry.make<Concat>(OutputVector{pads_remaining, selected_pads}, 0);
             auto minus_inf =
                 node_registry.make<Constant>(element::f32, Shape{}, -std::numeric_limits<float>::infinity());

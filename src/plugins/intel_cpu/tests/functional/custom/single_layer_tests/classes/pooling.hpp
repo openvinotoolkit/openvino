@@ -53,15 +53,21 @@ protected:
 
 namespace Pooling {
 const std::vector<ElementType>& inpOutPrecision();
-const ov::op::RoundingType expectedAvgRoundingType();
+const ov::op::RoundingType expectedAvgRoundingType(const ov::op::RoundingType ceil_type = ov::op::RoundingType::CEIL);
+
+const std::vector<poolSpecificParams>& paramsAvg3D();
+const std::vector<poolSpecificParams>& paramsAvgV143D();
 
 const std::vector<poolSpecificParams>& paramsMax3D();
-const std::vector<poolSpecificParams>& paramsAvg3D();
 const std::vector<poolSpecificParams>& paramsMax4D();
 
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D();
+
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV143D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D();
 
 const std::vector<InputShape>& inputShapes3D();
 const std::vector<InputShape>& inputShapes4D();
@@ -69,8 +75,10 @@ const std::vector<InputShape>& inputShapes4D_Large();
 const std::vector<InputShape>& inputShapes5D();
 
 const std::vector<poolSpecificParams>& paramsAvg4D();
+const std::vector<poolSpecificParams>& paramsAvgV144D();
 const std::vector<poolSpecificParams>& paramsAvg4D_Large();
 const std::vector<poolSpecificParams>& paramsAvg5D();
+const std::vector<poolSpecificParams>& paramsAvgV145D();
 const std::vector<poolSpecificParams>& paramsMax5D();
 }  // namespace Pooling
 }  // namespace test
