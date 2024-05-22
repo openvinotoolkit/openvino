@@ -21,6 +21,7 @@
 #include "dnnl_postops_composer.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
@@ -51,6 +52,7 @@ size_t DnnlFCPrimitive::Key::hash() const {
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, sparseWeights);
     seed = hash_combine(seed, transposedWeights);
+    seed = hash_combine(seed, modelType);
 
     return seed;
 }
@@ -72,7 +74,7 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
     }
 
     result = result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights &&
-             transposedWeights == rhs.transposedWeights;
+             transposedWeights == rhs.transposedWeights && modelType == rhs.modelType;
 
     return result;
 }
@@ -94,6 +96,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
         shapeAgnosticData->primAttrs.attr,
         attrs.sparseWeights,
         attrs.weightsNonTransposed,
+        attrs.modelType
     };
 
     auto builder = [&context](const Key& dnnlKey) {
@@ -109,9 +112,21 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 }
 
 bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
-                                                  const ov::element::Type weightsType) {
-    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && one_of(inputType, f32, bf16) &&
-           one_of(weightsType, u8, nf4, u4, i4);
+                                                  const ov::element::Type weightsType,
+                                                  const ov::intel_cpu::Config::ModelType modelType) {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, i8, nf4, u4, i4))
+            return true;
+
+        if (modelType == ov::intel_cpu::Config::ModelType::LLM) {
+            // f16c kernel saves memory footprint with additional decompression computational overhead
+            // which is only meaningful on LLM with small batch-size.
+            // TODO: fall-back to use f32 weights on large batch-size
+            if (inputType == f32 && weightsType == f16)
+                return true;
+        }
+    }
+    return false;
 }
 
 bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
@@ -125,8 +140,11 @@ bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const Memor
 
     if (srcDesc->getPrecision() != ov::element::f32)
         return false;
-
-    if (!one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4))
+    // For dynamic quantization, VNNI accumulation requires weight to be unsigned.
+    // To support dynamic quantization with weights symmetrically quantized as i8/i4
+    // w/o zero-point, we will transform weight to u8/u4 weight with zp 128/8.
+    if (!one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4) &&
+        !((one_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr)))
         return false;
 
     if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::undefined))
@@ -195,8 +213,19 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
         dnnlpoc.appendDecompressionZeroPoints(attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed, dstPrc);
     }
-    if (useDynamicQuantization)
+    if (useDynamicQuantization) {
+        auto wei_precision = weiDesc->getPrecision();
+        bool is_symmetric_weights = (wei_precision == ov::element::i8) || (wei_precision == ov::element::i4);
+        if (is_symmetric_weights) {
+            // dynamic Quantization needs unsigned quantized weights, conversion from i8/i4 to u8/u4 by adding 128/8
+            // introduces 128/8 as zero-points.
+            uint8_t zp_value = (wei_precision == ov::element::i8) ? 128 : 8;
+            DnnlBlockedMemoryDesc zpMemoryDesc(ov::element::u8, Shape({1}));
+            auto decompressionSubtractPtr = std::make_shared<Memory>(context->getEngine(), zpMemoryDesc, &zp_value);
+            dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, !attrs.weightsNonTransposed, ov::element::u8);
+        }
         dnnlpoc.setDynamicQuantizationParams(attrs.dynamicQuantizationGroupSize);
+    }
 
     return dnnlpoc.compose();
 }
@@ -226,6 +255,16 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
 
     if (useWeightsDecompression) {
         wdt = weightDesc.get_data_type();
+
+        // dynamic quantization with symmetric quantized weights needs unsigned weights
+        uint64_t dynQuantGroupSize = 0;
+        attr.get_src_dyn_quant_params(dynQuantGroupSize);
+        if (dynQuantGroupSize > 0) {
+            if (wdt == dnnl::memory::data_type::s8)
+                wdt = memory::data_type::u8;
+            if (wdt == dnnl::memory::data_type::s4)
+                wdt = memory::data_type::u4;
+        }
     } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
         wdt = memory::data_type::s8;
     }
@@ -315,7 +354,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
-    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
+    const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision(), attrs.modelType);
     const auto useDynamicQuantization = useWeightsDecompression &&
         useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc,
                                    attrs.decompressionMultiplyPtr, attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed);
@@ -360,7 +399,8 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     (void)utils::prepareWeightsMemory(originalWeightsDesc,
                                       weightsDesc,
                                       memory.at(ARG_WEI),
-                                      context);
+                                      context,
+                                      useDynamicQuantization);
 
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }
@@ -387,7 +427,7 @@ DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                      engine,
                                      implPriorities,
                                      key.sparseWeights,
-                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision()))),
+                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
       m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),

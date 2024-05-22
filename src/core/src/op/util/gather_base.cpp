@@ -49,7 +49,7 @@ bool cf_gather_with_subgraph(OutputVector& output_values,
         return false;
     }
     // only single indices are accepted
-    const auto indices_shape = indices->get_shape();
+    const auto& indices_shape = indices->get_shape();
     if (indices_shape.size() > 1 || (indices_shape.size() == 1 && indices_shape[0] > 1)) {
         return false;
     }

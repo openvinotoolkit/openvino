@@ -59,24 +59,26 @@ std::optional<size_t> getBatchSizeForNode(const IONodeDescriptor& nodeDescriptor
                                           const ZeroExecutor::ArgumentDescriptor& zeDescriptor) {
     Logger logger("GetBatchSizeForNode", Logger::global().level());
 
-    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
-    switch (zeDescriptor.info.deviceLayout) {
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
-        if ((ovDimensions[BATCH_AXIS] == zeDescriptor.info.dims[BATCH_AXIS]) &&
-            (ovDimensions[BATCH_AXIS] != DEFAULT_BATCH_SIZE)) {
-            logger.info("Batching on the plugin is not used, batching is handled by the compiler");
-            return std::nullopt;
-        } else {
-            return ovDimensions[BATCH_AXIS];
-        }
-        break;
-    default:
-        logger.info("Batching on the plugin is working only when batching is found on 0th dimension");
+    if (nodeDescriptor.originalShape.rank().get_length() == 0) {
+        logger.info("Networks with empty shapes are not supported when batching is handled by the plugin");
         return std::nullopt;
+    }
+
+    if (nodeDescriptor.originalShape.is_dynamic()) {
+        logger.info("Dynamic networks are not supported when batching is handled by the plugin");
+        return std::nullopt;
+    }
+
+    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
+
+    if (ovDimensions[BATCH_AXIS] == zeDescriptor.info.dims[BATCH_AXIS] &&
+        ovDimensions[BATCH_AXIS] != DEFAULT_BATCH_SIZE) {
+        logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    if (zeDescriptor.info.dims[BATCH_AXIS] == DEFAULT_BATCH_SIZE) {
+        return ovDimensions[BATCH_AXIS];
     }
 
     return DEFAULT_BATCH_SIZE;
@@ -380,6 +382,10 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::f16:
         break;
+    case ov::element::Type_t::u4:
+        break;
+    case ov::element::Type_t::i4:
+        break;
     case ov::element::Type_t::u8:
         break;
     case ov::element::Type_t::i8:
@@ -398,7 +404,7 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     default:
         OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-                       "! Supported precisions: FP32, FP16, U8, I8, U16, I16, U32, I32, U64, I64");
+                       "! Supported precisions: FP32, FP16, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64");
     }
 }
 
