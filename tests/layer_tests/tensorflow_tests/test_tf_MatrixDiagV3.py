@@ -31,7 +31,13 @@ class TestMatrixDiagV3(CommonTFLayerTest):
                 'num_rows': num_rows,
                 'num_cols': num_cols,
                 'padding_value': padding_value,
-                'align': align,
+                # 'align': align,
+                
+                # 'k': 0,
+                # 'num_rows': -1,
+                # 'num_cols': -1,
+                # 'padding_value': 0,
+                # 'align': None,
             }
             
             tf.raw_ops.MatrixDiagV3(**params)
@@ -43,8 +49,8 @@ class TestMatrixDiagV3(CommonTFLayerTest):
     @pytest.mark.parametrize("diagonal_type", [np.int32])
     @pytest.mark.parametrize("diagonal_shape", [3])
     @pytest.mark.parametrize("k", [0])
-    @pytest.mark.parametrize("num_cols", [3])
-    @pytest.mark.parametrize("num_rows", [3])
+    @pytest.mark.parametrize("num_cols", [-1, 3])
+    @pytest.mark.parametrize("num_rows", [-1, 3])
     @pytest.mark.parametrize("padding_value", [0])
     # @pytest.mark.parametrize("align", ["RIGHT_LEFT"])
     @pytest.mark.precommit

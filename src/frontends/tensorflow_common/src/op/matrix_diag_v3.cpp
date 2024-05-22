@@ -39,6 +39,11 @@ OutputVector translate_matrix_diag_v3_op(const NodeContext& node) {
     // This idea is generalized to higher rank tensors
     // diagonal is the single input to MatrixDiag operation and has a shape [I, J, ..., M, N]
     auto diagonal = node.get_input(0);
+    auto k = node.get_input(1);
+    auto num_rows = node.get_input(2);
+    auto num_cols = node.get_input(3);
+    auto padding_value = node.get_input(4);
+    // auto align = node.get_input(5);
     auto diagonal_type = diagonal.get_element_type();
 
     // 1. unsqueeze to have at least three rank input of a shape [1, I, J, ..., M, N, 1]
