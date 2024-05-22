@@ -251,6 +251,21 @@ void ov::Model::validate_nodes_and_infer_types() const {
                     "Model references undeclared Variables: ",
                     unregistered_variables.str());
 
+    for (const auto& input : inputs()) {
+        const auto& p_shape = input.get_partial_shape();
+        const auto& layout = ov::layout::get_layout(input);
+        if (p_shape.rank().is_static() && p_shape.rank() != 0 && ov::layout::has_batch(layout)) {
+            const auto batch_idx = ov::layout::batch_idx(layout);
+            const auto batch_dim = p_shape[batch_idx];
+            OPENVINO_ASSERT(batch_dim.is_dynamic() || batch_dim.get_length() > 0,
+                            "Batch size for input ",
+                            input,
+                            " has wrong value ",
+                            batch_dim.get_length(),
+                            ". Batch size must be a positive value.");
+        }
+    }
+
     for (const auto& output : outputs()) {
         OPENVINO_ASSERT(ov::layout::utils::is_compatible(ov::layout::get_layout(output), output.get_partial_shape()),
                         "Result '",
