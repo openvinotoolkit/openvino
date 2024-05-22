@@ -1,0 +1,60 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# Human Pose Estimation with OpenVINO™\r\n\r\nThis notebook demonstrates live pose estimation with OpenVINO, using the OpenPose human-pose-estimation-0001 model"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Imports"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const { cv } = require('opencv-wasm');\r\nconst { display } = require('node-kernel');\r\nconst tf = require('@tensorflow/tfjs-node');\r\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\r\n\r\nconst OpenPoseDecoder = require('../openpose_decoder.js');\r\nconst utils = require('../utils.js');\r\nconst { addon: ov } = require('openvino-node');\r\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Download the Model"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const baseArtifactsDir = '../../assets/models';\r\n\r\nconst modelName = 'human-pose-estimation-0001';\r\nconst modelXMLName = `${modelName}.xml`;\r\nconst modelBINName = `${modelName}.bin`;\r\n\r\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\r\n\r\nconst baseURL = `https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.1/models_bin/3/${modelName}/FP16-INT8/`;\r\n\r\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\r\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);\r\n\r\nconst imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg';\r\n\r\nawait downloadFile(imgUrl, 'intel_rnb.jpg', '../../assets/images');\r\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const core = new ov.Core();\r\nconst model = await core.readModel(modelXMLPath);\r\nconst compiledModel = await core.compileModel(model, 'CPU', { PERFORMANCE_HINT: 'LATENCY' });\r\n\r\nconst inputLayer = compiledModel.input[0];\r\nconst outputLayers = compiledModel.outputs;\r\n\r\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Processing"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const decoder = new OpenPoseDecoder();\r\n\r\n/**\r\n * Processes the results to extract poses and scores from the heatmaps and PAFs.\r\n * @param {tf.Tensor} img - The input image tensor.\r\n * @param {tf.Tensor} pafs - The PAFs tensor.\r\n * @param {tf.Tensor} heatmaps - The heatmaps tensor.\r\n * @param {Object} compiledModel - The compiled model (for output shape).\r\n * @returns {Array} - An array containing poses and scores.\r\n */\r\nasync function processResults(img, pafs, heatmaps, compiledModel) {\r\n  // Apply 2D pooling to the heatmaps\r\n  const pooledHeatmaps = tf.tidy(() => {\r\n      const pooledHeatmapsArray = heatmaps.arraySync().map(batch =>\r\n          batch.map(h => utils.pool2d(tf.tensor2d(h), 3, 1, 1, 'max'))\r\n      );\r\n      return tf.tensor(pooledHeatmapsArray);\r\n  });\r\n\r\n  // Apply Non-Maximum Suppression\r\n  const nmsHeatmaps = utils.heatmapNms(heatmaps, pooledHeatmaps);\r\n\r\n  // Decode poses using the OpenPoseDecoder\r\n  const [poses, scores] = await decoder.call(heatmaps, nmsHeatmaps, pafs);\r\n\r\n  // Get the output shape of the model\r\n  const outputShape = compiledModel.output(index=0).shape;\r\n\r\n  // Calculate the output scale based on image and model output shape\r\n  const outputScale = [\r\n      img.shape[1] / outputShape[3],\r\n      img.shape[0] / outputShape[2]\r\n  ];\r\n\r\n  // Multiply coordinates by scaling factor\r\n  poses.forEach(pose => {\r\n      pose.forEach(point => {\r\n          point[0] *= outputScale[0];\r\n          point[1] *= outputScale[1];\r\n      });\r\n  });\r\n\r\n  return [poses, scores];\r\n}\r\n\r\n\r\nfunction executePoseEstimation() {\r\n\r\n}"
+            ],
+            "outputs": []
+        }
+    ]
+}
