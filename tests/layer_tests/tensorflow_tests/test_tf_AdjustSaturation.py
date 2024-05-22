@@ -17,15 +17,18 @@ class TestAdjustSaturation(CommonTFLayerTest):
         assert 'images:0' in inputs_info
         images_shape = inputs_info['images:0']
         inputs_data = {}
-        # inputs_data['images:0'] = np.random.rand(*images_shape).astype(self.input_type)
+        inputs_data['images:0'] = np.random.rand(*images_shape).astype(self.input_type)
         inputs_data['images:0'] = np.array([[
                 [[0.1, 0.2, 0.3],
                 [0.4, 0.5, 0.6]]
                 ]]).astype(np.float32)
         # inputs_data['scale:0'] = np.random.rand()
         inputs_data['scale:0'] = 2.1
-        logger.info(rgb_to_hsv( inputs_data['images:0']))
-        logger.info(hsv_to_rgb(rgb_to_hsv( inputs_data['images:0'])))
+        hsv = rgb_to_hsv( inputs_data['images:0'])
+        hsv[...,1] =  np.clip(hsv[...,1]*inputs_data['scale:0'], 0.0, 1.0)
+        rgb = hsv_to_rgb(hsv)
+        logger.info(hsv)
+        logger.info(rgb)
         return inputs_data
 
     def create_adjust_saturation_net(self, input_shape, input_type):
@@ -44,8 +47,8 @@ class TestAdjustSaturation(CommonTFLayerTest):
     # Each input is a tensor of at least 3 dimensions. 
     # The last dimension is interpreted as channels, and must be three.
     test_data_basic = [
+        # dict(input_shape=[1, 2, 3], input_type=np.float32),
         dict(input_shape=[1, 1, 2, 3], input_type=np.float32),
-        # dict(input_shape=[2, 3, 4, 3], input_type=np.float32),
         # dict(input_shape=[1, 2, 3, 1, 3], input_type=np.float32),
     ]
 
@@ -75,8 +78,8 @@ def rgb_to_hsv(image):
     # Compute the range as V - min(R, G, B)
     range = vv - min_rgb
 
-    logger.info("range")
-    logger.info(range)
+    # logger.info("range")
+    # logger.info(range)
     # Avoid division by zero
     s = np.where(vv == 0, 0, range / vv)
     
@@ -91,7 +94,6 @@ def rgb_to_hsv(image):
     # Set hue to 0 where range is zero
     hh = np.where(range <= 0, 0, hh)
 
-    # Normalize hue to ensure it's within [0, 1)
     hh = np.where(hh < 0, hh + 1, hh)
 
     # Return the HSV image

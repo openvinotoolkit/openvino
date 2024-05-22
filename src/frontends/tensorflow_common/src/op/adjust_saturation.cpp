@@ -25,6 +25,7 @@
 #include "openvino/op/floor.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/clamp.hpp"
 
 #include <fstream>
 
@@ -179,7 +180,7 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
 
     scale = make_shared<v1::ConvertLike>(scale, images);
 
-    auto ss_adjust = make_shared<v1::Multiply>(ss, scale);
+    auto ss_adjust = make_shared<v0::Clamp>(make_shared<v1::Multiply>(ss, scale), 0.0f, 1.0f);
 
     auto new_images = hsv_to_rgb(hh, ss_adjust, vv, type);
 
