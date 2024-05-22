@@ -51,15 +51,21 @@ ov::pass::ConcatToTile::ConcatToTile() {
             return false;
         }
 
-
         const auto& input = concat->input_value(0);
         auto target_shape =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                    Shape{concat->get_default_output().get_shape().size()},
                                                    concat->get_default_output().get_shape());
+
+        auto repeat_num = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                 Shape{1},
+                                                                 concat->get_input_size());
+
         std::shared_ptr<Node> replacement = use_broadcast(concat) ?
                             std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v3::Broadcast>(input, target_shape)) :
-                            std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Tile>(input, target_shape));
+                            std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Tile>(input, repeat_num));
+
+
         replacement->set_friendly_name(concat->get_friendly_name());
         ov::replace_node(concat, replacement);
 
