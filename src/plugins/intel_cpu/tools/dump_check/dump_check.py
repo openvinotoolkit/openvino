@@ -75,14 +75,14 @@ def fill_tensors_from_image(input, input_file):
 
 class IEB:
     precision_table = {
-        10:(np.float32, 4),
-        12:(np.int16, 2),
-        40:(np.uint8, 1),
-        50:(np.int8, 1),
-        70:(np.int32, 4),
-        74:(np.uint32, 4),
-        72:(np.int64, 8),
-        73:(np.uint64, 8)
+        5:(np.float32, 4),
+        9:(np.int16, 2),
+        14:(np.uint8, 1),
+        8:(np.int8, 1),
+        10:(np.int32, 4),
+        15:(np.uint32, 4),
+        11:(np.int64, 8),
+        17:(np.uint64, 8)
     }
 
     @classmethod
