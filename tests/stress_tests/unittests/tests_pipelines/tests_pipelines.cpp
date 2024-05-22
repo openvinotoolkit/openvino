@@ -82,7 +82,7 @@ void test_infer_request_inference(const std::string &model, const std::string &t
     }
 }
 
-static void test_recreate_and_infer_in_thread_one_model(const std::string &model, const std::string &target_device, const int &n, bool async) {
+static void test_recreate_and_infer_in_thread_one_model(const std::string &model, const std::string &target_device, const int &n, const bool &async) {
     auto ie_wrapper = create_infer_api_wrapper();
     ie_wrapper->read_network(model);
     ie_wrapper->set_config(target_device, ov::AnyMap{ov::inference_num_threads(2)});

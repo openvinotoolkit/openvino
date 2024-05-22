@@ -20,7 +20,7 @@ public:
 
     virtual void create_infer_request() = 0;
 
-    virtual void create_and_infer(bool aysnc = false) = 0;
+    virtual void create_and_infer(const bool &aysnc) = 0;
 
     virtual void infer() = 0;
 
@@ -49,7 +49,7 @@ public:
 
     void create_infer_request() override;
 
-    void create_and_infer(bool aysnc = false) override;
+    void create_and_infer(const bool &aysnc) override;
 
     void prepare_input() override;
 

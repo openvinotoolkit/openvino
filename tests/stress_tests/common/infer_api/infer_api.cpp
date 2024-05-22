@@ -35,7 +35,7 @@ void InferAPI2::create_infer_request() {
     infer_request = compiled_model.create_infer_request();
 }
 
-void InferAPI2::create_and_infer(bool async) {
+void InferAPI2::create_and_infer(const bool &async) {
     auto new_infer_request = compiled_model.create_infer_request();
     fillTensors(new_infer_request, inputs);
     if (async) {
