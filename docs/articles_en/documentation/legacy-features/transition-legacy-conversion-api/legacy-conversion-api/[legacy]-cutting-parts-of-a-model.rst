@@ -43,14 +43,14 @@ The input model is converted as a whole if neither ``input`` nor ``output`` comm
 
 For Inception_V1, there is one ``Placeholder``: input. If the model is viewed in TensorBoard, the input operation is easy to find:
 
-.. image:: ../../../../_static/images/inception_v1_std_input.svg
+.. image:: ../../../../assets/images/inception_v1_std_input.svg
    :alt: Placeholder in Inception V1
 
 ``Reshape`` is the only output operation, which is enclosed in a nested name scope of ``InceptionV1/Logits/Predictions``, under the full name of ``InceptionV1/Logits/Predictions/Reshape_1``.
 
 In TensorBoard, along with some of its predecessors, it looks as follows:
 
-.. image:: ../../../../_static/images/inception_v1_std_output.svg
+.. image:: ../../../../assets/images/inception_v1_std_output.svg
    :alt: TensorBoard with predecessors
 
 Convert this model to ``ov.Model``:
@@ -150,7 +150,7 @@ Model Cutting
 
 Now, consider how to cut some parts of the model off. This chapter describes the first convolution block ``InceptionV1/InceptionV1/Conv2d_1a_7x7`` of the Inception V1 model to illustrate cutting:
 
-.. image:: ../../../../_static/images/inception_v1_first_block.svg
+.. image:: ../../../../assets/images/inception_v1_first_block.svg
    :alt: Inception V1 first convolution block
 
 Cutting at the End
