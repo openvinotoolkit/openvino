@@ -77,6 +77,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.avg_pool2d.default": None,
             "torch.ops.aten.avg_pool3d.default": None,
             "torch.ops.aten.baddbmm.default": None,
+            "torch.ops.aten.bitwise_and.Scalar": None,
             "torch.ops.aten.bitwise_and.Tensor": None,
             "torch.ops.aten.bitwise_not.default": None,
             "torch.ops.aten.bitwise_or.Tensor": None,
@@ -253,11 +254,16 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.quantized_decomposed.dequantize_per_channel.default": None
 
         }
+            
+        self.enabled_op_names = []
 
         for op in _get_disabled_ops(options):
             del support_dict[op]
 
         super().__init__(support_dict)
+
+    def enable_by_name(self, node: Node):
+        self.enabled_op_names.append(node.name)
 
     def is_node_supported(self, submodules: t.Mapping[str, Module], node: Node) -> bool:
         # OpenVINO FX subgraph should be purely functional
@@ -271,5 +277,8 @@ class OperatorSupport(OperatorSupport):
 
             if target in self._support_dict:
                 return True
+
+        if node.name in self.enabled_op_names:
+            return True
 
         return super().is_node_supported(submodules, node)
