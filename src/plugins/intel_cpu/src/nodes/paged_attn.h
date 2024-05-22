@@ -38,7 +38,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void gatherConcatPastkvForPagedAttn(const std::vector<MemoryPtr>& inputs);
     ov::element::Type getRuntimePrecision() const override;
 
     std::shared_ptr<ov::Extensions::Cpu::PagedAttentionExecutor> m_executor;

@@ -23,7 +23,7 @@ using namespace ov::pass::transpose_sinking::utils;
 
 TSSliceForward::TSSliceForward() {
     MATCHER_SCOPE(TSSliceForward);
-    create_pattern<ov::op::v8::Slice>(true, {0});
+    create_pattern<ov::op::v8::Slice>({0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
