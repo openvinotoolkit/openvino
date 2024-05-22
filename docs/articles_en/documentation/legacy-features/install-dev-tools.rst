@@ -153,7 +153,7 @@ For example, to install and configure dependencies required for working with Ten
 For more details on the openvino-dev PyPI package, see `pypi.org <https://pypi.org/project/openvino-dev/2023.2.0>`__ .
 
 Step 5. Test the Installation
-+++++++++++++++++++++++++++++
+------------------------------
 
 To verify the package is properly installed, run the command below (this may take a few seconds):
 
