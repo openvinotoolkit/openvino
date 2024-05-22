@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/icompiled_model.hpp"
@@ -59,8 +60,8 @@ public:
         const std::shared_ptr<const NetworkDescription>& networkDescription,
         const Config& config) = 0;
 
-    virtual Version getELFVersion() const = 0;
-    virtual Version getStaticMIVersion() const = 0;
+    virtual std::optional<Version> getELFVersion() const = 0;
+    virtual std::optional<Version> getStaticMIVersion() const = 0;
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
     virtual Uuid getUuid() const;

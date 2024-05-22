@@ -56,6 +56,8 @@ public:
 private:
     ov::SoPtr<ICompiler> getCompiler(const Config& config) const;
 
+    void checkForCompilerFallback();
+
     std::shared_ptr<NPUBackends> _backends;
 
     std::map<std::string, std::string> _config;
