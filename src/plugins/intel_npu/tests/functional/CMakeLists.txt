@@ -30,8 +30,6 @@ ov_add_test_target(
         openvino::reference
         openvino::runtime
         openvino::npu_al
-    LABELS
-        KMB
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES
@@ -46,13 +44,6 @@ if(MSVC)
     )
 endif()
 
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION tests
-        COMPONENT "npu_tests"
-        EXCLUDE_FROM_ALL
-)
-
-# TODO: Remove duplication E#31024
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
         COMPONENT tests
