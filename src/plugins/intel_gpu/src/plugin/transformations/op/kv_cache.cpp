@@ -99,7 +99,6 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::Par
         auto gather_out_shapes = ov::op::shape_infer(&gather, gather_inputs, ov::make_tensor_accessor(gather_axis_data));
         std::vector<ov::PartialShape> concat_shapes = {gather_out_shapes[0], input_shapes[1]};
         out_shapes = ov::op::v0::shape_infer(&concat, concat_shapes);
-    
         int64_t concat_axis = ov::util::normalize(op->get_concat_axis(), input_shapes[0].size());
         ov::PartialShape beam_table_shape(std::vector<size_t>(out_shapes[0].size(), 1));
         beam_table_shape[gather_axis] = out_shapes[0][gather_axis];
