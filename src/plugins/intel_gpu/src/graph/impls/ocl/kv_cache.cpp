@@ -150,7 +150,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         auto impl_param = *instance.get_impl_params();
         auto kv_in_shape = impl_param.input_layouts[0].get_partial_shape();
-        auto kv_out_shape = impl_param.input_layouts[0].get_partial_shape();
+        auto kv_out_shape = impl_param.output_layouts[0].get_partial_shape();
         if (desc->indirect && ((kv_out_shape[desc->gather_axis].get_length() > 1) ||
                                (kv_in_shape[desc->concat_axis].get_length() == 0))) {
             const auto bt_alloc_type = engine.get_preferred_memory_allocation_type(false);
