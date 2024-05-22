@@ -142,6 +142,16 @@ void AutoSchedule::init() {
                 m_compile_context[CPU].m_device_info = *cpu_iter;
                 m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
                 m_compile_context[CPU].m_worker_name = "CPU_HELP";
+                if (m_context->m_startup_fallback || m_context->m_runtime_fallback) {
+                    auto& device_config = m_compile_context[CPU].m_device_info.config;
+                    bool is_already_set_cache = device_config.count(ov::cache_dir.name())
+                                                    ? !(device_config[ov::cache_dir.name()].as<std::string>().empty())
+                                                    : false;
+                    if (is_already_set_cache) {
+                        device_config[ov::cache_dir.name()] = "";
+                        LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
+                    }
+                }
                 LOG_INFO_TAG("will load CPU for accelerator");
             } else {
                 m_compile_context[CPU].m_is_enabled = false;
