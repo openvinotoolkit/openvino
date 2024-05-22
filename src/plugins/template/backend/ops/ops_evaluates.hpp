@@ -498,7 +498,7 @@ extern template bool evaluate_node<ov::op::v15::Col2Im>(std::shared_ptr<ov::Node
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 
-extern template bool evaluate_node<ov::op::v14::ROIAlignRotated>(std::shared_ptr<ov::Node> node,
+extern template bool evaluate_node<ov::op::v15::ROIAlignRotated>(std::shared_ptr<ov::Node> node,
                                                                  ov::TensorVector& outputs,
                                                                  const ov::TensorVector& inputs);
 

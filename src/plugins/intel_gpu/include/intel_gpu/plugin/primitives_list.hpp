@@ -266,7 +266,7 @@ REGISTER_FACTORY(v13, Multinomial);
 REGISTER_FACTORY(v13, ScaledDotProductAttention);
 
 // ------------------------------ Supported v14 ops ----------------------------- //
-REGISTER_FACTORY(v14, ROIAlignRotated);
+REGISTER_FACTORY(v15, ROIAlignRotated);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
