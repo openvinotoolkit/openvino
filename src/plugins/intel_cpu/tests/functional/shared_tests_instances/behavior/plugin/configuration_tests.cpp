@@ -22,7 +22,14 @@ namespace {
         }
     }()};
     #else
-    auto defaultBindThreadParameter = InferenceEngine::Parameter{std::string{CONFIG_VALUE(YES)}};
+    auto defaultBindThreadParameter = InferenceEngine::Parameter{[] {
+        auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+        if (coreTypes.size() > 1) {
+                return std::string{CONFIG_VALUE(HYBRID_AWARE)};
+        } else {
+                return std::string{CONFIG_VALUE(YES)};
+        }
+    }()};
     #endif
 
     INSTANTIATE_TEST_SUITE_P(
