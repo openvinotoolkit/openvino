@@ -30,7 +30,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
-        DimensionAccessHelper dims(input);
+        DimensionAccessHelperJit dims(input);
         std::string data_size;
         switch (params.ov_input_rank) {
             case 1 :

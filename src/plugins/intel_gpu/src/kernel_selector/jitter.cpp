@@ -326,8 +326,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     JitDefinitions baseDefinitions = TensorBaseTJitConstant::GetDefinitions(_tensor);
 
     JitDefinitions definitions{};
-    DimensionAccessHelper dims(_tensor);
-    DimensionAccessHelper dims_padded(_tensor, true);
+    DimensionAccessHelperJit dims(_tensor);
+    DimensionAccessHelperJit dims_padded(_tensor, true);
     // shape_info layout
     // if only y has dynamic padding:
     // [dim_b, dim_f, dim_v, dim_u, dim_w, dim_z, dim_y, dim_x, pad_before_y, pad_after_y]
