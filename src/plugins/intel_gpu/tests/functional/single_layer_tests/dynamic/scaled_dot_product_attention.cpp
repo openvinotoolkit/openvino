@@ -16,6 +16,8 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/matmul.hpp"
 
+#include "intel_gpu/runtime/execution_config.hpp"
+
 namespace {
 using ov::test::InputShape;
 
@@ -103,23 +105,55 @@ void ScaledAttnLayerGPUTest::SetUp() {
             inputParams.back()->set_friendly_name("scale");
         }
     }
+
+    // Add artificial read/value operations to the model to trigger the enabling of the SDPA operation
+    auto read_key = std::make_shared<ov::op::v3::ReadValue>(inputParams.at(1), "v0");
+    auto assign_key = std::make_shared<ov::op::v3::Assign>(read_key, "v0");
+
+    auto read_value = std::make_shared<ov::op::v3::ReadValue>(inputParams.at(2), "v0");
+    auto assign_value = std::make_shared<ov::op::v3::Assign>(read_value, "v0");
+
     ov::OutputVector inputs;
-    for (auto& input : inputParams) {
-        inputs.push_back(input);
+    for (size_t i = 0; i < inputParams.size(); i++) {
+        if (i == 1)
+            inputs.push_back(read_key);
+        else if (i == 2)
+            inputs.push_back(read_value);
+        else
+            inputs.push_back(inputParams[i]);
     }
+
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
     sdp->set_friendly_name("sdpa");
 
     auto output = std::make_shared<ov::op::v0::Result>(sdp->output(0));
 
-    function = std::make_shared<ov::Model>(ov::OutputVector{output}, inputParams, "sdpa_model");
+    function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::SinkVector{assign_key, assign_value}, inputParams, "sdpa_model");
 
     functionRefs = function->clone();
     ov::pass::Manager manager;
 
-    // decompose ScaledDotProductAttention
+    // Decompose ScaledDotProductAttention
     manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
     manager.run_passes(functionRefs);
+
+    // Enable SDPA
+    configuration.insert(ov::intel_gpu::hint::enable_sdpa_optimization(true));
+
+    auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape){
+        return shape[2] >= 384;
+    });
+
+    bool has_long_seq = it != inputShapes[1].second.end();
+    if (inType == ov::element::f16) {
+        if (has_long_seq) {
+            abs_threshold = 0.025;
+            rel_threshold = 0.025;
+        } else {
+            abs_threshold = 0.005;
+            rel_threshold = 0.005;
+        }
+    }
 }
 
 void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -171,36 +205,35 @@ const std::vector<std::vector<InputShape>> shapes{
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 64},
-            {ov::Shape{2, 5, 100, 64}, ov::Shape{2, 5, 1, 64}, ov::Shape{2, 5, 512, 64}}}
+            {ov::Shape{2, 5, 100, 64}, ov::Shape{2, 5, 1, 64}, ov::Shape{2, 5, 384, 64}}}
         },
         // kv shape
         {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 64},
-            {ov::Shape{2, 5, 100, 64}, ov::Shape{2, 5, 1, 64}, ov::Shape{2, 5, 512, 64}}}
+            {ov::Shape{2, 5, 100, 64}, ov::Shape{2, 5, 1, 64}, ov::Shape{2, 5, 384, 64}}}
         },
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
-            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 512, 512}}}
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 384, 384}}}
         },
     },
-    // Currently unsupported
     // heads number of kv is 1, attn mask: [B, H, L1, L0+L1]
-    // {
-    //     // q shape
-    //     {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-    //         {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
-    //     },
-    //     // kv shape
-    //     {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 64},
-    //         {ov::Shape{1, 1, 100, 64}, ov::Shape{1, 1, 1, 64}, ov::Shape{2, 1, 10, 64}}}
-    //     },
-    //     // attn shape
-    //     {ov::test::InputShape{ov::PartialShape{-1, 8, -1, -1},
-    //         {ov::Shape{1, 8, 100, 100}, ov::Shape{1, 8, 1, 1}, ov::Shape{2, 8, 10, 10}}}
-    //     },
-    // },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 64},
+            {ov::Shape{1, 1, 100, 64}, ov::Shape{1, 1, 1, 64}, ov::Shape{2, 1, 10, 64}}}
+        },
+        // attn shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, -1},
+            {ov::Shape{1, 8, 100, 100}, ov::Shape{1, 8, 1, 1}, ov::Shape{2, 8, 10, 10}}}
+        },
+    },
 };
 
-const auto params = testing::Combine(testing::Values(/* ov::element::f16,  */ov::element::f32),
+const auto params = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
                                                  testing::ValuesIn(shapes),
                                                  testing::Values(true, false),
                                                  testing::Values(true, false),
