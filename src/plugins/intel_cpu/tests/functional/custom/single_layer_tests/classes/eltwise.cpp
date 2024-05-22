@@ -262,7 +262,11 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
         return "jit";
     }
 #endif
-    return "acl";
+    if (eltwise_type == utils::EltwiseTypes::MOD) {
+        return "ref";
+    } else {
+        return "acl";
+    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
