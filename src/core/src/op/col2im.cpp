@@ -8,6 +8,7 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/reference/col2im.hpp"
 
 namespace ov {
 namespace op {
@@ -42,20 +43,17 @@ void Col2Im::validate_and_infer_types() {
 
     const auto& data_element_type = get_input_element_type(0);
     const auto& output_size_element_type = get_input_element_type(1);
-    const bool is_valid_output_size_type =
-        output_size_element_type == element::i32 || output_size_element_type == element::i64;
-    NODE_VALIDATION_CHECK(this,
-                          is_valid_output_size_type,
-                          "The element type of the output_size tensor must be i32 or i64 type. Got: ",
-                          output_size_element_type);
-
     const auto& kernel_size_element_type = get_input_element_type(2);
-    const bool is_valid_kernel_size_type =
-        kernel_size_element_type == element::i32 || kernel_size_element_type == element::i64;
-    NODE_VALIDATION_CHECK(this,
-                          is_valid_kernel_size_type,
-                          "The element type of the kernel_size tensor must be i32 or i64 type. Got: ",
-                          kernel_size_element_type);
+    const bool is_valid_index_type =
+        (output_size_element_type == element::i32 || output_size_element_type == element::i64) &&
+        output_size_element_type == kernel_size_element_type;
+    NODE_VALIDATION_CHECK(
+        this,
+        is_valid_index_type,
+        "The element types of the output_size and kernel_size tensors must match and be of i32 or i64 type. Got: ",
+        output_size_element_type,
+        " and ",
+        kernel_size_element_type);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, data_element_type, output_shapes[0]);
