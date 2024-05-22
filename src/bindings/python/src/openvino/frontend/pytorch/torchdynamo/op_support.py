@@ -28,7 +28,12 @@ class OperatorSupport(OperatorSupport):
 
     def __init__(self, options):
         support_dict = {
+            "_operator.add": None,
+            "_operator.floordiv": None,
             "_operator.getitem": None,
+            "_operator.mul": None,
+            "_operator.sub": None,
+            "torch.ops.aten.sym_size.int": None,
             "torch.ops.aten._adaptive_avg_pool1d.default": None,
             "torch.ops.aten._adaptive_avg_pool2d.default": None,
             "torch.ops.aten._adaptive_avg_pool3d.default": None,
