@@ -3,6 +3,8 @@
 //
 
 #include "openvino/reference/utils/phillox_generator.hpp"
+#include <stdio.h>
+
 
 namespace ov {
 
@@ -207,29 +209,29 @@ void TensorflowPhilloxGenerator::skip_one() {
 }
 
 void TensorflowPhilloxGenerator::skip_256() {
-    for (u_char i = 0; i < 256; ++i) {
+    for (uint16_t i = 0; i < 256; ++i) {
         skip_one();
     }
 }
 
-void TensorflowPhilloxGenerator::raise_key() {
-    m_key[0] += _TENSORFLOW_kPhiloxW32A;
-    m_key[1] += _TENSORFLOW_kPhiloxW32B;
+void TensorflowPhilloxGenerator::raise_key(std::array<uint32_t, 2>& key) {
+    key[0] += _TENSORFLOW_kPhiloxW32A;
+    key[1] += _TENSORFLOW_kPhiloxW32B;
 }
 
-void TensorflowPhilloxGenerator::compute_single_round() {
+void TensorflowPhilloxGenerator::compute_single_round(std::array<uint32_t, 2>& key, std::array<uint32_t, 4>& counter) {
     uint32_t lo0;
     uint32_t hi0;
-    multiply_high_low(_TENSORFLOW_kPhiloxM4x32A, m_counter[0], &lo0, &hi0);
+    multiply_high_low(_TENSORFLOW_kPhiloxM4x32A, counter[0], &lo0, &hi0);
 
     uint32_t lo1;
     uint32_t hi1;
-    multiply_high_low(_TENSORFLOW_kPhiloxM4x32B, m_counter[2], &lo1, &hi1);
+    multiply_high_low(_TENSORFLOW_kPhiloxM4x32B, counter[2], &lo1, &hi1);
 
-    m_counter[0] = hi1 ^ m_counter[1] ^ m_key[0];
-    m_counter[1] = lo1;
-    m_counter[2] = hi0 ^ m_counter[3] ^ m_key[1];
-    m_counter[3] = lo0;
+    counter[0] = hi1 ^ counter[1] ^ key[0];
+    counter[1] = lo1;
+    counter[2] = hi0 ^ counter[3] ^ key[1];
+    counter[3] = lo0;
 }
 
 PhilloxOutput TensorflowPhilloxGenerator::random() {
@@ -237,33 +239,40 @@ PhilloxOutput TensorflowPhilloxGenerator::random() {
 
     // Run the single rounds for ten times. Manually unrolling the loop
     // for better performance.
-    compute_single_round();
-    raise_key();
-    compute_single_round();
-    raise_key();
-    compute_single_round();
-    raise_key();
-    compute_single_round();
-    raise_key();
-    compute_single_round();
-    raise_key();
-    compute_single_round();
-    raise_key();
-    compute_single_round();
-    raise_key();
-    compute_single_round();
-    raise_key();
-    compute_single_round();
-    raise_key();
-    compute_single_round();
+    auto key = m_key;
+    auto counter = m_counter;
 
-    result[0] = m_counter[0];
-    result[1] = m_counter[1];
-    result[2] = m_counter[2];
-    result[3] = m_counter[3];
+    std::cout << "S: " << key[0] << " " << key[1] << " " << counter[0] << " " << counter[1]<< " " << counter[2]<< " " << counter[3]<< " " << std::endl;
 
-    // skip_one();
-    skip_256();
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+    raise_key(key);
+    compute_single_round(key, counter);
+
+    result[0] = counter[0];
+    result[1] = counter[1];
+    result[2] = counter[2];
+    result[3] = counter[3];
+
+    std::cout << "B: " << key[0] << " " << key[1] << " " << counter[0] << " " << counter[1]<< " " << counter[2]<< " " << counter[3]<< " " << std::endl;
+    skip_one();
+    // skip_256();
+    std::cout << "A: " << m_key[0] << " " << m_key[1] << " " << m_counter[0] << " " << m_counter[1]<< " " << m_counter[2]<< " " << m_counter[3]<< " " << std::endl;
 
     return result;
 }

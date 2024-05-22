@@ -240,7 +240,8 @@ public:
     }
 
     std::pair<uint64_t, uint64_t> get_next_state() override {
-        return {static_cast<uint64_t>(m_counter[1]) + m_counter[0], static_cast<uint64_t>(m_counter[3]) + m_counter[2]};
+        // return {(static_cast<uint64_t>(m_counter[1])) + m_counter[0], (static_cast<uint64_t>(m_counter[3])) + m_counter[2]};
+        return {(static_cast<uint64_t>(m_counter[1]) << 32) + m_counter[0], (static_cast<uint64_t>(m_counter[3]) << 32) + m_counter[2]};
     }
 
     /// @brief Get a set of random 32-bit unsigned integers based on the seed(s).
@@ -251,8 +252,8 @@ private:
     void skip(uint64_t count);
     void skip_one();
     void skip_256();
-    void raise_key();
-    void compute_single_round();
+    void raise_key(std::array<uint32_t, 2>& key);
+    void compute_single_round(std::array<uint32_t, 2>& key, std::array<uint32_t, 4>& counter);
 
     std::array<uint32_t, 2> m_key;
     std::array<uint32_t, 4> m_counter;
