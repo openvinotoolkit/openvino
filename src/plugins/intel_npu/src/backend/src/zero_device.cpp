@@ -19,6 +19,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     : _initStructs(initStructs),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
+    log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
@@ -73,6 +74,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(), &command_queue_group_count, nullptr));
 
+    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
     command_group_properties.resize(command_queue_group_count);
 
     for (auto& prop : command_group_properties) {
@@ -86,13 +88,18 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
                                                                   command_group_properties.data()));
 
     // Find the corresponding command queue group.
+    log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
+
 
     if (!(_initStructs->getDriverExtVersion() < ZE_GRAPH_EXT_VERSION_1_6)) {
         zeroUtils::throwOnFail(
             "pfnDeviceGetGraphProperties2",
             _graph_ddi_table_ext->pfnDeviceGetGraphProperties2(_initStructs->getDevice(), &graph_properties));
     }
+
+    log.debug("ZeroDevice::ZeroDevice - init completed");
+
 }
 
 std::shared_ptr<IExecutor> ZeroDevice::createExecutor(

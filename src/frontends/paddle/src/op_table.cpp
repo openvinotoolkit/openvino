@@ -126,6 +126,7 @@ OP_CONVERTER(tensor_array_to_tensor);
 OP_CONVERTER(tile);
 OP_CONVERTER(top_k_v2);
 OP_CONVERTER(transpose2);
+OP_CONVERTER(tril_triu);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(unique);
@@ -265,6 +266,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"tile", op::tile},
             {"top_k_v2", op::top_k_v2},
             {"transpose2", op::transpose2},
+            {"tril_triu", op::tril_triu},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
             {"unique", op::unique},
