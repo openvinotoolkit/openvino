@@ -33,6 +33,9 @@
 #    endif
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        define wmakedir(dir) _wmkdir(dir)
+#    endif
 // Copied from linux libc sys/stat.h:
 #    if !defined(__MINGW32__) && !defined(__MINGW64__)
 #        define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
@@ -379,16 +382,24 @@ bool ov::util::is_absolute_file_path(const std::string& path) {
 }
 
 void ov::util::create_directory_recursive(const std::string& path) {
-    if (path.empty() || directory_exists(path)) {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    std::wstring path_s = ov::util::string_to_wstring(path);
+#else
+    std::string path_s = path;
+#endif
+    if (path_s.empty() || directory_exists(path_s)) {
         return;
     }
 
-    std::size_t pos = path.rfind(ov::util::FileTraits<char>::file_separator);
+    std::size_t pos = path_s.rfind(ov::util::FileTraits<char>::file_separator);
     if (pos != std::string::npos) {
         create_directory_recursive(path.substr(0, pos));
     }
-
-    int err = makedir(path.c_str());
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    int err = wmakedir(path_s.c_str());
+#else
+    int err = makedir(path_s.c_str());
+#endif
     if (err != 0 && errno != EEXIST) {
         std::stringstream ss;
         // TODO: in case of exception it may be needed to remove all created sub-directories
