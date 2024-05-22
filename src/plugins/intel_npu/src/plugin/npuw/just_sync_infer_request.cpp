@@ -71,6 +71,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         auto rqs = create_infer_requests(i, m_use_function_pipelining ? 2 : 1, &recompiled);
         failover_happened |= recompiled;
         m_subrequests[i] = rqs.at(0);
+        m_subrequest_devices[i] = *comp_model_desc.device_it;
         if (comp_model_desc.replaced_by && m_use_function_pipelining) {
             m_funcall_pipeline[i].subrequest = rqs.at(1);
         }
@@ -474,6 +475,31 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
     // }); // ms_to_run
 }
 
+void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+
+    auto new_rqs = create_infer_requests(idx, m_use_function_pipelining ? 2 : 1);
+
+    // NB: Regardless if this subrequest was a function call
+    // or not, always use the real_idx here - for regular
+    // subrequests, real_id == idx, but for function calls it
+    // is critical here to update the function body, not the
+    // function calls (which are left empty now in the vector)
+    m_subrequests[real_idx] = new_rqs.at(0);
+    if (comp_model_desc.replaced_by && m_use_function_pipelining) {
+        m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
+    }
+    // After an infer request is recreated, the internal cross-request
+    // connections should be re-established (in/out tensors reset properly)
+    // Note: these two proceduers do the full I/O reset procedure what's
+    // overkill - only affected subrequest(s) could be updated instead,
+    // but it is a more complex thing and can be implemented separately
+    connect_subrequests();
+    bind_params_results();
+    m_subrequest_devices[idx] = *comp_model_desc.device_it;
+}
+
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
     failover = false;
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
@@ -484,6 +510,11 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     bool dump_in = false;
     while (!job_done) {
         bool should_recreate = false;
+        if (m_subrequest_devices[real_idx] != *m_npuw_model->m_compiled_submodels[real_idx].device_it) {
+            LOG_INFO("Recreating subrequest[" << real_idx << "] because model was recompiled for "
+                     << *m_npuw_model->m_compiled_submodels[real_idx].device_it << " device.");
+            recreate_subrequests(real_idx);
+        }
 
         if (comp_model_desc.replaced_by) {
             function_prologue(idx);
@@ -528,29 +559,10 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 
             // Altering iterators here!! Contracts should be changed!
             comp_model_desc.device_it++;
-            m_npuw_model->compile_for_success(real_idx);
-            // No need to check for failover in create_infer_request(...), as
-            // we are already in failover state.
-            auto new_rqs = create_infer_requests(idx, m_use_function_pipelining ? 2 : 1);
-
-            // NB: Regardless if this subrequest was a function call
-            // or not, always use the real_idx here - for regular
-            // subrequests, real_id == idx, but for function calls it
-            // is critical here to update the function body, not the
-            // function calls (which are left empty now in the vector)
-            m_subrequests[real_idx] = new_rqs.at(0);
-            if (comp_model_desc.replaced_by) {
-                if (m_use_function_pipelining) {
-                    m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
-                }
+            if (!m_npuw_model->compile_for_success(real_idx)) {
+                OPENVINO_THROW("Failed to compile. No more devices are left!");
             }
-            // After an infer request is recreated, the internal cross-request
-            // connections should be re-established (in/out tensors reset properly)
-            // Note: these two proceduers do the full I/O reset procedure what's
-            // overkill - only affected subrequest(s) could be updated instead,
-            // but it is a more complex thing and can be implemented separately
-            connect_subrequests();
-            bind_params_results();
+            recreate_subrequests(idx);
         }
     } // while(job_done)
 

@@ -46,6 +46,8 @@ private:
 
     void connect_subrequests();
 
+    void recreate_subrequests(std::size_t idx);
+
     using LinkFrom = std::pair
         < std::size_t /* Subrequest index */
         , std::size_t /* Subrequest output index */

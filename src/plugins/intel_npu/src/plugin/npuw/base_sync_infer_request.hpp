@@ -74,6 +74,7 @@ protected:
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
     RqPtrs m_subrequests;
+    std::vector<std::string> m_subrequest_devices;
 
     // Permanent storage for input & output tensors
     // FIXME: Currently is initialized in subclasses. Likely this

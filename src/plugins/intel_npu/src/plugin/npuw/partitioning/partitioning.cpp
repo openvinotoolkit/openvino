@@ -183,6 +183,11 @@ private:
     // more efficient to have one per function group
     std::unordered_map<std::string, std::string> layer_to_prototype;
 
+    // Some of the scalars might be used by different groups within
+    // a repeated block. We need to keep them counted for sanity checks.
+    // Matches a pair of {func_name, layer_name} to it's counter.
+    std::map<std::pair<std::string, std::string>, size_t> dup_scalars;
+
     using Match = std::function<bool(const std::shared_ptr<ov::Node> &node)>;
     void propagate(const std::string &func_name,
                    const Match &test,
@@ -285,13 +290,6 @@ void Partitioner::identifySubgraphs() {
         node_id_cache[node_ptr->get_friendly_name()] = node_ptr;
     }
     LOG_INFO("Caching done: " << node_id_cache.size() << " layers.");
-
-    const auto *dump_opt = ov::npuw::get_env({
-            "OPENVINO_NPUW_DUMP_" + model->get_friendly_name(),
-            "OPENVINO_NPUW_DUMP"});
-    if (dump_opt && dump_opt == std::string("YES")) {
-        ov::save_model(model, model->get_friendly_name() + ".xml");
-    }
 
     // FIXME: Need to do some sanity checks here. What if partitioning
     // has been generated for another variation of this model?
@@ -710,9 +708,9 @@ void Partitioner::propagate(const std::string &func_name,
                     suitable_bank_iter->insert(this_layer_name);
                     layer_to_prototype[this_layer_name] = this_writer_proto;
                 } // if(iter==end)
-            } // for(ordered_ops)
-        } // for(each)
-    }
+            } // test(node_ptr)
+        } // for(ordered_ops)
+    } // for(each)
 } // propagate
 
 void Partitioner::propagateConverts(const std::string &func_name) {
@@ -817,10 +815,17 @@ void Partitioner::propagateScalars(const std::string &func_name) {
     auto &layer_bank = ens.repeated.at(func_name).matches;
     auto match_fcn = [&](const std::shared_ptr<ov::Node> &node_ptr) -> bool {
         const auto &this_layer_name = node_ptr->get_friendly_name();
-        return ov::is_type<ov::op::v0::Constant>(node_ptr)
-            && const_bank.end() == std::find_if(const_bank.begin(),
-                                                const_bank.end(),
+        auto res = ov::is_type<ov::op::v0::Constant>(node_ptr)
+            && scalar_bank.end() == std::find_if(scalar_bank.begin(),
+                                                scalar_bank.end(),
                                                 BankContains{this_layer_name});
+        if (ov::is_type<ov::op::v0::Constant>(node_ptr)
+            && scalar_bank.end() != std::find_if(scalar_bank.begin(),
+                                                scalar_bank.end(),
+                                                BankContains{this_layer_name})) {
+            dup_scalars[{func_name, this_layer_name}]++;
+        }
+        return res;
     };
     propagate(func_name, match_fcn, scalar_bank);
 
@@ -853,13 +858,17 @@ void Partitioner::sanityCheck(const std::string &func_name) {
         LOG_DEBUG("Validation passed");
         return true;
     };
-    auto validate_scalars = [&func_group](const ov::npuw::RepeatedBlock::MatchedLayers &lrs) -> bool {
+    auto validate_scalars = [&](const ov::npuw::RepeatedBlock::MatchedLayers &lrs) -> bool {
         for (auto &&l : lrs) {
             LOG_DEBUG(l);
         }
-        if (lrs.size() != 1 && lrs.size() != func_group.refs.size()) {
+        size_t f_dup_scalars = 0;
+        for (const auto& l : lrs) {
+            f_dup_scalars += dup_scalars[{func_name, l}];
+        }
+        if (lrs.size() != 1 && lrs.size() + f_dup_scalars != func_group.refs.size()) {
             LOG_WARN("Number of layers in scalar match bank differs from 1 <OR> # of function calls: "
-                     << lrs.size() << " != " << func_group.refs.size());
+                     << lrs.size() + f_dup_scalars << " != " << func_group.refs.size());
             return false;
         }
         LOG_DEBUG("Validation passed");
@@ -1603,6 +1612,14 @@ ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model) {
     } else {
         LOG_INFO("Using online partitioning for " << model->get_friendly_name());
         ens = ov::npuw::online::buildPartitioning(model);
+    }
+
+    const auto *dump_opt = ov::npuw::get_env({
+            "OPENVINO_NPUW_DUMP_" + model->get_friendly_name(),
+            "OPENVINO_NPUW_DUMP"});
+    if (dump_opt && dump_opt == std::string("YES")) {
+        ov::save_model(model, model->get_friendly_name() + ".xml");
+        LOG_INFO("Dumped the model in the current directory.");
     }
 
     if (ens.groups.empty()) {
