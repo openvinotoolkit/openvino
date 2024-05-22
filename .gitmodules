@@ -67,7 +67,7 @@
 	url = https://github.com/google/snappy.git
 [submodule "ARMComputeLibrary"]
 	path = src/plugins/intel_cpu/thirdparty/ComputeLibrary
-	url = https://github.com/ARM-software/ComputeLibrary.git
+	url = https://review.mlplatform.org/ml/ComputeLibrary
 	ignore = dirty
 [submodule "src/plugins/intel_cpu/thirdparty/mlas"]
 	path = src/plugins/intel_cpu/thirdparty/mlas
