@@ -784,6 +784,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.avg_pool2d.default", op::translate_avg_poolnd},
         {"aten.avg_pool3d.default", op::translate_avg_poolnd},
         {"aten.baddbmm.default", op::translate_addmm_fx},
+        {"aten.bitwise_and.Scalar", op::translate_bitwise_and},
         {"aten.bitwise_and.Tensor", op::translate_bitwise_and},
         {"aten.bitwise_not.default", op::translate_bitwise_not},
         {"aten.bitwise_or.Tensor", op::translate_bitwise_or},
