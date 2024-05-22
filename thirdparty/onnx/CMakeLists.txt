@@ -61,7 +61,7 @@ if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LES
     file(WRITE onnx/onnx/common/file_utils.h "${CONTENT}")
 
     file(READ onnx/onnx/defs/traditionalml/utils.h CONTENT)
-    string(REPLACE "const auto& [type, length]" "const std::pair<int, int>& type_lenght" CONTENT "${CONTENT}")
+    string(REPLACE "const auto& [type, length]" "const std::pair<int, int>& type_length" CONTENT "${CONTENT}")
     string(REPLACE "type !=" "type_length.first !=" CONTENT "${CONTENT}")
     string(REPLACE "length !=" "type_length.second !=" CONTENT "${CONTENT}")
     file(WRITE onnx/onnx/defs/traditionalml/utils.h "${CONTENT}")
