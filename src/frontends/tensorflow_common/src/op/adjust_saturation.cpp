@@ -97,27 +97,59 @@ namespace op {
     }
 
     shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<Node> v) {
+        // c = s * v;
         auto c = make_shared<v1::Multiply>(s, v);
+        // m = v - c;
         auto m = make_shared<v1::Subtract>(v, c);
+        // dh = h * 6;
         auto dh = make_shared<v1::Multiply>(h, make_shared<v0::Constant>(element::f32, Shape{}, 6.0f));
 
-        // Compute fmodu equivalent in a vectorized manner, ensuring it wraps within [0, 2)
+        // fmodu rounded to within [0, 2)
         auto fmodu = make_shared<v1::FloorMod>(dh, make_shared<v0::Constant>(element::f32, Shape{}, 2.0f));
 
+        //  x = c * (1 - std::abs(fmodu - 1));
         auto x = make_shared<v1::Multiply>(c, make_shared<v1::Subtract>(make_shared<v0::Constant>(element::f32, Shape{}, 1.0f), make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, make_shared<v0::Constant>(element::f32, Shape{}, 1.0f)))));
 
+        // h_category = static_cast<int>(dh);
+        auto h_category = make_shared<v0::Floor>(dh);
+
+        auto constant_0 = make_shared<v0::Constant>(element::f32, Shape{}, 0.0f);
+        auto constant_1 = make_shared<v0::Constant>(element::f32, Shape{}, 1.0f);
+        auto constant_2 = make_shared<v0::Constant>(element::f32, Shape{}, 2.0f);
+        auto constant_3 = make_shared<v0::Constant>(element::f32, Shape{}, 3.0f);
+        auto constant_4 = make_shared<v0::Constant>(element::f32, Shape{}, 4.0f);
+        auto constant_5 = make_shared<v0::Constant>(element::f32, Shape{}, 5.0f);
+        
         // Map fmodu to RGB categories
-        auto rr = make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(element::f32, Shape{}, 0.0f)), c,
-                    make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(element::f32, Shape{}, 1.0f)), x,
-                        make_shared<v0::Constant>(element::f32, Shape{}, 0.0f)));
+        auto rr = make_shared<v1::Select>(
+            make_shared<v1::Equal>(h_category, constant_0), 
+            c,
+            make_shared<v1::Select>(
+                make_shared<v1::Equal>(h_category, constant_1), 
+                x,
+                constant_0
+                )
+            );
 
-        auto gg = make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(element::f32, Shape{}, 2.0f)), c,
-                    make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(element::f32, Shape{}, 3.0f)), x,
-                        make_shared<v0::Constant>(element::f32, Shape{}, 0.0f)));
+        auto gg = make_shared<v1::Select>(
+            make_shared<v1::Equal>(h_category, constant_2), 
+            c,
+            make_shared<v1::Select>(
+                make_shared<v1::Equal>(h_category, constant_3), 
+                x,
+                constant_0
+            )
+        );
 
-        auto bb = make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(element::f32, Shape{}, 4.0f)), c,
-                    make_shared<v1::Select>(make_shared<v1::Equal>(make_shared<v0::Floor>(dh), make_shared<v0::Constant>(element::f32, Shape{}, 5.0f)), x,
-                        make_shared<v0::Constant>(element::f32, Shape{}, 0.0f)));
+        auto bb = make_shared<v1::Select>(
+            make_shared<v1::Equal>(h_category, constant_4), 
+            c,
+            make_shared<v1::Select>(
+                make_shared<v1::Equal>(h_category, constant_5), 
+                x,
+                constant_0
+            )
+        );
 
         // Adding m to each component
         auto r = make_shared<v1::Add>(rr, m);
