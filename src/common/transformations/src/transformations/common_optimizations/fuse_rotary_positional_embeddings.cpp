@@ -78,7 +78,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        config.rotary_ndims = 2 * validator["half_ndims"];
+        config.rotary_ndims = 2ul * static_cast<size_t>(validator["half_ndims"]);
 
         new_args.push_back(pattern_map.at(x));
         new_args.push_back(v_cos);
@@ -184,11 +184,11 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
         if (pattern_map.count(gather_positions)) {
             auto arg_id = rope_node->get_input_size();
             rope_node->set_argument(arg_id, pattern_map.at(gather_positions));
-            config.gather_position_arg_id = arg_id;
+            config.gather_position_arg_id = static_cast<int>(arg_id);
         } else if (pattern_map.count(gather_positions_2d)) {
             auto arg_id = rope_node->get_input_size();
             rope_node->set_argument(arg_id, pattern_map.at(gather_positions_2d));
-            config.gather_position_arg_id = arg_id;
+            config.gather_position_arg_id = static_cast<int>(arg_id);
         }
         rope_node->set_config(config);
         rope_node->validate_and_infer_types();
@@ -274,8 +274,8 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
         auto config = rope_node->get_config();
         if (pattern_map.count(input_to_slice)) {
-            config.slice_start = validator["slice_start"];
-            config.slice_stop = validator["slice_stop"];
+            config.slice_start = static_cast<size_t>(validator["slice_start"]);
+            config.slice_stop = static_cast<size_t>(validator["slice_stop"]);
             config.input_trans0213 = true;
             rope_node->set_argument(0, pattern_map.at(input_to_slice));
         } else if (pattern_map.count(input_to_trans)) {
@@ -446,7 +446,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        config.rotary_ndims = validator["ndims"];
+        config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
 
         config.is_interleaved = true;
 
@@ -586,19 +586,19 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        config.rotary_ndims = validator["ndims"];
+        config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
         config.is_chatglm = true;
-        config.head_cnt = validator["head_cnt"];
-        config.head_size = validator["head_size"];
+        config.head_cnt = static_cast<size_t>(validator["head_cnt"]);
+        config.head_size = static_cast<size_t>(validator["head_size"]);
 
         if (split_output_id == 0) {
             // query : split_output_id == 0
             config.slice_start = 0;
-            config.slice_stop = validator["total_size_q"];
+            config.slice_stop = static_cast<size_t>(validator["total_size_q"]);
         } else {
             // key : split_output_id == 1
-            config.slice_start = validator["total_size_q"];
-            config.slice_stop = config.slice_start + validator["total_size_k"];
+            config.slice_start = static_cast<size_t>(validator["total_size_q"]);
+            config.slice_stop = static_cast<size_t>(config.slice_start + validator["total_size_k"]);
         }
 
         new_args.push_back(pattern_map.at(qkv_linear));
@@ -730,8 +730,8 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         op::internal::RoPE::Config config;
         OutputVector new_args;
         config.is_qwen = true;
-        config.head_cnt = validator["head_cnt"];
-        config.head_size = validator["head_size"];
+        config.head_cnt = static_cast<size_t>(validator["head_cnt"]);
+        config.head_size = static_cast<size_t>(validator["head_size"]);
         config.rotary_ndims = config.head_size;
 
         if (split_output_id == 0) {
