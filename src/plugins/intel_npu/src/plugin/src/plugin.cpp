@@ -518,63 +518,67 @@ Plugin::Plugin()
         }
     }
 
+    auto setDefaultCompilerType = [&](const ov::intel_npu::CompilerType compilerType) {
+        std::stringstream strStream;
+        strStream << compilerType;
+        _globalConfig.update({{std::string(ov::intel_npu::compiler_type.name()), strStream.str()}});
+    };
+
     // Check if CID fallback is required
     if (_backends->isCompilerFallbackRequired()) {
         _logger.info("Driver Version is too old to use MLIR Compiler. "
                      "Driver Compiler will be set as default compiler type.");
-        std::stringstream strStream;
-        strStream << ov::intel_npu::CompilerType::DRIVER;
-        _globalConfig.update({{std::string(ov::intel_npu::compiler_type.name()), strStream.str()}});
-    } else {
-        // Compare CIP and Driver versions for ELF and MI
-        const auto cip = createCompiler(ov::intel_npu::CompilerType::MLIR, _logger);
-        // The driver versions are fetched from zero device
-        const auto device = _backends->getDevice();
-        if (device != nullptr) {
-            // CIP ELF and MI versions depend on the platform, so we need to fetch the native platform of the device.
-            const auto platform = device->getName();
+        setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
+        return;
+    }
+    // Compare CIP and Driver versions for ELF and MI
+    const auto cip = createCompiler(ov::intel_npu::CompilerType::MLIR, _logger);
 
-            if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
-                // A local config is needed to make the platform available to the compiler.
-                std::map<std::string, std::string> platformConfig{
-                    {std::string(ov::intel_npu::platform.name()), platform}};
-                const Config config = merge_configs(_globalConfig, platformConfig);
+    // The driver versions are fetched from zero device
+    const auto device = _backends->getDevice();
+    if (device == nullptr) {
+        return;
+    }
 
-                const Version cipElfVersion = cip->getELFVersion(config);
-                const Version cipMIVersion = cip->getStaticMIVersion(config);
-                const Version driverElfVersion = device->getELFVersion();
-                const Version driverMIVersion = device->getStaticMIVersion();
+    // CIP ELF and MI versions depend on the platform, so we need to fetch the native platform of the device.
+    const auto platform = device->getName();
 
-                // If there is an ELF of MI version incombatibility between the CIP and the Driver. The default
-                // compiler_type will be set to Driver Compiler.
-                if (!driverElfVersion.isCompatible(cipElfVersion)) {
-                    _logger.info("Driver ELF Version: %d.%d.%d is incompatible with Plugin ELF Version: %d.%d.%d, "
-                                 "Driver Compiler will be set as default compiler type.",
-                                 driverElfVersion.major,
-                                 driverElfVersion.minor,
-                                 driverElfVersion.patch,
-                                 cipElfVersion.major,
-                                 cipElfVersion.minor,
-                                 cipElfVersion.patch);
-                    std::stringstream strStream;
-                    strStream << ov::intel_npu::CompilerType::DRIVER;
-                    _globalConfig.update({{std::string(ov::intel_npu::compiler_type.name()), strStream.str()}});
-                } else if (!driverMIVersion.isCompatible(cipMIVersion)) {
-                    _logger.info("Driver MI Version: %d.%d.%d is incompatible with Plugin MI Version: %d.%d.%d, "
-                                 "Driver Compiler will be set as default compiler type.",
-                                 driverMIVersion.major,
-                                 driverMIVersion.minor,
-                                 driverMIVersion.patch,
-                                 cipMIVersion.major,
-                                 cipMIVersion.minor,
-                                 cipMIVersion.patch);
-                    std::stringstream strStream;
-                    strStream << ov::intel_npu::CompilerType::DRIVER;
-                    _globalConfig.update({{std::string(ov::intel_npu::compiler_type.name()), strStream.str()}});
-                }
-            }
+    if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
+        // A local config is needed to make the platform available to the compiler.
+        std::map<std::string, std::string> platformConfig{{std::string(ov::intel_npu::platform.name()), platform}};
+        const Config config = merge_configs(_globalConfig, platformConfig);
+
+        const Version cipElfVersion = cip->getELFVersion(config);
+        const Version cipMIVersion = cip->getStaticMIVersion(config);
+        const Version driverElfVersion = device->getELFVersion();
+        const Version driverMIVersion = device->getStaticMIVersion();
+
+        // If there is an ELF or MI version incompatibility between CIP and Driver, the
+        // compiler_type will be set to Driver Compiler.
+        if (!driverElfVersion.isCompatible(cipElfVersion)) {
+            _logger.info("Driver ELF Version: %d.%d.%d is incompatible with Plugin ELF Version: %d.%d.%d, "
+                         "Driver Compiler will be set as default compiler type.",
+                         driverElfVersion.major,
+                         driverElfVersion.minor,
+                         driverElfVersion.patch,
+                         cipElfVersion.major,
+                         cipElfVersion.minor,
+                         cipElfVersion.patch);
+            setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
+        } else if (!driverMIVersion.isCompatible(cipMIVersion)) {
+            _logger.info("Driver MI Version: %d.%d.%d is incompatible with Plugin MI Version: %d.%d.%d, "
+                         "Driver Compiler will be set as default compiler type.",
+                         driverMIVersion.major,
+                         driverMIVersion.minor,
+                         driverMIVersion.patch,
+                         cipMIVersion.major,
+                         cipMIVersion.minor,
+                         cipMIVersion.patch);
+            setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
         }
     }
+
+    // Instructions added below this point could be skipped due to early return
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {

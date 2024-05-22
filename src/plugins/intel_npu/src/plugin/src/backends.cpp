@@ -165,7 +165,7 @@ bool NPUBackends::isBatchingSupported() const {
 
 bool NPUBackends::isCompilerFallbackRequired() const {
     static const uint32_t lastCompatibleVersion = 2196;
-    return getDriverVersion() >= lastCompatibleVersion;
+    return getDriverVersion() < lastCompatibleVersion;
 }
 
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
