@@ -6,6 +6,8 @@
 
 #include <cstdint>
 #include <vector>
+#include <array>
+#include <<utility>
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
