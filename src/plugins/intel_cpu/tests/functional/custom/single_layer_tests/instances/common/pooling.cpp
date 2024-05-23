@@ -219,7 +219,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D_ref, MaxPoolingV14LayerCPUTest,
                                  ::testing::ValuesIn(paramsMaxV85D_ref),
                                  ::testing::ValuesIn(inputShapes5D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::Values(expectedCpuConfig())),
+                                 ::testing::Values(expectedCpuConfigAnyLayout())),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
@@ -258,7 +258,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_5D_NotOptimized, AvgPoolingV14Laye
                               ::testing::ValuesIn(inputShapes5D()),
                               ::testing::ValuesIn((inpOutPrecision())),
                               ::testing::Values(false),
-                              ::testing::Values(expectedCpuConfig()),
+                              ::testing::Values(expectedCpuConfigAnyLayout()),
                               ::testing::Values(emptyFusingSpec)),
                           AvgPoolingV14LayerCPUTest::getTestCaseName);
 #endif
