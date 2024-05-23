@@ -55,9 +55,6 @@ void convert(const TI* arg, TO* out, const size_t count) {
     std::transform(arg, arg + count, out, detail::convert<TI, TO>);
 }
 
-template <>
-void convert<int32_t , float16>(const int32_t * arg, float16* out, size_t count);
-
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
 template <>
@@ -66,6 +63,8 @@ template <>
 void convert<float16, float>(const float16* arg, float* out, size_t count);
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count);
+template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count);
 template <>

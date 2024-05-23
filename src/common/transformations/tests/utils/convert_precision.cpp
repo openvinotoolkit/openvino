@@ -382,7 +382,12 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_1) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 TEST(TransformationTests, ConvertPrecision_Convert_clamp_2) {
+#else
+// Ticket: CVS-122397
+TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_2) {
+#endif
     //  Similar to const compression test CompressConstants_compress_to_f16_max_out_of_range_val
     // fp16 out of range should be clamped to [fp16_min, fp16_max]
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
@@ -422,7 +427,12 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_2) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 TEST(TransformationTests, ConvertPrecision_Convert_clamp_int32) {
+#else
+// Ticket: CVS-122397
+TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_int32) {
+#endif
     // int32 values will be converted to float16, but during CF evaluate is calculated in float32
     // const_1[i32] -> convert_to_f16[f16] -> some_foldable_op[f16] -> ...
     // cont_1_converted_to_f16[f16] -> some_foldable_op[f16] -> ...
