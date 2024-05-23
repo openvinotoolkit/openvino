@@ -93,7 +93,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
         std::shared_ptr<ov::op::v8::MaxPool> max_pool_v8;
         NodeRegistry node_registry;
         if (rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
-            if (max_pool_v14->is_dynamic()) {
+            if (max_pool_v14->is_dynamic() || max_pool_v14->get_input_partial_shape(0).is_dynamic()) {
                 return false;
             }
             auto input = max_pool_v14->input_value(0);
@@ -112,12 +112,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
             const auto pads_len = node_registry.make<Constant>(element::i64, Shape{}, pads_size);
             const auto pads_remaining =
                 node_registry.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 0});
-            for(int i = 0; i < padding_begin.size(); i++) {
-                std::cout << "\n" << padding_begin[i] << " ";
-            }
-            for(int i = 0; i < padding_end.size(); i++) {
-                std::cout << "\n" << padding_end[i] << " ";
-            }
+
             // gather input spatial dims and prepare for compare as values (in_dim + pad)
             const auto end = node_registry.make<Constant>(element::i64, Shape{}, pads_size + 2);
             const auto dim_idxs = node_registry.make<Range>(two, end, one, element::i64);

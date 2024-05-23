@@ -35,6 +35,15 @@ protected:
     void SetUp() override;
 };
 
+class AvgPoolingV14LayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
+                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 class MaxPoolingV8LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
                                  virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
@@ -70,9 +79,12 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D();
 
 const std::vector<InputShape>& inputShapes3D();
+const std::vector<InputShape>& inputShapes3DCeilTorch();
 const std::vector<InputShape>& inputShapes4D();
+const std::vector<InputShape>& inputShapes4DCeilTorch();
 const std::vector<InputShape>& inputShapes4D_Large();
 const std::vector<InputShape>& inputShapes5D();
+const std::vector<InputShape>& inputShapes5DCeilTorch();
 
 const std::vector<poolSpecificParams>& paramsAvg4D();
 const std::vector<poolSpecificParams>& paramsAvgV144D();
@@ -80,6 +92,7 @@ const std::vector<poolSpecificParams>& paramsAvg4D_Large();
 const std::vector<poolSpecificParams>& paramsAvg5D();
 const std::vector<poolSpecificParams>& paramsAvgV145D();
 const std::vector<poolSpecificParams>& paramsMax5D();
+
 }  // namespace Pooling
 }  // namespace test
 }  // namespace ov

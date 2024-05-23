@@ -113,6 +113,95 @@ void PoolingLayerCPUTest::SetUp() {
     function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
 }
 
+std::string AvgPoolingV14LayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
+    ov::test::poolSpecificParams basicParamsSet;
+    InputShape inputShapes;
+    ElementType inPrc;
+    bool isInt8;
+    CPUSpecificParams cpuParams;
+    fusingSpecificParams fusingParams;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = obj.param;
+
+    utils::PoolingTypes poolType;
+    std::vector<size_t> kernel, stride;
+    std::vector<size_t> padBegin, padEnd;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
+    bool excludePad;
+    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
+
+    std::ostringstream results;
+    results << "IS=(";
+    results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
+    results << "TS=";
+    for (const auto& shape : inputShapes.second) {
+        results << ov::test::utils::vec2str(shape) << "_";
+    }
+    results << "Prc=" << inPrc << "_";
+    results << "AvgPool_";
+    results << "ExcludePad=" << excludePad << "_";
+    results << "K" << ov::test::utils::vec2str(kernel) << "_";
+    results << "S" << ov::test::utils::vec2str(stride) << "_";
+    results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    results << "Rounding=" << roundingType << "_";
+    results << "AutoPad=" << padType << "_";
+    results << "INT8=" << isInt8 << "_";
+
+    results << CPUTestsBase::getTestCaseName(cpuParams);
+    results << CpuTestWithFusing::getTestCaseName(fusingParams);
+    return results.str();
+}
+
+void AvgPoolingV14LayerCPUTest::SetUp() {
+    targetDevice = ov::test::utils::DEVICE_CPU;
+
+    poolSpecificParams basicParamsSet;
+    InputShape inputShapes;
+    ElementType inPrc;
+    bool isInt8;
+    CPUSpecificParams cpuParams;
+    fusingSpecificParams fusingParams;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = this->GetParam();
+
+    utils::PoolingTypes poolType;
+    std::vector<size_t> kernel, stride;
+    std::vector<size_t> padBegin, padEnd;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
+    bool excludePad;
+    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
+
+    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+    std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+
+    if (selectedType.empty()) {
+        selectedType = getPrimitiveType();
+    }
+    if (isInt8)
+        selectedType = selectedType + "_I8";
+    else
+        selectedType = makeSelectedTypeStr(selectedType, inPrc);
+
+    init_input_shapes({inputShapes});
+
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+    }
+
+    std::shared_ptr<ov::Node> poolInput = params[0];
+    if (isInt8) {
+        abs_threshold = 2e-2;
+        ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
+        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
+    }
+
+    auto pooling = std::make_shared<ov::op::v14::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
+
+    function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
+}
+
 std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
     maxPoolV8SpecificParams basicParamsSet;
@@ -278,6 +367,11 @@ void MaxPoolingV14LayerCPUTest::SetUp() {
 }
 
 TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "Pooling");
+}
+
+TEST_P(AvgPoolingV14LayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }
@@ -457,6 +551,37 @@ const std::vector<InputShape>& inputShapes3D() {
     return inputShapes3D;
 }
 
+const std::vector<InputShape>& inputShapes3DCeilTorch() {
+    static const std::vector<InputShape> inputShapes3D = {
+            { {}, {{3, 4, 64}} },
+            { {}, {{2, 8, 12}} },
+            { {}, {{1, 16, 12}} },
+            { {}, {{1, 21, 4}} },
+            { {}, {{1, 32, 8}} },
+            {
+                // dynamic
+                {-1, -1, -1},
+                // target
+                {
+                    {1, 32, 8},
+                    {1, 21, 4},
+                    {2, 8, 12}
+                }
+            },
+            {
+                // dynamic
+                {{1, 5}, {4, 32}, {1, 64}},
+                // target
+                {
+                    {3, 4, 64},
+                    {1, 16, 12},
+                    {1, 32, 8}
+                }
+            }
+    };
+    return inputShapes3D;
+}
+
 const std::vector<InputShape>& inputShapes4D() {
     static const std::vector<InputShape> inputShapes4D = {
             { {}, {{3, 4, 64, 64}} },
@@ -498,6 +623,17 @@ const std::vector<InputShape>& inputShapes4D() {
     return inputShapes4D;
 }
 
+const std::vector<InputShape>& inputShapes4DCeilTorch() {
+    static const std::vector<InputShape> inputShapes4DCeilTorch = {
+            { {}, {{3, 4, 64, 64}} },
+            { {}, {{2, 8, 8, 12}} },
+            { {}, {{1, 16, 16, 12}} },
+            { {}, {{1, 21, 8, 4}} },
+            { {}, {{1, 32, 8, 8}} },
+    };
+    return inputShapes4DCeilTorch;
+}
+
 const std::vector<InputShape>& inputShapes5D() {
     static const std::vector<InputShape> inputShapes5D = {
             { {}, {{1, 4, 16, 16, 16}} },
@@ -529,6 +665,17 @@ const std::vector<InputShape>& inputShapes5D() {
     return inputShapes5D;
 }
 
+const std::vector<InputShape>& inputShapes5DCeilTorch() {
+    static const std::vector<InputShape> inputShapes5D = {
+            { {}, {{1, 4, 16, 16, 16}} },
+            { {}, {{2, 8, 8, 8, 8}} },
+            { {}, {{2, 16, 12, 16, 20}} },
+            { {}, {{1, 19, 16, 20, 8}} },
+            { {}, {{1, 32, 16, 8, 12}} },
+    };
+    return inputShapes5D;
+}
+
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D() {
     static const std::vector<maxPoolV8SpecificParams> paramsMaxV85D = {
             maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
@@ -542,7 +689,7 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D() {
 }
 
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D() {
-    static const std::vector<maxPoolV8SpecificParams> paramsMaxV145D = {
+    static const std::vector<maxPoolV8SpecificParams> paramsMaxV145DCeilTorch = {
             maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
@@ -556,7 +703,7 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D() {
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT },
     };
-    return paramsMaxV145D;
+    return paramsMaxV145DCeilTorch;
 }
 
 const std::vector<poolSpecificParams>& paramsAvg4D() {
