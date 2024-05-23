@@ -43,6 +43,7 @@
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
+#include "transforms/torchfx_gptq_pattern_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
 #include "translate_session.hpp"
@@ -171,6 +172,12 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
+
+    // GPTQ transformations need to be executed before other passes
+    // Once the GPTQ patterns are modified by other transformations,
+    // they cannot be captured anymore
+    manager.register_pass<ov::frontend::pytorch::pass::GPTQDecompressionReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>();
 
     // the following 2 transformations are needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice

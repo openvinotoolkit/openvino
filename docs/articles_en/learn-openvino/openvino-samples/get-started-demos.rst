@@ -472,7 +472,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 When the sample application is complete, you are given the label and confidence for the top 10 categories. The input image and sample output of the inference results is shown below:
 
-.. image:: ../../_static/images/dog.png
+.. image:: ../../assets/images/dog.png
 
 .. code-block:: sh
 
