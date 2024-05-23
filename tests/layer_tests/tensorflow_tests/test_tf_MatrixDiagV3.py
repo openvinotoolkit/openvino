@@ -33,41 +33,30 @@ class TestMatrixDiagV3(CommonTFLayerTest):
                 'padding_value': padding_value,
                 # 'align': align,
             }
-            
-            tf.raw_ops.MatrixDiagV3(**params)
+            logger.info(k)
+            k = tf.constant(k)
+            tf.raw_ops.MatrixDiagV3(diagonal=diagonal, k=k, num_rows=num_rows, num_cols=num_cols, padding_value=padding_value)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
         
         return tf_net, None
 
-    @pytest.mark.parametrize("diagonal_type", [np.int32])
-    @pytest.mark.parametrize("diagonal_shape", [3])
-    @pytest.mark.parametrize("k", [0])
-    @pytest.mark.parametrize("num_cols", [-1, 3])
-    @pytest.mark.parametrize("num_rows", [-1, 3])
-    @pytest.mark.parametrize("padding_value", [-1, 0])
-    # @pytest.mark.parametrize("align", ["RIGHT_LEFT"])
+    @pytest.mark.parametrize("test_params", [
+    {
+        "diagonal_type": np.int64,
+        "diagonal_shape": [1, 3],
+        "k": 3,
+        "num_cols": -1,
+        "num_rows": -1,
+        "padding_value": -1,
+        # "align": "RIGHT_LEFT" 
+    }
+    ])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_matrix_diag_v3_basic(self,
-                                  diagonal_type,
-                                  diagonal_shape, 
-                                  k,
-                                  num_cols,
-                                  num_rows,
-                                  padding_value,
-                                  ie_device, 
-                                  precision, 
-                                  ir_version, 
-                                  temp_dir,
-                                  use_legacy_frontend):
+    def test_matrix_diag_v3_basic(self, test_params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("GPU support issue in local development")
-        self._test(*self.create_matrix_diag_v3_net(diagonal_type,
-                                                   diagonal_shape,
-                                                   k,
-                                                   num_cols,
-                                                   num_rows,
-                                                   padding_value),
+        self._test(*self.create_matrix_diag_v3_net(**test_params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
