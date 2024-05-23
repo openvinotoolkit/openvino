@@ -3,8 +3,8 @@
 //
 
 #include "openvino/reference/utils/phillox_generator.hpp"
-#include <stdio.h>
 
+#include <stdio.h>
 
 namespace ov {
 
@@ -242,7 +242,8 @@ PhilloxOutput TensorflowPhilloxGenerator::random() {
     auto key = m_key;
     auto counter = m_counter;
 
-    std::cout << "S: " << key[0] << " " << key[1] << " " << counter[0] << " " << counter[1]<< " " << counter[2]<< " " << counter[3]<< " " << std::endl;
+    std::cout << "S: " << key[0] << " " << key[1] << " " << counter[0] << " " << counter[1] << " " << counter[2] << " "
+              << counter[3] << " " << std::endl;
 
     compute_single_round(key, counter);
     raise_key(key);
@@ -269,10 +270,12 @@ PhilloxOutput TensorflowPhilloxGenerator::random() {
     result[2] = counter[2];
     result[3] = counter[3];
 
-    std::cout << "B: " << key[0] << " " << key[1] << " " << counter[0] << " " << counter[1]<< " " << counter[2]<< " " << counter[3]<< " " << std::endl;
+    std::cout << "B: " << key[0] << " " << key[1] << " " << counter[0] << " " << counter[1] << " " << counter[2] << " "
+              << counter[3] << " " << std::endl;
     skip_one();
     // skip_256();
-    std::cout << "A: " << m_key[0] << " " << m_key[1] << " " << m_counter[0] << " " << m_counter[1]<< " " << m_counter[2]<< " " << m_counter[3]<< " " << std::endl;
+    std::cout << "A: " << m_key[0] << " " << m_key[1] << " " << m_counter[0] << " " << m_counter[1] << " "
+              << m_counter[2] << " " << m_counter[3] << " " << std::endl;
 
     return result;
 }

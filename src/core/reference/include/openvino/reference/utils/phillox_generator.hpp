@@ -240,8 +240,10 @@ public:
     }
 
     std::pair<uint64_t, uint64_t> get_next_state() override {
-        // return {(static_cast<uint64_t>(m_counter[1])) + m_counter[0], (static_cast<uint64_t>(m_counter[3])) + m_counter[2]};
-        return {(static_cast<uint64_t>(m_counter[1]) << 32) + m_counter[0], (static_cast<uint64_t>(m_counter[3]) << 32) + m_counter[2]};
+        // return {(static_cast<uint64_t>(m_counter[1])) + m_counter[0], (static_cast<uint64_t>(m_counter[3])) +
+        // m_counter[2]};
+        return {(static_cast<uint64_t>(m_counter[1]) << 32) + m_counter[0],
+                (static_cast<uint64_t>(m_counter[3]) << 32) + m_counter[2]};
     }
 
     /// @brief Get a set of random 32-bit unsigned integers based on the seed(s).
