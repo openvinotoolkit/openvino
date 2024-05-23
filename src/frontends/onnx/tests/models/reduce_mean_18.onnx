@@ -13,12 +13,6 @@ graph {
     name: "axes"
     raw_data: "\002\000\000\000"
   }
-  initializer {
-    data_type: 6
-    dims: 1
-    name: "axes"
-    raw_data: "\002\000\000\000"
-  }
   input {
     name: "a"
     type {
