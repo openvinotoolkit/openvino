@@ -58,18 +58,16 @@ ov::pass::ConcatToTile::ConcatToTile() {
 
         std::shared_ptr<Node> replacement;
         if (use_broadcast(concat)) {
-            auto target_shape =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                       Shape{concat->output(0).get_shape().size()},
-                                                       concat->output(0).get_shape());
+            auto target_shape = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                       Shape{concat->output(0).get_shape().size()},
+                                                                       concat->output(0).get_shape());
             replacement = std::make_shared<ov::op::v3::Broadcast>(input, target_shape);
         } else {
             std::vector<size_t> repeat_num_vec(concat->output(0).get_partial_shape().rank().get_length(), 1);
             repeat_num_vec[concat->get_concatenation_axis()] = concat->get_input_size();
 
-            auto repeat_num = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                     Shape{repeat_num_vec.size()},
-                                                                     repeat_num_vec);
+            auto repeat_num =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{repeat_num_vec.size()}, repeat_num_vec);
             replacement = std::make_shared<ov::op::v0::Tile>(input, repeat_num);
         }
 

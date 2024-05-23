@@ -23,8 +23,7 @@ enum class ExpectedType {
     Concat,
 };
 
-using ConcatToTileParams =
-    std::tuple<ov::PartialShape, size_t, size_t, ExpectedType>;
+using ConcatToTileParams = std::tuple<ov::PartialShape, size_t, size_t, ExpectedType>;
 
 class ConcatToTileTest : public WithParamInterface<ConcatToTileParams>, public testing::Test {
 protected:
@@ -44,8 +43,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                 ConcatToTileParams({1, 2, 1, 2}, 2604, 1, ExpectedType::Tile),
                                 ConcatToTileParams({-1, 2, 1, 2}, 2604, 0, ExpectedType::Tile),
                                 ConcatToTileParams({-1, -1, -1, -1}, 2604, 0, ExpectedType::Tile),
-                                ConcatToTileParams(ov::PartialShape::dynamic(), 2604, 0, ExpectedType::Concat))
-                         );
+                                ConcatToTileParams(ov::PartialShape::dynamic(), 2604, 0, ExpectedType::Concat)));
 
 TEST_P(ConcatToTileTest, TestTransfromationExecuted) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, data_shape);
