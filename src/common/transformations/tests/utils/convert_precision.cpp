@@ -375,9 +375,9 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_1) {
     }
     ASSERT_NO_THROW(check_rt_info(model));
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::CONST_VALUES)
-            .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -415,9 +415,9 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_2) {
 
     ASSERT_NO_THROW(check_rt_info(model));
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::CONST_VALUES)
-            .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -459,9 +459,9 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_int32) {
 
     ASSERT_NO_THROW(check_rt_info(model));
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::CONST_VALUES)
-            .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
