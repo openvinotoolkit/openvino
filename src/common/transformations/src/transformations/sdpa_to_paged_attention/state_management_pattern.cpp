@@ -212,7 +212,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 // num kv heads in KV tensor (because it is 1 and can be not exposed) Hence we should look at the
                 // first_element - 1 axis first, if it is static then it is out number of heads, if it is not staic,
                 // then the number of heads is 1, and Broadcast implements pure MQA logic within a single dimension.
-                int num_kv_head_dim_index = shape[first_element - 1].is_static() ? first_element - 1 : first_element;
                 return shape[first_element - 1].is_static() ? shape[first_element - 1] : ov::Dimension(1);
             } else {
                 return default_heads_num;
