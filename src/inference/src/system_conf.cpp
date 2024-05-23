@@ -558,7 +558,7 @@ void reserve_available_cpus(int executor_id,
 
     // printf("[ threading ] cpu_mapping_table (%ld):\n", cpu._cpu_mapping_table.size());
     // for (size_t i = 0; i < cpu._cpu_mapping_table.size(); i++) {
-    //     printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\n", 
+    //     printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
     //         cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID],
     //         cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID],
     //         cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID],
