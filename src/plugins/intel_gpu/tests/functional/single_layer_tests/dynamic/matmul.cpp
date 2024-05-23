@@ -334,6 +334,18 @@ const auto fullyConnectedParams3D_nightly = ::testing::Combine(::testing::Values
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D, MatMulLayerGPUTest, fullyConnectedParams3D_nightly, MatMulLayerGPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS4D_smoke = {
+    {ov::test::static_shapes_to_test_representation({{1, 32, 20, 120}, {120, 3}}), {false, true}},
+    {ov::test::static_shapes_to_test_representation({{1, 32, 20, 120}, {120, 3}}), {true, true}},
+
+    {ov::test::static_shapes_to_test_representation({{1, 1, 4, 50}, {50, 7}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 1, 4, 50}, {50, 7}}), {true, true}},
+
+    {ov::test::static_shapes_to_test_representation({{1, 1, 5, 32}, {32, 3}}), {false, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 1, 5, 32}, {32, 3}}), {true, false}},
+
+    {ov::test::static_shapes_to_test_representation({{1, 3, 6, 14}, {14, 10}}), {true, false}},
+    {ov::test::static_shapes_to_test_representation({{1, 3, 6, 14}, {14, 10}}), {false, true}},
+
     {
         {
             {{-1, -1, -1, -1}, {{1, 32, 20, 120}, {1, 12, 20, 120}}},
