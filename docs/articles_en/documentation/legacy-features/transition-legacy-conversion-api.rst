@@ -293,7 +293,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --batch 2 --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``mean_values``
 ################
@@ -342,7 +342,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --mean_values [0.5,0.5,0.5] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``scale_values``
 #################
@@ -391,7 +391,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --scale_values [255,255,255] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``reverse_input_channels``
 ###########################
@@ -440,7 +440,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --reverse_input_channels --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``source_layout``
 ##################
@@ -487,7 +487,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --source_layout input_name(NHWC) --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``target_layout``
 ##################
@@ -534,7 +534,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --target_layout input_name(NHWC) --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``layout``
 ###########
@@ -581,7 +581,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --layout "input_name(NCHW->NHWC)" --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``transform``
 ##############
@@ -627,7 +627,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --transform LowLatency2[use_const_initializer=False],Pruning,MakeStateful[param_res_names={'input_name':'output_name'}] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 Cutting Off Parts of a Model
 ############################

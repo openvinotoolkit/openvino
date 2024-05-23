@@ -99,15 +99,13 @@ std::function<void()> reinfer_request_inference(std::shared_ptr<InferApiBase> &i
     };
 }
 
-std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase> &ie_wrapper) {
-    return [=] {
-        auto func = [=] {
-            ie_wrapper->create_infer_request();
-            ie_wrapper->prepare_input();
-            ie_wrapper->infer();
+std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase> &ie_wrapper, const bool async) {
+    return [async, &ie_wrapper] {
+        auto func = [&ie_wrapper, &async] {
+            ie_wrapper->create_and_infer(async);
         };
         std::thread t(func);
-	t.join();
+        t.join();
     };
 }
 
