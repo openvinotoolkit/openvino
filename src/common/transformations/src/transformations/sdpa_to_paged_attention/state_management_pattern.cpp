@@ -85,8 +85,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     // There are models where K and V merged into a single tensor and splited apart after K/V past and current
     // concatenation The following part in the pattern covers this case.
     // TODO: Consider not specifying VariadicSplit as an input for Concat, it is not really used in the pattern, but
-    // just sets more strict requirement for the graph The risk with not specifying VariadicSplit is that it can be
-    // ambiguous which part the matcher should take: KV merged part or where K and V are separate, requires experiments
+    // just sets more strict requirement for the graph. The risk with not specifying VariadicSplit is that it can be
+    // ambiguous which part the matcher should take: KV merged part or where K and V are separate, requires experiments.
     auto qkv_current_split_node =
         pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), pattern::any_input()});
     qkv_current_split_node->set_output_size(2);
@@ -182,8 +182,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto extract_num_kv_heads = [=, &pattern_map](std::shared_ptr<Node> unsqueeze,
                                                       const Dimension& default_heads_num) {
             // Deduce number of k/v heads from Unsqueeze-Broadcast-Reshape (UBR pattern, if present)
-            // pattern that appears in case of MQA/GQA
-            // In case if UBR pattern doesn't appear, the default number of heads is used passed as default_heads_num
+            // pattern that appears in case of MQA/GQA.
+            // In case if UBR pattern doesn't appear, the default number of heads is used passed as default_heads_num.
             if (pattern_map.find(unsqueeze) != pattern_map.end()) {
                 // based on unsqueeze index determine the dimension that will be broadcased
                 // if there is no expected dimension for any reason, return dynamic dimension
@@ -209,8 +209,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                     return ov::Dimension();
                 }
                 // In some cases of MQA, where KV cache is stored as 3D tensor there is no dimension that corresponds to
-                // num kv heads in KV tensor (because it is 1 and can be not exposed) Hence we should look at the
-                // first_element - 1 axis first, if it is static then it is out number of heads, if it is not staic,
+                // num kv heads in KV tensor (because it is 1 and can be not exposed). Hence we should look at the
+                // first_element - 1 axis first, if it is static then it is our number of heads, if it is not staic,
                 // then the number of heads is 1, and Broadcast implements pure MQA logic within a single dimension.
                 return shape[first_element - 1].is_static() ? shape[first_element - 1] : ov::Dimension(1);
             } else {
