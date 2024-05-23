@@ -3,6 +3,7 @@
 //
 
 #include "jit_eltwise_emitters.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
 #include <memory>
 #include "common/utils.hpp"
@@ -1618,6 +1619,12 @@ jit_swish_emitter::jit_swish_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node)
         : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    const auto swish = std::dynamic_pointer_cast<SwishNode>(node);
+    if (swish == nullptr) {
+        OV_CPU_JIT_EMITTER_THROW("Can't cast to SwishNode");
+    }
+    beta = static_cast<float>(swish->get_alpha());
+
     prepare_table();
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(h, host_isa, node);
 }

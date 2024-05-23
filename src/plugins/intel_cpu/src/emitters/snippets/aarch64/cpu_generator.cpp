@@ -14,6 +14,7 @@
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
 
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
 #include "openvino/opsets/opset13.hpp"
 
@@ -97,6 +98,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
     jitters[ov::op::v4::HSwish::get_type_info_static()] = CREATE_CPU_EMITTER(jit_hswish_emitter);
     jitters[ov::op::v0::Relu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_relu_emitter);
     jitters[ov::op::v0::Sigmoid::get_type_info_static()] = CREATE_CPU_EMITTER(jit_sigmoid_emitter);
+    jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
 
     // control flow
@@ -155,7 +157,8 @@ std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<intel_cpu::FusedMulAdd>(op))
+    if (std::dynamic_pointer_cast<intel_cpu::FusedMulAdd>(op) ||
+        std::dynamic_pointer_cast<intel_cpu::SwishNode>(op))
         return ov::snippets::RegType::vec;
     else
         return ov::snippets::RegType::undefined;
