@@ -147,7 +147,6 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
 
     const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
     Reg64 reg_increments = are_ptr_shifts_dynamic ? Reg64(static_cast<int>(aux_gpr_idxs[0])) : Reg64();
-    Reg64 reg_work_amount = Reg64(in.back());
 
 #define APPLY_INCREMENTS(USE_RUNTIME_ARGS, TYPE, INCREMENTS, SCALE)                                                         \
     if (USE_RUNTIME_ARGS) {                                                                                                 \
@@ -159,7 +158,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
         const auto& increment = INCREMENTS[idx];                                                                            \
         if (is_incremented[idx] && increment != 0) {                                                                        \
             if (ov::snippets::utils::is_dynamic_value(increment)) {                                                         \
-                OPENVINO_ASSERT(USE_RUNTIME_ARGS, "Loop argument structure cannot be pushed to aux GPR");                   \
+                OV_CPU_JIT_EMITTER_ASSERT(USE_RUNTIME_ARGS, "Loop argument structure cannot be pushed to aux GPR");         \
                 h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), h->ptr[reg_increments + idx * sizeof(int64_t)]);    \
             } else {                                                                                                        \
                 h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment * SCALE * data_sizes[idx]);               \
@@ -170,6 +169,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
     if (!evaluate_once) {
         APPLY_INCREMENTS(are_ptr_increments_dynamic, m_ptr_increments, ptr_increments, wa_increment);
 
+        Reg64 reg_work_amount = Reg64(in.back());
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
         h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);

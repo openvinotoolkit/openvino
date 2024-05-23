@@ -21,8 +21,8 @@ public:
 
     size_t get_inputs_num() const override { return 0; }
 
-     void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                   const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const override;
+    void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                  const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const override;
 
     void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) { loop_end_label = label; }
     std::shared_ptr<const Xbyak::Label> get_begin_label() { return loop_begin_label; }
