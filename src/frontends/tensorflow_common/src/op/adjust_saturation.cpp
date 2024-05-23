@@ -36,8 +36,13 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
+// Image format conversion based on https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
+
 // shared_ptr<Node> convert_rgb_to_hsv(shared_ptr<Node> images) {
 shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_rgb_to_hsv(shared_ptr<Node> images, element::Type type) {
+
+    auto zero = make_shared<v0::Constant>(type, Shape{}, 0.0f);
+    auto one = make_shared<v0::Constant>(type, Shape{}, 1.0f);
 
     // Find max and min across channel axis. Max = Value (V)
     auto max_rgb = make_shared<v1::ReduceMax>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
@@ -46,7 +51,8 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     auto vv = max_rgb;
 
     // Compute Saturation (S)
-    auto ss = make_shared<v1::Divide>(range, vv);
+    auto ss_ = make_shared<v1::Divide>(range, vv);
+    auto ss = make_shared<v1::Select>(make_shared<v1::Greater>(vv, zero), ss_, zero);
 
     // Compute normalization factor (for Hue calculation)
     auto norm = make_shared<v1::Divide>(
@@ -98,14 +104,12 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
         )
     );
 
-    auto zero = make_shared<v0::Constant>(type, Shape{}, 0.0f);
-    auto one = make_shared<v0::Constant>(type, Shape{}, 1.0f);
+    // range = 0.0: hh = 0
+    auto hh_zero_range = make_shared<v1::Select>(make_shared<v1::Equal>(range, zero), zero, hh);
 
     // hh < 0.0: hh = hh + 1
-    auto hh_normalized = make_shared<v1::Select>(make_shared<v1::Less>(hh, zero), make_shared<v1::Add>(hh, one), hh);
+    auto hh_final = make_shared<v1::Select>(make_shared<v1::Less>(hh, zero), make_shared<v1::Add>(hh_zero_range, one), hh_zero_range);
 
-    // range = 0.0: hh = 0
-    auto hh_final = make_shared<v1::Select>(make_shared<v1::Equal>(range, zero), zero, hh_normalized);
 
     return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
     // return make_shared<v0::Concat>(NodeVector{hh, vv, s}, -1); 
