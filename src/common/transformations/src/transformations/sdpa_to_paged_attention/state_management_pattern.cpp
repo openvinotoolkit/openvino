@@ -45,7 +45,6 @@ typedef std::
     tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
         node_tuple;
 
-// std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
 static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     auto kv_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
     auto kv_past_par = pattern::wrap_type<v0::Parameter>();
@@ -57,7 +56,6 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
                      pattern::wrap_type<v1::Transpose>(
                          {kv_past, pattern::any_input()})});  // Transpose is used when kv-cache is stored in a not
                                                               // usual layout, example: bloom
-    // auto k_current = pattern::any_input();
     auto kv_current2 = pattern::any_input();
     auto kv_current_reshaped = pattern::wrap_type<v1::Reshape>({kv_current2, pattern::any_input()});
     auto kv_concat = pattern::wrap_type<v0::Concat>(
@@ -168,7 +166,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &parameters_to_remove,
                                           &assignes_to_remove,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
-        std::cerr << "[ DEBUG ] StateManagementPattern callback\n";
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 
@@ -239,7 +236,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         ov::Output<ov::Node> k_target_layout, v_target_layout;
         if (pattern_map.count(qkv_current_split_node)) {
-            std::cerr << "[ DEBUG ] kv_concat_split detected\n";
             // Fast track for merged K/V caches, based on the currently observed models topologies we don't need to
             // change layout and there is no point in the graph where it is in 4D. So `else` branch below is not
             // applicable for this case.
