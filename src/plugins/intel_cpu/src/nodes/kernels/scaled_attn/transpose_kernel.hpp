@@ -133,6 +133,50 @@ inline void transpose_16x16_kernel(float* _dst, T* src, size_t dst_stride, size_
     _mm512_storeu_si512(dst + 15 * dst_stride, rf);
 }
 
+template<typename T>
+inline void transpose_16xK_kernel(float* _dst, T* src, size_t K, size_t dst_stride, size_t src_stride) {
+    auto* dst = reinterpret_cast<uint32_t*>(_dst);
+    __m512i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf;
+    r0 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src, K));
+    r1 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + src_stride, K));
+    r2 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 2 * src_stride, K));
+    r3 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 3 * src_stride, K));
+    r4 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 4 * src_stride, K));
+    r5 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 5 * src_stride, K));
+    r6 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 6 * src_stride, K));
+    r7 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 7 * src_stride, K));
+    r8 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 8 * src_stride, K));
+    r9 = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 9 * src_stride, K));
+    ra = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 10 * src_stride, K));
+    rb = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 11 * src_stride, K));
+    rc = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 12 * src_stride, K));
+    rd = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 13 * src_stride, K));
+    re = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 14 * src_stride, K));
+    rf = _mm512_castps_si512(mm512_uni_loadu_tail_ps(src + 15 * src_stride, K));
+
+    transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
+
+#define S(m) _mm512_storeu_si512(dst + 0x##m * dst_stride, r##m)
+#define S8() S(0); S(1); S(2); S(3); S(4); S(5); S(6); S(7);
+    switch (K) {
+        case 8: S8(); break;
+        case 9: S8() S(8); break;
+        case 10: S8(); S(8); S(9); break;
+        case 11: S8(); S(8); S(9); S(a); break;
+        case 12: S8(); S(8); S(9); S(a); S(b); break;
+        case 13: S8(); S(8); S(9); S(a); S(b); S(c); break;
+        case 14: S8(); S(8); S(9); S(a); S(b); S(c); S(d); break;
+        case 15: S8(); S(8); S(9); S(a); S(b); S(c); S(d); S(e); break;
+        case 1: S(0); break;
+        case 2: S(0); S(1); break;
+        case 3: S(0); S(1); S(2); break;
+        case 4: S(0); S(1); S(2); S(3); break;
+        case 5: S(0); S(1); S(2); S(3); S(4); break;
+        case 6: S(0); S(1); S(2); S(3); S(4); S(5); break;
+        case 7: S(0); S(1); S(2); S(3); S(4); S(5); S(6); break;
+    }
+}
+
 inline void transpose_16x16_kernel(uint32_t* dst, uint32_t* src, size_t dst_stride, size_t src_stride) {
     __m512i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf;
     r0 = _mm512_loadu_si512(src);
@@ -170,6 +214,50 @@ inline void transpose_16x16_kernel(uint32_t* dst, uint32_t* src, size_t dst_stri
     _mm512_storeu_si512(dst + 13 * dst_stride, rd);
     _mm512_storeu_si512(dst + 14 * dst_stride, re);
     _mm512_storeu_si512(dst + 15 * dst_stride, rf);
+}
+
+inline void transpose_16xK_kernel(uint32_t* dst, uint32_t* src, size_t K, size_t dst_stride, size_t src_stride) {
+    __m512i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf;
+    __mmask16 k = 0xffff >> (16 - K);
+
+    r0 = _mm512_maskz_loadu_epi32(k, src);
+    r1 = _mm512_maskz_loadu_epi32(k, src + src_stride);
+    r2 = _mm512_maskz_loadu_epi32(k, src + 2 * src_stride);
+    r3 = _mm512_maskz_loadu_epi32(k, src + 3 * src_stride);
+    r4 = _mm512_maskz_loadu_epi32(k, src + 4 * src_stride);
+    r5 = _mm512_maskz_loadu_epi32(k, src + 5 * src_stride);
+    r6 = _mm512_maskz_loadu_epi32(k, src + 6 * src_stride);
+    r7 = _mm512_maskz_loadu_epi32(k, src + 7 * src_stride);
+    r8 = _mm512_maskz_loadu_epi32(k, src + 8 * src_stride);
+    r9 = _mm512_maskz_loadu_epi32(k, src + 9 * src_stride);
+    ra = _mm512_maskz_loadu_epi32(k, src + 10 * src_stride);
+    rb = _mm512_maskz_loadu_epi32(k, src + 11 * src_stride);
+    rc = _mm512_maskz_loadu_epi32(k, src + 12 * src_stride);
+    rd = _mm512_maskz_loadu_epi32(k, src + 13 * src_stride);
+    re = _mm512_maskz_loadu_epi32(k, src + 14 * src_stride);
+    rf = _mm512_maskz_loadu_epi32(k, src + 15 * src_stride);
+
+    transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
+
+    switch (K) {
+        case 8: S8(); break;
+        case 9: S8() S(8); break;
+        case 10: S8(); S(8); S(9); break;
+        case 11: S8(); S(8); S(9); S(a); break;
+        case 12: S8(); S(8); S(9); S(a); S(b); break;
+        case 13: S8(); S(8); S(9); S(a); S(b); S(c); break;
+        case 14: S8(); S(8); S(9); S(a); S(b); S(c); S(d); break;
+        case 15: S8(); S(8); S(9); S(a); S(b); S(c); S(d); S(e); break;
+        case 1: S(0); break;
+        case 2: S(0); S(1); break;
+        case 3: S(0); S(1); S(2); break;
+        case 4: S(0); S(1); S(2); S(3); break;
+        case 5: S(0); S(1); S(2); S(3); S(4); break;
+        case 6: S(0); S(1); S(2); S(3); S(4); S(5); break;
+        case 7: S(0); S(1); S(2); S(3); S(4); S(5); S(6); break;
+    }
+#undef S
+#undef S8
 }
 
 #elif defined(HAVE_AVX2)
@@ -235,11 +323,78 @@ inline void transpose_16x16_kernel(float* dst, T* src, size_t dst_stride, size_t
     }
 }
 
+template<typename T>
+inline void transpose_16xK_kernel(float* dst, T* src, size_t K, size_t dst_stride, size_t src_stride) {
+    __m256 r0, r1, r2, r3, r4, r5, r6, r7;
+
+    if (K >= 8) {
+        for (int j = 0; j < 16; j += 8) {
+            r0 = mm256_uni_loadu_ps(src + src_stride * j);
+            r1 = mm256_uni_loadu_ps(src + src_stride * (1 + j));
+            r2 = mm256_uni_loadu_ps(src + src_stride * (2 + j));
+            r3 = mm256_uni_loadu_ps(src + src_stride * (3 + j));
+            r4 = mm256_uni_loadu_ps(src + src_stride * (4 + j));
+            r5 = mm256_uni_loadu_ps(src + src_stride * (5 + j));
+            r6 = mm256_uni_loadu_ps(src + src_stride * (6 + j));
+            r7 = mm256_uni_loadu_ps(src + src_stride * (7 + j));
+
+            transpose_8x8(r0, r1, r2, r3, r4, r5, r6, r7);
+
+            _mm256_storeu_ps(dst + j, r0);
+            _mm256_storeu_ps(dst + j + dst_stride, r1);
+            _mm256_storeu_ps(dst + j + dst_stride * 2, r2);
+            _mm256_storeu_ps(dst + j + dst_stride * 3, r3);
+            _mm256_storeu_ps(dst + j + dst_stride * 4, r4);
+            _mm256_storeu_ps(dst + j + dst_stride * 5, r5);
+            _mm256_storeu_ps(dst + j + dst_stride * 6, r6);
+            _mm256_storeu_ps(dst + j + dst_stride * 7, r7);
+        }
+        src += 8;
+        dst += 8 * dst_stride;
+        K -= 8;
+    }
+    if (K > 0) {
+        for (int j = 0; j < 16; j += 8) {
+            r0 = mm256_uni_loadu_tail_ps(src + src_stride * j, K);
+            r1 = mm256_uni_loadu_tail_ps(src + src_stride * (1 + j), K);
+            r2 = mm256_uni_loadu_tail_ps(src + src_stride * (2 + j), K);
+            r3 = mm256_uni_loadu_tail_ps(src + src_stride * (3 + j), K);
+            r4 = mm256_uni_loadu_tail_ps(src + src_stride * (4 + j), K);
+            r5 = mm256_uni_loadu_tail_ps(src + src_stride * (5 + j), K);
+            r6 = mm256_uni_loadu_tail_ps(src + src_stride * (6 + j), K);
+            r7 = mm256_uni_loadu_tail_ps(src + src_stride * (7 + j), K);
+
+            transpose_8x8(r0, r1, r2, r3, r4, r5, r6, r7);
+
+#define S(m) _mm256_storeu_ps(dst + j + m * dst_stride, r##m)
+            switch (K) {
+                case 1: S(0); break;
+                case 2: S(0); S(1); break;
+                case 3: S(0); S(1); S(2); break;
+                case 4: S(0); S(1); S(2); S(3); break;
+                case 5: S(0); S(1); S(2); S(3); S(4); break;
+                case 6: S(0); S(1); S(2); S(3); S(4); S(5); break;
+                case 7: S(0); S(1); S(2); S(3); S(4); S(5); S(6); break;
+            }
+#undef S
+        }
+    }
+}
+
 #else
 
 template<typename TSRC, typename TDST>
 inline void transpose_16x16_kernel(TDST* dst, TSRC* src, size_t dst_stride, size_t src_stride) {
     for (size_t i = 0; i < 16; i++) {
+        for (size_t j = 0; j < 16; j++) {
+            dst[i * dst_stride + j] = static_cast<TDST>(src[i + j * src_stride]);
+        }
+    }
+}
+
+template<typename TSRC, typename TDST>
+inline void transpose_16xK_kernel(TDST* dst, TSRC* src, size_t K, size_t dst_stride, size_t src_stride) {
+    for (size_t i = 0; i < K; i++) {
         for (size_t j = 0; j < 16; j++) {
             dst[i * dst_stride + j] = static_cast<TDST>(src[i + j * src_stride]);
         }

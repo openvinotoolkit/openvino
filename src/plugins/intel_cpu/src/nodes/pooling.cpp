@@ -629,6 +629,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         };
 
         pushDesc(LayoutType::ncsp);
+        pushDesc(LayoutType::nspc);
 
         return;
     }

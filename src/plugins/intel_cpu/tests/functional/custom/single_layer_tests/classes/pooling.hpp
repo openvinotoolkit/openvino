@@ -64,6 +64,10 @@ namespace Pooling {
 const std::vector<ElementType>& inpOutPrecision();
 const ov::op::RoundingType expectedAvgRoundingType(const ov::op::RoundingType ceil_type = ov::op::RoundingType::CEIL);
 
+const CPUSpecificParams& expectedCpuConfigAnyLayout();
+const std::vector<CPUSpecificParams>& vecCpuConfigsFusing_4D();
+
+const std::vector<poolSpecificParams>& paramsMax3D();
 const std::vector<poolSpecificParams>& paramsAvg3D();
 const std::vector<poolSpecificParams>& paramsAvgV143D();
 

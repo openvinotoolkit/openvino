@@ -92,7 +92,9 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
 
     VectorDims master_shape = linear_ir.get_master_shape();
     if (linear_ir.is_dynamic()) {
-        m_tile_rank = master_shape.size() > 1 ? 2 : 1;
+        // [134873] In dynamic case we don't know exact shapes so we cannot be sure to set tile_rank = 2:
+        //          there can be really big shapes in inference stage which do not fit into the cache.
+        m_tile_rank = 1;
         return false;
     }
 

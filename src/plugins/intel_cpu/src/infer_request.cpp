@@ -11,7 +11,7 @@
 #include "memory_state.h"
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "nodes/memory.hpp"
+#include "nodes/memory_state_base.h"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -74,10 +74,6 @@ void SyncInferRequest::assign_states() {
             itr->second->assignState(state);
         }
     }
-}
-
-void SyncInferRequest::commit_states() {
-    std::for_each(m_memory_states.begin(), m_memory_states.end(), [](const MemStatePtr& state) { state->commit(); });
 }
 
 void SyncInferRequest::redefine_memory_for_input_nodes() {
@@ -143,10 +139,6 @@ void SyncInferRequest::infer() {
     }
 
     m_graph->PullOutputData(m_outputs);
-
-    if (!m_memory_states.empty()) {
-        commit_states();
-    }
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
