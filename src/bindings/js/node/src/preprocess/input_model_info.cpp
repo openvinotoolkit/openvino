@@ -17,7 +17,7 @@ Napi::Function InputModelInfo::get_class_constructor(Napi::Env env) {
 Napi::Value InputModelInfo::set_layout(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {
-            auto layout = js_to_cpp<ov::Layout>(info, 0, {napi_string});
+            const auto& layout = js_to_cpp<ov::Layout>(info, 0);
             _model_info->set_layout(layout);
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
