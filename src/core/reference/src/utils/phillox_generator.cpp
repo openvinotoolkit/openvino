@@ -157,7 +157,7 @@ std::pair<uint64_t, uint64_t> OpenvinoPhilloxGenerator::get_next_state() {
 PhilloxOutput OpenvinoPhilloxGenerator::random() {
     PhilloxOutput result(get_generated_elements_count());
 
-    for (u_int16_t i = 0; i < 9; ++i) {
+    for (uint16_t i = 0; i < 9; ++i) {
         execute_single_round();
         increment_key();
     }
