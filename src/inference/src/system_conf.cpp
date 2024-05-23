@@ -226,7 +226,8 @@ int get_num_numa_nodes() {
 int get_num_sockets(int) {
     return -1;
 }
-void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
+void reserve_available_cpus(int executor_id,
+                            const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
                             const int cpu_status) {}
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}

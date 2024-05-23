@@ -87,8 +87,6 @@ public:
                                        //!< starting from offset
         int _threads = 0;              //!< Number of threads distributed between streams.
                                        //!< Reserved. Should not be used.
-        int _executor_id = -1;         //!< executor id to identify each executor and core map.
-        std::string _core_ids_str;
         ov::hint::SchedulingCoreType _thread_preferred_core_type =
             ov::hint::SchedulingCoreType::ANY_CORE;  //!< PCORE_ONLY and ECORE_ONLY are valid in hybrid core machine,
                                                      //!< ANY_CORE is valid in all machines. Core type priority:
@@ -99,6 +97,9 @@ public:
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         int _sub_streams = 0;
+
+        int _executor_id = -1;         //!< executor id to identify each executor and core map.
+        std::string _core_ids_str;
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information,

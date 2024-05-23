@@ -619,23 +619,12 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
-<<<<<<< HEAD
-                                                           config.threadBindingType,
-                                                           1,
-                                                           0,
-                                                           config.threads,
-                                                           IStreamsExecutor::Config::PreferredCoreType::ANY,
-                                                           streams_info_table,
-                                                           cpu_reservation,
-                                                           config.streamExecutorConfig.get_executor_id(),
-                                                           config.streamExecutorConfig.get_core_ids()};
-=======
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
                                                            false,
                                                            cpu_pinning,
-                                                           streams_info_table};
->>>>>>> master
-
+                                                           streams_info_table,
+                                                           config.streamExecutorConfig.get_executor_id(),
+                                                           config.streamExecutorConfig.get_core_ids()};
     return proc_type_table;
 }
 
