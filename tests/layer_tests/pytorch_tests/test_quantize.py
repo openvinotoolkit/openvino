@@ -6,7 +6,7 @@ import platform
 import numpy as np
 import pytest
 import torch
-from torch._inductor.compile_fx import compile_fx
+import torch.ao.quantization.fx._decomposed
 
 from pytorch_layer_test_class import PytorchLayerTest
 
