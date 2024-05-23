@@ -74,7 +74,7 @@ TEST_P(ConcatToTileTest, TestTransfromationExecuted) {
             ++concat_count;
         }
     }
-    
+
     if (expected_type == ExpectedType::Broadcast) {
         ASSERT_EQ(broadcast_count, 1);
         ASSERT_EQ(tile_count, 0);
