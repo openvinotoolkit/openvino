@@ -15,8 +15,9 @@ jit_snippets_call_args::~jit_snippets_call_args() {
 }
 
 void jit_snippets_call_args::register_loops(const std::vector<loop_args_t>& loops) {
-    num_loops = loops.size();
-    loop_args = new loop_args_t[num_loops];
+    const auto num_loops = loops.size();
+    OPENVINO_ASSERT(num_loops <= PTRDIFF_MAX, "Requested allocation size { ", num_loops, " } exceeds PTRDIFF_MAX.");
+    loop_args = new loop_args_t[static_cast<ptrdiff_t>(num_loops)];
     std::copy(loops.begin(), loops.end(), loop_args);
 }
 

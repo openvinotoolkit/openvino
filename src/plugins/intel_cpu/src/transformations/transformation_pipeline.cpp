@@ -307,6 +307,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     ov::element::TypeVector decompression_precisions{ov::element::u8,
+                                                     ov::element::i8,
                                                      ov::element::u4,
                                                      ov::element::i4,
                                                      ov::element::nf4};
