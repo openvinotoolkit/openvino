@@ -26,6 +26,7 @@
 #include "low_precision/recurrent_cell.hpp"
 #include "low_precision/strided_slice.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
@@ -193,6 +194,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
+    const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
@@ -287,8 +289,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4},
-                                                                    !device_info.supports_immad);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
 
         // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
         if (!is_model_quantized)
@@ -778,7 +779,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (device_info.supports_immad) {
             // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
             // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
             manager.register_pass<ov::pass::ConstantFolding>();
         }
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
