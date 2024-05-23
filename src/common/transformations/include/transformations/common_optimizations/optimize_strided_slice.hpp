@@ -58,7 +58,16 @@ public:
 };
 
 /**
- * TBA
+ * @ingroup ov_transformation_common_api
+ * @brief SliceSequenceToSingleSlice transformation replaces group of Slice
+ * operations with single Slice. All Slice operations must slice data
+ * with the different axis.
+ *
+ * Before:
+ * data (shape: 2, 3, 4) -> Slice (axis 0) -> Slice (axis 1) -> Slice (axis 2)
+ *
+ * After:
+ * data (shape: 2, 3, 4) -> Slice (axes: 0, 1, 2)
  */
 class ov::pass::SliceSequenceToSingleSlice : public ov::pass::MatcherPass {
 public:
