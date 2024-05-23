@@ -108,6 +108,8 @@ class TestDecomposedQuantizePerTensorDequantize(PytorchLayerTest):
     ])
     @pytest.mark.precommit_fx_backend
     def test_decomposed_quantize_per_tensor_dequantize(self, scale, zero_point, dtype, ie_device, precision, ir_version):
+        kwargs = {}
+        kwargs["custom_eps"] = 0.15
         quant_min = -128
         quant_max = 127
         if dtype == torch.uint8:
@@ -116,7 +118,7 @@ class TestDecomposedQuantizePerTensorDequantize(PytorchLayerTest):
             quant_max = 255
         self._test(quantized_decomposed_quantize_per_tensor_aten_dequantize(scale,
                 zero_point, quant_min, quant_max, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
-                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, custom_eps=0.15)
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, **kwargs)
 
 class TestQuantizePerChannelDequantize(PytorchLayerTest):
     def _prepare_input(self):
@@ -192,6 +194,8 @@ class TestDecomposedQuantizePerChannelDequantize(PytorchLayerTest):
     ])
     @pytest.mark.precommit_fx_backend
     def test_decomposed_quantize_per_channel_dequantize(self, scale, zero_point, dtype, axis, ie_device, precision, ir_version):
+        kwargs = {}
+        kwargs["custom_eps"] = 0.15
         np.random.shuffle(scale), np.random.shuffle(zero_point)
         quant_min = -128
         quant_max = 127
@@ -201,4 +205,4 @@ class TestDecomposedQuantizePerChannelDequantize(PytorchLayerTest):
             quant_max = 255
         self._test(quantized_decomposed_quantize_per_channel_aten_dequantize(scale,
                 zero_point, quant_min, quant_max, dtype, axis), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
-                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, custom_eps=0.15)
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale, **kwargs)
