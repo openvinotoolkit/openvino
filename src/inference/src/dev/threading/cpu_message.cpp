@@ -68,9 +68,9 @@ void MessageManager::server_wait() {
                 {
                     // std::cout << "server_wait ........" << _isServerStopped << "\n";
                     std::unique_lock<std::mutex> lock(_msgMutex);
-                    while (_messageQueue.empty()) {
-                        _msgCondVar.wait(lock);
-                    }
+                    _msgCondVar.wait(lock, [&] {
+                        return !_messageQueue.empty();
+                    });
                     std::swap(_messageQueue, msgQueue);
                     // std::cout << "server_wait receive: " << msgQueue[0].msg_type << " rank:" <<
                     // msgQueue[0].rank.size()
