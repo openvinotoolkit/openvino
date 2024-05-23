@@ -54,7 +54,7 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
        ImportError: cannot import name 'Core' from 'openvino'
 
-   To fix this issue you need to install the `Visual C++ Redistributable Package <https://www.microsoft.com/en-in/download/details.aspx?id=48145>`__ .
+   To fix this issue, you need to install the `Visual C++ Redistributable Package <https://www.microsoft.com/en-in/download/details.aspx?id=48145>`__ .
 
 .. dropdown:: Check the version of OpenVINO Runtime
 
