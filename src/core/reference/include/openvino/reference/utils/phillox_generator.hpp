@@ -13,36 +13,12 @@
 using PhilloxAlignment = ov::op::PhilloxAlignment;
 
 namespace ov {
-
 namespace reference {
-
 namespace phillox {
 
-// Utils functions from OpenVINO, Tensorflow, PyTorch
-namespace {
-
-// Concatenates two uint32 values into single uint64 values.
-uint64_t unite_high_low(uint32_t high, uint32_t low);
-
-// Splits uint64 value into two uint32 values with right and left part of original value.
-std::pair<uint32_t, uint32_t> split_high_low(uint64_t value);
-
-// Splits uint64 global_seed value into two uint32 values to create a key.
-std::array<uint32_t, 2> split_into_key(uint64_t global_seed);
-
-// Splits two uint64 values (adjusted for previous state) into four uint32 values to create a counter.
-std::array<uint32_t, 4> split_into_counter(std::pair<uint64_t, uint64_t> previous_state, uint64_t operator_seed);
-
-// Helper function to return the lower and higher 32-bits from two 32-bit integer multiplications.
-void multiply_high_low(uint32_t a, uint32_t b, uint32_t* result_low, uint32_t* result_high);
-
-uint32_t mix_bits(uint32_t u, uint32_t v);
-
-uint32_t twist(uint32_t u, uint32_t v);
-
-} // namespace
-
 typedef std::vector<uint32_t> PhilloxOutput;
+
+// ====== Mersenne Twister paper variables ======
 
 // Following const values are taken from the original paper:
 // https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
@@ -65,7 +41,7 @@ class PhilloxGenerator {
 public:
     PhilloxGenerator() = delete;
 
-    virtual ~PhilloxGenerator() {};
+    virtual ~PhilloxGenerator(){};
 
     /// @brief Get a set of random 32-bit unsigned integers based on the seed(s).
     /// @return A vector with a random set of 32-bit unsigned integers.
@@ -111,13 +87,7 @@ protected:
                      const uint64_t global_seed,
                      const uint64_t operator_seed,
                      const std::pair<uint64_t, uint64_t> previous_state,
-                     const size_t generated_elements_count
-                     )
-        : m_alignment(alignment),
-          m_global_seed(global_seed),
-          m_operator_seed(operator_seed),
-          m_previous_state(previous_state),
-          m_generated_elements_count(generated_elements_count) {}
+                     const size_t generated_elements_count);
 
 private:
     const PhilloxAlignment m_alignment;
@@ -137,9 +107,7 @@ public:
     /// \param operator_seed The operator seed for the Phillox algorithm
     OpenvinoPhilloxGenerator(const uint64_t global_seed,
                              const uint64_t operator_seed,
-                             const std::pair<uint64_t, uint64_t> previous_state)
-        : PhilloxGenerator(PhilloxAlignment::OPENVINO, global_seed, previous_state.second > 0 ? previous_state.second : operator_seed, previous_state, 4UL), m_n(split_high_low(previous_state.first)), m_key(split_high_low(global_seed)),
-        m_counter(split_high_low(previous_state.second > 0 ? previous_state.second : operator_seed)), m_total_generated_elements(0) {}
+                             const std::pair<uint64_t, uint64_t> previous_state);
 
     /// @brief Get a set of 4 random 32-bit unsigned integers based on the seeds.
     /// @return A structure with a random set of 32-bit unsigned integers.
@@ -156,7 +124,7 @@ private:
     std::pair<uint32_t, uint32_t> m_n;
     std::pair<uint32_t, uint32_t> m_key;
     std::pair<uint32_t, uint32_t> m_counter;
-    
+
     size_t m_total_generated_elements;
 };
 
@@ -169,19 +137,14 @@ public:
     /// \param global_seed The operator seed for the Phillox algorithm
     /// \note This version of the Phillox algorithm does NOT use operator seed, and.
     /// does not support the use of the previous/next state.
-    PytorchPhilloxGenerator(const uint64_t global_seed)
-        : PhilloxGenerator(PhilloxAlignment::PYTORCH, global_seed, 0UL, {0UL, 0UL}, 2UL), m_left(1), m_next(0) {
-        m_mersenne_state[0] = global_seed & 0xffffffff;
-        for (size_t j = 1; j < MERSENNE_STATE_N; ++j) {
-            m_mersenne_state[j] = (1812433253 * (m_mersenne_state[j - 1] ^ (m_mersenne_state[j - 1] >> 30)) + j);
-        }
-    }
+    PytorchPhilloxGenerator(const uint64_t global_seed);
 
     /// @brief Get a set of random 32-bit unsigned integers based on the seed(s).
     /// @return A structure with a random set of 32-bit unsigned integers and their count.
     PhilloxOutput random() override;
 
-    /// \brief Returns the INPUT state to feed to the next execution, as the algorithm does not use this to compute results.
+    /// \brief Returns the INPUT state to feed to the next execution, as the algorithm does not use this to compute
+    /// results.
     std::pair<uint64_t, uint64_t> get_next_state() override;
 
 private:
@@ -203,8 +166,7 @@ public:
     /// \param previous_state The previous state (if any) of the algorithm.
     TensorflowPhilloxGenerator(const uint64_t global_seed,
                                const uint64_t operator_seed,
-                               const std::pair<uint64_t, uint64_t> previous_state)
-        : PhilloxGenerator(PhilloxAlignment::TENSORFLOW, global_seed, operator_seed, previous_state, 4UL), m_key(split_into_key(global_seed)), m_counter(split_into_counter(previous_state, operator_seed)) {}
+                               const std::pair<uint64_t, uint64_t> previous_state);
 
     /// @brief Get a set of random 32-bit unsigned integers based on the seed(s).
     /// @return A structure with a random set of 32-bit unsigned integers and their count.
@@ -212,7 +174,7 @@ public:
 
     /// \brief Returns the modified state to feed to the next execution.
     /// @return A pair of uint64s that represent the output state to be fed to the next generator execution.
-    std::pair<uint64_t, uint64_t> get_next_state();
+    std::pair<uint64_t, uint64_t> get_next_state() override;
 
 private:
     void skip_one();
@@ -225,10 +187,10 @@ private:
 
 /// \brief Constructs and returns a shared pointer to the generator chosen by alignment.
 std::shared_ptr<PhilloxGenerator> make_phillox_generator(uint64_t seed,
-                                                        uint64_t seed2,
-                                                        std::pair<uint64_t, uint64_t> prev_state,
-                                                        size_t elem_count,
-                                                        PhilloxAlignment alignment);
+                                                         uint64_t seed2,
+                                                         std::pair<uint64_t, uint64_t> prev_state,
+                                                         size_t elem_count,
+                                                         PhilloxAlignment alignment);
 
 }  // namespace phillox
 

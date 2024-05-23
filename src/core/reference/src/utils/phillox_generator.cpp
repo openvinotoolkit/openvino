@@ -5,25 +5,20 @@
 #include "openvino/reference/utils/phillox_generator.hpp"
 
 namespace ov {
-
 namespace reference {
-
 namespace phillox {
 
 // ====== Utils functions ======
-
 namespace {
 
-uint64_t unite_high_low(uint32_t high, uint32_t low) {
-    return (static_cast<uint64_t>(high) << 32) + low;
-}
-
+// Splits uint64 value into two uint32 values with right and left part of original value.
 std::pair<uint32_t, uint32_t> split_high_low(uint64_t value) {
     uint32_t low = static_cast<uint32_t>(value);
     uint32_t high = static_cast<uint32_t>(value >> 32);
     return {low, high};
 }
 
+// Splits uint64 global_seed value into two uint32 values to create a key.
 std::array<uint32_t, 2> split_into_key(uint64_t global_seed) {
     std::array<uint32_t, 2> key;
     key[0] = static_cast<uint32_t>(global_seed);
@@ -31,6 +26,7 @@ std::array<uint32_t, 2> split_into_key(uint64_t global_seed) {
     return key;
 }
 
+// Splits two uint64 values (adjusted for previous state) into four uint32 values to create a counter.
 std::array<uint32_t, 4> split_into_counter(std::pair<uint64_t, uint64_t> previous_state, uint64_t operator_seed) {
     std::array<uint32_t, 4> counter;
     counter[0] = static_cast<uint32_t>(previous_state.first);
@@ -45,7 +41,7 @@ std::array<uint32_t, 4> split_into_counter(std::pair<uint64_t, uint64_t> previou
     return counter;
 }
 
-
+// Helper function to return the lower and higher 32-bits from two 32-bit integer multiplications.
 void multiply_high_low(uint32_t a, uint32_t b, uint32_t* result_low, uint32_t* result_high) {
     const uint64_t product = static_cast<uint64_t>(a) * b;
     *result_low = static_cast<uint32_t>(product);
@@ -63,6 +59,17 @@ uint32_t twist(uint32_t u, uint32_t v) {
 }  // namespace
 
 // ====== PhilloxGenerator base class functions ======
+
+PhilloxGenerator::PhilloxGenerator(const PhilloxAlignment alignment,
+                                   const uint64_t global_seed,
+                                   const uint64_t operator_seed,
+                                   const std::pair<uint64_t, uint64_t> previous_state,
+                                   const size_t generated_elements_count)
+    : m_alignment(alignment),
+      m_global_seed(global_seed),
+      m_operator_seed(operator_seed),
+      m_previous_state(previous_state),
+      m_generated_elements_count(generated_elements_count) {}
 
 uint64_t PhilloxGenerator::get_global_seed() const {
     return m_global_seed;
@@ -92,8 +99,20 @@ void PhilloxGenerator::set_operator_seed(const uint64_t op_seed) {
     m_operator_seed = op_seed;
 }
 
-
 // ====== OpenvinoPhilloxGenerator functions ======
+OpenvinoPhilloxGenerator::OpenvinoPhilloxGenerator(const uint64_t global_seed,
+                                                   const uint64_t operator_seed,
+                                                   const std::pair<uint64_t, uint64_t> previous_state)
+    : PhilloxGenerator(PhilloxAlignment::OPENVINO,
+                       global_seed,
+                       previous_state.second > 0 ? previous_state.second : operator_seed,
+                       previous_state,
+                       4UL),
+      m_n(split_high_low(previous_state.first)),
+      m_key(split_high_low(global_seed)),
+      m_counter(split_high_low(previous_state.second > 0 ? previous_state.second : operator_seed)),
+      m_total_generated_elements(0) {}
+
 void OpenvinoPhilloxGenerator::increment_key() {
     m_key.first += CRUSH_RESISTANCE_LOWER_VALUE;
     m_key.second += CRUSH_RESISTANCE_UPPER_VALUE;
@@ -152,7 +171,7 @@ PhilloxOutput OpenvinoPhilloxGenerator::random() {
             }
         }
     }
-    m_n.first = n_low; 
+    m_n.first = n_low;
     m_n.second = n_high;
     m_counter.first = counter_low;
     m_counter.second = counter_high;
@@ -163,6 +182,15 @@ PhilloxOutput OpenvinoPhilloxGenerator::random() {
 }
 
 // ====== PytorchPhilloxGenerator functions ======
+PytorchPhilloxGenerator::PytorchPhilloxGenerator(const uint64_t global_seed)
+    : PhilloxGenerator(PhilloxAlignment::PYTORCH, global_seed, 0UL, {0UL, 0UL}, 2UL),
+      m_left(1),
+      m_next(0) {
+    m_mersenne_state[0] = global_seed & 0xffffffff;
+    for (size_t j = 1; j < MERSENNE_STATE_N; ++j) {
+        m_mersenne_state[j] = (1812433253 * (m_mersenne_state[j - 1] ^ (m_mersenne_state[j - 1] >> 30)) + j);
+    }
+}
 
 std::pair<uint64_t, uint64_t> PytorchPhilloxGenerator::get_next_state() {
     return get_previous_state();
@@ -216,6 +244,13 @@ PhilloxOutput PytorchPhilloxGenerator::random() {
 
 // ====== TensorflowPhilloxGenerator functions ======
 
+TensorflowPhilloxGenerator::TensorflowPhilloxGenerator(const uint64_t global_seed,
+                                                       const uint64_t operator_seed,
+                                                       const std::pair<uint64_t, uint64_t> previous_state)
+    : PhilloxGenerator(PhilloxAlignment::TENSORFLOW, global_seed, operator_seed, previous_state, 4UL),
+      m_key(split_into_key(global_seed)),
+      m_counter(split_into_counter(previous_state, operator_seed)) {}
+
 std::pair<uint64_t, uint64_t> TensorflowPhilloxGenerator::get_next_state() {
     return {(static_cast<uint64_t>(m_counter[1]) << 32) + m_counter[0],
             (static_cast<uint64_t>(m_counter[3]) << 32) + m_counter[2]};
@@ -252,12 +287,15 @@ void TensorflowPhilloxGenerator::compute_single_round(std::array<uint32_t, 2>& k
 }
 
 PhilloxOutput TensorflowPhilloxGenerator::random() {
+    // Logic very similar to OpenVINO's, the main difference is behavior of key and counter
+    // Here, key and counter is copied before execution, and skip_one increments the original values,
+    // instead of incrementing the 'twisted' ones.
     PhilloxOutput result(get_generated_elements_count());
 
     auto key = m_key;
     auto counter = m_counter;
 
-    for(uint16_t i = 0; i < 9; ++i) {
+    for (uint16_t i = 0; i < 9; ++i) {
         compute_single_round(key, counter);
         raise_key(key);
     }
@@ -276,10 +314,10 @@ PhilloxOutput TensorflowPhilloxGenerator::random() {
 // ====== General selector function to construct a desired generator  ======
 
 std::shared_ptr<PhilloxGenerator> make_phillox_generator(uint64_t seed,
-                                                        uint64_t seed2,
-                                                        std::pair<uint64_t, uint64_t> prev_state,
-                                                        size_t elem_count,
-                                                        PhilloxAlignment alignment) {
+                                                         uint64_t seed2,
+                                                         std::pair<uint64_t, uint64_t> prev_state,
+                                                         size_t elem_count,
+                                                         PhilloxAlignment alignment) {
     switch (alignment) {
     case PhilloxAlignment::OPENVINO:
         return std::make_shared<OpenvinoPhilloxGenerator>(seed, seed2, prev_state);
