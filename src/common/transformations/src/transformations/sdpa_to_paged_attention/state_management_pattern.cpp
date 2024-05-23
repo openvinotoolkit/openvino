@@ -21,6 +21,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -43,7 +44,7 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 typedef std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> node_tuple;
 
 // std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
-static node_tuple kv_read_and_concat(std::shared_ptr<ov::Node> kv_current) {
+static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     auto kv_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
     auto kv_past_par = pattern::wrap_type<v0::Parameter>();
     auto kv_past = std::make_shared<pattern::op::Or>(
@@ -78,6 +79,21 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto v_current = pattern::any_input();
     std::shared_ptr<ov::Node> v_past_par, v_current2, v_concat, v_current_reshaped;
     std::tie(v_past_par, v_current2, v_current_reshaped, v_concat) = kv_read_and_concat(v_current);
+
+    // There are models where K and V merged into a single tensor and splited apart after K/V past and current concatenation
+    // The following part in the pattern covers this case.
+    // TODO: Consider not specifying VariadicSplit as an input for Concat, it is not really used in the pattern, but just sets more strict requirement for the graph
+    // The risk with not specifying VariadicSplit is that it can be ambiguous which part the matcher should take: KV merged part or where K and V are separate, requires experiments
+    auto qkv_current_split_node = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    qkv_current_split_node->set_output_size(2);
+    auto kv_current = qkv_current_split_node->output(1);
+    std::shared_ptr<ov::Node> kv_past_par, kv_current2, kv_concat, kv_current_reshaped;
+    std::tie(kv_past_par, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(kv_current);
+    auto kv_concat_split = pattern::wrap_type<v1::VariadicSplit>({kv_concat, pattern::any_input(), pattern::any_input()});
+    kv_concat_split->set_output_size(2);
+
+    k_concat = std::make_shared<pattern::op::Or>(OutputVector{kv_concat_split->output(0), k_concat});
+    v_concat = std::make_shared<pattern::op::Or>(OutputVector{kv_concat_split->output(1), v_concat});
 
     auto kv_shaping = [=](const std::shared_ptr<Node>& kv_concat, std::shared_ptr<Node>& unsqueeze) {
         // Return unsqeeze (return param) to deduce number of kv heads in
@@ -145,26 +161,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &parameters_to_remove,
                                           &assignes_to_remove,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
+        std::cerr << "[ DEBUG ] StateManagementPattern callback\n";
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
-
-        // takes option that has 4D instead of fine-grained Reshape analysis
-        // it avoids complication in the pattern, but we don't really have many options
-        auto take_4d = [=](const std::shared_ptr<Node>& option1,
-                           const std::shared_ptr<Node>& option2,
-                           const std::shared_ptr<Node>& option3) {
-            if (pattern_map.find(option1) != pattern_map.end() &&
-                pattern_map.at(option1).get_partial_shape().rank().get_length() == 4) {
-                return pattern_map.at(option1);
-            } else if (pattern_map.at(option2).get_partial_shape().rank().get_length() == 4) {
-                return pattern_map.at(option2);
-            } else {
-                return pattern_map.at(option3);
-            }
-        };
-
-        auto real_k = take_4d(k_current, k_current_reshaped, k_current2);
-        auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
 
         auto sdpa_node =
             pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs : sdpa_with_5_inputs).get_node();
@@ -202,7 +201,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                     first_element == -rank.get_length()) {  // there should be at least one dimension to the left
                     return ov::Dimension();
                 }
-                return shape[first_element - 1];
+                // In some cases of MQA, where KV cache is stored as 3D tensor there is no dimension that corresponds to num kv heads in KV tensor (because it is 1 and can be not exposed)
+                // Hence we should look at the first_element - 1 axis first, if it is static then it is out number of heads, if it is not staic, then
+                // the number of heads is 1, and Broadcast implements pure MQA logic within a single dimension.
+                int num_kv_head_dim_index = shape[first_element - 1].is_static() ? first_element - 1 : first_element;
+                return shape[first_element - 1].is_static() ? shape[first_element - 1] : ov::Dimension(1);
             } else {
                 return default_heads_num;
             }
@@ -227,29 +230,65 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto q_reshape =
             std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
-        std::shared_ptr<Node> k_transpose_order =
-            kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
-        if (pattern_map.find(k_order) !=
-            pattern_map.end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
-            k_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(k_order),
-                                                             kv_transpose_order,
-                                                             v0::Constant::create(element::i64, Shape{}, {0}));
-        }
-        auto k_transpose = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
-        auto k_reshape =
-            std::make_shared<v1::Reshape>(k_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
+        ov::Output<ov::Node> k_target_layout, v_target_layout;
+        if(pattern_map.count(qkv_current_split_node)) {
+            std::cerr << "[ DEBUG ] kv_concat_split detected\n";
+            // Fast track for merged K/V caches, based on the currently observed models topologies we don't need to change layout and
+            // there is no point in the graph where it is in 4D.
+            // So `else` branch below is not applicable for this case.
+            auto qkv_split = pattern_map.at(qkv_current_split_node).get_node_shared_ptr();
+            // TODO: Consider handling Q part as well as KV here, requires more changes in the code and sets VariadicSplit before Concat as essential part of the pattern
+            auto kv_split_part = qkv_split->output(1);
+            auto real_kv_concat_split = pattern_map.at(kv_concat_split).get_node_shared_ptr();
+            // Reaply VariadicSplit from the model after the Concat with KV merged tensor to current KV merged tensor before the Concat
+            auto kv_current_split = real_kv_concat_split->clone_with_new_inputs({kv_split_part, real_kv_concat_split->input_value(1), real_kv_concat_split->input_value(2)});
+            // Under assumption that K and V parts go in order: K part first, and then V part. Theoretically they can be swapped.
+            // TODO: Need more code to track the swapped variant.
+            k_target_layout = kv_current_split->output(0);
+            v_target_layout = kv_current_split->output(1);
+        } else {
+            // takes option that has 4D instead of fine-grained Reshape analysis
+            // it avoids complication in the pattern, but we don't really have many options
+            auto take_4d = [=](const std::shared_ptr<Node>& option1,
+                            const std::shared_ptr<Node>& option2,
+                            const std::shared_ptr<Node>& option3) {
+                if (pattern_map.find(option1) != pattern_map.end() &&
+                    pattern_map.at(option1).get_partial_shape().rank().get_length() == 4) {
+                    return pattern_map.at(option1);
+                } else if (pattern_map.at(option2).get_partial_shape().rank().get_length() == 4) {
+                    return pattern_map.at(option2);
+                } else {
+                    return pattern_map.at(option3);
+                }
+            };
 
-        std::shared_ptr<Node> v_transpose_order =
-            kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
-        if (pattern_map.find(v_order) !=
-            pattern_map.end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
-            v_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(v_order),
-                                                             kv_transpose_order,
-                                                             v0::Constant::create(element::i64, Shape{}, {0}));
+            auto real_k = take_4d(k_current, k_current_reshaped, k_current2);
+            auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
+
+            std::shared_ptr<Node> k_transpose_order =
+                kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
+            if (pattern_map.find(k_order) !=
+                pattern_map.end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
+                k_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(k_order),
+                                                                kv_transpose_order,
+                                                                v0::Constant::create(element::i64, Shape{}, {0}));
+            }
+            k_target_layout = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
+            std::shared_ptr<Node> v_transpose_order =
+                kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
+            if (pattern_map.find(v_order) !=
+                pattern_map.end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
+                v_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(v_order),
+                                                                kv_transpose_order,
+                                                                v0::Constant::create(element::i64, Shape{}, {0}));
+            }
+            v_target_layout = std::make_shared<v1::Transpose>(real_v, v_transpose_order);
         }
-        auto v_transpose = std::make_shared<v1::Transpose>(real_v, v_transpose_order);
+
+        auto k_reshape =
+            std::make_shared<v1::Reshape>(k_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
         auto v_reshape =
-            std::make_shared<v1::Reshape>(v_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
+            std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
         auto hidden_shape = std::make_shared<v3::ShapeOf>(real_q);
         auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape,
