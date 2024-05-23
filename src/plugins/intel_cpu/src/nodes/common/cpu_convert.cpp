@@ -382,8 +382,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
         src_t lbound, ubound;
         std::tie(lbound, ubound) = ctx.range<src_t>();
 
-        if (std::is_integral<src_t>::value
-            || ctx.interimPrc.is_real()) {
+        if (std::is_integral<src_t>::value) {
             parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
@@ -391,6 +390,15 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
                 for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
                     tmp[j] = static_cast<float>(std::max(std::min(src[offset + j], ubound), lbound));
                 jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
+            });
+        } else if (ctx.interimPrc.is_real()) {
+            parallel_for(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                for (size_t j = 0; j < current_batch_size; ++j)  // src_t -> fp32
+                    tmp[j] = static_cast<float>(src[offset + j]);
+                jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
             });
         } else {
             parallel_for(iterations, [&](size_t i) {
@@ -420,8 +428,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         float lbound, ubound;
         std::tie(lbound, ubound) = ctx.range<ov::float16>();
 
-        if (ctx.interimPrc.is_real()
-            || std::is_integral<dst_t>::value) {
+        if (std::is_integral<dst_t>::value) {
             parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
@@ -429,6 +436,15 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 jit_convert(src + offset, tmp, current_batch_size);     // fp16 -> fp32
                 for (size_t j = 0; j < current_batch_size; ++j)         // fp32 -> dst_t
                     dst[offset + j] = static_cast<dst_t>(std::max(std::min(tmp[j], ubound), lbound));
+            });
+        } else if (ctx.interimPrc.is_real()) {
+            parallel_for(iterations, [&](size_t i) {
+                batch_type tmp;
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j)      // fp32 -> dst_t
+                    dst[offset + j] = static_cast<dst_t>(tmp[j]);
             });
         } else {
             parallel_for(iterations, [&](size_t i) {
@@ -438,71 +454,6 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 jit_convert(src + offset, tmp, current_batch_size);     // fp16 -> fp32
                 for (size_t j = 0; j < current_batch_size; ++j)         // fp32 -> dst_t
                     dst[offset + j] = static_cast<dst_t>(std::trunc(std::max(std::min(tmp[j], ubound), lbound)));
-            });
-        }
-
-        ctx.converted = true;
-    }
-};
-
-template<>
-struct ConvertPrecision<std::tuple<ov::float16, float>> {
-    void operator()(ConvertContext & ctx) {
-        const auto* src = static_cast<const ov::float16 *>(ctx.srcPtr);
-        auto* dst = static_cast<float *>(ctx.dstPtr);
-
-        constexpr size_t batch = 64;
-        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
-
-        if (ctx.interimPrc.is_real()) {
-            parallel_for(iterations, [&](size_t i) {
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                jit_convert(src + offset, dst + offset, current_batch_size);  // fp16 -> fp32
-            });
-        } else {
-            float lbound, ubound;
-            std::tie(lbound, ubound) = ctx.range<ov::float16>();
-            parallel_for(iterations, [&](size_t i) {
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                jit_convert(src + offset, dst + offset, current_batch_size);  // fp16 -> fp32
-                for (size_t j = 0; j < current_batch_size; ++j)               // truncate fp32
-                    dst[j + offset] = std::trunc(std::max(std::min(dst[j + offset], ubound), lbound));
-            });
-        }
-
-        ctx.converted = true;
-    }
-};
-
-template<>
-struct ConvertPrecision<std::tuple<float, ov::float16>> {
-    void operator()(ConvertContext & ctx) {
-        const auto* src = static_cast<const float *>(ctx.srcPtr);
-        auto* dst = static_cast<ov::float16*>(ctx.dstPtr);
-
-        constexpr size_t batch = 64;
-        typedef float batch_type[batch];
-        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
-
-        if (ctx.interimPrc.is_real()) {
-            parallel_for(iterations, [&](size_t i) {
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                jit_convert(src + offset, dst + offset, current_batch_size);  // fp32 -> fp16
-            });
-        } else {
-            float lbound, ubound;
-            // truncate to fp16 bounds since jit_convert uses ROUND_TO_NEAREST
-            std::tie(lbound, ubound) = ctx.range<ov::float16>();
-            parallel_for(iterations, [&](size_t i) {
-                batch_type tmp;
-                const size_t offset = i * batch;
-                const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                for (size_t j = 0; j < current_batch_size; ++j)               // truncate to fp16 bounds
-                    tmp[j] = std::trunc(std::max(std::min(src[j + offset], ubound), lbound));
-                jit_convert(tmp, dst + offset, current_batch_size);           // fp32 -> fp16
             });
         }
 
