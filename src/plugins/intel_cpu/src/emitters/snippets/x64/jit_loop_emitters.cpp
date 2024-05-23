@@ -26,13 +26,14 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generat
     wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
     loop_id = loop_end->get_id();
-    need_runtime_args = ov::snippets::utils::is_dynamic_value(work_amount);
+    is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(work_amount);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
 size_t jit_loop_begin_emitter::aux_gprs_count() const {
-    // for runtime arguments
-    return need_runtime_args ? 1 : 0;
+    // We should have aux GPR to store Loop arguments from `runtime_args`
+    // where we will take all needed information about the current loop: work amount
+    return is_work_amount_dynamic ? 1 : 0;
 }
 
 void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
@@ -40,7 +41,7 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t> &in, c
     // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(implication(need_runtime_args, !evaluate_once), "with dynamic work_amount cannot evaluate once!");
+    OV_CPU_JIT_EMITTER_ASSERT(implication(is_work_amount_dynamic, !evaluate_once), "with dynamic work_amount cannot evaluate once!");
 }
 
 void jit_loop_begin_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
@@ -51,7 +52,7 @@ void jit_loop_begin_emitter::emit_code(const std::vector<size_t> &in, const std:
 
 void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
-    if (need_runtime_args) {
+    if (is_work_amount_dynamic) {
         Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
         Reg64 reg_loop_args_ptr = Reg64(static_cast<int>(aux_gpr_idxs[0]));
         const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
@@ -91,11 +92,11 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* 
     evaluate_once = loop_end->get_evaluate_once();
     loop_id = loop_end->get_id();
 
-    need_runtime_args_for_ptr_inc =
+    are_ptr_increments_dynamic =
         std::any_of(ptr_increments.cbegin(), ptr_increments.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
-    need_runtime_args_for_final_offs =
+    are_final_offsets_dynamic =
         std::any_of(finalization_offsets.cbegin(), finalization_offsets.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
-    need_runtime_args = need_runtime_args_for_ptr_inc || need_runtime_args_for_final_offs;
+    are_ptr_shifts_dynamic = are_ptr_increments_dynamic || are_final_offsets_dynamic;
 
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_emitter>(begin_expr->get_emitter());
@@ -121,7 +122,7 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t> &in, con
                               "Invalid finalization_offsets size: expected: ", io_size, " got ", finalization_offsets.size());
     OV_CPU_JIT_EMITTER_ASSERT(data_sizes.size() == io_size, "Invalid data_sizes size: expected: ", io_size, " got ", data_sizes.size());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(implication(need_runtime_args, !evaluate_once), "with dynamic work_amount cannot evaluate once!");
+    OV_CPU_JIT_EMITTER_ASSERT(implication(are_ptr_shifts_dynamic, !evaluate_once), "with dynamic data pointer shifts cannot evaluate once!");
 }
 
 void jit_loop_end_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
@@ -131,7 +132,9 @@ void jit_loop_end_emitter::emit_code(const std::vector<size_t> &in, const std::v
 }
 
 size_t jit_loop_end_emitter::aux_gprs_count() const {
-    return need_runtime_args ? 1 : 0;
+    // We should have aux GPR to store Loop arguments from `runtime_args`
+    // where we will take all needed information about the current loop: data pointer shifts
+    return are_ptr_shifts_dynamic ? 1 : 0;
 }
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -141,38 +144,36 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
     const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
-    Reg64 reg_increments = need_runtime_args ? Reg64(static_cast<int>(aux_gpr_idxs[0])) : Reg64();
+    Reg64 reg_increments = are_ptr_shifts_dynamic ? Reg64(static_cast<int>(aux_gpr_idxs[0])) : Reg64();
     Reg64 reg_work_amount = Reg64(in.back());
 
-    auto apply_increment = [&](size_t idx, int64_t increment, int64_t scale = 1) {
-        if (is_incremented[idx] && increment != 0) {
-            if (ov::snippets::utils::is_dynamic_value(increment)) {
-                h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), h->ptr[reg_increments + idx * sizeof(int64_t)]);
-            } else {
-                h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment * scale * data_sizes[idx]);
-            }
-        }
-    };
-
-#define APPLY_INCREMENTS(COND, TYPE, INCREMENTS, SCALE)                                         \
-    if (COND) {                                                                                 \
-        Reg64 reg_runtime_params = abi_param1; /* defined by jit_kernel_emitter */              \
-        h->mov(reg_increments, h->ptr[reg_runtime_params + GET_OFF(loop_args)]);                \
-        h->mov(reg_increments, h->ptr[reg_increments + id_offset + GET_OFF_LOOP_ARGS(TYPE)]);   \
-    }                                                                                           \
-    for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {                               \
-        apply_increment(idx, INCREMENTS[idx], SCALE);                                           \
+#define APPLY_INCREMENTS(USE_RUNTIME_ARGS, TYPE, INCREMENTS, SCALE)                                                         \
+    if (USE_RUNTIME_ARGS) {                                                                                                 \
+        Reg64 reg_runtime_params = abi_param1; /* defined by jit_kernel_emitter */                                          \
+        h->mov(reg_increments, h->ptr[reg_runtime_params + GET_OFF(loop_args)]);                                            \
+        h->mov(reg_increments, h->ptr[reg_increments + id_offset + GET_OFF_LOOP_ARGS(TYPE)]);                               \
+    }                                                                                                                       \
+    for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {                                                           \
+        const auto& increment = INCREMENTS[idx];                                                                            \
+        if (is_incremented[idx] && increment != 0) {                                                                        \
+            if (ov::snippets::utils::is_dynamic_value(increment)) {                                                         \
+                OPENVINO_ASSERT(USE_RUNTIME_ARGS, "Loop argument structure cannot be pushed to aux GPR");                   \
+                h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), h->ptr[reg_increments + idx * sizeof(int64_t)]);    \
+            } else {                                                                                                        \
+                h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment * SCALE * data_sizes[idx]);               \
+            }                                                                                                               \
+        }                                                                                                                   \
     }
 
     if (!evaluate_once) {
-        APPLY_INCREMENTS(need_runtime_args_for_ptr_inc, m_ptr_increments, ptr_increments, wa_increment);
+        APPLY_INCREMENTS(are_ptr_increments_dynamic, m_ptr_increments, ptr_increments, wa_increment);
 
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
         h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
     }
 
-    APPLY_INCREMENTS(need_runtime_args_for_final_offs, m_finalization_offsets, finalization_offsets, 1);
+    APPLY_INCREMENTS(are_final_offsets_dynamic, m_finalization_offsets, finalization_offsets, 1);
 
     h->L(*loop_end_label);
 

@@ -39,7 +39,7 @@ protected:
     size_t wa_increment = 0;
     size_t loop_id = 0;
     bool evaluate_once = false;
-    bool need_runtime_args = false;
+    bool is_work_amount_dynamic = false;
 };
 
 
@@ -77,9 +77,9 @@ protected:
     std::vector<int64_t> data_sizes = {};
     size_t loop_id = 0;
     bool evaluate_once = false;
-    bool need_runtime_args_for_ptr_inc = false;
-    bool need_runtime_args_for_final_offs = false;
-    bool need_runtime_args = false;
+    bool are_ptr_increments_dynamic = false;
+    bool are_final_offsets_dynamic = false;
+    bool are_ptr_shifts_dynamic = false;
 };
 
 /* ============================================================== */

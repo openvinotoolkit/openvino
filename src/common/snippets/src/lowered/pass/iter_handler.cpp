@@ -105,17 +105,13 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         const auto inner_dim_idx = inner_loop_info->get_dim_idx();
         if (inner_dim_idx != current_dim_idx)
             continue;
+        // TODO [141735] : At the moment Splitted loops are not supported in dynamic case
+        OPENVINO_ASSERT(!inner_loop_end->has_dynamic_params(), "inner loop must be static in TransformInnerSplitLoop");
         const auto inner_loop_begin = inner_loop_end->get_loop_begin();
         const auto inner_loop_work_amount = static_cast<int64_t>(inner_loop_end->get_work_amount());
-        // TODO [141735] : At the moment Splitted loops are not supported in dynamic case
-        OPENVINO_ASSERT(!utils::is_dynamic_value(inner_loop_work_amount),
-                        "work_amount of inner loop must be static in TransformInnerSplitLoop");
         const auto inner_loop_increment = inner_loop_end->get_increment();
         auto inner_finalization_offsets = inner_loop_end->get_finalization_offsets();
         for (auto& offset : inner_finalization_offsets) {
-            // TODO [141735] : At the moment Splitted loops are not supported in dynamic case
-            OPENVINO_ASSERT(!utils::is_dynamic_value(offset),
-                            "finalizatiion_offset must be static in TransformInnerSplitLoop");
             offset = offset / inner_loop_work_amount * static_cast<int64_t>(m_tail_size);
         }
         inner_loop_end->set_work_amount(m_tail_size);
