@@ -1257,6 +1257,38 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square_13) {
+    auto model = convert_model("reduce_sum_square_13.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square_18) {
+    auto model = convert_model("reduce_sum_square_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant) {
     auto model = convert_model("reduce_sum_13_axes_as_constant.onnx");
 
