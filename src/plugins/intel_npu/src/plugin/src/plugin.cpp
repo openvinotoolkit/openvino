@@ -542,8 +542,8 @@ void Plugin::checkForCompilerFallback() {
         return;
     }
 
-    const std::optional<Version> driverElfVersion = device->getELFVersion();
-    const std::optional<Version> driverMIVersion = device->getStaticMIVersion();
+    const std::optional<Version> driverElfVersion = device->getLibraryELFVersion();
+    const std::optional<Version> driverMIVersion = device->getLibraryMIVersion();
 
     if (!(driverElfVersion && driverMIVersion)) {
         // We don't need to set the Driver Compiler as default here,
@@ -567,8 +567,8 @@ void Plugin::checkForCompilerFallback() {
     // Compare CIP and Driver versions for ELF and MI
     const auto cip = createCompiler(ov::intel_npu::CompilerType::MLIR, _logger);
 
-    const Version cipElfVersion = cip->getELFVersion(config);
-    const Version cipMIVersion = cip->getStaticMIVersion(config);
+    const Version cipElfVersion = cip->getLibraryELFVersion(config);
+    const Version cipMIVersion = cip->getLibraryMIVersion(config);
 
     // If there is an ELF or MI version incompatibility between CIP and Driver, the
     // compiler_type will be set to Driver Compiler.

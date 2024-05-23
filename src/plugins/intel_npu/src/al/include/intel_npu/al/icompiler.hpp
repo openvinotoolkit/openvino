@@ -112,13 +112,13 @@ public:
      * @brief Get ABI Version of current HPI/Loader
      * @return a Version structure
      */
-    virtual Version getELFVersion(const Config& config) const = 0;
+    virtual Version getLibraryELFVersion(const Config& config) const = 0;
 
     /**
      * @brief Get Mapped inference version
      * @return a Version structure
      */
-    virtual Version getStaticMIVersion(const Config& config) const = 0;
+    virtual Version getLibraryMIVersion(const Config& config) const = 0;
 
     /**
      * @brief Returns the maximum OpenVino opset version supported by the compiler

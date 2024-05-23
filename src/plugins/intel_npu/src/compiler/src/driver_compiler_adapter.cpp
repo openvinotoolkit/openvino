@@ -176,11 +176,11 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
     }
 }
 
-Version LevelZeroCompilerAdapter::getELFVersion(const Config& /*config*/) const {
+Version LevelZeroCompilerAdapter::getLibraryELFVersion(const Config& /*config*/) const {
     OPENVINO_THROW_NOT_IMPLEMENTED("Driver compiler does not provide ELF version");
 }
 
-Version LevelZeroCompilerAdapter::getStaticMIVersion(const Config& /*config*/) const {
+Version LevelZeroCompilerAdapter::getLibraryMIVersion(const Config& /*config*/) const {
     OPENVINO_THROW_NOT_IMPLEMENTED("Driver compiler does not provide MI version");
 }
 

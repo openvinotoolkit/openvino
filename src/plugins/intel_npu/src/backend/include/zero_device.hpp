@@ -23,8 +23,8 @@ public:
     std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<const NetworkDescription>& networkDescription,
                                               const Config& config) override;
 
-    std::optional<Version> getELFVersion() const override;
-    std::optional<Version> getStaticMIVersion() const override;
+    std::optional<Version> getLibraryELFVersion() const override;
+    std::optional<Version> getLibraryMIVersion() const override;
     std::string getName() const override;
     std::string getFullDeviceName() const override;
     Uuid getUuid() const override;
