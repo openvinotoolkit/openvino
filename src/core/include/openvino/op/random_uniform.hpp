@@ -10,9 +10,6 @@
 namespace ov {
 namespace op {
 namespace v8 {
-
-using PhilloxAlignment = ov::op::PhilloxAlignment;
-
 /// \brief Tensor RandomUniform operation.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API RandomUniform : public Op {
@@ -21,7 +18,6 @@ public:
 
     RandomUniform() = default;
 
-    ///
     /// \brief      Constructs a RandomUniform operation.
     ///
     /// \param      out_shape         Node producing the tensor with output shape.
@@ -54,6 +50,7 @@ public:
     const ov::element::Type& get_out_type() const {
         return m_output_type;
     }
+
     void set_out_type(const ov::element::Type& output_type) {
         m_output_type = output_type;
     }
@@ -83,7 +80,6 @@ public:
     PhilloxAlignment get_alignment() const {
         return m_alignment;
     }
-    /// \return The string representation of alignment mode.
     void set_alignment(PhilloxAlignment alignmnent) {
         m_alignment = alignmnent;
     }

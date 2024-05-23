@@ -8,7 +8,6 @@
 #include "openvino/op/random_uniform.hpp"
 #include "random_uniform_shape_inference.hpp"
 
-using PhilloxAlignment = ov::op::PhilloxAlignment;
 
 namespace ov {
 namespace op {

@@ -26,6 +26,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              uint64_t seed2,
                                              std::pair<uint64_t, uint64_t> prev_state,
                                              PhilloxAlignment alignment) {
+
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     // Implementation in plugins may differ for this case.
     if (seed == 0 && seed2 == 0) {
@@ -40,17 +41,20 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
         elem_count *= out_shape[i];
     }
 
+    // Sets up the generator of random numbers and matching converter
     std::shared_ptr<phillox::PhilloxGenerator> generator =
         phillox::make_phillox_generator(seed, seed2, prev_state, elem_count, alignment);
     std::shared_ptr<phillox::PhilloxConverter> converter =
-        phillox::make_phillox_converter(out, elem_type, min_val, max_val, elem_count, generator);
+        phillox::make_phillox_converter(out, elem_type, elem_count, min_val, max_val, generator);
 
-    const size_t step = generator->get_step(elem_type);
-    for (size_t k = 0; k < elem_count; k += step) {
+    // Generate randon numbers and convert them until the output array is full
+    const size_t step = converter->get_coverted_elements_count();
+    for (size_t i = 0; i < elem_count; i += step) {
         phillox::PhilloxOutput result = generator->random();
-        converter->convert(result, k);
+        converter->convert(result, i);
     }
 
+    // Return the next state to feed into the generator
     return generator->get_next_state();
 }
 

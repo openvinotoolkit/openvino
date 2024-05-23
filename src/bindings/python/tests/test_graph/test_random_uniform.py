@@ -7,6 +7,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 import openvino.runtime.opset8 as ops
+
 from openvino import Shape, Type, Model, Core
 
 
@@ -60,12 +61,17 @@ def test_random_uniform():
 )
 def test_random_uniform_pytorch_alignment(min_value, max_value, global_seed, op_seed, ov_dtype, torch_dtype, str_dtype, shape):
 
+    # PyTorch does not have a dedicated RandomUniform op per-se,
+    # the closest one is either torch.rand / torch.randint,
+    # this implementation internally uses the same computation path
+    # without having to select between float and int data type.
     torch.manual_seed(global_seed)
     expected = torch.empty(shape, dtype=torch_dtype)
     expected = expected.uniform_(min_value, max_value)
 
     core = Core()
-    output = ops.random_uniform(Shape(shape), ops.constant(min_value, ov_dtype), ops.constant(max_value, ov_dtype), str_dtype, global_seed, op_seed, "pytorch")
+    minval, maxval = ops.constant(min_value, ov_dtype), ops.constant(max_value, ov_dtype)
+    output = ops.random_uniform(Shape(shape), minval, maxval, str_dtype, global_seed, op_seed, "pytorch")
     model = Model(output, [], "random_uniform_seed_alignment_test_model_pytorch")
     compiled_model = core.compile_model(model, "TEMPLATE")
     results = compiled_model.infer_new_request()
@@ -108,8 +114,9 @@ def test_random_uniform_pytorch_alignment(min_value, max_value, global_seed, op_
         (10, 5)
     ]
 )
-def test_random_uniform_tensorflow_alignment_float(min_value, max_value, global_seed, op_seed, ov_dtype, tensorflow_dtype, str_dtype, shape):
+def test_random_uniform_tensorflow_alignment(min_value, max_value, global_seed, op_seed, ov_dtype, tensorflow_dtype, str_dtype, shape):
 
+    # Turns off multiprocessing for reproducible sharding in TF
     session_conf = tf.compat.v1.ConfigProto(
         intra_op_parallelism_threads=1,
         inter_op_parallelism_threads=1,
@@ -121,6 +128,9 @@ def test_random_uniform_tensorflow_alignment_float(min_value, max_value, global_
 
     with tf.compat.v1.device("/CPU:0"):
         with tf.compat.v1.Session(config=session_conf) as sess:
+            # Equivalent of using either raw_ops.RandomUniform or raw_ops.RandomUniformInt
+            # with seed = global_seed, seed2 = op_seed, selects automatically either one
+            # depending on data type.
             tf.random.set_seed(global_seed)
             expected = tf.random.uniform(shape, minval=min_value, maxval=max_value, dtype=tensorflow_dtype, seed=op_seed)
             sess.run(expected)
