@@ -98,7 +98,7 @@ class PytorchLayerTest:
         ov_inputs = flattenize_inputs(inputs)
 
         if self.use_torch_compile_backend():
-            self.torch_compile_backend_test(model, torch_inputs, custom_eps, **kwargs)
+            self.torch_compile_backend_test(model, torch_inputs, **kwargs)
         else:
             if self.use_torch_export():
                 from openvino import convert_model
@@ -262,7 +262,7 @@ class PytorchLayerTest:
         om.validate_nodes_and_infer_types()
         return om
 
-    def torch_compile_backend_test(self, model, inputs, custom_eps, **kwargs):
+    def torch_compile_backend_test(self, model, inputs, **kwargs):
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()
@@ -304,7 +304,10 @@ class PytorchLayerTest:
                 continue
             assert fw_tensor.dtype == ov_tensor.dtype, f"dtype validation failed: {fw_tensor.dtype} != {ov_tensor.dtype}"
 
-        fw_eps = custom_eps
+        if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
+            fw_eps = kwargs['custom_eps']
+        else:
+            fw_eps = 1e-4
         is_ok = True
         for i in range(len(flatten_ov_res)):
             cur_ov_res = flatten_ov_res[i]
