@@ -46,7 +46,7 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    for Docker. See the `Docker guide <https://docs.docker.com/network/proxy/#set-proxy-using-the-cli>`__
    for more details.
 
-.. dropdown:: Issues with importing `Core` name from `openvino` (ImportError)
+.. dropdown:: Issues with importing Core name from openvino (ImportError)
 
    While veryfiing the status of OpenVINO installation, the following error message may occur:
 
