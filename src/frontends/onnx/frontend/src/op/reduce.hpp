@@ -79,6 +79,12 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node);
 namespace set_1 {
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
+namespace set_13 {
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node);
+}  // namespace set_13
+namespace set_18 {
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node);
+}  // namespace set_18
 
 }  // namespace op
 }  // namespace onnx

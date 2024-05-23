@@ -503,6 +503,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceSum", 1, reduce_sum);
     REGISTER_OPERATOR("ReduceSum", 13, reduce_sum);
     REGISTER_OPERATOR("ReduceSumSquare", 1, reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 13, reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 18, reduce_sum_square);
     REGISTER_OPERATOR("Relu", 1, relu);
     REGISTER_OPERATOR("Reshape", 1, reshape);
     REGISTER_OPERATOR("Resize", 1, resize);
