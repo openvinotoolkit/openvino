@@ -49,7 +49,7 @@ Let's start with OpenVINO™ helper functions. The most popular function is ``ov
 
 We will review real replacement case where Negative operation is replaced with Multiply.
 
-.. image:: ./../../_static/images/ov_replace_node.png
+.. image:: ../../assets/images/ov_replace_node.png
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -65,7 +65,7 @@ The alternative way to do the same replacement is the following:
 
 Another transformation example is insertion.
 
-.. image:: ./../../_static/images/ov_insert_node.png
+.. image:: ../../assets/images/ov_insert_node.png
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -101,7 +101,7 @@ OpenVINO™ Runtime has three main transformation types:
 * :doc:`Matcher pass <transformation-api/matcher-pass>` - pattern-based transformation approach
 * :doc:`Graph rewrite pass <transformation-api/graph-rewrite-pass>` - container for matcher passes needed for efficient execution
 
-.. image:: ./../../_static/images/transformations_structure.png
+.. image:: ../../assets/images/transformations_structure.png
 
 Transformation conditional compilation
 ######################################
