@@ -154,7 +154,8 @@ struct kernel_impl_params final {
     bool operator==(const kernel_impl_params& rhs) const;
     unsigned int w_size = 1;
     int w_rank = -1;
-    bool weight_update_flag = false;
+    bool input_fake_aligned = false;
+    bool output_restore = false;
 };
 
 }  // namespace cldnn

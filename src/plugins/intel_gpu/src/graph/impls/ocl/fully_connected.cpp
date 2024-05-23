@@ -62,14 +62,11 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<fully_connected>& instance) override {
         std::cout << "bell execute TP fully connected!" << std::endl;
-        infer_count++;
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
             return aggregate_events(events, stream, false, instance.is_output());
         }
-        stream.finish(); // extra finish for input copy, to be optimized
-        instance.fill_placeholder();
-        {std::ofstream file_stream("bell_fc_input_iter" + std::to_string(infer_count) +
+        /*{std::ofstream file_stream("bell_fc_input_iter" + std::to_string(infer_count) +
                                 std::to_string(instance.get_node().as<fully_connected>().w_rank) + ".txt");
         auto input_mem = instance.get_input_rank_placeholder();
         auto&& size = input_mem->get_layout().get_tensor();
@@ -89,7 +86,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
             }
         }
         file_stream << buffer.str();
-                            }
+                            }*/
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
         OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
@@ -131,59 +128,23 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
         if (instance.get_impl_params()->w_size != 1) {
             stream.finish(); // can be replaced with need_completion_event?
             auto output_memory_ptr = instance.output_memory_ptr();
-            auto re_inter_layout_out = layout(ov::PartialShape({2, 4}),
-                                                            output_memory_ptr->get_layout().data_type,
-                                                            output_memory_ptr->get_layout().format,
-                                                            output_memory_ptr->get_layout().data_padding);
-            auto actual_mem = output_memory_ptr->get_engine()->reinterpret_buffer(*output_memory_ptr, re_inter_layout_out);
-            std::cout << actual_mem->get_allocation_type() << std::endl;
-            //mem_lock<char, mem_lock_type::read_write> lock(actual_mem, stream);
+            std::cout << output_memory_ptr->get_allocation_type() << std::endl;
+            std::cout << output_memory_ptr->count() << std::endl;
+            std::cout << output_memory_ptr->get_layout().to_string() << std::endl;
+            std::cout << output_memory_ptr->size() << std::endl;
             auto rank_output_memory = instance.get_output_rank_placeholder();
-
-            auto re_inter_layout = layout(ov::PartialShape({1, 4}),
-                                                            rank_output_memory->get_layout().data_type,
-                                                            rank_output_memory->get_layout().format,
-                                                            rank_output_memory->get_layout().data_padding);
-            auto re_inter = rank_output_memory->get_engine()->reinterpret_buffer(*rank_output_memory, re_inter_layout);
-            std::cout << re_inter->get_allocation_type() << std::endl;
-            std::cout << re_inter->count() << std::endl;
-            std::cout << re_inter->get_layout().to_string() << std::endl;
-            std::cout << re_inter->size() << std::endl;
-            auto send_ptr = re_inter->buffer_ptr();
+            auto send_ptr = rank_output_memory->buffer_ptr();
             std::cout << "bell debug!!!!" << send_ptr << std::endl;
-            //auto prec = output.();
-            std::cout << "&&&&&&&&" << std::endl;
-            {std::ofstream file_stream("bell_fc_output_iter_" + std::to_string(infer_count) + "_rank_"
-                                    + std::to_string(instance.get_node().as<fully_connected>().w_rank) + ".txt");
-            auto&& size = re_inter->get_layout().get_tensor();
-
-            file_stream << "shape: " << size.to_string() << " ";
-            file_stream << "(count: " << size.count()
-                            << ", original format: " << cldnn::fmt_to_str(re_inter->get_layout().format) << ")" << std::endl;
-
-            mem_lock<float, mem_lock_type::read> lock(re_inter, stream);
-            auto mem_ptr = lock.data();
-            std::stringstream buffer;
-
-            {
-                for (size_t i = 0; i < lock.size(); ++i) {
-                    std::cout << "output, rank " << instance.get_node().as<fully_connected>().w_rank << mem_ptr[i] << std::endl;
-                    buffer << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
-                }
-            }
-            file_stream << buffer.str();
-            }
             auto size = instance.get_impl_params()->w_size;
-            std::vector<size_t> recv_counts(size, re_inter->count());
+            std::vector<size_t> recv_counts(size, rank_output_memory->count());
             for (auto& iter : recv_counts)
                 std::cout << iter << std::endl;
-            std::cout << re_inter->count() << " " << actual_mem->count() << std::endl;
             if (output_memory_ptr->get_layout().data_type == ov::element::f16)
-                Messenger::getInstance().helperAllgathervf16(send_ptr, re_inter->count(),
-                                        actual_mem->buffer_ptr(), recv_counts);
+                Messenger::getInstance().helperAllgathervf16(send_ptr, rank_output_memory->count(),
+                                        output_memory_ptr->buffer_ptr(), recv_counts);
             else if (output_memory_ptr->get_layout().data_type == ov::element::f32)
-                Messenger::getInstance().helperAllgatherv(send_ptr, re_inter->count(),
-                                        actual_mem->buffer_ptr(), recv_counts);
+                Messenger::getInstance().helperAllgatherv(send_ptr, rank_output_memory->count(),
+                                        output_memory_ptr->buffer_ptr(), recv_counts);
                 //Messenger::getInstance().helperAllreduce(send_ptr, send_ptr,
                                         //re_inter->count());
             else

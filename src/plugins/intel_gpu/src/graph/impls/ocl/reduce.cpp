@@ -93,6 +93,66 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events,
+                            typed_primitive_inst<reduce>& instance) override {
+        std::cout << "bell debug reduce kernel";
+        stream& stream = instance.get_network().get_stream();
+        if (instance.can_be_optimized()) {
+            return aggregate_events(events, stream, false, instance.is_output());
+        }
+        std::vector<event::ptr> tmp_events(events);
+        std::vector<event::ptr> all_events;
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
+                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
+                                                                        "[GPU] Likely some issue with empty tensor handling happened");
+        for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
+            if (_kernel_data.kernels[kd_idx].skip_execution)
+                continue;
+            // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
+            bool needs_completion_event = instance.needs_completion_event();
+
+            auto& params = _kernel_data.kernels[kd_idx].params;
+            auto args = get_arguments(instance);
+            args.scalars = &params.scalars;
+
+            for (const auto& m : instance.get_intermediates_memories()) {
+                args.intermediates.push_back(m);
+            }
+
+            const auto& gws = params.workGroups.global;
+            const auto& lws = params.workGroups.local;
+
+            GPU_DEBUG_TRACE_DETAIL << "Enqueue kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
+                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
+                                   << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
+            for (auto& iter : args.inputs) {
+                std::cout << iter->count() << std::endl;
+                std::cout << iter->get_allocation_type() << std::endl;
+                std::cout << iter->buffer_ptr() << std::endl;
+            }
+
+            for (auto& iter : args.outputs) {
+                std::cout << iter->count() << std::endl;
+                std::cout << iter->get_allocation_type() << std::endl;
+                std::cout << iter->buffer_ptr() << std::endl;
+            }
+
+            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
+            std::cout << "bell debug reduce kernel enqueue finished" << std::endl;
+            if (_kernel_data.needs_sub_kernels_sync) {
+                tmp_events = {ev};
+            }
+            all_events.push_back(ev);
+        }
+
+        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+            return aggregate_events(tmp_events, stream);
+
+        bool group_events = (all_events.size() > 1);
+        return aggregate_events(all_events, stream, group_events);
+                            }
 };
 
 namespace detail {

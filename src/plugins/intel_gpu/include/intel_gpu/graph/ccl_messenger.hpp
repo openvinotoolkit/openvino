@@ -124,5 +124,8 @@ public:
     void helperAllreduceBF16(void *sendBuf, void *recvBuf, size_t count) {
         ccl::allreduce(sendBuf, recvBuf, count, ccl::datatype::bfloat16, ccl::reduction::sum, *pcomm).wait();
     }
+    void barrier() {
+        ccl::barrier(*pcomm);
+    }
 };
 } // end namespace cldnn

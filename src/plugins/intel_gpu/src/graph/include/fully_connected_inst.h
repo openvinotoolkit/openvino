@@ -45,8 +45,8 @@ public:
         params->w_size = w_size;
         return params;
     }
-    int w_rank = -1;
-    int w_size = 1;
+    int w_rank = 0;
+    int w_size = 2;
 };
 
 using fully_connected_node = typed_program_node<fully_connected>;
@@ -84,7 +84,6 @@ public:
     memory::ptr get_input_rank_placeholder() const { return input_placeholder; }
     memory& get_input_rank_placeholder_mem() const { return *input_placeholder; }
     void create_input_memory_placeholder() override;
-    void fill_placeholder();
 
 private:
     memory::ptr output_placeholder;

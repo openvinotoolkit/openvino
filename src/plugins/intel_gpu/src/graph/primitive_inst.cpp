@@ -270,7 +270,8 @@ void primitive_inst::update_shape() {
         auto idx = _deps[i].second;
         auto new_layout = _deps[i].first->_impl_params->get_output_layout(idx);
         auto update_new_layout = new_layout;
-        if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && i == 0) {
+        auto& dep_impl_params = _deps[i].first->_impl_params;
+        if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && i == 0 && !_impl_params->input_fake_aligned) {
             auto new_update_pshape = new_layout.get_partial_shape().to_shape();
             new_update_pshape[0] /= _impl_params->w_size;
             update_new_layout = layout(ov::PartialShape(new_update_pshape),
@@ -279,6 +280,18 @@ void primitive_inst::update_shape() {
                                                             new_layout.data_padding);
             GPU_DEBUG_TRACE_DETAIL << id() << ": update input shape from " << new_layout.to_short_string() << " to "
                                <<  update_new_layout.to_short_string() << std::endl;
+        } else if (dep_impl_params->is_type<fully_connected>() && dep_impl_params->w_size != 1 && !dep_impl_params->input_fake_aligned
+                && !dep_impl_params->output_restore) {
+            new_layout = dep_impl_params->get_output_layout(idx);
+            auto new_update_pshape = new_layout.get_partial_shape().to_shape();
+            new_update_pshape[0] *= dep_impl_params->w_size;
+            update_new_layout = layout(ov::PartialShape(new_update_pshape),
+                                                            new_layout.data_type,
+                                                            new_layout.format,
+                                                            new_layout.data_padding);
+            GPU_DEBUG_TRACE_DETAIL << id() << ": restore input shape from " << new_layout.to_short_string() << " to "
+                               <<  update_new_layout.to_short_string() << std::endl;
+            dep_impl_params->output_restore = false;
         }
         if (_impl_params->get_input_layout(i) != update_new_layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
@@ -513,13 +526,21 @@ event::ptr primitive_inst::realloc_if_needed() {
     // Update param if fake_alignment is available
     auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
 
-    const auto& actual_layout = updated_params.get_output_layout();
-    OPENVINO_ASSERT(actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
-
+    const auto& original_actual_layout = updated_params.get_output_layout();
+    OPENVINO_ASSERT(original_actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
+    auto actual_layout = original_actual_layout;
     // input_layout node is supposed to always use external memory in dynamic case
     if (_node->is_type<input_layout>())
         return ev;
 
+    if (_node->is_type<fully_connected>() && _impl_params->w_size != 1 && !_impl_params->input_fake_aligned) {
+        auto new_update_pshape = original_actual_layout.get_partial_shape().to_shape();
+        new_update_pshape[0] *= _impl_params->w_size;
+        actual_layout = layout(ov::PartialShape(new_update_pshape),
+                                                            actual_layout.data_type,
+                                                            actual_layout.format,
+                                                            actual_layout.data_padding);
+    }
     auto& sp = *get_network().get_shape_predictor();
     auto dt_size = ov::element::Type(actual_layout.data_type).bitwidth();
     // read_value/assign nodes are supposed to always use variable memory
@@ -1419,11 +1440,12 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
-        if (_node->is_type<fully_connected>()) {
+        /*if (_node->is_type<fully_connected>()) {
+            std::cout << "bell debug 1" << std::endl;
             create_input_memory_placeholder();
             create_output_memory_placeholder();
             GPU_DEBUG_TRACE_DETAIL << "bell debugline created new input memory place holder!!!! " << id() << std::endl;
-        }
+        }*/
         set_arguments();
     }
     on_execute();
@@ -1490,6 +1512,22 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             }
         }
 
+        // restore impl out params for FC
+        if (update_impl()) {
+            if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && !_impl_params->input_fake_aligned) {
+                auto out_layout = _impl_params->get_output_layout();
+                auto new_update_pshape = out_layout.get_partial_shape().to_shape();
+                new_update_pshape[0] *= _impl_params->w_size;
+                auto update_new_layout = layout(ov::PartialShape(new_update_pshape),
+                                                                out_layout.data_type,
+                                                                out_layout.format,
+                                                                out_layout.data_padding);
+                GPU_DEBUG_TRACE_DETAIL << id() << ": restore output shape from " << out_layout.to_short_string() << " to "
+                                <<  update_new_layout.to_short_string() << std::endl;
+                _impl_params->output_layouts[0] = update_new_layout;
+                _impl_params->output_restore = true;
+            }
+        }
         return ev;
     }
 }

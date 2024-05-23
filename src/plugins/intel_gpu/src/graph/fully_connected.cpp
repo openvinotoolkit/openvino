@@ -213,7 +213,8 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             auto is_extra_alignment_needed = batch_size >= 256;
             fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
         }
-
+        if (batch_size % fake_align_base != 0)
+            updated_param.input_fake_aligned = true;
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);
         std::fill(output_shape.begin(), output_shape.end() - 1, 1);
 
@@ -270,10 +271,11 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 
 void fully_connected_inst::create_output_memory_placeholder() {
     auto size = _node->as<fully_connected>().w_size;
+    //auto rank = _node->as<fully_connected>().w_rank;
     if (size != 1) {
-        //auto impl_shape = get_impl_params()->get_output_layout(0).get_partial_shape().to_shape();
-        auto fc_output_mem_ptr = output_memory_ptr(0);
-        auto fc_output_layout = fc_output_mem_ptr->get_layout();
+        //auto output = output_memory_ptr(0);
+        //auto offset = rank * (output->size() / size);
+        auto fc_output_layout = get_impl_params()->get_output_layout(0);
         OPENVINO_ASSERT(fc_output_layout.is_static(), "cannot create TP memory holder for dynamic memory!");
         auto& engine = get_network().get_engine();
         //auto alloc_type = engine.get_preferred_memory_allocation_type();
@@ -283,6 +285,12 @@ void fully_connected_inst::create_output_memory_placeholder() {
                                                             fc_output_layout.data_padding);
         output_placeholder = engine.allocate_memory(update_fc_output_layout, allocation_type::usm_host);
         std::cout << "output memory place holder allocated " << update_fc_output_layout.to_short_string() << std::endl;
+        /*
+        auto output = output_memory_ptr(0);
+        auto offset = rank * (output->size() / size);
+        std::cout << "bell output offset debug " << offset << std::endl;
+        auto fc_output_layout = get_impl_params()->get_output_layout(0);
+        output_placeholder = output->get_engine()->reinterpret_buffer_with_offset(*output, get_impl_params()->get_output_layout(0), offset);*/
     } else {
         output_placeholder = output_memory_ptr(0);
     }
@@ -290,54 +298,14 @@ void fully_connected_inst::create_output_memory_placeholder() {
 
 void fully_connected_inst::create_input_memory_placeholder() {
     auto size = _node->as<fully_connected>().w_size;
-    if (size != 1) {
-        auto impl_shape = get_impl_params()->get_input_layout(0).get_partial_shape().to_shape();
-        std::cout << "bellbellbell" << get_impl_params()->get_input_layout(0).to_short_string() << std::endl;
-        auto fc_input_memory_ptr = input_memory_ptr(0);
-        auto fc_input_layout = fc_input_memory_ptr->get_layout();
-        auto fc_input_pshape = fc_input_layout.get_partial_shape().to_shape();
-        OPENVINO_ASSERT(fc_input_layout.is_static(), "cannot create TP memory holder for dynamic memory!");
-        auto& engine = get_network().get_engine();
-        //auto alloc_type = engine.get_preferred_memory_allocation_type();
-        auto update_fc_input_layout = layout(ov::PartialShape(impl_shape),
-                                                            fc_input_layout.data_type,
-                                                            fc_input_layout.format,
-                                                            fc_input_layout.data_padding);
-        input_placeholder = engine.allocate_memory(update_fc_input_layout, allocation_type::usm_host);
-        std::cout << "memory place holder allocated " << update_fc_input_layout.to_short_string() << std::endl;
-    } else {
-        input_placeholder = input_memory_ptr(0);
-    }
-}
-void fully_connected_inst::fill_placeholder() {
-    auto size = _node->as<fully_connected>().w_size;
     auto rank = _node->as<fully_connected>().w_rank;
     auto input = input_memory_ptr(0);
     if (size != 1) {
-        //auto offset = rank * input_placeholder->size();
-        //std::cout << "bell offset debug " << offset << std::endl;
-        //input_placeholder = input->get_engine()->reinterpret_buffer_with_offset(*input, input_placeholder->get_layout(), offset);
-        //auto &stream = get_network().get_stream();
-        auto original_layout = input->get_layout();
-        auto dims = original_layout.get_dims();
-        std::cout << original_layout.to_short_string() << std::endl;
-        if (input->get_allocation_type() == allocation_type::usm_device || input->get_allocation_type() == allocation_type::usm_host) {
-            // lock out memory for read only
-            auto src_ptr = static_cast<uint8_t*>(input->buffer_ptr());
-            auto dst_ptr = static_cast<uint8_t*>(input_placeholder->buffer_ptr());
-            auto offset = rank * (input->size() / size);
-            auto copy_size = input->size() / size;
-            auto step = dims[0] / size;
-            std::cout << "copy for rank " << rank << std::endl;
-            ov::parallel_for(step, [&](int i){
-                std::cout << "in parallel " << i << std::endl;
-                std::cout << copy_size << " " << offset << std::endl;
-                int dst_offset = i * copy_size;
-                int src_offset = i * copy_size + offset;
-                std::memcpy(dst_ptr + dst_offset, src_ptr + src_offset, copy_size);
-            });
-            //input_placeholder->unlock(stream);
-        }
+        std::cout << "bellbellbell" << get_impl_params()->get_input_layout(0).to_short_string() << std::endl;
+        auto offset = rank * (input->size() / size);
+        std::cout << "bell offset debug " << offset << std::endl;
+        input_placeholder = input->get_engine()->reinterpret_buffer_with_offset(*input, get_impl_params()->get_input_layout(0), offset);
+        std::cout << input_placeholder->get_allocation_type() << std::endl;
     } else {
         input_placeholder = input;
     }

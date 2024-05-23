@@ -2932,7 +2932,7 @@ TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
     ASSERT_EQ(outputs.begin()->first, "fc");
 
     auto output_prim_mem = outputs.begin()->second.get_memory();
-
+    {
     cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
     ASSERT_EQ(1.5f, output_ptr[0]);
@@ -2943,15 +2943,26 @@ TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
     ASSERT_EQ(-1.5f, output_ptr[5]);
     ASSERT_EQ(2.5f, output_ptr[6]);
     ASSERT_EQ(-2.0f, output_ptr[7]);
+    }
     // WA: Call wait_all() to wait for all queued kernels compilation finish
     network.get_program()->get_compilation_context().wait_all();
 
     // Check if OneDNN's impl is used for the next execute() call
-    network.execute();
+    auto outputs_onednn = network.execute();
     inst = network.get_primitive("fc");
     impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_FALSE(impl->is_dynamic());
+    auto output_prim_mem_onednn = outputs_onednn.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr_onednn (output_prim_mem_onednn, get_test_stream());
+    ASSERT_EQ(1.5f, output_ptr_onednn[0]);
+    ASSERT_EQ(0.75f, output_ptr_onednn[1]);
+    ASSERT_EQ(-2.25f, output_ptr_onednn[2]);
+    ASSERT_EQ(3.0f, output_ptr_onednn[3]);
+    ASSERT_EQ(1.0f, output_ptr_onednn[4]);
+    ASSERT_EQ(-1.5f, output_ptr_onednn[5]);
+    ASSERT_EQ(2.5f, output_ptr_onednn[6]);
+    ASSERT_EQ(-2.0f, output_ptr_onednn[7]);
 }
 
 TEST(fully_connected_onednn_gpu, no_biases_int8) {
