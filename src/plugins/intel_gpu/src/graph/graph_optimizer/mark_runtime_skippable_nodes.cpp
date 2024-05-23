@@ -4,6 +4,7 @@
 
 #include "pass_manager.h"
 #include "gather_inst.h"
+#include "non_max_suppression_inst.h"
 #include "permute_inst.h"
 #include "strided_slice_inst.h"
 #include "kv_cache_inst.h"
