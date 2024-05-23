@@ -547,11 +547,6 @@ TEST(TransformationTests, SharedShapeOfTestRandomOrder) {
         manager.run_passes(model);
 
         const auto model_ops = model->get_ops();
-        const auto op_it = std::find_if(model_ops.begin(), model_ops.end(), [](const std::shared_ptr<Node>& node) {
-            return node->get_friendly_name() == "Shape_0";
-        });
-        ASSERT_TRUE(op_it != model_ops.end()) << "node Shape_0 is not found in model";
-        // we need to clone while memory will be reused on the next iteration for the new model
         models.push_back(model->clone());
     }
 

@@ -12,13 +12,12 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-static bool use_broadcast(const std::shared_ptr<ov::Node> node) {
-    if (auto concat = std::static_pointer_cast<ov::op::v0::Concat>(node)) {
-        return concat->get_default_output().get_partial_shape().is_static() &&
-               concat->get_concatenation_axis() == 1;
-    }
+static bool use_broadcast(const std::shared_ptr<ov::op::v0::Concat>& concat) {
+    const auto& output = concat->output(0);
+    const auto& input = concat->input(0);
+    const auto& input_concat_dim = input.get_partial_shape()[concat->get_concatenation_axis()];
 
-    return false;
+    return input_concat_dim.is_static() && input_concat_dim.get_length() == 1 && output.get_partial_shape().is_static();
 }
 
 ov::pass::ConcatToTile::ConcatToTile() {
@@ -26,45 +25,53 @@ ov::pass::ConcatToTile::ConcatToTile() {
 
     auto concat_label = pattern::wrap_type<op::v0::Concat>([](const Output<Node>& value) {
         auto node = value.get_node_shared_ptr();
-        auto first_input_source_output = node->get_input_source_output(0);
-
-        // Do not start comparing from 0 (with itself)
-        const auto& input_values = node->input_values();
-        auto it = input_values.cbegin();
-        std::next(it, 1);
-
-        for (; it != input_values.cend(); ++it) {
-            if (*it != first_input_source_output) {
-                return false;
-            }
+        if (node->output(0).get_partial_shape().rank().is_dynamic()) {
+            return false;
         }
 
-        return true;
+        auto first_input_source_output = node->get_input_source_output(0);
+        if (first_input_source_output.get_partial_shape().rank().is_dynamic()) {
+            return false;
+        }
+
+        const auto& input_values = node->input_values();
+
+        return std::all_of(input_values.cbegin(), input_values.cend(), [&](const ov::Output<Node>& output) {
+            return first_input_source_output == output;
+        });
     });
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto concat = pattern_map.at(concat_label).get_node_shared_ptr();
+        auto root_node = pattern_map.at(concat_label).get_node_shared_ptr();
+        auto concat = std::dynamic_pointer_cast<op::v0::Concat>(root_node);
+        if (!concat) {
+            return false;
+        }
 
         if (transformation_callback(concat)) {
             return false;
         }
 
         const auto& input = concat->input_value(0);
-        auto target_shape =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                   Shape{concat->get_default_output().get_shape().size()},
-                                                   concat->get_default_output().get_shape());
 
-        auto repeat_num = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                 Shape{1},
-                                                                 concat->get_input_size());
+        std::shared_ptr<Node> replacement;
+        if (use_broadcast(concat)) {
+            auto target_shape =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       Shape{concat->output(0).get_shape().size()},
+                                                       concat->output(0).get_shape());
+            replacement = std::make_shared<ov::op::v3::Broadcast>(input, target_shape);
+        } else {
+            std::vector<size_t> repeat_num_vec(concat->output(0).get_partial_shape().rank().get_length(), 1);
+            repeat_num_vec[concat->get_concatenation_axis()] = concat->get_input_size();
 
-        std::shared_ptr<Node> replacement = use_broadcast(concat) ?
-                            std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v3::Broadcast>(input, target_shape)) :
-                            std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Tile>(input, repeat_num));
-
+            auto repeat_num = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                     Shape{repeat_num_vec.size()},
+                                                                     repeat_num_vec);
+            replacement = std::make_shared<ov::op::v0::Tile>(input, repeat_num);
+        }
 
         replacement->set_friendly_name(concat->get_friendly_name());
         ov::replace_node(concat, replacement);
