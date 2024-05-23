@@ -518,7 +518,7 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_b
 }
 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_batch_1_5) {
-    this->test_smoke_multipleIterations_stateful(false, true, true, 3, 2, ov::element::f16, 10, 1, false, 1);
+    this->test_smoke_multipleIterations_stateful(false, true, true, 5, 2, ov::element::f16, 10, 1, false, 1);
 }
 
 
