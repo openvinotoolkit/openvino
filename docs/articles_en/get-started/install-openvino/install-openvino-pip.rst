@@ -118,6 +118,9 @@ Run the command below:
 
 If installation was successful, you will see the list of available devices.
 
+.. note::
+
+   If ImportError occurs, install the `Visual C++ Redistributable Package <https://www.microsoft.com/en-in/download/details.aspx?id=48145>`__ .
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the

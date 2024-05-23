@@ -46,6 +46,16 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    for Docker. See the `Docker guide <https://docs.docker.com/network/proxy/#set-proxy-using-the-cli>`__
    for more details.
 
+.. dropdown:: Issues with importing `Core` name from `openvino` (ImportError)
+
+   While veryfiing the status of OpenVINO installation, the following error message may occur:
+
+   ..  code-block:: sh
+
+       ImportError: cannot import name 'Core' from 'openvino'
+
+   To fix this issue you need to install the `Visual C++ Redistributable Package <https://www.microsoft.com/en-in/download/details.aspx?id=48145>`__ .
+
 .. dropdown:: Check the version of OpenVINO Runtime
 
    To check the version of OpenVINO Runtime, use the following command:
@@ -109,6 +119,10 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
         python -c "from openvino import Core; print(Core().available_devices)"
 
      If OpenVINO has been successfully installed, you will see a list of available devices.
+
+     .. note::
+
+        If ImportError occurs, install the `Visual C++ Redistributable Package <https://www.microsoft.com/en-in/download/details.aspx?id=48145>`__ .
 
    * If you install OpenVINO Runtime using the archive file, you can search "openvino" in
      Apps & Features on a Windows system, or check your installation directory on Linux to see
