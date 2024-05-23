@@ -579,7 +579,7 @@ void reserve_available_cpus(int executor_id,
     // }
     // printf("[ threading ] streams_info_table (%ld):", streams_info_table.size());
     // for (size_t i = 0; i < streams_info_table.size(); i++) {
-    //     printf("%d\t%d\t%d\t%d\t%d\n", 
+    //     printf("%d\t%d\t%d\t%d\t%d\n",
     //     streams_info_table[i][NUMBER_OF_STREAMS],
     //     streams_info_table[i][PROC_TYPE],
     //     streams_info_table[i][THREADS_PER_STREAM],
