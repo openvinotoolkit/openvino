@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
 #include <array>
-#include <<utility>
+#include <vector>
+#include <cstdint>
+#include <utility>
+
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
