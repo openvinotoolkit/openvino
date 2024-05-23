@@ -83,15 +83,7 @@ public:
 
     Any get_values_from_const_input(int index) const override;
 
-    // TODO: upstream to base class
-    OutputVector inputs() const {
-        OutputVector res;
-        for (auto input : m_decoder_inputs) {
-            FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding index: ", input, " exist.");
-            res.push_back(m_tensor_map->at(input));
-        }
-        return res;
-    }
+    OutputVector inputs() const;
 
     Any get_input_type(size_t index) const {
         return m_decoder->get_input_type(index);

@@ -382,20 +382,10 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     const Config& config,
     ze_graph_compiler_version_info_t& compilerVersion) const {
     std::string content = config.toString();
-    // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
-    if (compilerVersion.major < 5) {
-        std::regex reg("NPU_");
-        content = std::regex_replace(content, reg, "VPU_");
-        // From 4.0.0, driver compiler start to use VPU_ prefix, the old version uses VPUX_ prefix
-        if (compilerVersion.major < 4) {
-            // Replace VPU_ with VPUX_ for old driver compiler
-            std::regex reg("VPU_");
-            content = std::regex_replace(content, reg, "VPUX_");
-        }
-    }
 
     // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values corresponding
     // to the "model priority" key has been modified
+    // cpu_pinning property is not supported in compilers < v5.2 - need to remove it
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 2)) {
         const auto& getTargetRegex = [](const ov::hint::Priority& priorityValue) -> std::regex {
             std::ostringstream result;
@@ -420,6 +410,14 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
+
+        // Removing cpu_pinning from the command string
+        std::ostringstream pinningstr;
+        pinningstr << ov::hint::enable_cpu_pinning.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                   << VALUE_DELIMITER;
+        _logger.warning(
+            "ENABLE_CPU_PINNING property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(pinningstr.str()), "");
     }
 
     /// Stepping and max_tiles are not supported in versions < 5.3 - need to remove it
@@ -458,6 +456,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         std::ostringstream batchstr;
         batchstr << ov::intel_npu::batch_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
+
         _logger.warning("NPU_BATCH_MODE property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
@@ -470,6 +469,19 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         _logger.warning(
             "EXECUTION_MODE_HINT property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
+    // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
+    // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
+    if (compilerVersion.major < 5) {
+        std::regex reg("NPU_");
+        content = std::regex_replace(content, reg, "VPU_");
+        // From 4.0.0, driver compiler start to use VPU_ prefix, the old version uses VPUX_ prefix
+        if (compilerVersion.major < 4) {
+            // Replace VPU_ with VPUX_ for old driver compiler
+            std::regex reg("VPU_");
+            content = std::regex_replace(content, reg, "VPUX_");
+        }
     }
 
     return "--config " + content;
@@ -763,6 +775,8 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
                     getLatestBuildError());
 
     auto networkMeta = getNetworkMeta(graphHandle);
+    networkMeta.name = model->get_friendly_name();
+
     result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {
