@@ -48,6 +48,8 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
 .. dropdown:: Issues with importing Core name from openvino (ImportError)
 
+   .. _import-error:
+
    While verifying the status of OpenVINO installation, the following error message may prompt:
 
    ..  code-block:: sh
