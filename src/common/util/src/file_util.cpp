@@ -3,7 +3,7 @@
 //
 
 #include "openvino/util/file_util.hpp"
-
+#    define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include <sys/stat.h>
 
 #include <algorithm>
@@ -339,13 +339,11 @@ void ov::util::convert_path_win_style(std::string& path) {
 #    endif
 
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
-#    define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
     return wstring_decoder.to_bytes(wstr);
 }
 
 std::wstring ov::util::string_to_wstring(const std::string& string) {
-#    define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
     const char* str = string.c_str();
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
     std::wstring result = wstring_encoder.from_bytes(str);
