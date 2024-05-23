@@ -99,6 +99,18 @@ void PhilloxGenerator::set_operator_seed(const uint64_t op_seed) {
     m_operator_seed = op_seed;
 }
 
+// ====== MockPhilloxGenerator functions ======
+MockPhilloxGenerator::MockPhilloxGenerator() : PhilloxGenerator(PhilloxAlignment::MOCK, 0, 0, {0, 0}, 1){};
+
+std::pair<uint64_t, uint64_t> MockPhilloxGenerator::get_next_state() {
+    return get_previous_state();
+}
+
+PhilloxOutput MockPhilloxGenerator::random() {
+    PhilloxOutput result(get_generated_elements_count(), 0);
+    return result;
+}
+
 // ====== OpenvinoPhilloxGenerator functions ======
 OpenvinoPhilloxGenerator::OpenvinoPhilloxGenerator(const uint64_t global_seed,
                                                    const uint64_t operator_seed,
@@ -326,7 +338,7 @@ std::shared_ptr<PhilloxGenerator> make_phillox_generator(uint64_t seed,
     case PhilloxAlignment::PYTORCH:
         return std::make_shared<PytorchPhilloxGenerator>(seed);
     default:
-        OPENVINO_THROW("Unknown Phillox algorithm alignment option selected.");
+        return std::make_shared<MockPhilloxGenerator>();
     }
 }
 

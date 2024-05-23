@@ -37,20 +37,38 @@ protected:
                      const size_t elem_count,
                      const char* min_val,
                      const char* max_val,
-                     const size_t step)
+                     const size_t uints_generated_per_exec)
         : m_out(out),
-          m_step(step),
+          m_uints_generated_per_exec(uints_generated_per_exec),
           m_elem_count(elem_count),
           m_elem_type(elem_type),
           m_min_val(min_val),
           m_max_val(max_val) {}
 
     char* m_out;
-    const size_t m_step;
+    const size_t m_uints_generated_per_exec;
     const size_t m_elem_count;
     const element::Type m_elem_type;
     const char* m_min_val;
     const char* m_max_val;
+};
+
+class MockPhilloxConverter : public PhilloxConverter {
+public:
+    MockPhilloxConverter(char* out,
+                         const element::Type& elem_type,
+                         const size_t elem_count,
+                         const char* min_val,
+                         const char* max_val,
+                         const size_t uints_generated_per_exec);
+
+    /// \brief Returns the number of generated elements based on the number of generator output elements and the given
+    /// dtype
+    size_t get_converted_elements_count() const override;
+
+    /// \brief Converts the given array (PhilloxOutput) to the target dtype and assigns them at the k-th index of the
+    /// output array.
+    void convert(PhilloxOutput result, size_t idx) override;
 };
 
 class TensorflowPhilloxConverter : public PhilloxConverter {
@@ -60,8 +78,7 @@ public:
                                const size_t elem_count,
                                const char* min_val,
                                const char* max_val,
-                               const size_t step)
-        : PhilloxConverter(out, elem_type, elem_count, min_val, max_val, step) {}
+                               const size_t uints_generated_per_exec);
 
     /// \brief Returns the number of generated elements based on the number of generator output elements and the given
     /// dtype
@@ -81,8 +98,7 @@ public:
                             const size_t elem_count,
                             const char* min_val,
                             const char* max_val,
-                            const size_t step)
-        : PhilloxConverter(out, elem_type, elem_count, min_val, max_val, step) {}
+                            const size_t uints_generated_per_exec);
 
     /// \brief Returns the number of generated elements based on the number of generator output elements and the given
     /// dtype

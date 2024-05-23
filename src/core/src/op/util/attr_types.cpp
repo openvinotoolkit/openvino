@@ -91,7 +91,8 @@ OPENVINO_API EnumNames<ov::op::PhilloxAlignment>& EnumNames<ov::op::PhilloxAlign
         EnumNames<ov::op::PhilloxAlignment>("ov::op::PhilloxAlignment",
                                             {{"openvino", ov::op::PhilloxAlignment::OPENVINO},
                                              {"pytorch", ov::op::PhilloxAlignment::PYTORCH},
-                                             {"tensorflow", ov::op::PhilloxAlignment::TENSORFLOW}});
+                                             {"tensorflow", ov::op::PhilloxAlignment::TENSORFLOW},
+                                             {"mock", ov::op::PhilloxAlignment::MOCK}});
     return enum_names;
 }
 

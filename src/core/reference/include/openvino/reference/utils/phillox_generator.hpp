@@ -18,21 +18,6 @@ namespace phillox {
 
 typedef std::vector<uint32_t> PhilloxOutput;
 
-// ====== Mersenne Twister paper variables ======
-
-// Following const values are taken from the original paper:
-// https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
-
-// Values for OpenVINO, Tensorflow
-constexpr uint32_t CRUSH_RESISTANCE_LOWER_VALUE = 0x9E3779B9;
-constexpr uint32_t CRUSH_RESISTANCE_UPPER_VALUE = 0xBB67AE85;
-constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
-constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
-
-// Values for PyTorch
-constexpr int MERSENNE_STATE_N = 624;
-constexpr int MERSENNE_STATE_M = 397;
-
 /// \brief Generator of random numbers based on the Phillox algorithm.
 ///        Abstract base class for various specializations
 ///        used to match outputs based on input seed(s)
@@ -88,6 +73,19 @@ protected:
                      const uint64_t operator_seed,
                      const std::pair<uint64_t, uint64_t> previous_state,
                      const size_t generated_elements_count);
+    
+    // ====== Mersenne Twister paper variables ======
+    // Following const values are taken from the original paper:
+    // https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
+    //
+    // Values for OpenVINO, Tensorflow
+    static constexpr uint32_t CRUSH_RESISTANCE_LOWER_VALUE = 0x9E3779B9;
+    static constexpr uint32_t CRUSH_RESISTANCE_UPPER_VALUE = 0xBB67AE85;
+    static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
+    static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
+    // Values for PyTorch
+    static constexpr int MERSENNE_STATE_N = 624;
+    static constexpr int MERSENNE_STATE_M = 397;
 
 private:
     const PhilloxAlignment m_alignment;
@@ -95,6 +93,20 @@ private:
     uint64_t m_operator_seed;
     const std::pair<uint64_t, uint64_t> m_previous_state;
     const size_t m_generated_elements_count;
+};
+
+/// \brief Mock specialization of the PhilloxGenerator class (in case of unknown alignment).
+class MockPhilloxGenerator : public PhilloxGenerator {
+public:
+    MockPhilloxGenerator();
+
+    /// @brief Get a set of 4 32-bit unsigned integers (zeros).
+    /// @return A structure with a set of 32-bit zeros.
+    PhilloxOutput random() override;
+
+    /// \brief Returns the modified state to feed to the next execution.
+    /// @return A pair of uint64s that represent the output state to be fed to the next generator execution.
+    std::pair<uint64_t, uint64_t> get_next_state() override;
 };
 
 /// \brief OpenVINO specialization of the PhilloxGenerator class.

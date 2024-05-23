@@ -158,6 +158,7 @@ enum class PhilloxAlignment {
     OPENVINO,
     TENSORFLOW,
     PYTORCH,
+    MOCK
 };
 
 OPENVINO_API

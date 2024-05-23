@@ -8,7 +8,6 @@
 #include "openvino/op/random_uniform.hpp"
 #include "random_uniform_shape_inference.hpp"
 
-
 namespace ov {
 namespace op {
 namespace v8 {
@@ -19,6 +18,11 @@ inline bool shape_et(const element::Type& et) {
 
 inline bool out_et(const element::Type& et) {
     return et.is_real() || shape_et(et);
+}
+
+inline bool alignment(const PhilloxAlignment& alignment) {
+    return alignment == PhilloxAlignment::OPENVINO || alignment == PhilloxAlignment::TENSORFLOW ||
+           alignment == PhilloxAlignment::PYTORCH;
 }
 }  // namespace validate
 
@@ -47,10 +51,13 @@ void RandomUniform::validate_and_infer_types() {
     const auto& min_et = get_input_element_type(1);
     const auto& max_et = get_input_element_type(2);
     const auto& out_et = get_out_type();
+    const auto& alignment = get_alignment();
+
     NODE_VALIDATION_CHECK(this, min_et == max_et, "'min_val' should have the same type as 'max_val'.");
     NODE_VALIDATION_CHECK(this,
                           validate::out_et(out_et) && (out_et == min_et),
                           "'min_val' and 'max_val' should have the same type as 'out_type' attribute.");
+    NODE_VALIDATION_CHECK(this, validate::alignment(alignment), "Unknown alignment mode provided to RandomUniform.");
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
