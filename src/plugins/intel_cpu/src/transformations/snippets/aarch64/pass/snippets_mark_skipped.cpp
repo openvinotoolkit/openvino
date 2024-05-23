@@ -79,6 +79,7 @@ bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &nod
            ov::is_type<ov::op::v0::Clamp>(node) ||
            ov::is_type<ov::op::v0::Elu>(node) ||
            ov::is_type<ov::op::v0::Relu>(node) ||
+           ov::is_type<ov::op::v0::Sigmoid>(node) ||
            ov::is_type<ov::op::v0::Tanh>(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
