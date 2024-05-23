@@ -440,6 +440,112 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }
 
 }  // namespace detail
+
+namespace {
+
+std::vector<int32_t> get_nms_gather_input(stream& stream, memory::ptr mem) {
+    auto dep_mem_layout = mem->get_layout();
+    auto dep_mem_batch = static_cast<size_t>(dep_mem_layout.batch());
+
+    mem_lock<int32_t, mem_lock_type::read> dep_mem_lock(mem, stream);
+    auto dep_mem_ptr = dep_mem_lock.data();
+
+    size_t actual_valid_num = dep_mem_batch;
+    size_t idx = 0;
+    for (size_t i = 0; i < dep_mem_batch; i++) {
+        idx = i * 3;
+        if (dep_mem_ptr[idx] == -1) {
+            actual_valid_num = i;
+            break;
+        }
+    }
+
+    std::vector<int32_t> result;
+    for (size_t i = 0; i < actual_valid_num; i++) {
+        idx = i * 3;
+        result.push_back(dep_mem_ptr[idx + 0]);
+        result.push_back(dep_mem_ptr[idx + 1]);
+        result.push_back(dep_mem_ptr[idx + 2]);
+    }
+
+    return result;
+}
+
+void store_nms_gather_output(stream& stream, memory::ptr mem, std::vector<int32_t> valid_input) {
+    auto valid_input_size = valid_input.size() / 3;
+
+    mem_lock<int32_t, mem_lock_type::write> lock(mem, stream);
+    auto ptr = lock.data();
+
+    auto output_batch = static_cast<size_t>(mem->get_layout().batch());
+    for (size_t si = 0; si < std::min(valid_input_size, output_batch); ++si) {
+        auto offset = si * 3;
+        ptr[offset + 0] = static_cast<int32_t>(valid_input[offset + 0]);
+        ptr[offset + 1] = static_cast<int32_t>(valid_input[offset + 1]);
+        ptr[offset + 2] = static_cast<int32_t>(valid_input[offset + 2]);
+    }
+}
+
+void run_nms_gather(non_max_suppression_gather_inst& instance) {
+    auto& stream = instance.get_network().get_stream();
+
+    auto valid_input = get_nms_gather_input(stream, instance.dep_memory_ptr(0));
+    store_nms_gather_output(stream, instance.output_memory_ptr(), valid_input);
+}
+}
+struct non_max_suppression_gather_impl : typed_primitive_impl<non_max_suppression_gather> {
+    using parent = typed_primitive_impl<non_max_suppression_gather>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::non_max_suppression_gather_impl)
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<non_max_suppression_gather_impl>(*this);
+    }
+
+    non_max_suppression_gather_impl() : parent("non_max_suppression_gather_impl") {}
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<non_max_suppression_gather>& instance) override {
+        auto& stream = instance.get_network().get_stream();
+
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+
+        if (!pass_through_events) {
+            for (auto e : events) {
+                e->wait();
+            }
+        }
+
+        run_nms_gather(instance);
+
+        if (pass_through_events) {
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
+            }
+        }
+
+        return stream.create_user_event(true);
+    }
+
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_gather_node&, const kernel_impl_params&) {
+        return make_unique<non_max_suppression_gather_impl>();
+    }
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+};
+
+namespace detail {
+
+attach_non_max_suppression_gather_impl::attach_non_max_suppression_gather_impl() {
+    implementation_map<non_max_suppression_gather>::add(impl_types::cpu, non_max_suppression_gather_impl::create, {
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfyx),
+    });
+}
+
+}  // namespace detail
+
 }  // namespace cpu
 }  // namespace cldnn
 

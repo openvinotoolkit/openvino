@@ -186,4 +186,34 @@ public:
 
 using non_max_suppression_inst = typed_primitive_inst<non_max_suppression>;
 
+template <>
+struct typed_program_node<non_max_suppression_gather> : typed_program_node_base<non_max_suppression_gather> {
+    using parent = typed_program_node_base<non_max_suppression_gather>;
+    using parent::parent;
+
+    bool generates_dynamic_output() const override {
+        return true;
+    }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {0};
+    }
+};
+
+using non_max_suppression_gather_node = typed_program_node<non_max_suppression_gather>;
+
+template <>
+class typed_primitive_inst<non_max_suppression_gather> : public typed_primitive_inst_base<non_max_suppression_gather> {
+public:
+    using parent = typed_primitive_inst_base<non_max_suppression_gather>;
+    using parent::parent;
+
+    static layout calc_output_layout(const non_max_suppression_gather_node& node, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const non_max_suppression_gather_node& node, const kernel_impl_params& impl_param);
+    static std::string to_string(const non_max_suppression_gather_node& node);
+};
+
+using non_max_suppression_gather_inst = typed_primitive_inst<non_max_suppression_gather>;
+
 }  // namespace cldnn

@@ -54,9 +54,9 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
     auto boxesShape = op->get_input_partial_shape(0);
     size_t num_outputs = op->get_output_size();
     if (p.use_new_shape_infer()) {
-        auto nonMaxSuppressionLayerName = layer_type_name_ID(op);
+        auto NMSLayerName = layer_type_name_ID(op);
         auto prim = cldnn::non_max_suppression(
-                nonMaxSuppressionLayerName,
+                NMSLayerName,
                 reordered_inputs[0],
                 reordered_inputs[1],
                 0,
@@ -78,6 +78,14 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
         }
 
         p.add_primitive(*op, prim);
+
+        auto NMSGatherLayerName = layer_type_name_ID(op) + "_NMSGather";
+        auto nms_gather_prim = cldnn::non_max_suppression_gather(
+            NMSGatherLayerName,
+            {NMSLayerName}
+        );
+
+        p.add_primitive(*op, nms_gather_prim);
     } else {
         auto outputIndices = op->get_output_partial_shape(0)[0].get_length();
 

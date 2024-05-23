@@ -1494,6 +1494,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::non_max_suppression_gather::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
@@ -1546,6 +1547,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::non_max_suppression_gather::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
