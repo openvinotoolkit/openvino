@@ -29,18 +29,16 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);
 
     auto maxpool_v8_pattern = pattern::wrap_type<ov::op::v8::MaxPool>();
+
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto maxpool_v8_node = std::dynamic_pointer_cast<ov::op::v8::MaxPool>(m.get_match_root());
 
-        if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0) {
+        if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0)
             return false;
-        }
 
-        for (auto dilation : maxpool_v8_node->get_dilations()) {
-            if (dilation != 1) {
+        for (auto dilation : maxpool_v8_node->get_dilations())
+            if (dilation != 1)
                 return false;
-            }
-        }
 
         auto maxpool_v1_node = std::make_shared<ov::op::v1::MaxPool>(maxpool_v8_node->input_value(0),
                                                                      maxpool_v8_node->get_strides(),
@@ -93,7 +91,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
         std::shared_ptr<ov::op::v8::MaxPool> max_pool_v8;
         NodeRegistry node_registry;
         if (rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
-            if (max_pool_v14->is_dynamic() || max_pool_v14->get_input_partial_shape(0).is_dynamic()) {
+            if (max_pool_v14->is_dynamic()) {
                 return false;
             }
             auto input = max_pool_v14->input_value(0);
