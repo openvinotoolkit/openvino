@@ -154,7 +154,7 @@ KERNEL (permute_f_y_axes)(
     __attribute__((opencl_unroll_hint(J_TIMES)))
     for (int j = 0; j < J_TIMES; ++j) {
         const int j_vec = j * VEC_SIZE;
-        OUT_VEC_TYPE res = READ_VEC(0, &transpose_buf[bf_local][j_vec]);
+        IN_VEC_TYPE res = READ_VEC(0, &transpose_buf[bf_local][j_vec]);
         const int f_out_idx = y_begin + bf_local;
         const int y_out_idx = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
         FUSED_OPS_VEC;
