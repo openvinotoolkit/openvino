@@ -5,10 +5,9 @@
 #pragma once
 
 #include <array>
-#include <vector>
 #include <cstdint>
 #include <utility>
-
+#include <vector>
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
