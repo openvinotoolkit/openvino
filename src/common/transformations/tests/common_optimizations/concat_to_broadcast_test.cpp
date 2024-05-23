@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/concat_to_tile.hpp"
+#include "transformations/common_optimizations/concat_to_broadcast.hpp"
 
 #include <gtest/gtest.h>
 
@@ -10,8 +10,6 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -23,9 +21,9 @@ enum class ExpectedType {
     Concat,
 };
 
-using ConcatToTileParams = std::tuple<ov::PartialShape, size_t, size_t, ExpectedType>;
+using ConcatToBroadcastParams = std::tuple<ov::PartialShape, size_t, size_t, ExpectedType>;
 
-class ConcatToTileTest : public WithParamInterface<ConcatToTileParams>, public testing::Test {
+class ConcatToBroadcastTest : public WithParamInterface<ConcatToBroadcastParams>, public testing::Test {
 protected:
     void SetUp() override {
         std::tie(data_shape, concat_num_inputs, concat_axis, expected_type) = GetParam();
@@ -37,15 +35,19 @@ protected:
     size_t concat_axis;
 };
 
-INSTANTIATE_TEST_SUITE_P(type_prop,
-                         ConcatToTileTest,
-                         Values(ConcatToTileParams({1, 2, 1, 2}, 2604, 0, ExpectedType::Broadcast),
-                                ConcatToTileParams({1, 2, 1, 2}, 2604, 1, ExpectedType::Tile),
-                                ConcatToTileParams({-1, 2, 1, 2}, 2604, 0, ExpectedType::Tile),
-                                ConcatToTileParams({-1, -1, -1, -1}, 2604, 0, ExpectedType::Tile),
-                                ConcatToTileParams(ov::PartialShape::dynamic(), 2604, 0, ExpectedType::Concat)));
+INSTANTIATE_TEST_SUITE_P(
+    type_prop,
+    ConcatToBroadcastTest,
+    Values(ConcatToBroadcastParams({2, 1}, 10, 1, ExpectedType::Broadcast),
+           ConcatToBroadcastParams({1, 2, 1, 2}, 2604, 0, ExpectedType::Broadcast),
+           ConcatToBroadcastParams(ov::PartialShape::dynamic(), 2604, 0, ExpectedType::Concat),
+           // Common case (converting to Tile) causes an issue in e2e test with unknown root cause (ticket: 142246)
+           // The following tests cover Tile cases, but temporary Concat remains in the graph.
+           ConcatToBroadcastParams({1, 2, 1, 2}, 2604, 1, ExpectedType::Concat),
+           ConcatToBroadcastParams({-1, 2, 1, 2}, 2604, 0, ExpectedType::Concat),
+           ConcatToBroadcastParams({-1, -1, -1, -1}, 2604, 0, ExpectedType::Concat)));
 
-TEST_P(ConcatToTileTest, TestTransfromationExecuted) {
+TEST_P(ConcatToBroadcastTest, TestTransfromationExecuted) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, data_shape);
     std::vector<ov::Output<ov::Node>> concat_inputs(concat_num_inputs, param->output(0));
 
@@ -55,7 +57,7 @@ TEST_P(ConcatToTileTest, TestTransfromationExecuted) {
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::ConcatToTile>();
+    manager.register_pass<ov::pass::ConcatToBroadcast>();
     manager.run_passes(model);
 
     const auto& ops = model->get_ordered_ops();

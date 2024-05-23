@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/concat_to_tile.hpp"
+#include "transformations/common_optimizations/concat_to_broadcast.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -20,8 +20,8 @@ static bool use_broadcast(const std::shared_ptr<ov::op::v0::Concat>& concat) {
     return input_concat_dim.is_static() && input_concat_dim.get_length() == 1 && output.get_partial_shape().is_static();
 }
 
-ov::pass::ConcatToTile::ConcatToTile() {
-    MATCHER_SCOPE(ConcatToTile);
+ov::pass::ConcatToBroadcast::ConcatToBroadcast() {
+    MATCHER_SCOPE(ConcatToBroadcast);
 
     auto concat_label = pattern::wrap_type<op::v0::Concat>([](const Output<Node>& value) {
         auto node = value.get_node_shared_ptr();
@@ -63,6 +63,11 @@ ov::pass::ConcatToTile::ConcatToTile() {
                                                                        concat->output(0).get_shape());
             replacement = std::make_shared<ov::op::v3::Broadcast>(input, target_shape);
         } else {
+            return false;
+        }
+
+        /* Common case (converting to Tile) causes an issue in e2e test with unknown root cause (ticket: 142246)
+        else {
             std::vector<size_t> repeat_num_vec(concat->output(0).get_partial_shape().rank().get_length(), 1);
             repeat_num_vec[concat->get_concatenation_axis()] = concat->get_input_size();
 
@@ -70,6 +75,7 @@ ov::pass::ConcatToTile::ConcatToTile() {
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{repeat_num_vec.size()}, repeat_num_vec);
             replacement = std::make_shared<ov::op::v0::Tile>(input, repeat_num);
         }
+        */
 
         replacement->set_friendly_name(concat->get_friendly_name());
         ov::replace_node(concat, replacement);
