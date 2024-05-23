@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
+
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
@@ -24,6 +26,8 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
+using namespace ov::pass;
+using ov::OutputVector;
 
 // Exactly copied the function from another file. Maybe should be moved to some general file
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const std::string& name) {
@@ -36,6 +40,28 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
     return node;
 }
 
+typedef std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> node_tuple;
+
+// std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
+static node_tuple kv_read_and_concat(std::shared_ptr<ov::Node> kv_current) {
+    auto kv_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
+    auto kv_past_par = pattern::wrap_type<v0::Parameter>();
+    auto kv_past = std::make_shared<pattern::op::Or>(
+        OutputVector{pattern::wrap_type<v8::Gather>({kv_past_var, pattern::any_input(), pattern::any_input()}),
+                     kv_past_par});
+    kv_past = std::make_shared<pattern::op::Or>(
+        OutputVector{kv_past,
+                     pattern::wrap_type<v1::Transpose>(
+                         {kv_past, pattern::any_input()})});  // Transpose is used when kv-cache is stored in a not usual
+                                                              // layout, example: bloom
+    //auto k_current = pattern::any_input();
+    auto kv_current2 = pattern::any_input();
+    auto kv_current_reshaped = pattern::wrap_type<v1::Reshape>({kv_current2, pattern::any_input()});
+    auto kv_concat = pattern::wrap_type<v0::Concat>(
+        {kv_past, std::make_shared<pattern::op::Or>(OutputVector{kv_current_reshaped, kv_current})});
+    return node_tuple(kv_past_par, kv_current2, kv_current_reshaped, kv_concat);
+}
+
 ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
                                                          const ParameterVector& model_remaining_params,
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
@@ -45,21 +71,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                          Output<Node> max_context_len) {
     MATCHER_SCOPE(StateManagementPattern);
 
-    auto k_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
-    auto k_past_par = pattern::wrap_type<v0::Parameter>();
-    auto k_past = std::make_shared<pattern::op::Or>(
-        OutputVector{pattern::wrap_type<v8::Gather>({k_past_var, pattern::any_input(), pattern::any_input()}),
-                     k_past_par});
-    k_past = std::make_shared<pattern::op::Or>(
-        OutputVector{k_past,
-                     pattern::wrap_type<v1::Transpose>(
-                         {k_past, pattern::any_input()})});  // Transpose is used when kv-cache is stored in a not usual
-                                                             // layout, example: bloom
     auto k_current = pattern::any_input();
-    auto k_current2 = pattern::any_input();
-    auto k_current_reshaped = pattern::wrap_type<v1::Reshape>({k_current2, pattern::any_input()});
-    auto k_concat = pattern::wrap_type<v0::Concat>(
-        {k_past, std::make_shared<pattern::op::Or>(OutputVector{k_current_reshaped, k_current})});
+    std::shared_ptr<ov::Node> k_past_par, k_current2, k_concat, k_current_reshaped;
+    std::tie(k_past_par, k_current2, k_current_reshaped, k_concat) = kv_read_and_concat(k_current);
+
+    auto v_current = pattern::any_input();
+    std::shared_ptr<ov::Node> v_past_par, v_current2, v_concat, v_current_reshaped;
+    std::tie(v_past_par, v_current2, v_current_reshaped, v_concat) = kv_read_and_concat(v_current);
 
     auto kv_shaping = [=](const std::shared_ptr<Node>& kv_concat, std::shared_ptr<Node>& unsqueeze) {
         // Return unsqeeze (return param) to deduce number of kv heads in
@@ -76,22 +94,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             {interim, pattern::any_input(), pattern::any_input(), pattern::any_input()});
         interim = pattern::wrap_type<v3::Broadcast>(
             {std::make_shared<pattern::op::Or>(OutputVector{unsqueeze, interim}), pattern::any_input()});
-        interim = pattern::wrap_type<v1::Reshape>({interim, pattern::any_input()});
+        interim = std::make_shared<pattern::op::Or>(OutputVector{pattern::wrap_type<v1::Reshape>({interim, pattern::any_input()}), interim});   // Reshape is missing sometimes in MQA case
         return interim;
     };
-
-    auto v_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
-    auto v_past_par = pattern::wrap_type<v0::Parameter>();
-    auto v_past = std::make_shared<pattern::op::Or>(
-        OutputVector{pattern::wrap_type<v8::Gather>({v_past_var, pattern::any_input(), pattern::any_input()}),
-                     v_past_par});
-    v_past = std::make_shared<pattern::op::Or>(
-        OutputVector{v_past, pattern::wrap_type<v1::Transpose>({v_past, pattern::any_input()})});
-    auto v_current = pattern::any_input();
-    auto v_current2 = pattern::any_input();
-    auto v_current_reshaped = pattern::wrap_type<v1::Reshape>({v_current2, pattern::any_input()});
-    auto v_concat = pattern::wrap_type<v0::Concat>(
-        {v_past, std::make_shared<pattern::op::Or>(OutputVector{v_current_reshaped, v_current})});
 
     std::shared_ptr<Node> k_heads_unsqueeze;
     std::shared_ptr<Node> v_heads_unsqueeze;
