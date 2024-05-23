@@ -797,7 +797,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>();
-        if (device_info.supports_immad) {
+        if (device_info.supports_immad || config.get_property(ov::intel_gpu::hint::enable_sdpa_optimization)) {
             manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulMatcher>();
             manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulTransposeMatcher>();
         }
