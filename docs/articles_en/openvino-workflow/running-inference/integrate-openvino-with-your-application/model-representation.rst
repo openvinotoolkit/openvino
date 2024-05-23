@@ -25,38 +25,102 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 
 * The ``ov::Model::inputs()`` / ``ov::Model::outputs()``  methods are used to get vectors of all input/output ports.
 
+  .. tab-set::
+
+     .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
+           :language: cpp
+           :fragment: [all_inputs_ouputs]
+
+     .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
+           :language: cpp
+           :fragment: [all_inputs_ouputs]
+
 * For a model that has only one input or output, you can use the ``ov::Model::input()`` or ``ov::Model::output()``  methods without
   any arguments to get input or output port respectively.
 
 * The ``ov::Model::input()`` and ``ov::Model::output()``  methods can be used with the index of inputs or outputs from the framework
   model to get specific ports by index.
 
+  .. tab-set::
+
+     .. tab-item:: Python
+        :sync: py
+
+        .. code-block:: python
+
+            ov_model_input = model.input(index)
+            ov_model_output = model.output(index)
+
+     .. tab-item:: C++
+        :sync: cpp
+
+        .. code-block:: cpp
+
+           auto ov_model_input = ov_model->input(index);
+           auto ov_model_output = ov_model->output(index);
+
 * You can use the tensor name of input or output from the original framework model together with the
   ``ov::Model::input()`` or ``ov::Model::output()`` methods to get specific ports. It means that you do not need to have any
   additional mapping of names from framework to OpenVINO as it was before. OpenVINO Runtime allows the usage of native framework
   tensor names, for example:
+
+.. warning::
+
+   All inputs/outputs of ``ov::Model`` are numbered, so the preferred way to retrieve them is to use indices.
+
+   Using tensor names can potentially be a less reliable approach, since the mandatory
+   presence of tensor names for inputs and outputs is not guaranteed in the original frameworks.
+   Therefore ``ov::Model`` may contain empty list of ``tensor_names`` for inputs/outputs.
+
+   To get all tensor names which are associated with the corresponding input/output, OpenVINO
+   Runtime has ``get_names`` method. To get some name from all names associated with a given input/output,
+   the ``get_any_name`` method was introduced. These methods may return empty names list/empty name
+   if the names are not present.
+
+   .. tab-set::
+
+      .. tab-item:: Python
+         :sync: py
+
+         .. code-block:: python
+
+            ov_model_input = model.input(original_fw_in_tensor_name)
+            ov_model_output = model.output(original_fw_out_tensor_name)
+
+      .. tab-item:: C++
+         :sync: cpp
+
+         .. code-block:: cpp
+
+            auto ov_model_input = ov_model->input(original_fw_in_tensor_name);
+            auto ov_model_output = ov_model->output(original_fw_out_tensor_name);
+
+For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` section.
+
+OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. The ``ov::element::Type``
+is used for data types.
 
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
-         :fragment: [all_inputs_ouputs]
+      .. code-block:: python
+
+         ov_input.get_element_type()
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [all_inputs_ouputs]
+      .. code-block:: cpp
 
-
-For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` section.
-
-OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. The ``ov::element::Type``
-is used for data types. See the section below for representation of shapes.
+         ov_input->get_element_type();
 
 Representation of Shapes
 ###########################
@@ -76,14 +140,14 @@ the conversion will throw an exception. For example:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: python
          :fragment: [ov:partial_shape]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:partial_shape]
 
@@ -125,14 +189,14 @@ To build an ``ov::Model`` instance from ``opset8`` operations, include the follo
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [import]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:include]
 
@@ -144,14 +208,14 @@ The following code demonstrates how to create a simple model:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_simple_model]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:create_simple_model]
 
@@ -163,14 +227,14 @@ The following code creates a model with several outputs:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_advanced_model]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:create_advanced_model]
 
@@ -190,14 +254,14 @@ OpenVINO™ provides several debug capabilities:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: python
          :fragment: [ov:visualize]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:visualize]
 
@@ -226,14 +290,14 @@ OpenVINO™ provides several debug capabilities:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
          :language: python
          :fragment: [ov:serialize]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
          :language: cpp
          :fragment: [ov:serialize]
 

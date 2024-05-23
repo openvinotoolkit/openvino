@@ -6,6 +6,7 @@
 
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
@@ -612,12 +613,13 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      proc_type_table,
                                                      config.streamExecutorConfig.get_executor_id());
 
-    auto cpu_reservation =
+    auto cpu_pinning =
         get_cpu_pinning(config.enableCpuPinning, config.changedCpuPinning, proc_type_table, streams_info_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
+<<<<<<< HEAD
                                                            config.threadBindingType,
                                                            1,
                                                            0,
@@ -627,6 +629,12 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                            cpu_reservation,
                                                            config.streamExecutorConfig.get_executor_id(),
                                                            config.streamExecutorConfig.get_core_ids()};
+=======
+                                                           ov::hint::SchedulingCoreType::ANY_CORE,
+                                                           false,
+                                                           cpu_pinning,
+                                                           streams_info_table};
+>>>>>>> master
 
     return proc_type_table;
 }

@@ -83,6 +83,9 @@ struct format {
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fbyx,
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
+        fybx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        xbfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        ybfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
         bzyxf,
         byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
         bxfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
@@ -143,6 +146,7 @@ struct format {
         o_is_yx_isv16,                                ///< format used only for convolution weights
         os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
         os_is_zyx_osv32_isv16,
+        os_is_yx_osv32_isv2,                          ///< format used only for fully connected weights compressed for i4
         os_is_zyx_osv64_isv16,
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
@@ -286,11 +290,8 @@ struct format {
     }
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(const format& fmt) {
-        return (fmt == yxfb || fmt == byxf ||
-                fmt == byfx || fmt == bxfy ||
-                fmt == bfyx || fmt == fyxb ||
-                fmt == fbyx || fmt == bfzyx ||
-                fmt == bfwzyx || fmt == bfuwzyx ||
+        return (fmt == yxfb || fmt == byxf || fmt == byfx || fmt == bxfy || fmt == bfyx || fmt == fyxb || fmt == fybx ||
+                fmt == xbfy || fmt == ybfx || fmt == fbyx || fmt == bfzyx || fmt == bfwzyx || fmt == bfuwzyx ||
                 fmt == bfvuwzyx);
     }
 
