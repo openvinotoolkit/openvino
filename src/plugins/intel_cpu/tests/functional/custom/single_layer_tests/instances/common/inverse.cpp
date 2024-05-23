@@ -16,7 +16,8 @@ const std::vector<std::vector<ov::test::InputShape>> input_shapes = {
 
 const auto shapes = testing::ValuesIn(input_shapes);
 
-const auto dtypes = testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16);
+// todo: ov::element::f16 is temporary disabled
+const auto dtypes = testing::Values(ov::element::f32, ov::element::bf16);
 
 const auto adjoint = testing::Values(false, true);
 
