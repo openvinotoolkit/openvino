@@ -569,7 +569,7 @@ void reserve_available_cpus(int executor_id,
     // }
     // printf("[ threading ] proc_type_table:\n");
     // for (size_t i = 0; i < cpu._proc_type_table.size(); i++) {
-    //     printf("%d\t%d\t%d\t%d\t%d\t%d\n", 
+    //     printf("%d\t%d\t%d\t%d\t%d\t%d\n",
     //     cpu._proc_type_table[i][ALL_PROC],
     //     cpu._proc_type_table[i][MAIN_CORE_PROC],
     //     cpu._proc_type_table[i][EFFICIENT_CORE_PROC],
