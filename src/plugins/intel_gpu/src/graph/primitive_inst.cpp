@@ -1067,6 +1067,23 @@ void primitive_inst::do_runtime_skip_gather() {
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : check optimizability" << std::endl;
+
+    if (get_node().get_users().size() == 1 && get_node().get_users().front()->is_type<kv_cache>() &&
+        get_node().get_users().front()->get_output_layouts().size() > 1 &&
+        get_node().get_dependency(0).is_type<read_value>()) {
+        if (_impl_params->input_layouts[0].get_shape()[0] == _impl_params->output_layouts[0].get_shape()[0]) {
+            set_can_be_optimized(true);
+            GPU_DEBUG_TRACE_DETAIL << "-- Skip gather for indirect KV cache for beam search" << std::endl;
+        } else {
+            set_can_be_optimized(false);
+            GPU_DEBUG_TRACE_DETAIL << "-- Execute gather for first adjsting dims of past input without batch and "
+                                      "current input with batch in beam search. input : "
+                                   << _impl_params->get_input_layout(0).to_short_string()
+                                   << " output: " << _impl_params->get_output_layout(0).to_short_string() << std::endl;
+        }
+        return;
+    }
+
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     auto axis = _impl_params->typed_desc<gather>()->axis;
     auto idx_id = get_node().get_dependency(1).id();

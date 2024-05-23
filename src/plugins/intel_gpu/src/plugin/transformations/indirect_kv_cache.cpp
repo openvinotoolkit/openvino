@@ -72,8 +72,9 @@ IndirectGemmOpt::IndirectGemmOpt() {
         auto gather_node = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
         auto gather_axis = gather_node->get_axis();
         ov::replace_node(gather_node, gather_input_node);
-
-        auto indirect_kv_cache = std::make_shared<op::KVCache>(gather_input_node,
+        // Do not remove gather because it may be used in case when first input is not batched.
+        // In other cases, this gather is to be skipped at runtime not to introduce performance overhead.
+        auto indirect_kv_cache = std::make_shared<op::KVCache>(gather_node,
                                                                kv_cache_node->get_input_node_shared_ptr(1),
                                                                beam_idx_node,
                                                                kv_cache_node->get_variable(),

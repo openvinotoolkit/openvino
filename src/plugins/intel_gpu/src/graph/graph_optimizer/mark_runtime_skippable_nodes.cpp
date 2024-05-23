@@ -4,6 +4,7 @@
 
 #include "pass_manager.h"
 #include "gather_inst.h"
+#include "read_value_inst.h"
 #include "permute_inst.h"
 #include "strided_slice_inst.h"
 #include "kv_cache_inst.h"
@@ -22,6 +23,15 @@ void mark_runtime_skippable_nodes::run(program& p) {
         program_helpers::do_for_types<gather>(*node, [](gather_node& node){
             // Check pattern
             auto impl_params = node.get_kernel_impl_params();
+            // gather in the indrect kv cache
+            if (node.get_users().size() == 1 && node.get_dependency(0).is_type<read_value>() &&
+                node.get_users().front()->is_type<kv_cache>() &&
+                node.get_users().front()->get_output_layouts().size() == 2) {
+                node.can_be_optimized(true);
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id()
+                                       << " : gather for beam search pattern : can_be_optimized" << std::endl;
+            }
             if (node.has_fused_primitives() ||
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type) ||
                 node.get_dependency(1).is_constant() || node.get_dependency(1).is_type<data>())
