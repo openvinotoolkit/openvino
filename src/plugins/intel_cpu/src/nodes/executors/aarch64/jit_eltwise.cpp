@@ -28,6 +28,8 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseHswish,
                                      Algorithm::EltwiseMaximum,
                                      Algorithm::EltwiseMinimum,
+                                     Algorithm::EltwiseMish,
+                                     Algorithm::EltwiseMod,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
                                      Algorithm::EltwisePowerStatic,

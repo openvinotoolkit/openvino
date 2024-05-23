@@ -22,7 +22,7 @@ size_t getOperationNumber(const arg_max_min_params& params) {
 
 std::string getOperationNumberString(const arg_max_min_params& params) {
     const auto& output = params.outputs[0];
-    DimensionAccessHelper dims(output);
+    DimensionAccessHelperJit dims(output);
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
         case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.b()});

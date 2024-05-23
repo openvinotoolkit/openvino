@@ -196,8 +196,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_3;
+KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& params) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+    auto input_dt = GetUnitType(p);
+
+    return (p.groups > 1 || input_dt == Datatype::F32) ? FORCE_PRIORITY_3 : FORCE_PRIORITY_4;
 }
 
 bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {

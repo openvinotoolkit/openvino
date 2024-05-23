@@ -47,7 +47,9 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 py::dtype get_dtype(const ov::element::Type& ov_type);
 
-const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
+std::map<int, ov::element::Type> init_num_to_ov_type();
+
+const std::map<int, ov::element::Type>& dtype_num_to_ov_type();
 
 ov::element::Type get_ov_type(const py::array& array);
 

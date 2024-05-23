@@ -89,6 +89,9 @@ inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_i
     return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
 }
 
+// dim_idx starts from the layout end
+size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
+
 /* ----- Shape `getters` ----- */
 /**
  * @brief Returns a dense shape after applying the order.
