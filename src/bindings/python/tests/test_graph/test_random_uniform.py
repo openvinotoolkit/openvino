@@ -59,9 +59,9 @@ def test_random_uniform():
     ]
 )
 def test_random_uniform_pytorch_alignment(min_value, max_value, global_seed, op_seed, ov_dtype, torch_dtype, str_dtype, shape):
-    
+
     torch.manual_seed(global_seed)
-    expected = torch.empty(shape, dtype = torch_dtype)
+    expected = torch.empty(shape, dtype=torch_dtype)
     expected = expected.uniform_(min_value, max_value)
 
     core = Core()
@@ -71,7 +71,7 @@ def test_random_uniform_pytorch_alignment(min_value, max_value, global_seed, op_
     results = compiled_model.infer_new_request()
     actual = next(iter(results.values()))
 
-    assert(np.array_equal(expected, actual))
+    assert np.array_equal(expected, actual)
 
 
 @pytest.mark.parametrize(
@@ -95,7 +95,7 @@ def test_random_uniform_pytorch_alignment(min_value, max_value, global_seed, op_
         (Type.f64, tf.float64, "f64"),
         (Type.f32, tf.float32, "f32"),
         (Type.f16, tf.float16, "f16"),
-        (Type.bf16,tf.bfloat16, "bf16"),
+        (Type.bf16, tf.bfloat16, "bf16"),
         (Type.i64, tf.int64, "i64"),
         (Type.i32, tf.int32, "i32")
     ]
@@ -122,15 +122,16 @@ def test_random_uniform_tensorflow_alignment_float(min_value, max_value, global_
     with tf.compat.v1.device("/CPU:0"):
         with tf.compat.v1.Session(config=session_conf) as sess:
             tf.random.set_seed(global_seed)
-            expected = tf.random.uniform(shape, minval = min_value, maxval = max_value, dtype = tensorflow_dtype, seed = op_seed)
+            expected = tf.random.uniform(shape, minval=min_value, maxval=max_value, dtype=tensorflow_dtype, seed=op_seed)
             sess.run(expected)
             sess.close()
 
     core = Core()
-    output = ops.random_uniform(Shape(shape), ops.constant(min_value, ov_dtype), ops.constant(max_value, ov_dtype), str_dtype, global_seed, op_seed, "tensorflow")
+    minval, maxval = ops.constant(min_value, ov_dtype), ops.constant(max_value, ov_dtype)
+    output = ops.random_uniform(Shape(shape), minval, maxval, str_dtype, global_seed, op_seed, "tensorflow")
     model = Model(output, [], "random_uniform_seed_alignment_test_model_tensorflow")
     compiled_model = core.compile_model(model, "TEMPLATE")
     results = compiled_model.infer_new_request()
     actual = next(iter(results.values()))
 
-    assert(np.array_equal(expected, actual))
+    assert np.array_equal(expected, actual)
