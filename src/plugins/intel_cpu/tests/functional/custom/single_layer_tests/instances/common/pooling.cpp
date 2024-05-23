@@ -66,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_3D_NotOptimized, AvgPoolingV14Laye
                                  ::testing::ValuesIn(inputShapes3D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
                                  ::testing::Values(false),
-                                 ::testing::Values(expectedCpuConfig()),
+                                 ::testing::Values(expectedCpuConfigAnyLayout()),
                                  ::testing::Values(emptyFusingSpec)),
                          AvgPoolingV14LayerCPUTest::getTestCaseName);
 
@@ -139,7 +139,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_NotOptimized, AvgPoolingV14Laye
                             ::testing::ValuesIn(inputShapes4D()),
                             ::testing::ValuesIn((inpOutPrecision())),
                             ::testing::Values(false),
-                            ::testing::Values(expectedCpuConfig()),
+                            ::testing::Values(expectedCpuConfigAnyLayout()),
                             ::testing::Values(emptyFusingSpec)),
                         AvgPoolingV14LayerCPUTest::getTestCaseName);
 
