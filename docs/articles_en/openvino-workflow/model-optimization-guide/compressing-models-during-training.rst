@@ -48,11 +48,6 @@ To install the latest released version via pip manager run the following command
    pip install nncf
 
 
-.. note::
-
-   To install with specific frameworks, use the `pip install nncf[extras]` command, where extras is a list of possible extras, for example, `torch`, `tf`, `onnx`.
-
-
 To install the latest NNCF version from source, follow the instruction on `GitHub <https://github.com/openvinotoolkit/nncf#installation>`__.
 
 .. note::
@@ -64,7 +59,7 @@ Working with NNCF
 
 The figure below shows a common workflow of applying training-time compressions with NNCF. The NNCF optimizations are added to the TensorFlow or PyTorch training script, and then the model undergoes fine-tuning. The optimized model can then be exported to OpenVINO IR format for accelerated performance with OpenVINO Runtime.
 
-.. image:: ../../_static/images/nncf_workflow.svg
+.. image:: ../../assets/images/nncf_workflow.svg
 
 
 Training-Time Compression Methods
