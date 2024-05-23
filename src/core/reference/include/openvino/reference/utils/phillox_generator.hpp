@@ -73,7 +73,7 @@ protected:
                      const uint64_t operator_seed,
                      const std::pair<uint64_t, uint64_t> previous_state,
                      const size_t generated_elements_count);
-    
+
     // ====== Mersenne Twister paper variables ======
     // Following const values are taken from the original paper:
     // https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
