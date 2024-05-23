@@ -6,6 +6,7 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -390,6 +391,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecision = ov::element::undefined;
         }
     }
+
+    inferencePrecision = ov::element::f32;
 
     if (!prop.empty())
         _config.clear();
