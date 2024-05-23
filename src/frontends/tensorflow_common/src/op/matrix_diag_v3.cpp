@@ -22,14 +22,18 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
+
+// DIFERENT STRA: Create padding tensor based on the param and get the expected shape. update the index based on k.
     
 // https://github.com/tensorflow/tensorflow/blob/84d053187cb80d975ef2b9684d4b61981bca0c41/tensorflow/core/kernels/linalg/matrix_diag_op.cc#L151
+// https://github.com/tensorflow/tensorflow/blob/84d053187cb80d975ef2b9684d4b61981bca0c41/tensorflow/core/kernels/linalg/matrix_diag_op.cc#L256
+// https://github.com/tensorflow/tensorflow/blob/84d053187cb80d975ef2b9684d4b61981bca0c41/tensorflow/core/kernels/linalg/matrix_diag_op.cc#L330
 OutputVector translate_matrix_diag_v3_op(const NodeContext& node) {
     default_op_checks(node, 1, {"MatrixDiagV3"});
     // The translation of MatrixDiag to OpenVINO opset relies on padding of input tensor with zeros,
     // reshape to a special form and cutting of unneeded padding part.
     // Here is a basic idea described by an example,
-    // let us have a tensor [1, 2, 3] and generate padding tensor of zeros with a shape [3, 3].
+    // let us have a tensor [1, 2, 3] and generate padding tensor of zeros with a shape [3, 3]. k = 0
     // Concatenate input tensor with padding and get the following:
     // [[1, 0, 0, 0]
     //  [2, 0, 0, 0]
@@ -38,6 +42,15 @@ OutputVector translate_matrix_diag_v3_op(const NodeContext& node) {
     // Cut off last 3 elements and get [1, 0, 0, 0, 2, 0, 0, 0, 3] and reshape to [3, 3]
     // This idea is generalized to higher rank tensors
     // diagonal is the single input to MatrixDiag operation and has a shape [I, J, ..., M, N]
+
+    // k = 1
+    // Concatenate input tensor with padding and get the following:
+    // [[0, 1, 0, 0, 0]
+    //  [0, 2, 0, 0, 0]
+    //  [0, 3, 0, 0, 0]
+    //  [0, 0, 0, 0, 0]] of shape [4, 5]
+    // Reshape to tensor of a shape [20] equal to [0, 1, 0, 0, \\ 0, 0, 2, 0, \\ 0, 0, 0, 3, \\ 0, 0, 0, 0, \\ 0, 0, 0, 0]
+    // Cut off last 5 elements and get [0, 1, 0, 0, \\ 0, 0, 2, 0, \\ 0, 0, 0, 3, \\ 0, 0, 0, 0] and reshape to [4, 4]
     auto diagonal = node.get_input(0);
     auto k = node.get_input(1);
     auto num_rows = node.get_input(2);
