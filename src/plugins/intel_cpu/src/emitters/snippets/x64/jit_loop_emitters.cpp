@@ -51,6 +51,10 @@ void jit_loop_begin_emitter::emit_code(const std::vector<size_t> &in, const std:
 }
 
 void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    // If the loop evaulate once, we can skip loop begin code emission
+    if (evaluate_once)
+        return;
+
     Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {
         Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
@@ -58,15 +62,13 @@ void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std:
         const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
         h->mov(reg_loop_args_ptr, h->ptr[reg_runtime_params + GET_OFF(loop_args)]);
         h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
-    } else if (!evaluate_once) {
+    } else {
         h->mov(reg_work_amount, work_amount);
     }
 
-    if (!evaluate_once) {
-        // if wa < increment, skip the loop
-        h->cmp(reg_work_amount, wa_increment);
-        h->jl(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
-    }
+    // if wa < increment, skip the loop
+    h->cmp(reg_work_amount, wa_increment);
+    h->jl(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
 
     h->L(*loop_begin_label);
 }
