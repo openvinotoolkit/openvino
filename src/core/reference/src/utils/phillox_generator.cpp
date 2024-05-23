@@ -199,7 +199,7 @@ PytorchPhilloxGenerator::PytorchPhilloxGenerator(const uint64_t global_seed)
       m_left(1),
       m_next(0) {
     m_mersenne_state[0] = global_seed & 0xffffffff;
-    for (size_t j = 1; j < MERSENNE_STATE_N; ++j) {
+    for (uint32_t j = 1; j < MERSENNE_STATE_N; ++j) {
         m_mersenne_state[j] = (1812433253 * (m_mersenne_state[j - 1] ^ (m_mersenne_state[j - 1] >> 30)) + j);
     }
 }
