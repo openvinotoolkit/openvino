@@ -31,6 +31,13 @@ public:
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
+    KernelsData GetMultiKernelsData(const Params &params,
+                                     DataLayout dl,
+                                     WeightsLayout wl,
+                                     const std::string exeMode = EXE_MODE_DEFAULT,
+                                     int autoTuneIndex = -1,
+                                     int kernel_number = 0) const;
+
     struct tune_params {
         tune_params(unsigned tile_b,
                     unsigned tile_ofm,

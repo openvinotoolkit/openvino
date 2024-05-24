@@ -3,7 +3,7 @@
 //
 
 #include "fully_connected_kernel_bf_tiled.h"
-
+#include "kernel_selector_utils.h"
 #include <vector>
 #include <functional>
 #include "common_types.h"
@@ -11,6 +11,20 @@
 static constexpr size_t simd = 16;
 
 namespace kernel_selector {
+
+static const size_t group_size = 32;
+
+// DYNAMIC_QUANTIZE
+static bool is_dynamic_quantize(const fully_connected_params& params) {
+    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+    if ((scale_group_size % simd == 0) && (params.is_shape_agnostic || params.inputs[0].Batch().v > 8) &&
+        params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
+        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
+        params.inputs[0].Y().v > 16 && params.decompression_zero_point.Feature().v == 1)
+        return true;
+
+    return false;
+}
 
 FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
     for (unsigned tile_b = 1; tile_b <= 32; ++tile_b)
@@ -258,10 +272,10 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
-                if (params.is_shape_agnostic) {
-                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                            .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
-                }
+                // if (params.is_shape_agnostic) {
+                //     selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                //             .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                // }
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
@@ -449,16 +463,14 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
-    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
-    if ((scale_group_size % simd == 0) &&
-        params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        params.inputs[0].Y().v > 16 && dispatchData.tile_n == 2 &&
-        params.decompression_zero_point.Feature().v == 1) {
+    if (is_dynamic_quantize(params) && dispatchData.tile_m > 1 && dispatchData.tile_n == 2) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
+        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     } else {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
     }
+
+    jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
@@ -537,29 +549,55 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
             const auto& prim_params = static_cast<const fully_connected_params&>(params);
 
-            OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func, expected 2, got ", kd.kernels.size());
-
             size_t output_batch = prim_params.outputs[0].Batch().v;
             if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
                 output_batch *= prim_params.outputs[0].Feature().v;
 
-            // Choose one of the two shape agnostic kernels:
-            // - kd.kernels[0] for batches <= 240 (default version)
-            // - kd.kernels[1] for batches >= 256 (slm version)
+            // Get index of the added shape-agnostic kernel
+            int kernel_num = kd.kernels.size() - 1;
+
+            // Choose one of the two shape agnostic kernels: N == added kernel number
+            // - kd.kernels[N-1] for batches <= 240 (default version)
+            // - kd.kernels[N] for batches >= 256 (slm version)
             const auto default_alignment = 16;
             // We can use SLM version if `output_batch + default_alignment > 256` because memory and batch are aligned (whether 16 or 64 elements)
-            const auto skip_kernel_idx = output_batch + default_alignment > 256 ? 0 : 1;
-            const auto execute_kernel_idx = 1 - skip_kernel_idx;
+            const auto execute_kernel_idx = (output_batch + default_alignment > 256) ? kernel_num : kernel_num - 1;
+            const auto skip_kernel_idx = (execute_kernel_idx == kernel_num) ? (kernel_num - 1) : kernel_num;
 
+            // Check default or SLM version FC, and disable remain version
             kd.kernels[skip_kernel_idx].skip_execution = true;
 
-            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == 1 ? "SLM" : "Default") << " shape-agnostic kernel version "
+            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == kernel_num ? "SLM" : "Default") << " shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
+
+            // printf("   -- previous kernel idx(%d) in kernels.size(%lu) for sa : gws(%lu, %lu, %lu)\n", execute_kernel_idx, kd.kernels.size(),
+            //             kd.kernels[execute_kernel_idx].params.workGroups.global[0], kd.kernels[execute_kernel_idx].params.workGroups.global[1], kd.kernels[execute_kernel_idx].params.workGroups.global[2]);
 
             auto dispatchData = SetDefault(prim_params, -1, execute_kernel_idx);
             kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
             kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
             kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+            // printf("   -- update kernel idx(%d) for sa : gws(%lu, %lu, %lu) lws(%lu, %lu, %lu) physical(%lu)\n", execute_kernel_idx,
+            //             dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2], dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2], prim_params.inputs[0].PhysicalSize());
+            // printf("       -- relevant values : Physical(%lu) Y(%lu) TILE_B(%u) gws(%lu) lws(%lu) \n", prim_params.inputs[0].PhysicalSize(), prim_params.inputs[0].Y().v, dispatchData.tile_m, dispatchData.gws[2], dispatchData.lws[2]);
+
+            if (!kd.internalBufferSizes.empty()) {
+                size_t input_size = prim_params.inputs[0].Y().v * dispatchData.tile_m * dispatchData.gws[2];
+                // printf("   -- Require update intermediate buffer\n");
+                // printf("     -- previous kernel(%d) for sa : input size(%lu) gws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0, input_size,
+                //             kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2], (int)kd.internalBufferSizes.size());
+
+                kd.kernels[0].params.workGroups.global = {std::max((input_size / (16 * 2)), (size_t)1), 1, 1};
+                kd.kernels[0].params.workGroups.local = {16, 1, 1};
+                kd.internalBufferSizes.clear();
+                kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSize() * 2);
+                kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSize() / 32 * 2);
+
+                // printf("     -- update kernel(%d) for sa : gws(%lu, %lu, %lu) lws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0,
+                //     kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2],
+                //     kd.kernels[0].params.workGroups.local[0], kd.kernels[0].params.workGroups.local[1], kd.kernels[0].params.workGroups.local[2], (int)kd.internalBufferSizes.size());
+            }
         };
     }
 }
@@ -586,34 +624,57 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         weights_layout = WeightsLayout::os_iyx_osv64;
     }
 
-    auto kernels_data = GetCommonKernelsData(params,
-                                             fc_params.inputs[0].GetLayout(),
-                                             weights_layout,
-                                             tparams.exec_options,
-                                             autoTuneIndex);
+    KernelsData kernels_data;
+    // printf(">> GetTunedKernelsDataByIndex \n");
+    if (is_dynamic_quantize(fc_params)) {
+        // Use seperate 2 kernels for dynamic quantizing : quantizing_kernel + fc_kernel
+        // First kernel : Dynamic quantizing with 32 group size
+        // Second kernel : fully connected with char type size using quantized inputs and scale values
+        kernels_data = GetMultiKernelsData(params,
+                                                fc_params.inputs[0].GetLayout(),
+                                                weights_layout,
+                                                tparams.exec_options,
+                                                autoTuneIndex,
+                                                0);
+        OPENVINO_ASSERT(!kernels_data.empty() && !kernels_data[0].kernels.empty(), "[GPU] Error to create multi kernel for dynamic quantizing.");
 
-    // In case of dynamic params try to configure additional optimized SLM kernel for large batches
-    if (params.is_shape_agnostic) {
-        auto tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
-        auto can_select_slm_kernel = tparams.kernel_type == KernelType::SLM;
+        // GPU_DEBUG_TRACE_DETAI << " Dynamic quantizing : Use kernels size " << kernels_data[0].kernels.size() << "\n";
+        // std::cout << "   >> Dynamic quantizing : Use kernels size " << kernels_data[0].kernels.size() << "\n";
+        if (params.is_shape_agnostic)
+            GetUpdateDispatchDataFunc(kernels_data[0]);
+    } else {
+        kernels_data = GetCommonKernelsData(params,
+                                                fc_params.inputs[0].GetLayout(),
+                                                weights_layout,
+                                                tparams.exec_options,
+                                                autoTuneIndex,
+                                                0);
 
-        if (!can_select_slm_kernel)
-            return kernels_data;
+        // GPU_DEBUG_TRACE_DETAI << " No Dynamic quantizing : Use kernels size " << kernels_data[0].kernels.size() << "\n";
+        // std::cout << "   >> No!  Dynamic quantizing : Use kernels size " << kernels_data[0].kernels.size() << "\n";
 
-        auto slm_kernel = GetCommonKernelsData(params,
-                                               fc_params.inputs[0].GetLayout(),
-                                               weights_layout,
-                                               tparams.exec_options,
-                                               autoTuneIndex,
-                                               1);
+        if (params.is_shape_agnostic) {
+            auto tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
+            auto can_select_slm_kernel = tparams.kernel_type == KernelType::SLM;
 
-        if (slm_kernel.empty() || slm_kernel[0].kernels.empty())
-            return kernels_data;
+            if (!can_select_slm_kernel)
+                return kernels_data;
 
-        kernels_data[0].kernels.push_back(slm_kernel[0].kernels.back());
+            auto slm_kernel = GetCommonKernelsData(params,
+                                                fc_params.inputs[0].GetLayout(),
+                                                weights_layout,
+                                                tparams.exec_options,
+                                                autoTuneIndex,
+                                                1);
 
-        // Update default update_dispatch_data_func function
-        GetUpdateDispatchDataFunc(kernels_data[0]);
+            if (slm_kernel.empty() || slm_kernel[0].kernels.empty())
+                return kernels_data;
+
+            kernels_data[0].kernels.push_back(slm_kernel[0].kernels.back());
+
+            // Update default update_dispatch_data_func function
+            GetUpdateDispatchDataFunc(kernels_data[0]);
+        }
     }
 
     return kernels_data;
@@ -643,5 +704,162 @@ KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const 
     }
 
     return res;
+}
+
+
+KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
+                                                           DataLayout dl,
+                                                           WeightsLayout wl,
+                                                           const std::string exeMode,
+                                                           int autoTuneIndex,
+                                                           int kernel_number) const {
+    if (!Validate(params)) {
+        return KernelsData();
+    }
+
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
+
+    bool bProperInput = fc_params.inputs[0].GetLayout() == dl;
+    if (!bProperInput && !fc_params.inputs[0].PitchesDifferFromLogicalDims()) {
+        bProperInput = (dl == DataLayout::fb && fc_params.inputs[0].GetLayout() == DataLayout::fyxb) ||
+                       (dl == DataLayout::bf && fc_params.inputs[0].GetLayout() == DataLayout::bfyx);
+    }
+
+    KernelData kd = KernelData::Default<fully_connected_params>(params, 2);
+    fully_connected_params& new_params = *static_cast<fully_connected_params*>(kd.params.get());
+
+    if (!bProperInput) {
+        new_params.inputs[0] = new_params.inputs[0].TransformIgnorePadding(dl);
+        kd.reorderInput = true;
+    }
+
+    bool succeed = UpdateWeightsParams(new_params,
+                                       wl,
+                                       kd.weightsReorderParams,
+                                       GetSupportedKey());
+    if (!succeed) {
+        return {};
+    }
+
+    int inputs_count = 1;
+    if (new_params.compressed) {
+        inputs_count++;
+        if (new_params.has_decompression_zp && !new_params.scalar_zp)
+            inputs_count++;
+    }
+
+    // Quantize kernel
+    const DispatchData dispatchData = SetDefault(new_params, autoTuneIndex, kernel_number);
+    {
+        auto& quan_kernel = kd.kernels[0];
+        DispatchData dyn_quan_dispatch = dispatchData;
+        dyn_quan_dispatch.gws = {std::max((fc_params.inputs[0].PhysicalSize() / (16 * 2)), (size_t)1), 1, 1};
+        dyn_quan_dispatch.lws = {16, 1, 1};
+        quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
+        quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
+        quan_kernel.skip_execution = false;
+
+        // printf(" >> GetMultiKernelsData : Input0.Batch(%lu) Input0.Feature(%lu) Input0.Y(%lu) Input0.pysical(%lu)\n",
+        //         fc_params.inputs[0].Batch().v, fc_params.inputs[0].Feature().v, fc_params.inputs[0].Y().v, fc_params.inputs[0].PhysicalSize());
+        // printf("   -- Quantizing kernel : gws(%ld, %ld, %ld), lws(%ld, %ld, %ld)\n", dyn_quan_dispatch.gws[0], dyn_quan_dispatch.gws[1], dyn_quan_dispatch.gws[2],
+        //                                 dyn_quan_dispatch.lws[0], dyn_quan_dispatch.lws[1], dyn_quan_dispatch.lws[2]);
+
+        auto quan_entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
+        auto quan_cldnn_jit = GetJitConstants(new_params, dyn_quan_dispatch);
+        quan_cldnn_jit.AddConstant(MakeJitConstant("FC_KERNEL_DYNAMIC_QUANTIZE", 1));
+        auto quan_jit = CreateJit(kernelName, quan_cldnn_jit, quan_entry_point);
+
+
+        FillCLKernelData(quan_kernel,
+                        dyn_quan_dispatch,
+                        params.engineInfo,
+                        kernelName,
+                        quan_jit,
+                        quan_entry_point,
+                        exeMode,  // No exec mode
+                        false,
+                        false,
+                        1, // Only INPUT_0 is used for quantizing
+                        0, // No fused ops
+                        0, // No output
+                        fc_params.is_shape_agnostic);
+
+        quan_kernel.params.arguments.clear();  // Clear original output argument
+        quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize() * 2);
+        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize() / 32 * 2);
+        kernel_number++;
+    }
+    kd.internalBufferDataType = Datatype::F16;
+
+    // FC kernel for dynamic quantized input
+    {
+        auto entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
+        auto cldnn_jit = GetJitConstants(new_params, dispatchData);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+        auto& fc_kernel = kd.kernels[1];
+        fc_kernel.params.workGroups.global = dispatchData.gws;
+        fc_kernel.params.workGroups.local = dispatchData.lws;
+        fc_kernel.skip_execution = false;
+
+        FillCLKernelData(fc_kernel,
+                        dispatchData,
+                        params.engineInfo,
+                        kernelName,
+                        jit,
+                        entry_point,
+                        exeMode,
+                        true,
+                        !fc_params.bias.empty(),
+                        inputs_count,
+                        GetFusedPrimitiveInputsCount(params),
+                        1,
+                        fc_params.is_shape_agnostic);
+
+        fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel_number++;
+    }
+
+    const DispatchData slm_Data = SetDefault(new_params, autoTuneIndex, kernel_number);
+    auto slm_params = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
+    auto can_select_slm_kernel = slm_params.kernel_type == KernelType::SLM;
+    if (params.is_shape_agnostic && can_select_slm_kernel) {
+        // std::cout << "   -- is_shape_agnostic quantizing : previous kernels size " << kd.kernels.size() << "\n";
+        kd.kernels.resize(kernel_number + 1);
+
+        auto entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
+        auto cldnn_jit = GetJitConstants(new_params, slm_Data);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+        auto& sa_kernel = kd.kernels[2];
+        sa_kernel.params.workGroups.global = slm_Data.gws;
+        sa_kernel.params.workGroups.local = slm_Data.lws;
+        sa_kernel.skip_execution = false;
+
+        FillCLKernelData(sa_kernel,
+                        slm_Data,
+                        params.engineInfo,
+                        kernelName,
+                        jit,
+                        entry_point,
+                        slm_params.exec_options,
+                        true,
+                        !fc_params.bias.empty(),
+                        inputs_count, // input : intermediate buffers (quantized input + scale value)
+                        GetFusedPrimitiveInputsCount(params),
+                        1,  // Output
+                        fc_params.is_shape_agnostic);
+
+        sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+    }
+
+    // TODO Pass estimated time only through DispatchData
+    kd.autoTuneIndex = autoTuneIndex;
+    return {kd};
 }
 }  // namespace kernel_selector
