@@ -25,7 +25,8 @@ INSTANTIATE_TEST_SUITE_P(gtest_smoke_TestsROIAlignRotatedROIAlignLayerTest_EvalG
                          ROIAlignRotatedLayerTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                                 std::vector<std::vector<ov::Shape>>{{{3, 8, 16, 16}},
-                                                                                    {{2, 1, 16, 16}}})),
+                                                                                    {{2, 1, 16, 10}},
+                                                                                    {{4, 3, 5, 12}}})),
                                             ::testing::ValuesIn(std::vector<int>{2, 4}),
                                             ::testing::Values(2),
                                             ::testing::Values(2),
