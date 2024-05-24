@@ -276,7 +276,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
-    REGISTER_PASS(manager, SymbolicOptimizations)
     manager.register_pass<ResolveNameCollisions>(true);
     manager.run_passes(f);
 
