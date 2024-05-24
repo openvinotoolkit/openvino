@@ -44,7 +44,7 @@ protected:
                             typed_primitive_inst<fully_connected>& instance) override {
         auto& stream = instance.get_network().get_stream();
         auto event = parent::execute_impl(events, instance);
-        if (getenv("ENABLE_CCL")) {
+        if (instance.get_impl_params()->w_size != 1) {
             stream.finish(); // can be replaced with need_completion_event?
             auto output_memory_ptr = instance.output_memory_ptr();
             auto rank_output_memory = instance.get_output_rank_placeholder();

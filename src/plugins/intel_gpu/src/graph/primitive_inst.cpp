@@ -1440,12 +1440,12 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
-        /*if (_node->is_type<fully_connected>()) {
+        if (_node->is_type<fully_connected>()) {
             std::cout << "bell debug 1" << std::endl;
             create_input_memory_placeholder();
             create_output_memory_placeholder();
             GPU_DEBUG_TRACE_DETAIL << "bell debugline created new input memory place holder!!!! " << id() << std::endl;
-        }*/
+        }
         set_arguments();
     }
     on_execute();
@@ -1513,7 +1513,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         }
 
         // restore impl out params for FC
-        if (update_impl()) {
+        if (shape_changed()) {
             if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && !_impl_params->input_fake_aligned) {
                 auto out_layout = _impl_params->get_output_layout();
                 auto new_update_pshape = out_layout.get_partial_shape().to_shape();
