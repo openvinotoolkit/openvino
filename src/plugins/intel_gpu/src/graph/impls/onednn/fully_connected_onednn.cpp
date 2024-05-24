@@ -40,9 +40,52 @@ protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_onednn>(*this);
     }
+    event::ptr execute_impl(const std::vector<event::ptr>& events ,
+                            typed_primitive_inst<fully_connected>& instance) override {
+        auto& stream = instance.get_network().get_stream();
+        if (instance.get_impl_params()->w_size != 1)
+            stream.finish();
+        instance.fill_placeholder();
+        auto event = parent::execute_impl(events, instance);
+        if (instance.get_impl_params()->w_size != 1) {
+            auto& network = instance.get_network();
+            auto& stream = network.get_stream();
+            stream.finish();
+            auto& output_memory = instance.output_memory();
+            auto send_ptr = output_memory.buffer_ptr();
+            if (output_memory.get_layout().data_type == ov::element::f16)
+                Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory.count());
+            else if (output_memory.get_layout().data_type == ov::element::f32)
+                Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory.count());
+            else
+                OPENVINO_THROW("not expected!");
+        }
+        return event;
+    }
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
-        std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
+        std::unordered_map<int, dnnl::memory> args;
+        {
+            auto& input = instance.get_input_rank_placeholder_mem();
+            std::cout << input.get_layout().to_short_string() << std::endl;
+            auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
+            // mapping input memory here
+            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
+        }
+
+        {
+            auto& output = instance.output_memory();
+            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
+        }
+
+        if (_scratchpad_md.get_size() != 0) {
+            // onednn primitive can have only 1 scratchpad memory.
+            auto scratchpad = instance.get_intermediates_memories()[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
+        }
+
+        configure_post_ops_arguments(instance, args);
 
         {
             auto weights = instance.weights_memory();
@@ -334,7 +377,12 @@ public:
             dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
             zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
             mem_fill(stream, zp_mem, static_cast<uint8_t>(std::round(prim->decompression_zero_point_scalar.value())));
-            attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
+
+            if (!is_four_bit_weight) {
+                attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
+            } else {
+                attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
+            }
         } else if (!prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
             auto &zp_node = arg.get_dependency(decompression_zp_idx).as<data>();
@@ -385,14 +433,14 @@ public:
             if (!prim->decompression_scale.empty()) {
                 auto decompression_scale_idx = !arg.bias_term() ? 2 : 3;
                 ds_data_type = convert_data_type(arg.get_dependency(decompression_scale_idx).get_output_layout().data_type);
+                auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
+                auto ngroups = arg.get_dependency(decompression_scale_idx).get_output_layout().get_dim(1);
+                group_size = ifm / ngroups;
                 if (!is_four_bit_weight) {
                     // 8-bit quantized weight
                     attr->set_scales(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
-                    auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
-                    auto ngroups = arg.get_dependency(decompression_scale_idx).get_output_layout().get_dim(1);
-                    group_size = ifm / ngroups;
                     attr->set_scales(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, ds_data_type);
                 }
             }

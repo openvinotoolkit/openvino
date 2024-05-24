@@ -51,8 +51,6 @@ std::shared_ptr<ov::Node> get_horizon_node(const ov::Output<ov::Node>& input, co
 }
 }  // namespace
 
-using HandlerType = SpecificIterationHandlers::HandlerType;
-
 ReduceDecomposition::ReduceDecomposition(size_t vector_size) : RangedPass(), m_vector_size{vector_size} {}
 
 bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
@@ -100,7 +98,8 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             std::vector<ExpressionPort>{(*accumulation.first)->get_output_port(0)});
         const auto tail_size = utils::is_dynamic_value(work_amount) ? 1lu : work_amount % increment;
         if (tail_size != 0) {
-            loop_manager->get_loop_info(reduce_loop_id)->register_handler<HandlerType::LAST_ITER, SetFillOffset>(tail_size);
+            const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(reduce_loop_id);
+            loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SetFillOffset>(tail_size);
         }
         const auto horizon = push_node(get_horizon_node(accumulation.second, reduce_type_info));
 
@@ -109,15 +108,15 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         replace_input_port_connectors(reduce_expr->get_output_port_connector(0)->get_consumers(), horizon.first->get()->get_output_port_connector(0));
 
         // Update Loop info for outer loops
-        const std::vector<ExpressionPort> entry_points{(*fill.first)->get_input_port(0)};
-        const std::vector<ExpressionPort> exit_points{(*horizon.first)->get_output_port(0)};
+        const std::vector<ExpressionPort> input_ports{(*fill.first)->get_input_port(0)};
+        const std::vector<ExpressionPort> output_ports{(*horizon.first)->get_output_port(0)};
         for (auto loop_id : reduce_expr->get_loop_ids()) {
             loop_manager->expression_replacement(vector_buffer.first,
                                                  expr_it,
                                                  reduce_expr,
                                                  loop_id,
-                                                 entry_points,
-                                                 exit_points);
+                                                 input_ports,
+                                                 output_ports);
         }
 
         expr_it = linear_ir.erase(expr_it);

@@ -112,16 +112,18 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   uint32_t network_id,
                                                   const std::unordered_set<size_t>& restrictions,
                                                   allocation_type type,
-                                                  bool reset) {
+                                                  bool reset,
+                                                  bool is_dynamic) {
     auto it = _non_padded_pool.lower_bound(layout.bytes_count());
     while (it != _non_padded_pool.end()) {
-        if (it->second._network_id == network_id &&
+        if ((!is_dynamic || (layout.bytes_count() > it->second._memory->get_layout().bytes_count() * 0.5)) &&
+            (it->second._network_id == network_id &&
             it->second._type == type &&
             it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
              (layout.feature() % 32 == 0)) &&
-            !has_conflict(it->second._users, restrictions, network_id)) {
+            !has_conflict(it->second._users, restrictions, network_id))) {
             it->second._users.insert(memory_user(unique_id, network_id, prim_id));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
             GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
@@ -219,7 +221,8 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     const std::unordered_set<size_t>& restrictions,
                                     allocation_type type,
                                     bool reusable_across_network,
-                                    bool reset) {
+                                    bool reset,
+                                    bool is_dynamic) {
     bool do_reuse = reusable_across_network;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
@@ -229,7 +232,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
         // reusable within the same network
         if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
             // non-padded buffers
-            return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset);
+            return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
         } else if (!layout.format.is_image()) {
             // padded buffers
             return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);

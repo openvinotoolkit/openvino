@@ -134,6 +134,14 @@ bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) 
     }
     return false;
 }
+
+bool has_user_fc_enabled_tp(const std::list<const program_node*>& users) {
+    for (const auto& user : users) {
+        if (user->is_type<fully_connected>())
+            return user->as<fully_connected>().w_size != 1;
+    }
+    return false;
+}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
@@ -160,7 +168,15 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
         if (curr_memory != nullptr)
             pool.release_memory(curr_memory, _node.get_unique_id(), _node.id(), net_id);
-        return pool.get_memory(layout, _node.id(), _node.get_unique_id(), net_id, memory_dependencies, type, reusable_across_network, reset);
+        return pool.get_memory(layout,
+                               _node.id(),
+                               _node.get_unique_id(),
+                               net_id,
+                               memory_dependencies,
+                               type,
+                               reusable_across_network,
+                               reset,
+                               _node.is_dynamic());
     }
     return pool.get_memory(layout, type, reset);
 }
@@ -260,14 +276,37 @@ void primitive_inst::update_shape() {
         return;
     }
     bool input_shape_changed = false;
+    // update weight shape for impl params
+    if (_node->is_type<fully_connected>()) {
+        const auto weights_idx = _node->get_primitive()->input.size();
+        const auto original_weights_memory = dep_memory_ptr(weights_idx);
+        if (_impl_params->input_layouts[1] != original_weights_memory->get_layout())
+            _impl_params->input_layouts[1] = original_weights_memory->get_layout();
+        GPU_DEBUG_TRACE_DETAIL << id() << ": update weight shape to "
+                               <<  _impl_params->input_layouts[1].to_short_string() << std::endl;
+    }
+
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
-        auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
-        if (_impl_params->get_input_layout(i) != new_shape) {
+        auto new_layout = _deps[i].first->_impl_params->get_output_layout(idx);
+        auto update_new_layout = new_layout;
+        if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && i == 0) {
+            auto new_update_pshape = new_layout.get_partial_shape().to_shape();
+            auto dims = new_layout.get_dims();
+            auto dim = new_update_pshape.size() - 1; // to be finalized
+            new_update_pshape[dim] /= _impl_params->w_size;
+            update_new_layout = layout(ov::PartialShape(new_update_pshape),
+                                                            new_layout.data_type,
+                                                            new_layout.format,
+                                                            new_layout.data_padding);
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update input shape to "
+                               <<  update_new_layout.to_short_string() << std::endl;
+        }
+        if (_impl_params->get_input_layout(i) != update_new_layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string()
-                                   << " now: " << new_shape.to_short_string() << std::endl;
-            _impl_params->input_layouts[i] = new_shape;
+                                   << " now: " << update_new_layout.to_short_string() << std::endl;
+            _impl_params->input_layouts[i] = update_new_layout;
             input_shape_changed = true;
         }
     }
@@ -1268,6 +1307,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
     if (is_dynamic() && !has_inner_networks()) {
+        // update shape is done by predecessor for FC layer
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
@@ -1367,6 +1407,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
+        if (_node->is_type<fully_connected>()) {
+            create_input_memory_placeholder();
+            GPU_DEBUG_TRACE_DETAIL << id() << ": create input memory place holder" << std::endl;
+        }
         set_arguments();
     }
     on_execute();
@@ -1830,7 +1874,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
-        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
+        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu) ||
+        // lockable memory for nodes with FC TP users, as we have to manipulate the FC input memory, to be optimized further
+        has_user_fc_enabled_tp(_node.get_users()) ||
+        // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
+        (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type

@@ -16,20 +16,17 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     using parent::parent;
     using kernel_selector_t = kernel_selector::fully_connected_kernel_selector;
     using kernel_params_t = kernel_selector::fully_connected_params;
-
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_impl)
 
     fully_connected_impl() = default;
 
     fully_connected_impl(const kernel_selector::kernel_data& kd) {
         const auto& params = kd.weightsReorderParams;
-
         if (params.is_initialized) {
             // Assumption that kernel data contains already reshaped 2d weights
             auto crop_to_2d = [](const ov::PartialShape& shape) {
                 return ov::PartialShape({shape[0], shape[1]});
             };
-
             auto weights_reorder_params = std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
                                                                                  from_weights_tensor(params.dest),
                                                                                  params.rotate);
@@ -56,6 +53,27 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
     }
+    event::ptr execute_impl(const std::vector<event::ptr>& events,
+                            typed_primitive_inst<fully_connected>& instance) override {
+        stream& stream = instance.get_network().get_stream();
+        if (instance.get_impl_params()->w_size != 1)
+            stream.finish(); // extra finish for input copy, to be optimized
+        instance.fill_placeholder();
+        auto all_events = parent::execute_impl(events, instance);
+        if (instance.get_impl_params()->w_size != 1) {
+            GPU_DEBUG_TRACE_DETAIL << "consolidate FC output, rank " << instance.get_impl_params()->w_rank << std::endl;
+            stream.finish(); // can be replaced with need_completion_event?
+            auto output_memory_ptr = instance.output_memory_ptr();
+            auto send_ptr = output_memory_ptr->buffer_ptr();
+            if (output_memory_ptr->get_layout().data_type == ov::element::f16)
+                Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory_ptr->count());
+            else if (output_memory_ptr->get_layout().data_type == ov::element::f32)
+                Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory_ptr->count());
+            else
+                OPENVINO_THROW("not expected!");
+        }
+        return all_events;
+    }
 
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<fully_connected>& instance) const override {
@@ -64,8 +82,7 @@ protected:
 
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
-
-        args.inputs = { instance.input_memory_ptr(0) };
+        args.inputs = {(instance.get_input_rank_placeholder())};
         size_t in_id = instance.bias_term() ? 3 : 2;
         if (!desc->decompression_scale.empty())
             args.inputs.push_back(instance.dep_memory_ptr(in_id++));
@@ -196,7 +213,6 @@ public:
         (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
-
 namespace detail {
 
 attach_fully_connected_impl::attach_fully_connected_impl() {

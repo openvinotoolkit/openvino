@@ -15,7 +15,6 @@
 #include "eltwise_inst.h"
 #include "gemm_inst.h"
 #include "lrn_inst.h"
-#include "mutable_data_inst.h"
 #include "mvn_inst.h"
 #include "pooling_inst.h"
 #include "normalize_inst.h"
@@ -667,7 +666,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             bool should_fuse = input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
 
-            should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
+            //should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
 
             should_fuse |= input.is_type<gemm>() && gemm_supports_fusings(input.as<gemm>());
 
@@ -721,7 +720,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                   input.is_type<convolution>() ||
                                   input.is_type<crop>() ||
                                   input.is_type<eltwise>() ||
-                                  input.is_type<fully_connected>() ||
+                                  //input.is_type<fully_connected>() ||
                                   input.is_type<normalize>() ||
                                   input.is_type<reorder>() ||
                                   (input.is_type<reshape>() && !input.is_dynamic()) ||
@@ -982,7 +981,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
 
-            if (_lo.get_optimization_attributes().use_onednn_impls) {
+            if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_node_suitable_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic())
                     return;
@@ -1112,8 +1111,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
         if (next_node->is_type<fully_connected>() ||
             next_node->is_type<deconvolution>() ||
-            next_node->is_type<convolution>() ||
-            next_node->is_type<deformable_conv>()) {
+            next_node->is_type<convolution>()) {
             size_t weights_offset = next_node->get_primitive()->input_size();
             std::vector<size_t> valid_weights_indices = {next_node->get_primitive()->input_size()};
             if (next_node->is_type<fully_connected>()) {
