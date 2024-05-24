@@ -114,8 +114,8 @@ void ROIAlignRotatedLayerTest::SetUp() {
     const auto input_width = inputDynamicShapes[0][3].get_length();
 
     auto input = std::make_shared<ov::op::v0::Parameter>(tp.model_type, inputDynamicShapes[0]);
-    const auto rois_shape = ov::Shape{tp.num_rois, ROI_DEF_SIZE};
-    const auto rois_idx_shape = ov::Shape{tp.num_rois};
+    const auto rois_shape = ov::Shape{static_cast<size_t>(tp.num_rois), ROI_DEF_SIZE};
+    const auto rois_idx_shape = ov::Shape{static_cast<size_t>(tp.num_rois)};
 
     auto rois = std::make_shared<ov::op::v0::Constant>(tp.model_type,
                                                        rois_shape,
