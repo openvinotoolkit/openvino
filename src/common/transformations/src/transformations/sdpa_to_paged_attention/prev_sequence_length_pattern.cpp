@@ -14,9 +14,8 @@
 
 using namespace ov::op;
 
-ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(
-    std::shared_ptr<ov::Node> prev_max_seq_len,
-    std::shared_ptr<ov::Node> batch_dim) {
+ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(std::shared_ptr<ov::Node> prev_max_seq_len,
+                                                               std::shared_ptr<ov::Node> batch_dim) {
     MATCHER_SCOPE(PrevSequenceLengthPattern);
     // The transformation addresses two cases that look similar: (1) previous sequence length, (2) batch size in
     // kv-cache state In first case it should replace it by prev_max_seq_len. For the second case, connect to batch_dim.
