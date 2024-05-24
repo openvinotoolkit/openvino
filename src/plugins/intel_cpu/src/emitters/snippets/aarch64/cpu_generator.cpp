@@ -88,6 +88,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
     // binary
     jitters[op::v1::Add::get_type_info_static()] = CREATE_CPU_EMITTER(jit_add_emitter);
     jitters[op::v1::Divide::get_type_info_static()] = CREATE_CPU_EMITTER(jit_divide_emitter);
+    jitters[op::v1::Mod::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mod_emitter);
     jitters[op::v1::Multiply::get_type_info_static()] = CREATE_CPU_EMITTER(jit_multiply_emitter);
 
     // unary
