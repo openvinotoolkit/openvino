@@ -10,6 +10,7 @@ allow-licenses:
   - 'BlueOak-1.0.0'
   - '0BSD'
   - 'Python-2.0'
+  - 'LGPL-3.0'
 fail-on-scopes:
   - 'runtime'
   - 'development'

@@ -14,7 +14,7 @@ using namespace ov::op;
 // TODO: Instead of using the following transformation that matches quite a specific place in a model graph in case when
 // position_ids parameter is missing, consider replacing always existing attention_mask parameter with a sub-graph using
 // a new slot_mapping parameter.
-ov::pass::PositionIDsReplacer::PositionIDsReplacer(const std::shared_ptr<Output<Node>>& position_ids) {
+ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_ids) {
     MATCHER_SCOPE(PositionIDsReplacer);
 
     auto input_ids = pattern::any_input();
@@ -30,7 +30,7 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const std::shared_ptr<Output<
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        replace_node(pattern_map.at(position_ids_pattern).get_node_shared_ptr(), position_ids->get_node_shared_ptr());
+        replace_node(pattern_map.at(position_ids_pattern).get_node_shared_ptr(), position_ids.get_node_shared_ptr());
         return true;
     };
 

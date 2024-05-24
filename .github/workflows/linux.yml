@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
@@ -45,15 +46,42 @@ jobs:
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
 
-  Build:
+      - name: Show affected components
+        run: |
+          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        shell: bash
+
+  Docker:
     needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_20_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    needs: [Docker, Smart_CI]
     timeout-minutes: 150
     defaults:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -80,19 +108,20 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
-      - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
-
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+
+      # Ticket: 139627
+      - name: Checkout the latest OneDNN for GPU in nightly
+        if: ${{ github.event_name == 'schedule' }}
+        working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
+        run: |
+          git fetch origin
+          git checkout main
+          git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
@@ -112,26 +141,6 @@ jobs:
       #
       # Dependencies
       #
-
-      - name: Install build dependencies
-        run: |
-          bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
-
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "v0.7.5"
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |
@@ -162,7 +171,6 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
@@ -213,6 +221,8 @@ jobs:
           /usr/bin/python3.8 -m pip install -U pip
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPYTHON* \
+                -UTBB* \
+                -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_TESTS=OFF \
                 -DPython3_EXECUTABLE=/usr/bin/python3.8 \
@@ -449,12 +459,12 @@ jobs:
     name: ONNX Runtime Integration
     if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
         fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
 
   ONNX_Models:
     name: ONNX Models Tests
@@ -675,12 +685,12 @@ jobs:
 
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_tokenizers.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 

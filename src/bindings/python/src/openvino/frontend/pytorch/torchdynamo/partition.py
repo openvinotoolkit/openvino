@@ -56,8 +56,59 @@ class Partitioner:
             return True
         return False
 
+    def capture_gptq_patterns(self, graph_module: GraphModule) -> bool:
+        for node in graph_module.graph.nodes:
+            if str(node.op) == "call_function" and str(node.target) == "aten.bitwise_and.Scalar":
+                bitwise_and_in_nodes = node.all_input_nodes
+                if len(bitwise_and_in_nodes) != 1:
+                    continue
+                to_copy_node = bitwise_and_in_nodes[0]
+                if str(to_copy_node.op) != "call_function" or str(to_copy_node.target) != "aten._to_copy.default":
+                    continue
+                to_copy_in_nodes = to_copy_node.all_input_nodes
+                if len(to_copy_in_nodes) != 1:
+                    continue
+                bitwise_right_shift_node = to_copy_in_nodes[0]
+                if str(bitwise_right_shift_node.op) != "call_function" or str(bitwise_right_shift_node.target) != "aten.bitwise_right_shift.Tensor":
+                    continue
+                bitwise_right_shift_in_nodes = bitwise_right_shift_node.all_input_nodes
+                if len(bitwise_right_shift_in_nodes) != 2:
+                    continue
+                expand_node = bitwise_right_shift_in_nodes[0]
+                if str(expand_node.op) != "call_function" or str(expand_node.target) != "aten.expand.default":
+                    continue
+                expand_in_nodes = expand_node.all_input_nodes
+                if len(expand_in_nodes) != 1:
+                    continue
+                unsqueeze_0_node = expand_in_nodes[0]
+                if str(unsqueeze_0_node.op) != "call_function" or str(unsqueeze_0_node.target) != "aten.unsqueeze.default":
+                    continue
+                unsqueeze_0_in_nodes = unsqueeze_0_node.all_input_nodes
+                if len(unsqueeze_0_in_nodes) != 1:
+                    continue
+                const_0_node = unsqueeze_0_in_nodes[0]
+                if str(const_0_node.op) != "get_attr":
+                    continue
+                unsqueeze_1_node = bitwise_right_shift_in_nodes[1]
+                if str(unsqueeze_1_node.op) != "call_function" or str(unsqueeze_1_node.target) != "aten.unsqueeze.default":
+                    continue
+                unsqueeze_1_in_nodes = unsqueeze_1_node.all_input_nodes
+                if len(unsqueeze_1_in_nodes) != 1:
+                    continue
+                const_1_node = unsqueeze_1_in_nodes[0]
+                if str(const_1_node.op) != "get_attr":
+                    continue
+
+                self.supported_ops.enable_by_name(node)
+                self.supported_ops.enable_by_name(to_copy_node)
+                self.supported_ops.enable_by_name(bitwise_right_shift_node)
+                self.supported_ops.enable_by_name(expand_node)
+                self.supported_ops.enable_by_name(unsqueeze_0_node)
+                self.supported_ops.enable_by_name(unsqueeze_1_node)
+
     def make_partitions(self, graph_module: GraphModule, options) -> GraphModule:
         allow_single_node_partition = _is_testing(options)
+        self.capture_gptq_patterns(graph_module)
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=allow_single_node_partition)
         partitions = partitioner.propose_partitions()
