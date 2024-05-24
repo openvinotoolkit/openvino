@@ -10,8 +10,15 @@ Optimizing for Throughput
                  simultaneously which improves the device utilization.
 
 
-As described in the section on the :doc:`latency-specific considerations <openvino_docs_deployment_optimization_guide_latency>`, one of the possible use cases is *delivering every single request at the minimal delay*.
-Throughput, on the other hand, is about inference scenarios in which potentially **large number of inference requests are served simultaneously to improve the device utilization**.
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   Advanced Throughput Options <openvino_docs_deployment_optimization_guide_tput_advanced>
+
+
+As described in the section on the :doc:`latency-specific optimizations <openvino_docs_deployment_optimization_guide_latency>`, one of the possible use cases is delivering every single request with minimal delay.
+Throughput, on the other hand, is about inference scenarios in which potentially **large numbers of inference requests are served simultaneously to improve resource use**.
 
 The associated increase in latency is not linearly dependent on the number of requests executed in parallel.
 A trade-off between overall throughput and serial performance of individual requests can be achieved with the right performance configuration of OpenVINO.

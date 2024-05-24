@@ -1,3 +1,3 @@
 # OpenVINO™ JavaScript API
 
-- `./node` - openvinojs-node NPM package with Node.js bindings
+- `./node` - openvino-node NPM package with Node.js bindings

@@ -5,7 +5,7 @@ Transpose
 
 
 .. meta::
-  :description: Learn about Transpose-1 - a data movement operation, which can be 
+  :description: Learn about Transpose-1 - a data movement operation, which can be
                 performed on two required input tensors.
 
 **Versioned name**: *Transpose-1*
@@ -53,7 +53,7 @@ Transpose
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>3</dim>  < !-- [2, 0, 1] -->
+                <dim>3</dim>  <!-- [2, 0, 1] -->
             </port>
         </input>
         <output>
@@ -79,7 +79,7 @@ Transpose
                 <dim>4</dim>
             </port>
             <port id="1">
-                <dim>0</dim> < !-- input_order is an empty 1D tensor -->
+                <dim>0</dim> <!-- input_order is an empty 1D tensor -->
             </port>
         </input>
         <output>

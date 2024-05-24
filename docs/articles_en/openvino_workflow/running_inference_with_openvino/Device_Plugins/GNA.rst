@@ -75,7 +75,7 @@ For optimal work with POT quantized models, which include 2D convolutions on GNA
 * Choose a compile target with priority on: cross-platform execution, performance, memory, or power optimization.
 * To check interoperability in your application use: ``ov::intel_gna::execution_target`` and ``ov::intel_gna::compile_target``.
 
-:doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>` can be used for experiments (see the ``-exec_target`` and ``-compile_target`` command line options).
+:doc:`Speech C++ Sample <openvino_sample_automatic_speech_recognition>` can be used for experiments (see the ``-exec_target`` and ``-compile_target`` command line options).
 
 
 Software Emulation Mode
@@ -148,7 +148,7 @@ This mode is going to be deprecated soon. GNA supports the ``i16`` and ``i8`` qu
 GNA users are encouraged to use the :doc:`Post-Training Optimization Tool <pot_introduction>` to get a model with 
 quantization hints based on statistics for the provided dataset. 
 
-:doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out supported data types for all detected devices.
 
 :doc:`POT API Usage sample for GNA <pot_example_speech_README>` demonstrates how a model can be quantized for GNA, using POT API in two modes:
 
@@ -219,12 +219,12 @@ Import model:
 
 
 To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or 
-:doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>`.
+:doc:`Speech C++ Sample <openvino_sample_automatic_speech_recognition>`.
 
 Stateful Models
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-GNA plugin natively supports stateful models. For more details on such models, refer to the :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`.
+GNA plugin natively supports stateful models. For more details on such models, refer to the :doc:`Stateful models <openvino_docs_OV_UG_stateful_models_intro>`.
 
 .. note:: 
 

@@ -14,8 +14,8 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Preparation <#preparation>`__
 
@@ -45,28 +45,48 @@ Imports
 
 .. code:: ipython3
 
-    %pip install -q "paddlepaddle>=2.5.1"
+    import platform
+    
+    if platform.system() == "Windows":
+        %pip install -q "paddlepaddle>=2.5.1,<2.6.0"
+    else:
+        %pip install -q "paddlepaddle>=2.5.1"
     %pip install -q paddleclas --no-deps
     %pip install -q "prettytable" "ujson" "visualdl>=2.2.0" "faiss-cpu>=1.7.1"
     # Install openvino package
-    !pip install -q "openvino>=2023.1.0"
+    %pip install -q "openvino>=2023.1.0"
 
 
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     paddleclas 2.5.1 requires easydict, which is not installed.
     paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.7.4 which is incompatible.
     paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
 .. code:: ipython3
 
-    import platform
-    
     if (platform.system() == "Linux"):
         !wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
         !sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
@@ -74,12 +94,20 @@ Imports
 
 .. parsed-literal::
 
-    --2023-12-06 22:32:58--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-02-09 22:36:08--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-mu.intel.com (proxy-mu.intel.com)... 10.217.247.236
     Connecting to proxy-mu.intel.com (proxy-mu.intel.com)|10.217.247.236|:911... connected.
-    Proxy request sent, awaiting response... 404 Not Found
-    2023-12-06 22:32:59 ERROR 404: Not Found.
+    Proxy request sent, awaiting response... 
+
+.. parsed-literal::
+
+    404 Not Found
+    2024-02-09 22:36:08 ERROR 404: Not Found.
     
+
+
+.. parsed-literal::
+
     dpkg: error: cannot access archive 'libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb': No such file or directory
 
 
@@ -107,8 +135,12 @@ Imports
 
 .. parsed-literal::
 
-    2023-12-06 22:33:00 INFO: Loading faiss with AVX2 support.
-    2023-12-06 22:33:00 INFO: Successfully loaded faiss with AVX2 support.
+    2024-02-09 22:36:10 INFO: Loading faiss with AVX2 support.
+
+
+.. parsed-literal::
+
+    2024-02-09 22:36:10 INFO: Successfully loaded faiss with AVX2 support.
 
 
 Settings
@@ -192,7 +224,11 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2023/12/06 22:33:21] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/02/09 22:36:38] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+
+
+.. parsed-literal::
+
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -201,7 +237,7 @@ inference on that image, and then show the top three prediction results.
 
 
 
-.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_8_1.png
+.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_8_2.png
 
 
 ``classifier.predict()`` takes an image file name, reads the image,
@@ -258,7 +294,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2023-12-06 22:33:22 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-02-09 22:36:39 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -270,7 +306,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7efc106a1910>
+    <matplotlib.image.AxesImage at 0x7f9b4c389670>
 
 
 
@@ -305,7 +341,7 @@ accept path to PaddlePaddle model and returns OpenVINO Model class
 instance which represents this model. Obtained model is ready to use and
 loading on device using ``ov.compile_model`` or can be saved on disk
 using ``ov.save_model`` function. See the `Model Conversion
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+Guide <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 for more information about the Model Conversion API.
 
 .. code:: ipython3
@@ -406,7 +442,7 @@ Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
 For a fair comparison, we include the time it takes to process the
 image. For more accurate benchmarking, use the `OpenVINO benchmark
-tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
@@ -453,7 +489,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0070 seconds per image, FPS: 142.41
+    PaddlePaddle model on CPU: 0.0075 seconds per image, FPS: 133.16
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -517,7 +553,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0028 seconds per image, FPS: 352.29
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0030 seconds per image, FPS: 328.87
     
     OpenVINO result:
     Labrador retriever, 0.74909
@@ -538,4 +574,4 @@ References
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle
-   support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+   support <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__

@@ -1,6 +1,6 @@
 .. {#openvino_docs_deployment_optimization_guide_tput_advanced}
 
-Using Advanced Throughput Options: Streams and Batching
+Advanced Throughput Options: Streams and Batching
 =======================================================
 
 
@@ -8,7 +8,7 @@ Using Advanced Throughput Options: Streams and Batching
    :description: With OpenVINO streams a device may handle processing multiple 
                  inference requests and the batching helps to saturate the 
                  device and leads to higher throughput.
-
+ 
 
 OpenVINO Streams
 ####################

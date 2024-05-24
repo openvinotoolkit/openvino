@@ -5,7 +5,7 @@ MVN
 
 
 .. meta::
-  :description: Learn about MVN-6 - a normalization operation, which can be 
+  :description: Learn about MVN-6 - a normalization operation, which can be
                 performed on two required input tensors.
 
 **Versioned name**: *MVN-6*
@@ -100,7 +100,7 @@ If *normalize_variance* is set to ``true``, the output blob is divided by varian
                <dim>24</dim>
            </port>
            <port id="1">
-               <dim>3</dim> < !-- value of [0,2,3] means independent normalization per channels -->
+               <dim>3</dim> <!-- value of [0,2,3] means independent normalization per channels -->
            </port>
        </input>
        <output>

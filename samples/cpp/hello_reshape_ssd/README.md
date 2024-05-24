@@ -1,9 +1,9 @@
 # Hello Reshape SSD C++ Sample
 
-This sample demonstrates how to do synchronous inference of object detection models using [input reshape feature](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_ShapeInference.html).
+This sample demonstrates how to do synchronous inference of object detection models using [input reshape feature](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_ShapeInference.html).
 Models with only one input and output are supported.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_hello_reshape_ssd_README.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_sample_hello_reshape_ssd.html)
 
 ## Requirements
 
@@ -11,8 +11,8 @@ For more detailed information on how this sample works, check the dedicated [art
 | ----------------------------| -----------------------------------------------------------------------------------------------------------------------------------------|
 | Validated Models            | [person-detection-retail-0013](https://docs.openvino.ai/nightly/omz_models_model_person_detection_retail_0013.html)                      |
 | Model Format                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                                          |
-| Supported devices           | [All](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                                      |
-| Other language realization  | [Python](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README.html)               |
+| Supported devices           | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                                      |
+| Other language realization  | [Python](https://docs.openvino.ai/2023.3/openvino_sample_hello_reshape_ssd.html)               |
 
 The following C++ API is used in the application:
 
@@ -29,4 +29,4 @@ The following C++ API is used in the application:
 |                          | ``ov::preprocess::PreProcessSteps::convert_layout``         |                                                |
 
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_hello_classification_README.html).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](https://docs.openvino.ai/2023.3/openvino_sample_hello_classification.html).

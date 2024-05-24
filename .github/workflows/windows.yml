@@ -51,9 +51,13 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
+      INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       # TODO: specify version of compiler here
@@ -117,12 +121,16 @@ jobs:
           python3 -m pip install certifi
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Install build dependencies
-        run: choco install --no-progress ninja
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
+          Expand-Archive -Force ninja-win.zip
+          # Add it to the GitHub Path so it would be available in the subsequent steps
+          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
 
       #
       # Build
@@ -194,6 +202,16 @@ jobs:
             -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
+      - name: CMake configure, build and install - OpenVINO JS API
+        if: ${{ 'false' }} # 128689
+        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run:
+          cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+          
+          cmake --build ${{ env.BUILD_DIR }} --parallel
+          
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
       - name: Upload openvino package
         uses: actions/upload-artifact@v3
         with:
@@ -206,6 +224,15 @@ jobs:
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
+          if-no-files-found: 'error'
+
+      - name: Upload openvino js package
+        if: ${{ 'false' }} # 128689
+        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_js_package
+          path: ${{ env.INSTALL_DIR_JS }}
           if-no-files-found: 'error'
 
   Samples:
@@ -288,6 +315,51 @@ jobs:
           name: test-results-samples
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
+
+  JS_API:
+    name: JS API
+    needs: [ Build, Smart_CI ]
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: 'aks-win-4-cores-8gb'
+    env:
+      OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
+      OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
+    if: ${{ 'false' }} # 128689
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+
+    steps:
+      - name: Fetch OpenVINO JS sources
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            src/bindings/js
+          path: 'openvino'
+
+      - name: Download OpenVINO js package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_js_package
+          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Configure OpenVINO JS
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: npm i
+
+      - name: Test OpenVINO JS
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: npm test
+
+      - name: Test OpenVINO JS (cmd)
+        shell: cmd
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: call npm test
 
   Python_Unit_Tests:
     name: Python unit tests
@@ -787,7 +859,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -801,7 +873,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}

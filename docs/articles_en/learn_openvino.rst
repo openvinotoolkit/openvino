@@ -5,8 +5,8 @@ Learn OpenVINO
 
 
 .. meta::
-   :description: Explore learning materials, including interactive 
-                 Python tutorials and sample console applications that explain 
+   :description: Explore learning materials, including interactive
+                 Python tutorials and sample console applications that explain
                  how to use OpenVINO features.
 
 
@@ -19,15 +19,15 @@ Learn OpenVINO
    Generative AI Optimization and Deployment <gen_ai_guide>
 
 
-This section will help you get a hands-on experience with OpenVINO even if you are just starting 
-to learn what OpenVINO is and how it works. It includes various types of learning materials 
-accommodating different learning needs, which means you should find it useful if you are a beginning, 
+This section will help you get a hands-on experience with OpenVINO even if you are just starting
+to learn what OpenVINO is and how it works. It includes various types of learning materials
+accommodating different learning needs, which means you should find it useful if you are a beginning,
 as well as an experienced user.
 
-| :doc:`Tutorials <tutorials>` 
+| :doc:`Tutorials <tutorials>`
 | A collection of interactive Python tutorials. It introduces you to the OpenVINO™ toolkit explaining how to use the Python API and tools for optimized deep learning inference. The tutorials are available in Jupyter notebooks and can be run in your browser. No installation required.
 
-| :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`  
+| :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
 | The OpenVINO samples (Python and C++) are simple console applications that show how to use specific OpenVINO API features. They can assist you in executing tasks such as loading a model, running inference, querying particular device capabilities, etc.
 
 | :doc:`Optimize and Deploy Generative AI Models <gen_ai_guide>`

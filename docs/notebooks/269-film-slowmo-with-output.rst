@@ -40,8 +40,8 @@ a model source.
    video encoder. Ubuntu has it preinstalled, but for Windows, you
    should install it manually.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare images <#prepare-images>`__

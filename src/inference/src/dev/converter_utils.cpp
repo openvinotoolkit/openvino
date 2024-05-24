@@ -625,8 +625,18 @@ public:
         } else {
             std::chrono::milliseconds timeout(millis_timeout);
             bool res = m_request->wait_for(timeout);
-            if (!res)
+            if (!res) {
+                // Just use the last '_futures' member to wait pipeline completion
+                auto future = [&] {
+                    std::lock_guard<std::mutex> lock{m_request->m_mutex};
+                    return m_request->m_futures.empty() ? std::shared_future<void>{} : m_request->m_futures.back();
+                }();
+
+                if (!future.valid()) {
+                    return InferenceEngine::StatusCode::INFER_NOT_STARTED;
+                }
                 return InferenceEngine::StatusCode::RESULT_NOT_READY;
+            }
         }
         return InferenceEngine::StatusCode::OK;
     }

@@ -64,7 +64,7 @@ CPU plugin supports the following data types as inference precision of internal 
   - ``i8`` (Intel® x86-64)
   - ``u1`` (Intel® x86-64)
 
-:doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out supported data types for all detected devices.
 
 
 Quantized Data Types Specifics
@@ -325,7 +325,7 @@ Stateful Models
 
 The CPU plugin supports stateful models without any limitations.
 
-For details, see :doc:`stateful models guide <openvino_docs_OV_UG_model_state_intro>`.
+For details, see :doc:`stateful models guide <openvino_docs_OV_UG_stateful_models_intro>`.
 
 Supported Properties
 ###########################################################

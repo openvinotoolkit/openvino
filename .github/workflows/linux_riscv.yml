@@ -64,6 +64,9 @@ jobs:
       CCACHE_MAXSIZE: 50G
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
@@ -86,6 +89,7 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd

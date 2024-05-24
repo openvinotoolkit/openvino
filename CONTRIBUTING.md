@@ -61,7 +61,7 @@ product better.
      [./docs/dev](https://github.com/openvinotoolkit/openvino/tree/master/docs/dev) folder.
 
    * **User documentation** is built from several sources and published at 
-     [docs.openvino.ai](docs.openvino.ai), which is the recommended place for reading 
+     [docs.openvino.ai](https://docs.openvino.ai/), which is the recommended place for reading 
      these documents. Use the files maintained in this repository only for editing purposes. 
 
    * The easiest way to help with documentation is to review it and provide feedback on the 
@@ -69,7 +69,7 @@ product better.
      or think more information should be added, you can reach out to any of the documentation 
      contributors to discuss the potential changes.
      
-     You can also create a Pull Request directly, following the [editor's guide](./docs/CONTRIBUTING_DOCS.md).
+     You can also create a Pull Request directly, following the [editor's guide](./CONTRIBUTING_DOCS.md).
 
 
 ### Promote and Support OpenVINO
@@ -151,4 +151,4 @@ We'll make sure to review your Pull Request as soon as possible and provide you 
 ## License
 
 By contributing to the OpenVINO project, you agree that your contributions will be 
-licensed under the terms stated in the [LICENSE](./LICENSE.md) file.
+licensed under the terms stated in the [LICENSE](./LICENSE) file.

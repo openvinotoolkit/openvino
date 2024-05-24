@@ -40,7 +40,22 @@ Now, the model is ready for compilation and inference. It can be also saved into
 
   * ``ratio`` - controls the ratio between INT4 and INT8 compressed layers in the model. For example, 0.8 means that 80% of layers will be compressed to INT4, while the rest will be compressed to INT8 precision.
 
-The example below shows 4-bit weight quantization applied on top of OpenVINO IR:
+  * ``dataset`` - calibration dataset for data-aware weight compression. It is required for some compression options, for example, some types ``sensitivity_metric`` can use data for precision selection.
+
+  * ``sensitivity_metric`` - controls the metric to estimate the sensitivity of compressing layers in the bit-width selection algorithm. Some of the metrics require dataset to be provided. The following types are supported:
+
+    * ``nncf.SensitivityMetric.WEIGHT_QUANTIZATION_ERROR`` - data-free metric computed as the inverted 8-bit quantization noise. Weights with highest value of this metric can be accurately quantized channel-wise to 8-bit. The idea is to leave these weights in 8 bit, and quantize the rest of layers to 4-bit group-wise. Since group-wise is more accurate than per-channel, accuracy should not degrade.
+
+    * ``nncf.SensitivityMetric.HESSIAN_INPUT_ACTIVATION`` - requires dataset. The average Hessian trace of weights with respect to the layer-wise quantization error multiplied by L2 norm of 8-bit quantization noise.
+
+    * ``nncf.SensitivityMetric.MEAN_ACTIVATION_VARIANCE`` - requires dataset. The mean variance of the layers' inputs multiplied by inverted 8-bit quantization noise.
+
+    * ``nncf.SensitivityMetric.MAX_ACTIVATION_VARIANCE`` - requires dataset. The maximum variance of the layers' inputs multiplied by inverted 8-bit quantization noise.
+
+    * ``nncf.SensitivityMetric.MEAN_ACTIVATION_MAGNITUDE`` - requires dataset. The mean magnitude of the layers' inputs multiplied by inverted 8-bit quantization noise.
+
+
+The example below shows data-free 4-bit weight quantization applied on top of OpenVINO IR:
 
 .. tab-set::
 
@@ -50,6 +65,8 @@ The example below shows 4-bit weight quantization applied on top of OpenVINO IR:
       .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
          :language: python
          :fragment: [compression_4bit]
+
+For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino>`__.
 
 .. note::
 
@@ -132,6 +149,7 @@ The table below shows examples of Text Generation models with different optimiza
 Additional Resources
 ####################
 
+- `Data-aware weight compression <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino>`__
 - :doc:`Post-training Quantization <ptq_introduction>`
 - :doc:`Training-time Optimization <tmo_introduction>`
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__

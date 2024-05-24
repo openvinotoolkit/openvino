@@ -5,16 +5,16 @@ Install OpenVINO™ Runtime from Conan Package Manager
 
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and
                  macOS operating systems, using Conan Package Manager.
 
 .. note::
-   
+
    Note that the Conan Package Manager distribution:
 
    * offers C/C++ API only
    * does not offer support for GNA and NPU inference
-   * is dedicated to users of all major OSes: Windows, Linux, and macOS 
+   * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
 
 
@@ -25,10 +25,10 @@ Install OpenVINO™ Runtime from Conan Package Manager
 
       Full requirement listing is available in:
       :doc:`System Requirements Page <system_requirements>`
-   
+
    .. tab-item:: Processor Notes
       :sync: processor-notes
-   
+
       To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       `Product Specifications <https://ark.intel.com/content/www/us/en/ark.html>`__
 
@@ -52,7 +52,7 @@ Installing OpenVINO Runtime with Conan Package Manager
    .. code-block:: sh
 
       [requires]
-      openvino/2023.2.0
+      openvino/2023.3.0
       [generators]
       CMakeDeps
       CMakeToolchain
@@ -64,14 +64,14 @@ Installing OpenVINO Runtime with Conan Package Manager
    .. code-block:: sh
 
       conan install conanfile.txt --build=missing
-   
-   By default, OpenVINO is statically compiled, together with all available 
+
+   By default, OpenVINO is statically compiled, together with all available
    plugins and frontends. To build a version tailored to your needs, check
-   what options there are on the `Conan Package Manager page for OpenVINO <https://conan.io/center/recipes/openvino>`__ 
+   what options there are on the `Conan Package Manager page for OpenVINO <https://conan.io/center/recipes/openvino>`__
    and extend the command, like so:
-      
+
    .. code-block:: sh
-   
+
       conan install conanfile.txt --build=missing -o:h 'openvino/*:enable_intel_gpu=False' -o:h 'openvino/*:enable_onnx_frontend=False' -o:h 'openvino/*:shared=True'
 
 3. Configure and compile your project with OpenVINO:
@@ -82,7 +82,7 @@ Installing OpenVINO Runtime with Conan Package Manager
       cmake --build <build dir> --parallel
 
    .. note::
-   
+
       OpenVINO can be used with any build interface, as long as it is supported by Conan 2.0. Read `more <https://docs.conan.io/2/examples/tools.html>`__.
 
 Additional Resources

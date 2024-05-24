@@ -12,11 +12,11 @@ Plugin API Reference
    :maxdepth: 1
    :hidden:
 
-   ../groupov_dev_api
-   ../groupie_transformation_api
+   ../api/c_cpp_api/group__ov__dev__api
+   ../api/c_cpp_api/group__ie__transformation__api
 
 The guides below provides extra API references needed for OpenVINO plugin development:
 
-*  `OpenVINO Plugin API <https://docs.openvino.ai/2023.2/groupov_dev_api.html>`__
-*  `OpenVINO Transformation API <https://docs.openvino.ai/2023.2/groupie_transformation_api.html>`__
+*  `OpenVINO Plugin API <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ov__dev__api.html>`__
+*  `OpenVINO Transformation API <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ie__transformation__api.html>`__
 

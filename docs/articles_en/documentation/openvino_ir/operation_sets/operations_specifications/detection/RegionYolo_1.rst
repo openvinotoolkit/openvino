@@ -5,7 +5,7 @@ RegionYolo
 
 
 .. meta::
-  :description: Learn about RegionYolo-1 - an object detection operation, 
+  :description: Learn about RegionYolo-1 - an object detection operation,
                 which can be performed on a 4D input tensor.
 
 **Versioned name**: *RegionYolo-1*
@@ -65,7 +65,7 @@ RegionYolo
 
   * **Description**: *do_softmax* is a flag that specifies the inference method and affects how the number of regions is determined. It also affects output shape. If it is 0, then output shape is 4D, and 2D otherwise.
   * **Range of values**:
-  
+
     * *false* - do not perform softmax
     * *true* - perform softmax
   * **Type**: ``boolean``
@@ -100,7 +100,7 @@ RegionYolo
 .. code-block:: xml
    :force:
 
-   < !-- YOLO V3 example -->
+   <!-- YOLO V3 example -->
    <layer type="RegionYolo" ... >
        <data anchors="10,14,23,27,37,58,81,82,135,169,344,319" axis="1" classes="80" coords="4" do_softmax="0" end_axis="3" mask="0,1,2" num="6"/>
        <input>
@@ -120,8 +120,8 @@ RegionYolo
            </port>
        </output>
    </layer>
- 
-   < !-- YOLO V2 Example -->
+
+   <!-- YOLO V2 Example -->
    <layer type="RegionYolo" ... >
        <data anchors="1.08,1.19,3.42,4.41,6.63,11.38,9.42,5.11,16.62,10.52" axis="1" classes="20" coords="4" do_softmax="1" end_axis="3" num="5"/>
        <input>

@@ -42,10 +42,10 @@ library. To simplify the user experience, the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `About Pix2Struct <#about-pixstruct>`__
+-  `About Pix2Struct <#about-pix2struct>`__
 -  `Prerequisites <#prerequisites>`__
 -  `Download and Convert Model <#download-and-convert-model>`__
 -  `Select inference device <#select-inference-device>`__
@@ -231,7 +231,7 @@ by ``Pix2StructProcessor.decode``
 
 Let’s see the model in action. For testing the model, we will use a
 screenshot from `OpenVINO
-documentation <https://docs.openvino.ai/2023.1/get_started.html#openvino-advanced-features>`__
+documentation <https://docs.openvino.ai/2023.3/get_started.html#openvino-advanced-features>`__
 
 .. code:: ipython3
 

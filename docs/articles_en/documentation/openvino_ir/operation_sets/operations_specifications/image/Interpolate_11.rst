@@ -5,7 +5,7 @@ Interpolate
 
 
 .. meta::
-  :description: Learn about Interpolate-11 - an image processing operation, which 
+  :description: Learn about Interpolate-11 - an image processing operation, which
                 can be performed on two required and one optional tensor.
 
 **Versioned name**: *Interpolate-11*
@@ -129,13 +129,13 @@ Interpolate
                <dim>80</dim>
            </port>
            <port id="1">
-               <dim>2</dim> < !--The values in this input are [24, 160] -->
+               <dim>2</dim> <!--The values in this input are [24, 160] -->
            </port>
            <port id="2">
-               <dim>2</dim> < !--The values in this input are [0.5, 2.0] -->
+               <dim>2</dim> <!--The values in this input are [0.5, 2.0] -->
            </port>
            <port id="3">
-               <dim>2</dim> < !--The values in this input are [2, 3] (axes). -->
+               <dim>2</dim> <!--The values in this input are [2, 3] (axes). -->
            </port>
        </input>
        <output>

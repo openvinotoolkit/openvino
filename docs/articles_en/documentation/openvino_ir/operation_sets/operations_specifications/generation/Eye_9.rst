@@ -5,7 +5,7 @@ Eye
 
 
 .. meta::
-  :description: Learn about Eye-9 - a generation operation, which can be 
+  :description: Learn about Eye-9 - a generation operation, which can be
                 performed on three required and one optional input tensors.
 
 **Versioned name**: *Eye-9*
@@ -23,13 +23,13 @@ Example 1. *Eye* output with ``output_type`` = ``i32``:
 
 .. code-block:: xml
    :force:
-   
+
    num_rows = 3
-   
+
    num_columns = 4
-   
+
    diagonal_index = 2
-   
+
    output  = [[0 0 1 0]
               [0 0 0 1]
               [0 0 0 0]]
@@ -38,13 +38,13 @@ Example 2. *Eye* output with ``output_type`` = ``i32``:
 
 .. code-block:: xml
    :force:
-   
+
    num_rows = 3
-   
+
    num_columns = 4
-   
+
    diagonal_index = -1
-   
+
    output  = [[0 0 0 0]
               [1 0 0 0]
               [0 1 0 0]]
@@ -53,13 +53,13 @@ Example 3. *Eye* output with ``output_type`` = ``f16``:
 
 .. code-block:: xml
    :force:
-   
+
    num_rows = 2
-   
+
    diagonal_index = 5
-   
+
    batch_shape = [1, 2]
-   
+
    output  = [[[[0. 0.]
                 [0. 0.]]
                [[0. 0.]
@@ -97,13 +97,13 @@ Example 3. *Eye* output with ``output_type`` = ``f16``:
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... name="Eye" type="Eye">
        <data output_type="i8"/>
        <input>
-           <port id="0" precision="I32"/>  < !-- num rows: 5 -->
-           <port id="1" precision="I32"/>  < !-- num columns: 5 -->
-           <port id="2" precision="I32"/>  < !-- diagonal index -->
+           <port id="0" precision="I32"/>  <!-- num rows: 5 -->
+           <port id="1" precision="I32"/>  <!-- num columns: 5 -->
+           <port id="2" precision="I32"/>  <!-- diagonal index -->
        </input>
        <output>
            <port id="3" precision="I8" names="Eye:0">
@@ -117,14 +117,14 @@ Example 3. *Eye* output with ``output_type`` = ``f16``:
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... name="Eye" type="Eye">
        <data output_type="f32"/>
        <input>
-           <port id="0" precision="I32"/>  < !-- num rows -->
-           <port id="1" precision="I32"/>  < !-- num columns -->
-           <port id="2" precision="I32"/>  < !-- diagonal index -->
-           <port id="3" precision="I32"/>  < !-- batch_shape : [2, 3] -->
+           <port id="0" precision="I32"/>  <!-- num rows -->
+           <port id="1" precision="I32"/>  <!-- num columns -->
+           <port id="2" precision="I32"/>  <!-- diagonal index -->
+           <port id="3" precision="I32"/>  <!-- batch_shape : [2, 3] -->
        </input>
        <output>
            <port id="3" precision="F32" names="Eye:0">

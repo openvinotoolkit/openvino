@@ -134,9 +134,10 @@ TEST_P(InferRequestCallbackTests, ReturnResultNotReadyFromWaitInAsyncModeForTooS
     // get timestamp taken AFTER return from the Wait(STATUS_ONLY)
     const auto afterWaitTimeStamp = std::chrono::system_clock::now();
     // IF the callback timestamp is larger than the afterWaitTimeStamp
-    // then we should observe RESULT_NOT_READY
+    // then we should observe RESULT_NOT_READY or INFER_NOT_STARTED
     if (afterWaitTimeStamp < callbackTimeStampFuture.get()) {
-        ASSERT_TRUE(sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
+        ASSERT_TRUE(sts == InferenceEngine::StatusCode::RESULT_NOT_READY ||
+                    sts == InferenceEngine::StatusCode::INFER_NOT_STARTED);
     }
     ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 }

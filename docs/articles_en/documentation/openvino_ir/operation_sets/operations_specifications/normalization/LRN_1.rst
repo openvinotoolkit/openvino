@@ -5,7 +5,7 @@ LRN
 
 
 .. meta::
-  :description: Learn about LRN-1 - a normalization operation, which can be 
+  :description: Learn about LRN-1 - a normalization operation, which can be
                 performed on two required input tensors.
 
 **Versioned name**: *LRN-1*
@@ -105,7 +105,7 @@ Example for 4D ``data`` input tensor and ``axes = [2, 3]``:
                <dim>24</dim>
            </port>
            <port id="1">
-               <dim>1</dim> < !-- value is [1] that means independent normalization for each pixel along channels -->
+               <dim>1</dim> <!-- value is [1] that means independent normalization for each pixel along channels -->
            </port>
        </input>
        <output>

@@ -111,11 +111,11 @@ If a model has a single input parameter and the type of this input is a ``tuple`
 Non-tensor Data Types
 #####################
 
-When a non-tensor data type, such as a ``tuple`` or ``dict``, appears in a model input or output, it is flattened. The flattening means that each element within the ``tuple`` will be represented as a separate input or output. The same is true for ``dict`` values, where the keys of the ``dict`` are used to form a model input/output name. The original non-tensor input or output is replaced by one or multiple new inputs or outputs resulting from this flattening process. This flattening procedure is applied recursively in the case of nested ``tuples`` and ``dicts`` until it reaches the assumption that the most nested data type is a tensor.
+When a non-tensor data type, such as a ``tuple`` or ``dict``, appears in a model input or output, it is flattened. The flattening means that each element within the ``tuple`` will be represented as a separate input or output. The same is true for ``dict`` values, where the keys of the ``dict`` are used to form a model input/output name. The original non-tensor input or output is replaced by one or multiple new inputs or outputs resulting from this flattening process. This flattening procedure is applied recursively in the case of nested ``tuples``, ``lists``, and ``dicts`` until it reaches the assumption that the most nested data type is a tensor.
 
 For example, if the original model is called with ``example_input=(a, (b, c, (d, e)))``, where ``a``, ``b``, ... ``e`` are tensors, it means that the original model has two inputs. The first is a tensor ``a``, and the second is a tuple ``(b, c, (d, e))``, containing two tensors ``b`` and ``c`` and a nested tuple ``(d, e)``. Then the resulting OpenVINO model will have signature ``(a, b, c, d, e)``, which means it will have five inputs, all of type tensor, instead of two in the original model.
 
-Flattening of a ``dict`` is supported for outputs only. If your model has an input of type ``dict``, you will need to decompose the ``dict`` to one or multiple tensor inputs by modifying the original model signature or making a wrapper model on top of the original model. This approach hides the dictionary from the model signature and allows it to be processed inside the model successfully.
+If your model has a ``dict`` input, such as, ``{"x": a, "y": b, "z": c}``, it will be decomposed into multiple inputs of the OpenVINO model signature: ``(a, b, c)``, where inputs assume the names of ``x``, ``y``, and ``z`` respectively.
 
 .. note::
 

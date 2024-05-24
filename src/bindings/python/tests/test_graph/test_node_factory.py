@@ -97,8 +97,8 @@ def test_node_factory_validate_missing_arguments():
         raise AssertionError("Validation of missing arguments has unexpectedly passed.")
 
 
-@pytest.mark.template_extension()
-@pytest.mark.dynamic_library()
+@pytest.mark.template_extension
+@pytest.mark.dynamic_library
 def test_extension_added_from_library():
     if platform == "win32":
         library_path = "openvino_template_extension.dll"

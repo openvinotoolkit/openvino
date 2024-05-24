@@ -53,6 +53,8 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
@@ -81,13 +83,14 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
 
       - name: Clone vcpkg
         uses: actions/checkout@v4
         with:
           repository: 'microsoft/vcpkg'
+          # Keep in sync with <root>/vcpkg.json <builtin-baseline>
+          ref: '7ba0ba7334c3346e7eee1e049ba85da193a8d821'
           path: 'vcpkg'
           fetch-depth: '0'
 
@@ -123,9 +126,9 @@ jobs:
           echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       #
       # Build

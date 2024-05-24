@@ -61,3 +61,53 @@ TEST(check, ov_throw_exception_check_relative_path_to_source) {
                     ov::Exception,
                     AnyOf(StartsWith(exp_native_slash), StartsWith(exp_fwd_slash)));
 }
+
+TEST(check, create_ov_exception) {
+    constexpr int line = 145;
+    constexpr char test_file[] = "src/test_file.cpp";
+    const std::string explanation = "test error message";
+    const std::string exp_error_msg = "Exception from src/test_file.cpp:145:\ntest error message\n";
+
+    OV_EXPECT_THROW(ov::Exception::create(test_file, line, explanation), ov::Exception, exp_error_msg);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(ov::Exception::create({test_file, line, nullptr}, explanation), ov::Exception, exp_error_msg);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(check, create_ov_assert_failure) {
+    constexpr int line = 145;
+    constexpr char test_file[] = "src/test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string explanation = "test error message";
+    const std::string ctx_info = "My context";
+    const std::string exp_error_msg =
+        "Check 'value != 0' failed at src/test_file.cpp:145:\nMy context:\ntest error message\n";
+
+    OV_EXPECT_THROW(ov::AssertFailure::create(test_file, line, check_string, ctx_info, explanation),
+                    ov::AssertFailure,
+                    exp_error_msg);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(ov::AssertFailure::create({test_file, line, check_string}, ctx_info, explanation),
+                    ov::AssertFailure,
+                    exp_error_msg);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(check, create_ov_not_implemented) {
+    constexpr int line = 145;
+    constexpr char test_file[] = "src/test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string explanation = "test error message";
+    const std::string ctx_info = "My context";
+    const std::string exp_error_msg = "Exception from src/test_file.cpp:145:\nNot Implemented:\ntest error message\n";
+
+    OV_EXPECT_THROW(ov::NotImplemented::create(test_file, line, explanation), ov::NotImplemented, exp_error_msg);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(ov::NotImplemented::create({test_file, line, check_string}, ctx_info, explanation),
+                    ov::NotImplemented,
+                    exp_error_msg);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}

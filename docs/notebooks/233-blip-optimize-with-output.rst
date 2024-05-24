@@ -24,28 +24,29 @@ contains the following steps:
    `233-blip-convert <233-blip-convert-with-output.html>`__ notebook first to
    generate OpenVINO IR models that are used for optimization.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Quantize <#quantize>`__
 
    -  `Prepare dataset <#prepare-dataset>`__
-   -  `Quantize Vision Model <#quantize-vision-model>`__
-   -  `Quantize Text Encoder <#quantize-text-encoder>`__
+   -  `Vision model <#vision-model>`__
+   -  `Text encoder <#text-encoder>`__
 
--  `Compress text decoder weights <#compress-weights>`__
--  `Run optimized OpenVINO
-   model <#run-optimized-openvino-model>`__
+-  `Compress weights <#compress-weights>`__
+-  `Run optimized OpenVINO model <#run-optimized-openvino-model>`__
 
    -  `Image Captioning <#image-captioning>`__
    -  `Question Answering <#question-answering>`__
    -  `Compare file sizes <#compare-file-sizes>`__
    -  `Compare inference time of the FP16 and optimized
-      models <#compare-inference-time-of-the-fp-and-optimized-models>`__
+      models <#compare-inference-time-of-the-fp16-and-optimized-models>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 .. code:: ipython3
 
@@ -68,8 +69,10 @@ Prerequisites
     
     processor = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
 
-Quantize 
---------------------------------------------------
+Quantize
+--------
+
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -90,8 +93,10 @@ The optimization process contains the following steps:
    **NOTE**: Quantization is time and memory consuming operation.
    Running quantization code below may take some time.
 
-Prepare dataset 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare dataset
+~~~~~~~~~~~~~~~
+
+
 
 The `VQAv2 <https://visualqa.org/>`__ is a dataset containing
 open-ended questions about images. These questions require an
@@ -192,8 +197,10 @@ time and depends on your internet connection.
     Prepare calibration data:   0%|          | 0/300 [00:00<?, ?it/s]
 
 
-Vision model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Vision model
+~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -229,8 +236,10 @@ Vision model
     Applying Fast Bias correction: 100%|██████████| 49/49 [00:27<00:00,  1.80it/s]
 
 
-Text encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text encoder
+~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -263,8 +272,10 @@ Text encoder
     Applying Fast Bias correction: 100%|██████████| 120/120 [00:38<00:00,  3.11it/s]
 
 
-Compress weights 
-----------------------------------------------------------
+Compress weights
+----------------
+
+
 
 The quantization of the text decoder leads to significant accuracy loss.
 Instead of post-training quantization, we can use data free weights
@@ -284,8 +295,10 @@ The optimization process contains the following steps:
     compressed_text_decoder = nncf.compress_weights(text_decoder)
     ov.save_model(compressed_text_decoder, str(TEXT_DECODER_OV_INT8))
 
-Run optimized OpenVINO model 
-----------------------------------------------------------------------
+Run optimized OpenVINO model
+----------------------------
+
+
 
 The steps for making predictions with the optimized OpenVINO BLIP model
 are similar to the PyTorch model. Let us check the model result using
@@ -320,8 +333,10 @@ notebook <233-blip-convert-with-output.html>`__.
     # preprocess input data
     inputs = processor(raw_image, question, return_tensors="pt")
 
-Image Captioning 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Image Captioning
+~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -336,8 +351,10 @@ Image Captioning
 .. image:: 233-blip-optimize-with-output_files/233-blip-optimize-with-output_23_0.png
 
 
-Question Answering 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Question Answering
+~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -350,8 +367,10 @@ Question Answering
 .. image:: 233-blip-optimize-with-output_files/233-blip-optimize-with-output_25_0.png
 
 
-Compare file sizes 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compare file sizes
+~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -386,8 +405,10 @@ Compare file sizes
         * Model compression rate: 1.988
 
 
-Compare inference time of the FP16 and optimized models 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compare inference time of the FP16 and optimized models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on 100 samples of the calibration

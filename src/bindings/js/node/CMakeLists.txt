@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(WIN32)
-    return()
-endif()
-
 if(CMAKE_VERSION VERSION_LESS 3.14)
     message(WARNING "JS API is not available with CMake version less than 3.14, skipping")
     return()

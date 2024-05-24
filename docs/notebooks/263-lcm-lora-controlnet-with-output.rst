@@ -45,33 +45,49 @@ post <https://huggingface.co/blog/lcm_lora>`__
 This notebook explores how to speed up ControlNet pipeline using LCM
 LoRA, OpenVINO and quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__. Let us get
-“controlling”! 
+“controlling”!
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Background <#background>`__
 
-- `Background <#background>`__
-- `Stable Diffusion <#stable-diffusion>`__
-- `controlnet <#controlnet>`__
-- `Low-Rank Adaptation of Large Language Models (LoRA) <#low-rank-adaptation-of-large-language-models-lora>`__
-- `Prerequisites <#prerequisites>`__
-- `Load Original Diffusers pipeline and prepare models for conversion <#load-original-diffusers-pipeline-and-prepare-models-for-conversion>`__
-- `Condition Image <#condition-image>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
-- `ControlNet conversion <#controlnet-conversion>`__
-- `U-Net <#u-net>`__
-- `textencoder <#text-encoder>`__
-- `VAE Decoder conversion <#vae-decoder-conversion>`__
-- `Prepare Inference pipeline <#prepare-inference-pipeline>`__
-- `Prepare tokenizer and LCMScheduler <#prepare-tokenizer-and-lcmscheduler>`__
-- `Select inference device for Stable Diffusion pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
-- `Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
-- `Quantization <#quantization>`__
-- `Prepare calibration datasets <#prepare-calibration-datasets>`__
-- `Run quantization <#run-quantization>`__
-- `Compare inference time of the FP16 and INT8 models <#compare-inference-time-of-the-fp-and-int-models>`__
-- `Compare model file sizes <#compare-model-file-sizes>`__
-- `Interactive Demo <#interactive-demo>`__
+   -  `Stable Diffusion <#stable-diffusion>`__
+   -  `ControlNet <#controlnet>`__
+   -  `Low-Rank Adaptation of Large Language Models
+      (LoRA) <#low-rank-adaptation-of-large-language-models-lora>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load Original Diffusers pipeline and prepare models for
+   conversion <#load-original-diffusers-pipeline-and-prepare-models-for-conversion>`__
+-  `Condition Image <#condition-image>`__
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+
+   -  `ControlNet conversion <#controlnet-conversion>`__
+   -  `U-Net <#u-net>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `VAE Decoder conversion <#vae-decoder-conversion>`__
+
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+
+   -  `Prepare tokenizer and
+      LCMScheduler <#prepare-tokenizer-and-lcmscheduler>`__
+   -  `Select inference device for Stable Diffusion
+      pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
+
+-  `Running Text-to-Image Generation with ControlNet Conditioning and
+   OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Compare inference time of the FP16 and INT8
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+
+      -  `Compare model file sizes <#compare-model-file-sizes>`__
+
+-  `Interactive Demo <#interactive-demo>`__
 
 Background
 ----------
@@ -216,18 +232,18 @@ Prepare PyTorch models
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     controlnet_id = "lllyasviel/control_v11p_sd15_normalbae"
     adapter_id = "latent-consistency/lcm-lora-sdv1-5"
     stable_diffusion_id = "runwayml/stable-diffusion-v1-5"
-    
+
     TEXT_ENCODER_OV_PATH = Path('model/text_encoder.xml')
     UNET_OV_PATH = Path('model/unet_controlnet.xml')
     CONTROLNET_OV_PATH = Path('model/controlnet-normalbae.xml')
     VAE_DECODER_OV_PATH = Path('model/vae_decoder.xml')
     TOKENIZER_PATH = Path('model/tokenizer')
     SCHEDULER_PATH = Path('model/scheduler')
-    
+
     skip_models = TEXT_ENCODER_OV_PATH.exists() and UNET_OV_PATH.exists() and CONTROLNET_OV_PATH.exists() and VAE_DECODER_OV_PATH.exists()
 
 Load Original Diffusers pipeline and prepare models for conversion
@@ -258,12 +274,12 @@ ControlNet model 3. Load LoRA weights to the pipeline using
 
     from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
     import gc
-    
-    
+
+
     def load_original_pytorch_pipeline_components(controlnet_id:str, stable_diffusion_id:str, adapter_id:str):
         """
         Helper function for loading Stable Diffusion ControlNet pipeline and applying LCM LoRA
-    
+
         Parameters:
           controlnet_id: model id from HuggingFace hub or local path for loading ControlNet model
           stable_diffusion_id: model id from HuggingFace hub or local path for loading Stable Diffusion model
@@ -274,7 +290,7 @@ ControlNet model 3. Load LoRA weights to the pipeline using
           unet: Stable Diffusion U-Net
           vae: Stable Diffusion Variational Autoencoder (VAE)
         """
-        
+
         # load controlnet model
         controlnet = ControlNetModel.from_pretrained(controlnet_id)
         # load stable diffusion pipeline
@@ -332,20 +348,20 @@ color-coded image.
     import matplotlib.pyplot as plt
     from PIL import Image
     import numpy as np
-    
+
     example_image_url = "https://huggingface.co/lllyasviel/control_v11p_sd15_normalbae/resolve/main/images/input.png"
     urlretrieve(example_image_url, "example.png")
-    
+
     processor = NormalBaeDetector.from_pretrained("lllyasviel/Annotators")
-    
+
     image = load_image("example.png")
     control_image = processor(image)
-    
-    
+
+
     def visualize_results(orig_img:Image.Image, normal_img:Image.Image, result_img:Image.Image = None, save_fig:bool = False):
         """
         Helper function for results visualization
-        
+
         Parameters:
            orig_img (Image.Image): original image
            normal_img (Image.Image): image with bwith surface normal information
@@ -373,18 +389,18 @@ color-coded image.
         list_axes[0].imshow(np.array(orig_img))
         list_axes[1].imshow(np.array(normal_img))
         list_axes[0].set_title(orig_title, fontsize=15)
-        list_axes[1].set_title(control_title, fontsize=15) 
+        list_axes[1].set_title(control_title, fontsize=15)
         if result_img is not None:
             list_axes[2].imshow(np.array(result_img))
             list_axes[2].set_title("Result", fontsize=15)
-        
+
         fig.subplots_adjust(wspace=0.01 if is_horizontal else 0.00 , hspace=0.01 if is_horizontal else 0.1)
         fig.tight_layout()
         if save_fig:
             fig.savefig("result.png", bbox_inches='tight')
         return fig
-    
-    
+
+
     fig = visualize_results(image, control_image)
 
 
@@ -442,7 +458,7 @@ blocks, which serves additional context for the UNet model.
     import torch
     import openvino as ov
     from functools import partial
-    
+
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -450,8 +466,8 @@ blocks, which serves additional context for the UNet model.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-    
-    
+
+
     def flattenize_inputs(inputs):
         """
         Helper function for resolve nested input structure (e.g. lists or tuples of tensors)
@@ -465,16 +481,16 @@ blocks, which serves additional context for the UNet model.
             else:
                 flatten_inputs.append(input_data)
         return flatten_inputs
-    
-    
+
+
     dtype_mapping = {
         torch.float32: ov.Type.f32,
         torch.float64: ov.Type.f64,
         torch.int32: ov.Type.i32,
         torch.int64: ov.Type.i64
     }
-    
-    
+
+
     def prepare_input_info(input_dict):
         """
         Helper function for preparing input info (shapes and data types) for conversion based on example inputs
@@ -488,25 +504,25 @@ blocks, which serves additional context for the UNet model.
             if input_data.ndim == 4:
                 updated_shape[2] = -1
                 updated_shape[3] = -1
-    
+
             input_info.append((dtype_mapping[input_data.dtype], updated_shape))
         return input_info
-    
-    
+
+
     inputs = {
         "sample": torch.randn((1, 4, 64, 64)),
         "timestep": torch.tensor(1, dtype=torch.float32),
         "encoder_hidden_states": torch.randn((1,77,768)),
         "controlnet_cond": torch.randn((1,3,512,512))
     }
-    
-    
+
+
     # Prepare conditional inputs for U-Net
-    if not UNET_OV_PATH.exists():    
+    if not UNET_OV_PATH.exists():
         controlnet.eval()
         with torch.no_grad():
             down_block_res_samples, mid_block_res_sample = controlnet(**inputs, return_dict=False)
-        
+
     if not CONTROLNET_OV_PATH.exists():
         input_info = prepare_input_info(inputs)
         with torch.no_grad():
@@ -518,7 +534,7 @@ blocks, which serves additional context for the UNet model.
         print('ControlNet successfully converted to IR')
     else:
         print(f"ControlNet will be loaded from {CONTROLNET_OV_PATH}")
-    
+
     del controlnet
     gc.collect()
 
@@ -548,15 +564,15 @@ generated by ControlNet.
 .. code:: ipython3
 
     from typing import Tuple
-    
+
     class UnetWrapper(torch.nn.Module):
         def __init__(
-            self, 
-            unet, 
-            sample_dtype=torch.float32, 
-            timestep_dtype=torch.int64, 
-            encoder_hidden_states=torch.float32, 
-            down_block_additional_residuals=torch.float32, 
+            self,
+            unet,
+            sample_dtype=torch.float32,
+            timestep_dtype=torch.int64,
+            encoder_hidden_states=torch.float32,
+            down_block_additional_residuals=torch.float32,
             mid_block_additional_residual=torch.float32
         ):
             super().__init__()
@@ -566,13 +582,13 @@ generated by ControlNet.
             self.encoder_hidden_states_dtype = encoder_hidden_states
             self.down_block_additional_residuals_dtype = down_block_additional_residuals
             self.mid_block_additional_residual_dtype = mid_block_additional_residual
-    
+
         def forward(
-            self, 
-            sample:torch.Tensor, 
-            timestep:torch.Tensor, 
-            encoder_hidden_states:torch.Tensor, 
-            down_block_additional_residuals:Tuple[torch.Tensor],  
+            self,
+            sample:torch.Tensor,
+            timestep:torch.Tensor,
+            encoder_hidden_states:torch.Tensor,
+            down_block_additional_residuals:Tuple[torch.Tensor],
             mid_block_additional_residual:torch.Tensor
         ):
             sample.to(self.sample_dtype)
@@ -581,27 +597,27 @@ generated by ControlNet.
             down_block_additional_residuals = [res.to(self.down_block_additional_residuals_dtype) for res in down_block_additional_residuals]
             mid_block_additional_residual.to(self.mid_block_additional_residual_dtype)
             return self.unet(
-                sample, 
-                timestep, 
-                encoder_hidden_states, 
-                down_block_additional_residuals=down_block_additional_residuals, 
+                sample,
+                timestep,
+                encoder_hidden_states,
+                down_block_additional_residuals=down_block_additional_residuals,
                 mid_block_additional_residual=mid_block_additional_residual
             )
-    
-    
-    
+
+
+
     if not UNET_OV_PATH.exists():
         inputs.pop("controlnet_cond", None)
         inputs["down_block_additional_residuals"] = down_block_res_samples
         inputs["mid_block_additional_residual"] = mid_block_res_sample
         input_info = prepare_input_info(inputs)
-    
+
         wrapped_unet = UnetWrapper(unet)
         wrapped_unet.eval()
-    
+
         with torch.no_grad():
             ov_model = ov.convert_model(wrapped_unet, example_input=inputs)
-            
+
         for (input_dtype, input_shape), input_tensor in zip(input_info, ov_model.inputs):
             input_tensor.get_node().set_partial_shape(ov.PartialShape(input_shape))
             input_tensor.get_node().set_element_type(input_dtype)
@@ -654,9 +670,9 @@ hidden states.
 
     def convert_encoder(text_encoder:torch.nn.Module, ir_path:Path):
         """
-        Convert Text Encoder model to OpenVINO IR. 
+        Convert Text Encoder model to OpenVINO IR.
         Function accepts text encoder model, prepares example inputs for conversion, and convert it to OpenVINO Model
-        Parameters: 
+        Parameters:
             text_encoder (torch.nn.Module): text_encoder model
             ir_path (Path): File for storing model
         Returns:
@@ -666,7 +682,7 @@ hidden states.
             input_ids = torch.ones((1, 77), dtype=torch.long)
             # switch model to inference mode
             text_encoder.eval()
-    
+
             # disable gradients calculation for reducing memory consumption
             with torch.no_grad():
                 ov_model = ov.convert_model(
@@ -678,8 +694,8 @@ hidden states.
                 del ov_model
             cleanup_torchscript_cache()
             print('Text Encoder successfully converted to IR')
-        
-    
+
+
     if not TEXT_ENCODER_OV_PATH.exists():
         convert_encoder(text_encoder, TEXT_ENCODER_OV_PATH)
     else:
@@ -725,10 +741,10 @@ diffusion
 
     def convert_vae_decoder(vae: torch.nn.Module, ir_path: Path):
         """
-        Convert VAE model to IR format. 
-        Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for convert, 
-        Parameters: 
+        Convert VAE model to IR format.
+        Function accepts pipeline, creates wrapper class for export only necessary for inference part,
+        prepares example inputs for convert,
+        Parameters:
             vae (torch.nn.Module): VAE model
             ir_path (Path): File for storing model
         Returns:
@@ -738,14 +754,14 @@ diffusion
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-    
+
             def forward(self, latents):
                 return self.vae.decode(latents)
-    
+
         if not ir_path.exists():
             vae_decoder = VAEDecoderWrapper(vae)
             latents = torch.zeros((1, 4, 64, 64))
-    
+
             vae_decoder.eval()
             with torch.no_grad():
                 ov_model = ov.convert_model(vae_decoder, example_input=latents, input=[-1, 4, -1, -1])
@@ -753,13 +769,13 @@ diffusion
             del ov_model
             cleanup_torchscript_cache()
             print('VAE decoder successfully converted to IR')
-    
-    
+
+
     if not VAE_DECODER_OV_PATH.exists():
         convert_vae_decoder(vae, VAE_DECODER_OV_PATH)
     else:
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
-    
+
     del vae
 
 
@@ -775,7 +791,7 @@ Prepare Inference pipeline
 
 We already deeply discussed how the ControlNet-guided pipeline works on
 example pose-controlled generation in `controlnet
-notebook <../235-controlnet-stable-diffusion>`__. In our current
+notebook <235-controlnet-stable-diffusion-with-output.html>`__. In our current
 example, the pipeline remains without changes. Similarly to Diffusers
 ``StableDiffusionControlNetPipeline``, we define our own
 ``OVControlNetStableDiffusionPipeline`` inference pipeline based on
@@ -787,13 +803,13 @@ OpenVINO.
     from transformers import CLIPTokenizer
     from typing import Union, List, Optional, Tuple
     import cv2
-    
-    
+
+
     def scale_fit_to_window(dst_width:int, dst_height:int, image_width:int, image_height:int):
         """
-        Preprocessing helper function for calculating image size for resize with peserving original aspect ratio 
+        Preprocessing helper function for calculating image size for resize with peserving original aspect ratio
         and fitting image to specific window size
-        
+
         Parameters:
           dst_width (int): destination window width
           dst_height (int): destination window height
@@ -805,15 +821,15 @@ OpenVINO.
         """
         im_scale = min(dst_height / image_height, dst_width / image_width)
         return int(im_scale * image_width), int(im_scale * image_height)
-    
-    
+
+
     def preprocess(image: Image.Image, dst_height:int = 512, dst_width:int = 512):
         """
         Image preprocessing function. Takes image in PIL.Image format, resizes it to keep aspect ration and fits to model input window 512x512,
         then converts it to np.ndarray and adds padding with zeros on right or bottom side of image (depends from aspect ratio), after that
         converts data to float32 data type and change range of values from [0, 255] to [-1, 1], finally, converts data layout from planar NHWC to NCHW.
         The function returns preprocessed input tensor and padding size, which can be used in postprocessing.
-        
+
         Parameters:
           image (Image.Image): input image
           dst_width: destination image width
@@ -832,15 +848,15 @@ OpenVINO.
         image = image.astype(np.float32) / 255.0
         image = image.transpose(0, 3, 1, 2)
         return image, pad
-    
-    
+
+
     def randn_tensor(
         shape: Union[Tuple, List],
         dtype: Optional[torch.dtype] = torch.float32,
     ):
         """
         Helper function for generation random values tensor with given shape and data type
-        
+
         Parameters:
           shape (Union[Tuple, List]): shape for filling random values
           dtype (torch.dtype, *optiona*, torch.float32): data type for result
@@ -849,8 +865,8 @@ OpenVINO.
         """
         latents = torch.randn(shape, dtype=dtype)
         return latents.numpy()
-    
-    
+
+
     class OVControlNetStableDiffusionPipeline(DiffusionPipeline):
         """
         OpenVINO inference pipeline for Stable Diffusion with ControlNet guidence
@@ -871,11 +887,11 @@ OpenVINO.
             self.vae_scale_factor = 8
             self.scheduler = scheduler
             self.load_models(core, device, controlnet, text_encoder, unet, vae_decoder)
-    
+
         def load_models(self, core: ov.Core, device: str, controlnet:ov.Model, text_encoder: ov.Model, unet: ov.Model, vae_decoder: ov.Model):
             """
             Function for loading models on device using OpenVINO
-            
+
             Parameters:
               core (Core): OpenVINO runtime Core class instance
               device (str): inference device
@@ -891,7 +907,7 @@ OpenVINO.
             self.register_to_config(unet=core.compile_model(unet, device))
             ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device != "CPU" else {}
             self.vae_decoder = core.compile_model(vae_decoder, device, ov_config)
-    
+
         def __call__(
             self,
             prompt: Union[str, List[str]],
@@ -907,7 +923,7 @@ OpenVINO.
         ):
             """
             Function invoked when calling the pipeline for generation.
-    
+
             Parameters:
                 prompt (`str` or `List[str]`):
                     The prompt or prompts to guide the image generation.
@@ -935,9 +951,9 @@ OpenVINO.
                     [PIL](https://pillow.readthedocs.io/en/stable/): `Image.Image` or `np.array`.
             Returns:
                 image ([List[Union[np.ndarray, Image.Image]]): generaited images
-                
+
             """
-    
+
             # 1. Define call parameters
             batch_size = 1 if isinstance(prompt, str) else len(prompt)
             if guidance_scale < 1 and negative_prompt:
@@ -948,17 +964,17 @@ OpenVINO.
             do_classifier_free_guidance = guidance_scale > 1.0
             # 2. Encode input prompt
             text_embeddings = self._encode_prompt(prompt, do_classifier_free_guidance=do_classifier_free_guidance, negative_prompt=negative_prompt)
-    
+
             # 3. Preprocess image
             orig_width, orig_height = image.size
             image, pad = preprocess(image, height, width)
             if do_classifier_free_guidance:
                 image = np.concatenate(([image] * 2))
-    
+
             # 4. set timesteps
             self.scheduler.set_timesteps(num_inference_steps)
             timesteps = self.scheduler.timesteps
-    
+
             # 5. Prepare latent variables
             num_channels_latents = 4
             latents = self.prepare_latents(
@@ -968,7 +984,7 @@ OpenVINO.
                 width,
                 latents=latents,
             )
-    
+
             # 6. Denoising loop
             with self.progress_bar(total=num_inference_steps) as progress_bar:
                 for i, t in enumerate(timesteps):
@@ -978,25 +994,25 @@ OpenVINO.
                     latent_model_input = np.concatenate(
                         [latents] * 2) if do_classifier_free_guidance else latents
                     latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-    
+
                     result = self.controlnet([latent_model_input, t, text_embeddings, image], share_inputs=True, share_outputs=True)
                     down_and_mid_blok_samples = [sample * controlnet_conditioning_scale for _, sample in result.items()]
-    
+
                     # predict the noise residual
                     noise_pred = self.unet([latent_model_input, t, text_embeddings, *down_and_mid_blok_samples], share_inputs=True, share_outputs=True)[0]
-    
+
                     # perform guidance
                     if do_classifier_free_guidance:
                         noise_pred_uncond, noise_pred_text = noise_pred[0], noise_pred[1]
                         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-    
+
                     # compute the previous noisy sample x_t -> x_t-1
                     latents = self.scheduler.step(torch.from_numpy(noise_pred), t, torch.from_numpy(latents)).prev_sample.numpy()
                     progress_bar.update()
-    
+
             # 7. Post-processing
             image = self.decode_latents(latents, pad)
-    
+
             # 8. Convert to PIL
             if output_type == "pil":
                 image = self.numpy_to_pil(image)
@@ -1004,13 +1020,13 @@ OpenVINO.
             else:
                 image = [cv2.resize(img, (orig_width, orig_width))
                          for img in image]
-    
+
             return image
-    
+
         def _encode_prompt(self, prompt:Union[str, List[str]], num_images_per_prompt:int = 1, do_classifier_free_guidance:bool = True, negative_prompt:Union[str, List[str]] = None):
             """
             Encodes the prompt into text encoder hidden states.
-    
+
             Parameters:
                 prompt (str or list(str)): prompt to be encoded
                 num_images_per_prompt (int): number of images that should be generated per prompt
@@ -1020,7 +1036,7 @@ OpenVINO.
                 text_embeddings (np.ndarray): text encoder hidden states
             """
             batch_size = len(prompt) if isinstance(prompt, list) else 1
-    
+
             # tokenize input prompts
             text_inputs = self.tokenizer(
                 prompt,
@@ -1030,9 +1046,9 @@ OpenVINO.
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-    
+
             text_embeddings = self.text_encoder(text_input_ids, share_inputs=True, share_outputs=True)[0]
-    
+
             # duplicate text embeddings for each generation per prompt
             if num_images_per_prompt != 1:
                 bs_embed, seq_len, _ = text_embeddings.shape
@@ -1040,7 +1056,7 @@ OpenVINO.
                     text_embeddings, (1, num_images_per_prompt, 1))
                 text_embeddings = np.reshape(
                     text_embeddings, (bs_embed * num_images_per_prompt, seq_len, -1))
-    
+
             # get unconditional embeddings for classifier free guidance
             if do_classifier_free_guidance:
                 uncond_tokens: List[str]
@@ -1058,26 +1074,26 @@ OpenVINO.
                     truncation=True,
                     return_tensors="np",
                 )
-    
+
                 uncond_embeddings = self.text_encoder(uncond_input.input_ids, share_inputs=True, share_outputs=True)[0]
-    
+
                 # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
                 seq_len = uncond_embeddings.shape[1]
                 uncond_embeddings = np.tile(uncond_embeddings, (1, num_images_per_prompt, 1))
                 uncond_embeddings = np.reshape(uncond_embeddings, (batch_size * num_images_per_prompt, seq_len, -1))
-    
+
                 # For classifier free guidance, we need to do two forward passes.
                 # Here we concatenate the unconditional and text embeddings into a single batch
                 # to avoid doing two forward passes
                 text_embeddings = np.concatenate([uncond_embeddings, text_embeddings])
-    
+
             return text_embeddings
-    
+
         def prepare_latents(self, batch_size:int, num_channels_latents:int, height:int, width:int, dtype:np.dtype = torch.float32, latents:np.ndarray = None):
             """
-            Preparing noise to image generation. If initial latents are not provided, they will be generated randomly, 
+            Preparing noise to image generation. If initial latents are not provided, they will be generated randomly,
             then prepared latents scaled by the standard deviation required by the scheduler
-            
+
             Parameters:
                batch_size (int): input batch size
                num_channels_latents (int): number of channels for noise generation
@@ -1093,15 +1109,15 @@ OpenVINO.
                 latents = randn_tensor(shape, dtype=dtype)
             else:
                 latents = latents
-    
+
             # scale the initial noise by the standard deviation required by the scheduler
             latents = latents * self.scheduler.init_noise_sigma
             return latents
-    
+
         def decode_latents(self, latents:np.array, pad:Tuple[int]):
             """
             Decode predicted image from latent space using VAE Decoder and unpad image result
-            
+
             Parameters:
                latents (np.ndarray): image encoded in diffusion latent space
                pad (Tuple[int]): each side padding sizes obtained on preprocessing step
@@ -1143,7 +1159,7 @@ the original pipeline scheduler with
 
     from diffusers import LCMScheduler
     from transformers import AutoTokenizer
-    
+
     if not TOKENIZER_PATH.exists():
         tokenizer = AutoTokenizer.from_pretrained(stable_diffusion_id, subfolder="tokenizer")
         tokenizer.save_pretrained(TOKENIZER_PATH)
@@ -1165,16 +1181,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='CPU',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -1220,7 +1236,7 @@ Let’s see model in action
 
     prompt = "A head full of roses"
     torch.manual_seed(4257)
-    
+
     result = ov_pipe(prompt, control_image, 4)
     result[0]
 
@@ -1291,7 +1307,7 @@ improve model inference speed.
         description='Quantization',
         disabled=is_gpu_device,
     )
-    
+
     to_quantize
 
 Let’s load ``skip magic`` extension to skip quantization if
@@ -1301,9 +1317,9 @@ Let’s load ``skip magic`` extension to skip quantization if
 
     import sys
     sys.path.append("../utils")
-    
+
     int8_pipe = None
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration datasets
@@ -1321,32 +1337,32 @@ To collect intermediate model inputs for calibration we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
     from tqdm.notebook import tqdm
     from transformers import set_seed
     from typing import Any, Dict, List
-    
+
     set_seed(1)
-    
+
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model, prob: float):
             super().__init__(compiled_model)
             self.data_cache = []
             self.prob = np.clip(prob, 0, 1)
-    
+
         def __call__(self, *args, **kwargs):
             if np.random.rand() >= self.prob:
                 self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
-    
+
     def collect_calibration_data(pipeline: OVControlNetStableDiffusionPipeline, subset_size: int) -> List[Dict]:
         original_unet = pipeline.unet
         pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
-    
+
         dataset = datasets.load_dataset("fusing/instructpix2pix-1000-samples", split="train", streaming=True).shuffle(seed=42)
         pipeline.set_progress_bar_config(disable=True)
-    
+
         # Run inference for data collection
         pbar = tqdm(total=subset_size)
         diff = 0
@@ -1357,7 +1373,7 @@ To collect intermediate model inputs for calibration we should customize
                 continue
             image = batch["input_image"]
             control_image = processor(image)
-    
+
             _ = pipeline(prompt, image=control_image, num_inference_steps=4)
             collected_subset_size = len(pipeline.unet.data_cache)
             control_images.append((min(collected_subset_size, subset_size), control_image))
@@ -1366,7 +1382,7 @@ To collect intermediate model inputs for calibration we should customize
                 break
             pbar.update(collected_subset_size - diff)
             diff = collected_subset_size
-    
+
         control_calibration_dataset = pipeline.unet.data_cache
         pipeline.set_progress_bar_config(disable=False)
         pipeline.unet = original_unet
@@ -1375,7 +1391,7 @@ To collect intermediate model inputs for calibration we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     CONTROLNET_INT8_OV_PATH = Path("model/controlnet-normalbae_int8.xml")
     UNET_INT8_OV_PATH = Path("model/unet_controlnet_int8.xml")
     if not (CONTROLNET_INT8_OV_PATH.exists() and UNET_INT8_OV_PATH.exists()):
@@ -1395,7 +1411,7 @@ the last ControlNet input is a preprocessed ``control_image``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if not CONTROLNET_INT8_OV_PATH.exists():
         control_calibration_data = []
         prev_idx = 0
@@ -1420,9 +1436,9 @@ improvement in SD models and increased quantization time.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
-    
+
     if not UNET_INT8_OV_PATH.exists():
         unet = core.read_model(UNET_OV_PATH)
         quantized_unet = nncf.quantize(
@@ -1438,7 +1454,7 @@ improvement in SD models and increased quantization time.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if not CONTROLNET_INT8_OV_PATH.exists():
         controlnet = core.read_model(CONTROLNET_OV_PATH)
         quantized_controlnet = nncf.quantize(
@@ -1457,9 +1473,9 @@ the same input data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from IPython.display import display
-    
+
     int8_pipe = OVControlNetStableDiffusionPipeline(
         tokenizer,
         scheduler,
@@ -1470,12 +1486,12 @@ the same input data.
         VAE_DECODER_OV_PATH,
         device=device.value
     )
-    
+
     prompt = "A head full of roses"
     torch.manual_seed(4257)
-    
+
     int8_result = int8_pipe(prompt, control_image, 4)
-    
+
     fig = visualize_results(result[0], int8_result[0])
     fig.axes[0].set_title('FP16 result', fontsize=15)
     fig.axes[1].set_title('INT8 result', fontsize=15)
@@ -1507,9 +1523,9 @@ pipelines, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
-    
+
     validation_size = 10
     calibration_dataset = datasets.load_dataset("fusing/instructpix2pix-1000-samples", split="train", streaming=True).take(validation_size)
     validation_data = []
@@ -1518,7 +1534,7 @@ pipelines, we use median inference time on calibration subset.
         image = batch["input_image"]
         control_image = processor(image)
         validation_data.append((prompt, control_image))
-    
+
     def calculate_inference_time(pipeline, calibration_dataset):
         inference_time = []
         pipeline.set_progress_bar_config(disable=True)
@@ -1533,7 +1549,7 @@ pipelines, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp_latency = calculate_inference_time(ov_pipe, validation_data)
     int8_latency = calculate_inference_time(int8_pipe, validation_data)
     print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
@@ -1552,10 +1568,10 @@ Compare model file sizes
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
     quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
-    
+
     print(f"FP16 UNet size: {fp16_ir_model_size:.2f} MB")
     print(f"INT8 UNet size: {quantized_model_size:.2f} MB")
     print(f"UNet compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -1571,10 +1587,10 @@ Compare model file sizes
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp16_ir_model_size = CONTROLNET_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
     quantized_model_size = CONTROLNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
-    
+
     print(f"FP16 ControlNet size: {fp16_ir_model_size:.2f} MB")
     print(f"INT8 ControlNet size: {quantized_model_size:.2f} MB")
     print(f"ControlNet compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -1601,9 +1617,9 @@ options for generation: ``Guidance scale``, ``Seed`` and ``Steps``.
 
     import gradio as gr
     MAX_SEED = np.iinfo(np.int32).max
-    
+
     quantized_model_present = int8_pipe is not None
-    
+
     gr.close_all()
     with gr.Blocks() as demo:
         with gr.Row():
@@ -1632,29 +1648,29 @@ options for generation: ``Guidance scale``, ``Seed`` and ``Steps``.
             with gr.Column(visible=quantized_model_present) as quantization_step:
                 int_result = gr.Image(label="Result (Quantized)")
         examples = gr.Examples([["example.png", "a head full of roses"]], [inp_img, inp_prompt])
-    
+
         def extract_normal_map(img):
             if img is None:
                 raise gr.Error("Please upload the image or use one from the examples list")
             return processor(img)
-    
+
         def generate(img, prompt, negative_prompt, seed, num_steps, guidance_scale):
             torch.manual_seed(seed)
             control_img = extract_normal_map(img)
-            
+
             result = ov_pipe(prompt, control_img, num_steps, guidance_scale=guidance_scale, negative_prompt=negative_prompt)[0]
             if int8_pipe is not None:
                 torch.manual_seed(seed)
                 int8_result = int8_pipe(prompt, control_img, num_steps, guidance_scale=guidance_scale, negative_prompt=negative_prompt)[0]
                 return control_img, result, int8_result
             return control_img, result
-    
+
         output_images = [out_normal, out_result]
         if quantized_model_present:
             output_images.append(int_result)
         btn.click(generate, [inp_img, inp_prompt, inp_neg_prompt, inp_seed, inp_steps, guidance_scale], output_images)
-    
-    
+
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

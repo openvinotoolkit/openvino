@@ -119,3 +119,30 @@ pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts
     auto m = std::make_shared<pass::pattern::Matcher>(const_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+pass::MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
+    MATCHER_SCOPE(MarkCompressedFloatConstants);
+
+    auto constant = pattern::wrap_type<ov::op::v0::Constant>();
+    auto convert = pattern::wrap_type<ov::op::v0::Convert>({constant});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& convert_node = as_type_ptr<ov::op::v0::Convert>(m.get_match_root());
+        const auto& const_node = convert_node->input_value(0).get_node_shared_ptr();
+        if (convert_node == nullptr || const_node == nullptr)
+            return false;
+        if (convert_node->get_destination_type() != element::f32)
+            return false;
+        if (const_node->get_output_element_type(0) != element::f16 &&
+            const_node->get_output_element_type(0) != element::bf16)
+            return false;
+
+        mark_as_decompression(convert_node);
+        disable_constant_folding(const_node);
+        disable_constant_folding(convert_node);
+        return true;
+    };
+
+    auto m = std::make_shared<pass::pattern::Matcher>(convert, matcher_name);
+    this->register_matcher(m, callback);
+}

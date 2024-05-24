@@ -18,7 +18,10 @@ results.
 In this tutorial, we will learn how to convert and run `Controlnet QR
 Code Monster For
 SD-1.5 <https://huggingface.co/monster-labs/control_v1p_sd15_qrcode_monster>`__
-by `monster-labs <https://qrcodemonster.art/>`__.
+by `monster-labs <https://qrcodemonster.art/>`__. An additional part
+demonstrates how to run quantization with
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
+pipeline.
 
 |image0|
 
@@ -26,7 +29,8 @@ If you want to learn more about ControlNet and particularly on
 conditioning by pose, please refer to this
 `tutorial <235-controlnet-stable-diffusion-with-output.html>`__
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
@@ -46,6 +50,14 @@ conditioning by pose, please refer to this
 -  `Select inference device for Stable Diffusion
    pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
 -  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Compare inference time of the FP16 and INT8
+      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+
 -  `Running Text-to-Image Generation with ControlNet Conditioning and
    OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
 
@@ -59,7 +71,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q accelerate diffusers transformers torch gradio qrcode opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0"
+    %pip install -q "openvino>=2023.1.0" "nncf>=2.7.0"
 
 Instantiating Generation Pipeline
 ---------------------------------
@@ -100,24 +112,6 @@ controlnet model and ``stable-diffusion-v1-5``:
         "runwayml/stable-diffusion-v1-5",
         controlnet=controlnet,
     )
-
-
-.. parsed-literal::
-
-    /home/idavidyu/.virtualenvs/test/lib/python3.10/site-packages/torch/cuda/__init__.py:611: UserWarning: Can't initialize NVML
-      warnings.warn("Can't initialize NVML")
-
-
-
-.. parsed-literal::
-
-    Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    You have disabled the safety checker for <class 'diffusers.pipelines.controlnet.pipeline_controlnet.StableDiffusionControlNetPipeline'> by passing `safety_checker=None`. Ensure that you abide to the conditions of the Stable Diffusion license and do not expose unfiltered results in services or applications open to the public. Both the diffusers team and Hugging Face strongly recommend to keep the safety filter enabled in all public facing circumstances, disabling it only for use-cases that involve analyzing network behavior or auditing its results. For more information, please have a look at https://github.com/huggingface/diffusers/pull/254 .
-
 
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
@@ -412,7 +406,7 @@ diffusion
 
 .. parsed-literal::
 
-    VAE decoder successfully converted to IR
+    VAE decoder will be loaded from vae.xml
 
 
 Select inference device for Stable Diffusion pipeline
@@ -442,7 +436,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='CPU')
 
 
 
@@ -610,8 +604,8 @@ on OpenVINO.
             """
             self.text_encoder = core.compile_model(text_encoder, device)
             self.text_encoder_out = self.text_encoder.output(0)
-            self.controlnet = core.compile_model(controlnet, device)
-            self.unet = core.compile_model(unet, device)
+            self.register_to_config(controlnet=core.compile_model(controlnet, device))
+            self.register_to_config(unet=core.compile_model(unet, device))
             self.unet_out = self.unet.output(0)
             self.vae_decoder = core.compile_model(vae_decoder, device)
             self.vae_decoder_out = self.vae_decoder.output(0)
@@ -845,39 +839,6 @@ on OpenVINO.
             image = np.transpose(image, (0, 2, 3, 1))
             return image
 
-
-.. parsed-literal::
-
-    /tmp/ipykernel_438166/1889049886.py:1: FutureWarning: Importing `DiffusionPipeline` or `ImagePipelineOutput` from diffusers.pipeline_utils is deprecated. Please import from diffusers.pipelines.pipeline_utils instead.
-      from diffusers.pipeline_utils import DiffusionPipeline
-
-
-Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO
---------------------------------------------------------------------------
-
-
-
-Now, we are ready to start generation. For improving the generation
-process, we also introduce an opportunity to provide a
-``negative prompt``. Technically, positive prompt steers the diffusion
-toward the images associated with it, while negative prompt steers the
-diffusion away from it. More explanation of how it works can be found in
-this
-`article <https://stable-diffusion-art.com/how-negative-prompt-work/>`__.
-We can keep this field empty if we want to generate image without
-negative prompting.
-
-.. code:: ipython3
-
-    from transformers import CLIPTokenizer
-    from diffusers import EulerAncestralDiscreteScheduler
-    
-    tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14')
-    scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
-    
-    ov_pipe = OVContrlNetStableDiffusionPipeline(tokenizer, scheduler, core, controlnet_ir_path, text_encoder_ir_path, unet_ir_path, vae_ir_path, device=device.value)
-
-
 .. code:: ipython3
 
     import qrcode
@@ -900,7 +861,7 @@ negative prompting.
         w = (w + 255 + offset_min) // 256 * 256
         h = (h + 255 + offset_min) // 256 * 256
         if w > 1024:
-            raise gr.Error("QR code is too large, please use a shorter content")
+            raise RuntimeError("QR code is too large, please use a shorter content")
         bg = Image.new('L', (w, h), 128)
     
         # align on 16px grid
@@ -911,7 +872,491 @@ negative prompting.
 
 .. code:: ipython3
 
+    from transformers import CLIPTokenizer
+    from diffusers import EulerAncestralDiscreteScheduler
+    
+    tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14')
+    scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
+    
+    ov_pipe = OVContrlNetStableDiffusionPipeline(tokenizer, scheduler, core, controlnet_ir_path, text_encoder_ir_path, unet_ir_path, vae_ir_path, device=device.value)
+
+Now, let’s see model in action
+
+.. code:: ipython3
+
+    np.random.seed(42)
+    
+    qrcode_image = create_code("Hi OpenVINO")
+    image = ov_pipe(
+        "cozy town on snowy mountain slope 8k",
+        qrcode_image,
+        negative_prompt="blurry unreal occluded",
+        num_inference_steps=25,
+        guidance_scale=7.7,
+        controlnet_conditioning_scale=1.4
+    )[0]
+    
+    image
+
+
+.. parsed-literal::
+
+    /home/ltalamanova/omz/lib/python3.8/site-packages/diffusers/configuration_utils.py:135: FutureWarning: Accessing config attribute `controlnet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'controlnet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.controlnet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
+
+
+
+.. image:: 264-qrcode-monster-with-output_files/264-qrcode-monster-with-output_22_1.png
+
+
+
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``OVContrlNetStableDiffusionPipeline`` structure,
+ControlNet and UNet are used in the cycle repeating inference on each
+diffusion step, while other parts of pipeline take part only once. That
+is why computation cost and speed of ControlNet and UNet become the
+critical path in the pipeline. Quantizing the rest of the SD pipeline
+does not significantly improve inference performance but can lead to a
+substantial degradation of accuracy.
+
+The optimization process contains the following steps:
+
+1. Create a calibration dataset for quantization.
+2. Run ``nncf.quantize()`` to obtain quantized model.
+3. Save the ``INT8`` model using ``openvino.save_model()`` function.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+.. code:: ipython3
+
+    is_gpu_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(
+        value=not is_gpu_device,
+        description='Quantization',
+        disabled=is_gpu_device,
+    )
+    
+    to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    import sys
+    sys.path.append("../utils")
+    
+    int8_pipe = None
+    
+    %load_ext skip_kernel_extension
+
+Prepare calibration datasets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use a prompts below as calibration data for ControlNet and UNet. To
+collect intermediate model inputs for calibration we should customize
+``CompiledModel``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    text_prompts = [
+        "a bilboard in NYC with a qrcode",
+        "a samurai side profile, realistic, 8K, fantasy",
+        "A sky view of a colorful lakes and rivers flowing through the desert",
+        "Bright sunshine coming through the cracks of a wet, cave wall of big rocks",
+        "A city view with clouds",
+        "A forest overlooking a mountain",
+        "Sky view of highly aesthetic, ancient greek thermal baths  in beautiful nature",
+        "A dream-like futuristic city with the light trails of cars zipping through it's many streets",
+    ]
+    
+    negative_prompts = [
+        "blurry unreal occluded",
+        "low contrast disfigured uncentered mangled",
+        "amateur out of frame low quality nsfw",
+        "ugly underexposed jpeg artifacts",
+        "low saturation disturbing content",
+        "overexposed severe distortion",
+        "amateur NSFW",
+        "ugly mutilated out of frame disfigured.",
+    ]
+    
+    qr_code_contents = [
+        "Hugging Face",
+        "pre-trained diffusion model",
+        "image generation technique",
+        "control network",
+        "AI QR Code Generator",
+        "Explore NNCF today!",
+        "Join OpenVINO community",
+        "network compression",
+    ]
+    qrcode_images = [create_code(content) for content in qr_code_contents]
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from tqdm.notebook import tqdm
+    from transformers import set_seed
+    from typing import Any, Dict, List
+    
+    set_seed(1)
+    
+    num_inference_steps = 25
+    
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model, prob: float):
+            super().__init__(compiled_model)
+            self.data_cache = []
+            self.prob = np.clip(prob, 0, 1)
+    
+        def __call__(self, *args, **kwargs):
+            if np.random.rand() >= self.prob:
+                self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+    
+    def collect_calibration_data(pipeline: OVContrlNetStableDiffusionPipeline, subset_size: int) -> List[Dict]:
+        original_unet = pipeline.unet
+        pipeline.unet = CompiledModelDecorator(original_unet, prob=0)
+        pipeline.set_progress_bar_config(disable=True)
+    
+        pbar = tqdm(total=subset_size)
+        diff = 0
+        for prompt, qrcode_image, negative_prompt in zip(text_prompts, qrcode_images, negative_prompts):
+            _ = pipeline(
+                prompt,
+                qrcode_image,
+                negative_prompt=negative_prompt,
+                num_inference_steps=num_inference_steps,
+            )
+            collected_subset_size = len(pipeline.unet.data_cache)
+            pbar.update(collected_subset_size - diff)
+            if collected_subset_size >= subset_size:
+                break
+            diff = collected_subset_size
+    
+        calibration_dataset = pipeline.unet.data_cache
+        pipeline.set_progress_bar_config(disable=False)
+        pipeline.unet = original_unet
+        return calibration_dataset
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    CONTROLNET_INT8_OV_PATH = Path("controlnet_int8.xml")
+    UNET_INT8_OV_PATH = Path("unet_int8.xml")
+    
+    if not (CONTROLNET_INT8_OV_PATH.exists() and UNET_INT8_OV_PATH.exists()):
+        subset_size = 200
+        unet_calibration_data = collect_calibration_data(ov_pipe, subset_size=subset_size)
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/100 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    /home/ltalamanova/omz/lib/python3.8/site-packages/diffusers/configuration_utils.py:135: FutureWarning: Accessing config attribute `controlnet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'controlnet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.controlnet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
+
+The first three inputs of ControlNet are the same as the inputs of UNet,
+the last ControlNet input is a preprocessed ``qrcode_image``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    if not CONTROLNET_INT8_OV_PATH.exists():
+        control_calibration_data = []
+        prev_idx = 0
+        for qrcode_image in qrcode_images:
+            preprocessed_image, _ = preprocess(qrcode_image)
+            for i in range(prev_idx, prev_idx + num_inference_steps):
+                control_calibration_data.append(unet_calibration_data[i][:3] + [preprocessed_image])
+            prev_idx += num_inference_steps
+
+Run quantization
+~~~~~~~~~~~~~~~~
+
+
+
+Create a quantized model from the pre-trained converted OpenVINO model.
+``FastBiasCorrection`` algorithm is disabled due to minimal accuracy
+improvement in SD models and increased quantization time.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    
+    if not UNET_INT8_OV_PATH.exists():
+        unet = core.read_model(unet_ir_path)
+        quantized_unet = nncf.quantize(
+            model=unet,
+            calibration_dataset=nncf.Dataset(unet_calibration_data),
+            subset_size=subset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+            advanced_parameters=nncf.AdvancedQuantizationParameters(
+                disable_bias_correction=True
+            )
+        )
+        ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    if not CONTROLNET_INT8_OV_PATH.exists():
+        controlnet = core.read_model(controlnet_ir_path)
+        quantized_controlnet = nncf.quantize(
+            model=controlnet,
+            calibration_dataset=nncf.Dataset(control_calibration_data),
+            subset_size=subset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+            advanced_parameters=nncf.AdvancedQuantizationParameters(
+                disable_bias_correction=True
+            )
+        )
+        ov.save_model(quantized_controlnet, CONTROLNET_INT8_OV_PATH)
+
+Let’s compare the images generated by the original and optimized
+pipelines.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    np.random.seed(int(42))
+    int8_pipe = OVContrlNetStableDiffusionPipeline(tokenizer, scheduler, core, CONTROLNET_INT8_OV_PATH, text_encoder_ir_path, UNET_INT8_OV_PATH, vae_ir_path, device=device.value)
+    
+    int8_image = int8_pipe(
+            "cozy town on snowy mountain slope 8k",
+            qrcode_image,
+            negative_prompt="blurry unreal occluded",
+            num_inference_steps=25,
+            guidance_scale=7.7,
+            controlnet_conditioning_scale=1.4
+    )[0]
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import matplotlib.pyplot as plt
+    
+    def visualize_results(orig_img:Image.Image, optimized_img:Image.Image):
+        """
+        Helper function for results visualization
+    
+        Parameters:
+           orig_img (Image.Image): generated image using FP16 models
+           optimized_img (Image.Image): generated image using quantized models
+        Returns:
+           fig (matplotlib.pyplot.Figure): matplotlib generated figure contains drawing result
+        """
+        orig_title = "FP16 pipeline"
+        control_title = "INT8 pipeline"
+        figsize = (20, 20)
+        fig, axs = plt.subplots(1, 2, figsize=figsize, sharex='all', sharey='all')
+        list_axes = list(axs.flat)
+        for a in list_axes:
+            a.set_xticklabels([])
+            a.set_yticklabels([])
+            a.get_xaxis().set_visible(False)
+            a.get_yaxis().set_visible(False)
+            a.grid(False)
+        list_axes[0].imshow(np.array(orig_img))
+        list_axes[1].imshow(np.array(optimized_img))
+        list_axes[0].set_title(orig_title, fontsize=15)
+        list_axes[1].set_title(control_title, fontsize=15)
+    
+        fig.subplots_adjust(wspace=0.01, hspace=0.01)
+        fig.tight_layout()
+        return fig
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fig = visualize_results(image, int8_image)
+
+
+
+.. image:: 264-qrcode-monster-with-output_files/264-qrcode-monster-with-output_39_0.png
+
+
+Compare model file sizes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp16_ir_model_size = unet_ir_path.with_suffix(".bin").stat().st_size / 2**20
+    quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
+    
+    print(f"FP16 UNet size: {fp16_ir_model_size:.2f} MB")
+    print(f"INT8 UNet size: {quantized_model_size:.2f} MB")
+    print(f"UNet compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 UNet size: 1639.41 MB
+    INT8 UNet size: 820.96 MB
+    UNet compression rate: 1.997
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp16_ir_model_size = controlnet_ir_path.with_suffix(".bin").stat().st_size / 2**20
+    quantized_model_size = CONTROLNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
+    
+    print(f"FP16 ControlNet size: {fp16_ir_model_size:.2f} MB")
+    print(f"INT8 ControlNet size: {quantized_model_size:.2f} MB")
+    print(f"ControlNet compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 ControlNet size: 689.09 MB
+    INT8 ControlNet size: 345.14 MB
+    ControlNet compression rate: 1.997
+
+
+Compare inference time of the FP16 and INT8 pipelines
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To measure the inference performance of the ``FP16`` and ``INT8``
+pipelines, we use mean inference time on 3 samples.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import time
+    
+    def calculate_inference_time(pipeline):
+        inference_time = []
+        pipeline.set_progress_bar_config(disable=True)
+        for i in range(3):
+            prompt, qrcode_image = text_prompts[i], qrcode_images[i]
+            start = time.perf_counter()
+            _ = pipeline(prompt, qrcode_image, num_inference_steps=25)
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        pipeline.set_progress_bar_config(disable=False)
+        return np.mean(inference_time)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp_latency = calculate_inference_time(ov_pipe)
+    print(f"FP16 pipeline: {fp_latency:.3f} seconds")
+    int8_latency = calculate_inference_time(int8_pipe)
+    print(f"INT8 pipeline: {int8_latency:.3f} seconds")
+    print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 pipeline: 190.245 seconds
+    INT8 pipeline: 166.540 seconds
+    Performance speed up: 1.142
+
+
+Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO
+--------------------------------------------------------------------------
+
+
+
+Now, we are ready to start generation. For improving the generation
+process, we also introduce an opportunity to provide a
+``negative prompt``. Technically, positive prompt steers the diffusion
+toward the images associated with it, while negative prompt steers the
+diffusion away from it. More explanation of how it works can be found in
+this
+`article <https://stable-diffusion-art.com/how-negative-prompt-work/>`__.
+We can keep this field empty if we want to generate image without
+negative prompting.
+
+Please select below whether you would like to use the quantized model to
+launch the interactive demo.
+
+.. code:: ipython3
+
+    quantized_model_present = int8_pipe is not None
+    
+    use_quantized_model = widgets.Checkbox(
+        value=True if quantized_model_present else False,
+        description='Use quantized model',
+        disabled=not quantized_model_present,
+    )
+    
+    use_quantized_model
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use quantized model')
+
+
+
+.. code:: ipython3
+
     import gradio as gr
+    
+    pipeline = int8_pipe if use_quantized_model.value else ov_pipe
     
     def _generate(
         qr_code_content: str,
@@ -921,11 +1366,12 @@ negative prompting.
         guidance_scale: float = 10.0,
         controlnet_conditioning_scale: float = 2.0,
         num_inference_steps: int = 5,
+        progress=gr.Progress(track_tqdm=True),
     ):
         if seed is not None:
             np.random.seed(int(seed))
         qrcode_image = create_code(qr_code_content)
-        return ov_pipe(
+        return pipeline(
             prompt, qrcode_image, negative_prompt=negative_prompt,
             num_inference_steps=int(num_inference_steps),
             guidance_scale=guidance_scale,

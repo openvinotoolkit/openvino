@@ -5,7 +5,7 @@ Unsqueeze
 
 
 .. meta::
-  :description: Learn about Unsqueeze-1 - a shape manipulation operation, which 
+  :description: Learn about Unsqueeze-1 - a shape manipulation operation, which
                 can be performed on two required input tensors.
 
 **Versioned name**: *Unsqueeze-1*
@@ -48,7 +48,7 @@ Unsqueeze
         </input>
         <input>
             <port id="1">
-                <dim>2</dim>  < !-- value is [0, 3] -->
+                <dim>2</dim>  <!-- value is [0, 3] -->
             </port>
         </input>
         <output>
@@ -74,7 +74,7 @@ Unsqueeze
         </input>
         <input>
             <port id="1">
-                <dim>1</dim>  < !-- value is [0] -->
+                <dim>1</dim>  <!-- value is [0] -->
             </port>
         </input>
         <output>
