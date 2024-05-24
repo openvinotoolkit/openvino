@@ -22,7 +22,6 @@ public:
                            const ParameterVector& model_remaining_params,
                            const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                            ParameterVector& parameters_to_remove,
-                           NodeVector& assignes_to_remove,
                            int& layer_index,
                            ov::Output<Node> max_context_len);
 };
