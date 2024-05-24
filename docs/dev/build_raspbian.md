@@ -36,7 +36,7 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
   .. && cmake --build . --parallel 
   ```
 
-> **NOTE**: Build command could fail due to lack of RAM. To fix this issue swap size can be increased:
+> **NOTE**: The build command may fail due to insufficient RAM. To fix this issue, you can increase the swap size:
 1. Deactivate the current swap:
 ```bash
 sudo dphys-swapfile swapoff
