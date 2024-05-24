@@ -4,6 +4,7 @@
 
 #include "zero_compiler_in_driver.hpp"
 
+#include <fstream>
 #include <regex>
 #include <string_view>
 
@@ -243,16 +244,6 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
-static size_t getFileSize(std::istream& strm) {
-    const size_t streamStart = strm.tellg();
-    strm.seekg(0, std::ios_base::end);
-    const size_t streamEnd = strm.tellg();
-    const size_t bytesAvailable = streamEnd - streamStart;
-    strm.seekg(streamStart, std::ios_base::beg);
-
-    return bytesAvailable;
-}
-
 using SerializedIR = std::vector<uint8_t>;
 
 /**
@@ -263,14 +254,29 @@ template <typename TableExtension>
 SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     IR& irModel,
     ze_graph_compiler_version_info_t compilerVersion) const {
+    // Get info from serialized file
+    std::ifstream xmlFile(irModel.xmlName, std::ios::binary);
+    std::ifstream weightsFile(irModel.weightsName, std::ios::binary);
+    if (!xmlFile || !weightsFile) {
+        OPENVINO_THROW("Failed to open serialized files");
+    }
+
+    xmlFile.seekg(0, std::ios::end);
+    std::streampos xmlFileSize = xmlFile.tellg();
+    xmlFile.seekg(0, std::ios::beg);
+
+    weightsFile.seekg(0, std::ios::end);
+    std::streampos weightsFileSize = weightsFile.tellg();
+    weightsFile.seekg(0, std::ios::beg);
+
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
     const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
     const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
     const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(getFileSize(irModel.xml));
-    const uint64_t weightsSize = static_cast<uint64_t>(getFileSize(irModel.weights));
+    const uint64_t xmlSize = static_cast<uint64_t>(xmlFileSize);
+    const uint64_t weightsSize = static_cast<uint64_t>(weightsFileSize);
 
     OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
     if (xmlSize >= maxSizeOfXML) {
@@ -303,11 +309,26 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     offset += sizeof(numberOfInputData);
     checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
     offset += sizeof(xmlSize);
-    irModel.xml.read(reinterpret_cast<char*>(serializedIR.data() + offset), xmlSize);
+    if (xmlFile.read(reinterpret_cast<char*>(serializedIR.data() + offset), xmlSize).gcount() != xmlSize) {
+        xmlFile.close();
+        weightsFile.close();
+        OPENVINO_THROW("Failed to read serialized xml file");
+    }
+    xmlFile.close();
+
     offset += xmlSize;
     checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
     offset += sizeof(weightsSize);
-    irModel.weights.read(reinterpret_cast<char*>(serializedIR.data() + offset), weightsSize);
+    if (weightsFile.read(reinterpret_cast<char*>(serializedIR.data() + offset), weightsSize).gcount() != weightsSize) {
+        weightsFile.close();
+        OPENVINO_THROW("Failed to read serialized weights file");
+    }
+    weightsFile.close();
+
+    if (std::remove(irModel.xmlName.c_str()) != 0 || std::remove(irModel.weightsName.c_str()) != 0) {
+        OPENVINO_THROW("Failed to remove serialized files");
+    }
+
     offset += weightsSize;
 
     OPENVINO_ASSERT(offset == sizeOfSerializedIR);

@@ -27,8 +27,10 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
         manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     }
 
-    std::stringstream xmlStream, weightsStream;
-    manager.register_pass<ov::pass::Serialize>(xmlStream, weightsStream);
+    std::string modelName = model->get_friendly_name();
+    std::string xmlName = modelName + "_serialized.xml";
+    std::string weightsName = modelName + "_serialized.bin";
+    manager.register_pass<ov::pass::Serialize>(xmlName, weightsName);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
     // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
@@ -50,7 +52,7 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
         rtInfo.erase(new_api_key);
     }
 
-    return {std::move(xmlStream), std::move(weightsStream)};
+    return {xmlName, weightsName};
 }
 
 }  // namespace intel_npu::driverCompilerAdapter
