@@ -50,6 +50,8 @@ public:
 
     void create_infer_request() override;
 
+    void create_and_infer(const bool &aysnc) override;
+
     void prepare_input() override;
 
     void infer() override;

@@ -93,10 +93,11 @@ void test_infer_request_inference(const std::string &model, const std::string &t
     }
 }
 
-static void test_recreate_and_infer_in_thread_one_model(const std::string &model, const std::string &target_device, const int &n, const bool &async) {
-    auto ie_wrapper = create_infer_api_wrapper();
+static void test_recreate_and_infer_in_thread_one_model(const std::string &model, const std::string &target_device,
+                                                        const int &n, const int &api_version, const bool &async) {
+    auto ie_wrapper = create_infer_api_wrapper(api_version);
     ie_wrapper->read_network(model);
-    ie_wrapper->set_config(target_device, ov::AnyMap{ov::inference_num_threads(2)});
+    ie_wrapper->set_config(target_device, "THROUGHPUT_STREAMS", 2);
     ie_wrapper->load_network(target_device);
     auto fun = recreate_and_infer_in_thread(ie_wrapper, async);
     for(int y = 0; y < n; y++) {
@@ -111,12 +112,13 @@ static void test_recreate_and_infer_in_thread_one_model(const std::string &model
     }
 }
 
-static void test_recreate_and_infer_in_thread_two_model(const std::string &model, const std::string &target_device, const int &n) {
+static void test_recreate_and_infer_in_thread_two_model(const std::string &model, const std::string &target_device,
+                                                        const int &n, const int &api_version) {
     std::vector<std::shared_ptr<InferApiBase>> ie_wrapper_vector;
     for(int i = 0; i < 2; i++) {
-        auto ie_wrapper = create_infer_api_wrapper();
+        auto ie_wrapper = create_infer_api_wrapper(api_version);
         ie_wrapper->read_network(model);
-        ie_wrapper->set_config(target_device, ov::AnyMap{ov::inference_num_threads(2)});
+        ie_wrapper->set_config(target_device, "THROUGHPUT_STREAMS", 2);
         ie_wrapper->load_network(target_device);
         ie_wrapper_vector.push_back(ie_wrapper);
     }
@@ -151,9 +153,10 @@ static void test_recreate_and_infer_in_thread_two_model(const std::string &model
     }
 }
 
-void test_recreate_and_infer_in_thread(const std::string &model, const std::string &target_device, const int &n) {
-    test_recreate_and_infer_in_thread_one_model(model, target_device, n, false);
-    test_recreate_and_infer_in_thread_one_model(model, target_device, n, true);
-    test_recreate_and_infer_in_thread_two_model(model, target_device, n);
+void test_recreate_and_infer_in_thread(const std::string &model, const std::string &target_device, const int &n,
+                                       const int &api_version) {
+    test_recreate_and_infer_in_thread_one_model(model, target_device, n, api_version, false);
+    test_recreate_and_infer_in_thread_one_model(model, target_device, n, api_version, true);
+    test_recreate_and_infer_in_thread_two_model(model, target_device, n, api_version);
 }
 

@@ -35,6 +35,22 @@ void InferAPI1::create_infer_request() {
     inferRequest = exeNetwork.CreateInferRequest();
 }
 
+void InferAPI1::create_and_infer(const bool &async) {
+    auto newInferRequest = exeNetwork.CreateInferRequest();
+    auto batchSize = cnnNetwork.getBatchSize();
+    batchSize = batchSize != 0 ? batchSize : 1;
+    fillBlobs(newInferRequest, exeNetwork.GetInputsInfo(), batchSize);
+    if (async) {
+        newInferRequest.StartAsync();
+        newInferRequest.Wait();
+    } else {
+        newInferRequest.Infer();
+    }
+    for (auto &output: outputInfo) {
+        InferenceEngine::Blob::Ptr outputBlob = newInferRequest.GetBlob(output.first);
+    }
+}
+
 void InferAPI1::prepare_input() {
     auto batchSize = cnnNetwork.getBatchSize();
     batchSize = batchSize != 0 ? batchSize : 1;
