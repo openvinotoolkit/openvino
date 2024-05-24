@@ -53,13 +53,5 @@ auto compiled_model = core.compile_model(model, "HETERO",
 );
 //! [configure_fallback_devices]
 }
-
-{
-//! [set_pipeline_parallelism]
-std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL};
-auto compiled_model =
-    core.compile_model(model, "HETERO:GPU.1,GPU.2", ov::hint::model_distribution_policy(model_policy));
-//! [set_pipeline_parallelism]
-}
 return 0;
 }

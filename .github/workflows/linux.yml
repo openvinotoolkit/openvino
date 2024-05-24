@@ -695,7 +695,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   GPU:
-    name: GPU ${{ matrix.TEST_TYPE }} Tests
+    name: GPU Tests
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
     timeout-minutes: 80
