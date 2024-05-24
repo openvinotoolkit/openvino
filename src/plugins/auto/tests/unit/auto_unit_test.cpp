@@ -142,6 +142,7 @@ ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
     inferReqInternalActual.reset();
     mock_plugin_cpu.reset();
     mock_plugin_gpu.reset();
+    plugin->get_executor_manager()->clear();
     plugin.reset();
 }
 

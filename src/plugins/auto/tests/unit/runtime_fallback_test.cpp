@@ -176,7 +176,6 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                                                                                              nullptr,
                                                                                              ifThrow);
             ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(0));
                 return mockInferrequest;
             });
         } else if (deviceName == "GPU.0") {
@@ -332,7 +331,6 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
                                                                                              nullptr,
                                                                                              ifThrow);
             ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(0));
                 return mockInferrequest;
             });
         } else if (deviceName == "GPU.0") {
