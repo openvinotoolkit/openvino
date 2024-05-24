@@ -142,9 +142,36 @@ void SyncInferRequest::sub_streams_infer() {
     // sub streams infer
     auto message = ov::threading::message_manager();
     auto requests = message->getSubInferRequest();
-    std::cout << "getSubInferRequest\n";
+    size_t requests_num = requests.size();
+    auto inputs = get_inputs();
+    auto outputs = get_outputs();
+    std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
     // auto inputs = get_inputs();
     // auto outputs = get_outputs();
+
+    if (requests.size() > 0) {
+        for (const auto& output : outputs) {
+            auto tensor = requests[0]->get_tensor(output);
+            set_tensor(output, tensor);
+        }
+        for (size_t i = 0; i < requests_num; i++) {
+            for (auto& input : inputs) {
+                auto tensor = get_tensor(input);
+                requests[i]->set_tensor(input, tensor);
+            }
+
+            requests[i]->set_callback([i, message](const std::exception_ptr& ptr) {
+                // std::cout << "set_callback------ " << i << "\n";
+                ov::threading::MessageInfo msg_info;
+                msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
+                message->send_message(msg_info);
+            });
+        }
+        for (size_t i = 0; i < requests_num; i++) {
+            // std::cout << "start_async : " << i << "\n";
+            requests[i]->start_async();
+        }
+    }
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {

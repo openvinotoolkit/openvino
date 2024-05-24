@@ -4,6 +4,9 @@
 
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+
+#include "openvino/runtime/threading/cpu_message.hpp"
+
 #include <memory>
 
 namespace ov {
@@ -37,6 +40,11 @@ void AsyncInferRequest::start_async() {
 }
 
 AsyncInferRequest::~AsyncInferRequest() {
+    if (m_sub_infers) {
+        auto message = ov::threading::message_manager();
+        message->stop_server_thread();
+        message->clear();
+    }
     stop_and_wait();
 }
 

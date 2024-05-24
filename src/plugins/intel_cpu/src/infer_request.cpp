@@ -642,7 +642,7 @@ void SyncInferRequest::sub_streams_infer() {
     auto outputs = get_outputs();
 
     size_t requests_num = requests.size();
-    // std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
+    std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
 
     if (requests.size() > 0) {
         for (const auto& output : outputs) {
