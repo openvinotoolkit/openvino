@@ -42,7 +42,7 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
 sudo dphys-swapfile swapoff
 ```
 2. Modify the swap size by setting `CONF_SWAPSIZE=8192` in `/etc/dphys-swapfile`.
-3. Recreate swap file:
+3. Recreate the swap file:
 ```bash
 sudo dphys-swapfile setup
 ```
