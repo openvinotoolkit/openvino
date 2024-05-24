@@ -524,15 +524,19 @@ int config_available_cpus(int executor_id, std::vector<int>& cpuids) {
     } else {
         for (auto& it : cpu._cpu_mapping_table) {
             cpu._proc_type_table[it[CPU_MAP_NUMA_NODE_ID] + 1][ALL_PROC]++;
+            cpu._proc_type_table[0][ALL_PROC]++;
             switch (it[CPU_MAP_CORE_TYPE]) {
             case MAIN_CORE_PROC:
                 cpu._proc_type_table[it[CPU_MAP_NUMA_NODE_ID] + 1][MAIN_CORE_PROC]++;
+                cpu._proc_type_table[0][MAIN_CORE_PROC]++;
                 break;
             case HYPER_THREADING_PROC:
                 cpu._proc_type_table[it[CPU_MAP_NUMA_NODE_ID] + 1][HYPER_THREADING_PROC]++;
+                cpu._proc_type_table[0][HYPER_THREADING_PROC]++;
                 break;
             case EFFICIENT_CORE_PROC:
                 cpu._proc_type_table[it[CPU_MAP_NUMA_NODE_ID] + 1][EFFICIENT_CORE_PROC]++;
+                cpu._proc_type_table[0][EFFICIENT_CORE_PROC]++;
                 break;
             }
             cpu._proc_type_table[it[CPU_MAP_NUMA_NODE_ID] + 1][PROC_NUMA_NODE_ID] = it[CPU_MAP_NUMA_NODE_ID];
