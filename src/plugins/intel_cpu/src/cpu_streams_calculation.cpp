@@ -190,7 +190,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 
     if (((input_streams_changed == false) &&
          (input_perf_hint == ov::util::to_string(ov::hint::PerformanceMode::LATENCY))) ||
-        ((input_streams_changed == true) && (input_streams == 1))) {
+        ((input_streams_changed == true) && (input_streams == 1) && (executor_id == -1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
         current_socket_id = input_current_socket_id == -1 ? get_current_socket_id(executor_id) : input_current_socket_id;
@@ -370,7 +370,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             }
         }
 
-        if (total_streams == n_streams) {
+        if (total_streams == n_streams && executor_id == -1) {
             create_one_stream(proc_socket_table[current_socket_id],
                               proc_type_table,
                               proc_socket_table[current_socket_id][ALL_PROC],
