@@ -38,7 +38,14 @@ OpenVINO repositories make use of the following runners:
 
 ## Available Self-hosted Runners
 
-The self-hosted runners are dynamically spawned for each requested pipeline.
+As of 25/05/2024, two groups of the self-hosted runners are available:
+
+* Dynamically spawned Linux and Windows runners with CPU-only capabilities
+* Dedicated Linux runners with GPU capabilities
+
+### Dynamically Spawned Linux and Windows Runners
+
+These self-hosted runners are dynamically spawned for each requested pipeline.
 Several configurations are available, which are identified by different group names.
 The group names generally follow the pattern:
 `aks-{OS}-{CORES_N}-cores-|{RAM_SIZE}gb|-|{ARCH}|`, where:
@@ -64,6 +71,52 @@ The available configurations are:
 | Linux ARM64 | `aks-linux-*-arm` | `16`         | `32`<sup>*</sup> | `arm`                | `aks-linux-16-cores-arm`                           |
 
 * `*` - Not specified in the group name
+
+### Dedicated GPU Runners
+
+As of 24/05/2024,
+18 runners with GPU capabilities are available to all repositories in the OpenVINO organisation's GitHub Actions.
+
+These runners are virtual machines with Ubuntu 22.04. They have the following specifications:
+
+* CPU: i9-12900k
+* All of them have iGPU (UHD 770 Graphics)
+* 12 of them have iGPU (UHD 770 Graphics) and dGPU (Arc A770)
+
+These runners could be selected using labels provided in the `runs-on` field in a job configuration.
+The available labels are:
+* `gpu` - encapsulates all the 18 runners
+* `igpu` - encapsulates all the 18 runners as all of them have iGPU
+* `dgpu` - encapsulates 12 runners that have dGPU
+
+An example `GPU Tests` job that uses the `gpu` label:
+```yaml
+  GPU:
+    name: GPU Tests
+    needs: [ Build, Smart_CI ]
+    runs-on: [ self-hosted, gpu ]
+    container:
+      image: ubuntu:20.04
+      options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
+      volumes:
+        - /dev/dri:/dev/dri
+  ...
+```
+
+It will run on any available GPU runner. 
+
+If, for example, a job requires a dGPU, it should use the `dgpu` label:
+```yaml
+  GPU:
+    name: GPU Tests
+    needs: [ Build, Smart_CI ]
+    runs-on: [ self-hosted, dgpu ]
+  ...
+```
+
+**NOTE**: as these are persistent runners, Docker should be used for the jobs that utilise the GPU runners.
+Learn more about the
+available images and how to choose one in the [OpenVINO Docker Image Overview](./docker_images.md).  
 
 ## How to Choose a Runner
 
