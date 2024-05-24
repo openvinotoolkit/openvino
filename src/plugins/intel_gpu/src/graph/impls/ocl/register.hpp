@@ -74,6 +74,7 @@
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -172,6 +173,7 @@ REGISTER_OCL(gather_nonzero);
 REGISTER_OCL(eye);
 REGISTER_OCL(unique_count);
 REGISTER_OCL(unique_gather);
+REGISTER_OCL(scaled_dot_product_attention);
 
 #undef REGISTER_OCL
 

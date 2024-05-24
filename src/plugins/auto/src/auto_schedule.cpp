@@ -4,7 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "auto_schedule.hpp"
+
 #include "async_infer_request.hpp"
+#include "openvino/runtime/compilation_context.hpp"
+#include "openvino/util/file_util.hpp"
 #include "plugin.hpp"
 
 // ------------------------------AutoSchedule----------------------------
@@ -139,10 +142,37 @@ void AutoSchedule::init() {
             // if have CPU Device,  enable m_compile_context[CPU]
             if (cpu_iter != m_context->m_device_priorities.end()) {
                 m_compile_context[CPU].m_is_enabled = true;
-                m_compile_context[CPU].m_device_info = *cpu_iter;
-                m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
-                m_compile_context[CPU].m_worker_name = "CPU_HELP";
-                LOG_INFO_TAG("will load CPU for accelerator");
+                if (!is_actual_cpu) {
+                    // user does not set the compiling threads
+                    // limit the threads num for compiling
+                    auto device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+                    auto& device_config = m_compile_context[ACTUALDEVICE].m_device_info.config;
+                    std::string cache_dir = device_config.count(ov::cache_dir.name())
+                                                ? device_config[ov::cache_dir.name()].as<std::string>()
+                                                : m_context->m_ov_core->get_property("", ov::cache_dir);
+
+                    if (m_context->m_startup_fallback && !cache_dir.empty()) {
+                        const auto properties =
+                            m_context->m_ov_core->create_compile_config(ov::DeviceIDParser(device).get_device_name(),
+                                                                        device_config);
+                        auto blobId =
+                            ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(m_context->m_model),
+                                                         properties);
+                        std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
+                        m_compile_context[CPU].m_is_enabled = !ov::util::file_exists(cached_model_path);
+                        LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
+                                      device.c_str(),
+                                      m_compile_context[CPU].m_is_enabled ? "not found" : "found",
+                                      cached_model_path.c_str());
+                    }
+                }
+                if (m_compile_context[CPU].m_is_enabled) {
+                    m_compile_context[CPU].m_device_info = *cpu_iter;
+                    m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
+                        ov::hint::PerformanceMode::LATENCY;
+                    m_compile_context[CPU].m_worker_name = "CPU_HELP";
+                    LOG_INFO_TAG("will load CPU for accelerator");
+                }
             } else {
                 m_compile_context[CPU].m_is_enabled = false;
             }
@@ -274,15 +304,20 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
              device_config.find(ov::compilation_num_threads.name()) != device_config.end());
         if (cur_dev_is_gpu && m_compile_context[CPU].m_is_enabled && !is_already_set_gpu) {
             device_config.insert(ov::intel_gpu::hint::host_task_priority(ov::hint::Priority::HIGH));
-            auto proc_type_table = get_org_proc_type_table();
-            int compilation_num_threads = proc_type_table[0][MAIN_CORE_PROC] != 0
-                                              ? proc_type_table[0][MAIN_CORE_PROC]
-                                              : proc_type_table[0][EFFICIENT_CORE_PROC];
-            if (device_config.insert(ov::compilation_num_threads(compilation_num_threads)).second)
-                LOG_DEBUG_TAG("gpu streams number for compiling: %d", compilation_num_threads);
-            else
-                LOG_DEBUG_TAG("user defined compiling threads: %d",
-                              device_config[ov::compilation_num_threads.name()].as<int32_t>());
+            int max_threads = 0;
+            try {
+                m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
+                auto proc_type_table = get_org_proc_type_table();
+                max_threads = proc_type_table[0][MAIN_CORE_PROC] != 0 ? proc_type_table[0][MAIN_CORE_PROC]
+                                                                      : proc_type_table[0][EFFICIENT_CORE_PROC];
+                if (device_config.insert(ov::compilation_num_threads(max_threads)).second)
+                    LOG_DEBUG_TAG("gpu streams number for compiling: %d", max_threads);
+                else
+                    LOG_DEBUG_TAG("user defined compiling threads: %d",
+                                  device_config[ov::compilation_num_threads.name()].as<int32_t>());
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
+            }
         }
     }
     try {
