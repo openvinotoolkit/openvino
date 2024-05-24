@@ -47,7 +47,7 @@ to set a new batch size with the ``reshape`` method:
 The diagram below presents the results of using the method, where the size of
 model input is changed with an image input:
 
-.. image:: ../../_static/images/original_vs_reshaped_model.svg
+.. image:: ../../assets/images/original_vs_reshaped_model.svg
 
 When using the ``reshape`` method, you may take one of the approaches:
 
