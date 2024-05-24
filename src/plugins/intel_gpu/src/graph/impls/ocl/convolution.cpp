@@ -135,10 +135,17 @@ public:
         std::tie(dilation_x, dilation_y, dilation_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(dilation, 1);
         conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
+        // gpu plugin avg_pool has forced f32 output data type when input is u8/i8.
+        // So quantize(u8)->avg_pool(u8)->conv(f32) is changes to quantize(u8)->avg_pool(f32)->conv(f32)
+        // Add condition to check this case and set proper quantization mode
         if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
-             impl_param.input_layouts[0].data_type == data_types::i8) &&
-            (impl_param.input_layouts[1].data_type == data_types::i8 ||
-             impl_param.input_layouts[1].data_type == data_types::u8)) {
+             impl_param.input_layouts[0].data_type == data_types::i8 ||
+             (impl_param.input_layouts[0].data_type == data_types::f32 &&
+              (!primitive->weights_zero_points.empty() ||
+               !primitive->activations_zero_points.empty() ||
+               !primitive->compensation.empty())))
+            && (impl_param.input_layouts[1].data_type == data_types::i8 ||
+                impl_param.input_layouts[1].data_type == data_types::u8)) {
             if (!primitive->weights_zero_points.empty() && !primitive->activations_zero_points.empty()) {
                 conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS;
             } else if (!primitive->weights_zero_points.empty()) {
