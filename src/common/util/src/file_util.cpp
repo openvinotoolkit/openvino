@@ -7,9 +7,11 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <codecvt>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <locale>
 #include <sstream>
 
 #include "openvino/util/common_util.hpp"
@@ -32,6 +34,9 @@
 #    endif
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        define wmakedir(dir) _wmkdir(dir)
+#    endif
 // Copied from linux libc sys/stat.h:
 #    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
 #else
@@ -41,11 +46,6 @@
 #    include <sys/file.h>
 #    include <sys/time.h>
 #    include <unistd.h>
-
-#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#        include <codecvt>
-#        include <locale>
-#    endif
 
 /// @brief Max length of absolute file path
 #    define MAX_ABS_PATH                    PATH_MAX
@@ -332,30 +332,15 @@ void ov::util::convert_path_win_style(std::string& path) {
 #    endif
 
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
-#    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-#    else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
     return wstring_decoder.to_bytes(wstr);
-#    endif
 }
 
 std::wstring ov::util::string_to_wstring(const std::string& string) {
     const char* str = string.c_str();
-#    ifdef _WIN32
-    int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
-    return wstrTo;
-#    else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
     std::wstring result = wstring_encoder.from_bytes(str);
     return result;
-#    endif
 }
 
 #    ifdef __APPLE__
@@ -390,16 +375,24 @@ bool ov::util::is_absolute_file_path(const std::string& path) {
 }
 
 void ov::util::create_directory_recursive(const std::string& path) {
-    if (path.empty() || directory_exists(path)) {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    std::wstring path_s = ov::util::string_to_wstring(path);
+#else
+    std::string path_s = path;
+#endif
+    if (path_s.empty() || directory_exists(path_s)) {
         return;
     }
 
-    std::size_t pos = path.rfind(ov::util::FileTraits<char>::file_separator);
+    std::size_t pos = path_s.rfind(ov::util::FileTraits<char>::file_separator);
     if (pos != std::string::npos) {
         create_directory_recursive(path.substr(0, pos));
     }
-
-    int err = makedir(path.c_str());
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    int err = wmakedir(path_s.c_str());
+#else
+    int err = makedir(path_s.c_str());
+#endif
     if (err != 0 && errno != EEXIST) {
         std::stringstream ss;
         // TODO: in case of exception it may be needed to remove all created sub-directories

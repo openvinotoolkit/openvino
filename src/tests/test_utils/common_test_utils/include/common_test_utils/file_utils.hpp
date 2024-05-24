@@ -18,6 +18,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "openvino/util/util.hpp"
 
 #ifdef _WIN32
 #    include <direct.h>
@@ -148,7 +149,11 @@ inline bool directoryExists(const std::string& path) {
 
 inline int createDirectory(const std::string& dirPath) {
 #ifdef _WIN32
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    return _wmkdir(ov::util::string_to_wstring(dirPath).c_str());
+#    else
     return _mkdir(dirPath.c_str());
+#    endif
 #else
     return mkdir(dirPath.c_str(), mode_t(0777));
 #endif

@@ -100,12 +100,20 @@ public:
 
 private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+        std::ofstream stream(ov::util::string_to_wstring(getBlobFile(id)), std::ios_base::binary | std::ofstream::out);
+#else
         std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
+#endif
         writer(stream);
     }
 
     void read_cache_entry(const std::string& id, StreamReader reader) override {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+        auto blobFileName = ov::util::string_to_wstring(getBlobFile(id));
+#else
         auto blobFileName = getBlobFile(id);
+#endif
         if (FileUtils::fileExist(blobFileName)) {
             std::ifstream stream(blobFileName, std::ios_base::binary);
             reader(stream);
