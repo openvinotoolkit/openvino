@@ -3,11 +3,7 @@
 //
 
 #include "snippets/lowered/pass/pass.hpp"
-
-#ifdef SNIPPETS_DEBUG_CAPS
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
-#include "snippets/lowered/pass/serialize_data_flow.hpp"
-#endif
+#include "snippets/LIR_pass_dumper.hpp"
 
 #include "snippets/utils.hpp"
 
@@ -36,36 +32,10 @@ void PassPipeline::run(LinearIR& linear_ir) const {
 }
 
 void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) const {
-#ifdef SNIPPETS_DEBUG_CAPS
-    const auto& dumpLIR = linear_ir.get_config().debug_config.dumpLIR;
-    bool enable_dump = false;
-    std::string pass_key;
-    std::string directory;
-    if (!dumpLIR.passes.empty()) {
-        enable_dump = true;
-        pass_key = dumpLIR.passes;
-        directory = dumpLIR.dir + "/";
-    }
-#endif
     for (const auto& pass : m_passes) {
-#ifdef SNIPPETS_DEBUG_CAPS
-        bool actived_pass = false;
-        auto pass_name = std::string(pass->get_type_name());
-        if (enable_dump && (pass_key == "all" || (pass_name.find(pass_key) != std::string::npos))) {
-            actived_pass = true;
-            if (dumpLIR.format.filter[DebugCapsConfig::LIRFormatFilter::controlFlow]) {
-                std::string xml_path = directory + pass_name + "_control_flow_in.xml";
-                lowered::pass::SerializeControlFlow SerializeLIR(xml_path);
-                SerializeLIR.run(linear_ir);
-            }
-            if (dumpLIR.format.filter[DebugCapsConfig::LIRFormatFilter::dataFlow]) {
-                std::string xml_path = directory + pass_name + "_data_flow_in.xml";
-                lowered::pass::SerializeDataFlow SerializeLIR(xml_path);
-                SerializeLIR.run(linear_ir);
-            }
-        }
-#endif
         OPENVINO_ASSERT(pass != nullptr, "PassPipeline has empty pass!");
+        SNIPPETS_DEBUG_LIR_PASS_DUMP(linear_ir, pass);
+
         if (m_pass_config->is_disabled(pass->get_type_info())) {
             continue;
         }
@@ -76,20 +46,6 @@ void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearI
         } else {
             OPENVINO_THROW("Unexpected pass (", pass->get_type_info(), ") is registered in PassPipeline");
         }
-#ifdef SNIPPETS_DEBUG_CAPS
-        if (actived_pass) {
-            if (dumpLIR.format.filter[DebugCapsConfig::LIRFormatFilter::controlFlow]) {
-                std::string xml_path = directory + pass_name + "_control_flow_out.xml";
-                lowered::pass::SerializeControlFlow SerializeLIR(xml_path);
-                SerializeLIR.run(linear_ir);
-            }
-            if (dumpLIR.format.filter[DebugCapsConfig::LIRFormatFilter::dataFlow]) {
-                std::string xml_path = directory + pass_name + "_data_flow_out.xml";
-                lowered::pass::SerializeDataFlow SerializeLIR(xml_path);
-                SerializeLIR.run(linear_ir);
-            }
-        }
-#endif
     }
 }
 
