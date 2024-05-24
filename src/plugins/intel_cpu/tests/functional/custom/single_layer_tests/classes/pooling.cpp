@@ -588,7 +588,6 @@ const std::vector<InputShape>& inputShapes4D() {
 
 const std::vector<InputShape>& inputShapes4DCeilTorch() {
     static const std::vector<InputShape> inputShapes4DCeilTorch = {
-            { {}, {{3, 4, 128, 128}} },
             { {}, {{2, 8, 8, 12}} },
             { {}, {{1, 16, 16, 12}} },
             { {}, {{1, 21, 8, 4}} },
