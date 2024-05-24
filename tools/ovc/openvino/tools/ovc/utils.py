@@ -15,6 +15,11 @@ try:
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
+if sys.version_info < (3, 8):
+    import importlib_metadata
+else:
+    import importlib.metadata as importlib_metadata
+
 dynamic_dimension = np.ma.masked
 
 
@@ -112,6 +117,18 @@ def get_ir_version():
 
 
 def import_openvino_tokenizers():
+    # extract openvino version
+    if importlib.util.find_spec("openvino") is None:
+        return False
+    try:
+        from openvino import get_version
+        openvino_version = get_version()
+        openvino_available = True
+    except ImportError:
+        openvino_available = False
+    if not openvino_available:
+        return False
+
     if importlib.util.find_spec("openvino_tokenizers") is None:
         return False
 
@@ -139,7 +156,7 @@ def import_openvino_tokenizers():
                 pass
         message = (
             "OpenVINO and OpenVINO Tokenizers versions are not binary compatible.\n"
-            f"OpenVINO version:            {_openvino_version}\n"
+            f"OpenVINO version:            {openvino_version}\n"
             f"OpenVINO Tokenizers version: {tokenizers_version}\n"
             "First 3 numbers should be the same. Update OpenVINO Tokenizers to compatible version. "
         )
