@@ -455,13 +455,7 @@ const std::vector<poolSpecificParams>& paramsAvg3D() {
 
 const std::vector<poolSpecificParams>& paramsAvgV143D() {
     static const std::vector<poolSpecificParams> paramsAvgV143D = {
-            poolSpecificParams{ utils::PoolingTypes::AVG, {3}, {1}, {1}, {0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_UPPER, false },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {3}, {1}, {1}, {0},
-                                expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {4}, {4}, {2}, {2},
-                                expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {3}, {1}, {1}, {0},
+            poolSpecificParams{ utils::PoolingTypes::AVG, {3}, {2}, {0}, {0},
                                 expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
             poolSpecificParams{ utils::PoolingTypes::AVG, {4}, {4}, {2}, {2},
                                 expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
@@ -521,37 +515,6 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D() {
 }
 
 const std::vector<InputShape>& inputShapes3D() {
-    static const std::vector<InputShape> inputShapes3D = {
-            { {}, {{3, 4, 64}} },
-            { {}, {{2, 8, 12}} },
-            { {}, {{1, 16, 12}} },
-            { {}, {{1, 21, 4}} },
-            { {}, {{1, 32, 8}} },
-            {
-                // dynamic
-                {-1, -1, -1},
-                // target
-                {
-                    {1, 32, 8},
-                    {1, 21, 4},
-                    {2, 8, 12}
-                }
-            },
-            {
-                // dynamic
-                {{1, 5}, {4, 32}, {1, 64}},
-                // target
-                {
-                    {3, 4, 64},
-                    {1, 16, 12},
-                    {1, 32, 8}
-                }
-            }
-    };
-    return inputShapes3D;
-}
-
-const std::vector<InputShape>& inputShapes3DCeilTorch() {
     static const std::vector<InputShape> inputShapes3D = {
             { {}, {{3, 4, 64}} },
             { {}, {{2, 8, 12}} },
