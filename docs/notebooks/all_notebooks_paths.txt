@@ -21,6 +21,7 @@ notebooks/detectron2-to-openvino/detectron2-to-openvino.ipynb
 notebooks/distilbert-sequence-classification/distilbert-sequence-classification.ipynb
 notebooks/distil-whisper-asr/distil-whisper-asr.ipynb
 notebooks/dolly-2-instruction-following/dolly-2-instruction-following.ipynb
+notebooks/dynamicrafter-animating-images/dynamicrafter-animating-images.ipynb
 notebooks/efficient-sam/efficient-sam.ipynb
 notebooks/encodec-audio-compression/encodec-audio-compression.ipynb
 notebooks/fast-segment-anything/fast-segment-anything.ipynb

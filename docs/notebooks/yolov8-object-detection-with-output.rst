@@ -20,8 +20,8 @@ The tutorial consists of the following steps:
 - Prepare and run optimization pipeline.
 - Compare performance of the FP32 and quantized models.
 - Compare accuracy of the FP32 and quantized models.
-- Other optimization possibilities with OpenVINO api
-- Live demo
+- Other optimization possibilities with OpenVINO api.
+- Live demo.
 
 Table of contents:
 ^^^^^^^^^^^^^^^^^^

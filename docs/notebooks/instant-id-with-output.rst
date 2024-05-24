@@ -50,7 +50,6 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
@@ -62,12 +61,13 @@ Table of contents:
   - `Perform Face Identity extraction <#perform-face-identity-extraction>`__
 
 - `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__
-- `Convert InstantID pipeline components to OpenVINO Intermediate Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
+- `Convert InstantID pipeline components to OpenVINO Intermediate Representation
+  format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
 
   - `ControlNet <#controlnet>`__
-  - `unet <#unet>`__
+  - `Unet <#unet>`__
   - `VAE Decoder <#vae-decoder>`__
-  - `text encoders <#text-encoders>`__
+  - `Text Encoders <#text-encoders>`__
   - `Image Projection Model <#image-projection-model>`__
 
 - `Prepare OpenVINO InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__
@@ -75,7 +75,7 @@ Table of contents:
 
   - `Select inference device for InstantID <#select-inference-device-for-instantid>`__
   - `Create pipeline <#create-pipeline>`__
-  - `run inference <#run-inference>`__
+  - `Run inference <#run-inference>`__
 
 - `Quantization <#quantization>`__
 
@@ -87,7 +87,8 @@ Table of contents:
     - `Run Weights Compression <#run-weights-compression>`__
 
   - `Compare model file sizes <#compare-model-file-sizes>`__
-  - `Compare inference time of the FP16 and INT8 pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+  - `Compare inference time of the FP16 and INT8 pipelines
+    <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 
 - `Interactive demo <#interactive-demo>`__
 

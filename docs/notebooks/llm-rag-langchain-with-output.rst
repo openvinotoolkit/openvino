@@ -620,8 +620,13 @@ Select device for embedding model inference
 .. code:: ipython3
 
     core = ov.Core()
+    
+    support_devices = core.available_devices
+    if "NPU" in support_devices:
+        support_devices.remove("NPU")
+    
     embedding_device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
@@ -656,7 +661,7 @@ Select device for rerank model inference
 .. code:: ipython3
 
     rerank_device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
@@ -691,7 +696,7 @@ Select device for LLM model inference
 .. code:: ipython3
 
     llm_device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
@@ -966,6 +971,7 @@ The most common full sequence from raw data to answer looks like:
 
 .. code:: ipython3
 
+    import re
     from typing import List
     from langchain.text_splitter import (
         CharacterTextSplitter,

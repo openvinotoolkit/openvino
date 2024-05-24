@@ -156,7 +156,7 @@ source code.
 
 .. parsed-literal::
 
-    [05/07 01:58:00] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
+    [05/16 02:38:12] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
 
 
 .. code:: ipython3
@@ -282,12 +282,12 @@ Convert PaddlePaddle Model to ONNX
 
 .. parsed-literal::
 
-    2024-05-07 01:58:07 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-05-16 02:38:19 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
 
-    I0507 01:58:06.980847 2900487 program_interpreter.cc:212] New Executor is Running.
+    I0516 02:38:18.992131 81866 program_interpreter.cc:212] New Executor is Running.
 
 
 .. parsed-literal::
@@ -298,7 +298,7 @@ Convert PaddlePaddle Model to ONNX
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 13 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2024-05-07 01:58:10 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
+    2024-05-16 02:38:22 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
 Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
@@ -380,7 +380,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f0dbcbb56d0>
+    <matplotlib.image.AxesImage at 0x7f90c9012670>
 
 
 
@@ -432,7 +432,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f0dbcc2f880>
+    <matplotlib.image.AxesImage at 0x7f90c9094910>
 
 
 

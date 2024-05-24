@@ -1058,8 +1058,12 @@ Select device from dropdown list for running inference using OpenVINO.
     
     core = ov.Core()
     
+    support_devices = core.available_devices
+    if "NPU" in support_devices:
+        support_devices.remove("NPU")
+    
     device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
