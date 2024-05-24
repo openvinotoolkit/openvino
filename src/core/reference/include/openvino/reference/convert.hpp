@@ -64,6 +64,8 @@ void convert<float16, float>(const float16* arg, float* out, size_t count);
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count);
 template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
+template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count);
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count);

@@ -347,6 +347,135 @@ TEST(TransformationTests, ConvertPrecision_Convert) {
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
 
+TEST(TransformationTests, ConvertPrecision_Convert_clamp_1) {
+    //  Similar to const compression test CompressConstants_compress_to_f16_max_out_of_range_val
+    // fp16 out of range should be clamped to [fp16_min, fp16_max]
+    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
+    {
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = opset10::Constant::create(element::f32, Shape{2}, {100000.0f, -100000.0f});
+        auto convert = std::make_shared<opset4::Convert>(const_node, element::f16);
+        auto add_1 = make_shared<opset10::Add>(input, convert);
+        model = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+
+        pass::Manager manager;
+        static const precisions_map precisions = {{element::f32, element::f16}};
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.run_passes(model);
+    }
+
+    {
+        auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<opset10::Add>(input, const_node);
+
+        model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+    }
+    ASSERT_NO_THROW(check_rt_info(model));
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+TEST(TransformationTests, ConvertPrecision_Convert_clamp_2) {
+#else
+// Ticket: CVS-122397
+TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_2) {
+#endif
+    //  Similar to const compression test CompressConstants_compress_to_f16_max_out_of_range_val
+    // fp16 out of range should be clamped to [fp16_min, fp16_max]
+    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
+    {
+        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 2});
+        auto const_node_1 = opset10::Constant::create(element::i32, Shape{2}, {100000, -100000});
+        auto convert_f32 = std::make_shared<opset4::Convert>(const_node_1, element::f32);
+        auto const_node_2 = opset10::Constant::create(element::f32, Shape{1}, {1.0f});
+
+        auto add_1 = make_shared<opset10::Add>(convert_f32, const_node_2);
+        auto add_2 = make_shared<opset10::Add>(input, add_1);
+        model = std::make_shared<Model>(NodeVector{add_2}, ParameterVector{input});
+
+        pass::Manager manager;
+        static const precisions_map precisions = {{element::f32, element::f16}};
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.register_pass<pass::ConstantFolding>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<opset10::Add>(input, const_node);
+
+        model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+    }
+
+    ASSERT_NO_THROW(check_rt_info(model));
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+TEST(TransformationTests, ConvertPrecision_Convert_clamp_int32) {
+#else
+// Ticket: CVS-122397
+TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_int32) {
+#endif
+    // int32 values will be converted to float16, but during CF evaluate is calculated in float32
+    // const_1[i32] -> convert_to_f16[f16] -> some_foldable_op[f16] -> ...
+    // cont_1_converted_to_f16[f16] -> some_foldable_op[f16] -> ...
+    // but during CF the subgraph above is evaluated in f32 and then again is cast to f16.
+    // therefore we should ensure that clamp still takes place if in intermediate calculation overflow happens
+
+    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
+    {
+        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 2});
+        auto const_node_1 = opset10::Constant::create(element::i32, Shape{2}, {100000, -100000});
+        auto convert_f32 = std::make_shared<opset4::Convert>(const_node_1, element::f32);
+        auto const_node_2 = opset10::Constant::create(element::f32, Shape{1}, {1.0f});
+
+        auto add_1 = make_shared<opset10::Add>(convert_f32, const_node_2);
+        auto add_2 = make_shared<opset10::Add>(input, add_1);
+        model = std::make_shared<Model>(NodeVector{add_2}, ParameterVector{input});
+
+        pass::Manager manager;
+        static const precisions_map precisions = {{element::f32, element::f16}};
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.register_pass<pass::ConstantFolding>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<opset10::Add>(input, const_node);
+
+        model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+    }
+
+    ASSERT_NO_THROW(check_rt_info(model));
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
 TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
     std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
