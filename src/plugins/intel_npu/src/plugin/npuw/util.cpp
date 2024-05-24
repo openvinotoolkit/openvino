@@ -766,6 +766,105 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
     }
 }
 
+void unpack_u4f16_z(const ov::SoPtr<ov::ITensor> &from,
+                     const ov::SoPtr<ov::ITensor> &zerop,
+                     const ov::SoPtr<ov::ITensor> &scale,
+                     const ov::SoPtr<ov::ITensor> &to,
+                     const ov::npuw::util::UnpackOptions & unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(zerop->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    // Only single-size ZP is supported
+    NPUW_ASSERT(zerop->get_size() == 1);
+
+    const auto from_shape = from->get_shape();
+    NPUW_ASSERT(from_shape.back() % 64 == 0);
+
+    const auto scale_shape = scale->get_shape();
+    NPUW_ASSERT(scale_shape.size() == 3);
+    NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+    NPUW_ASSERT(scale_shape[2] == from_shape[2]);
+    NPUW_ASSERT(scale_shape[1] == 1);
+
+    const auto zerop_elem_type = zerop->get_element_type();
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(zerop_elem_type == ov::element::f32);
+    NPUW_ASSERT(scale_elem_type == ov::element::f32);
+
+   // This conversion combines u4tof32 and f32tof16. Here we
+    // - read    256  bits (= 32  bytes, = 64  u4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const size_t C = from_shape[from_shape.size() - 3];
+    const size_t H = from_shape[from_shape.size() - 2];
+    const size_t W = from_shape[from_shape.size() - 1];
+
+    const uint8_t *const pSrc = static_cast<uint8_t*>(from->data()); // 2 x u4  elements
+    const float   *const pZer = static_cast<float*>(zerop->data());  // 1 X f32  element
+    const float   *const pScl = static_cast<float*> (scale->data()); // 1 x f32 element
+    const int16_t       *pDst = static_cast<int16_t*>(to->data());   // 1 x f16 element
+
+    const float zval = *pZer;
+
+    auto unpack_body = [&](size_t job_index, size_t stride) {
+
+        size_t start_c = job_index * stride;
+        size_t end_c   = std::min(C, start_c + stride);
+
+        for (size_t c = start_c; c < end_c; ++c) {
+            for (size_t h = 0; h < H; ++h) {
+                for (size_t w = 0; w < W; w += 64) {
+                    float tmp[64];
+                    for (size_t i = 0; i < 32; ++i) {
+                        size_t input_index    = w + i * 2 + W * h + W * H * c;
+                        uint8_t packed_val = pSrc[input_index / 2];
+                        float f0           = static_cast<float>(lo4(packed_val));
+                        float f1           = static_cast<float>(hi4(packed_val));
+                        size_t scale_index    = w + i * 2 + W * c;
+                        tmp[i * 2]         = (f0 - zval) * pScl[scale_index];
+                        tmp[i * 2 + 1]     = (f1 - zval) * pScl[scale_index + 1];
+                    }
+                    __m128i vresults[8];
+                    for (int i = 0; i < 8; ++i) {
+                        vresults[i] = avx2_f32tof16(_mm256_loadu_ps(tmp + i * 8));
+                    }
+                    int16_t* pDstLocal = const_cast<int16_t*>(pDst) + w + W * h + W * H * c;
+                    for (int i = 0; i < 8; ++i) {
+                        _mm_storeu_si128(reinterpret_cast<__m128i*>(pDstLocal + i * 8), vresults[i]);
+                    }
+                }
+            }
+        }
+    };
+
+    size_t stride   = C;
+    size_t num_jobs = 1;
+
+    if (unpack_options.nPartitions) {
+        if (unpack_options.bStrictPartitioning) {
+            stride   = (C + unpack_options.nPartitions - 1) / unpack_options.nPartitions;
+            num_jobs = unpack_options.nPartitions;
+        } else {
+            stride   = std::max<size_t>(1, C / unpack_options.nPartitions);
+            num_jobs = (C + stride - 1)  / stride;
+        }
+    }
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(num_jobs, [&](size_t job_index) {
+            unpack_body(job_index, stride);
+        });
+    } else {
+        for (size_t job_index = 0; job_index < num_jobs; ++job_index) {
+            unpack_body(job_index, stride);
+        }
+    }
+}
+
 void unpack_u4f32(const ov::SoPtr<ov::ITensor> &from,
                   const ov::SoPtr<ov::ITensor> &to,
                   const ov::npuw::util::UnpackOptions & unpack_options) {
@@ -909,12 +1008,22 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor> &from,
     const auto type_scale = scale->get_element_type();
     const auto type_to    = to->get_element_type();
 
-    // NB: Just one configuration is supported for now
-    NPUW_ASSERT(type_from  == ov::element::u4);
-    NPUW_ASSERT(type_zerop == ov::element::u4);
-    NPUW_ASSERT(type_scale == ov::element::f16);
-    NPUW_ASSERT(type_to    == ov::element::f16);
-    unpack_u4f16(from, zerop, scale, to, unpack_options);
+    NPUW_ASSERT(type_from == ov::element::u4);
+    NPUW_ASSERT(type_zerop == ov::element::u4 || type_zerop == ov::element::f32);
+    NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
+    NPUW_ASSERT(type_to   == ov::element::f16);
+
+    const auto from_shape = from->get_shape();
+    const auto scale_shape = scale->get_shape();
+
+    if (scale_shape[0] == from_shape[0] &&
+        scale_shape[2] == from_shape[2] &&
+        scale_shape[1] == 1) {
+        unpack_u4f16_z(from, zerop, scale, to, unpack_options);
+    } else {
+        unpack_u4f16(from, zerop, scale, to, unpack_options);
+    }
+
 }
 
 template <typename InT>
