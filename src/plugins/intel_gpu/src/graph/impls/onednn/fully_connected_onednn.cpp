@@ -44,7 +44,7 @@ protected:
                             typed_primitive_inst<fully_connected>& instance) override {
         auto& stream = instance.get_network().get_stream();
         auto event = parent::execute_impl(events, instance);
-        if (instance.get_impl_params()->w_size != 1) {
+        if (instance.get_impl_params()->is_tp_enabled_in_runtime()) {
             stream.finish(); // can be replaced with need_completion_event?
             auto output_memory_ptr = instance.output_memory_ptr();
             auto rank_output_memory = instance.get_output_rank_placeholder();
@@ -59,21 +59,16 @@ protected:
                                         output_memory_ptr->buffer_ptr(), recv_counts);
             else
                 OPENVINO_THROW("not expected!");
-            std::cout << "&&&&&&&&" << std::endl;
         }
         return event;
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
-        std::cout << "**********" << std::endl;
         {
             auto& input = instance.get_input_rank_placeholder_mem();
             std::cout << input.get_layout().to_short_string() << std::endl;
             auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
-            for (auto& iter : _pd.dnnl::primitive_desc_base::src_desc(0).get_dims())
-                std::cout << iter  << ",";
-            std::cout << std::endl;
             //int offset_memory = instance.get_impl_params()->w_rank ? 0 : 12;
             // mapping input memory here
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});

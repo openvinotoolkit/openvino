@@ -152,9 +152,10 @@ struct kernel_impl_params final {
 
     size_t hash() const;
     bool operator==(const kernel_impl_params& rhs) const;
+    bool is_tp_enabled_in_runtime() const {return w_size != 1 && output_restore_index != -1;}
     unsigned int w_size = 1;
     int w_rank = -1;
-    bool input_fake_aligned = false;
+    int output_restore_index = -1;
     bool output_restore = false;
 };
 

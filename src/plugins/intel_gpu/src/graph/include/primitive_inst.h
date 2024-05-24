@@ -34,7 +34,8 @@ namespace cldnn {
 
 // checks if any user in a list is a cpu primitive
 bool is_any_user_cpu(const std::list<const program_node*>& users);
-
+// get runtime tp index
+int get_gather_tp_dim(size_t input_rank, layout& input_layout, int world_size);
 class primitive_inst;
 
 template <class PType>

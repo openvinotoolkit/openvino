@@ -7,18 +7,15 @@
 #include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
-#include "to_string_utils.h"
 
 namespace cldnn {
 namespace ocl {
-float convert_element(ov::float16 h);
-float convert_element(ov::float16 h) { return static_cast<float>(h); }
+
 struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     using parent = typed_primitive_impl_ocl<fully_connected>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::fully_connected_kernel_selector;
     using kernel_params_t = kernel_selector::fully_connected_params;
-    static int infer_count;
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_impl)
 
     fully_connected_impl() = default;
@@ -30,9 +27,6 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
             auto crop_to_2d = [](const ov::PartialShape& shape) {
                 return ov::PartialShape({shape[0], shape[1]});
             };
-            std::cout << "in fc ocl get weight reorder" << std::endl;
-            std::cout << from_weights_tensor(params.src).to_short_string() << std::endl;
-            std::cout << from_weights_tensor(params.dest).to_short_string() << std::endl;
             auto weights_reorder_params = std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
                                                                                  from_weights_tensor(params.dest),
                                                                                  params.rotate);
@@ -61,32 +55,10 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     }
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<fully_connected>& instance) override {
-        std::cout << "bell execute TP fully connected!" << std::endl;
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
             return aggregate_events(events, stream, false, instance.is_output());
         }
-        /*{std::ofstream file_stream("bell_fc_input_iter" + std::to_string(infer_count) +
-                                std::to_string(instance.get_node().as<fully_connected>().w_rank) + ".txt");
-        auto input_mem = instance.get_input_rank_placeholder();
-        auto&& size = input_mem->get_layout().get_tensor();
-
-        file_stream << "shape: " << size.to_string() << " ";
-        file_stream << "(count: " << size.count()
-                        << ", original format: " << cldnn::fmt_to_str(input_mem->get_layout().format) << ")" << std::endl;
-
-        mem_lock<float, mem_lock_type::read> lock(input_mem, stream);
-        auto mem_ptr = lock.data();
-        std::stringstream buffer;
-
-        {
-            for (size_t i = 0; i < lock.size(); ++i) {
-                std::cout << "rank " << instance.get_node().as<fully_connected>().w_rank << mem_ptr[i] << std::endl;
-                buffer << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
-            }
-        }
-        file_stream << buffer.str();
-                            }*/
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
         OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
@@ -125,32 +97,21 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
             return aggregate_events(tmp_events, stream);
 
         bool group_events = (all_events.size() > 1);
-        if (instance.get_impl_params()->w_size != 1) {
+        if (instance.get_impl_params()->is_tp_enabled_in_runtime()) {
             stream.finish(); // can be replaced with need_completion_event?
             auto output_memory_ptr = instance.output_memory_ptr();
-            std::cout << output_memory_ptr->get_allocation_type() << std::endl;
-            std::cout << output_memory_ptr->count() << std::endl;
-            std::cout << output_memory_ptr->get_layout().to_string() << std::endl;
-            std::cout << output_memory_ptr->size() << std::endl;
             auto rank_output_memory = instance.get_output_rank_placeholder();
             auto send_ptr = rank_output_memory->buffer_ptr();
-            std::cout << "bell debug!!!!" << send_ptr << std::endl;
             auto size = instance.get_impl_params()->w_size;
             std::vector<size_t> recv_counts(size, rank_output_memory->count());
-            for (auto& iter : recv_counts)
-                std::cout << iter << std::endl;
             if (output_memory_ptr->get_layout().data_type == ov::element::f16)
                 Messenger::getInstance().helperAllgathervf16(send_ptr, rank_output_memory->count(),
                                         output_memory_ptr->buffer_ptr(), recv_counts);
             else if (output_memory_ptr->get_layout().data_type == ov::element::f32)
                 Messenger::getInstance().helperAllgatherv(send_ptr, rank_output_memory->count(),
                                         output_memory_ptr->buffer_ptr(), recv_counts);
-                //Messenger::getInstance().helperAllreduce(send_ptr, send_ptr,
-                                        //re_inter->count());
             else
                 OPENVINO_THROW("not expected!");
-            std::cout << "&&&&&&&&" << std::endl;
-            //output_memory.copy_from(stream, *output_host);
         }
         return aggregate_events(all_events, stream, group_events);
     }
@@ -161,7 +122,6 @@ protected:
         const auto& desc = instance.get_typed_desc<fully_connected>();
 
         args.weights = instance.weights_memory();
-        std::cout << "bell check weight layout!! " << args.weights->get_layout().to_short_string() << std::endl;
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
         args.inputs = {(instance.get_input_rank_placeholder())};
         args.outputs = {{instance.get_output_rank_placeholder()}};
@@ -193,7 +153,6 @@ public:
 
             auto input0_layout = input_layouts[0];
             auto input1_layout = input_layouts[1];
-            std::cout << "bell try" << input_layouts[1].to_short_string() << std::endl;
 
             auto input0_pshape = input0_layout.get_partial_shape();
             auto input1_pshape = input1_layout.get_partial_shape();
@@ -212,7 +171,6 @@ public:
                 input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature, primitive->weights_rank));
                 // input1_layout.format = format::bfyx;
             }
-            std::cout << "bell try" << input1_layout.to_short_string() << std::endl;
             std::vector<layout> layouts{input0_layout, input1_layout};
 
             bool has_zp = !primitive->decompression_zero_point.empty();
@@ -255,11 +213,8 @@ public:
         updated_impl_param.input_layouts[1] = input_layouts[1];
         updated_impl_param.weights_layout = input_layouts[1];
 
-        std::cout << updated_impl_param.input_layouts[0].to_short_string() << std::endl;
-        std::cout << updated_impl_param.input_layouts[1].to_short_string() << std::endl;
-
         updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
-        std::cout << updated_impl_param.output_layouts[0].to_short_string() << std::endl;
+
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         params.allowInputReordering = true;
 
@@ -296,15 +251,10 @@ public:
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        std::cout << "bell debug in dispatch data" << impl_param.get_input_layout(0).to_short_string() << std::endl;
-        std::cout << "bell debug in dispatch data" << impl_param.get_output_layout(0).to_short_string() << std::endl;
         (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
-
-    static bool update_weight_flag;
 };
-int fully_connected_impl::infer_count = 0;
-bool fully_connected_impl::update_weight_flag = false;
+
 namespace detail {
 
 attach_fully_connected_impl::attach_fully_connected_impl() {

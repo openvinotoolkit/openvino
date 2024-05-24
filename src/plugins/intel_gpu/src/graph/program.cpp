@@ -39,7 +39,6 @@
 #include "data_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
-#include "fully_connected_inst.h"
 #include "generate_proposals_inst.h"
 #include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "input_layout_inst.h"

@@ -141,6 +141,33 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     return false;
 }
 
+int get_gather_tp_dim(size_t input_rank, layout& input_layout, int world_size) {
+    OPENVINO_ASSERT(input_layout.get_partial_shape().is_static(), "cannot deduce TP dim from a dynamic shape");
+    // for gather operation, -1 if no gather should be applied due to size not applicable for gather tp
+    // otherwise return the dim which tp should be applied
+    // currently considering fake alignment, and padding, apply simple algo here, to be optimized
+    auto input_pshape = input_layout.get_partial_shape();
+    size_t input_size = (input_rank > input_pshape.size()) ? input_pshape.size() : input_rank;
+    size_t feature = std::min(input_rank, static_cast<size_t>(4)) - 1;
+    // TODO: do not encounter this scenario for now...
+    if (input_size > 3) {
+        return -1;
+    }
+    if (feature >= 2) {
+        if (!(input_pshape.to_shape()[0] % world_size)) {
+            return 0;
+        } else if (!(input_pshape.to_shape()[1] % world_size)) {
+            return 1;
+        }
+    }
+    if (feature == 1) {// 2D input
+        if (!(input_pshape.to_shape()[0] % world_size)) {
+            return 0;
+        }
+    }
+    return -1;
+}
+
 static memory::ptr get_memory_from_pool(engine& _engine,
                                 uint32_t net_id,
                                 memory_pool& pool,
@@ -271,27 +298,39 @@ void primitive_inst::update_shape() {
         auto new_layout = _deps[i].first->_impl_params->get_output_layout(idx);
         auto update_new_layout = new_layout;
         auto& dep_impl_params = _deps[i].first->_impl_params;
-        if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && i == 0 && !_impl_params->input_fake_aligned) {
+        if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && i == 0) {
+            const auto& primitive = _impl_params->typed_desc<fully_connected>();
             auto new_update_pshape = new_layout.get_partial_shape().to_shape();
-            new_update_pshape[0] /= _impl_params->w_size;
-            update_new_layout = layout(ov::PartialShape(new_update_pshape),
-                                                            new_layout.data_type,
-                                                            new_layout.format,
-                                                            new_layout.data_padding);
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update input shape from " << new_layout.to_short_string() << " to "
-                               <<  update_new_layout.to_short_string() << std::endl;
-        } else if (dep_impl_params->is_type<fully_connected>() && dep_impl_params->w_size != 1 && !dep_impl_params->input_fake_aligned
+            auto dim = -1;
+            if (_impl_params->dev_type == cldnn::device_type::discrete_gpu) // current TP for discrete GPU only
+                dim = get_gather_tp_dim(primitive->input_size, new_layout, _impl_params->w_size);
+            // TO DO: check if needs fake alignment for n-1 dimension, if so, revert TP
+            if (dim >= 0) {
+                new_update_pshape[dim] /= _impl_params->w_size;
+                if (new_update_pshape[dim] % 8 == 0) { // hardcode for now, to be removed
+                    // do not do TP if fake alignment triggered for now, because needs to consider padding for concat
+                    _impl_params->output_restore_index = dim;
+                    update_new_layout = layout(ov::PartialShape(new_update_pshape),
+                                                                new_layout.data_type,
+                                                                new_layout.format,
+                                                                new_layout.data_padding);
+                    GPU_DEBUG_TRACE_DETAIL << id() << ": update input shape from " << new_layout.to_short_string() << " to "
+                                <<  update_new_layout.to_short_string() << std::endl;
+                }
+            }
+        } else if (dep_impl_params->is_type<fully_connected>() && dep_impl_params->is_tp_enabled_in_runtime()
                 && !dep_impl_params->output_restore) {
+            // need to restore the input layouts of successor nodes of FC if TP enabled for it
+            // for some nodes, its shape is been updated before FC get chance to restore its output, so need to add extra codes below
             new_layout = dep_impl_params->get_output_layout(idx);
             auto new_update_pshape = new_layout.get_partial_shape().to_shape();
-            new_update_pshape[0] *= dep_impl_params->w_size;
+            new_update_pshape[dep_impl_params->output_restore_index] *= dep_impl_params->w_size;
             update_new_layout = layout(ov::PartialShape(new_update_pshape),
                                                             new_layout.data_type,
                                                             new_layout.format,
                                                             new_layout.data_padding);
             GPU_DEBUG_TRACE_DETAIL << id() << ": restore input shape from " << new_layout.to_short_string() << " to "
                                <<  update_new_layout.to_short_string() << std::endl;
-            dep_impl_params->output_restore = false;
         }
         if (_impl_params->get_input_layout(i) != update_new_layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
@@ -533,9 +572,9 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<input_layout>())
         return ev;
 
-    if (_node->is_type<fully_connected>() && _impl_params->w_size != 1 && !_impl_params->input_fake_aligned) {
+    if (_node->is_type<fully_connected>() && _impl_params->is_tp_enabled_in_runtime()) {
         auto new_update_pshape = original_actual_layout.get_partial_shape().to_shape();
-        new_update_pshape[0] *= _impl_params->w_size;
+        new_update_pshape[_impl_params->output_restore_index] *= _impl_params->w_size;
         actual_layout = layout(ov::PartialShape(new_update_pshape),
                                                             actual_layout.data_type,
                                                             actual_layout.format,
@@ -593,9 +632,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             user->update_shape_done_by_other = true;
 
             auto fc_impl_params = *user->_impl_params;
-            std::cout << "bell debug" << fc_impl_params.input_layouts[0].to_short_string() << std::endl;
             auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
-            std::cout << "bdell debug after fake alignment" << fc_input_layout.to_short_string() << std::endl;
             if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
                                        << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
@@ -1441,10 +1478,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
         if (_node->is_type<fully_connected>()) {
-            std::cout << "bell debug 1" << std::endl;
             create_input_memory_placeholder();
             create_output_memory_placeholder();
-            GPU_DEBUG_TRACE_DETAIL << "bell debugline created new input memory place holder!!!! " << id() << std::endl;
         }
         set_arguments();
     }
@@ -1514,10 +1549,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
         // restore impl out params for FC
         if (shape_changed()) {
-            if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && !_impl_params->input_fake_aligned) {
+            if (_impl_params->is_type<fully_connected>() && _impl_params->is_tp_enabled_in_runtime()) {
                 auto out_layout = _impl_params->get_output_layout();
                 auto new_update_pshape = out_layout.get_partial_shape().to_shape();
-                new_update_pshape[0] *= _impl_params->w_size;
+                new_update_pshape[_impl_params->output_restore_index] *= _impl_params->w_size;
                 auto update_new_layout = layout(ov::PartialShape(new_update_pshape),
                                                                 out_layout.data_type,
                                                                 out_layout.format,

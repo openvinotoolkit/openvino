@@ -213,8 +213,6 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             auto is_extra_alignment_needed = batch_size >= 256;
             fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
         }
-        if (batch_size % fake_align_base != 0)
-            updated_param.input_fake_aligned = true;
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);
         std::fill(output_shape.begin(), output_shape.end() - 1, 1);
 
@@ -271,26 +269,15 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 
 void fully_connected_inst::create_output_memory_placeholder() {
     auto size = _node->as<fully_connected>().w_size;
-    //auto rank = _node->as<fully_connected>().w_rank;
     if (size != 1) {
-        //auto output = output_memory_ptr(0);
-        //auto offset = rank * (output->size() / size);
         auto fc_output_layout = get_impl_params()->get_output_layout(0);
         OPENVINO_ASSERT(fc_output_layout.is_static(), "cannot create TP memory holder for dynamic memory!");
         auto& engine = get_network().get_engine();
-        //auto alloc_type = engine.get_preferred_memory_allocation_type();
         auto update_fc_output_layout = layout(ov::PartialShape(fc_output_layout.get_partial_shape().to_shape()),
                                                             fc_output_layout.data_type,
                                                             fc_output_layout.format,
                                                             fc_output_layout.data_padding);
         output_placeholder = engine.allocate_memory(update_fc_output_layout, allocation_type::usm_host);
-        std::cout << "output memory place holder allocated " << update_fc_output_layout.to_short_string() << std::endl;
-        /*
-        auto output = output_memory_ptr(0);
-        auto offset = rank * (output->size() / size);
-        std::cout << "bell output offset debug " << offset << std::endl;
-        auto fc_output_layout = get_impl_params()->get_output_layout(0);
-        output_placeholder = output->get_engine()->reinterpret_buffer_with_offset(*output, get_impl_params()->get_output_layout(0), offset);*/
     } else {
         output_placeholder = output_memory_ptr(0);
     }
@@ -301,11 +288,8 @@ void fully_connected_inst::create_input_memory_placeholder() {
     auto rank = _node->as<fully_connected>().w_rank;
     auto input = input_memory_ptr(0);
     if (size != 1) {
-        std::cout << "bellbellbell" << get_impl_params()->get_input_layout(0).to_short_string() << std::endl;
         auto offset = rank * (input->size() / size);
-        std::cout << "bell offset debug " << offset << std::endl;
         input_placeholder = input->get_engine()->reinterpret_buffer_with_offset(*input, get_impl_params()->get_input_layout(0), offset);
-        std::cout << input_placeholder->get_allocation_type() << std::endl;
     } else {
         input_placeholder = input;
     }

@@ -680,7 +680,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             bool should_fuse = input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
 
-            //should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
+            should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
 
             should_fuse |= input.is_type<gemm>() && gemm_supports_fusings(input.as<gemm>());
 
@@ -734,7 +734,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                   input.is_type<convolution>() ||
                                   input.is_type<crop>() ||
                                   input.is_type<eltwise>() ||
-                                  //input.is_type<fully_connected>() ||
+                                  input.is_type<fully_connected>() ||
                                   input.is_type<normalize>() ||
                                   input.is_type<reorder>() ||
                                   (input.is_type<reshape>() && !input.is_dynamic()) ||

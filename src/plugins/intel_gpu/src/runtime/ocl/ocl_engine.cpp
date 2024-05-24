@@ -251,7 +251,7 @@ memory::ptr ocl_engine::reinterpret_buffer_with_offset(const memory& memory, con
                                      memory.get_allocation_type(),
                                      memory.get_mem_tracker());
         } else {
-           OPENVINO_THROW("not supported for now");
+           OPENVINO_THROW("reinterpret buffer with offset implemented for usm memory only");
         }
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
