@@ -11,9 +11,9 @@
 namespace ov {
 namespace test {
 
-constexpr int ROI_DEF_SIZE = 5;
-constexpr int SEED = 7877;
-constexpr float PI = 3.14159265358979323846f;
+static constexpr int ROI_DEF_SIZE = 5;
+static constexpr int SEED = 7877;
+static constexpr float PI = 3.14159265358979323846f;
 
 struct TestParams {
     std::vector<InputShape> input_shapes;
@@ -41,29 +41,29 @@ static TestParams ExtractTestParams(const roialignrotatedParams& param) {
     return tp;
 }
 
-static float randFloat(float low, float high) {
+static float RandomFloat(float low, float high) {
     static std::default_random_engine engine(SEED);
     std::uniform_real_distribution<float> dis(low, high);
     return dis(engine);
 }
 
-static std::vector<float> fillCoordTensor(int num_rois, int height, int width) {
+static std::vector<float> FillRoisTensor(int num_rois, int height, int width) {
     std::vector<float> rois;
     rois.resize(num_rois * ROI_DEF_SIZE);
 
     for (int i = 0; i < rois.size() / ROI_DEF_SIZE; i++) {
         // center_x, center_y, width, height, angle
-        rois[i * ROI_DEF_SIZE + 0] = randFloat(0.0f, width);
-        rois[i * ROI_DEF_SIZE + 1] = randFloat(0.0f, height);
-        rois[i * ROI_DEF_SIZE + 2] = randFloat(0.0f, width);
-        rois[i * ROI_DEF_SIZE + 3] = randFloat(0.0f, height);
-        rois[i * ROI_DEF_SIZE + 4] = randFloat(0.0f, 2 * PI);
+        rois[i * ROI_DEF_SIZE + 0] = RandomFloat(0.0f, width);
+        rois[i * ROI_DEF_SIZE + 1] = RandomFloat(0.0f, height);
+        rois[i * ROI_DEF_SIZE + 2] = RandomFloat(0.0f, width);
+        rois[i * ROI_DEF_SIZE + 3] = RandomFloat(0.0f, height);
+        rois[i * ROI_DEF_SIZE + 4] = RandomFloat(0.0f, 2 * PI);
     }
 
     return rois;
 }
 
-static std::vector<int> fillIdxTensor(int num_rois, int batch_size) {
+static std::vector<int> FillBAtchIdxTensor(int num_rois, int batch_size) {
     std::vector<int> idx;
     idx.resize(num_rois);
     int batch_id = 0;
@@ -113,17 +113,17 @@ void ROIAlignRotatedLayerTest::SetUp() {
     const auto input_height = inputDynamicShapes[0][2].get_length();
     const auto input_width = inputDynamicShapes[0][3].get_length();
 
-    auto param = std::make_shared<ov::op::v0::Parameter>(tp.model_type, inputDynamicShapes[0]);
+    auto input = std::make_shared<ov::op::v0::Parameter>(tp.model_type, inputDynamicShapes[0]);
     const auto rois_shape = ov::Shape{tp.num_rois, ROI_DEF_SIZE};
     const auto rois_idx_shape = ov::Shape{tp.num_rois};
 
     auto rois = std::make_shared<ov::op::v0::Constant>(tp.model_type,
                                                        rois_shape,
-                                                       fillCoordTensor(tp.num_rois, input_height, input_width).data());
+                                                       FillRoisTensor(tp.num_rois, input_height, input_width).data());
     auto rois_idx = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                            rois_idx_shape,
-                                                           fillIdxTensor(tp.num_rois, input_batch_size).data());
-    auto roi_align = std::make_shared<ov::op::v14::ROIAlignRotated>(param,
+                                                           FillBAtchIdxTensor(tp.num_rois, input_batch_size).data());
+    auto roi_align = std::make_shared<ov::op::v14::ROIAlignRotated>(input,
                                                                     rois,
                                                                     rois_idx,
                                                                     tp.pooled_h,
@@ -131,7 +131,7 @@ void ROIAlignRotatedLayerTest::SetUp() {
                                                                     tp.sampliong_ratio,
                                                                     tp.spatial_scale,
                                                                     tp.clockwise_mode);
-    function = std::make_shared<ov::Model>(roi_align->outputs(), ov::ParameterVector{param}, "roi_align_rotated");
+    function = std::make_shared<ov::Model>(roi_align->outputs(), ov::ParameterVector{input}, "roi_align_rotated");
 }
 
 }  // namespace test
