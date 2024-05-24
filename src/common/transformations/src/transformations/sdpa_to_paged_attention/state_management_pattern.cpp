@@ -67,7 +67,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                          const ParameterVector& model_remaining_params,
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
-                                                         NodeVector& assignes_to_remove,
                                                          int& layer_index,
                                                          Output<Node> max_context_len) {
     MATCHER_SCOPE(StateManagementPattern);
@@ -164,7 +163,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &model_remaining_params,
                                           &sliding_window,
                                           &parameters_to_remove,
-                                          &assignes_to_remove,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
@@ -372,21 +370,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             }
             parameters_to_remove.push_back(param);
         }
-
-        auto add_assign_consumers = [=, &assignes_to_remove](const std::shared_ptr<ov::Output<Node>>& output) {
-            for (auto& consumer : output->get_target_inputs()) {
-                auto consumer_node = consumer.get_node()->shared_from_this();
-                auto consumer_type = consumer_node->get_type_info().name;
-                if (std::strcmp(consumer_type, "Assign") == 0) {  // stateful model
-                    assignes_to_remove.push_back(consumer_node);
-                } else if (std::strcmp(consumer_type, "Result") == 0) {  // stateless model
-                    assignes_to_remove.push_back(consumer_node);
-                }
-            }
-        };
-
-        add_assign_consumers(std::make_shared<ov::Output<Node>>(pattern_map.at(k_concat)));
-        add_assign_consumers(std::make_shared<ov::Output<Node>>(pattern_map.at(v_concat)));
 
         replace_node(m.get_match_root(), pa_transpose);
         return true;
