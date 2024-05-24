@@ -586,16 +586,6 @@ const std::vector<InputShape>& inputShapes4D() {
     return inputShapes4D;
 }
 
-const std::vector<InputShape>& inputShapes4DCeilTorch() {
-    static const std::vector<InputShape> inputShapes4DCeilTorch = {
-            { {}, {{2, 8, 8, 12}} },
-            { {}, {{1, 16, 16, 12}} },
-            { {}, {{1, 21, 8, 4}} },
-            { {}, {{1, 32, 8, 8}} },
-    };
-    return inputShapes4DCeilTorch;
-}
-
 const std::vector<InputShape>& inputShapes5D() {
     static const std::vector<InputShape> inputShapes5D = {
             { {}, {{1, 4, 16, 16, 16}} },

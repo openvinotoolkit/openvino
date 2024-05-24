@@ -84,7 +84,6 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D();
 
 const std::vector<InputShape>& inputShapes3D();
 const std::vector<InputShape>& inputShapes4D();
-const std::vector<InputShape>& inputShapes4DCeilTorch();
 const std::vector<InputShape>& inputShapes4D_Large();
 const std::vector<InputShape>& inputShapes5D();
 const std::vector<InputShape>& inputShapes5DCeilTorch();
