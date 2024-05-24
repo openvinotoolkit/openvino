@@ -134,6 +134,9 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
                 // Compensations are computed by N dimension
                 *compensations_subtensor.rbegin() = block_size_n;
                 *++compensations_subtensor.rbegin() = 1;
+
+                OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
+                brgemm_expr->get_input_port_descriptor(2)->set_subtensor(compensations_subtensor);
                 copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);
             }
         }

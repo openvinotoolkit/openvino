@@ -33,22 +33,12 @@ public:
         }
         return create(n, params...);
     }
-    template<class ExprType, typename std::enable_if<std::is_base_of<Expression, ExprType>::value, bool>::type = true>
-    static ExpressionPtr shallow_copy(const std::shared_ptr<ExprType>& expr) {
-        if (const auto& io_expr = std::dynamic_pointer_cast<IOExpression>(expr))
-            return std::make_shared<IOExpression>(*io_expr);
-        else
-            return std::make_shared<ExprType>(*expr);
-    }
 
 private:
     /* -- Default Builders - initialize input port connectors from parents and create new output port connectors themselves */
-    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Parameter>& par, const LinearIR& linear_ir,
-                                const std::shared_ptr<ov::Model>& model);
-    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Result>& res, const LinearIR& linear_ir,
-                                const std::shared_ptr<ov::Model>& model);
-    static ExpressionPtr create(const std::shared_ptr<ov::Node>& n, const LinearIR& linear_ir,
-                                const std::shared_ptr<ov::Model>& model);
+    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Parameter>& par, const LinearIR& linear_ir);
+    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Result>& res, const LinearIR& linear_ir);
+    static ExpressionPtr create(const std::shared_ptr<ov::Node>& n, const LinearIR& linear_ir);
 
     /* -- Input Builders - get input port connectors from method parameters and create new output port connectors themselves */
     static ExpressionPtr create(const std::shared_ptr<op::LoopBegin>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);

@@ -82,6 +82,5 @@ public:
     explicit ReshapeShapeInfer(const std::shared_ptr<Node>& n);
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
-
 } // namespace snippets
 } // namespace ov

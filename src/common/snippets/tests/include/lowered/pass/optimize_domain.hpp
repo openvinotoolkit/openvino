@@ -5,6 +5,8 @@
 #pragma once
 
 #include <common_test_utils/ov_test_utils.hpp>
+
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/shape_types.hpp"
 
 namespace ov {
@@ -27,7 +29,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<OptimizeDomainParams> obj);
 protected:
     void SetUp() override;
-    std::shared_ptr<ov::Model> m_model;
+    ov::snippets::lowered::LinearIRPtr m_linear_ir;
     OptimizeDomainParams m_domain_opt_params;
 };
 

@@ -5,7 +5,6 @@
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/op/buffer.hpp"
-
 #include "brgemm_copy_b.hpp"
 
 #include "utils/general_utils.h"
@@ -51,6 +50,11 @@ bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(BrgemmRepack_visit_attributes);
     MemoryAccess::visit_attributes(visitor);
     visitor.on_attribute("src_type", m_src_type);
+    visitor.on_attribute("type", m_type);
+    visitor.on_attribute("K_blk", m_K_blk);
+    visitor.on_attribute("N_blk", m_N_blk);
+    visitor.on_attribute("inner_n_block", m_inner_n_block);
+    visitor.on_attribute("brgemmVNNIFactor", m_brgemmVNNIFactor);
     return true;
 }
 
@@ -138,6 +142,14 @@ ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(const s
     std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
-
 } // namespace intel_cpu
+
+template <>
+EnumNames<intel_cpu::BrgemmCopyB::Type>& EnumNames<intel_cpu::BrgemmCopyB::Type>::get() {
+    static auto enum_names = EnumNames<intel_cpu::BrgemmCopyB::Type>(
+        "ov::intel_cpu::BrgemmCopyB::Type",
+        {{"only_repacking", intel_cpu::BrgemmCopyB::Type::OnlyRepacking},
+         {"with_compensations", intel_cpu::BrgemmCopyB::Type::WithCompensations}});
+    return enum_names;
+}
 } // namespace ov
