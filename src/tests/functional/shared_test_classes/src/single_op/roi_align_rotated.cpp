@@ -123,7 +123,7 @@ void ROIAlignRotatedLayerTest::SetUp() {
     auto rois_idx = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                            rois_idx_shape,
                                                            FillBAtchIdxTensor(tp.num_rois, input_batch_size).data());
-    auto roi_align = std::make_shared<ov::op::v14::ROIAlignRotated>(input,
+    auto roi_align = std::make_shared<ov::op::v15::ROIAlignRotated>(input,
                                                                     rois,
                                                                     rois_idx,
                                                                     tp.pooled_h,
