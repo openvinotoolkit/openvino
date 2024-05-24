@@ -12,7 +12,7 @@ from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.cli_parser import get_model_name_from_args
 
 try:
-    # TODO 131000: temporal workaround patch OpenVINO Core and Frontends with OpenVINO Tokenizers extensions
+    # TODO 131000: temporal workaround to patch OpenVINO Core and frontends with tokenizers extensions
     # make OVC tool to convert models requiring openvino-tokenizers extensions
     import openvino_tokenizers
 except ImportError:
