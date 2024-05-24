@@ -588,7 +588,7 @@ const std::vector<InputShape>& inputShapes4D() {
 
 const std::vector<InputShape>& inputShapes4DCeilTorch() {
     static const std::vector<InputShape> inputShapes4DCeilTorch = {
-            { {}, {{3, 4, 64, 64}} },
+            { {}, {{3, 4, 128, 128}} },
             { {}, {{2, 8, 8, 12}} },
             { {}, {{1, 16, 16, 12}} },
             { {}, {{1, 21, 8, 4}} },
@@ -630,7 +630,7 @@ const std::vector<InputShape>& inputShapes5D() {
 
 const std::vector<InputShape>& inputShapes5DCeilTorch() {
     static const std::vector<InputShape> inputShapes5D = {
-            { {}, {{1, 4, 16, 16, 16}} },
+            { {}, {{1, 4, 32, 32, 32}} },
             { {}, {{2, 8, 8, 8, 8}} },
             { {}, {{2, 16, 12, 16, 20}} },
             { {}, {{1, 19, 16, 20, 8}} },
