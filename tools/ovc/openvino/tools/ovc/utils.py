@@ -143,7 +143,7 @@ def import_openvino_tokenizers():
         is_nightly = False
 
     try:
-        import openvino_tokenizers
+        import openvino_tokenizers  # pylint: import-error
 
         openvino_tokenizers._get_factory()
     except RuntimeError:
