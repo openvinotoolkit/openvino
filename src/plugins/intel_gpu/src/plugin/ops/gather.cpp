@@ -162,7 +162,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
                                             axis,
                                             reordered_inputs[3],
                                             (has_scalar_zp || op->get_input_size() == 4) ? cldnn::input_info() : reordered_inputs[4],
-                                            op_compressed->get_output_type(),
+                                            op_compressed->get_output_element_type(0),
                                             input_rank,
                                             out_shape,
                                             batch_dim,

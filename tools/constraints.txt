@@ -2,6 +2,7 @@
 # some package versions need to be specified in respective requirements.txt
 # files because the version differs between them:
 # tensorflow, numpy
+h5py>=3.1.0,<3.11.0
 mxnet~=1.2.0; sys_platform == 'win32'
 mxnet>=1.7.0.post2,<=1.9.1; sys_platform != 'win32'
 onnx>=1.8.1,<=1.15.0
@@ -15,7 +16,6 @@ coverage>=4.4.2,<=7.0.5
 astroid>=2.9.0
 pylint>=2.7.0
 pyenchant>=3.0.0
-test-generator==0.1.1
 py>=1.9.0
 urllib3>=1.26.4
 openvino-telemetry>=2023.2.1

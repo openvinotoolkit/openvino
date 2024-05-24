@@ -44,8 +44,6 @@ constexpr size_t kImInfoInputIdx = 0;
 constexpr size_t kAnchorsInputIdx = 1;
 constexpr size_t kDeltasInputIdx = 2;
 constexpr size_t kScoresInputIdx = 3;
-constexpr size_t kRoisScoresOutputIdx = 4;
-constexpr size_t kRoisNumsOutputIdx = 5;
 
 GenerateProposalsRef::DispatchData SetDefault(const generate_proposals_params& params, size_t idx) {
     GenerateProposalsRef::DispatchData dispatch_data;
@@ -89,15 +87,15 @@ void GenerateProposalsRef::SetKernelArguments(
         case 2: { // NMS
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // proposals
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // nms_out_indices
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisNumsOutputIdx}); // rois num
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2}); // rois num
             break;
         }
         case 3: { // convert proposals to rois and roi scores
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // proposals
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // nms_out_indices
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisNumsOutputIdx}); // rois num
-            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});          // rois
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisScoresOutputIdx}); // roi scores
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2}); // rois num
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0}); // rois
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1}); // roi scores
             break;
         }
         default:

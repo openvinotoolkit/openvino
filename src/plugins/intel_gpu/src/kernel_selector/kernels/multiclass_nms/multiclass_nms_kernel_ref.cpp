@@ -66,11 +66,13 @@ MulticlassNmsKernelRef::DispatchData SetDefault(const multiclass_nms_params& par
 
 void MulticlassNmsKernelRef::SetKernelArguments(const multiclass_nms_params& params,
                                                 size_t idx, cldnn::arguments_desc& arguments) const {
-    for (auto i = 0; i < 2 + params.has_roisnum + 2; ++i) {
+    for (auto i = 0; i < (params.has_roisnum ? 3 : 2); ++i) {
         arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
     }
     arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
     arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
+    arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
 }
 
 JitConstants MulticlassNmsKernelRef::GetJitConstants(const multiclass_nms_params& params) const {
@@ -113,8 +115,6 @@ JitConstants MulticlassNmsKernelRef::GetJitConstants(const multiclass_nms_params
 
         MakeJitConstant("MAX_OUTPUT_BOXES_PER_BATCH", max_output_boxes_per_batch),
     });
-
-    jit.Merge(MakeTypeJitConstants(params.indices_output_type, "OUTPUT_INDICES"));
 
     if (params.has_roisnum) {
         jit.AddConstant(MakeJitConstant("HAS_ROISNUM", 1));
