@@ -32,9 +32,17 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
                                                     1,
                                                     ov::hint::SchedulingCoreType::PCORE_ONLY,
                                                     true});
-    } else {
+    } else if (config.enableSubStreams) {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
+    } else {
+        if (config.subStreamExecConfig.get_name() != "StreamsExecutor") {
+            ov::threading::IStreamsExecutor::Config executor_confg = std::move(config.subStreamExecConfig);
+            return std::make_shared<ov::threading::CPUStreamsExecutor>(executor_confg);
+        } else {
+            return std::make_shared<ov::threading::CPUStreamsExecutor>(
+                ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
+        }
     }
 }
 }  // namespace
@@ -68,6 +76,16 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
         auto message = ov::threading::message_manager();
         std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
         for (int i = 0; i < 2; i++) {
+            auto streamExecutorConfig = ov::threading::IStreamsExecutor::Config{"GPUStreamsExecutor",
+                                                                 1,
+                                                                 0,
+                                                                 ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                 false,
+                                                                 false,
+                                                                 {},
+                                                                 m_config.streamsRankTable[i]};
+            m_config.subStreamExecConfig = std::move(streamExecutorConfig);
+
             sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, context, m_config));
         }
         message->setSubCompileModels(sub_models);

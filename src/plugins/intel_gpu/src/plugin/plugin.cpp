@@ -180,11 +180,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         config.get_property(ov::hint::model_distribution_policy.name())
             .as<std::set<ov::hint::ModelDistributionPolicy>>();
     if (model_distribution_policy.count(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
+        auto get_rank_table = [&]() {
+            std::vector<std::vector<int>> rank_table = {};
+            for (size_t i = 0; i < context_vector.size(); i++) {
+                std::vector<int> init_rank = {};
+                init_rank.emplace_back(i);
+                rank_table.emplace_back(init_rank);
+            }
+            return rank_table;
+        };
         std::cout << "ov::hint::ModelDistributionPolicy: TENSOR_PARALLEL\n";
         // get 2 devices with same type
         auto context = get_default_context("1");
         context_vector.push_back(context);
         config.enableSubStreams = true;
+        config.streamsRankTable = get_rank_table();
     }
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");

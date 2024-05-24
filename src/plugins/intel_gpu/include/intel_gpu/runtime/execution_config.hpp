@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -140,6 +141,8 @@ public:
 
     std::string to_string() const;
     bool enableSubStreams;
+    ov::threading::IStreamsExecutor::Config subStreamExecConfig;
+    std::vector<std::vector<int>> streamsRankTable;
 
 protected:
     void apply_hints(const cldnn::device_info& info);
