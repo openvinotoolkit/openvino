@@ -9,8 +9,8 @@ namespace intel_npu {
 namespace driverCompilerAdapter {
 
 struct IR {
-    std::stringstream xml;
-    std::stringstream weights;
+    std::string xmlName;
+    std::string weightsName;
 };
 
 /**
