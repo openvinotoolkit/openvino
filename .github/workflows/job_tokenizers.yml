@@ -69,7 +69,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_tokenizers'
           path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
-          ref: 'master'
+          ref: 'releases/2024/2'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
