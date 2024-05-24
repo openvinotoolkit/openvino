@@ -31,7 +31,10 @@
 #        define wstat _wstat
 #    endif
 /// @brief Windows-specific 'mkdir' wrapper
-#    define makedir(dir) _mkdir(dir)
+#    define makedir(dir) _mkdir(dir.c_str())
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        define wmakedir(dir) _wmkdir(dir.c_str())
+#    endif
 // Copied from linux libc sys/stat.h:
 #    if !defined(__MINGW32__) && !defined(__MINGW64__)
 #        define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
@@ -55,7 +58,10 @@
 /// @brief Get absolute file path, returns NULL in case of error
 #    define get_absolute_path(result, path) realpath(path.c_str(), result)
 /// @brief mkdir wrapper
-#    define makedir(dir)                    mkdir(dir, 0755)
+#    define makedir(dir)                    mkdir(dir.c_str(), 0755)
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        define wmakedir(dir) mkdir(ov::util::wstring_to_string(dir).c_str(), 0755)
+#    endif
 #endif
 
 std::string ov::util::get_file_name(const std::string& s) {
@@ -407,7 +413,7 @@ void ov::util::create_directory_recursive(const std::string& path) {
         create_directory_recursive(path.substr(0, pos));
     }
 
-    int err = makedir(path.c_str());
+    int err = makedir(path);
     if (err != 0 && errno != EEXIST) {
         std::stringstream ss;
         // TODO: in case of exception it may be needed to remove all created sub-directories
@@ -415,6 +421,27 @@ void ov::util::create_directory_recursive(const std::string& path) {
         throw std::runtime_error(ss.str());
     }
 }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void ov::util::create_directory_recursive(const std::wstring& path) {
+    if (path.empty() || directory_exists(path)) {
+        return;
+    }
+
+    std::size_t pos = path.rfind(ov::util::FileTraits<char>::file_separator);
+    if (pos != std::string::npos) {
+        create_directory_recursive(path.substr(0, pos));
+    }
+
+    int err = wmakedir(path);
+    if (err != 0 && errno != EEXIST) {
+        std::stringstream ss;
+        // TODO: in case of exception it may be needed to remove all created sub-directories
+        ss << "Couldn't create directory [" << ov::util::wstring_to_string(path) << "], err=" << strerror(errno) << ")";
+        throw std::runtime_error(ss.str());
+    }
+}
+#endif
 
 bool ov::util::directory_exists(const std::string& path) {
     struct stat sb;
