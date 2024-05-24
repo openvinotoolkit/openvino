@@ -77,7 +77,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          ref: 'master'
+          ref: 'releases/2024/2'
 
       #
       # Print system info
