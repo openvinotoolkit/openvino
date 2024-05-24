@@ -100,11 +100,10 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
                                     size_t& output_idx) {
             auto transpose_order_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_order_const_node);
 
+            order = transpose_order_const->cast_vector<int64_t>();
             // Allow any transposes without head_size dim position change
             if (order.back() != static_cast<int64_t>(order.size() - 1))
                 return false;
-
-            order = transpose_order_const->cast_vector<int64_t>();
 
             auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(transpose_node);
             output_idx = transpose->get_input_source_output(0).get_index();
@@ -114,17 +113,17 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
 
         bool can_fuse_transposes = true;
         if (pattern_map.count(transpose_q_m) > 0)
-            can_fuse_transposes |= process_transpose(pattern_map.at(transpose_q_m).get_node_shared_ptr(),
+            can_fuse_transposes &= process_transpose(pattern_map.at(transpose_q_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_q_order_m).get_node_shared_ptr(),
                                                      order_q, input_q_output_idx);
 
         if (pattern_map.count(transpose_k_m) > 0)
-            can_fuse_transposes |= process_transpose(pattern_map.at(transpose_k_m).get_node_shared_ptr(),
+            can_fuse_transposes &= process_transpose(pattern_map.at(transpose_k_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_k_order_m).get_node_shared_ptr(),
                                                      order_k, input_k_output_idx);
 
         if (pattern_map.count(transpose_v_m) > 0)
-            can_fuse_transposes |= process_transpose(pattern_map.at(transpose_v_m).get_node_shared_ptr(),
+            can_fuse_transposes &= process_transpose(pattern_map.at(transpose_v_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_v_order_m).get_node_shared_ptr(),
                                                      order_v, input_v_output_idx);
 
