@@ -125,7 +125,7 @@ endif()\n")
 
     # detect where OPENVINO_EXTRA_MODULES contains folders with CMakeLists.txt
     # other folders are supposed to have sub-folders with CMakeLists.txt
-    foreach(module_path IN LISTS OPENVINO_EXTRA_MODULES IE_EXTRA_MODULES)
+    foreach(module_path IN LISTS OPENVINO_EXTRA_MODULES)
         get_filename_component(module_path "${module_path}" ABSOLUTE)
         if(EXISTS "${module_path}/CMakeLists.txt")
             list(APPEND extra_modules "${module_path}")
