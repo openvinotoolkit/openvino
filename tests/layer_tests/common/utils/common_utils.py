@@ -74,11 +74,12 @@ def generate_ir_python_api(coverage=False, **kwargs):
     return 0, ""
 
 
-def generate_ir_ovc(input_model, **kwargs):
+def generate_ir_ovc(input_model, opts):
     params = ['ovc', input_model]
-    for key, value in kwargs.items():
+    for key, value in opts.items():
         # handle optional arguments
-        params.extend(("--{}".format(key), str(value)))
+        # both key and values are of string type
+        params.extend(("--{}".format(key), value))
     exit_code, stdout, stderr = shell(params)
     return exit_code, stdout, stderr
 

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import os
 import platform
 import pytest
 import tensorflow as tf
@@ -59,7 +60,7 @@ class TestStringLower(CommonTFLayerTest):
                    use_legacy_frontend=use_legacy_frontend)
 
 
-class OVCTestStringLower:
+class TestStringLowerOVC:
     def prepare_data(self):
         inputs_data = {}
         inputs_data['input:0'] = np.array(['Some sentence', 'ANOTHER sentenCE'], dtype=str)
@@ -81,19 +82,19 @@ class OVCTestStringLower:
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'],
                        reason='Ticket - 126314, 132699')
-    def test_string_lower_with_ovc(self, ie_device, temp_dir):
+    def test_string_lower_with_ovc(self, ie_device, temp_dir, precision):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         input_model_path = self.create_string_lower_model(temp_dir)
         output_model_path = os.path.join(temp_dir, 'model_string_lower.xml')
-        return_code, _, _ = generate_ir_ovc(input_model_path, {'output_model', output_model_path})
+        return_code, _, _ = generate_ir_ovc(input_model_path, {'output_model': output_model_path})
         assert return_code == 0, "OVC tool is failed for conversion model {}".format(input_model_path)
 
         import openvino_tokenizers
         import openvino as ov
         core = ov.Core()
         compiled_model = core.compile_model(output_model_path, ie_device)
-        input_data, ref_data = self.prepare_input()
+        input_data, ref_data = self.prepare_data()
         ov_result = compiled_model(input_data)['StringLower:0']
 
         assert np.array_equal(ov_result, ref_data), 'OpenVINO result does not match the reference:' \
