@@ -117,7 +117,7 @@ class TestExpandAs(PytorchLayerTest):
 class TestDynamicExpand(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        last_dym = random.randint(1,4)
+        last_dym = random.randint(2,8)
         return (np.random.randn(1, 3, 1).astype(np.float32), last_dym)
 
     def create_model(self, dim):
