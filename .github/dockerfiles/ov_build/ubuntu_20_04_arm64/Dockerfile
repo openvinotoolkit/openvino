@@ -29,6 +29,7 @@ RUN apt-get update && \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
+        libhdf5-dev \
         # For Java API
         default-jdk \
         # Compiler
