@@ -1,5 +1,4 @@
 -c ../../constraints.txt
-h5py
 numpy
 pytest
 pytest-html
