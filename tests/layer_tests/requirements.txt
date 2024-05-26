@@ -1,5 +1,6 @@
 -c ../constraints.txt
 # paddlepaddle #  ticket 95904
+h5py
 numpy
 onnxruntime
 requests
