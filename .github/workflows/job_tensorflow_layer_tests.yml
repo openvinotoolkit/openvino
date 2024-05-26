@@ -116,12 +116,11 @@ jobs:
       # Tests
       #
 
-      - name: Install Prerequisites
-        if: runner.os == 'Linux'
+      - name: Install dependencies
+        if: ${{ runner.os == 'Linux' }}
         run: |
-          apt update
-          apt install -y \
-            libhdf5-dev
+          # libhdf5-dev is required for proper h5py and tensorflow installation
+          apt update && apt install -y libhdf5-dev
 
       - name: Install OpenVINO Python wheels (Linux and macOS)
         if: runner.os != 'Windows'
