@@ -69,7 +69,7 @@ void UndefinedEtSubgraphTest::SetUp() {
     auto param_2 = std::make_shared<op::v0::Parameter>(m_data_et, inputDynamicShapes[2]);
     param_2->set_friendly_name("maxval");
 
-    auto rnd_unfm = std::make_shared<op::v8::RandomUniform>(param_0, param_1, param_2, m_data_et);
+    auto rnd_unfm = std::make_shared<op::v8::RandomUniform>(param_0, param_1, param_2, m_data_et, 1lu, 0lu);
     auto cvt_f32 = std::make_shared<op::v0::Convert>(rnd_unfm, element::f32);
     auto logical_not = std::make_shared<op::v1::LogicalNot>(cvt_f32);
 
