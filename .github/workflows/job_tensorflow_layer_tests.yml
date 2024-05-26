@@ -116,6 +116,13 @@ jobs:
       # Tests
       #
 
+      - name: Install Prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          apt update
+          apt install -y \
+            libhdf5-dev
+
       - name: Install OpenVINO Python wheels (Linux and macOS)
         if: runner.os != 'Windows'
         run: |

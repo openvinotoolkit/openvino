@@ -130,6 +130,12 @@ jobs:
       # Dependencies
       #
 
+      - name: Install Prerequisites
+        run: |
+          apt update
+          apt install -y \
+            libhdf5-dev
+
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
