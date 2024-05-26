@@ -757,6 +757,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint gid = (uint)get_group_id(0);
 #endif
 
+
     uint sglid = (uint)get_sub_group_local_id();
 
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
@@ -769,11 +770,13 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
     uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
 
+    FILTER_VEC_TYPE wei = 0;
+
 #if USE_SLM
     uint out_f = gid * (TILE_OFM * SIMD);
     uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
 #else
-    FILTER_VEC_TYPE wei = 0;
+    // FILTER_VEC_TYPE wei = 0;
     uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (TILE_OFM * SIMD);
     uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
 #endif
@@ -798,7 +801,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         // Dyn Quan
         MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[HALF_TILE_B] = { };   // Load 4 linear inputs for packing
         PACKED_DQ_TYPE                                  packed_in_0[HALF_TILE_B] = { };     // Packing char4 inputs to 1 integer
-        MAKE_VECTOR_TYPE(INPUT0_TYPE, TILE_B)           de_quantize_scale;
+        INPUT0_TYPE                                     de_quantize_scale[TILE_B];
     #else
         INPUT_VEC_TYPE       in_0[TILE_B] = { };
     #endif
@@ -1440,6 +1443,8 @@ KERNEL(fc)(
         );
     } else {
         if ((INPUT0_FEATURE_NUM*INPUT0_BATCH_NUM > 256) && USE_SLM && DYNAMIC_QUANTIZE) {
+            // fc_bf_tiled_kernel_dyn_quan kernel is for dynamic quantizing. DECOMPRESSION_SCALE_POST_OP is required.
+            // It shows better performance with weight SLM and 4bit weight.
             // if (get_sub_group_local_id() == 0 && get_group_id(0) == 0 && get_group_id(2) == 0 &&
             //     get_local_id(0) == 0 && get_local_id(2) == 0) {
             //         printf(">>>> DYNAMIC : ELEMENTS_COUNT(%d) batch(%d) TILE_B(%d) OSV32_ISV2(%d) TILE_OFM(%d) => group0(%d) local0(%d) / group2(%d) local2(%d)\n",

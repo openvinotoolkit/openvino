@@ -17,7 +17,7 @@ static const size_t group_size = 32;
 // DYNAMIC_QUANTIZE
 static bool is_dynamic_quantize(const fully_connected_params& params) {
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
-    if ((scale_group_size % simd == 0) && (params.is_shape_agnostic || params.inputs[0].Batch().v > 8) &&
+    if ((scale_group_size % simd == 0) && (params.is_shape_agnostic || params.inputs[0].Batch().v > 256) &&
         params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
         params.inputs[0].Y().v > 16 && params.decompression_zero_point.Feature().v == 1)
@@ -272,10 +272,10 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
-                // if (params.is_shape_agnostic) {
-                //     selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                //             .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
-                // }
+                if (params.is_shape_agnostic && !is_dynamic_quantize(params)) {
+                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                            .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                }
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
@@ -561,8 +561,9 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             // - kd.kernels[N] for batches >= 256 (slm version)
             const auto default_alignment = 16;
             // We can use SLM version if `output_batch + default_alignment > 256` because memory and batch are aligned (whether 16 or 64 elements)
-            const auto execute_kernel_idx = (output_batch + default_alignment > 256) ? kernel_num : kernel_num - 1;
-            const auto skip_kernel_idx = (execute_kernel_idx == kernel_num) ? (kernel_num - 1) : kernel_num;
+            const auto execute_type = (output_batch + default_alignment > 256) ? KernelType::SLM : KernelType::DEFAULT;
+            const auto execute_kernel_idx = (execute_type == KernelType::SLM) ? kernel_num : kernel_num - 1;
+            const auto skip_kernel_idx = (execute_type == KernelType::SLM) ? (kernel_num - 1) : kernel_num;
 
             // Check default or SLM version FC, and disable remain version
             kd.kernels[skip_kernel_idx].skip_execution = true;
@@ -573,7 +574,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             // printf("   -- previous kernel idx(%d) in kernels.size(%lu) for sa : gws(%lu, %lu, %lu)\n", execute_kernel_idx, kd.kernels.size(),
             //             kd.kernels[execute_kernel_idx].params.workGroups.global[0], kd.kernels[execute_kernel_idx].params.workGroups.global[1], kd.kernels[execute_kernel_idx].params.workGroups.global[2]);
 
-            auto dispatchData = SetDefault(prim_params, -1, execute_kernel_idx);
+            auto dispatchData = SetDefault(prim_params, -1, (int)execute_type);
             kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
             kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
             kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
@@ -583,20 +584,28 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             // printf("       -- relevant values : Physical(%lu) Y(%lu) TILE_B(%u) gws(%lu) lws(%lu) \n", prim_params.inputs[0].PhysicalSize(), prim_params.inputs[0].Y().v, dispatchData.tile_m, dispatchData.gws[2], dispatchData.lws[2]);
 
             if (!kd.internalBufferSizes.empty()) {
-                size_t input_size = prim_params.inputs[0].Y().v * dispatchData.tile_m * dispatchData.gws[2];
-                // printf("   -- Require update intermediate buffer\n");
-                // printf("     -- previous kernel(%d) for sa : input size(%lu) gws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0, input_size,
-                //             kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2], (int)kd.internalBufferSizes.size());
+                // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
+                if (execute_type == KernelType::DEFAULT) {
+                    kd.kernels[0].skip_execution = true;
+                } else {
+                    kd.kernels[0].skip_execution = false;
+                    size_t input_size = prim_params.inputs[0].Y().v * dispatchData.tile_m * dispatchData.gws[2];
+                    // printf("   -- Require update intermediate buffer\n");
+                    // printf("     -- previous kernel(%d) for sa : input size(%lu) gws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0, input_size,
+                    //             kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2], (int)kd.internalBufferSizes.size());
 
-                kd.kernels[0].params.workGroups.global = {std::max((input_size / (16 * 2)), (size_t)1), 1, 1};
-                kd.kernels[0].params.workGroups.local = {16, 1, 1};
-                kd.internalBufferSizes.clear();
-                kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSize() * 2);
-                kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSize() / 32 * 2);
+                    if (kd.kernels[0].params.workGroups.global[0] < (input_size / (16 * 2))) {
+                        kd.internalBufferSizes.clear();
+                        kd.internalBufferSizes.push_back(input_size * 2);
+                        kd.internalBufferSizes.push_back(input_size / 32 * 2);
+                    }
 
-                // printf("     -- update kernel(%d) for sa : gws(%lu, %lu, %lu) lws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0,
-                //     kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2],
-                //     kd.kernels[0].params.workGroups.local[0], kd.kernels[0].params.workGroups.local[1], kd.kernels[0].params.workGroups.local[2], (int)kd.internalBufferSizes.size());
+                    kd.kernels[0].params.workGroups.global = {std::max((input_size / (16 * 2)), (size_t)1), 1, 1};
+                    kd.kernels[0].params.workGroups.local = {16, 1, 1};
+                    // printf("     -- update kernel(%d) for sa : gws(%lu, %lu, %lu) lws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0,
+                    //     kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2],
+                    //     kd.kernels[0].params.workGroups.local[0], kd.kernels[0].params.workGroups.local[1], kd.kernels[0].params.workGroups.local[2], (int)kd.internalBufferSizes.size());
+                }
             }
         };
     }
