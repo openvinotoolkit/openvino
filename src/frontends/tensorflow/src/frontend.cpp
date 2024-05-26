@@ -469,7 +469,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
                 << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
                    "provides conversion extension(s): "
                 << unsupported_ops_from_tokenizers
-                << ". Refer to OpenVINO Tokenizers documentation: "
+                << ". Install OpenVINO Tokenizers, refer to the documentation: "
                    "https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html \n";
         }
     }
