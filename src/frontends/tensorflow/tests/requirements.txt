@@ -1,4 +1,4 @@
 -c ../../../bindings/python/constraints.txt
-h5py
 numpy
+h5py
 tensorflow
