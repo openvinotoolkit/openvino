@@ -140,7 +140,8 @@ jobs:
           USE_SYSTEM_CACHE: False
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
-      - name: PagedAttention Test # Good name?
+      - name: PagedAttention Test
+        if: always()
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
         # For now added the precommit tests only
