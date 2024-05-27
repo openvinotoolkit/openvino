@@ -95,10 +95,6 @@ struct Version {
     uint32_t major;
     uint32_t minor;
     uint32_t patch;
-
-    inline bool isCompatible(const Version& other) const {
-        return this->major == other.major && this->minor == other.minor;  // TODO: needs confirmation
-    }
 };
 
 /**

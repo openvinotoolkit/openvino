@@ -573,7 +573,7 @@ void Plugin::checkForCompilerFallback() {
 
     // If there is an ELF or MI version incompatibility between CIP and Driver, the
     // compiler_type will be set to Driver Compiler.
-    if (!driverElfVersion.value().isCompatible(cipElfVersion)) {
+    if (!(driverElfVersion->major == cipElfVersion.major && driverElfVersion->minor >= cipElfVersion.minor)) {
         _logger.info("Driver ELF Version: %d.%d.%d is incompatible with Plugin ELF Version: %d.%d.%d, "
                      "Driver Compiler will be set as default compiler type",
                      driverElfVersion->major,
@@ -583,7 +583,7 @@ void Plugin::checkForCompilerFallback() {
                      cipElfVersion.minor,
                      cipElfVersion.patch);
         setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
-    } else if (!driverMIVersion.value().isCompatible(cipMIVersion)) {
+    } else if (!(driverMIVersion->major == cipMIVersion.major && driverMIVersion->minor >= cipMIVersion.minor)) {
         _logger.info("Driver MI Version: %d.%d.%d is incompatible with Plugin MI Version: %d.%d.%d, "
                      "Driver Compiler will be set as default compiler type",
                      driverMIVersion->major,
