@@ -123,7 +123,6 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     //  x = c * (1 - std::abs(fmodu - 1));
     auto x = make_shared<v1::Multiply>(c, make_shared<v1::Subtract>(make_shared<v0::Constant>(element::f32, Shape{}, 1.0f), make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, make_shared<v0::Constant>(type, Shape{}, 1.0f)))));
 
-    
     // h_category = static_cast<int>(dh);
     auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i32);
 
