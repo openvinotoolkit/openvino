@@ -140,11 +140,22 @@ jobs:
           USE_SYSTEM_CACHE: False
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
+      - name: PagedAttention Test # Good name?
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+        # For now added the precommit tests only
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_sampling.py -k "test_pa_precommit"
+        env:
+          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+
       - name: Reformat unsupported ops file
         if: '!cancelled()'
         run: |
           python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
-  
+
       - name: Available storage after tests
         run: |
           echo "Available storage:"
