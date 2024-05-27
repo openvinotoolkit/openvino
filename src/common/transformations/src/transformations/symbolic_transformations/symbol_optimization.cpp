@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -163,7 +164,10 @@ ov::Output<ov::Node> alternative_source_from_concat_input_sources(const STS_map&
         if (!concat || concat->get_input_size() != 2)
             return alternative_source;
         int64_t idx = get_idx_of_symbol_in_source(source, symbol);
-        if (idx == -1 || idx != concat->get_concatenation_axis())
+        if (idx == -1)
+            return alternative_source;
+        const auto rank = source.get_partial_shape().rank().get_length();
+        if (idx != ov::util::normalize(concat->get_axis(), rank))
             return alternative_source;
         // optimize using the knowledge of the Concat SI and what happens on the axis
         const auto& lhs_pshape = concat->get_input_partial_shape(0);

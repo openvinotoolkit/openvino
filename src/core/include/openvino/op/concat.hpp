@@ -37,9 +37,11 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The concatenation axis.
+    OPENVINO_DEPRECATED("This method will be removed in 2025.0")
     int64_t get_concatenation_axis() const {
         return m_concat_axis;
     }
+    OPENVINO_DEPRECATED("This method will be removed in 2025.0")
     void set_concatenation_axis(int64_t concatenation_axis) {
         m_concat_axis = concatenation_axis;
     }

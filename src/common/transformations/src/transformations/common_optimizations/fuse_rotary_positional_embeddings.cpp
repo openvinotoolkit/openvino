@@ -74,7 +74,7 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
         auto value = split_axis_node->cast_vector<int64_t>();
         if (value.size() != 1)
             return false;
-        auto concat_axis = concat_node->get_concatenation_axis();
+        auto concat_axis = concat_node->get_axis();
         auto split_axis = value[0];
         if (concat_axis != split_axis) {
             if (input.get_partial_shape().rank().is_static()) {
