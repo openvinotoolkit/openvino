@@ -183,8 +183,8 @@ private:
     // more efficient to have one per function group
     std::unordered_map<std::string, std::string> layer_to_prototype;
 
-    // Some of the scalars might be used by different groups within
-    // a repeated block. We need to keep them counted for sanity checks.
+    // Some of the scalars might be shared by different groups within
+    // the same repeated block family. We need to keep them counted for sanity checks.
     // Matches a pair of {func_name, layer_name} to it's counter.
     std::map<std::pair<std::string, std::string>, size_t> dup_scalars;
 
@@ -776,6 +776,12 @@ void Partitioner::propagateWeights(const std::string &func_name) {
             && const_bank.end() == std::find_if(const_bank.begin(),
                                                 const_bank.end(),
                                                 BankContains{this_layer_name})
+             // FIXME: workaround for scalars which might pass the weights check
+            && node_ptr->outputs().size() == 1
+            && (node_ptr->get_shape().size() > 1
+                || (node_ptr->get_shape().size() == 1
+                    && node_ptr->get_shape()[0] > 10))
+            // FIXME end
             && node_ptr->output(0).get_target_inputs().size() == 1
             && layer_bank.end() != std::find_if(layer_bank.begin(),
                                                 layer_bank.end(),
@@ -817,12 +823,14 @@ void Partitioner::propagateScalars(const std::string &func_name) {
         const auto &this_layer_name = node_ptr->get_friendly_name();
         auto res = ov::is_type<ov::op::v0::Constant>(node_ptr)
             && scalar_bank.end() == std::find_if(scalar_bank.begin(),
-                                                scalar_bank.end(),
-                                                BankContains{this_layer_name});
+                                                 scalar_bank.end(),
+                                                 BankContains{this_layer_name});
         if (ov::is_type<ov::op::v0::Constant>(node_ptr)
             && scalar_bank.end() != std::find_if(scalar_bank.begin(),
-                                                scalar_bank.end(),
-                                                BankContains{this_layer_name})) {
+                                                 scalar_bank.end(),
+                                                 BankContains{this_layer_name})) {
+            // FIXME: incorrect logic! This will also increment in case of multiple scalar outputs.
+            // Instead it should only take shared scalars in to account!
             dup_scalars[{func_name, this_layer_name}]++;
         }
         return res;
@@ -866,8 +874,10 @@ void Partitioner::sanityCheck(const std::string &func_name) {
         for (const auto& l : lrs) {
             f_dup_scalars += dup_scalars[{func_name, l}];
         }
-        if (lrs.size() != 1 && lrs.size() + f_dup_scalars != func_group.refs.size()) {
-            LOG_WARN("Number of layers in scalar match bank differs from 1 <OR> # of function calls: "
+        if (lrs.size() != 1 && (lrs.size() + f_dup_scalars != func_group.refs.size()) && (lrs.size() != func_group.refs.size())) {
+            LOG_WARN("Number of layers in scalar match bank differs from 1 <OR> # of function calls "
+                     << "<OR> # of function calls including duplicate scalars: "
+                     << lrs.size() << " != " << func_group.refs.size() << " OR "
                      << lrs.size() + f_dup_scalars << " != " << func_group.refs.size());
             return false;
         }
@@ -892,6 +902,7 @@ void Partitioner::sanityCheck(const std::string &func_name) {
         LOG_BLOCK();
         all_ok &= validate_scalars(bank);
     }
+    NPUW_ASSERT(all_ok);
     // All Consts in all submodels should be registered at this point
     auto &consts = rep_block.consts;
     auto &scalars = rep_block.scalars;
