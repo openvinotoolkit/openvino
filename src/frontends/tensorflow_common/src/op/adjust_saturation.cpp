@@ -117,6 +117,8 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     auto const_six_f_ = make_shared<v0::Constant>(type, Shape{}, 6.0f);
     auto const_two_f_ = make_shared<v0::Constant>(type, Shape{}, 2.0f);
     auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
+
+    auto const_minus_one_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -1);
     
     // c = s * v;
     auto c = make_shared<v1::Multiply>(s, v);
@@ -132,7 +134,7 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     auto x = make_shared<v1::Multiply>(c, make_shared<v1::Subtract>(const_one_f_, make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, const_one_f_))));
 
     // h_category = static_cast<int>(dh);
-    auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i64);
+    auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i32);
 
     auto zeros = make_shared<v0::Constant>(type, x->get_shape(), 0.0f);
 
@@ -147,18 +149,16 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     // use a gather operation to select the correct channel values based on h_category
     int batch_dim = s->get_shape().size() - 1;
 
-    auto axis = make_shared<v0::Constant>(element::i32, Shape{}, -1);
-    auto rr = make_shared<v8::Gather>(rr_concat, h_category, axis, batch_dim);
-    auto gg = make_shared<v8::Gather>(gg_concat, h_category, axis, batch_dim);
-    auto bb = make_shared<v8::Gather>(bb_concat, h_category, axis, batch_dim);
+    auto rr = make_shared<v8::Gather>(rr_concat, h_category, const_minus_one_i_, batch_dim);
+    auto gg = make_shared<v8::Gather>(gg_concat, h_category, const_minus_one_i_, batch_dim);
+    auto bb = make_shared<v8::Gather>(bb_concat, h_category, const_minus_one_i_, batch_dim);
 
     // adding m to each component
-    auto r = make_shared<v1::Add>(rr, m);
-    auto g = make_shared<v1::Add>(gg, m);
-    auto b = make_shared<v1::Add>(bb, m);
+    auto rgb = make_shared<v0::Concat>(NodeVector{rr, gg, bb}, -1);
+    auto rgb_adjust = make_shared<v1::Add>(rgb, m);
 
     // return concatenated RGB 
-    return make_shared<v0::Concat>(NodeVector{r, g, b}, -1); 
+    return rgb_adjust;
 }
 
 OutputVector translate_adjust_saturation_op(const NodeContext& node) {
