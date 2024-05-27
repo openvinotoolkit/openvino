@@ -528,14 +528,6 @@ void Plugin::checkForCompilerFallback() {
         _globalConfig.update({{std::string(ov::intel_npu::compiler_type.name()), strStream.str()}});
     };
 
-    // Check if CID fallback is required
-    if (_backends->isCompilerFallbackRequired()) {
-        _logger.info("Driver Version is too old to use MLIR Compiler. "
-                     "Driver Compiler will be set as default compiler type.");
-        setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
-        return;
-    }
-
     // The driver versions are fetched from zero device
     const auto device = _backends->getDevice();
     if (device == nullptr) {
@@ -546,9 +538,18 @@ void Plugin::checkForCompilerFallback() {
     const std::optional<Version> driverMIVersion = device->getLibraryMIVersion();
 
     if (!(driverElfVersion && driverMIVersion)) {
-        // We don't need to set the Driver Compiler as default here,
-        // since only compatible drivers without 1.6 graph extension can pass Driver Version check.
-        return;
+        // The current driver version doesn't have versions API
+
+        // Check if CID fallback is required
+        if (_backends->isCompilerFallbackRequired()) {
+            _logger.info("Driver Version is too old to use MLIR Compiler. "
+                         "Driver Compiler will be set as default compiler type.");
+            setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
+            return;
+        } else {
+            // Driver version is supported, CID fallback is not needed
+            return;
+        }
     }
 
     // CIP ELF and MI versions depend on the platform, so we need to fetch the native platform of the device.
