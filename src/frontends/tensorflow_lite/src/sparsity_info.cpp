@@ -25,7 +25,7 @@ static void read_sparse_data(uint8_t* dest,
         FRONT_END_GENERAL_CHECK(dest < dest_end, "Dense data is out of bounds");
         size_t element_count = *segment - last_segment;
         for (size_t i = 0; i < element_count; ++i, ++idx) {
-            auto row_offset = (*indices)[idx] * element_size;
+            auto row_offset = (*indices)[static_cast<flatbuffers::uoffset_t>(idx)] * element_size;
             auto value_offset = idx * element_size;
             memcpy(static_cast<uint8_t*>(static_cast<void*>(dest)) + row_offset, values + value_offset, element_size);
         }
