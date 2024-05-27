@@ -38,7 +38,7 @@ OpenVINO repositories make use of the following runners:
 
 ## Available Self-hosted Runners
 
-As of 25/05/2024, two groups of the self-hosted runners are available:
+Two groups of the self-hosted runners are available:
 
 * Dynamically spawned Linux and Windows runners with CPU-only capabilities
 * Dedicated Linux runners with GPU capabilities
@@ -74,14 +74,14 @@ The available configurations are:
 
 ### Dedicated GPU Runners
 
-As of 24/05/2024,
-18 runners with GPU capabilities are available to all repositories in the OpenVINO organisation's GitHub Actions.
+Eighteen runners with GPU capabilities are available to all repositories in the OpenVINO organisation's GitHub Actions. 
+Both integrated GPUs (iGPU) and discrete GPUs (dGPU) are available.
 
 These runners are virtual machines with Ubuntu 22.04. They have the following specifications:
 
 * CPU: i9-12900k
 * All of them have iGPU (UHD 770 Graphics)
-* 12 of them have iGPU (UHD 770 Graphics) and dGPU (Arc A770)
+* Twelve of them have iGPU (UHD 770 Graphics) and dGPU (Arc A770)
 
 These runners could be selected using labels provided in the `runs-on` field in a job configuration.
 The available labels are:
