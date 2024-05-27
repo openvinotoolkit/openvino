@@ -26,7 +26,9 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/clamp.hpp"
-
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/squeeze.hpp"
+#include <fstream>
 using namespace std;
 using namespace ov;
 using namespace ov::op;
@@ -119,6 +121,7 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
 
     auto const_minus_one_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -1);
+    auto const_minus_two_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -2);
     
     // c = s * v;
     auto c = make_shared<v1::Multiply>(s, v);
@@ -145,16 +148,27 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     auto rr_concat = make_shared<v0::Concat>(rr_options, -1); 
     auto gg_concat = make_shared<v0::Concat>(gg_options, -1);
     auto bb_concat = make_shared<v0::Concat>(bb_options, -1);
-    
+
+    auto rr_unsqueeze = make_shared<v0::Unsqueeze>(rr_concat,const_minus_one_i_);
+    auto gg_unsqueeze = make_shared<v0::Unsqueeze>(gg_concat,const_minus_one_i_);
+    auto bb_unsqueeze = make_shared<v0::Unsqueeze>(bb_concat, const_minus_one_i_);
+
+    std::ofstream logFile("debug.log", std::ios_base::app);
+    logFile << "START" << std::endl;
+    logFile << "Shape of rr_concat: " << rr_concat->get_shape().to_string() << std::endl;
+    logFile << "Shape of rr_unsq: " << rr_unsqueeze->get_shape().to_string() << std::endl;
+
+    auto rgb_options = make_shared<v0::Concat>(NodeVector{rr_unsqueeze, gg_unsqueeze, bb_unsqueeze}, -1);
+
+    logFile << "Shape of rgb_options: " << rgb_options->get_shape().to_string() << std::endl;
     // use a gather operation to select the correct channel values based on h_category
-    int batch_dim = s->get_shape().size() - 1;
+    int batch_dim = rgb_options->get_shape().size() - 2;
 
-    auto rr = make_shared<v8::Gather>(rr_concat, h_category, const_minus_one_i_, batch_dim);
-    auto gg = make_shared<v8::Gather>(gg_concat, h_category, const_minus_one_i_, batch_dim);
-    auto bb = make_shared<v8::Gather>(bb_concat, h_category, const_minus_one_i_, batch_dim);
+    auto rgb = make_shared<v0::Squeeze>(make_shared<v8::Gather>(rgb_options, h_category, const_minus_two_i_, batch_dim),
+    const_minus_two_i_ );
+    
+    logFile << "Shape of rgb: " << rgb->get_shape().to_string() << std::endl;
 
-    // adding m to each component
-    auto rgb = make_shared<v0::Concat>(NodeVector{rr, gg, bb}, -1);
     auto rgb_adjust = make_shared<v1::Add>(rgb, m);
 
     // return concatenated RGB 
