@@ -19,6 +19,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     scaled_dot_product_attention(const primitive_id& id,
                                  const std::vector<cldnn::input_info> inputs,
                                  bool is_causal,
+                                 int64_t indirect_axis = -1,
                                  const std::vector<int64_t>& input_q_transpose_order = {},
                                  const std::vector<int64_t>& input_k_transpose_order = {},
                                  const std::vector<int64_t>& input_v_transpose_order = {},
@@ -26,17 +27,23 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                                  const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding})
         , is_causal(is_causal)
-        , has_attn_mask_input(inputs.size() > 3)
-        , has_scale_input(inputs.size() > 4)
+        , indirect_axis(indirect_axis)
         , input_q_transpose_order(input_q_transpose_order)
         , input_k_transpose_order(input_k_transpose_order)
         , input_v_transpose_order(input_v_transpose_order)
-        , output_transpose_order(output_transpose_order) {}
+        , output_transpose_order(output_transpose_order) {
+            auto data_inputs_num = inputs.size();
+            if (indirect_axis != -1)
+                data_inputs_num--;
 
+            has_attn_mask_input = data_inputs_num > 3;
+            has_scale_input = data_inputs_num > 4;
+        }
 
     bool is_causal = false;
     bool has_attn_mask_input = false;
     bool has_scale_input = false;
+    int64_t indirect_axis = -1;
 
     std::vector<int64_t> input_q_transpose_order;
     std::vector<int64_t> input_k_transpose_order;
@@ -48,6 +55,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         seed = hash_combine(seed, is_causal);
         seed = hash_combine(seed, has_attn_mask_input);
         seed = hash_combine(seed, has_scale_input);
+        seed = hash_combine(seed, indirect_axis);
         seed = hash_range(seed, input_q_transpose_order.begin(), input_q_transpose_order.end());
         seed = hash_range(seed, input_k_transpose_order.begin(), input_k_transpose_order.end());
         seed = hash_range(seed, input_v_transpose_order.begin(), input_v_transpose_order.end());
@@ -64,6 +72,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         return is_causal == rhs_casted.is_causal &&
                has_attn_mask_input == rhs_casted.has_attn_mask_input &&
                has_scale_input == rhs_casted.has_scale_input &&
+               indirect_axis == rhs_casted.indirect_axis &&
                input_q_transpose_order == rhs_casted.input_q_transpose_order &&
                input_k_transpose_order == rhs_casted.input_k_transpose_order &&
                input_v_transpose_order == rhs_casted.input_v_transpose_order &&
@@ -75,6 +84,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ob << is_causal;
         ob << has_attn_mask_input;
         ob << has_scale_input;
+        ob << indirect_axis;
         ob << input_q_transpose_order;
         ob << input_k_transpose_order;
         ob << input_v_transpose_order;
@@ -86,6 +96,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ib >> is_causal;
         ib >> has_attn_mask_input;
         ib >> has_scale_input;
+        ib >> indirect_axis;
         ib >> input_q_transpose_order;
         ib >> input_k_transpose_order;
         ib >> input_v_transpose_order;

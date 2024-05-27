@@ -30,6 +30,7 @@ SDPA::SDPA(const ov::Output<Node>& Q,
     , m_is_causal(is_causal)
     , m_output_type(output_type) {
     set_arguments({Q, K, V});
+    set_causal(is_causal);
     validate_and_infer_types();
 }
 
@@ -50,6 +51,7 @@ SDPA::SDPA(const ov::Output<Node>& Q,
     , m_is_causal(is_causal)
     , m_output_type(output_type) {
     set_arguments({Q, K, V, attn_mask});
+    set_causal(is_causal);
     validate_and_infer_types();
 }
 
@@ -71,13 +73,23 @@ SDPA::SDPA(const ov::Output<Node>& Q,
     , m_is_causal(is_causal)
     , m_output_type(output_type) {
     set_arguments({Q, K, V, attn_mask, scale});
+    set_causal(is_causal);
     validate_and_infer_types();
 }
 
 std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
-    return std::make_shared<SDPA>(new_args.at(0), new_args.at(1), new_args.at(2), m_order_q, m_order_k, m_order_v, m_order_out, m_is_causal, m_output_type);
+    if (new_args.size() == 3) {
+        return std::make_shared<SDPA>(new_args.at(0), new_args.at(1), new_args.at(2),
+                                      m_order_q, m_order_k, m_order_v, m_order_out, m_is_causal, m_output_type);
+    } else if (new_args.size() == 4) {
+        return std::make_shared<SDPA>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
+                                      m_order_q, m_order_k, m_order_v, m_order_out, m_is_causal, m_output_type);
+    } else {
+        return std::make_shared<SDPA>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4),
+                                      m_order_q, m_order_k, m_order_v, m_order_out, m_is_causal, m_output_type);
+    }
 }
 
 void SDPA::validate_and_infer_types() {

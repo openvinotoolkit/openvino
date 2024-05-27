@@ -85,15 +85,30 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
         return true;
     };
 
-    if ((!params.input0_order.empty() && !is_default_order(params.input0_order)) || params.conf.broadcast_axis != -1) {
+    auto use_index_calc_func = [&](const std::vector<int64_t> order, bool is_query = false) {
+        if (!params.input0_order.empty() && !is_default_order(params.input0_order))
+            return true;
+
+        if (params.conf.broadcast_axis != -1)
+            return true;
+
+        if (params.indirect_axis != -1 && !is_query)
+            return true;
+
+        return false;
+    };
+
+    if (params.indirect_axis != -1)
+        jit.AddConstant(MakeJitConstant("BEAM_TABLE", params.beam_table));
+
+    if (use_index_calc_func(params.input0_order, true))
         jit.AddConstant(MakeJitConstant("INPUT0_DIMS_ORDER", GetDimsOrder(params.input0_order)));
-    }
-    if ((!params.input1_order.empty() && !is_default_order(params.input1_order)) || params.conf.broadcast_axis != -1) {
+
+    if (use_index_calc_func(params.input1_order))
         jit.AddConstant(MakeJitConstant("INPUT1_DIMS_ORDER", GetDimsOrder(params.input1_order)));
-    }
-    if ((!params.input2_order.empty() && !is_default_order(params.input2_order)) || params.conf.broadcast_axis != -1) {
+
+    if (use_index_calc_func(params.input2_order))
         jit.AddConstant(MakeJitConstant("INPUT2_DIMS_ORDER", GetDimsOrder(params.input2_order)));
-    }
 
     TransposedDimensionAccessHelperJit dims_q(params.inputs[0], params.input0_order);
     jit.AddConstant(MakeJitConstant("TARGET_SEQ_LEN", dims_q.y()));

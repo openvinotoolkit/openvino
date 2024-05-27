@@ -29,6 +29,22 @@ static size_t get_seq_len_partition_size() {
     return seq_len;
 }
 
+static std::string GetKernelName(std::string base_name, KernelsTypes type, bool is_indirect) {
+    auto kernel_name = base_name;
+    if (is_indirect)
+        kernel_name += "_ind";
+
+    if (type == KernelsTypes::SINGLE_TOKEN) {
+        kernel_name += "_single_token";
+    } else if (type == KernelsTypes::MULTI_TOKENS) {
+        kernel_name += "_multi_tokens";
+    } else if (type == KernelsTypes::FINALIZATION) {
+        kernel_name += "_finalization";
+    }
+
+    return kernel_name;
+}
+
 ParamsKey SDPAKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -104,7 +120,7 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
                                   head_size * num_of_partitions };
             dispatch_data.lws = { 1, 1, head_size };
-        } else if (kernel_idx == 2) {
+        } else if (kernel_idx == KernelsTypes::FINALIZATION) {
             dispatch_data.gws = { batch_size * heads_num,
                                   target_seq_len,
                                   16 };
@@ -134,8 +150,7 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
     const auto& prim_params = dynamic_cast<const sdpa_params&>(params);
     for (size_t kernel_idx = 0; kernel_idx < kernels_num; kernel_idx++) {
         auto dispatch_data = SetDefault(prim_params, kernel_idx);
-        auto kernel_name = kernel_idx == 0 ? kernelName + "_single_token" :
-                                             kernel_idx == 1 ? kernelName + "_multi_tokens" : kernelName + "_finalization";
+        auto kernel_name = GetKernelName(kernelName, static_cast<KernelsTypes>(kernel_idx), prim_params.indirect_axis != -1);
         auto entry_point = GetEntryPoint(kernel_name, prim_params.layerID, params);
         auto jit_constants = GetJitConstants(prim_params, kernel_idx);
         auto jit = CreateJit(kernel_name, jit_constants, entry_point);
@@ -170,6 +185,9 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
         auto tmp_out_dt_size = 4;
         auto tmp_out_elements_count = (num_of_partitions == 1) ? 1 : output.LogicalSize() * num_of_partitions;
         auto tmp_out_size = tmp_out_elements_count * tmp_out_dt_size;
+
+        if (prim_params.indirect_axis != -1 && kernel_idx != KernelsTypes::FINALIZATION)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(prim_params.inputs.size())});
 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
