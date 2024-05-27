@@ -325,8 +325,15 @@ TEST_F(RoPECPUTestChatGLM, smoke_CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "RoPE", 1);
 }
 
-class RoPECPUTestQwen7b : public SubgraphBaseTest {
+class RoPECPUTestQwen7b : public SubgraphBaseTest, public testing::WithParamInterface<bool> {
 public:
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        bool specialReshape;
+        specialReshape = obj.param;
+        std::ostringstream result;
+        result << "specialReshape=" << specialReshape << std::endl;
+        return result.str();
+    }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         const auto& funcInputs = function->inputs();
 
@@ -346,7 +353,7 @@ public:
     }
 
 protected:
-    std::shared_ptr<ov::Model> buildROPE_QWen7b() {
+    std::shared_ptr<ov::Model> buildROPE_QWen7b(bool specialReshape) {
         auto input =
             std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{-1, -1, 4096 + 4096 + 4096});
         auto cos_cache = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{1, -1, 1, 128});
@@ -401,8 +408,13 @@ protected:
             makeOP<opset1::Reshape>({floor_divide_Floor, {-1}}, {{"special_zero", false}});
         auto ListConstruct_493_Concat =
             makeOP<opset1::Concat>({Gather_239390, {2}, ListConstruct_493_Reshape_3}, {{"axis", 0}});
-        auto reshape_Reshape =
-            makeOP<opset1::Reshape>({slice_Slice_470, ListConstruct_493_Concat}, {{"special_zero", false}});
+        std::shared_ptr<ov::Node> reshape_Reshape = nullptr;
+        if (specialReshape) {
+            reshape_Reshape = makeOP<opset1::Reshape>({slice_Slice_470, {0, 0, 32, 2, 64}}, {{"special_zero", true}});
+        } else {
+            reshape_Reshape =
+                makeOP<opset1::Reshape>({slice_Slice_470, ListConstruct_493_Concat}, {{"special_zero", false}});
+        }
         auto ListUnpack_496_Split = makeOP<opset1::Split>({reshape_Reshape, -2}, {{"num_splits", 2}});
         auto ListUnpack_496_Squeeze_0 = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(1), -2});
         auto Constant_296840_compressed = makeConst(element::f16,
@@ -444,18 +456,24 @@ protected:
     }
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
+        bool specialReshape = this->GetParam();
         const int batch = 2;
         const int seq_length = 7;
         InputShape inpShape = {{batch, -1, 4096 + 4096 + 4096}, {{batch, seq_length, 4096 + 4096 + 4096}}};
         init_input_shapes({inpShape});
-        function = buildROPE_QWen7b();
+        function = buildROPE_QWen7b(specialReshape);
     }
 };
 
-TEST_F(RoPECPUTestQwen7b, smoke_CompareWithRefs) {
+TEST_P(RoPECPUTestQwen7b, smoke_CompareWithRefs) {
     run();
     CheckNumberOfNodesWithType(compiledModel, "RoPE", 1);
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPECPUTestQwen7b,
+                         RoPECPUTestQwen7b,
+                         ::testing::Values(true, false),
+                         RoPECPUTestQwen7b::getTestCaseName);
 
 class RoPECPUTestGPTJ : public SubgraphBaseTest, public testing::WithParamInterface<bool> {
 public:

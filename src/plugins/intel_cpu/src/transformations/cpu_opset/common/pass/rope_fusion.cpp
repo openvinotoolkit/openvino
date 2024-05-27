@@ -20,6 +20,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/rope.hpp"
 #include "utils/gen_pattern.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::gen_pattern;
 
@@ -689,13 +690,12 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
                                             {{"special_zero", false}});  //  tensor_array<f32[?,?,32,2,64]>
     };
 
-    auto reshape_opt2 = [&](std::shared_ptr<Node> input_BLHS) {
-        return makePattern<opset1::Reshape>({input_BLHS, {0, 0, 0, 2, head_size / 2}},
-                                            {{"special_zero", true}});  //  tensor_array<f32[?,?,32,2,64]>
-    };
+    // If with sepcial_zero, const_shape should be checked later
+    auto const_shape = makePattern<opset1::Constant>({}, {});
+    auto reshape_special = makePattern<opset1::Reshape>({slice_Slice_543, const_shape}, {{"special_zero", true}});
 
     auto ListUnpack_586_Split =
-        makePattern<opset1::Split>({reshape_opt1(slice_Slice_543) | reshape_opt2(slice_Slice_543), -2},
+        makePattern<opset1::Split>({reshape_opt1(slice_Slice_543) | reshape_special, -2},
                                    {{"num_splits", 2}});  //  tensor_array<f32[?,?,32,1,64] f32[?,?,32,1,64]>
     ListUnpack_586_Split->set_output_size(2);
     auto Multiply_567527 =
@@ -744,6 +744,34 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
             // key : split_output_id == 1
             config.slice_start = config.head_cnt * config.head_size;
             config.slice_stop = config.slice_start + config.head_cnt * config.head_size;
+        }
+
+        if (pattern_map.count(reshape_special)) {
+            // check reshape_special shape correctness
+            auto reshape_special_node = pattern_map.at(reshape_special).get_node_shared_ptr();
+            auto data_shape = reshape_special_node->get_input_partial_shape(0);
+            auto reshape_shape = pattern_map.at(const_shape);
+            auto check_const = [&data_shape](Output<Node> output) -> bool {
+                auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
+                const auto& target = node->cast_vector<int32_t>();
+                // ensure data_shape and target_shape have correct rank
+                if (target.size() < 3 || data_shape.rank().is_dynamic() || (data_shape.rank().is_static() && data_shape.rank().get_length() < 2)) {
+                    return false;
+                }
+                if (data_shape[data_shape.size() - 1].is_static() && data_shape[data_shape.size() - 2].is_static()) {
+                    auto head_size = data_shape[data_shape.size() - 1].get_length();
+                    auto head_cnt = data_shape[data_shape.size() - 2].get_length();
+                    // reshape splits the head_size of input to [2, head_size / 2]
+                    // head_cnt of target_shape could be 0 or head_cnt
+                    return (target[target.size() - 1] == head_size / 2) && (target[target.size() - 2] == 2) &&
+                           (ov::intel_cpu::one_of(target[target.size() - 3], 0, head_cnt));
+                } else {
+                    return false;
+                }
+            };
+            if (!check_const(reshape_shape)) {
+                return false;
+            }
         }
 
         new_args.push_back(pattern_map.at(qkv_proj));
