@@ -20,14 +20,18 @@ namespace {
 TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     TensorMetaInfo tensor_meta_info;
     const auto tensor = tensor_info.tensor;
+    const uint8_t* tensor_data =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
 
     tensor_meta_info.m_partial_shape =
         ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature());
     tensor_meta_info.m_element_type = ov::frontend::tensorflow_lite::get_ov_type(tensor->type());
     tensor_meta_info.m_quantization_info = ov::frontend::tensorflow_lite::get_quantization(tensor->quantization());
-    tensor_meta_info.m_sparsity_info = ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(), tensor->sparsity());
-    tensor_meta_info.m_tensor_data =
-        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
+    tensor_meta_info.m_sparsity_info = ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(),
+                                                                                   tensor->sparsity(),
+                                                                                   tensor_meta_info.m_element_type,
+                                                                                   tensor_data);
+    tensor_meta_info.m_tensor_data = tensor_data;
     tensor_meta_info.m_tensor_name = tensor->name()->str();
 
     return tensor_meta_info;
@@ -108,6 +112,8 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
     const ov::frontend::InputModel& model) const {
     const auto tensor = tensor_info.tensor;
     std::vector<std::string> names = {tensor->name()->str()};
+    const uint8_t* tensor_data =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
 
     return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
         model,
@@ -115,8 +121,11 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
         ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
         names,
         ov::frontend::tensorflow_lite::get_quantization(tensor->quantization()),
-        ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(), tensor->sparsity()),
-        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr));
+        ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(),
+                                                    tensor->sparsity(),
+                                                    ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
+                                                    tensor_data),
+        tensor_data);
 }
 
 ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
