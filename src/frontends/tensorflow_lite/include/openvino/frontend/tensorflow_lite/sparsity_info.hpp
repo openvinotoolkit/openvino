@@ -111,7 +111,6 @@ public:
     }
 
 private:
-    const uint8_t* m_values;                    // Sparse values
     std::vector<int32_t> m_shape;               // Target shape of the tensor
     std::vector<int32_t> m_traversal_order;     // Sparse tensor traversal order
     std::vector<int32_t> m_block_map;           // Block map of the tensor
@@ -119,6 +118,7 @@ private:
     std::vector<SparsityDataDesc> m_data_desc;  // Tensor data descriptors
     std::vector<uint8_t> m_data;                // Dense data
     ov::element::Type m_target_type;            // Target type
+    const uint8_t* m_values;                    // Sparse values
     bool m_disabled;
 
     // Unpack sparse tensor and return pointer on unpacked data
