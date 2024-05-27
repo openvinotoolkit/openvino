@@ -106,7 +106,7 @@ See the `example section <#examples-of-how-to-apply-nncf-post-training-quantizat
          
 
 After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
-If you have not already installed OpenVINO developer tools, install it with ``pip install openvino-dev``.
+If you have not already installed OpenVINO developer tools, install it with ``pip install openvino``.
 
 .. tab-set::
 
