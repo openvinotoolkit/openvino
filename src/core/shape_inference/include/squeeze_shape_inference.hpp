@@ -95,7 +95,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
             auto rm_axis_end = unique_axes->cend();
 
             // Returns true if dimension not squeezable on axis from input axes.
-            const auto not_squeezable_at_axis = [&op, &rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
+            const auto not_squeezable_at_axis = [&rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
                 if ((rm_axis_iter != rm_axis_end) && (*rm_axis_iter == idx++)) {
                     ++rm_axis_iter;
                     if (!dim.compatible(1)) {
