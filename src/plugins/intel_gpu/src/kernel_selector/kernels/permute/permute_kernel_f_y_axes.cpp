@@ -65,7 +65,7 @@ size_t GetTileWidth(const permute_params& params) {
 
     // i64 only supports tile size 4
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
-        min_divisor = min_divisor / 2;
+        min_divisor = min_divisor >= 4 ? min_divisor / 2 : min_divisor;
     }
     if (input_type == Datatype::F16) {
         min_divisor = min_divisor * 2;
@@ -77,7 +77,7 @@ size_t GetTileWidth(const permute_params& params) {
     if (params.inputs[0].X().v == 1) {
         return std::min(params.inputs[0].Y().v, min_divisor);
     }
-    return std::min(params.inputs[0].X().v, min_divisor);
+    return std::min(GetDivisor(params.inputs[0].X().v), min_divisor);
 }
 
 size_t GetTileSize(const permute_params& params) {
