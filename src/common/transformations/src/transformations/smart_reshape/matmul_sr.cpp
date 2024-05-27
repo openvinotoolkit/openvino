@@ -36,10 +36,6 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
         // avoiding loop creation
         return false;
 
-    if (shape_source.get_partial_shape().rank().is_dynamic()) {
-        return false;
-    }
-
     bool is_1d = ov::pass::pattern::rank_equals(1)(shape_source);
     int64_t idx = -1;
     if (!is_1d) {
@@ -69,7 +65,10 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
 
 ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
     MATCHER_SCOPE(ReshapeAMatMul);
-    auto other_input_label = pattern::any_input();
+    auto other_input_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return output.get_partial_shape().rank().is_static();
+    };
+    auto other_input_label = pattern::any_input(other_input_predicate);
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
@@ -94,7 +93,10 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
 
 ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
     MATCHER_SCOPE(ReshapeBMatMul);
-    auto other_input_label = pattern::any_input();
+    auto other_input_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return output.get_partial_shape().rank().is_static();
+    };
+    auto other_input_label = pattern::any_input(other_input_predicate);
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
