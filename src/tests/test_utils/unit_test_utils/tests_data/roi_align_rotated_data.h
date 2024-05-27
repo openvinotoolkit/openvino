@@ -287,6 +287,28 @@ TEST_DATA(LIST(1, 1, 5, 5),
           LIST(0),
           LIST(5.1271, 1.2473, 6.1773, 2.9598, 7.2275, 3.2300, 8.2777, 3.7458, 9.3279, 4.4060),
           "roi_align_rotated_all_features");
+TEST_DATA(LIST(1, 1, 2, 5),
+          2,
+          2,
+          1.0f,
+          2,
+          true,
+          LIST(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+          LIST(0.5, 0.5, 1, 1, 0),
+          LIST(0),
+          LIST(1.0, 1.25, 2.25, 2.50),
+          "input_image_not_rectangular");
+TEST_DATA(LIST(2, 1, 2, 5),
+          2,
+          2,
+          1.0f,
+          2,
+          true,
+          LIST(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20),
+          LIST(0.5, 1., 2., 5., 0.5, 0., 2., 5., 1., 0.),
+          LIST(0, 1),
+          LIST(0.5201, 1.9866, 2.5219, 3.0896, 0.0000, 16.7500, 0.0000, 16.7500),
+          "input_image_not_rectangular_batch_2");
 
 #undef PI
 #undef LIST
