@@ -32,16 +32,14 @@ bool SerializeDataFlow::run(LinearIR& linear_ir) {
             OPENVINO_ASSERT(ops_map.count(input_expr), "input node wasn't found during serialization");
             inputs[i] = ops_map[input_expr]->output(expr->get_input_port_connector(i)->get_source().get_index());
         }
-        if (auto ioexpr = std::dynamic_pointer_cast<IOExpression>(expr)) {
-            if (ioexpr->get_type() == IOExpression::io_type::INPUT) {
-                const auto parameter = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
-                ops_map[ioexpr] = parameter;
-                parameters.push_back(parameter);
-            } else {
-                const auto result = std::make_shared<ov::op::v0::Result>(inputs[0]);
-                ops_map[ioexpr] = result;
-                results.push_back(result);
-            }
+        if (ov::is_type<ov::op::v0::Parameter>(node)) {
+            const auto parameter = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+            ops_map[expr] = parameter;
+            parameters.push_back(parameter);
+        } else if (ov::is_type<ov::op::v0::Result>(node)) {
+            const auto result = std::make_shared<ov::op::v0::Result>(inputs[0]);
+            ops_map[expr] = result;
+            results.push_back(result);
         } else {
             const auto serialization_node = std::make_shared<op::SerializationNode>(inputs, expr, serialization_mode);
             ops_map[expr] = serialization_node;

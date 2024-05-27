@@ -559,7 +559,7 @@ As discussed before, the model consists of several blocks which can be
 reused for building pipelines for different tasks. In the diagram below,
 you can see how image captioning works:
 
-|image6|
+|image01|
 
 The visual model accepts the image preprocessed by ``BlipProcessor`` as
 input and produces image embeddings, which are directly passed to the
@@ -573,12 +573,12 @@ tokenized by ``BlipProcessor`` are provided to the text encoder and then
 multimodal question embedding is passed to the text decoder for
 performing generation of answers.
 
-|image7|
+|image11|
 
 The next step is implementing both pipelines using OpenVINO models.
 
-.. |image6| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
-.. |image7| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
+.. |image01| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
+.. |image11| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
 
 .. code:: ipython3
 
