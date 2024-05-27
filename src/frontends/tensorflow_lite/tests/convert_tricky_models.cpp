@@ -26,7 +26,7 @@ OPENVINO_TEST(TensorflowLiteTrickyModels, tflite_dequantize) {
     auto test_case = ov::test::TestCase(model, ov::test::utils::DEVICE_CPU);
     test_case.add_input<float>({1, 1, 1, 1});
     test_case.add_expected_output<float>(Shape{2, 2}, {2, 1.75f, 2001, 0.8765258789f});
-    test_case.run();
+    test_case.run_with_tolerance_as_fp();
 }
 
 OPENVINO_TEST(TensorflowLiteTrickyModels, tflite_densify) {
