@@ -7,6 +7,7 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
+#include "snippets/utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -15,33 +16,6 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-size_t jit_brgemm_emitter::get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
-    // Input shape is original, so we need to correctly read this data by order
-    // Example:
-    //      Original shape (shape) = [1, 49, 2, 23]
-    //      Layout (transpose order) = [2, 0, 1, 3]
-    //      Transposed shape = [2, 1, 49, 23]
-    //      The leading dimension is equal to stride of shape[layout[3]] = 2 x 23
-    OV_CPU_JIT_EMITTER_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
-                              "detected invalid layout values: check that this shape + layout combination is schedulable");
-    const auto idx = layout[layout.size() - 2];  // `1` in example
-    return std::accumulate(shape.cbegin() + idx + 1, shape.end(), 1, std::multiplies<size_t>());
-}
-size_t jit_brgemm_emitter::get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
-    // Output shape is already transposed, we need to correctly write the data with original shape by the order
-    // Example:
-    //      Original transposed shape (shape) = [49, 2, 7, 39]
-    //      Layout (transpose order) = [2, 0, 1, 3]
-    //      Before leading dimension with index 3 there is dimension with index 2 in planar layout.
-    //      Since we have non-planar layout, we have to find this before LD dim in transposed order.
-    //      In layout 2nd idx is first element, it means, that the leading dimension is equal to stride of shape[0]
-    OV_CPU_JIT_EMITTER_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
-                              "detected invalid layout values: check that this shape + layout combination is schedulable");
-    const auto idx = layout.size() - 2; // 2 in the example
-    const auto dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), idx)); // 0 in the example: shape[0] = 49
-    return std::accumulate(shape.cbegin() + dim + 1, shape.cend(), 1, std::multiplies<size_t>()); // shape[1] x shape[2] x shape[3] = 2 x 7 x 39
-}
-
 jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
                                        const ov::snippets::lowered::ExpressionPtr& expr,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
@@ -49,67 +23,25 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
                                        jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
-
-    std::vector<size_t> leading_dimensions;
-     auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
-        if (!layout.empty()) return layout;
-        std::vector<size_t> default_layout(io_shape.size());
-        std::iota(default_layout.begin(), default_layout.end(), 0);
-        return default_layout;
-    };
-
-    auto init_in_scheduling_params = [&](const snippets::lowered::PortDescriptorPtr& input) {
-        const auto& layout = get_layout(input->get_layout(), input->get_shape());
-        leading_dimensions.push_back(get_in_leading_dim(input->get_shape(), layout));
-    };
-    auto init_out_scheduling_params = [&](const snippets::lowered::PortDescriptorPtr& output) {
-        const auto& layout = get_layout(output->get_layout(), output->get_shape());
-        leading_dimensions.push_back(get_out_leading_dim(output->get_shape(), layout));
-    };
-
-    const auto& input_0_desc = expr->get_input_port_descriptor(0);
-    const auto& input_1_desc = expr->get_input_port_descriptor(1);
-    const auto& output_desc = expr->get_output_port_descriptor(0);
-
-    init_in_scheduling_params(input_0_desc);
-    if (brgemm_node->is_with_data_repacking()) {
-        const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
-        OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
-        leading_dimensions.push_back(repacking_buffer_shape.back());
-    } else {
-        init_in_scheduling_params(input_1_desc);
-    }
-    init_out_scheduling_params(output_desc);
-
-    const auto& brg0Prc = brgemm_node->get_input_element_type(0);
-    const auto& brg1Prc = brgemm_node->get_input_element_type(1);
 
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
-    const auto& output_subtensor = output_desc->get_subtensor();
-    const auto& input_0_subtensor = input_0_desc->get_subtensor();
-    const auto& input_1_subtensor = input_1_desc->get_subtensor();
-
-    OV_CPU_JIT_EMITTER_ASSERT(*(output_subtensor.rbegin() + 1) == *(input_0_subtensor.rbegin() + 1),
-                              "Brgemm has different M dimension subtensors on input0 and output");
-    OV_CPU_JIT_EMITTER_ASSERT(*output_subtensor.rbegin() == *input_1_subtensor.rbegin(),
-                              "Brgemm has different N dimension subtensors on input1 and output");
-    OV_CPU_JIT_EMITTER_ASSERT(*input_0_subtensor.rbegin() == *(input_1_subtensor.rbegin() + 1),
-                              "Brgemm has different K dimension subtensors on input0 and input1");
-
+    const auto& brg0Prc = brgemm_node->get_input_element_type(0);
+    const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     auto kernel_config = std::make_shared<BrgemmKernelConfig>(brg0Prc, brg1Prc,
                                                             brgemm_node->get_beta(),
                                                             brgemm_node->is_amx(),
                                                             brgemm_node->is_with_compensations());
-
-    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
-    m_kernel_executor->update(*(output_subtensor.rbegin() + 1),
-                              *output_subtensor.rbegin(),
-                              *input_0_subtensor.rbegin(),
-                              leading_dimensions[0],
-                              leading_dimensions[1],
-                              leading_dimensions[2]);
+    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
+                                                                            compiled_kernel_cache,
+                                                                            kernel_config);
+    // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()
+    // are performed before the BrgemmKernelExecutor registration. So we have to trigger update() manually
+    // for both static and the 1st dynamic shapes.
+    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()) &&
+                              !snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(1)->get_shape()),
+                              "Jit emitter is called when the shapes are unknown");
+    m_kernel_executor->update(expr);
 
     m_load_offset_a = brgemm_node->get_offset_a();
     m_load_offset_b = brgemm_node->get_offset_b();

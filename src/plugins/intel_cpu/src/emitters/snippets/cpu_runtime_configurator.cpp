@@ -16,8 +16,10 @@ CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigur
 void CPURuntimeConfigurator::update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
     RuntimeConfigurator::update(linear_ir);
 
-    if (linear_ir->is_dynamic())
+    if (linear_ir->is_dynamic()) {
+        update_kernel_executors(linear_ir);
         update_loop_args(linear_ir);
+    }
 }
 
 void CPURuntimeConfigurator::init_tensor_rank(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const {
@@ -44,6 +46,12 @@ void CPURuntimeConfigurator::update_loop_args(const std::shared_ptr<ov::snippets
             loop_arg.m_ptr_increments[i] *= (increment * data_sizes[i]);
             loop_arg.m_finalization_offsets[i] *= data_sizes[i];
         }
+    }
+}
+
+void CPURuntimeConfigurator::update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const {
+    for (const auto& expr : *linear_ir) {
+        m_kernel_executor_table->update_kernel_executor(expr);
     }
 }
 

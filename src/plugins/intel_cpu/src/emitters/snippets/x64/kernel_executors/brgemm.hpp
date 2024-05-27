@@ -27,7 +27,7 @@ public:
     bool operator==(const BrgemmKernelConfig& rhs) const;
     bool operator!=(const BrgemmKernelConfig& rhs) const;
 #ifdef SNIPPETS_DEBUG_CAPS
-    std::string to_string() const;
+    std::string to_string() const override;
 #endif
 private:
     dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
@@ -54,20 +54,15 @@ public:
         void* scratch = nullptr;
         amx_tile_config_t* amx_tile_config = nullptr;
     };
-    BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config);
+    BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache,
+                         const std::shared_ptr<BrgemmKernelConfig>& config);
 
     /** Function that will be called in runtime to execute the kernel */
     static void execute(const BrgemmKernelExecutor* desc, call_args* args);
 
-    /** Update kernel config using the arguments passed, and recompile the kernel */
-    void update(size_t M, size_t N, size_t K, size_t LDA, size_t LDB, size_t LDC);
-
-    /** print current kernel config for debug purposes */
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::string config_to_string() const;
-#endif
 protected:
-    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& c) const override;
+    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const std::shared_ptr<const BrgemmKernelConfig>& c) const override;
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr, std::shared_ptr<BrgemmKernelConfig>& config) const override;
 };
 }   // namespace intel_cpu
 }   // namespace ov
