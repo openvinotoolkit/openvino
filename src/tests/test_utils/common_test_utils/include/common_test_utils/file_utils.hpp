@@ -146,11 +146,11 @@ inline int createDirectory(const std::string& dirPath) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 inline int createDirectory(const std::wstring& dirPath) {
-#ifdef _WIN32
+#    ifdef _WIN32
     return _wmkdir(dirPath.c_str());
-#else
+#    else
     return mkdir(ov::util::wstring_to_string(dirPath).c_str(), mode_t(0777));
-#endif
+#    endif
 }
 #endif
 
