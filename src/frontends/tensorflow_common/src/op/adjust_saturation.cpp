@@ -41,31 +41,30 @@ namespace op {
 // shared_ptr<Node> convert_rgb_to_hsv(shared_ptr<Node> images) {
 shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_rgb_to_hsv(shared_ptr<Node> images, element::Type type) {
 
-    auto zero = make_shared<v0::Constant>(type, Shape{}, 0.0f);
-    auto one = make_shared<v0::Constant>(type, Shape{}, 1.0f);
+    auto const_zero_f_ = make_shared<v0::Constant>(type, Shape{}, 0.0f);
+    auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
+    auto const_six_f_ = make_shared<v0::Constant>(type, Shape{}, 6.0f);
 
     // Find max and min across channel axis. Max = Value (V)
-    auto max_rgb = make_shared<v1::ReduceMax>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
-    auto min_rgb = make_shared<v1::ReduceMin>(images, make_shared<v0::Constant>(element::i64, Shape{1}, vector<int64_t>{-1}), true);
+    auto const_minus_one_i_1 = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+    auto max_rgb = make_shared<v1::ReduceMax>(images, const_minus_one_i_1, true);
+    auto min_rgb = make_shared<v1::ReduceMin>(images, const_minus_one_i_1, true);
     auto range = make_shared<v1::Subtract>(max_rgb, min_rgb);
     auto vv = max_rgb;
 
     // Compute Saturation (S)
     auto ss_ = make_shared<v1::Divide>(range, vv);
-    auto ss = make_shared<v1::Select>(make_shared<v1::Greater>(vv, zero), ss_, zero);
+    auto ss = make_shared<v1::Select>(make_shared<v1::Greater>(vv, const_zero_f_), ss_, const_zero_f_);
 
     // Compute normalization factor (for Hue calculation)
     auto norm = make_shared<v1::Divide>(
-        make_shared<v0::Constant>(type, range->get_shape(), vector<float>{1.0f}),
-        make_shared<v1::Multiply>(
-            make_shared<v0::Constant>(type, range->get_shape(), vector<float>{6.0f}),
-            range
-        )
+        const_one_f_,
+        make_shared<v1::Multiply>(const_six_f_, range)
     );
 
     // Split the image tensor into R, G, B channels
-    int batch_dim = images->get_shape().size() - 1;
-    auto channels = make_shared<v1::Split>(images, make_shared<v0::Constant>(element::i64, Shape{}, batch_dim), 3);
+    auto const_minus_one_i = make_shared<v0::Constant>(element::i32, Shape{}, -1);
+    auto channels = make_shared<v1::Split>(images, const_minus_one_i, 3);
     auto r = channels->output(0);
     auto g = channels->output(1);
     auto b = channels->output(2);
@@ -81,15 +80,17 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     auto hue_case_r = make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(g, b));
 
     // g == vv: hh = norm * (b - r) + 2.0 / 6.0
+    auto const_2_by_6 = make_shared<v0::Constant>(type, Shape{}, 2.0f / 6.0f);
     auto hue_case_g = make_shared<v1::Add>(
         make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)),
-        make_shared<v0::Constant>(element::f32, Shape{}, std::vector<float>{2.0f / 6.0f})
+        const_2_by_6
     );
 
     // b == vv: hh = norm * (r - g) + 4.0 / 6.0
+    auto const_4_by_6 = make_shared<v0::Constant>(type, Shape{}, 4.0f / 6.0f);
     auto hue_case_b = make_shared<v1::Add>(
         make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)),
-        make_shared<v0::Constant>(element::f32, Shape{}, std::vector<float>{4.0f / 6.0f})
+        const_4_by_6
     );
 
     // Select hue based on the maximum component
@@ -105,10 +106,10 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     );
 
     // range = 0.0: hh = 0
-    auto hh_zero_range = make_shared<v1::Select>(make_shared<v1::Equal>(range, zero), zero, hh);
+    auto hh_zero_range = make_shared<v1::Select>(make_shared<v1::Equal>(range, const_zero_f_), const_zero_f_, hh);
 
     // hh < 0.0: hh = hh + 1
-    auto hh_final = make_shared<v1::Select>(make_shared<v1::Less>(hh, zero), make_shared<v1::Add>(hh_zero_range, one), hh_zero_range);
+    auto hh_final = make_shared<v1::Select>(make_shared<v1::Less>(hh, const_zero_f_), make_shared<v1::Add>(hh_zero_range, const_one_f_), hh_zero_range);
 
 
     return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
@@ -116,22 +117,26 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
 }
 
 shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<Node> v, element::Type type) {
+    auto const_six_f_ = make_shared<v0::Constant>(type, Shape{}, 6.0f);
+    auto const_two_f_ = make_shared<v0::Constant>(type, Shape{}, 2.0f);
+    auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
+    
     // c = s * v;
     auto c = make_shared<v1::Multiply>(s, v);
     // m = v - c;
     auto m = make_shared<v1::Subtract>(v, c);
     // dh = h * 6;
-    auto dh = make_shared<v1::Multiply>(h, make_shared<v0::Constant>(type, Shape{}, 6.0f));
+    auto dh = make_shared<v1::Multiply>(h, const_six_f_);
 
     // fmodu rounded to within [0, 2)
-    auto fmodu = make_shared<v1::FloorMod>(dh, make_shared<v0::Constant>(type, Shape{}, 2.0f));
+    auto fmodu = make_shared<v1::FloorMod>(dh, const_two_f_);
 
     //  x = c * (1 - std::abs(fmodu - 1));
-    auto x = make_shared<v1::Multiply>(c, make_shared<v1::Subtract>(make_shared<v0::Constant>(element::f32, Shape{}, 1.0f), make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, make_shared<v0::Constant>(type, Shape{}, 1.0f)))));
+    auto x = make_shared<v1::Multiply>(c, make_shared<v1::Subtract>(const_one_f_, make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, const_one_f_))));
 
     
     // h_category = static_cast<int>(dh);
-    auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i32);
+    auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i64);
 
     auto zeros = make_shared<v0::Constant>(type, x->get_shape(), 0.0f);
 
