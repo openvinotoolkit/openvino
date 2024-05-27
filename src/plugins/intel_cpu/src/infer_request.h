@@ -99,7 +99,6 @@ private:
     void push_input_data();
     void redefine_memory_for_input_nodes();
     void assign_states();
-    void commit_states();
     void update_external_tensor_ptrs();
     void change_default_ptr();
 
