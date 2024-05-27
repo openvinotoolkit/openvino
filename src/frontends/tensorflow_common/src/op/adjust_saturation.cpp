@@ -28,7 +28,7 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/squeeze.hpp"
-#include <fstream>
+
 using namespace std;
 using namespace ov;
 using namespace ov::op;
@@ -153,21 +153,12 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     auto gg_unsqueeze = make_shared<v0::Unsqueeze>(gg_concat,const_minus_one_i_);
     auto bb_unsqueeze = make_shared<v0::Unsqueeze>(bb_concat, const_minus_one_i_);
 
-    std::ofstream logFile("debug.log", std::ios_base::app);
-    logFile << "START" << std::endl;
-    logFile << "Shape of rr_concat: " << rr_concat->get_shape().to_string() << std::endl;
-    logFile << "Shape of rr_unsq: " << rr_unsqueeze->get_shape().to_string() << std::endl;
-
     auto rgb_options = make_shared<v0::Concat>(NodeVector{rr_unsqueeze, gg_unsqueeze, bb_unsqueeze}, -1);
 
-    logFile << "Shape of rgb_options: " << rgb_options->get_shape().to_string() << std::endl;
     // use a gather operation to select the correct channel values based on h_category
     int batch_dim = rgb_options->get_shape().size() - 2;
-
     auto rgb = make_shared<v0::Squeeze>(make_shared<v8::Gather>(rgb_options, h_category, const_minus_two_i_, batch_dim),
     const_minus_two_i_ );
-    
-    logFile << "Shape of rgb: " << rgb->get_shape().to_string() << std::endl;
 
     auto rgb_adjust = make_shared<v1::Add>(rgb, m);
 
