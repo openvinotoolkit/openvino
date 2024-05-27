@@ -113,7 +113,10 @@ static const char infer_num_streams_message[] =
 
 /// @brief message for #cpu_core_ids bind with streams for CPU inference
 static const char infer_cpu_core_ids_message[] =
-    "Optional. cpu cores used to run streams. using like 2,3,4 means using core 2,3,4 for infer.";
+    "Optional. cpu cores used to run streams. "
+    "<ids_string> is a comma delimited list of core numbers or A-B ranges. using like 2,3,4 means using core 2,3,4 for infer. "
+    "When set this parameter, OpenVINO CPU Plugin will only use the cores which you seted, "
+    "Otherwise the all CPU cores will be used by OpenVINO to run inference.";
 
 /// @brief message for requests count
 static const char infer_requests_count_message[] =
@@ -418,7 +421,6 @@ static void show_usage() {
     std::cout << "    -api <sync/async>             " << api_message << std::endl;
     std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
     std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
-    std::cout << "    -cpu_core_ids  <ids_string>          " << infer_cpu_core_ids_message << std::endl;
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
     std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
     std::cout << std::endl;
@@ -433,6 +435,8 @@ static void show_usage() {
     std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
     std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
               << infer_threads_pinning_message << std::endl;
+    std::cout << "    -cpu_core_ids  <ids_string>   " << infer_cpu_core_ids_message << std::endl;
+
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif

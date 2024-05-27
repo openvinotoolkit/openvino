@@ -152,10 +152,11 @@ def parse_args():
                            'or completely disable (\'NO\') '
                            'CPU threads pinning for CPU-involved inference.')
     devp.add_argument('-cpu_core_ids', '--infer_cpu_core_ids', type=str, required=False, 
-                      help='Optional. <cpu_core_ids> is a comma delimited list of core numbers or A-B ranges. '
+                      help='Optional. cpu cores used to run streams. '
+                           '<ids_string> is a comma delimited list of core numbers or A-B ranges. using like 2,3,4 means using core 2,3,4 for infer.'
                            'When set this parameter, OpenVINO CPU Plugin will only use the cores which you seted, '
                            'Otherwise the all CPU cores will be used by OpenVINO to run inference.')
-    
+
     stat = parser.add_argument_group('Statistics dumping options')
     stat.add_argument('-latency_percentile', '--latency_percentile', type=int, required=False, default=50,
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')

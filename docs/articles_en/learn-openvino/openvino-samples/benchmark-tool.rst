@@ -460,6 +460,7 @@ following usage message:
                                     Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs), threads->(NUMA)nodes ('NUMA'),
                                     threads->appropriate core types ('HYBRID_AWARE', which is OpenVINO runtime's default for Hybrid CPUs) or completely disable ('NO') CPU threads
                                     pinning for CPU-involved inference.
+              -cpu_core_ids  <ids_string>   Optional. Optional. cpu cores used to run streams. <ids_string> is a comma delimited list of core numbers or A-B ranges. using like 2,3,4 means using core 2,3,4 for infer. When set this parameter, OpenVINO CPU Plugin will only use the cores which you seted, Otherwise the all CPU cores will be used by OpenVINO to run inference.
 
 
             Statistics dumping options:
@@ -573,6 +574,7 @@ following usage message:
                                             letting the runtime to decide on the threads->different core types("HYBRID_AWARE", which is default on the hybrid CPUs)
                                             threads->(NUMA)nodes("NUMA") or
                                             completely disable("NO") CPU inference threads pinning
+                -cpu_core_ids  <ids_string>   Optional. Optional. cpu cores used to run streams. <cpu_core_ids> is a comma delimited list of core numbers or A-B ranges. using like 2,3,4 means using core 2,3,4 for infer. When set this parameter, OpenVINO CPU Plugin will only use the cores which you seted, Otherwise the all CPU cores will be used by OpenVINO to run inference.
 
             Statistics dumping options:
                 -latency_percentile     Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
