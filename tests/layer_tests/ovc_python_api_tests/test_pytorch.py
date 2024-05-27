@@ -1025,7 +1025,7 @@ def create_pytorch_module_with_nested_dict_input(tmp_dir):
     a1 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
     a2 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
     b = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
-    mul = ov.opset10.mul(a1, a1)
+    mul = ov.opset10.multiply(a1, a2)
     add = ov.opset10.add(mul, b)
     ref_model = Model([add], [a1, a2, b], "test")
     return net, ref_model, {
