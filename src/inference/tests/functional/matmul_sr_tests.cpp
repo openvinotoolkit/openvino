@@ -378,6 +378,29 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeAMatMulSeveralConsumers) {
     manager.register_pass<ov::pass::ReshapeAMatMul>();
 }
 
+TEST_F(TransformationTestsF, SmartReshapeReshapeA_1DOtherInput) {
+    // Since OtherInput movement leads to loop creation (circular dependencies), the transformation can't be applied
+    auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+    auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {3, 6});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, reshape_const, false);
+
+    auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, other_input);
+    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+    manager.register_pass<ov::pass::ReshapeAMatMul>();
+}
+
+TEST_F(TransformationTestsF, SmartReshapeReshapeB_1DOtherInput) {
+    auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+    auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {3, 6});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, reshape_const, false);
+
+    auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(other_input, reshape);
+    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+    manager.register_pass<ov::pass::ReshapeBMatMul>();
+}
+
 TEST_F(TransformationTestsF, SmartReshapeReshapeBMatMulSeveralConsumers) {
     // Reshape has 2 consumers: matmul and reduce.
     // Since reshape movement leads to loop creation (circular dependencies), the transformation can't be applied
