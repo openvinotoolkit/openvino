@@ -72,23 +72,26 @@ inline void init_is_incremented(LoopPort& port, size_t loop_id) {
     }
 }
 
-inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount) {
+inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, size_t input_port_count, size_t output_port_count) {
     if (!loop_port.is_incremented)
         return 0;
 
     const auto& expr_port = loop_port.expr_port;
     const auto& layout = expr_port->get_descriptor_ptr()->get_layout();
     const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
+    size_t port_count = 0;
     size_t dim = 0;
     if (expr_port->get_type() == ExpressionPort::Input) {
         dim = utils::get_input_dim_idx(layout, loop_port.dim_idx);
+        port_count = input_port_count;
     } else if (expr_port->get_type() == ExpressionPort::Output) {
         dim = utils::get_output_dim_idx(layout, loop_port.dim_idx);
+        port_count = output_port_count;
     } else {
         OPENVINO_THROW("Unsupported expression port type!");
     }
-    // When we cannot say about broadcasting by last dim
-    if (dim == shape.size() - 1 && utils::is_dynamic_value(shape.back())) {
+    // When we cannot say about broadcasting
+    if (utils::is_dynamic_value(shape[dim]) && port_count > 1) {
         return utils::get_dynamic_value<int64_t>();
     } else if (!(shape[dim] == 1 && work_amount != 1)) {
         return get_stride(dim, shape);
@@ -134,9 +137,11 @@ void InitLoops::init_loop_info(const UnifiedLoopInfoPtr& loop_info, const size_t
         init_work_amount(loop_info);
 
     const auto work_amount = loop_info->get_work_amount();
+    const auto input_count = loop_info->get_input_count();
+    const auto output_count = loop_info->get_output_count();
 
-    auto init_runtime_parameters = [&work_amount](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
-        ptr_shifts_params.ptr_increment = get_ptr_increment(loop_port, work_amount);
+    auto init_runtime_parameters = [&work_amount, &input_count, &output_count](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+        ptr_shifts_params.ptr_increment = get_ptr_increment(loop_port, work_amount, input_count, output_count);
         ptr_shifts_params.finalization_offset = get_finalization_offset(work_amount, ptr_shifts_params.ptr_increment);
     };
 
