@@ -71,7 +71,6 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     // determine which component is the max (V) to compute Hue (H)
     auto r_eq_v = make_shared<v1::Equal>(r, vv);
     auto g_eq_v = make_shared<v1::Equal>(g, vv);
-    // auto b_eq_v = make_shared<v1::Equal>(b, vv);
 
     // r == vv: hh = norm * (g - b)
     auto hue_case_r = make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(g, b));
@@ -105,7 +104,6 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
 
     // hh < 0.0: hh = hh + 1
     auto hh_final = make_shared<v1::Select>(make_shared<v1::Less>(hh, zero), make_shared<v1::Add>(hh_zero_range, one), hh_zero_range);
-
 
     return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
 }
