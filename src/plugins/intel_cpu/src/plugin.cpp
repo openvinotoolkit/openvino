@@ -365,6 +365,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
+    } else if (name == ov::cpu_core_ids) {
+        return decltype(ov::cpu_core_ids)::value_type(engConfig.streamExecutorConfig.get_core_ids());
     } else if (name == ov::inference_num_threads) {
         const auto threads = engConfig.streamExecutorConfig.get_threads();
         return decltype(ov::inference_num_threads)::value_type(threads);

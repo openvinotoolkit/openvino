@@ -83,14 +83,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
     } else if (key == ov::num_streams) {
         return decltype(ov::num_streams)::value_type{_streams};
     } else if (key == ov::cpu_core_ids) {
-        std::string strRes = "";
-        for (auto& it : _stream_processor_ids) {
-            for (auto j : it) {
-                strRes += std::to_string(j);
-                strRes += ",";
-            }
-        }
-        return {strRes};
+        return decltype(ov::cpu_core_ids)::value_type{_core_ids_str};
     } else if (key == ov::inference_num_threads) {
         return decltype(ov::inference_num_threads)::value_type{_threads};
     } else if (key == ov::internal::threads_per_stream) {
@@ -178,7 +171,13 @@ void IStreamsExecutor::Config::apply_cpu_core_ids() {
     std::stringstream ss(_core_ids_str);
     std::string item;
     while (getline(ss, item, ',')) {
-        ids.push_back(std::stoi(item));
+        int minID = std::stoi(item);
+        int index = item.find('-');
+        if (index != std::string::npos)
+            item = item.substr(index + 1);
+        int maxID = std::stoi(item);
+        for(int i=minID;i<=maxID;i++)
+            ids.push_back(i);
     }
     _executor_id = config_available_cpus(_executor_id, ids);
 }

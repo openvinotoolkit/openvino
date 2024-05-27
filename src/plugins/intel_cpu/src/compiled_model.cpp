@@ -206,6 +206,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::model_name.name()),
             RO_property(ov::optimal_number_of_infer_requests.name()),
             RO_property(ov::num_streams.name()),
+            RO_property(ov::cpu_core_ids.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
             RO_property(ov::hint::inference_precision.name()),
@@ -258,6 +259,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         }
         return ov::Affinity::NONE;
         OPENVINO_SUPPRESS_DEPRECATED_END
+    } else if (name == ov::cpu_core_ids) {
+        return decltype(ov::cpu_core_ids)::value_type(config.streamExecutorConfig.get_core_ids());
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = config.streamExecutorConfig.get_threads();
         return decltype(ov::inference_num_threads)::value_type(num_threads);
