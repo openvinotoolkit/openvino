@@ -258,6 +258,7 @@ public:
     void propagateScalars(const std::string &func_name);
     void sanityCheck(const std::string &func_name);
     void saveTinyConstants(const std::string &func_name);
+    void saveScaleFactors(const std::string &func_name);
     void saveRepeatedConstants(const std::string &func_name);
     void matchParameters(const std::string &func_name);
     void matchResults(const std::string &func_name);
@@ -962,6 +963,34 @@ void Partitioner::saveTinyConstants(const std::string &func_name) {
             }
         }
     } // for(n)
+    LOG_INFO("Done");
+}
+
+void Partitioner::saveScaleFactors(const std::string &func_name) {
+    // A special step in the CWAI pipeline - mark the Scale
+    // tensors to be preserved in the function bodies
+
+    LOG_INFO("Preserve scale factors for " << func_name
+             << " in model " << model->get_friendly_name()
+             << "...");
+    LOG_BLOCK();
+
+    auto &func_group  = all_functions.at(func_name);
+    auto &model_group = func_group.mdls;
+    auto &subgr_group = func_group.refs;
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    std::vector<CPtr> to_keep;
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI1>(std::ref(to_keep));
+    rewr.run_on_model(model_group.front());
+
+    for (auto &&const_to_keep : to_keep) {
+        LOG_DEBUG("[KEEP] " << const_to_keep);
+        func_group.consts_to_keep.insert(const_to_keep);
+    }
+    LOG_INFO("Done");
 }
 
 void Partitioner::saveRepeatedConstants(const std::string &func_name) {
@@ -1702,6 +1731,7 @@ ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model) {
                 LOG_INFO("CWAI: Process function " << func_group << "...");
                 LOG_BLOCK();
                 p.saveTinyConstants(func_group);
+                p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
                 p.decompressionCutOff(func_group);
             }

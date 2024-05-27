@@ -133,6 +133,14 @@ public:
                       DCOFFParamRef pref);
 };
 
+class CWAI1: public ov::pass::MatcherPass {
+public:
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr> >;
+
+    explicit CWAI1(Results scales);
+};
+
 } // namespace SymmZP
 
 } // namespace patterns
