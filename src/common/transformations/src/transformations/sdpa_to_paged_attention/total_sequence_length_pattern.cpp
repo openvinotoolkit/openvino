@@ -7,6 +7,7 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -29,11 +30,13 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
         //  use symbolic infra or look at the constant input
         auto gather = m.get_match_root();
         auto target_type = gather->get_output_element_type(0);
-        std::shared_ptr<Node> replacement;
-        if (max_context_len->get_output_element_type(0) != target_type) {
-            replacement = std::make_shared<v0::Convert>(max_context_len, target_type);
-        } else {
-            replacement = max_context_len;
+        std::shared_ptr<Node> replacement = max_context_len;
+        if (replacement->get_output_element_type(0) != target_type) {
+            replacement = std::make_shared<v0::Convert>(replacement, target_type);
+        }
+        auto required_shape = gather->get_output_partial_shape(0);
+        if (replacement->get_output_partial_shape(0) != required_shape && required_shape.rank().is_static()) {
+            replacement = op::util::reshapeTo(replacement, Shape(required_shape.rank().get_length(), 1));
         }
         replace_node(gather, replacement);
         return true;
