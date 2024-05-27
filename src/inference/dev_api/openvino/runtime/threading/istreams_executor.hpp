@@ -242,7 +242,7 @@ public:
          */
         static Config make_default_multi_threaded(const Config& initial);
 
-        static int get_default_num_streams(int executor_id);  // no network specifics considered (only CPU's caps);
+        static int get_default_num_streams(int executor_id = -1);  // no network specifics considered (only CPU's caps);
     };
 
     /**

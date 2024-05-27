@@ -53,7 +53,7 @@ public:
     int _socket_idx = 0;
 };
 
-CPU& cpu_info(int executor_id);
+CPU& cpu_info(int executor_id = -1);
 
 #ifdef __linux__
 /**

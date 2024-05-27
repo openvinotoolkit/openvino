@@ -30,7 +30,7 @@ OPENVINO_RUNTIME_API bool check_open_mp_env_vars(bool include_omp_num_threads = 
  * @ingroup    ov_dev_api_system_conf
  * @return     NUMA nodes
  */
-OPENVINO_RUNTIME_API std::vector<int> get_available_numa_nodes(int executor_id);
+OPENVINO_RUNTIME_API std::vector<int> get_available_numa_nodes(int executor_id = -1);
 
 /**
  * @brief      Returns available CPU cores types (on Linux, and Windows) and ONLY with TBB, single core type is assumed
@@ -49,7 +49,7 @@ OPENVINO_RUNTIME_API std::vector<int> get_available_cores_types();
  * @param[in]  big_cores_only Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of physical CPU cores.
  */
-OPENVINO_RUNTIME_API int get_number_of_cpu_cores(int executor_id, bool big_cores_only = false);
+OPENVINO_RUNTIME_API int get_number_of_cpu_cores(int executor_id = -1, bool big_cores_only = false);
 
 /**
  * @brief      Returns number of CPU logical cores on Linux/Windows (on other OSes it simply relies on the original

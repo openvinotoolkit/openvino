@@ -53,7 +53,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const std::string input_perf_hint,
                                                      const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
                                                      const std::vector<std::vector<int>>& proc_type_table,
-                                                     const int executor_id);
+                                                     const int executor_id = -1);
 /**
  * @brief      Get model_prefer_threads
  * @param[in]  num_streams is target streams set by user via NUM_STREAMS or hints.
