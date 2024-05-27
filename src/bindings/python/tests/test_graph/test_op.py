@@ -107,7 +107,9 @@ def test_custom_add_model():
 
 def test_custom_op():
     model = create_snake_model()
-    compiled_model = compile_model(model)
+    # todo: CVS-141744
+    # it hangs with AUTO plugin, but works well with CPU
+    compiled_model = compile_model(model, "CPU")
 
     assert isinstance(compiled_model, CompiledModel)
     request = compiled_model.create_infer_request()
