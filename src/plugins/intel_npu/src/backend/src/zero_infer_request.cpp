@@ -420,6 +420,7 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     const auto& compiledModel = *std::dynamic_pointer_cast<const ICompiledModel>(_compiledModel);
     const auto& compilerConfig = compiledModel.get_config();
     if (!compilerConfig.get<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
+        _logger.debug("InferRequest::get_profiling_info complete with empty {}.");
         return {};
     }
 
@@ -431,16 +432,18 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
         const auto& compiler = compiledModel.get_compiler();
         const auto& blob = networkDesc->compiledNetwork;
         auto profData = get_raw_profiling_data();
+        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
         return compiler->process_profiling_output(profData, blob, compilerConfig);
     } else {
         auto proftype = _config.get<PROFILING_TYPE>();
         if (proftype == ov::intel_npu::ProfilingType::INFER) {
+            _logger.debug("InferRequest::get_profiling_info complete with _npuProfiling->getNpuInferStatistics().");
             return _npuProfiling->getNpuInferStatistics();
         } else {  /// proftype = MODEL or undefined = fallback to model profiling
+            _logger.debug("InferRequest::get_profiling_info complete with _profilingQuery.getLayerStatistics().");
             return _profilingQuery.getLayerStatistics();
         }
     }
-    _logger.debug("InferRequest::get_profiling_info completed");
 }
 
 std::vector<uint8_t> ZeroInferRequest::get_raw_profiling_data() const {
