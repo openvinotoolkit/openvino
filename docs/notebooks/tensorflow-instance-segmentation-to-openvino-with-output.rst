@@ -401,7 +401,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f4ebe5b4760>
+    <matplotlib.image.AxesImage at 0x7fa45c4c04c0>
 
 
 

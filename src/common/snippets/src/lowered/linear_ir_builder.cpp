@@ -72,15 +72,13 @@ std::shared_ptr<LinearIR> LinearIRBuilder::clone(const std::shared_ptr<LinearIR>
     ExpressionMap expression_map;
     cloned->m_expressions = clone_range(linear_ir->m_expressions.cbegin(), linear_ir->m_expressions.cend(), expression_map);
     for (const auto& expr : cloned->m_expressions) {
-        cloned->m_node2expression_map[expr->get_node()] = expr;
-        if (const auto& io = std::dynamic_pointer_cast<IOExpression>(expr))
-            cloned->m_io_expressions.push_back(io);
+        cloned->register_expression(expr, true);
     }
 
     cloned->m_loop_manager = linear_ir->m_loop_manager->clone_with_new_expr(expression_map);
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     cloned->m_shape_infer_factory = linear_ir->m_shape_infer_factory;
-    cloned->m_shape_infer = std::make_shared<LinearIR::LIRShapeInfer>(cloned->m_expressions, cloned->m_io_expressions);
+    cloned->m_shape_infer = std::make_shared<LinearIR::LIRShapeInfer>(cloned->m_expressions, cloned->m_parameter_expressions, cloned->m_result_expressions);
     cloned->m_is_dynamic = linear_ir->m_is_dynamic;
     return cloned;
 }
