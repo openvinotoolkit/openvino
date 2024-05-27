@@ -7,6 +7,7 @@
 #include <cpu/x64/amx_tile_configure.hpp>
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
 #define DIM_CAST(X) static_cast<dnnl_dim_t>(X)
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
@@ -77,14 +78,12 @@ std::string BrgemmKernelConfig::to_string() const {
 }
 #endif
 
-BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config) :
-        CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel>(std::move(kernel_cache), config) {
-    if (config->is_completed())
-        update_kernel();
-}
+BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache,
+                                           const std::shared_ptr<BrgemmKernelConfig>& config) :
+        CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel>(std::move(kernel_cache), config) { }
 
 
-std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& config) const {
+std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const std::shared_ptr<const BrgemmKernelConfig>& config) const {
     OV_CPU_JIT_EMITTER_ASSERT(config, "Invalid config provided for BrgemmKernelDesc::compile_kernel");
     cpu::x64::brgemm_t desc;
     auto status = brgemm_desc_init(&desc, config->isa, cpu::x64::brgemm_strd,
@@ -110,11 +109,49 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     return compiled_kernel;
 }
 
+void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr, std::shared_ptr<BrgemmKernelConfig>& config) const {
+    auto get_projected_input_subtensor = [](const snippets::lowered::PortDescriptorPtr& desc) {
+        // Note: for output shape you will need get_preordered_vdims()
+        auto shape = snippets::utils::get_planar_vdims(desc->get_shape(), desc->get_layout());
+        auto subtensor = desc->get_subtensor();
+        OV_CPU_JIT_EMITTER_ASSERT(subtensor.size() <= shape.size() && subtensor.size() == 2,
+                                  "Invalid subtensor + shape combination");
+        auto shape_it = shape.rbegin();
+        for (auto sub_it = subtensor.rbegin(); sub_it != subtensor.rend(); sub_it++, shape_it++) {
+            *sub_it = std::min(*sub_it, *shape_it);
+        }
+        return subtensor;
+    };
+    const auto& input_pds = expr->get_input_port_descriptors();
+    const auto& output_pds = expr->get_output_port_descriptors();
+    OV_CPU_JIT_EMITTER_ASSERT((input_pds.size() == 2 || input_pds.size() == 3) && output_pds.size() == 1,
+                              "Invalid number of in/out port descriptors");
+    // Update runtime-defined config fields:
+    // Matrix A (first input)
+    config->LDA = DIM_CAST(snippets::utils::get_in_leading_dim(input_pds[0]));
+    const auto& in0_subtensor = get_projected_input_subtensor(input_pds[0]);
+    config->K = DIM_CAST(*in0_subtensor.rbegin());
+    config->M = DIM_CAST(*++in0_subtensor.rbegin());
+    // Matrix B (second input)
+    // Non float input 1 => with data repacking
+    if (config->dt_in1 != dnnl_f32) {
+        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+        const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
+        OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
+        config->LDB = DIM_CAST(repacking_buffer_shape.back());
+    } else {
+        config->LDB = DIM_CAST(snippets::utils::get_in_leading_dim(input_pds[1]));
+    }
+    config->N = DIM_CAST(*get_projected_input_subtensor(input_pds[1]).rbegin());
+    // Matrix C (output)
+    config->LDC = DIM_CAST(snippets::utils::get_out_leading_dim(output_pds[0]));
+}
+
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* args) {
-    const auto& kernel = desc->m_kernel;
+    const auto& kernel = desc->get_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr compiler kernel");
 
-    const auto& config = desc->m_config;
+    const auto& config = desc->get_config();
     if (config->is_with_amx) {
         const auto& amx_tile_config = args->amx_tile_config;
         if (config->M != amx_tile_config->M || config->K != amx_tile_config->K || config->N != amx_tile_config->N) {
@@ -141,21 +178,6 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* 
     OV_CPU_JIT_EMITTER_ASSERT(kernel->compiled_kernel, "has nullptr kernel");
     (*kernel->compiled_kernel)(&brgemm_p);
 }
-
-void BrgemmKernelExecutor::update(size_t M, size_t N, size_t K, size_t LDA, size_t LDB, size_t LDC) {
-    OV_CPU_JIT_EMITTER_ASSERT(m_config, "update is called for empty kernel config");
-#define CAST(X) m_config->X = DIM_CAST(X)
-    CAST(M); CAST(N); CAST(K);
-    CAST(LDA); CAST(LDB); CAST(LDC);
-#undef CAST
-    update_kernel();
-}
-
-#ifdef SNIPPETS_DEBUG_CAPS
-std::string BrgemmKernelExecutor::config_to_string() const {
-    return m_config ? m_config->to_string() : "";
-}
-#endif
 
 }   // namespace intel_cpu
 }   // namespace ov

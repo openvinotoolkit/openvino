@@ -41,6 +41,11 @@ protected:
      */
     void update_loop_args(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const;
 
+    /**
+    * @brief Update kernel executors that depend on runtime parameters (e.g. shapes)
+    */
+    void update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const;
+
     const size_t rank6D = 6;
 };
 
