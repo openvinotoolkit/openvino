@@ -261,6 +261,48 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     static std::string toString(const ov::intel_npu::BatchMode& val);
 };
 
+//
+// DRIVER_ELF_FORMAT_VERSION
+//
+struct DRIVER_ELF_FORMAT_VERSION final : OptionBase<DRIVER_ELF_FORMAT_VERSION, ov::intel_npu::Version> {
+    static std::string_view key() {
+        return ov::intel_npu::driver_elf_format_version.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::Version";
+    }
+
+    static ov::intel_npu::Version defaultValue() {
+        return {0, 0, 0};
+    }
+
+    static ov::intel_npu::Version parse(std::string_view val);
+
+    static std::string toString(const ov::intel_npu::Version& val);
+};
+
+//
+// DRIVER_MI_VERSION
+//
+struct DRIVER_MI_VERSION final : OptionBase<DRIVER_MI_VERSION, ov::intel_npu::Version> {
+    static std::string_view key() {
+        return ov::intel_npu::driver_mi_version.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::Version";
+    }
+
+    static ov::intel_npu::Version defaultValue() {
+        return {0, 0, 0};
+    }
+
+    static ov::intel_npu::Version parse(std::string_view val);
+
+    static std::string toString(const ov::intel_npu::Version& val);
+};
+
 }  // namespace intel_npu
 
 namespace ov {

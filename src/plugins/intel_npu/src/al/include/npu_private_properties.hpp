@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <exception>
+#include <stdexcept>
+#include <string>
+
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace ov {
@@ -349,6 +353,62 @@ static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_
  * Model layers profiling are used if this string is empty
  */
 static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"};
+
+/**
+ * @brief Structure to store Version information
+ */
+struct Version {
+    /**
+     * @brief Major version
+     */
+    uint32_t major;
+    /**
+     * @brief Minor version
+     */
+    uint32_t minor;
+    /**
+     * @brief Patch version
+     */
+    uint32_t patch;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const Version& version) {
+    return os << version.major << "." << version.minor << "." << version.patch;
+}
+
+inline std::istream& operator>>(std::istream& is, Version& version) {
+    std::string str;
+    is >> str;
+    const auto firstDelim = str.find('.');
+    const auto secondDelim = str.find('.', firstDelim);
+    if (firstDelim == std::string::npos || secondDelim == std::string::npos) {
+        OPENVINO_THROW("Could not deserialize Version, \"%s\" is an invalid format!", str);
+    }
+    try {
+        version.major = std::stol(str.substr(0, firstDelim));
+        version.minor = std::stol(str.substr(firstDelim, secondDelim));
+        version.patch = std::stol(str.substr(secondDelim));
+        return is;
+    } catch (const std::logic_error& error) {
+        OPENVINO_THROW("Could not deserialize Version: %s", error.what());
+    }
+}
+/** @endcond */
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: Version. Default is "0.0.0".
+ * Read-only property to get ELF format verison information of the driver. See Version struct definition for details
+ */
+static constexpr Property<Version, PropertyMutability::RO> driver_elf_format_version{"NPU_DRIVER_ELF_FORMAT_VERSION"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: Version. Default is "0.0.0".
+ * Read-only property to get MI verison information of the driver. See Version struct definition for details
+ */
+static constexpr Property<Version, PropertyMutability::RO> driver_mi_version{"NPU_DRIVER_MI_VERSION"};
 
 /**
  * @brief

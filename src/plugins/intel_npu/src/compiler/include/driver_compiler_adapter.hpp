@@ -21,9 +21,7 @@ class LevelZeroCompilerAdapter final : public ICompiler {
 public:
     LevelZeroCompilerAdapter();
 
-    Version getLibraryELFVersion(const Config& config) const final;
-
-    Version getLibraryMIVersion(const Config& config) const final;
+    bool isCompatibleWithDriverVersion(const Config& config) const final;
 
     uint32_t getSupportedOpsetVersion() const override final;
 

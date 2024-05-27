@@ -88,16 +88,6 @@ struct NetworkDescription final {
 };
 
 /**
- * @struct Version
- * @brief A helper structure used to validate compiler versions.
- */
-struct Version {
-    uint32_t major;
-    uint32_t minor;
-    uint32_t patch;
-};
-
-/**
  * @interface ICompiler
  * @brief An interface to be implemented by a concrete compiler to provide
  * methods for preparing a network for execution on a NPU device
@@ -105,16 +95,10 @@ struct Version {
 class ICompiler : public std::enable_shared_from_this<ICompiler> {
 public:
     /**
-     * @brief Get ABI Version of current HPI/Loader
-     * @return a Version structure
+     * @brief Checks if the Compiler is compatible with the driver version
+     * @return a boolean
      */
-    virtual Version getLibraryELFVersion(const Config& config) const = 0;
-
-    /**
-     * @brief Get Mapped inference version
-     * @return a Version structure
-     */
-    virtual Version getLibraryMIVersion(const Config& config) const = 0;
+    virtual bool isCompatibleWithDriverVersion(const Config& config) const = 0;
 
     /**
      * @brief Returns the maximum OpenVino opset version supported by the compiler

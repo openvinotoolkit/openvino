@@ -107,14 +107,14 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
     return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
 }
 
-std::optional<Version> ZeroDevice::getLibraryELFVersion() const {
+std::optional<ov::intel_npu::Version> ZeroDevice::getLibraryELFVersion() const {
     if (_initStructs->getDriverExtVersion() < ZE_GRAPH_EXT_VERSION_1_6) {
         return std::nullopt;
     }
     return {{graph_properties.elfVersion.major, graph_properties.elfVersion.minor, graph_properties.elfVersion.patch}};
 }
 
-std::optional<Version> ZeroDevice::getLibraryMIVersion() const {
+std::optional<ov::intel_npu::Version> ZeroDevice::getLibraryMIVersion() const {
     if (_initStructs->getDriverExtVersion() < ZE_GRAPH_EXT_VERSION_1_6) {
         return std::nullopt;
     }
