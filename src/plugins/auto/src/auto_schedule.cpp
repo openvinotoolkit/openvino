@@ -143,16 +143,6 @@ void AutoSchedule::init() {
             // if have CPU Device,  enable m_compile_context[CPU]
             if (cpu_iter != m_context->m_device_priorities.end()) {
                 m_compile_context[CPU].m_is_enabled = true;
-                if (m_context->m_startup_fallback || m_context->m_runtime_fallback) {
-                    auto& device_config = m_compile_context[CPU].m_device_info.config;
-                    bool is_already_set_cache = device_config.count(ov::cache_dir.name())
-                                                    ? !(device_config[ov::cache_dir.name()].as<std::string>().empty())
-                                                    : false;
-                    if (is_already_set_cache) {
-                        device_config[ov::cache_dir.name()] = "";
-                        LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
-                    }
-                }
                 if (!is_actual_cpu) {
                     // user does not set the compiling threads
                     // limit the threads num for compiling
@@ -181,6 +171,10 @@ void AutoSchedule::init() {
                     m_compile_context[CPU].m_device_info = *cpu_iter;
                     m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
                         ov::hint::PerformanceMode::LATENCY;
+                    if (m_context->m_startup_fallback || m_context->m_runtime_fallback) {
+                        m_compile_context[CPU].m_device_info.config[ov::cache_dir.name()] = "";
+                        LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
+                    }
                     m_compile_context[CPU].m_worker_name = "CPU_HELP";
                     LOG_INFO_TAG("will load CPU for accelerator");
                 }

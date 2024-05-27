@@ -101,9 +101,9 @@ TEST_P(AutoLoadExeNetworkCacheDirSettingTest, canDisableCacheDirSettingForCPUPlu
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
                               _))
         .Times(1);
-    std::map<std::string, std::string> test_map = {{ov::cache_dir.name(), "test_dir"}};
+
     if (is_disable_cache_dir) {
-        test_map[ov::cache_dir.name()] = "";
+        std::map<std::string, std::string> test_map = {{ov::cache_dir.name(), ""}};
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
