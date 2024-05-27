@@ -26,7 +26,7 @@ def get_executable(sample_language):
     return 'benchmark_app'
 
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx'):
+def verify(sample_language, device, cpu_core_ids=None, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx'):
     output = get_cmd_output(
         get_executable(sample_language),
         *prepend(cache, 'dog-224x224.bmp', model),
@@ -38,6 +38,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         *('-hint', 'none') if nstreams or pin else '',
         *('-pin', pin) if pin else '',
         *('-api', api) if api else '',
+        *('-cpu_core_ids', cpu_core_ids) if cpu_core_ids else '',
         *('-dump_config', tmp_path / 'conf.json') if tmp_path else '',
         *('-exec_graph_path', tmp_path / 'exec_graph.xml') if tmp_path else '',
         '-d', device, '-b', '1', '-niter', '10'
@@ -54,6 +55,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
                 or pin == 'YES' and config_json['CPU']['AFFINITY'] == 'CORE'
                 or pin == 'NO' and config_json['CPU']['AFFINITY'] == 'NONE'
                 or pin == config_json['CPU']['AFFINITY'])
+            print(f"cpu_core_ids={cpu_core_ids}")
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
@@ -99,3 +101,9 @@ def test_reshape(sample_language, device, cache):
 @pytest.mark.parametrize('device', get_devices())
 def test_dynamic_shape(sample_language, device, cache):
     verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx', shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache)
+
+@pytest.mark.skipif('CPU' not in get_devices(), reason='affinity is a CPU property')
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('cpu_core_ids', ['1', '1,2', '1,2-3'])
+def test_cpu_core_ids(sample_language, cpu_core_ids, cache, tmp_path):
+    verify(sample_language, 'CPU', cpu_core_ids=cpu_core_ids, nstreams='2', cache=cache, tmp_path=tmp_path)

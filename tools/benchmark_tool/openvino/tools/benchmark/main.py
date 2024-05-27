@@ -298,7 +298,7 @@ def main():
                     if CPU_DEVICE_NAME in hw_devices_list:
                         update_configs(CPU_DEVICE_NAME, property_name, property_value)
                 return
-
+            
             if args.number_threads and is_flag_set_in_command_line("nthreads"):
                 # limit threading for CPU portion of inference
                 set_nthreads_pin(properties.inference_num_threads(), str(args.number_threads))
@@ -306,6 +306,13 @@ def main():
             if is_flag_set_in_command_line('pin'):
                 ## set for CPU to user defined value
                 set_nthreads_pin(properties.affinity(), args.infer_threads_pinning)
+
+            def set_cpu_core_ids(property_name, property_value) :
+                if CPU_DEVICE_NAME in hw_devices_list:
+                    update_configs(CPU_DEVICE_NAME, property_name, property_value)
+                
+            if args.cpu_core_ids and is_flag_set_in_command_line("cpu_core_ids"):
+                set_cpu_core_ids(properties.cpu_core_ids(), args.cpu_core_ids)
 
             set_throughput_streams()
             set_infer_precision()
