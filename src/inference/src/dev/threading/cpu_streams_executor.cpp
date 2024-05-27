@@ -290,6 +290,13 @@ struct CPUStreamsExecutor::Impl {
             std::lock_guard<std::mutex> guard(_stream_map_mutex);
             for (auto& item : _stream_map) {
                 if (item.first->get_id() == id) {
+                    // check if the ThreadTracker of this stream is already in t_stream_count_map
+                    // if not, then create ThreadTracker for it
+                    auto iter = t_stream_count_map.find((void*)this);
+                    if (iter == t_stream_count_map.end()) {
+                        auto new_tracker_ptr = item.first->fetch();
+                        t_stream_count_map[(void*)this] = new_tracker_ptr;
+                    }
                     return item.second;
                 }
             }
