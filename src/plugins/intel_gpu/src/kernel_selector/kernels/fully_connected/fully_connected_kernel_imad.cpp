@@ -155,7 +155,7 @@ FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::Get
     }
 
     // In most cases SIMD8 works faster than SIMD16
-    tuning_data.sub_group_size = 8;
+    tuning_data.sub_group_size = IsSIMDSizeSupported(params.engineInfo, 8) ? 8 : 16;
 
     if (!params.is_shape_agnostic) {
         auto mk_size = if_num * ib_num;
