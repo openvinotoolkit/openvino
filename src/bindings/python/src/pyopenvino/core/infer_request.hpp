@@ -94,6 +94,7 @@ public:
     // ~InferRequestWrapper() = default;
 
     ~InferRequestWrapper() {
+        // check whether GIL is acquired.
         if (PyGILState_Check()) {
             py::gil_scoped_release release;
             delete m_request;
