@@ -136,7 +136,7 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     //  x = c * (1 - std::abs(fmodu - 1));
     auto x = make_shared<v1::Multiply>(c, make_shared<v1::Subtract>(const_one_f_, make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, const_one_f_))));
 
-    // h_category = static_cast<int>(dh);
+    // h_category: [batch_dims..., H, W, 1]
     auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i32);
 
     auto zeros = make_shared<v0::Constant>(type, x->get_shape(), 0.0f);
@@ -145,17 +145,21 @@ shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<N
     auto gg_options = NodeVector{x, c, c, x, zeros, zeros};
     auto bb_options = NodeVector{zeros, zeros, x, c, c, x};
 
+    // rr_concat: [batch_dims..., H, W, 6]
     auto rr_concat = make_shared<v0::Concat>(rr_options, -1); 
     auto gg_concat = make_shared<v0::Concat>(gg_options, -1);
     auto bb_concat = make_shared<v0::Concat>(bb_options, -1);
 
-    auto rr_unsqueeze = make_shared<v0::Unsqueeze>(rr_concat,const_minus_one_i_);
-    auto gg_unsqueeze = make_shared<v0::Unsqueeze>(gg_concat,const_minus_one_i_);
+    // rr_unsqueeze: [batch_dims..., H, W, 6, 1]
+    auto rr_unsqueeze = make_shared<v0::Unsqueeze>(rr_concat, const_minus_one_i_);
+    auto gg_unsqueeze = make_shared<v0::Unsqueeze>(gg_concat, const_minus_one_i_);
     auto bb_unsqueeze = make_shared<v0::Unsqueeze>(bb_concat, const_minus_one_i_);
 
+    // rgb_options: [batch_dims..., H, W, 6, 3]
     auto rgb_options = make_shared<v0::Concat>(NodeVector{rr_unsqueeze, gg_unsqueeze, bb_unsqueeze}, -1);
 
     // use a gather operation to select the correct channel values based on h_category
+    // rgb: [batch_dims..., H, W, 3]
     int batch_dim = rgb_options->get_shape().size() - 2;
     auto rgb = make_shared<v0::Squeeze>(make_shared<v8::Gather>(rgb_options, h_category, const_minus_two_i_, batch_dim),
     const_minus_two_i_ );
