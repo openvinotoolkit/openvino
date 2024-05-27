@@ -109,6 +109,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
 }
 
 shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<Node> v, element::Type type) {
+    // image format conversion based on https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
     // c = s * v;
     auto c = make_shared<v1::Multiply>(s, v);
     // m = v - c;
