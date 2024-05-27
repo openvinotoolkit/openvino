@@ -2278,6 +2278,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_f_y_axes_tile,
                              {{32, 16, 8, 32}, format::bfyx}, 
                              {{32, 8, 16, 32}, format::bfyx},
                              {{32, 196, 8, 64}, format::bfyx},           // permute_f_y_axes
+                             {{1, 512, 30, 1}, format::bfyx},            // fix for JTIMES=0
                          }),
                          TiledPermuteTest::PrintToStringParamName);
 
