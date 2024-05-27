@@ -9,11 +9,11 @@ from common import (
 )
 
 @pytest.mark.precommit
-@pytest.mark.parametrize("model_id", get_models_list("models/precommit"))
-def test_pa_precommit(tmp_path, model_id):
+@pytest.mark.parametrize("model_id", get_models_list("pytorch/models/precommit"))
+def test_pa_precommit(tmp_path, model_id, ie_device):
     run_pa(tmp_path, model_id)
 
 @pytest.mark.nightly
-@pytest.mark.parametrize("model_id", get_models_list("models/nightly"))
-def test_pa_nightly(tmp_path, model_id):
+@pytest.mark.parametrize("model_id", get_models_list("pytorch/models/nightly"))
+def test_pa_nightly(tmp_path, model_id, ie_device):
     run_pa(tmp_path, model_id)

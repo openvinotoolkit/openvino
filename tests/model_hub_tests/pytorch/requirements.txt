@@ -28,10 +28,6 @@ PyYAML
 kornia
 
 --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly/
---extra-index-url https://download.pytorch.org/whl/cpu
-# we need at least openvino 2024.2
---pre
-openvino
 openvino-tokenizers
 # use latest released version once it's available
 git+https://github.com/huggingface/optimum-intel.git@main
