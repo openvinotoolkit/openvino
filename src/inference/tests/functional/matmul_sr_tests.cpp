@@ -378,6 +378,64 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeAMatMulSeveralConsumers) {
     manager.register_pass<ov::pass::ReshapeAMatMul>();
 }
 
+TEST_F(TransformationTestsF, SmartReshapeReshapeA_1DOtherInput) {
+    {
+        auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {3, 6});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, reshape_const, false);
+
+        auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, other_input);
+        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+        manager.register_pass<ov::pass::ReshapeAMatMul>();
+    }
+    {
+        auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+        auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6});
+        const auto in_C_0 = std::make_shared<ov::op::v3::ShapeOf>(other_input);
+        const auto in_C_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto in_C_2 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+        const auto C = std::make_shared<ov::op::v8::Gather>(in_C_0, in_C_1, in_C_2);
+
+        const auto N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{N, C}, 0);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, new_reshape_pattern, false);
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, other_input);
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+    }
+}
+
+TEST_F(TransformationTestsF, SmartReshapeReshapeB_1DOtherInput) {
+    {
+        auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {3, 6});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, reshape_const, false);
+
+        auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(other_input, reshape);
+        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+        manager.register_pass<ov::pass::ReshapeBMatMul>();
+    }
+    {
+        auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+        auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        const auto in_C_0 = std::make_shared<ov::op::v3::ShapeOf>(other_input);
+        const auto in_C_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto in_C_2 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+        const auto C = std::make_shared<ov::op::v8::Gather>(in_C_0, in_C_1, in_C_2);
+
+        const auto N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{C, N}, 0);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, new_reshape_pattern, false);
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(other_input, reshape);
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+    }
+}
+
 TEST_F(TransformationTestsF, SmartReshapeReshapeBMatMulSeveralConsumers) {
     // Reshape has 2 consumers: matmul and reduce.
     // Since reshape movement leads to loop creation (circular dependencies), the transformation can't be applied
