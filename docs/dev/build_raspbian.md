@@ -36,6 +36,21 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
   .. && cmake --build . --parallel 
   ```
 
+> **NOTE**: The build command may fail due to insufficient RAM. To fix this issue, you can increase the swap size:
+1. Deactivate the current swap:
+```bash
+sudo dphys-swapfile swapoff
+```
+2. Modify the swap size by setting `CONF_SWAPSIZE=8192` in `/etc/dphys-swapfile`.
+3. Recreate the swap file:
+```bash
+sudo dphys-swapfile setup
+```
+3. Start swap:
+```bash
+sudo dphys-swapfile swapon
+```
+
 ## Additional Build Options
 
 - To build Python API, install `libpython3-dev:armhf` and `python3-pip`
