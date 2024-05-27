@@ -1,0 +1,7 @@
+{
+    "CPU": {
+            "PERFORMANCE_HINT":"THROUGHPUT",
+            "CACHE_DIR":"",
+            "NUM_STREAMS":"1"
+    }
+}

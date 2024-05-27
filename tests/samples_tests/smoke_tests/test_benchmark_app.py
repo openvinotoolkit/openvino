@@ -42,6 +42,30 @@ test_data_fp32_sync = get_tests \
      use_device=['d']
      )
 
+test_priority_cpp = get_tests \
+    (cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'batch': [1],
+                 'sample_type': ['C++'],
+                'd': ['CPU'],
+                 'niter': ['10'],
+                 'api': ['sync'],
+                  'load_config': ['config_cpp.json']},
+     use_device=['d']
+     )
+
+test_priority_python = get_tests \
+    (cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
+                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
+                 'batch': [1],
+                 'sample_type': ['python'],
+                'd': ['CPU'],
+                 'niter': ['10'],
+                 'api': ['sync'],
+                  'load_config': ['config_python.json']},
+     use_device=['d']
+     )
+
 
 
 class TestBenchmarkApp(SamplesCommonTestClass):
@@ -58,6 +82,14 @@ class TestBenchmarkApp(SamplesCommonTestClass):
     @pytest.mark.parametrize("param", test_data_fp32_sync)
     @pytest.mark.skip("Ticket: 106850")
     def test_benchmark_app_fp32_sync(self, param):
+        _check_output(self, param)
+
+    @pytest.mark.parametrize("param", test_priority_cpp)
+    def test_priority_cpp(self, param):
+        _check_output(self, param)
+
+    @pytest.mark.parametrize("param", test_priority_python)
+    def test_priority_python(self, param):
         _check_output(self, param)
 
 
