@@ -62,6 +62,7 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(ze_driver_h
 
 ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroInitStructsHolder::ZeroInitStructsHolder");
+    log.debug("ZeroInitStructsHolder - performing zeInit on VPU only");
     zeroUtils::throwOnFail("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
     uint32_t drivers = 0;
@@ -72,6 +73,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     // Get our target driver
     driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
+    log.debug("ZeroInitStructsHolder - setting driver properties to ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES");
     for (uint32_t i = 0; i < drivers; ++i) {
         zeDriverGetProperties(all_drivers[i], &driver_properties);
 
@@ -105,6 +107,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     // Query our graph extension version
     std::string graph_ext_name;
+    log.debug("ZeroInitStructsHolder - tie output of queryDriverExtensionVersion");
     std::tie(driver_ext_version, graph_ext_name) = queryDriverExtensionVersion(driver_handle);
 
     log.debug("Found Driver Version %d.%d, Driver Extension Version %d.%d (%s)",
@@ -136,10 +139,12 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
+    log.debug("ZeroInitStructsHolder initialize complete");
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
+        log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
         if (ZE_RESULT_SUCCESS != result) {
             log.error("zeContextDestroy failed %#X", uint64_t(result));

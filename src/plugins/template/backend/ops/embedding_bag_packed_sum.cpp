@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/reference/embedding_bag_packed_sum.hpp"
-
 #include "evaluate_node.hpp"
+#include "openvino/reference/embedding_bag_packed.hpp"
 
 namespace embedding_bag_packed_sum_v3 {
 template <ov::element::Type_t t1, ov::element::Type_t t2>
@@ -13,12 +12,13 @@ inline void evaluate(const std::shared_ptr<ov::op::v3::EmbeddingBagPackedSum>& o
                      const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<t1>::value_type;
     using T2 = typename ov::element_type_traits<t2>::value_type;
-    ov::reference::embeddingBagPackedSum<T1, T2>(inputs[0].data<T1>(),
-                                                 inputs[1].data<T2>(),
-                                                 inputs.size() > 2 ? inputs[2].data<T1>() : nullptr,
-                                                 outputs[0].data<T1>(),
-                                                 inputs[1].get_shape(),
-                                                 outputs[0].get_shape());
+    ov::reference::embeddingBagPacked<T1, T2>(inputs[0].data<T1>(),
+                                              inputs[1].data<T2>(),
+                                              inputs.size() > 2 ? inputs[2].data<T1>() : nullptr,
+                                              outputs[0].data<T1>(),
+                                              inputs[1].get_shape(),
+                                              outputs[0].get_shape(),
+                                              ov::op::v3::EmbeddingBagPackedSum::Reduction::SUM);
 }
 }  // namespace embedding_bag_packed_sum_v3
 
