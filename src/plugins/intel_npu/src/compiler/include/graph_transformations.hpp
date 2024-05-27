@@ -15,8 +15,28 @@
 namespace intel_npu::driverCompilerAdapter {
 
 /**
+ * @brief Serialization mode
+ * @param version serialization result type
+ *                0 - xml and weights contains serailized model and weights
+ *                1 - xml and weights contains file name
+ *                2 - xml contains raw ov::model
+ */
+enum class SerializeMode { STREAM = 0, FILE = 1, RAW = 2 };
+
+/**
+ * @brief Intermediate representation of the network
+ */
+struct IR {
+    SerializeMode mode;
+    std::stringstream xml;
+    std::stringstream weights;
+};
+
+/**
  * @brief Serialize OpenVINO model to IR
  */
-IR serializeToIR(const std::shared_ptr<const ov::Model>& model, uint32_t supportedVersionByCompiler = 7);
+IR serializeToIR(const std::shared_ptr<const ov::Model>& model,
+                 uint32_t supportedVersionByCompiler = 11,
+                 SerializeMode mode = SerializeMode::STREAM);
 
 }  // namespace intel_npu::driverCompilerAdapter

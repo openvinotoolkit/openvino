@@ -8,11 +8,6 @@
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
-struct IR {
-    std::string xmlName;
-    std::string weightsName;
-};
-
 /**
  * @brief Interface for external compiler
  * @details Isolate external API calls from general logic
@@ -29,14 +24,14 @@ public:
     /**
      * @brief Get query result for current network
      */
-    virtual std::unordered_set<std::string> getQueryResult(IR& irModel, const Config& config) const = 0;
+    virtual std::unordered_set<std::string> getQueryResult(const std::shared_ptr<const ov::Model>& model,
+                                                           const Config& config) const = 0;
 
     /**
      * @brief Sends the serialized model and its I/O metadata to the driver for compilation.
      * @return The compiled model descriptor corresponding to the previously given network.
      */
     virtual NetworkDescription compileIR(const std::shared_ptr<const ov::Model>& model,
-                                         IR& irModel,
                                          const Config& config) const = 0;
     virtual NetworkMetadata parseBlob(const std::vector<uint8_t>& blob, const Config& config) const = 0;
 };

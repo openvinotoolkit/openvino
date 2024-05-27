@@ -12,47 +12,60 @@
 
 namespace intel_npu::driverCompilerAdapter {
 
-IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset) {
-    // There is no const variant of run_passes so use const_cast here
-    // as model serialization does not mutate the model
-    std::shared_ptr<ov::Model> model = std::const_pointer_cast<ov::Model>(origModel);
+IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset, SerializeMode mode) {
+    std::stringstream xml;
+    std::stringstream weights;
+    if (mode == SerializeMode::RAW) {
+        xml << origModel.get();
+        weights << "PLACEHOLDER";
+    } else {
+        // There is no const variant of run_passes so use const_cast here
+        // as model serialization does not mutate the model
+        std::shared_ptr<ov::Model> model = std::const_pointer_cast<ov::Model>(origModel);
 
-    const auto passConfig = std::make_shared<ov::pass::PassConfig>();
-    ov::pass::Manager manager(passConfig);
+        const auto passConfig = std::make_shared<ov::pass::PassConfig>();
+        ov::pass::Manager manager(passConfig);
 
-    if (supportedOpset < 11) {
-        // Need to clone to modify the model and remain thread safe
-        model = model->clone();
-        // Downgrade to opset10
-        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+        if (supportedOpset < 11) {
+            // Need to clone to modify the model and remain thread safe
+            model = model->clone();
+            // Downgrade to opset10
+            manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+        }
+
+        if (mode == SerializeMode::FILE) {
+            std::string modelName = model->get_friendly_name();
+            std::string xmlName = modelName + "_serialized.xml";
+            std::string weightsName = modelName + "_serialized.bin";
+            manager.register_pass<ov::pass::Serialize>(xmlName, weightsName);
+            xml << xmlName;
+            weights << weightsName;
+        } else {
+            manager.register_pass<ov::pass::Serialize>(xml, weights);
+        }
+
+        // Depending on the driver version, the compiler attached to it may request this information as an indicator of
+        // the precision/layout preprocessing requirement. We are setting this value to "true" since the API version is
+        // no longer a cause for altering the metadata. This is due to the preprocessing performed in the OpenVINO
+        // framework's implementaion, the "ov::Model" object is preprocessed before reaching the NPU plugin.
+        const auto new_api_key = "is_new_api";
+
+        // We modify the original model object here therefore a mutex is required
+        static std::mutex rtInfoMutex;
+
+        {
+            std::lock_guard<std::mutex> lock(rtInfoMutex);
+
+            model->set_rt_info(true, new_api_key);
+
+            manager.run_passes(model);
+
+            auto& rtInfo = model->get_rt_info();
+            rtInfo.erase(new_api_key);
+        }
     }
 
-    std::string modelName = model->get_friendly_name();
-    std::string xmlName = modelName + "_serialized.xml";
-    std::string weightsName = modelName + "_serialized.bin";
-    manager.register_pass<ov::pass::Serialize>(xmlName, weightsName);
-
-    // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
-    // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
-    // longer a cause for altering the metadata. This is due to the preprocessing performed in the OpenVINO framework's
-    // implementaion, the "ov::Model" object is preprocessed before reaching the NPU plugin.
-    const auto new_api_key = "is_new_api";
-
-    // We modify the original model object here therefore a mutex is required
-    static std::mutex rtInfoMutex;
-
-    {
-        std::lock_guard<std::mutex> lock(rtInfoMutex);
-
-        model->set_rt_info(true, new_api_key);
-
-        manager.run_passes(model);
-
-        auto& rtInfo = model->get_rt_info();
-        rtInfo.erase(new_api_key);
-    }
-
-    return {xmlName, weightsName};
+    return {mode, std::move(xml), std::move(weights)};
 }
 
 }  // namespace intel_npu::driverCompilerAdapter

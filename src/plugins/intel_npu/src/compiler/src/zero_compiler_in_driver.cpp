@@ -36,6 +36,9 @@ const std::vector<size_t> NC_TO_CN_LAYOUT_DIMENSIONS_ORDER = {1, 0};
 const std::vector<size_t> NCHW_TO_NHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 1};
 const std::vector<size_t> NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 4, 1};
 
+// Constant indicating the model size to trigger the serialization mode of file or raw
+const uint64_t MODEL_SIZE_THRESHOLD = 1024 * 1024 * 1024 * 2;  // 2GB
+
 /**
  * @brief A standard copy function concerning memory segments. Additional checks on the given arguments are performed
  * before copying.
@@ -244,6 +247,16 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
+static size_t getFileSize(std::istream& strm) {
+    const size_t streamStart = strm.tellg();
+    strm.seekg(0, std::ios_base::end);
+    const size_t streamEnd = strm.tellg();
+    const size_t bytesAvailable = streamEnd - streamStart;
+    strm.seekg(streamStart, std::ios_base::beg);
+
+    return bytesAvailable;
+}
+
 using SerializedIR = std::vector<uint8_t>;
 
 /**
@@ -251,89 +264,114 @@ using SerializedIR = std::vector<uint8_t>;
  * @details Format of the memory:
  */
 template <typename TableExtension>
-SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
-    IR& irModel,
-    ze_graph_compiler_version_info_t compilerVersion) const {
-    // Get info from serialized file
-    std::ifstream xmlFile(irModel.xmlName, std::ios::binary);
-    std::ifstream weightsFile(irModel.weightsName, std::ios::binary);
-    if (!xmlFile || !weightsFile) {
-        OPENVINO_THROW("Failed to open serialized files");
+std::vector<std::string> LevelZeroCompilerInDriver<TableExtension>::serializeIR(
+    const std::shared_ptr<const ov::Model>& model,
+    ze_graph_compiler_version_info_t compilerVersion,
+    const Config& config,
+    std::vector<uint8_t>& serializedIR) {
+    uint32_t numberOfInputData = 2;
+
+    SerializeMode mode = SerializeMode::STREAM;
+    if (compilerVersion.major >= 5 && compilerVersion.minor >= 5) {
+        // SerializeMode is supported from 5.5
+        if (config.get<SerializeMode>("serialize_mode") == SerializeMode::FILE) {
+            mode = SerializeMode::FILE;
+        } else if (config.get<SerializeMode>("serialize_mode") == SerializeMode::RAW) {
+            mode = SerializeMode::RAW;
+        }
+        numberOfInputData = 3;
+    }
+    if (model->get_graph_size() > MODEL_SIZE_THRESHOLD) {
+        // Force large model to use FILE mode
+        _logger.warning("Force large model %s to use FILE mode to do serialization", model->get_friendly_name());
+        mode = SerializeMode::FILE;
     }
 
-    xmlFile.seekg(0, std::ios::end);
-    std::streampos xmlFileSize = xmlFile.tellg();
-    xmlFile.seekg(0, std::ios::beg);
-
-    weightsFile.seekg(0, std::ios::end);
-    std::streampos weightsFileSize = weightsFile.tellg();
-    weightsFile.seekg(0, std::ios::beg);
+    uint32_t supportedOpset = getSupportedOpset();
+    auto irModel = serializeToIR(model, supportedOpset, mode);
 
     // Contract between adapter and compiler in driver
-    const uint32_t maxNumberOfElements = 10;
-    const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
-    const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
+    try {
+        const uint32_t maxNumberOfElements = 10;
+        const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
+        const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
-    const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(xmlFileSize);
-    const uint64_t weightsSize = static_cast<uint64_t>(weightsFileSize);
+        const uint64_t xmlSize = static_cast<uint64_t>(getFileSize(irModel.xml));
+        const uint64_t weightsSize = static_cast<uint64_t>(getFileSize(irModel.weights));
 
-    OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
-    if (xmlSize >= maxSizeOfXML) {
-        OPENVINO_THROW("LevelZeroCompilerInDriver: Xml file is too big to process. xmlSize: ",
-                       xmlSize,
-                       " >= maxSizeOfXML: ",
-                       maxSizeOfXML);
+        OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
+        if (xmlSize >= maxSizeOfXML) {
+            std OPENVINO_THROW("LevelZeroCompilerInDriver: Xml file is too big to process. xmlSize: ",
+                               xmlSize,
+                               " >= maxSizeOfXML: ",
+                               maxSizeOfXML);
+        }
+        if (weightsSize >= maxSizeOfWeights) {
+            OPENVINO_THROW("LevelZeroCompilerInDriver: Bin file is too big to process. xmlSize: ",
+                           weightsSize,
+                           " >= maxSizeOfWeights: ",
+                           maxSizeOfWeights);
+        }
+
+        uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) + xmlSize +
+                                      sizeof(weightsSize) + weightsSize;
+
+        // Pass serilaization mode to driver for API 5.5 and beyond
+        uint32_t serializeMode = static_cast<uint32_t>(mode);
+        if (numberOfInputData == 3) {
+            sizeOfSerializedIR += sizeof(SerializeMode);
+        }
+
+        serializedIR.resize(sizeOfSerializedIR);
+
+        uint64_t offset = 0;
+        checkedMemcpy(serializedIR.data() + offset,
+                      sizeOfSerializedIR - offset,
+                      &compilerVersion,
+                      sizeof(compilerVersion));
+        offset += sizeof(compilerVersion);
+
+        checkedMemcpy(serializedIR.data() + offset,
+                      sizeOfSerializedIR - offset,
+                      &numberOfInputData,
+                      sizeof(numberOfInputData));
+        offset += sizeof(numberOfInputData);
+
+        if (numberOfInputData == 3) {
+            checkedMemcpy(serializedIR.data() + offset,
+                          sizeOfSerializedIR - offset,
+                          &serializeMode,
+                          sizeof(serializeMode));
+            offset += sizeof(serializeMode);
+        }
+
+        checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
+        offset += sizeof(xmlSize);
+        irModel.xml.read(reinterpret_cast<char*>(serializedIR.data() + offset), xmlSize);
+        offset += xmlSize;
+        checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
+        offset += sizeof(weightsSize);
+        irModel.weights.read(reinterpret_cast<char*>(serializedIR.data() + offset), weightsSize);
+        offset += weightsSize;
+
+        OPENVINO_ASSERT(offset == sizeOfSerializedIR);
+
+    } catch {
+        const std::exception& e
     }
-    if (weightsSize >= maxSizeOfWeights) {
-        OPENVINO_THROW("LevelZeroCompilerInDriver: Bin file is too big to process. xmlSize: ",
-                       weightsSize,
-                       " >= maxSizeOfWeights: ",
-                       maxSizeOfWeights);
+    {
+        if (irModel.mode == SerializeMode::FILE) {
+            std::remove(irModel.xmlName.c_str());
+            std::remove(irModel.weightsName.c_str());
+        }
+        throw;
     }
-
-    const uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
-                                        xmlSize + sizeof(weightsSize) + weightsSize;
-
-    std::vector<uint8_t> serializedIR;
-    serializedIR.resize(sizeOfSerializedIR);
-
-    uint64_t offset = 0;
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
-    offset += sizeof(compilerVersion);
-
-    checkedMemcpy(serializedIR.data() + offset,
-                  sizeOfSerializedIR - offset,
-                  &numberOfInputData,
-                  sizeof(numberOfInputData));
-    offset += sizeof(numberOfInputData);
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
-    offset += sizeof(xmlSize);
-    if (xmlFile.read(reinterpret_cast<char*>(serializedIR.data() + offset), xmlSize).gcount() != xmlSize) {
-        xmlFile.close();
-        weightsFile.close();
-        OPENVINO_THROW("Failed to read serialized xml file");
+    std::vector<std::string> fileToDelete;
+    if (irModel.mode == SerializeMode::FILE) {
+        fileToDelete.push_back(irModel.xml);
+        fileToDelete.push_back(irModel.weights);
     }
-    xmlFile.close();
-
-    offset += xmlSize;
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
-    offset += sizeof(weightsSize);
-    if (weightsFile.read(reinterpret_cast<char*>(serializedIR.data() + offset), weightsSize).gcount() != weightsSize) {
-        weightsFile.close();
-        OPENVINO_THROW("Failed to read serialized weights file");
-    }
-    weightsFile.close();
-
-    if (std::remove(irModel.xmlName.c_str()) != 0 || std::remove(irModel.weightsName.c_str()) != 0) {
-        OPENVINO_THROW("Failed to remove serialized files");
-    }
-
-    offset += weightsSize;
-
-    OPENVINO_ASSERT(offset == sizeOfSerializedIR);
-
-    return serializedIR;
+    return fileToDelete;
 }
 
 template <typename TableExtension>
@@ -508,8 +546,9 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
 // For ext version < 1.3, query is unsupported, return empty result and add debug log here
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportQuery(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& /*irModel*/,
-                                                                                     const Config&) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& /*model*/,
+    const Config&) const {
     _logger.debug("queryImpl - Driver version is less than 1.3, queryNetwork is unsupported.");
     return std::unordered_set<std::string>();
 }
@@ -517,12 +556,14 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 // For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& irModel,
-                                                                                     const Config& config) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.debug("queryImpl - Calling queryNetwork of 1.3 version.");
 
     std::string buildFlags;
-    auto serializedIR = getSerializedIR(buildFlags, irModel, config);
+    SerializedIR serializedIR;
+    auto fileToDelete = getSerializedIR(buildFlags, model, config, serializedIR);
 
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
@@ -535,18 +576,27 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     // Create querynetwork handle
     auto result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
+    // Remove temp file from serialization
+    if (fileToDelete.size() > 0) {
+        for (auto& file : fileToDelete) {
+            _logger.debug("queryImpl - remove temp file: %s", file.c_str());
+            std::remove(file.c_str());
+        }
+    }
     return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
 }
 
 // For ext version >= 1.5
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& irModel,
-                                                                                     const Config& config) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.debug("queryImpl - Calling queryNetwork of 1.5 version.");
 
     std::string buildFlags;
-    auto serializedIR = getSerializedIR(buildFlags, irModel, config);
+    SerializedIR serializedIR;
+    auto fileToDelete = getSerializedIR(buildFlags, model, config, serializedIR);
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
@@ -560,7 +610,13 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 
     // Create querynetwork handle
     auto result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
-
+    // Remove temp file from serialization
+    if (fileToDelete.size() > 0) {
+        for (auto& file : fileToDelete) {
+            _logger.debug("queryImpl - remove temp file: %s", file.c_str());
+            std::remove(file.c_str());
+        }
+    }
     return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
 }
 
@@ -618,9 +674,11 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 }
 
 template <typename TableExtension>
-std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getSerializedIR(std::string& buildFlags,
-                                                                                IR& irModel,
-                                                                                const Config& config) const {
+std::vector<std::string> LevelZeroCompilerInDriver<TableExtension>::getSerializedIR(
+    std::string& buildFlags,
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config,
+    std::vector<uint8_t>& serializedIR) const {
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     if (ZE_RESULT_SUCCESS != result) {
@@ -635,17 +693,18 @@ std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getSerializedIR(
     buildFlags += serializeConfig(config, compilerVersion);
     _logger.debug("getSerializedIR Build flags : %s", buildFlags.c_str());
 
-    auto serializedIR = serializeIR(irModel, compilerVersion);
-
-    return serializedIR;
+    auto fileToDelete = serializeIR(model, compilerVersion, config, serializedIR);
+    _logger.debug("getSerializedIR end");
+    return fileToDelete;
 }
 
 template <typename TableExtension>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQueryResult(IR& irModel,
-                                                                                          const Config& config) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQueryResult(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("getQueryResult");
-    auto queryResult = queryImpl(irModel, config);
+    auto queryResult = queryImpl(model, config);
     _logger.debug("getQueryResult end");
     return queryResult;
 }
@@ -691,7 +750,6 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 
 template <typename TableExtension>
 NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const std::shared_ptr<const ov::Model>& model,
-                                                                        IR& irModel,
                                                                         const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("compileIR");
@@ -708,83 +766,93 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
     }
     ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
 
-    auto serializedIR = serializeIR(irModel, compilerVersion);
+    SerializedIR serializedIR;
+    auto fileToDelete = serializeIR(model, compilerVersion, config, serializedIR);
 
-    ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
+    try {
+        ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 
-    std::string buildFlags;
+        std::string buildFlags;
 
-    buildFlags += serializeIOInfo(model);
-    buildFlags += " ";
-    buildFlags += serializeConfig(config, compilerVersion);
+        buildFlags += serializeIOInfo(model);
+        buildFlags += " ";
+        buildFlags += serializeConfig(config, compilerVersion);
 
-    _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
-    // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
+        _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
+        // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
 
-    // Graph handle should be used only in scope of compile / parse functions.
-    ze_graph_handle_t graphHandle;
+        // Graph handle should be used only in scope of compile / parse functions.
+        ze_graph_handle_t graphHandle;
 
-    // If OV cache is enabled, disable driver caching
-    uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+        // If OV cache is enabled, disable driver caching
+        uint32_t flags = ZE_GRAPH_FLAG_NONE;
+        const auto set_cache_dir = config.get<CACHE_DIR>();
+        if (!set_cache_dir.empty()) {
+            flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+        }
+
+        _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
+        result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
+
+        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                        "Failed to compile network. L0 createGraph",
+                        " result: ",
+                        ze_result_to_string(result),
+                        ", code 0x",
+                        std::hex,
+                        uint64_t(result),
+                        ". ",
+                        getLatestBuildError());
+
+        // Get blob size first
+        size_t blobSize = -1;
+
+        result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
+
+        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                        "Failed to compile network. L0 pfnGetNativeBinary get blob size",
+                        " result: ",
+                        ze_result_to_string(result),
+                        ", code 0x",
+                        std::hex,
+                        uint64_t(result),
+                        ". ",
+                        getLatestBuildError());
+
+        std::vector<uint8_t> blob(blobSize);
+        // Get blob data
+        result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
+
+        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                        "Failed to compile network. L0 pfnGetNativeBinary get blob data",
+                        " result: ",
+                        ze_result_to_string(result),
+                        ", code 0x",
+                        std::hex,
+                        uint64_t(result),
+                        ". ",
+                        getLatestBuildError());
+
+        auto networkMeta = getNetworkMeta(graphHandle);
+        result = _graphDdiTableExt->pfnDestroy(graphHandle);
+
+        if (ZE_RESULT_SUCCESS != result) {
+            OPENVINO_THROW("Failed to compile network. L0 pfnDestroy",
+                           " result: ",
+                           ze_result_to_string(result),
+                           ", code 0x",
+                           std::hex,
+                           uint64_t(result));
+        }
+    } catch (const std::exception&) {
+        if (fileToDelete.size() > 0) {
+            for (auto& file : fileToDelete) {
+                _logger.debug("compileIR - remove temp file: %s", file.c_str());
+                std::remove(file.c_str());
+            }
+        }
+        throw;
     }
-
-    _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
-    result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 createGraph",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
-
-    // Get blob size first
-    size_t blobSize = -1;
-
-    result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 pfnGetNativeBinary get blob size",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
-
-    std::vector<uint8_t> blob(blobSize);
-    // Get blob data
-    result = _graphDdiTableExt->pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 pfnGetNativeBinary get blob data",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
-
-    auto networkMeta = getNetworkMeta(graphHandle);
-    result = _graphDdiTableExt->pfnDestroy(graphHandle);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to compile network. L0 pfnDestroy",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
     _logger.debug("compileIR end");
     return NetworkDescription(std::move(blob), std::move(networkMeta));
 }
