@@ -38,12 +38,12 @@ OpenVINO repositories make use of the following runners:
 
 ## Available Self-hosted Runners
 
-Two groups of the self-hosted runners are available:
+Two groups of self-hosted runners are available:
 
-* Dynamically spawned Linux and Windows runners with CPU-only capabilities
+* Dynamically-spawned Linux and Windows runners with CPU-only capabilities
 * Dedicated Linux runners with GPU capabilities
 
-### Dynamically Spawned Linux and Windows Runners
+### Dynamically-spawned Linux and Windows Runners
 
 These self-hosted runners are dynamically spawned for each requested pipeline.
 Several configurations are available, which are identified by different group names.
@@ -74,22 +74,22 @@ The available configurations are:
 
 ### Dedicated GPU Runners
 
-Eighteen runners with GPU capabilities are available to all repositories in the OpenVINO organisation's GitHub Actions. 
-Both integrated GPUs (iGPU) and discrete GPUs (dGPU) are available.
+Eighteen runners with GPU capabilities (both integrated and discrete, iGPU and dGPU) 
+are available to all repositories in the OpenVINO organisation's GitHub Actions. 
 
-These runners are virtual machines with Ubuntu 22.04. They have the following specifications:
+These runners are virtual machines with Ubuntu 22.04 and have the following specifications:
 
 * CPU: i9-12900k
 * All of them have iGPU (UHD 770 Graphics)
 * Twelve of them have iGPU (UHD 770 Graphics) and dGPU (Arc A770)
 
-These runners could be selected using labels provided in the `runs-on` field in a job configuration.
+These runners may be selected using labels provided in the `runs-on` field in a job configuration.
 The available labels are:
 * `gpu` - encapsulates all the 18 runners
 * `igpu` - encapsulates all the 18 runners as all of them have iGPU
 * `dgpu` - encapsulates 12 runners that have dGPU
 
-An example `GPU Tests` job that uses the `gpu` label:
+Here is an example, a `GPU Tests` job that uses the `gpu` label and runs on any available GPU runner:
 ```yaml
   GPU:
     name: GPU Tests
@@ -103,9 +103,7 @@ An example `GPU Tests` job that uses the `gpu` label:
   ...
 ```
 
-It will run on any available GPU runner. 
-
-If, for example, a job requires a dGPU, it should use the `dgpu` label:
+If, for example, a job requires a dGPU, it should use the `dgpu` label, instead:
 ```yaml
   GPU:
     name: GPU Tests
