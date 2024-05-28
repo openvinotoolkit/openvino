@@ -87,7 +87,7 @@ private:
     std::vector<std::string> serializeIR(const std::shared_ptr<const ov::Model>& model,
                                          ze_graph_compiler_version_info_t compilerVersion,
                                          const Config& config,
-                                         std::vector<uint8_t>& serializedIR);
+                                         std::vector<uint8_t>& serializedIR) const;
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
     /**

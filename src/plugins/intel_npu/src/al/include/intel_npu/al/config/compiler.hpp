@@ -17,6 +17,7 @@ namespace intel_npu {
 
 std::string_view stringifyEnum(CompilerType val);
 std::string_view stringifyEnum(ElfCompilerBackend val);
+std::string_view stringifyEnum(ov::intel_npu::SerializeMode val);
 
 }  // namespace intel_npu
 
@@ -360,22 +361,22 @@ struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32
     }
 };
 
-struct SERIALIZATION_MODE final : OptionBase<SERIALIZATION_MODE, ov::intel_npu::SerializationMode> {
+struct SERIALIZE_MODE final : OptionBase<SERIALIZE_MODE, ov::intel_npu::SerializeMode> {
     static std::string_view key() {
-        return ov::intel_npu::serialization_mode.name();
+        return ov::intel_npu::serialize_mode.name();
     }
 
     static constexpr std::string_view getTypeName() {
-        return "ov::intel_npu::SerializationMode";
+        return "ov::intel_npu::SerializeMode";
     }
 
     static std::string_view envVar();
 
-    static ov::intel_npu::SerializationMode defaultValue();
+    static ov::intel_npu::SerializeMode defaultValue();
 
-    static ov::intel_npu::SerializationMode parse(std::string_view val);
+    static ov::intel_npu::SerializeMode parse(std::string_view val);
 
-    static std::string toString(const ov::intel_npu::SerializationMode& val);
+    static std::string toString(const ov::intel_npu::SerializeMode& val);
 
     static OptionMode mode() {
         return OptionMode::CompileTime;

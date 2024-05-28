@@ -8,15 +8,18 @@
 #include <regex>
 #include <string_view>
 
+#include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/core/model.hpp"
 
-namespace {
+using SerializeMode = ov::intel_npu::SerializeMode;
 
+namespace {
 constexpr std::string_view INPUTS_PRECISIONS_KEY = "--inputs_precisions";
 constexpr std::string_view INPUTS_LAYOUTS_KEY = "--inputs_layouts";
 constexpr std::string_view OUTPUTS_PRECISIONS_KEY = "--outputs_precisions";
@@ -35,9 +38,6 @@ constexpr std::string_view VALUES_SEPARATOR = " ";
 const std::vector<size_t> NC_TO_CN_LAYOUT_DIMENSIONS_ORDER = {1, 0};
 const std::vector<size_t> NCHW_TO_NHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 1};
 const std::vector<size_t> NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 4, 1};
-
-// Constant indicating the model size to trigger the serialization mode of file or raw
-const uint64_t MODEL_SIZE_THRESHOLD = 1024 * 1024 * 1024 * 2;  // 2GB
 
 /**
  * @brief A standard copy function concerning memory segments. Additional checks on the given arguments are performed
@@ -268,22 +268,23 @@ std::vector<std::string> LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     const std::shared_ptr<const ov::Model>& model,
     ze_graph_compiler_version_info_t compilerVersion,
     const Config& config,
-    std::vector<uint8_t>& serializedIR) {
+    std::vector<uint8_t>& serializedIR) const {
     uint32_t numberOfInputData = 2;
 
     SerializeMode mode = SerializeMode::STREAM;
     if (compilerVersion.major >= 5 && compilerVersion.minor >= 5) {
         // SerializeMode is supported from 5.5
-        if (config.get<SerializeMode>("serialize_mode") == SerializeMode::FILE) {
+        if (config.get<SERIALIZE_MODE>() == SerializeMode::FILE) {
             mode = SerializeMode::FILE;
-        } else if (config.get<SerializeMode>("serialize_mode") == SerializeMode::RAW) {
+        } else if (config.get<SERIALIZE_MODE>() == SerializeMode::RAW) {
             mode = SerializeMode::RAW;
         }
         numberOfInputData = 3;
     }
-    if (model->get_graph_size() > MODEL_SIZE_THRESHOLD) {
-        // Force large model to use FILE mode
-        _logger.warning("Force large model %s to use FILE mode to do serialization", model->get_friendly_name());
+
+    if (model->get_graph_size() > 1024U * 1024 * 1024 * 2) {
+        // Force model larger than 2G to use FILE mode
+        _logger.warning("Force large model %s to use FILE mode to do serialize", model->get_friendly_name());
         mode = SerializeMode::FILE;
     }
 
@@ -301,10 +302,10 @@ std::vector<std::string> LevelZeroCompilerInDriver<TableExtension>::serializeIR(
 
         OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
         if (xmlSize >= maxSizeOfXML) {
-            std OPENVINO_THROW("LevelZeroCompilerInDriver: Xml file is too big to process. xmlSize: ",
-                               xmlSize,
-                               " >= maxSizeOfXML: ",
-                               maxSizeOfXML);
+            OPENVINO_THROW("LevelZeroCompilerInDriver: Xml file is too big to process. xmlSize: ",
+                           xmlSize,
+                           " >= maxSizeOfXML: ",
+                           maxSizeOfXML);
         }
         if (weightsSize >= maxSizeOfWeights) {
             OPENVINO_THROW("LevelZeroCompilerInDriver: Bin file is too big to process. xmlSize: ",
@@ -356,20 +357,17 @@ std::vector<std::string> LevelZeroCompilerInDriver<TableExtension>::serializeIR(
 
         OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
-    } catch {
-        const std::exception& e
-    }
-    {
+    } catch (const std::exception& e) {
         if (irModel.mode == SerializeMode::FILE) {
-            std::remove(irModel.xmlName.c_str());
-            std::remove(irModel.weightsName.c_str());
+            std::remove(irModel.xml.str().c_str());
+            std::remove(irModel.weights.str().c_str());
         }
         throw;
     }
     std::vector<std::string> fileToDelete;
     if (irModel.mode == SerializeMode::FILE) {
-        fileToDelete.push_back(irModel.xml);
-        fileToDelete.push_back(irModel.weights);
+        fileToDelete.push_back(irModel.xml.str());
+        fileToDelete.push_back(irModel.weights.str());
     }
     return fileToDelete;
 }
@@ -521,13 +519,13 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
-    /// Remove NPU_SERIALIZATION_MODE for older compilers
+    /// Remove NPU_SERIALIZE_MODE for older compilers
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 6)) {
         std::ostringstream modestr;
         modestr << ov::intel_npu::serialize_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                 << VALUE_DELIMITER;
         _logger.warning(
-            "NPU_SERIALIZATION_MODE property is not suppored by this compiler version. Removing from parameters");
+            "NPU_SERIALIZE_MODE property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(modestr.str()), "");
     }
 
@@ -854,6 +852,9 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
                            std::hex,
                            uint64_t(result));
         }
+
+        _logger.debug("compileIR end");
+        return NetworkDescription(std::move(blob), std::move(networkMeta));
     } catch (const std::exception&) {
         if (fileToDelete.size() > 0) {
             for (auto& file : fileToDelete) {
@@ -863,8 +864,6 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
         }
         throw;
     }
-    _logger.debug("compileIR end");
-    return NetworkDescription(std::move(blob), std::move(networkMeta));
 }
 
 template <typename TableExtension>

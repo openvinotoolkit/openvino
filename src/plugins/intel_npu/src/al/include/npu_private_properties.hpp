@@ -258,30 +258,30 @@ inline std::istream& operator>>(std::istream& is, LegacyPriority& priority) {
 /**
  * @brief [Only for NPU Plugin]
  * Type: string, default is "STREAM"
- * Serialization mode used in driver compiler adapter
+ * Serialize mode used in driver compiler adapter
  */
-enum class SerializationMode {
+enum class SerializeMode {
     STREAM = 0,
     FILE = 1,
-    RAW = 2, 
+    RAW = 2,
 };
 
 /**
- * @brief Prints a string representation of ov::intel_npu::SerializationMode to a stream
+ * @brief Prints a string representation of ov::intel_npu::SerializeMode to a stream
  * @param out An output stream to send to
  * @param fmt A compiler type value to print to a stream
  * @return A reference to the `out` stream
  * @note Configuration API v 2.0
  */
-inline std::ostream& operator<<(std::ostream& out, const SerializationMode& mode) {
+inline std::ostream& operator<<(std::ostream& out, const SerializeMode& mode) {
     switch (mode) {
-    case SerializationMode::FILE: {
+    case SerializeMode::FILE: {
         out << "FILE";
     } break;
-    case SerializationMode::RAW: {
+    case SerializeMode::RAW: {
         out << "RAW";
     } break;
-        case SerializationMode::STREAM: {
+    case SerializeMode::STREAM: {
         out << "STREAM";
     } break;
     default:
@@ -290,7 +290,6 @@ inline std::ostream& operator<<(std::ostream& out, const SerializationMode& mode
     }
     return out;
 }
-
 
 /**
  * @brief Due to driver compatibility constraints, the set of model priority values corresponding to the OpenVINO legacy
@@ -431,7 +430,7 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  * Choose seriliazation mode between driver compiler adapter and driver compiler.
  * Possible values: "AUTO", "PLUGIN", "COMPILER".
  */
-static constexpr ov::Property<SerializationMode> serialization_mode{"NPU_SERIALIZATION_MODE"};
+static constexpr ov::Property<SerializeMode> serialize_mode{"NPU_SSERIALIZE_MODE"};
 
 }  // namespace intel_npu
 }  // namespace ov

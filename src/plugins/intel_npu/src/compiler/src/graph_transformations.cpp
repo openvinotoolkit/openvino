@@ -42,7 +42,9 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
             manager.register_pass<ov::pass::Serialize>(xmlName, weightsName);
             xml << xmlName;
             weights << weightsName;
-            logger.info("Serailization mode is FILE with xml: %s and weights: %s", xmlName.c_str(), weightsName.c_str();
+            logger.info("Serailization mode is FILE with xml: %s and weights: %s",
+                        xmlName.c_str(),
+                        weightsName.c_str());
         } else {
             manager.register_pass<ov::pass::Serialize>(xml, weights);
             logger.info("Serailization mode is STREAM");

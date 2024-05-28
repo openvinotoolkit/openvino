@@ -24,7 +24,7 @@ void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<DMA_ENGINES>();
     desc.add<USE_ELF_COMPILER_BACKEND>();
     desc.add<DYNAMIC_SHAPE_TO_STATIC>();
-    desc.add<SERIALIZATION_MODE>();
+    desc.add<SERIALIZE_MODE>();
 }
 
 //
@@ -125,50 +125,50 @@ std::string intel_npu::USE_ELF_COMPILER_BACKEND::toString(const ov::intel_npu::E
 // COMPILER_TYPE
 //
 
-std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::SerializationMode val) {
+std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::SerializeMode val) {
     switch (val) {
-    case ov::intel_npu::SerializationMode::STREAM:
+    case ov::intel_npu::SerializeMode::STREAM:
         return "STREAM";
-    case ov::intel_npu::SerializationMode::FILE:
+    case ov::intel_npu::SerializeMode::FILE:
         return "FILE";
-    case ov::intel_npu::SerializationMode::RAW:
+    case ov::intel_npu::SerializeMode::RAW:
         return "RAW";
     default:
         return "<UNKNOWN>";
     }
 }
 
-std::string_view intel_npu::SERIALIZATION_MODE::envVar() {
+std::string_view intel_npu::SERIALIZE_MODE::envVar() {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    return "IE_NPU_SERIALIZATION_MODE";
+    return "IE_NPU_SERIALIZE_MODE";
 #else
     return "";
 #endif
 }
 
-ov::intel_npu::SerializationMode intel_npu::SERIALIZATION_MODE::defaultValue() {
-    return ov::intel_npu::SerializationMode::STREAM;
+ov::intel_npu::SerializeMode intel_npu::SERIALIZE_MODE::defaultValue() {
+    return ov::intel_npu::SerializeMode::STREAM;
 }
 
-ov::intel_npu::SerializationMode intel_npu::SERIALIZATION_MODE::parse(std::string_view val) {
-    if (val == stringifyEnum(ov::intel_npu::SerializationMode::STREAM)) {
-        return ov::intel_npu::SerializationMode::STREAM;
-    } else if (val == stringifyEnum(ov::intel_npu::SerializationMode::FILE)) {
-        return ov::intel_npu::SerializationMode::FILE;
-    } else if (val == stringifyEnum(ov::intel_npu::SerializationMode::RAW)) {
-        return ov::intel_npu::SerializationMode::RAW;
+ov::intel_npu::SerializeMode intel_npu::SERIALIZE_MODE::parse(std::string_view val) {
+    if (val == stringifyEnum(ov::intel_npu::SerializeMode::STREAM)) {
+        return ov::intel_npu::SerializeMode::STREAM;
+    } else if (val == stringifyEnum(ov::intel_npu::SerializeMode::FILE)) {
+        return ov::intel_npu::SerializeMode::FILE;
+    } else if (val == stringifyEnum(ov::intel_npu::SerializeMode::RAW)) {
+        return ov::intel_npu::SerializeMode::RAW;
     }
 
-    OPENVINO_THROW("Value '", val, "' is not a valid SERIALIZATION_MODE option");
+    OPENVINO_THROW("Value '", val, "' is not a valid SERIALIZE_MODE option");
 }
 
-std::string intel_npu::SERIALIZATION_MODE::toString(const ov::intel_npu::SerializationMode& val) {
+std::string intel_npu::SERIALIZE_MODE::toString(const ov::intel_npu::SerializeMode& val) {
     std::stringstream strStream;
-    if (val == ov::intel_npu::SerializationMode::STREAM) {
+    if (val == ov::intel_npu::SerializeMode::STREAM) {
         strStream << "STREAM";
-    } else if (val == ov::intel_npu::SerializationMode::FILE) {
+    } else if (val == ov::intel_npu::SerializeMode::FILE) {
         strStream << "FILE";
-    } else if (val == ov::intel_npu::SerializationMode::RAW) {
+    } else if (val == ov::intel_npu::SerializeMode::RAW) {
         strStream << "RAW";
     } else {
         OPENVINO_THROW("No valid string for current LOG_LEVEL option");

@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "driver_compiler_adapter.hpp"
-#include "openvino/pass/manager.hpp"
 #include "intel_npu/al/config/compiler.hpp"
+#include "openvino/pass/manager.hpp"
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
@@ -15,7 +15,7 @@
  */
 namespace intel_npu::driverCompilerAdapter {
 
-using SerializeMode = ov::intel_npu::SerializationMode;
+using SerializeMode = ov::intel_npu::SerializeMode;
 
 /**
  * @brief Intermediate representation of the network
