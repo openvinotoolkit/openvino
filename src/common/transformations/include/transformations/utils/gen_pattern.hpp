@@ -3,6 +3,10 @@
 //
 #pragma once
 
+#ifdef _MSC_VER
+#    pragma warning(disable : 4244)
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <cfloat>
@@ -50,7 +54,9 @@ static bool matcher_verbose_enabled() {
     return enabled;
 }
 
-#    define _VERBOSE_LOG(...) if (matcher_verbose_enabled()) _verbose_log(__VA_ARGS__)
+#    define _VERBOSE_LOG(...)          \
+        if (matcher_verbose_enabled()) \
+        _verbose_log(__VA_ARGS__)
 #else
 static bool matcher_verbose_enabled() {
     return false;
@@ -396,25 +402,25 @@ struct AttrAny {
     template <typename T>
     T cast_to() {
         if (any.is<bool>())
-            return any.as<bool>();
+            return static_cast<T>(any.as<bool>());
         if (any.is<int>())
-            return any.as<int>();
+            return static_cast<T>(any.as<int>());
         if (any.is<long>())
-            return any.as<long>();
+            return static_cast<T>(any.as<long>());
         if (any.is<long long>())
-            return any.as<long long>();
+            return static_cast<T>(any.as<long long>());
         if (any.is<int32_t>())
-            return any.as<int32_t>();
+            return static_cast<T>(any.as<int32_t>());
         if (any.is<int64_t>())
-            return any.as<int64_t>();
+            return static_cast<T>(any.as<int64_t>());
         if (any.is<float>())
-            return any.as<float>();
+            return static_cast<T>(any.as<float>());
         if (any.is<double>())
-            return any.as<double>();
+            return static_cast<T>(any.as<double>());
         if (any.is<int8_t>())
-            return any.as<int8_t>();
+            return static_cast<T>(any.as<int8_t>());
         if (any.is<uint8_t>())
-            return any.as<uint8_t>();
+            return static_cast<T>(any.as<uint8_t>());
         return any.as<T>();
     }
 
@@ -720,7 +726,7 @@ public:
     explicit GenericPattern(const DiscreteTypeInfo& type_info,
                             const OutputVector& args,
                             const detail::AttrMap& attrs,
-                            const char * vt)
+                            const char* vt)
         : ov::pass::pattern::op::Pattern(args),
           m_type_info(type_info),
           m_attrs(attrs),
@@ -820,7 +826,9 @@ struct PatternNode {
         return node->get_default_output();
     }
 
-    PatternNode(const Output<Node>& out) : node(out.get_node_shared_ptr()), output_port(out.get_index()) {}
+    PatternNode(const Output<Node>& out)
+        : node(out.get_node_shared_ptr()),
+          output_port(static_cast<int>(out.get_index())) {}
 
     PatternNode() {
         node = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
@@ -1095,11 +1103,11 @@ inline std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const s
 }
 
 inline std::shared_ptr<Node> GenSlice2(detail::PatternNode data,
-                                      detail::PatternNode start,
-                                      detail::PatternNode stop,
-                                      detail::PatternNode step,
-                                      size_t axis) {
-    std::vector<Symbol> axes(axis+1);
+                                       detail::PatternNode start,
+                                       detail::PatternNode stop,
+                                       detail::PatternNode step,
+                                       size_t axis) {
+    std::vector<Symbol> axes(axis + 1);
     std::iota(axes.begin(), axes.end(), 0);
     auto opt1 = makePattern<opset8::Slice>({data, start, stop, step, axes});
 

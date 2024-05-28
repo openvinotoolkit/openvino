@@ -160,7 +160,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief EliminateStridedSlice eliminates Strided Slice in case
  * tensors were not changed
  */
@@ -171,7 +171,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief EliminateSlice eliminates Slice in case
  * tensors were not changed
  */
@@ -182,7 +182,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief EliminateStridedSlice eliminates Strided Slice in case
  * tensors were not changed
  */
@@ -193,7 +193,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PrepareShapeOpsForEliminationAroundBE works on the subgraph like
  *  Reshape/Squeeze/Unsqueeze -> BinaryElementwiseOperation -> Reshape/Squeeze/Unsqueeze
  *  and prepares it for the following optimizations by moving bottom op up through Binary op

@@ -63,7 +63,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     };
 
     ParameterVector kv_parameters;
-    std::vector<std::shared_ptr<Node>> assignes_to_remove;  // not really used
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
 
@@ -91,7 +90,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   model_remaining_params,
                                                   sliding_window,
                                                   parameters_to_remove,
-                                                  assignes_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0));
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
