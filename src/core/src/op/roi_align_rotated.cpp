@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v14 {
+namespace v15 {
 ROIAlignRotated::ROIAlignRotated(const Output<Node>& input,
                                  const Output<Node>& rois,
                                  const Output<Node>& batch_indices,
@@ -49,6 +49,6 @@ std::shared_ptr<Node> ROIAlignRotated::clone_with_new_inputs(const OutputVector&
                                              get_spatial_scale(),
                                              get_clockwise_mode());
 }
-}  // namespace v14
+}  // namespace v15
 }  // namespace op
 }  // namespace ov
