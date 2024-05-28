@@ -18,7 +18,6 @@
 #include "dnnl_types.h"
 #include "dnnl_extension_utils.h"
 #include "cpu/x64/jit_generator.hpp"
-#include <common/dnnl_thread.hpp>
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -1002,7 +1001,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
         }
     };
 
-    parallel_nd(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
+    parallel_for4d(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
         precompKer(mb, dg, oh, ow);
     });
 }
@@ -1082,7 +1081,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
     jcp.ur_w = mayiuse(cpu::x64::avx512_core) ? 6 : 3;
     jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
 
-    jcp.nthr = dnnl_get_max_threads();
+    jcp.nthr = parallel_get_max_threads();
 }
 
 DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
@@ -1173,7 +1172,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
         return d;
     };
 
-    parallel_nd(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
+    parallel_for5d(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
                     dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] = compKer(g, mb, oc, oh, ow);
                 });
 }

@@ -6,6 +6,8 @@
 #include "gtest/gtest.h"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/benchmark.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
@@ -206,6 +208,29 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     }
     run();
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
+}
+
+TEST_P(BenchmarkMatMulLayerCPUTest, CompareWithRefs) {
+// due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
+    if (inType == ElementType::bf16) {
+        if (cpuNodeType == "FullyConnected") {
+            if (priority[0].find("amx") != std::string::npos || priority[0] == "brgemm_avx512") {
+                if (fusedOps.size() == 2 && fusedOps[0] == std::string("FakeQuantize") && fusedOps[1] == std::string("Relu")) {
+                    GTEST_SKIP() << "Skip MatMul BF16 FakeQuantization Fusing test" << std::endl;
+                }
+            }
+        }
+    }
+
+    this->configuration.insert(ov::hint::enable_cpu_pinning(true));
+    this->configuration.insert(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE));
+    this->configuration.insert(ov::hint::enable_hyper_threading(false));
+
+    for (size_t i = 1; i <= 12; ++i) {
+        this->configuration["INFERENCE_NUM_THREADS"] = i;
+        std::cout << "Num threads: " << i << std::endl;
+        run_benchmark("MatMul", std::chrono::milliseconds(2000), 100); //100000
+    }
 }
 
 namespace MatMul {
