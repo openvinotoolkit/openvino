@@ -9,7 +9,11 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_ARM64)
+#define MAX_ELTWISE_INPUTS 14
+#else
 #define MAX_ELTWISE_INPUTS 7
+#endif
 #define MAX_ELTWISE_DIM_RANK 12
 
 struct jit_eltwise_call_args_ptrs {
