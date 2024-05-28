@@ -106,6 +106,88 @@ InputShape generate(const std::shared_ptr<ov::op::v1::ConvolutionBackpropData>& 
     return input_shape;
 }
 
+namespace pooling {
+inline size_t dilated(size_t dim, size_t dilation) {
+    return (dim - 1) * dilation + 1;
+}
+
+int64_t get_min_spatial_dim(size_t padBegin, size_t padEnd, size_t kernel, size_t dilation) {
+    return dilated(kernel, dilation) - static_cast<int64_t>(padBegin + padEnd);
+}
+
+InputShape generatePoolingShape(const ov::PartialShape& partialShape, const Strides& dilations, const Shape& kernel,
+                               const Shape& padsBegin, const Shape& padsEnd) {
+    std::vector<ov::Shape> staticShapes = { partialShape.get_min_shape(),
+                                            ov::Shape(),
+                                            partialShape.get_max_shape() };
+
+    auto clip_spatial_dim = [&](Shape& shape) {
+        for (size_t i = 2; i < shape.size(); ++i) {
+            shape[i] = std::max(shape[i], static_cast<size_t>(get_min_spatial_dim(padsBegin[i - 2], padsEnd[i - 2], kernel[i - 2], dilations[i - 2])));
+        }
+    };
+
+    clip_spatial_dim(staticShapes[0]);
+    clip_spatial_dim(staticShapes[2]);
+
+    for (size_t i = 0; i < partialShape.size(); ++i) {
+        const auto& s = partialShape[i];
+        int dimValue = 1;
+        if (s.is_dynamic()) {
+            size_t range = s.get_max_length() - s.get_min_length();
+            if (range > std::numeric_limits<char>::max()) {
+                ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+            }
+            const auto minValue = i > 1 ? get_min_spatial_dim(padsBegin[i - 2], padsEnd[i - 2], kernel[i - 2], dilations[i - 2]) : 1;
+            ov::test::utils::fill_data_random(&dimValue, 1, range, std::max(s.get_min_length(), minValue), 1);
+        } else {
+            dimValue = s.get_length();
+        }
+
+        staticShapes[1].push_back(dimValue);
+    }
+
+    // Shape validation to avoid large values
+    uint64_t dimMin = 1;
+    uint64_t dimMax = std::numeric_limits<char>::max();
+    for (auto& shape : staticShapes) {
+        for (auto& dimValue : shape)
+            dimValue = clip(dimValue, dimMin, dimMax);
+    }
+    return InputShape{partialShape, staticShapes};
+}
+} // namespace pooling
+
+InputShape generate(const std::shared_ptr<ov::op::v1::MaxPool>& node,
+                   size_t port) {
+    const auto& partialShape = node->get_input_partial_shape(port);
+    const auto& padsBegin = node->get_pads_begin();
+    const auto& padsEnd = node->get_pads_end();
+    const auto& kernel = node->get_kernel();
+    const auto dilations = ov::Strides(kernel.size(), 1);
+    return pooling::generatePoolingShape(partialShape, dilations, kernel, padsBegin, padsEnd);
+}
+
+InputShape generate(const std::shared_ptr<ov::op::v8::MaxPool>& node,
+                   size_t port) {
+    const auto& partialShape = node->get_input_partial_shape(port);
+    const auto& padsBegin = node->get_pads_begin();
+    const auto& padsEnd = node->get_pads_end();
+    const auto& kernel = node->get_kernel();
+    const auto& dilations =  node->get_dilations();
+    return pooling::generatePoolingShape(partialShape, dilations, kernel, padsBegin, padsEnd);
+}
+
+InputShape generate(const std::shared_ptr<ov::op::v14::MaxPool>& node,
+                   size_t port) {
+    const auto& partialShape = node->get_input_partial_shape(port);
+    const auto& padsBegin = node->get_pads_begin();
+    const auto& padsEnd = node->get_pads_end();
+    const auto& kernel = node->get_kernel();
+    const auto& dilations =  node->get_dilations();
+    return pooling::generatePoolingShape(partialShape, dilations, kernel, padsBegin, padsEnd);
+}
+
 template<typename T>
 InputShape generateShape(const std::shared_ptr<ov::Node>& node,
                          size_t in_port_id) {
