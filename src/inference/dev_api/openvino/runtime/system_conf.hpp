@@ -206,7 +206,7 @@ OPENVINO_RUNTIME_API int get_current_socket_id(int executor_id);
  * @ingroup    ov_dev_api_system_conf
  * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  */
-OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table(int executor_id);
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table(int executor_id = -1);
 
 /**
  * @enum       ColumnOfProcessorTypeTable
