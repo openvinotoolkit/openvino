@@ -80,12 +80,15 @@ public:
     const ov::element::Type get_target_type() const {
         return m_target_type;
     }
+
     void set_target_type(const ov::element::Type target_type) {
         m_target_type = target_type;
     }
+
     const uint8_t* get_values() const {
         return m_values;
     }
+
     void set_values(const uint8_t* values) {
         m_values = values;
     }
