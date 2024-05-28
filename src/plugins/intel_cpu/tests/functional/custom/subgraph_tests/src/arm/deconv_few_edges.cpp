@@ -1,0 +1,67 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
+#include "common_test_utils/node_builders/convolution_backprop_data.hpp"
+
+using namespace CPUTestUtils;
+
+namespace ov {
+namespace test {
+
+// Subgraph:
+/*
+┌──────────────────┐           ┌──────────────────┐
+│      INPUT       │           │      WEIGHTS     │
+└─────────┬────────┘           └─────────┬────────┘
+          │      ┌──────────────────┐    │
+          └──────┤  DECONVOLUTION   ├────┘
+                 └────┬─────────┬───┘
+                      │         │
+                 ┌────┴─────────┴───┐
+                 │      OUTPUT      │
+                 └──────────────────┘
+ */
+
+class DeconvFewEdgesTest : virtual public SubgraphBaseStaticTest {
+public:
+    void SetUp() override {
+        auto ngPrc = ov::element::f32;
+        const ov::Shape inShape = {2, 12, 7, 7};
+        const ov::Shape weiShape = {12, 6, 3, 3};
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ngPrc, inShape),
+                                        std::make_shared<ov::op::v0::Parameter>(ngPrc, weiShape)};
+
+        auto deconv = utils::make_convolution_backprop_data(inputParams[0],
+                                                            inputParams[1],
+                                                            ov::element::f32,
+                                                            ov::Strides({1, 1}),
+                                                            ov::CoordinateDiff({0, 0}),
+                                                            ov::CoordinateDiff({0, 0}),
+                                                            ov::Strides({1, 1}),
+                                                            ov::op::PadType::NOTSET,
+                                                            false);
+        deconv->get_rt_info() = CPUTestsBase::makeCPUInfo({nchw}, {nchw}, {});
+
+        const auto const1 = ov::test::utils::make_constant(ngPrc, std::vector<size_t>{1, 6, 1, 1});
+        const auto const2 = ov::test::utils::make_constant(ngPrc, std::vector<size_t>{1, 6, 1, 1});
+
+        const auto add1 = utils::make_eltwise(deconv->output(0), const1, utils::EltwiseTypes::ADD);
+        const auto add2 = utils::make_eltwise(deconv->output(0), const2, utils::EltwiseTypes::ADD);
+
+        NodeVector results{add1, add2};
+        function = std::make_shared<ov::Model>(results, inputParams, "DeconvFewEdgesTest");
+        targetDevice = ov::test::utils::DEVICE_CPU;
+    }
+};
+
+TEST_F(DeconvFewEdgesTest, smoke_DeconvFewEdgesTest_CPU) {
+    run();
+}
+
+}  // namespace test
+}  // namespace ov
