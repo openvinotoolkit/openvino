@@ -108,6 +108,9 @@ OutputVector translate_arange_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         dtype = context.get_attribute<element::Type>("dtype");
     }
+    if (end.get_partial_shape().rank().is_dynamic()) {
+        end = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(end, zero));
+    }
     auto range = context.mark_node(std::make_shared<v4::Range>(start, end, step, dtype));
     if (!context.has_attribute("dtype")) {
         range = context.mark_node(std::make_shared<v1::ConvertLike>(range, context.get_input(0)));
