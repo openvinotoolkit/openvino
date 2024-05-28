@@ -73,6 +73,13 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
    .. tab-set::
 
+      .. tab-item:: Ubuntu 24
+         :sync: ubuntu-24
+
+         .. code-block:: sh
+
+            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2024.list
+
       .. tab-item:: Ubuntu 22
          :sync: ubuntu-22
 
