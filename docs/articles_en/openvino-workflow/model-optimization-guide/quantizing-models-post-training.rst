@@ -24,7 +24,7 @@ speed, mostly due to reduced throughput. The reduction is performed before the a
 when the model gets transformed into the quantized representation. The process does not require
 any training datasets or pipelines in the source DL framework.
 
-.. image:: ../../_static/images/quantization_picture.svg
+.. image:: ../../assets/images/quantization_picture.svg
 
 `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__
 provides a post-training quantization API, available in Python, that aims at reusing the code for

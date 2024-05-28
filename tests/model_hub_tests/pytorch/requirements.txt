@@ -1,9 +1,9 @@
 -c ../../constraints.txt
---extra-index-url https://download.pytorch.org/whl/cpu
 auto-gptq>=0.5.1
 av
 basicsr
 datasets
+easyocr
 facexlib
 numpy
 optimum

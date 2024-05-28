@@ -566,9 +566,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.93
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.11
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.60
+    PyTorch model on CPU: 0.040 seconds per image, FPS: 24.97
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.35
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.029 seconds per image, FPS: 34.17
 
 
 **Show Device Information**

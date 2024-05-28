@@ -185,7 +185,7 @@ void CompiledModel::configure_stream_executors() {
             ov::threading::IStreamsExecutor::Config{"NPUPlugin executor"});
     }
 
-    set_task_executor(task_executor);
+    set_task_executor(std::move(task_executor));
     const auto executorId = _networkPtr->metadata.name + "_NPUResultExecutor";
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
 }
@@ -245,6 +245,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<PERFORMANCE_HINT>();
+          }}},
+        {ov::hint::execution_mode.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<EXECUTION_MODE_HINT>();
           }}},
         {ov::hint::num_requests.name(),
          {true,

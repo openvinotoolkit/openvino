@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class aten_all_noparam(torch.nn.Module):
     def __init__(self) -> None:
@@ -74,9 +74,10 @@ class TestAll(PytorchLayerTest):
         ([7, 7], np.uint8),
         ([4, 4], bool)
     ])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_all_noparams(self, input_shape, d_type, out, ie_device, precision, ir_version):
         if type(input_shape) is list:
@@ -102,9 +103,10 @@ class TestAll(PytorchLayerTest):
         False,
         None
     ])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',
