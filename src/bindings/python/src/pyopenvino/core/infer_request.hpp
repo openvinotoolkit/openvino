@@ -61,37 +61,72 @@ public:
         : m_request{new ov::InferRequest(*request_wrapper.m_request)},
           m_inputs{request_wrapper.m_inputs},
           m_outputs{request_wrapper.m_outputs},
-          m_userdata{request_wrapper.m_userdata},
           m_user_callback_defined{request_wrapper.m_user_callback_defined},
+          m_userdata{request_wrapper.m_userdata},
           m_start_time{request_wrapper.m_start_time},
           m_end_time{request_wrapper.m_end_time} {}
 
-    InferRequestWrapper(InferRequestWrapper&& request_wrapper)
+    InferRequestWrapper(InferRequestWrapper&& request_wrapper) noexcept
         : m_request{request_wrapper.m_request},
           m_inputs{std::move(request_wrapper.m_inputs)},
           m_outputs{std::move(request_wrapper.m_outputs)},
-          m_userdata{std::move(request_wrapper.m_userdata)},
           m_user_callback_defined{request_wrapper.m_user_callback_defined},
+          m_userdata{std::move(request_wrapper.m_userdata)},
           m_start_time{std::move(request_wrapper.m_start_time)},
           m_end_time{std::move(request_wrapper.m_end_time)} {
         request_wrapper.m_request = nullptr;
-        }
+    }
 
-    InferRequestWrapper& operator=(const InferRequestWrapper& request_wrapper) {
-        if (&request_wrapper != this) {
-            std::swap(InferRequestWrapper(request_wrapper), *this);
+    const InferRequestWrapper& operator=(const InferRequestWrapper& request_wrapper) {
+        if (PyGILState_Check()) {
+            py::gil_scoped_release release;
+            delete m_request;
+        } else {
+            delete m_request;
         }
+        m_request = new ov::InferRequest(*request_wrapper.m_request);
+        m_inputs = request_wrapper.m_inputs;
+        m_outputs = request_wrapper.m_outputs;
+        m_user_callback_defined = request_wrapper.m_user_callback_defined;
+        m_userdata = request_wrapper.m_userdata;
+        m_start_time = request_wrapper.m_start_time;
+        m_end_time = request_wrapper.m_end_time;
+
         return *this;
     }
 
-    InferRequestWrapper& operator=(InferRequestWrapper&& request_wrapper) {
-        if (&request_wrapper != this) {
-            std::swap(InferRequestWrapper(std::move(request_wrapper)), *this);
+    const InferRequestWrapper& operator=(InferRequestWrapper&& request_wrapper) {
+        if (PyGILState_Check()) {
+            py::gil_scoped_release release;
+            delete m_request;
+        } else {
+            delete m_request;
         }
+        m_request = request_wrapper.m_request;
+        m_inputs = std::move(request_wrapper.m_inputs);
+        m_outputs = std::move(request_wrapper.m_outputs);
+        m_user_callback_defined = request_wrapper.m_user_callback_defined;
+        m_userdata = std::move(request_wrapper.m_userdata);
+        m_start_time = std::move(request_wrapper.m_start_time);
+        m_end_time = std::move(request_wrapper.m_end_time);
+        request_wrapper.m_request = nullptr;
+
         return *this;
     }
 
-    // ~InferRequestWrapper() = default;
+    // InferRequestWrapper& operator=(const InferRequestWrapper& request_wrapper) {
+    //     if (&request_wrapper != this) {
+    //         std::swap(*this, InferRequestWrapper(request_wrapper));
+    //     }
+    //     return *this;
+    // }
+
+    // InferRequestWrapper& operator=(InferRequestWrapper&& request_wrapper) noexcept {
+    //     if (&request_wrapper != this) {
+    //         std::swap(*this, InferRequestWrapper(std::move(request_wrapper)));
+    //     }
+    //     return *this;
+    // }
 
     ~InferRequestWrapper() {
         // check whether GIL is acquired.
