@@ -36,6 +36,9 @@ public:
     std::string getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;
 
     void setup(const Config& config);
+    bool is_empty() const {
+        return _backend == nullptr ? true : false;
+    }
 
 private:
     Logger _logger;

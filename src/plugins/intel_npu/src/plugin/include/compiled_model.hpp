@@ -10,6 +10,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "plugin.hpp"
 
 namespace intel_npu {
 
