@@ -5,6 +5,7 @@ Supported Models
 .. toctree::
    :maxdepth: 1
    :hidden:
+
    about-openvino/performance-benchmarks
    about-openvino/compatibility-and-support
    Release Notes <about-openvino/release-notes-openvino>
@@ -28,9 +29,9 @@ Supported Models
 
 
 .. csv-table::
-    :class: modeldata
-    :name: id-of-table
-    :header-rows: 1
-    :file: _static/models.csv
+   :class: modeldata
+   :name: id-of-table
+   :header-rows: 1
+   :file: _static/models.csv
 
 
