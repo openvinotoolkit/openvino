@@ -3,33 +3,33 @@
 //
 
 #include "common_op_table.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/select.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/floor_mod.hpp"
 #include "openvino/op/floor.hpp"
-#include "openvino/op/abs.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/less.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/broadcast.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
 using namespace ov;
@@ -40,8 +40,11 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_rgb_to_hsv(const shared_ptr<Node>& images, element::Type type) {
-    // image format conversion based on https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
+shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_rgb_to_hsv(
+    const shared_ptr<Node>& images,
+    element::Type type) {
+    // image format conversion based on
+    // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
 
     auto const_zero_f_ = make_shared<v0::Constant>(type, Shape{}, 0.0f);
     auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
@@ -60,10 +63,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     auto ss = make_shared<v1::Select>(make_shared<v1::Greater>(vv, const_zero_f_), ss_, const_zero_f_);
 
     // compute normalization factor (for Hue calculation)
-    auto norm = make_shared<v1::Divide>(
-        const_one_f_,
-        make_shared<v1::Multiply>(const_six_f_, range)
-    );
+    auto norm = make_shared<v1::Divide>(const_one_f_, make_shared<v1::Multiply>(const_six_f_, range));
 
     // Split the image tensor into R, G, B channels
     auto const_minus_one_i = make_shared<v0::Constant>(element::i32, Shape{}, -1);
@@ -83,41 +83,40 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
 
     // g == vv: hh = norm * (b - r) + 2.0 / 6.0
     auto const_2_by_6 = make_shared<v0::Constant>(type, Shape{}, 2.0f / 6.0f);
-    auto hue_case_g = make_shared<v1::Add>(
-        make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)),
-        const_2_by_6
-    );
+    auto hue_case_g =
+        make_shared<v1::Add>(make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)), const_2_by_6);
 
     // b == vv: hh = norm * (r - g) + 4.0 / 6.0
     auto const_4_by_6 = make_shared<v0::Constant>(type, Shape{}, 4.0f / 6.0f);
-    auto hue_case_b = make_shared<v1::Add>(
-        make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)),
-        const_4_by_6
-    );
+    auto hue_case_b =
+        make_shared<v1::Add>(make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)), const_4_by_6);
 
     // select hue based on the maximum component
     // check if `r` is the max, otherwise check if `g` is the max, if not use `b`'s hue
-    auto hh = make_shared<v1::Select>(
-        r_eq_v,
-        hue_case_r,  // Use hue_case_r if r is max
-        make_shared<v1::Select>(
-            g_eq_v,
-            hue_case_g,  // Use hue_case_g if g is max
-            hue_case_b   // Use hue_case_b otherwise (b is max)
-        )
-    );
+    auto hh = make_shared<v1::Select>(r_eq_v,
+                                      hue_case_r,  // Use hue_case_r if r is max
+                                      make_shared<v1::Select>(g_eq_v,
+                                                              hue_case_g,  // Use hue_case_g if g is max
+                                                              hue_case_b   // Use hue_case_b otherwise (b is max)
+                                                              ));
 
     // range = 0.0: hh = 0
     auto hh_zero_range = make_shared<v1::Select>(make_shared<v1::Equal>(range, const_zero_f_), const_zero_f_, hh);
 
     // hh < 0.0: hh = hh + 1
-    auto hh_final = make_shared<v1::Select>(make_shared<v1::Less>(hh, const_zero_f_), make_shared<v1::Add>(hh_zero_range, const_one_f_), hh_zero_range);
+    auto hh_final = make_shared<v1::Select>(make_shared<v1::Less>(hh, const_zero_f_),
+                                            make_shared<v1::Add>(hh_zero_range, const_one_f_),
+                                            hh_zero_range);
 
     return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
 }
 
-shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s, const shared_ptr<Node>& v, element::Type type) {
-    // image format conversion based on https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
+shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h,
+                            const shared_ptr<Node>& s,
+                            const shared_ptr<Node>& v,
+                            element::Type type) {
+    // image format conversion based on
+    // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
     auto const_six_f_ = make_shared<v0::Constant>(type, Shape{}, 6.0f);
     auto const_two_f_ = make_shared<v0::Constant>(type, Shape{}, 2.0f);
     auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
@@ -125,7 +124,7 @@ shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s
 
     auto const_minus_one_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -1);
     auto const_minus_two_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -2);
-    
+
     // c = s * v;
     auto c = make_shared<v1::Multiply>(s, v);
     // m = v - c;
@@ -137,7 +136,9 @@ shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s
     auto fmodu = make_shared<v1::FloorMod>(dh, const_two_f_);
 
     //  x = c * (1 - std::abs(fmodu - 1));
-    auto x = make_shared<v1::Multiply>(c, make_shared<v1::Subtract>(const_one_f_, make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, const_one_f_))));
+    auto x = make_shared<v1::Multiply>(
+        c,
+        make_shared<v1::Subtract>(const_one_f_, make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, const_one_f_))));
 
     // h_category: [batch_dims..., H, W, 1]
     auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i32);
@@ -149,7 +150,7 @@ shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s
     auto bb_options = NodeVector{zeros, zeros, x, c, c, x};
 
     // rr_concat: [batch_dims..., H, W, 6]
-    auto rr_concat = make_shared<v0::Concat>(rr_options, -1); 
+    auto rr_concat = make_shared<v0::Concat>(rr_options, -1);
     auto gg_concat = make_shared<v0::Concat>(gg_options, -1);
     auto bb_concat = make_shared<v0::Concat>(bb_options, -1);
 
@@ -166,11 +167,11 @@ shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s
     // int batch_dim = rgb_options->get_shape().size() - 2;
     int batch_dim = -1;
     auto rgb_gather = make_shared<v8::Gather>(rgb_options, h_category, const_minus_two_i_, batch_dim);
-    auto rgb = make_shared<v0::Squeeze>(rgb_gather, const_minus_two_i_ );
+    auto rgb = make_shared<v0::Squeeze>(rgb_gather, const_minus_two_i_);
 
     auto rgb_adjust = make_shared<v1::Add>(rgb, m);
 
-    // return concatenated RGB 
+    // return concatenated RGB
     return rgb_adjust;
 }
 
@@ -203,4 +204,3 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
-
