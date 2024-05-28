@@ -20,7 +20,7 @@ static std::string s_manifest = "";
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
-OPENVINO_TEST(TensorflowLiteTrickyModels, tflite_dequantize) {
+OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_dequantize) {
     auto model = convert_model("dequantize.tflite");
 
     auto test_case = ov::test::TestCase(model, ov::test::utils::DEVICE_CPU);
