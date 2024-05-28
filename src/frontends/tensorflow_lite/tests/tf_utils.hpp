@@ -17,7 +17,7 @@ namespace tests {
 
 extern const std::string TF_LITE_FE;
 
-// A wrapper to create Tensorflow Lite Frontend and configure the conversion pipeline
+// A wrapper to create TensorFlow Lite Frontend and configure the conversion pipeline
 std::shared_ptr<ov::Model> convert_model(const std::string& model_path,
                                          const ov::frontend::ConversionExtensionBase::Ptr& conv_ext = nullptr);
 }  // namespace tests
