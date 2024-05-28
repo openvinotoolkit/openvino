@@ -171,7 +171,8 @@ void AutoSchedule::init() {
                     m_compile_context[CPU].m_device_info = *cpu_iter;
                     m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
                         ov::hint::PerformanceMode::LATENCY;
-                    if (m_context->m_startup_fallback || m_context->m_runtime_fallback) {
+                    if (m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name()) &&
+                        (m_context->m_startup_fallback || m_context->m_runtime_fallback)) {
                         m_compile_context[CPU].m_device_info.config[ov::cache_dir.name()] = "";
                         LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
                     }
