@@ -18,7 +18,7 @@ static const size_t group_size = 32;
 static bool is_dynamic_quantize(const fully_connected_params& params) {
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (params.is_shape_agnostic || params.inputs[0].Batch().v > 256) &&
-        params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
+        params.inputs[0].GetDType() == Datatype::F16 &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
         params.inputs[0].Y().v > 16 && params.decompression_zero_point.Feature().v == 1)
         return true;
