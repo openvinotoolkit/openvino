@@ -16,11 +16,11 @@
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/utils/gen_pattern.hpp>
 
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "utils/gen_pattern.hpp"
 using namespace ov::gen_pattern;
 
 namespace ov {

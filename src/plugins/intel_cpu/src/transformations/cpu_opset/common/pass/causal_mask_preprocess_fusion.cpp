@@ -18,7 +18,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/utils/utils.hpp"
-#include "utils/gen_pattern.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov::gen_pattern;
 

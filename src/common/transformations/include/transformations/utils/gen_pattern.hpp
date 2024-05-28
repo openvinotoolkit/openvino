@@ -3,6 +3,10 @@
 //
 #pragma once
 
+#ifdef _MSC_VER
+#    pragma warning(disable : 4244)
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <cfloat>
@@ -396,25 +400,25 @@ struct AttrAny {
     template <typename T>
     T cast_to() {
         if (any.is<bool>())
-            return any.as<bool>();
+            return static_cast<T>(any.as<bool>());
         if (any.is<int>())
-            return any.as<int>();
+            return static_cast<T>(any.as<int>());
         if (any.is<long>())
-            return any.as<long>();
+            return static_cast<T>(any.as<long>());
         if (any.is<long long>())
-            return any.as<long long>();
+            return static_cast<T>(any.as<long long>());
         if (any.is<int32_t>())
-            return any.as<int32_t>();
+            return static_cast<T>(any.as<int32_t>());
         if (any.is<int64_t>())
-            return any.as<int64_t>();
+            return static_cast<T>(any.as<int64_t>());
         if (any.is<float>())
-            return any.as<float>();
+            return static_cast<T>(any.as<float>());
         if (any.is<double>())
-            return any.as<double>();
+            return static_cast<T>(any.as<double>());
         if (any.is<int8_t>())
-            return any.as<int8_t>();
+            return static_cast<T>(any.as<int8_t>());
         if (any.is<uint8_t>())
-            return any.as<uint8_t>();
+            return static_cast<T>(any.as<uint8_t>());
         return any.as<T>();
     }
 
@@ -820,7 +824,9 @@ struct PatternNode {
         return node->get_default_output();
     }
 
-    PatternNode(const Output<Node>& out) : node(out.get_node_shared_ptr()), output_port(out.get_index()) {}
+    PatternNode(const Output<Node>& out)
+        : node(out.get_node_shared_ptr()),
+          output_port(static_cast<int>(out.get_index())) {}
 
     PatternNode() {
         node = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());

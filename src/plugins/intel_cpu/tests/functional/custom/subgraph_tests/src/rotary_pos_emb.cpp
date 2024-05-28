@@ -12,7 +12,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
-#include "utils/gen_pattern.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::gen_pattern;
