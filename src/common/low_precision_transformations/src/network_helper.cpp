@@ -1561,7 +1561,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> multiplyConstants, subtractConstants;
     if (is_type<ov::opset1::Concat>(operation)) {
         const auto concatNode = as_type_ptr<ov::opset1::Concat>(operation);
-        auto axis = -1;
+        int64_t axis = -1;
         if (concatNode->get_output_partial_shape(0).rank().is_static()) {
             const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
             axis = ov::util::normalize(concatNode->get_axis(), rank);
@@ -1663,7 +1663,7 @@ std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> NetworkHelper::s
     std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> newConstants(currConstants.size());
     auto number_of_concat_inputs = concat->get_input_size();
     const auto concatNode = as_type_ptr<ov::opset1::Concat>(concat);
-        auto concat_axis = -1;
+        int64_t concat_axis = -1;
         if (concatNode->get_output_partial_shape(0).rank().is_static()) {
             const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
             concat_axis = ov::util::normalize(concatNode->get_axis(), rank);

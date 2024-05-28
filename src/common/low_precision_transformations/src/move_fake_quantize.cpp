@@ -84,7 +84,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
     if (concat_node == nullptr) {
         return false;
     }
-    auto concat_axis = -1;
+    int64_t concat_axis = -1;
     if (concat_node->get_output_partial_shape(0).rank().is_static()) {
         const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
         concat_axis = ov::util::normalize(concat_node->get_axis(), rank);
