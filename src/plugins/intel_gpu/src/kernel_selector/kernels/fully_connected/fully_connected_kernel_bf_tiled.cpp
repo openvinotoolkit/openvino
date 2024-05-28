@@ -9,19 +9,52 @@
 #include "common_types.h"
 
 static constexpr size_t simd = 16;
+static constexpr size_t quantize_grp_size = 32;
+static constexpr size_t min_slm_size = 256;
 
 namespace kernel_selector {
 
-static const size_t group_size = 32;
+static std::pair<size_t, size_t> get_input_threads(const fully_connected_params& params) {
+    size_t ifm_threads = params.inputs[0].Feature().v;
+    size_t batch_threads = params.inputs[0].Batch().v;
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        ifm_threads = params.inputs[0].Y().v;
+        batch_threads = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
+    }
+
+    return {batch_threads, ifm_threads};
+}
+
+static std::pair<size_t, size_t> get_output_threads(const fully_connected_params& params, uint32_t tile_ofm) {
+    size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tile_ofm * simd);
+    size_t batch_threads = params.outputs[0].Batch().v;
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        feature_threads = CeilDiv(params.outputs[0].Y().v, tile_ofm * simd);
+        batch_threads = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
+    }
+
+    return {batch_threads, feature_threads};
+}
 
 // DYNAMIC_QUANTIZE
 static bool is_dynamic_quantize(const fully_connected_params& params) {
+    auto threads = get_input_threads(params);
+    auto batch_threads = threads.first;
+    auto ifm_threads = threads.second;
+
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
-    if ((scale_group_size % simd == 0) && (params.is_shape_agnostic || params.inputs[0].Batch().v > 256) &&
+    if ((scale_group_size % simd == 0) && (ifm_threads % quantize_grp_size == 0) &&
+        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && batch_threads > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        params.inputs[0].Y().v > 16 && params.decompression_zero_point.Feature().v == 1)
+        (params.decompression_zero_point.Feature().v == 1))
         return true;
+
+    GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size " << scale_group_size << ", Shape_Agnostic(" << (int)params.is_shape_agnostic <<
+                ") : Input (" <<  kernel_selector::toString(params.inputs[0].GetDType()) <<
+                ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v <<
+                ",  Weight " << kernel_selector::toString(params.weights.GetDType()) << ",  zp_f " << params.decompression_zero_point.Feature().v <<
+                ",  format : " << kernel_selector::toString(params.outputs[0].GetLayout()) << std ::endl;
 
     return false;
 }
@@ -196,7 +229,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
         bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
         const auto required_batch_alignment = 64;
-        if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < 256))
+        if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < min_slm_size))
             return false;
 
         const auto required_tile_b = 8;
@@ -357,12 +390,9 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
 
-    size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tparams.tile_ofm * simd);
-    size_t batch_threads = params.outputs[0].Batch().v;
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        feature_threads = CeilDiv(params.outputs[0].Y().v, tparams.tile_ofm * simd);
-        batch_threads = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
-    }
+    auto threads = get_output_threads(params, tparams.tile_ofm);
+    auto batch_threads = threads.first;
+    auto feature_threads = threads.second;
 
     batch_threads = CeilDiv(batch_threads, tparams.tile_b);
 
@@ -560,8 +590,8 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             // - kd.kernels[N-1] for batches <= 240 (default version)
             // - kd.kernels[N] for batches >= 256 (slm version)
             const auto default_alignment = 16;
-            // We can use SLM version if `output_batch + default_alignment > 256` because memory and batch are aligned (whether 16 or 64 elements)
-            const auto execute_type = (output_batch + default_alignment > 256) ? KernelType::SLM : KernelType::DEFAULT;
+            // We can use SLM version if `output_batch + default_alignment > min_slm_size(256)` because memory and batch are aligned (whether 16 or 64 elements)
+            const auto execute_type = (output_batch + default_alignment > min_slm_size) ? KernelType::SLM : KernelType::DEFAULT;
             const auto execute_kernel_idx = (execute_type == KernelType::SLM) ? kernel_num : kernel_num - 1;
             const auto skip_kernel_idx = (execute_type == KernelType::SLM) ? (kernel_num - 1) : kernel_num;
 
@@ -589,18 +619,19 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     kd.kernels[0].skip_execution = true;
                 } else {
                     kd.kernels[0].skip_execution = false;
-                    size_t input_size = prim_params.inputs[0].Y().v * dispatchData.tile_m * dispatchData.gws[2];
+                    size_t ifm_threads = get_input_threads(prim_params).second;
+                    size_t input_size = ifm_threads * dispatchData.tile_m * dispatchData.gws[2];
                     // printf("   -- Require update intermediate buffer\n");
                     // printf("     -- previous kernel(%d) for sa : input size(%lu) gws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0, input_size,
                     //             kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2], (int)kd.internalBufferSizes.size());
 
-                    if (kd.kernels[0].params.workGroups.global[0] < (input_size / (16 * 2))) {
+                    if (kd.kernels[0].params.workGroups.global[0] < (input_size / quantize_grp_size)) {
                         kd.internalBufferSizes.clear();
                         kd.internalBufferSizes.push_back(input_size * 2);
-                        kd.internalBufferSizes.push_back(input_size / 32 * 2);
+                        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
                     }
 
-                    kd.kernels[0].params.workGroups.global = {std::max((input_size / (16 * 2)), (size_t)1), 1, 1};
+                    kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
                     kd.kernels[0].params.workGroups.local = {16, 1, 1};
                     // printf("     -- update kernel(%d) for sa : gws(%lu, %lu, %lu) lws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0,
                     //     kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2],
@@ -762,7 +793,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     {
         auto& quan_kernel = kd.kernels[0];
         DispatchData dyn_quan_dispatch = dispatchData;
-        dyn_quan_dispatch.gws = {std::max((fc_params.inputs[0].PhysicalSize() / (16 * 2)), (size_t)1), 1, 1};
+        dyn_quan_dispatch.gws = {std::max((fc_params.inputs[0].PhysicalSize() / quantize_grp_size), (size_t)1), 1, 1};
         dyn_quan_dispatch.lws = {16, 1, 1};
         quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
         quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
