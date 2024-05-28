@@ -631,7 +631,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "merge_configs");
-    auto localConfig = merge_configs(_globalConfig, any_copy(properties));
+    ov::AnyMap propertiesClone = properties;
+    if (propertiesClone.find(ov::intel_npu::compiler_type.name()) != propertiesClone.end()) {
+        propertiesClone.erase(ov::intel_npu::compiler_type.name());
+    }
+    auto localConfig = merge_configs(_globalConfig, any_copy(propertiesClone));
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
@@ -725,7 +729,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
-    auto localConfig = merge_configs(_globalConfig, any_copy(properties), OptionMode::RunTime);
+    ov::AnyMap propertiesClone = properties;
+    if (propertiesClone.find(ov::intel_npu::compiler_type.name()) != propertiesClone.end()) {
+        propertiesClone.erase(ov::intel_npu::compiler_type.name());
+    }
+    auto localConfig = merge_configs(_globalConfig, any_copy(propertiesClone), OptionMode::RunTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
@@ -793,7 +801,11 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
 
-    auto localConfig = merge_configs(_globalConfig, any_copy(properties), OptionMode::CompileTime);
+    ov::AnyMap propertiesClone = properties;
+    if (propertiesClone.find(ov::intel_npu::compiler_type.name()) != propertiesClone.end()) {
+        propertiesClone.erase(ov::intel_npu::compiler_type.name());
+    }
+    auto localConfig = merge_configs(_globalConfig, any_copy(propertiesClone), OptionMode::CompileTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
