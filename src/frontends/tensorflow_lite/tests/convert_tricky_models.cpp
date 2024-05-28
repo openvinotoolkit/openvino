@@ -29,7 +29,7 @@ OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_dequantize) {
     test_case.run_with_tolerance_as_fp(0.001f);
 }
 
-OPENVINO_TEST(TensorflowLiteTrickyModels, tflite_densify) {
+OPENVINO_TEST(TensorFlowLiteTrickyModels, tflite_densify) {
     auto model = convert_model("densify.tflite");
 
     auto test_case = ov::test::TestCase(model, ov::test::utils::DEVICE_CPU);
