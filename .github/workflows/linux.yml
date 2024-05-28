@@ -69,6 +69,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_20_04_x64
+            ov_build/ubuntu_20_04_x64_nvidia
             ov_test/ubuntu_20_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
@@ -319,7 +320,7 @@ jobs:
 
   JS_API:
     name: OpenVINO JS API
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
     with:
@@ -471,7 +472,7 @@ jobs:
     name: ONNX Models Tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -479,7 +480,7 @@ jobs:
 
   CXX_Unit_Tests:
     name: C++ unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -488,7 +489,7 @@ jobs:
 
   Python_Unit_Tests:
     name: Python unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -497,7 +498,7 @@ jobs:
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -508,7 +509,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
@@ -518,7 +519,7 @@ jobs:
     name: TensorFlow Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-16gb'
@@ -528,7 +529,7 @@ jobs:
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
     if: ${{ github.event_name == 'schedule' }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
@@ -538,7 +539,7 @@ jobs:
   TensorFlow_Models_Tests_Nightly_HF:
     name: TensorFlow Hugging Face Models tests
     if: ${{ github.event_name == 'schedule' }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
@@ -561,7 +562,7 @@ jobs:
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: 15
     defaults:
       run:
