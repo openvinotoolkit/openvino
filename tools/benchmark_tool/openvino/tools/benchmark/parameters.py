@@ -151,7 +151,7 @@ def parse_args():
                            'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs) '
                            'or completely disable (\'NO\') '
                            'CPU threads pinning for CPU-involved inference.')
-    devp.add_argument('-cpu_core_ids', '--infer_cpu_core_ids', type=str, required=False, 
+    devp.add_argument('-cpu_core_ids', '--cpu_core_ids', type=str, required=False, 
                       help='Optional. cpu cores used to run streams. '
                            '<ids_string> is a comma delimited list of core numbers or A-B ranges. using like 2,3,4 means using core 2,3,4 for infer.'
                            'When set this parameter, OpenVINO CPU Plugin will only use the cores which you seted, '
