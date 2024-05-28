@@ -90,10 +90,10 @@ void perfDump(const CompiledModel& execNet) {
             keyToKey[pair.second] =
                 graph.perfKeysMap.emplace(pair.first, graph.perfKeysMap.size()).first->second;;
         }
-        assert(graph.executableGraphNodes.size() == graphs[graphIdx].executableGraphNodes.size());
-        for (auto nodeIdx = 0; nodeIdx < graph.executableGraphNodes.size(); nodeIdx++) {
-            auto& aggPerfData = graph.executableGraphNodes[nodeIdx]->PerfCounter()._perfData;
-            const auto& perfData = graphs[graphIdx].executableGraphNodes[nodeIdx]->PerfCounter()._perfData;
+        assert(graph.m_executableGraphNodes.size() == graphs[graphIdx].executableGraphNodes.size());
+        for (auto nodeIdx = 0; nodeIdx < graph.m_executableGraphNodes.size(); nodeIdx++) {
+            auto& aggPerfData = graph.m_executableGraphNodes[nodeIdx]->PerfCounter()._perfData;
+            const auto& perfData = graphs[graphIdx].m_executableGraphNodes[nodeIdx]->PerfCounter()._perfData;
             aggPerfData.resize(graph.perfKeysMap.size());
             for (auto key = 0; key < perfData.size(); key++) {
                 aggPerfData[keyToKey[key]] += perfData[key];
@@ -118,7 +118,7 @@ void perfDump(const CompiledModel& execNet) {
         }
     }
 
-    perfDumpNodes(graph.getConfig().debugCaps.perfTablesPath, graph.executableGraphNodes, modelInputs);
+    perfDumpNodes(graph.getConfig().debugCaps.perfTablesPath, graph.m_executableGraphNodes, modelInputs);
 }
 
 static double perfAvg(const uint64_t sum, const uint64_t num) {

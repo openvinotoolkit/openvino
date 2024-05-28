@@ -1353,7 +1353,7 @@ void Graph::InferDynamic(SyncInferRequest* request) {
 
     CPU_DEBUG_CAP_ENABLE(const PerfKey perfKey = perfGetKey(*this));
     size_t inferCounter = 0;
-    for (auto stopIndx : syncIndsWorkSet) {
+    for (auto stopIndx : m_executableSyncNodesInds) {
         updateNodes->run(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
