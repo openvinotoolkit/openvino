@@ -15,6 +15,7 @@
 
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/infer_request.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -111,10 +112,7 @@ public:
 
     void set_custom_callbacks(py::function f_callback) {
         // need to acquire GIL before py::function deletion
-        auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
-            py::gil_scoped_acquire acquire;
-            delete c;
-        });
+        auto callback_sp = Common::utils::wrap_pyfunction(std::move(f_callback));
 
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
             m_requests[handle].m_request->set_callback([this, callback_sp, handle](std::exception_ptr exception_ptr) {

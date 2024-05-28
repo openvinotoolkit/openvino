@@ -114,20 +114,6 @@ public:
         return *this;
     }
 
-    // InferRequestWrapper& operator=(const InferRequestWrapper& request_wrapper) {
-    //     if (&request_wrapper != this) {
-    //         std::swap(*this, InferRequestWrapper(request_wrapper));
-    //     }
-    //     return *this;
-    // }
-
-    // InferRequestWrapper& operator=(InferRequestWrapper&& request_wrapper) noexcept {
-    //     if (&request_wrapper != this) {
-    //         std::swap(*this, InferRequestWrapper(std::move(request_wrapper)));
-    //     }
-    //     return *this;
-    // }
-
     ~InferRequestWrapper() {
         // check whether GIL is acquired.
         if (PyGILState_Check()) {

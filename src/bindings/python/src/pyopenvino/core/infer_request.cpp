@@ -339,10 +339,7 @@ void regclass_InferRequest(py::module m) {
             self.m_user_callback_defined = true;
 
             // need to acquire GIL before py::function deletion
-            auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(callback)), [](py::function* c) {
-                py::gil_scoped_acquire acquire;
-                delete c;
-            });
+            auto callback_sp = Common::utils::wrap_pyfunction(std::move(callback));
 
             self.m_request->set_callback([&self, callback_sp](std::exception_ptr exception_ptr) {
                 *self.m_end_time = Time::now();
