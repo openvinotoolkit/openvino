@@ -13,8 +13,6 @@ class SampleGraph(tf.Module):
     self.var1 = tf.constant([[[[0,0,1,0],[0,0,0,0],[0,2,1,0]],[[0,0,0,0],[0,1,0,0],[2,0,0,0]]]], dtype=tf.float32)
   @tf.function(input_signature=[tf.TensorSpec([1,2,3,3], tf.float32)])
   def __call__(self, x):
-    #dq = tf.raw_ops.Dequantize(input=self.var1, min_range=[0], max_range=[2])
-    #var_sparse = tf.sparse.from_dense(self.var1)
     conv = tf.raw_ops.Conv2D(input=x, filter=self.var1, strides=[1,1,1,1], padding="VALID")
     return {'test_output_name': conv}
 
