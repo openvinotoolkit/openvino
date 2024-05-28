@@ -226,10 +226,12 @@ TEST_P(BenchmarkMatMulLayerCPUTest, CompareWithRefs) {
     this->configuration.insert(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE));
     this->configuration.insert(ov::hint::enable_hyper_threading(false));
 
+    std::string node_type = cpuNodeType == "FullyConnected" ? "FullyConnected" : "MatMul";
+
     for (size_t i = 1; i <= 12; ++i) {
         this->configuration["INFERENCE_NUM_THREADS"] = i;
         std::cout << "Num threads: " << i << std::endl;
-        run_benchmark("MatMul", std::chrono::milliseconds(2000), 100); //100000
+        run_benchmark(node_type, std::chrono::milliseconds(2000), 100); //100000
     }
 }
 
