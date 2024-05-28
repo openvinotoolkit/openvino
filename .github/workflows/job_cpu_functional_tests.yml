@@ -30,10 +30,6 @@ jobs:
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
     steps:
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
         with:
@@ -64,11 +60,8 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
-      - name: Install OpenVINO dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-
       - name: Fetch setup_python action
+        if: ${{ runner.os != 'Linux' }} # We do not need to install Python as we use Docker on Linux with it installed
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -77,6 +70,7 @@ jobs:
           path: 'openvino'
 
       - name: Setup Python 3.11
+        if: ${{ runner.os != 'Linux' }} # We do not need to install Python as we use Docker on Linux with it installed
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.11'
