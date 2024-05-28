@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -307,6 +308,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
+            GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_sdpa != -1) {
+                GPU_DEBUG_CODE(return cldnn::debug_configuration::get_instance()->enable_sdpa == 1);
+            }
+
             if (!config.get_property(ov::intel_gpu::hint::enable_sdpa_optimization))
                 return false;
 
