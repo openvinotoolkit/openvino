@@ -1032,6 +1032,15 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     auto& past_layout = _impl_params->input_layouts[0];
     auto& present_layout = _impl_params->output_layouts[0];
     const auto& sequence_axis = desc->concat_axis;
+    const auto& gather_axis = desc->gather_axis;
+
+    const auto& prev_batch_size = past_layout.get_shape()[gather_axis];
+    const auto& beam_size = present_layout.get_shape()[gather_axis];
+    if (prev_batch_size != beam_size) {
+        // If the previous batch size is not same as beam size, need explicit concat
+        _impl_params->_can_be_optimized = false;
+        return;
+    }
 
     auto sequence_axis_legacy = kv_cache_inst::get_sequence_axis_legacy(sequence_axis, past_layout.get_partial_shape().size());
     if (present_layout.data_padding.get_dynamic_pad_dims().sizes()[sequence_axis_legacy] != 1)
