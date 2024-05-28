@@ -38,7 +38,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_rgb_to_hsv(shared_ptr<Node> images, element::Type type) {
+shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_rgb_to_hsv(const shared_ptr<Node>& images, element::Type type) {
     // image format conversion based on https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
 
     auto const_zero_f_ = make_shared<v0::Constant>(type, Shape{}, 0.0f);
@@ -114,7 +114,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
 }
 
-shared_ptr<Node> hsv_to_rgb(shared_ptr<Node> h, shared_ptr<Node> s, shared_ptr<Node> v, element::Type type) {
+shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s, const shared_ptr<Node>& v, element::Type type) {
     // image format conversion based on https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
     auto const_six_f_ = make_shared<v0::Constant>(type, Shape{}, 6.0f);
     auto const_two_f_ = make_shared<v0::Constant>(type, Shape{}, 2.0f);
