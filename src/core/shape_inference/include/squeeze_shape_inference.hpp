@@ -58,10 +58,10 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                     std::any_of(arg_shape.cbegin(), arg_shape.cend(), [](const DimType& dim) {
                         return dim.compatible(1);
                     });
-                if (!has_squeezable_dim) {
-                    output_shape = arg_shape;
-                } else {
+                if (has_squeezable_dim) {
                     output_shape = PartialShape::dynamic(arg_rank.get_length() - 1);
+                } else {
+                    output_shape = arg_shape;
                 }
                 return output_shapes;
             }
@@ -98,10 +98,8 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
             const auto not_squeezable_at_axis = [&rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
                 if ((rm_axis_iter != rm_axis_end) && (*rm_axis_iter == idx++)) {
                     ++rm_axis_iter;
-                    if (!dim.compatible(1)) {
-                        return true;  // Ignore: Pointed by axix, but not squeezable
-                    }
-                    return false;
+                    // Ignore: Pointed by axis, but not squeezable
+                    return !dim.compatible(1);
                 } else {
                     return true;
                 }
