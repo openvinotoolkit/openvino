@@ -51,7 +51,7 @@ std::string_view intel_npu::COMPILER_TYPE::envVar() {
 }
 
 ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::defaultValue() {
-    return ov::intel_npu::CompilerType::DRIVER;
+    return ov::intel_npu::CompilerType::MLIR;
 }
 
 ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::parse(std::string_view val) {
