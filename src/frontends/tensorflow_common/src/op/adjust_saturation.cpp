@@ -28,7 +28,10 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/shape_of.hpp"
 
+#include <fstream>
 using namespace std;
 using namespace ov;
 using namespace ov::op;
@@ -119,6 +122,7 @@ shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s
     auto const_six_f_ = make_shared<v0::Constant>(type, Shape{}, 6.0f);
     auto const_two_f_ = make_shared<v0::Constant>(type, Shape{}, 2.0f);
     auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
+    auto const_zero_f_ = make_shared<v0::Constant>(type, Shape{}, 0.0f);
 
     auto const_minus_one_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -1);
     auto const_minus_two_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -2);
@@ -139,7 +143,7 @@ shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s
     // h_category: [batch_dims..., H, W, 1]
     auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i32);
 
-    auto zeros = make_shared<v0::Constant>(type, x->get_shape(), 0.0f);
+    auto zeros = make_shared<v3::Broadcast>(const_zero_f_, make_shared<v3::ShapeOf>(x));
 
     auto rr_options = NodeVector{c, x, zeros, zeros, x, c};
     auto gg_options = NodeVector{x, c, c, x, zeros, zeros};
@@ -158,11 +162,20 @@ shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s
     // rgb_options: [batch_dims..., H, W, 6, 3]
     auto rgb_options = make_shared<v0::Concat>(NodeVector{rr_unsqueeze, gg_unsqueeze, bb_unsqueeze}, -1);
 
+    std::ofstream logFile("debug.log", std::ios_base::app);
+    logFile << "START" << std::endl;
+    logFile << "Shape of rgb_options: " << rgb_options->get_shape().to_string() << std::endl;
+
     // use a gather operation to select the correct channel values based on h_category
     // rgb: [batch_dims..., H, W, 3]
-    int batch_dim = rgb_options->get_shape().size() - 2;
-    auto rgb = make_shared<v0::Squeeze>(make_shared<v8::Gather>(rgb_options, h_category, const_minus_two_i_, batch_dim),
-    const_minus_two_i_ );
+    // int batch_dim = rgb_options->get_shape().size() - 2;
+    int batch_dim = -1;
+    auto rgb_gather = make_shared<v8::Gather>(rgb_options, h_category, const_minus_two_i_, batch_dim);
+    auto rgb = make_shared<v0::Squeeze>(rgb_gather, const_minus_two_i_ );
+
+    logFile << "Shape of batchdim: " << batch_dim << std::endl;
+    logFile << "Shape of rgb_gather: " << rgb_gather->get_shape().to_string() << std::endl;
+    logFile << "Shape of rgb: " << rgb->get_shape().to_string() << std::endl;
 
     auto rgb_adjust = make_shared<v1::Add>(rgb, m);
 
