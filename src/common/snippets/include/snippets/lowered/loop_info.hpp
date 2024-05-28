@@ -326,26 +326,13 @@ public:
     void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
 
     /**
-     * @brief Remove the current LoopPort that contains ExpressionPort.
-     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
-     *        This function remove directly without respect ports order, caller is responsible for the order by sort.
-     * @param ports need to be removed
+     * @brief Remove remove_ports and add add_ports to the current LoopPort.
+     *        This function remove and add directly without respect ports order, caller is responsible for the order by sort.
+     * @param remove_ports need to be removed
+     * @param add_ports need to be added
+     * @param is_input true if update input port
      */
-    void update_loop_ports(const std::vector<ExpressionPort>& actual_ports, const std::vector<ExpressionPort>& target_ports, bool is_input);
-    /**
-     * @brief Remove the current LoopPort that contains ExpressionPort.
-     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
-     *        This function remove directly without respect ports order, caller is responsible for the order by sort.
-     * @param ports need to be removed
-     */
-    void remove_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
-    /**
-     * @brief Add ports to the current LoopPort.
-     *        This function add in back of current LoopPort without respect ports order, caller is responsible for the order by sort.
-     * @param ports need to be added
-     */
-    void add_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
-
+    void update_loop_ports(const std::vector<ExpressionPort>& remove_ports, const std::vector<ExpressionPort>& add_ports, bool is_input);
     /**
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them
      * @param caller - function that called for each LoopPortDesc
@@ -396,6 +383,19 @@ private:
      *         - Consistency of ports and descriptors
      */
     void validate() const;
+    /**
+     * @brief Remove the current LoopPort that contains ExpressionPort.
+     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
+     *        This function remove directly without respect ports order, caller is responsible for the order by sort.
+     * @param ports need to be removed
+     */
+    void remove_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
+    /**
+     * @brief Add ports to the current LoopPort.
+     *        This function add in back of current LoopPort without respect ports order, caller is responsible for the order by sort.
+     * @param ports need to be added
+     */
+    void add_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
 
     SpecificIterationHandlers m_handlers = {};
     std::vector<LoopPortDesc> m_input_port_descs = {};
