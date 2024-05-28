@@ -328,8 +328,7 @@ TEST_F(RoPECPUTestChatGLM, smoke_CompareWithRefs) {
 class RoPECPUTestQwen7b : public SubgraphBaseTest, public testing::WithParamInterface<bool> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
-        bool specialReshape;
-        specialReshape = obj.param;
+        const bool specialReshape = obj.param;
         std::ostringstream result;
         result << "specialReshape=" << specialReshape << std::endl;
         return result.str();
@@ -456,7 +455,7 @@ protected:
     }
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        bool specialReshape = this->GetParam();
+        const bool specialReshape = this->GetParam();
         const int batch = 2;
         const int seq_length = 7;
         InputShape inpShape = {{batch, -1, 4096 + 4096 + 4096}, {{batch, seq_length, 4096 + 4096 + 4096}}};
