@@ -170,6 +170,10 @@ TSSplitBackward::TSSplitBackward() {
             split = FindInputNode<ov::op::v1::VariadicSplit>(transpose_label_node);
         }
 
+        if (split->get_input_partial_shape(0).rank().is_dynamic()) {
+            return false;
+        }
+
         if (!split || transformation_callback(split)) {
             return false;
         }

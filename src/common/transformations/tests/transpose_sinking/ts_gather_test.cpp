@@ -278,6 +278,23 @@ INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackwardOptimization_2,
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackwardOptimization_3,
                          TSTestFixture,
                          test_backward_gather_optimization(tests_arguments_bw_optimization[3]));
+
+TEST_F(TransformationTestsF, TSGatherBackwardDynamic) {
+    auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    auto indexes = std::make_shared<Constant>(element::u64, Shape{}, Shape{0});
+    auto axis = std::make_shared<Constant>(element::u64, Shape{}, Shape{0});
+    auto gather = std::make_shared<Gather>(X, indexes, axis);
+
+    auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
+    auto transpose = std::make_shared<Transpose>(gather, ts_order);
+
+    model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    model_ref = model->clone();
+
+    manager.register_pass<TSGatherBackward>();
+}
+
 }  // namespace gather
 }  // namespace testing
 }  // namespace transpose_sinking

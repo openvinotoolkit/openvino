@@ -186,9 +186,11 @@ TSSqueezeForward::TSSqueezeForward() {
 TSSqueezeBackward::TSSqueezeBackward() {
     MATCHER_SCOPE(TSSqueezeBackward);
     auto squeeze_with_1_input = wrap_type<ov::op::v0::Squeeze>({any_input()}, CheckTransposeConsumers);
-    auto squeeze_label =
-        wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>({any_input(), wrap_type<ov::op::v0::Constant>()},
-                                                            CheckTransposeConsumers);
+    auto squeeze_label = wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>(
+        {any_input(), wrap_type<ov::op::v0::Constant>()},
+        [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && CheckTransposeConsumers(output);
+        });
     auto pattern = std::make_shared<pattern::op::Or>(OutputVector{squeeze_with_1_input, squeeze_label});
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({pattern, wrap_type<ov::op::v0::Constant>()},
                                                             [](const Output<Node>& output) -> bool {

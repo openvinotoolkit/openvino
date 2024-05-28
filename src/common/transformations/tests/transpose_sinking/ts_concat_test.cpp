@@ -1045,3 +1045,17 @@ INSTANTIATE_TEST_SUITE_P(TSConcatBackwardMultiConsumersTestSuite,
 }  // namespace no_sinking
 
 }  // namespace mult_consumers
+
+TEST_F(TransformationTestsF, TSConcatBackwardDynamic) {
+    auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    auto concat = std::make_shared<Concat>(OutputVector{X}, 0);
+
+    auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
+    auto transpose = std::make_shared<Transpose>(concat, ts_order);
+
+    model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    model_ref = model->clone();
+
+    manager.register_pass<TSConcatBackward>();
+}

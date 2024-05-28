@@ -94,7 +94,9 @@ TSReductionBackward::TSReductionBackward() {
 
     auto reduce_label = wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {any_input(), wrap_type<ov::op::v0::Constant>()},
-        CheckTransposeConsumers);
+        [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && CheckTransposeConsumers(output);
+        });
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({reduce_label, wrap_type<ov::op::v0::Constant>()},
                                                             [](const Output<Node>& output) -> bool {
                                                                 return has_static_rank()(output);

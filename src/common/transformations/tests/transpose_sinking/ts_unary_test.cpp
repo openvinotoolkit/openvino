@@ -638,27 +638,30 @@ INSTANTIATE_TEST_SUITE_P(TSUnaryForwardMultTransposeConsumersTestSuiteFirstNode,
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
 TEST_F(TransformationTestsF, TSUnaryForwardDynamic) {
-    {
-        auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-        auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
-        auto transpose = std::make_shared<Transpose>(X, ts_order);
+    auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
+    auto transpose = std::make_shared<Transpose>(X, ts_order);
 
-        auto tanh = std::make_shared<Tanh>(transpose);
+    auto tanh = std::make_shared<Tanh>(transpose);
 
-        model = std::make_shared<Model>(ov::OutputVector{tanh}, ov::ParameterVector{X});
+    model = std::make_shared<Model>(ov::OutputVector{tanh}, ov::ParameterVector{X});
+    model_ref = model->clone();
 
-        manager.register_pass<TSUnaryForward>();
-    }
-    {
-        auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    manager.register_pass<TSUnaryForward>();
+}
 
-        auto tanh = std::make_shared<Tanh>(X);
+TEST_F(TransformationTestsF, TSUnaryBackwardDynamic) {
+    auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
 
-        auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
-        auto transpose = std::make_shared<Transpose>(tanh, ts_order);
+    auto tanh = std::make_shared<Tanh>(X);
 
-        model_ref = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
-    }
+    auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
+    auto transpose = std::make_shared<Transpose>(tanh, ts_order);
+
+    model = std::make_shared<Model>(ov::OutputVector{tanh}, ov::ParameterVector{X});
+    model_ref = model->clone();
+
+    manager.register_pass<TSUnaryBackward>();
 }
 
 }  // namespace unary
