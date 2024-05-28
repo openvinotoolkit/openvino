@@ -44,11 +44,11 @@ void util::ScatterElementsUpdateBase::validate_and_infer_types() {
                           data_et,
                           " and: ",
                           updates_et);
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     auto out_et = get_input_element_type(0);
     std::ignore = element::Type::merge(out_et, get_input_element_type(0), get_input_element_type(2));
-    set_output_type(0, out_et, output_shape);
-    if (output_shape.is_dynamic()) {
+    set_output_type(0, out_et, output_shapes[0]);
+    if (output_shapes[0].is_dynamic()) {
         set_input_is_relevant_to_shape(0);
     }
 }

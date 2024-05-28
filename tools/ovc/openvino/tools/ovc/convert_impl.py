@@ -28,7 +28,7 @@ from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_c
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 from openvino.tools.ovc.error import Error, FrameworkError
-from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_compression_message
+from openvino.tools.ovc.get_ov_update_message import get_compression_message
 from openvino.tools.ovc.version import VersionChecker
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
@@ -491,10 +491,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         if is_verbose(argv) or not python_api_used:
             if 'compress_to_fp16' in argv and argv.compress_to_fp16:
                 print(get_compression_message())
-
-            ov_update_message = get_ov_update_message()
-            if ov_update_message is not None:
-                print(ov_update_message)
 
         send_conversion_result('success')
 
