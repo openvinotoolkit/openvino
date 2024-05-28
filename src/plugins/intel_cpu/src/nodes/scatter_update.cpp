@@ -25,12 +25,12 @@ namespace node {
 
 bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto scatterElemUpd3 = ov::as_type_ptr<const ov::op::v3::ScatterElementsUpdate>(op);
-        auto scatterElemUpd12 = ov::as_type_ptr<const ov::op::v12::ScatterElementsUpdate>(op);
-        auto scatterUpd = ov::as_type_ptr<const ov::op::v3::ScatterUpdate>(op);
-        auto scatterNdUpd4 = ov::as_type_ptr<const ov::op::v3::ScatterNDUpdate>(op);
-        auto scatterNdUpd15 = ov::as_type_ptr<const ov::op::v15::ScatterNDUpdate>(op);
-        if (!scatterElemUpd3 && !scatterElemUpd12 && !scatterUpd && !scatterNdUpd4 && !scatterNdUpd15) {
+        if (!one_of(op->get_type_info(),
+                    ov::op::v3::ScatterElementsUpdate::get_type_info_static(),
+                    ov::op::v12::ScatterElementsUpdate::get_type_info_static(),
+                    ov::op::v3::ScatterUpdate::get_type_info_static(),
+                    ov::op::v3::ScatterNDUpdate::get_type_info_static(),
+                    ov::op::v15::ScatterNDUpdate::get_type_info_static())) {
             const std::string opType = op->get_type_name();
             errorMessage = std::string("Type ") + opType + " is not supported.";
             return false;
@@ -50,13 +50,35 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
           dataSize(0lu), indicesSize(0lu), axisSize(0lu),
           dataPrec(ov::element::undefined),
           indicesPrec(ov::element::undefined),
-          axisPrec(ov::element::undefined),
-          ovOp(op) {
+          axisPrec(ov::element::undefined) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
+    // In ov::PartialShape with rank 0 (scalars) is converted to ov::intel_cpu::Shape with rank 1.
+    // Create workaround by extracting information about rank directly from OV node.
+    bool is_not_supported_input =
+        ov::is_scalar(op->get_input_partial_shape(0)) || ov::is_scalar(op->get_input_partial_shape(1));
+    Type scatterUpdateType = getType();
+    if (scatterUpdateType == Type::ScatterUpdate) {
+        scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
+        axisRelaxed = true;
+        is_not_supported_input = is_not_supported_input || ov::is_scalar(op->get_input_partial_shape(2));
+    } else if (scatterUpdateType == Type::ScatterElementsUpdate) {
+        scatterUpdateMode = ScatterUpdateMode::ScatterElementsUpdate;
+        axisRelaxed = true;
+        is_not_supported_input = is_not_supported_input || ov::is_scalar(op->get_input_partial_shape(2));
+    } else if (scatterUpdateType == Type::ScatterNDUpdate) {
+        scatterUpdateMode = ScatterUpdateMode::ScatterNDUpdate;
+        axisRelaxed = false;
+        isUpdateScalar = ov::is_scalar(op->get_input_partial_shape(2));
+    } else {
+        OPENVINO_THROW(errorPrefix, " is not supported");
+    }
+    if (is_not_supported_input) {
+        OPENVINO_THROW(errorPrefix, " do not support scalar input");
     }
 
     reduction_type = ScatterUpdate::Reduction::NONE;
@@ -79,9 +101,10 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
                 reduction_type = ScatterUpdate::Reduction::MIN;
                 break;
             case OpReduction::NONE:
-            default:
                 reduction_type = ScatterUpdate::Reduction::NONE;
                 break;
+            default:
+                THROW_CPU_NODE_ERR("ScatterElementsUpdate CPU does not support reduction mode: ", ov::as_string(node_element->get_reduction()));
         }
         use_init_val = node_element->get_use_init_val();
     } else if (const auto node_element = ov::as_type_ptr<const ov::op::v15::ScatterNDUpdate>(op)) {
@@ -103,9 +126,10 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
                 reduction_type = ScatterUpdate::Reduction::MIN;
                 break;
             case OpReduction::NONE:
-            default:
                 reduction_type = ScatterUpdate::Reduction::NONE;
                 break;
+            default:
+                THROW_CPU_NODE_ERR("ScatterNDUpdate CPU does not support reduction mode: ", ov::as_string(node_element->get_reduction()));
         }
     }
 }
@@ -115,27 +139,6 @@ void ScatterUpdate::getSupportedDescriptors() {
         OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
     if (getChildEdges().empty())
         OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
-    // In ov::PartialShape with rank 0 (scalars) is converted to ov::intel_cpu::Shape with rank 1.
-    // Create workaround by extracting information about rank directly from OV node.
-    bool is_not_supported_input = ov::is_scalar(ovOp->get_input_partial_shape(0)) || ov::is_scalar(ovOp->get_input_partial_shape(1));
-    Type scatterUpdateType = getType();
-    if (scatterUpdateType == Type::ScatterUpdate) {
-        scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
-        axisRelaxed = true;
-        is_not_supported_input = is_not_supported_input || ov::is_scalar(ovOp->get_input_partial_shape(2));
-    } else if (scatterUpdateType == Type::ScatterElementsUpdate) {
-        scatterUpdateMode = ScatterUpdateMode::ScatterElementsUpdate;
-        axisRelaxed = true;
-        is_not_supported_input = is_not_supported_input || ov::is_scalar(ovOp->get_input_partial_shape(2));
-    } else if (scatterUpdateType == Type::ScatterNDUpdate) {
-        scatterUpdateMode = ScatterUpdateMode::ScatterNDUpdate;
-        axisRelaxed = false;
-    } else {
-        OPENVINO_THROW(errorPrefix, " is not supported");
-    }
-    if (is_not_supported_input) {
-        OPENVINO_THROW(errorPrefix, " do not support scalar input");
-    }
 }
 
 void ScatterUpdate::initSupportedPrimitiveDescriptors() {
@@ -189,7 +192,7 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
 
                 size_t tupleRank = indicesRank - 1;
                 VectorDims expectUpdateShape(tupleRank + srcRank - k, 0);
-                if (ov::is_scalar(ovOp->get_input_partial_shape(2))) {
+                if (isUpdateScalar) {
                     // Workaround to properly identify rank of scalar
                     updateRank = 0;
                 }
@@ -256,10 +259,13 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     }
 
     dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
-    if (scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate &&
-        !one_of(dataPrec, ov::element::f32, ov::element::i32,
-                          ov::element::bf16, ov::element::f16,
-                          ov::element::u8, ov::element::i8)) {
+    if (one_of(scatterUpdateMode, ScatterUpdateMode::ScatterElementsUpdate, ScatterUpdateMode::ScatterNDUpdate) && !one_of(dataPrec,
+                                                                                 ov::element::f32,
+                                                                                 ov::element::i32,
+                                                                                 ov::element::bf16,
+                                                                                 ov::element::f16,
+                                                                                 ov::element::u8,
+                                                                                 ov::element::i8)) {
         dataPrec = ov::element::f32;
     }
     dataSize = dataPrec.size();
@@ -479,7 +485,7 @@ private:
                 ctx.reduction_type,
                 OV_CASE(ScatterUpdate::Reduction::NONE, DT_NONE),
                 OV_CASE(ScatterUpdate::Reduction::SUM,  DT_SUM),
-                OV_CASE(ScatterUpdate::Reduction::SUB, DT_SUB),
+                OV_CASE(ScatterUpdate::Reduction::SUB,  DT_SUB),
                 OV_CASE(ScatterUpdate::Reduction::MAX,  DT_MAX),
                 OV_CASE(ScatterUpdate::Reduction::MIN,  DT_MIN),
                 OV_CASE(ScatterUpdate::Reduction::PROD, DT_MUL));
@@ -977,7 +983,6 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& 
         });
     }
 }
-
 
 bool ScatterUpdate::created() const {
     return getType() == Type::ScatterUpdate
