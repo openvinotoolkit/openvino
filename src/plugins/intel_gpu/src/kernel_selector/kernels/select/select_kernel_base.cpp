@@ -97,12 +97,26 @@ SelectKernelBase::DispatchData SelectKernelBase::SetDefault(const select_params&
     DispatchData dispatchData;
     const auto& out = params.outputs[0];
     const auto& in = params.inputs[0];
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    dispatchData.gws = { out.X().v, out.Y().v, out.Feature().v * out.Batch().v };
+    switch (out.Dimentions()) {
+    case 4:
+        dispatchData.gws = { out.X().v, out.Y().v, out.Feature().v * out.Batch().v };
 
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
-                                                                     { Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        dims_by_gws = {{ Tensor::DataChannelName::X },
+                       { Tensor::DataChannelName::Y },
+                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        break;
+    case 5:
+        dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
+
+        dims_by_gws = {{ Tensor::DataChannelName::X },
+                       { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
+                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        break;
+    default:
+        throw std::invalid_argument("Unsupported data layout for select primitive");
+    }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in.GetLayout(), out.GetLayout(), dims_by_gws);
 

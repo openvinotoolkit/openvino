@@ -1016,6 +1016,28 @@ def create_pytorch_module_with_single_input_as_list(tmp_dir):
         "compress_to_fp16": False}
 
 
+def create_pytorch_module_with_nested_dict_input(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            return a["1"] * a["2"] + b
+
+    net = PTModel()
+    a1 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    a2 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    b = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    mul = ov.opset10.multiply(a1, a2)
+    add = ov.opset10.add(mul, b)
+    ref_model = Model([add], [a1, a2, b], "test")
+    return net, ref_model, {
+        "example_input": (
+            {
+            "1": torch.tensor([1, 2], dtype=torch.float32), 
+            "2": torch.tensor([3, 4], dtype=torch.float32)
+            }, 
+            torch.tensor([5, 6], dtype=torch.float32)
+        )}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         create_pytorch_nn_module_case1,
@@ -1067,7 +1089,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_module_with_nested_inputs5,
         create_pytorch_module_with_nested_inputs6,
         create_pytorch_module_with_nested_list_and_single_input,
-        create_pytorch_module_with_single_input_as_list
+        create_pytorch_module_with_single_input_as_list,
+        create_pytorch_module_with_nested_dict_input
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
