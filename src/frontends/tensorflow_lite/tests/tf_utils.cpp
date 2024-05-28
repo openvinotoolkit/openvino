@@ -40,7 +40,7 @@ static FrontEnd::Ptr get_tflite_frontend(bool default_front_end = true) {
     }
 
     if (!front_end) {
-        throw "Tensorflow Lite FrontEnd is not initialized";
+        throw "TensorFlow Lite FrontEnd is not initialized";
     }
 
     return front_end;
