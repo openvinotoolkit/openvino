@@ -62,7 +62,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
         auto all_events = parent::execute_impl(events, instance);
         if (instance.get_impl_params()->w_size != 1) {
             GPU_DEBUG_TRACE_DETAIL << "consolidate FC output, rank " << instance.get_impl_params()->w_rank << std::endl;
-            stream.finish(); // can be replaced with need_completion_event?
+            /*stream.finish(); // can be replaced with need_completion_event?
             auto output_memory_ptr = instance.output_memory_ptr();
             auto send_ptr = output_memory_ptr->buffer_ptr();
             if (output_memory_ptr->get_layout().data_type == ov::element::f16)
@@ -70,7 +70,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
             else if (output_memory_ptr->get_layout().data_type == ov::element::f32)
                 Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory_ptr->count());
             else
-                OPENVINO_THROW("not expected!");
+                OPENVINO_THROW("not expected!");*/
         }
         return all_events;
     }

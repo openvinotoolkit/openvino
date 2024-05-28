@@ -48,7 +48,7 @@ protected:
         instance.fill_placeholder();
         auto event = parent::execute_impl(events, instance);
         if (instance.get_impl_params()->w_size != 1) {
-            auto& network = instance.get_network();
+            /*auto& network = instance.get_network();
             auto& stream = network.get_stream();
             stream.finish();
             auto& output_memory = instance.output_memory();
@@ -58,7 +58,7 @@ protected:
             else if (output_memory.get_layout().data_type == ov::element::f32)
                 Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory.count());
             else
-                OPENVINO_THROW("not expected!");
+                OPENVINO_THROW("not expected!");*/
         }
         return event;
     }

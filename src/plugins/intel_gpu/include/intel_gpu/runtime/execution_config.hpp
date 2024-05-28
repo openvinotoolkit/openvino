@@ -138,8 +138,8 @@ public:
     }
 
     void apply_user_properties(const cldnn::device_info& info);
-    void register_device_context_for_tp(const std::shared_ptr<RemoteContextImpl> context) { device_world_contexts.push_back(context);}
-    std::vector<std::shared_ptr<RemoteContextImpl>> get_context_for_tp() const { return device_world_contexts; }
+    void register_device_context_for_tp(const ov::Any context) { device_world_contexts.push_back(context);}
+    ov::AnyVector get_context_for_tp() const { return device_world_contexts; }
     std::string to_string() const;
     bool enableSubStreams;
     ov::threading::IStreamsExecutor::Config subStreamExecConfig;
@@ -159,7 +159,7 @@ private:
 
     std::map<std::string, PropertyVisibility> supported_properties;
     std::map<std::string, BaseValidator::Ptr> property_validators;
-    std::vector<std::shared_ptr<RemoteContextImpl>> device_world_contexts;
+    ov::AnyVector device_world_contexts;
 };
 
 }  // namespace intel_gpu

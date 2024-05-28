@@ -170,7 +170,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
-    config.register_device_context_for_tp(context);
     auto transformed_model = clone_and_transform_model(model, config);
 
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
@@ -186,10 +185,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
             return rank_table;
         };
-        std::cout << "ov::hint::ModelDistributionPolicy: TENSOR_PARALLEL\n";
+        config.register_device_context_for_tp(context);
         auto device_ptr = context->get_engine().get_device();
         for (auto& iter : m_device_map) {
-            if (iter.second->is_same(device_ptr))
+            if (iter.first != device_id && iter.second->get_info().dev_type == device_ptr->get_info().dev_type) 
                 config.register_device_context_for_tp(get_default_context(iter.first));
         }
         if (config.get_context_for_tp().size() > 1) {

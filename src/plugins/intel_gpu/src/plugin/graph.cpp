@@ -39,17 +39,19 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false);
-    m_config = program_builder->get_config();
+    if (!m_config.enableSubStreams) {
+        auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false);
+        m_config = program_builder->get_config();
 
-    build(program_builder->get_compiled_program());
+        build(program_builder->get_compiled_program());
 
-    primitiveIDs = program_builder->primitive_ids;
-    inputPrimitiveIDs = program_builder->inputPrimitiveIDs;
-    prevPrimitiveIDs = program_builder->prevPrimitiveIDs;
-    profilingIDs = program_builder->profiling_ids;
-    perfMap = program_builder->perfMap;
-    m_input_layouts = program_builder->get_input_layouts();
+        primitiveIDs = program_builder->primitive_ids;
+        inputPrimitiveIDs = program_builder->inputPrimitiveIDs;
+        prevPrimitiveIDs = program_builder->prevPrimitiveIDs;
+        profilingIDs = program_builder->profiling_ids;
+        perfMap = program_builder->perfMap;
+        m_input_layouts = program_builder->get_input_layouts();
+    }
 }
 
 Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)

@@ -21,7 +21,7 @@ struct typed_program_node<fully_connected> : public typed_program_node_base<full
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog) {
-            if (prog.get_config().enableSubStreams) { // only apply for dynamic models for now
+            if (prog.get_config().get_context_for_tp().size() > 1) { // only apply for dynamic models for now
                 w_rank = prog.get_config().subStreamExecConfig.get_rank()[0];
                 w_size = prog.get_config().get_context_for_tp().size();
                 GPU_DEBUG_TRACE_DETAIL << "Apply TP rank " << w_rank << " : " << w_size << std::endl;
