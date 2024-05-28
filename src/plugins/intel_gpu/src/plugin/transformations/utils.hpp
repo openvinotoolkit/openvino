@@ -16,6 +16,5 @@ std::shared_ptr<T> make_type_relaxed(const element::TypeVector& input_data_types
     return std::make_shared<ov::op::TypeRelaxed<T>>(std::forward<Args>(args)...);
 }
 
-
 }  // namespace intel_gpu
 }  // namespace ov
