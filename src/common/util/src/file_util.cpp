@@ -428,11 +428,6 @@ void ov::util::create_directory_recursive(const std::wstring& path) {
         return;
     }
 
-    std::size_t pos = path.rfind(ov::util::FileTraits<char>::file_separator);
-    if (pos != std::string::npos) {
-        create_directory_recursive(path.substr(0, pos));
-    }
-
     int err = wmakedir(path);
     if (err != 0 && errno != EEXIST) {
         std::stringstream ss;
