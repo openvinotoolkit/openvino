@@ -1531,7 +1531,7 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     auto name = f->output().get_node_shared_ptr()->get_friendly_name();
     auto name_last_op = f->get_results().front()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name();
-    auto old_names = f->output().get_tensor().get_names();
+    auto old_names = std::unordered_set<std::string>{"tensor_output1"};
     auto p = PrePostProcessor(f);
 
     p.output().postprocess().convert_element_type(element::u8);
@@ -1539,7 +1539,6 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
     EXPECT_EQ(f->get_results().size(), 1);
     EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
     EXPECT_EQ(f->output().get_tensor().get_names(), old_names);
-    EXPECT_EQ(old_names.count("tensor_output1"), 1);
     auto ops = f->get_ordered_ops();
     auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
         return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
@@ -1548,9 +1547,36 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
     auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
         return n->output(0).get_tensor().get_names().count("tensor_output1") > 0;
     });
-    EXPECT_EQ(names_count, 2);  // last node + result referencing to it
+    EXPECT_EQ(names_count, 2);  // result + node connected to it has same name referencing to it
     EXPECT_EQ(name, f->output().get_node_shared_ptr()->get_friendly_name());
-    EXPECT_EQ(name_last_op,
+    EXPECT_EQ(name_last_op + ".0",
+              f->get_results().front()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
+}
+
+TEST(pre_post_process, trivial_model_convert_element_type_explicit) {
+    auto f = create_trivial(element::f32, Shape{1, 3, 2, 2});
+    auto name = f->output().get_node_shared_ptr()->get_friendly_name();
+    auto name_last_op = f->get_results().front()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name();
+    auto old_names = std::unordered_set<std::string>{"tensor_output1"};
+    auto n = f->output().get_tensor().get_names();
+    auto p = PrePostProcessor(f);
+
+    p.output().postprocess().convert_element_type(element::u8);
+    p.build();
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_THAT(f->output().get_tensor().get_names(), old_names);
+    auto ops = f->get_ordered_ops();
+    auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
+        return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
+    });
+    EXPECT_EQ(res_count, 1);
+    auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
+        return n->output(0).get_tensor().get_names().count("tensor_output1") > 0;
+    });
+    EXPECT_EQ(names_count, 2);  // result + node connected to it has same name referencing to it
+    EXPECT_EQ(name, f->output().get_node_shared_ptr()->get_friendly_name());
+    EXPECT_EQ(name_last_op + ".0",
               f->get_results().front()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
 }
 
@@ -1781,6 +1807,8 @@ TEST(pre_post_process, postprocess_keep_friendly_names_compatibility) {
     auto node_name = node_before_result_old->get_friendly_name();
     auto p = PrePostProcessor(f);
     p.output().postprocess().convert_element_type(element::u8);
+    p.output().tensor().set_names_compatibility_mode(true);
+
     f = p.build();
     EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
     auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
@@ -1797,7 +1825,6 @@ TEST(pre_post_process, postprocess_keep_friendly_names) {
     auto node_name = node_before_result_old->get_friendly_name();
     auto p = PrePostProcessor(f);
     p.output().postprocess().convert_element_type(element::u8);
-    p.output().tensor().set_names_compatibility_mode(false);
     f = p.build();
     EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
     auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
@@ -1814,7 +1841,7 @@ TEST(pre_post_process, postprocess_keep_friendly_names_compatibility_implicit) {
     auto node_name = node_before_result_old->get_friendly_name();
     auto p = PrePostProcessor(f);
     p.output().model().set_layout("NCHW");
-    p.output().tensor().set_layout("NHWC");
+    p.output().tensor().set_layout("NHWC").set_names_compatibility_mode(true);
     f = p.build();
     EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
     auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
@@ -1831,15 +1858,11 @@ TEST(pre_post_process, postprocess_keep_friendly_names_implicit) {
     auto node_name = node_before_result_old->get_friendly_name();
     auto p = PrePostProcessor(f);
     p.output().model().set_layout("NCHW");
-    // p.output().tensor().set_layout("NHWC");
     p.output().postprocess().convert_layout("NHWC");
-    p.output().tensor().set_names_compatibility_mode(false);
     f = p.build();
     EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
     auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
-    // Compatibility check: verify that old name + indsex is assigned to new 'output' node
     EXPECT_EQ(node_before_result_new->get_friendly_name(), node_name + ".0");
-    // Compatibility check: Verify that old name is not changed
     EXPECT_EQ(node_before_result_old->get_friendly_name(), node_name);
 }
 
@@ -2053,6 +2076,8 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
         results.emplace_back(res);
     }
     auto model = std::make_shared<Model>(ResultVector{results}, ParameterVector{data1});
+    // Add tensor name to model output 0
+    model->output(0).set_names({"output_split0"});
     EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
     EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
     EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
@@ -2062,9 +2087,12 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
     p.output(2).tensor().set_element_type(element::f32);
     model = p.build();
     EXPECT_EQ(model->get_results().size(), 3);
-    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
+    // Tensor names on output is lost as origin named tensor is before convert op
+    // New result has different precision means different tensor.
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 0);
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
     EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
-    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 0);
     EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.0");
     EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
     EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.2");

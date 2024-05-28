@@ -56,6 +56,19 @@ public:
     PrePostProcessorImpl() = default;
     explicit PrePostProcessorImpl(const std::shared_ptr<ov::Model>& f) : m_function(f) {
         OPENVINO_ASSERT(f, "Model can't be nullptr for PrePostProcessor");
+        auto check_compatibility_mode = [](const ov::Model& model) {
+            const auto& rt_info = model.get_rt_info();
+            const auto version_info = rt_info.find("version");
+            if (version_info != rt_info.end() && version_info->second.is<int64_t>()) {
+                return version_info->second.as<int64_t>() < 11;
+            } else {
+                return false;
+            }
+        };
+
+        // if IR version < 11, set compatibility mode
+        const auto names_mode = check_compatibility_mode(*m_function);
+
         for (size_t i = 0; i < m_function->inputs().size(); ++i) {
             auto info = InputInfo();
             info.m_impl->m_resolved_param = m_function->get_parameters()[i];
@@ -64,6 +77,7 @@ public:
         for (size_t i = 0; i < m_function->outputs().size(); ++i) {
             auto info = OutputInfo();
             info.m_impl->m_output_node = m_function->output(i);
+            info.tensor().set_names_compatibility_mode(names_mode);
             m_outputs.push_back(std::move(info));
         }
     }

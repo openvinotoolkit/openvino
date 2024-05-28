@@ -43,77 +43,88 @@ public:
 
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
+    virtual ~Tensor();
 
-    const std::string& get_any_name() const;
-    const std::unordered_set<std::string>& get_names() const;
-    void set_names(const std::unordered_set<std::string>& names);
-    void add_names(const std::unordered_set<std::string>& names);
+    virtual const std::string& get_any_name() const;
+    virtual const std::unordered_set<std::string>& get_names() const;
+    virtual void set_names(const std::unordered_set<std::string>& names);
+    virtual void add_names(const std::unordered_set<std::string>& names);
 
     /// \brief sets lower bound value description
-    void set_lower_value(const ov::Tensor& value);
+    virtual void set_lower_value(const ov::Tensor& value);
     /// \brief sets upper bound value description
-    void set_upper_value(const ov::Tensor& value);
+    virtual void set_upper_value(const ov::Tensor& value);
     /// \brief sets value symbol description
-    void set_value_symbol(const TensorSymbol& value_symbol);
+    virtual void set_value_symbol(const TensorSymbol& value_symbol);
     /// \brief unsets bound value descriptions
-    void invalidate_values();
+    virtual void invalidate_values();
 
-    const element::Type& get_element_type() const {
+    virtual const element::Type& get_element_type() const {
         return m_element_type;
     }
-    const Shape& get_shape() const;
-    const PartialShape& get_partial_shape() const {
+    virtual const Shape& get_shape() const;
+    virtual const PartialShape& get_partial_shape() const {
         return m_partial_shape;
     }
     /// \brief gets lower bound value description
-    const ov::Tensor& get_lower_value() const {
-        return m_lower_value;
+    virtual const ov::Tensor& get_lower_value() const {
+        return m_data.m_lower_value;
     }
     /// \brief gets upper bound value description
-    const ov::Tensor& get_upper_value() const {
-        return m_upper_value;
+    virtual const ov::Tensor& get_upper_value() const {
+        return m_data.m_upper_value;
     }
     /// \brief gets symbol value description
-    TensorSymbol get_value_symbol() const {
-        return m_value_symbol;
+    virtual TensorSymbol get_value_symbol() const {
+        return m_data.m_value_symbol;
     }
     /// \brief checks if lower and upper bound are set and point to the same Tensor
-    bool has_and_set_bound() const {
-        return m_upper_value && m_lower_value && m_upper_value.data() == m_lower_value.data();
+    virtual bool has_and_set_bound() const {
+        return get_upper_value() && get_lower_value() && get_upper_value().data() == get_lower_value().data();
     }
-    size_t size() const;
+    virtual size_t size() const;
 
-    RTMap& get_rt_info() {
-        return m_rt_info;
+    virtual RTMap& get_rt_info() {
+        return m_data.m_rt_info;
     }
-    const RTMap& get_rt_info() const {
-        return m_rt_info;
+    virtual const RTMap& get_rt_info() const {
+        return m_data.m_rt_info;
     }
 
-    void clone_from(const Tensor& old);
+    virtual void clone_from(const Tensor& old);
 
 protected:
-    element::Type m_element_type;
+    Tensor();
+    struct OptionalData {
+        ov::Tensor m_lower_value, m_upper_value;
+        ov::TensorSymbol m_value_symbol;
+        std::unordered_set<std::string>::const_iterator m_name_it;
+        ov::RTMap m_rt_info;
 
-    PartialShape m_partial_shape;
-    ov::Tensor m_lower_value, m_upper_value;
-    TensorSymbol m_value_symbol;
-    std::string m_legacy_name;
+        mutable std::atomic<bool> m_shape_changing{false};
+        mutable bool m_shape_changed{true};
+        mutable Shape m_shape;
 
+        ~OptionalData() = default;
+    };
+
+    struct Empty {};
+
+    ov::element::Type m_element_type;
+    ov::PartialShape m_partial_shape;
+    const bool m_has_data;
+    union {
+        OptionalData m_data;
+        Empty m_empty;
+    };
     std::unordered_set<std::string> m_names;
-    std::unordered_set<std::string>::const_iterator m_name_it;
-    RTMap m_rt_info;
+    std::string m_legacy_name;
 
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
     friend void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
     friend void set_tensor_type(Tensor& tensor, const element::Type& element_type, const PartialShape& pshape);
     friend class pass::ReverseShapeAndTypeInfer;
-
-private:
-    mutable std::atomic<bool> m_shape_changing{false};
-    mutable bool m_shape_changed{true};
-    mutable Shape m_shape;
 };
 
 OPENVINO_API

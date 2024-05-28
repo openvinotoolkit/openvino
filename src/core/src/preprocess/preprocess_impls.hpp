@@ -136,7 +136,7 @@ protected:
 
     Layout m_layout = Layout();
     bool m_layout_set = false;
-    bool m_names_compatiblity_mode = true;
+    bool m_names_compatiblity_mode = false;
 };
 
 class OutputTensorInfo::OutputTensorInfoImpl : public TensorInfoImplBase {};
