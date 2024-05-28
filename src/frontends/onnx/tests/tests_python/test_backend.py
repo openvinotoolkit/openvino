@@ -656,6 +656,13 @@ tests_expected_to_fail = [
         skip_misalignment,
         "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_group_normalization_epsilon_cpu",
+        "OnnxBackendNodeModelTest.test_group_normalization_example_cpu",
+        "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_int8_float16_cpu",
+        "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_int8_float32_cpu",
+        "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_uint8_float16_cpu",
+        "OnnxBackendNodeModelTest.test_quantizelinear_blocked_asymmetric_cpu",
+        "OnnxBackendNodeModelTest.test_quantizelinear_blocked_symmetric_cpu",
     ),
     (
         skip_issue_124587,
@@ -678,6 +685,8 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_cast_UINT4_to_UINT8_cpu",
         "OnnxBackendNodeModelTest.test_dequantizelinear_int4_cpu",
         "OnnxBackendNodeModelTest.test_dequantizelinear_uint4_cpu",
+        "OnnxBackendNodeModelTest.test_quantizelinear_int4_cpu",
+        "OnnxBackendNodeModelTest.test_quantizelinear_uint4_cpu",
     ),
     (
         xfail_issue_139936,
