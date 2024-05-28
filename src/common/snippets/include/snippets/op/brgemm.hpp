@@ -55,7 +55,7 @@ public:
 protected:
     ov::element::Type get_output_type() const;
     std::vector<ov::PartialShape> get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const;
-    ov::PartialShape get_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const;
+    ov::PartialShape infer_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const;
     ov::PartialShape get_planar_output_shape(const ov::PartialShape& output_shape) const;
     void compute_block_size_values(size_t blk_size_m, size_t blk_size_k, size_t blk_size_n);
     size_t m_M_blk = 0;

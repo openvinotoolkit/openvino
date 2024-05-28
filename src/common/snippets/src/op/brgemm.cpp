@@ -54,11 +54,10 @@ Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
 }
 
 void Brgemm::compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n) {
-    const auto input_shape_0 = snippets::utils::get_planar_pshape(input(0)).get_shape();
-    const auto input_shape_1 = snippets::utils::get_planar_pshape(input(1)).get_shape();
-    m_M_blk = blk_size_m != 0 ? blk_size_m : *++input_shape_0.rbegin();
-    m_K_blk = blk_size_k != 0 ? blk_size_k : *input_shape_0.rbegin();
-    m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape_1.rbegin();
+    // todo: review if we have to store blocking info inside the node (instead of subtensors in port descriptors)
+    m_M_blk = blk_size_m;
+    m_K_blk = blk_size_k;
+    m_N_blk = blk_size_n;
 }
 
 void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
@@ -70,14 +69,12 @@ void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> lay
     const auto planar_input_shapes =
             std::vector<ov::PartialShape>{ ov::snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
                                            ov::snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
-    auto output_shape = get_output_partial_shape(planar_input_shapes);
+    auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), ov::snippets::utils::get_planar_pshape(output_shape, layout_c));
 }
 
 void Brgemm::validate_inputs() const {
-    // If no leading dimensions are provided, assume dense row-major inputs-outputs
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static(),
-                          "Brgemm currently supports only static shapes.");
+    // todo: add sanity checks that would work both for static and dynamic inputs
 }
 
 void Brgemm::validate_and_infer_types() {
@@ -85,7 +82,7 @@ void Brgemm::validate_and_infer_types() {
     validate_inputs();
 
     const auto planar_input_shapes = get_planar_input_shapes(inputs());
-    auto output_shape = get_output_partial_shape(planar_input_shapes);
+    auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 }
 
@@ -146,7 +143,7 @@ ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_
     return output_shape;
 }
 
-ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {
+ov::PartialShape Brgemm::infer_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {
     OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
 
     // Note: All majors checks are missed because Brgemm is transformed from MatMul with whole shape infer support

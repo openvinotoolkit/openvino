@@ -58,16 +58,12 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         if (!brgemm || brgemm_plugin)
             OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmCPU pass");
 
-        if (brgemm->is_dynamic()) {
-            return false;
-        }
-
         const auto& brgemm_in0_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0));
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
         const auto& brgemm_out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
 
-        const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0)).get_shape();
-        const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1)).get_shape();
+        const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0));
+        const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1));
 
         const auto K = *dimsMatMulIn0.rbegin();
         const auto N = *dimsMatMulIn1.rbegin();
@@ -75,7 +71,9 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto element_type_a = brgemm->get_input_element_type(0);
         const auto brgemmVNNIFactor = 4 / element_type_a.size();
         const bool isAMXSupported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
-        const bool with_amx = isAMXSupported && element_type_a != ov::element::f32 && (K % brgemmVNNIFactor == 0) && (N % brgemmVNNIFactor == 0);
+        const bool with_amx = isAMXSupported && element_type_a != ov::element::f32 &&
+                              K.is_static() && K.get_length() % brgemmVNNIFactor == 0 &&
+                              N.is_static() && N.get_length() % brgemmVNNIFactor == 0;
         const bool with_comp = element_type_a == ov::element::i8 && !with_amx;
 
         const auto offset_a = brgemm->get_offset_a();

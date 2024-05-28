@@ -180,8 +180,8 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             loop_info->register_pass_to_handler<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>(0.f);
         };
 
-        const bool k_blocking = block_size_k != k;
-        const bool n_blocking = block_size_n != n;
+        const bool k_blocking = !snippets::utils::is_dynamic_value(block_size_k) && block_size_k != k;
+        const bool n_blocking = !snippets::utils::is_dynamic_value(block_size_n) && block_size_n != n;
         const bool m_blocking = block_size_m != m;
         // It is not necessary to include copyB in loop by M if there are no blocking by KN
         const bool include_repacking_in_loop = k_blocking || n_blocking;

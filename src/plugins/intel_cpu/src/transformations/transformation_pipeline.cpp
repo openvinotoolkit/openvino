@@ -787,6 +787,15 @@ void Transformations::PostLpt() {
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
     postLPTPassManager.run_passes(model);
+
+    size_t count = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v1::Softmax>(op))
+            count++;
+        if (ov::is_type<ov::op::v8::Softmax>(op))
+            count++;
+    }
+    std::cout << "SOFTMAX_COUNT: " << count << std::endl;
 }
 
 void Transformations::MainSnippets(void) {
