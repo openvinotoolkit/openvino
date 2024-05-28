@@ -161,19 +161,16 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
 
-    std::vector<ov::intel_gpu::RemoteContextImpl::Ptr> context_vector;
-
     std::string device_id = get_device_id(orig_config);
 
     auto context = get_default_context(device_id);
-    context_vector.push_back(context);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
-
+    config.register_device_context_for_tp(context);
     auto transformed_model = clone_and_transform_model(model, config);
 
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
@@ -182,7 +179,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (model_distribution_policy.count(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
         auto get_rank_table = [&]() {
             std::vector<std::vector<int>> rank_table = {};
-            for (size_t i = 0; i < context_vector.size(); i++) {
+            for (size_t i = 0; i < config.get_context_for_tp().size(); i++) {
                 std::vector<int> init_rank = {};
                 init_rank.emplace_back(i);
                 rank_table.emplace_back(init_rank);
@@ -190,15 +187,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             return rank_table;
         };
         std::cout << "ov::hint::ModelDistributionPolicy: TENSOR_PARALLEL\n";
-        // get 2 devices with same type
-        auto context = get_default_context("1");
-        context_vector.push_back(context);
-        config.enableSubStreams = true;
-        config.streamsRankTable = get_rank_table();
+        auto device_ptr = context->get_engine().get_device();
+        for (auto& iter : m_device_map) {
+            if (iter.second->is_same(device_ptr))
+                config.register_device_context_for_tp(get_default_context(iter.first));
+        }
+        if (config.get_context_for_tp().size() > 1) {
+            config.enableSubStreams = true;
+            config.streamsRankTable = get_rank_table();
+        }
     }
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
-        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_vector[0], config);
+        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
     }
 }
 

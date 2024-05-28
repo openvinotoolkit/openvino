@@ -1126,7 +1126,7 @@ void Graph::InferStatic(SyncInferRequest* request) {
     const auto& cpuExecutor = context->getCPUStreamExecutor();
     // std::cout << "execute stream: " << cpuExecutor->get_stream_id() << "\n";
 
-    for (const auto& node : executableGraphNodes) {
+    for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
 

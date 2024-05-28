@@ -64,18 +64,12 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     , m_inputs(ov::ICompiledModel::inputs())
     , m_outputs(ov::ICompiledModel::outputs())
     , m_loaded_from_cache(false) {
-    auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
-    for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
-        auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
-        m_graphs.push_back(graph);
-    }
     if (m_config.enableSubStreams) {
-        std::cout << "enableSubStreams\n";
         m_config.enableSubStreams = false;
         m_subCompileModel = true;
         auto message = ov::threading::message_manager();
         std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < m_config.get_context_for_tp().size(); i++) {
             auto streamExecutorConfig = ov::threading::IStreamsExecutor::Config{"GPUStreamsExecutor",
                                                                  1,
                                                                  0,
@@ -86,9 +80,15 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                                                                  m_config.streamsRankTable[i]};
             m_config.subStreamExecConfig = std::move(streamExecutorConfig);
 
-            sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, context, m_config));
+            sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, m_config.get_context_for_tp()[i], m_config));
         }
         message->setSubCompileModels(sub_models);
+    } else {
+        auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
+        for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
+            auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
+            m_graphs.push_back(graph);
+        }
     }
 }
 

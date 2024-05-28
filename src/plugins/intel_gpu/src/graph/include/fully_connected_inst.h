@@ -21,9 +21,9 @@ struct typed_program_node<fully_connected> : public typed_program_node_base<full
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog) {
-            if (getenv("ENABLE_CCL")) { // only apply for dynamic models for now
-                w_rank = Messenger::getInstance().getRank();
-                w_size = Messenger::getInstance().getSize();
+            if (prog.get_config().enableSubStreams) { // only apply for dynamic models for now
+                w_rank = prog.get_config().subStreamExecConfig.get_rank()[0];
+                w_size = prog.get_config().get_context_for_tp().size();
                 GPU_DEBUG_TRACE_DETAIL << "Apply TP rank " << w_rank << " : " << w_size << std::endl;
             }
         }
@@ -49,7 +49,7 @@ public:
         return params;
     }
     int w_rank = -1;
-    int w_size = 1; // default 1 process, world size as 1
+    size_t w_size = 1; // default 1 process, world size as 1
 };
 
 using fully_connected_node = typed_program_node<fully_connected>;
