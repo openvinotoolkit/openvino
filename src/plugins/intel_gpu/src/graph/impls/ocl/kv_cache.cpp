@@ -149,8 +149,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         execute_stage(events, instance, res_events, concat_stage);
 
         auto impl_param = *instance.get_impl_params();
-        auto kv_shape = impl_param.input_layouts[0].get_partial_shape();
-        if (desc->indirect && (kv_shape[desc->gather_axis].get_length() > 1)) {
+        auto kv_in_shape = impl_param.input_layouts[0].get_partial_shape();
+        auto kv_out_shape = impl_param.output_layouts[0].get_partial_shape();
+        if (desc->indirect && ((kv_out_shape[desc->gather_axis].get_length() > 1) ||
+                               (kv_in_shape[desc->concat_axis].get_length() == 0))) {
             const auto bt_alloc_type = engine.get_preferred_memory_allocation_type(false);
             auto beam_table_state =
                 dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCache&>(variable).get_beam_table_state();
