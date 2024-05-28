@@ -765,7 +765,7 @@ public:
             if (!concat_ptr) {
                 return false;
             }
-            auto axis = -1;
+            int64_t axis = -1;
             if (concat_ptr->get_output_partial_shape(0).rank().is_static()) {
                 const auto rank = concat_ptr->get_output_partial_shape(0).rank().get_length();
                 axis = ov::util::normalize(concat_ptr->get_axis(), rank);
