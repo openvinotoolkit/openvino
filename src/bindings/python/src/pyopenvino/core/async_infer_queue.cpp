@@ -110,14 +110,20 @@ public:
     }
 
     void set_custom_callbacks(py::function f_callback) {
+        // need to acquire GIL before py::function deletion
+        auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
+            py::gil_scoped_acquire acquire;
+            delete c;
+        });
+
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
-            m_requests[handle].m_request->set_callback([this, f_callback, handle](std::exception_ptr exception_ptr) {
+            m_requests[handle].m_request->set_callback([this, callback_sp, handle](std::exception_ptr exception_ptr) {
                 *m_requests[handle].m_end_time = Time::now();
                 if (exception_ptr == nullptr) {
                     // Acquire GIL, execute Python function
                     py::gil_scoped_acquire acquire;
                     try {
-                        f_callback(m_requests[handle], m_user_ids[handle]);
+                        (*callback_sp)(m_requests[handle], m_user_ids[handle]);
                     } catch (const py::error_already_set& py_error) {
                         // This should behave the same as assert(!PyErr_Occurred())
                         // since constructor for pybind11's error_already_set is
