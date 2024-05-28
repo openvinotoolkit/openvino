@@ -32,7 +32,7 @@ public:
                         const std::vector<ov::Output<const ov::Node>>& outputs,
                         bool set_default_callback = true,
                         py::object userdata = py::none())
-        : m_request{new ov::InferRequest(std::move(request))},
+        : m_request{InferRequestWrapper::wrap_infer_request_to_sp(std::move(request))},
           m_inputs{inputs},
           m_outputs{outputs},
           m_userdata{userdata} {
@@ -57,72 +57,7 @@ public:
         }
     }
 
-    InferRequestWrapper(const InferRequestWrapper& request_wrapper)
-        : m_request{new ov::InferRequest(*request_wrapper.m_request)},
-          m_inputs{request_wrapper.m_inputs},
-          m_outputs{request_wrapper.m_outputs},
-          m_user_callback_defined{request_wrapper.m_user_callback_defined},
-          m_userdata{request_wrapper.m_userdata},
-          m_start_time{request_wrapper.m_start_time},
-          m_end_time{request_wrapper.m_end_time} {}
-
-    InferRequestWrapper(InferRequestWrapper&& request_wrapper) noexcept
-        : m_request{request_wrapper.m_request},
-          m_inputs{std::move(request_wrapper.m_inputs)},
-          m_outputs{std::move(request_wrapper.m_outputs)},
-          m_user_callback_defined{request_wrapper.m_user_callback_defined},
-          m_userdata{std::move(request_wrapper.m_userdata)},
-          m_start_time{std::move(request_wrapper.m_start_time)},
-          m_end_time{std::move(request_wrapper.m_end_time)} {
-        request_wrapper.m_request = nullptr;
-    }
-
-    const InferRequestWrapper& operator=(const InferRequestWrapper& request_wrapper) {
-        if (PyGILState_Check()) {
-            py::gil_scoped_release release;
-            delete m_request;
-        } else {
-            delete m_request;
-        }
-        m_request = new ov::InferRequest(*request_wrapper.m_request);
-        m_inputs = request_wrapper.m_inputs;
-        m_outputs = request_wrapper.m_outputs;
-        m_user_callback_defined = request_wrapper.m_user_callback_defined;
-        m_userdata = request_wrapper.m_userdata;
-        m_start_time = request_wrapper.m_start_time;
-        m_end_time = request_wrapper.m_end_time;
-
-        return *this;
-    }
-
-    const InferRequestWrapper& operator=(InferRequestWrapper&& request_wrapper) {
-        if (PyGILState_Check()) {
-            py::gil_scoped_release release;
-            delete m_request;
-        } else {
-            delete m_request;
-        }
-        m_request = request_wrapper.m_request;
-        m_inputs = std::move(request_wrapper.m_inputs);
-        m_outputs = std::move(request_wrapper.m_outputs);
-        m_user_callback_defined = request_wrapper.m_user_callback_defined;
-        m_userdata = std::move(request_wrapper.m_userdata);
-        m_start_time = std::move(request_wrapper.m_start_time);
-        m_end_time = std::move(request_wrapper.m_end_time);
-        request_wrapper.m_request = nullptr;
-
-        return *this;
-    }
-
-    ~InferRequestWrapper() {
-        // check whether GIL is acquired.
-        if (PyGILState_Check()) {
-            py::gil_scoped_release release;
-            delete m_request;
-        } else {
-            delete m_request;
-        }
-    }
+    // ~InferRequestWrapper() = default;
 
     std::vector<ov::Tensor> get_input_tensors() {
         return get_tensors_from(m_inputs);
@@ -138,7 +73,7 @@ public:
     }
 
     // Original ov::InferRequest class that is held by this wrapper
-    ov::InferRequest* m_request;
+    std::shared_ptr<ov::InferRequest> m_request;
     // Inputs and Outputs inherrited from ov::CompiledModel
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
@@ -160,6 +95,13 @@ private:
         }
 
         return tensors;
+    }
+
+    static std::shared_ptr<ov::InferRequest> wrap_infer_request_to_sp(ov::InferRequest request) {
+        return std::shared_ptr<ov::InferRequest>(new ov::InferRequest(std::move(request)), [](ov::InferRequest* request) {
+                py::gil_scoped_release release;
+                delete request;
+        });
     }
 };
 
