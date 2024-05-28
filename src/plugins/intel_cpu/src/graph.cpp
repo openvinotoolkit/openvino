@@ -136,48 +136,52 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     };
 
     for (const auto& op : model->get_ordered_ops()) {
-        const NodePtr node {Node::factory().create(op, context)};
+        try {
+            const NodePtr node {Node::factory().create(op, context)};
 
-        AddNode(node);
-        if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
-            OPENVINO_ASSERT(input_index >= 0,
-                            "CPU plugin cannot find op: ",
-                            op->get_friendly_name(),
-                            " in model parameter list!");
-            inputNodesMap[input_index] = node;
-            if (node->isDynamicNode()) {
-                graphHasDynamicInput = true;
-            }
-        }
-
-        if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
-            OPENVINO_ASSERT(output_index >= 0,
-                            "CPU plugin cannot find op: ",
-                            op->get_friendly_name(),
-                            " in model result list!");
-            outputNodesMap[output_index] = node;
-        }
-
-        op2node[op] = node;
-
-        for (size_t port = 0; port < op->get_input_size(); port++) {
-            auto parentOp = op->get_input_node_shared_ptr(port);
-            auto parentNode = op2node[parentOp];
-
-            CreateEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port));
-        }
-
-        if (!one_of(op->get_type_info(),
-                op::v0::Result::get_type_info_static(),
-                op::v3::Assign::get_type_info_static(),
-                op::v6::Assign::get_type_info_static())) {
-            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
-                if (op->get_output_target_inputs(oi).empty()) {
-                    unusedOutputs.push_back(op->output(oi));
+            AddNode(node);
+            if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
+                auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
+                OPENVINO_ASSERT(input_index >= 0,
+                                "CPU plugin cannot find op: ",
+                                op->get_friendly_name(),
+                                " in model parameter list!");
+                inputNodesMap[input_index] = node;
+                if (node->isDynamicNode()) {
+                    graphHasDynamicInput = true;
                 }
             }
+
+            if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
+                auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
+                OPENVINO_ASSERT(output_index >= 0,
+                                "CPU plugin cannot find op: ",
+                                op->get_friendly_name(),
+                                " in model result list!");
+                outputNodesMap[output_index] = node;
+            }
+
+            op2node[op] = node;
+
+            for (size_t port = 0; port < op->get_input_size(); port++) {
+                auto parentOp = op->get_input_node_shared_ptr(port);
+                auto parentNode = op2node[parentOp];
+
+                CreateEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port));
+            }
+
+            if (!one_of(op->get_type_info(),
+                    op::v0::Result::get_type_info_static(),
+                    op::v3::Assign::get_type_info_static(),
+                    op::v6::Assign::get_type_info_static())) {
+                for (size_t oi = 0; oi < op->get_output_size(); oi++) {
+                    if (op->get_output_target_inputs(oi).empty()) {
+                        unusedOutputs.push_back(op->output(oi));
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            OPENVINO_THROW(op, e.what());
         }
     }
 
@@ -380,17 +384,21 @@ void Graph::InitDescriptors() {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "InitDescriptors", "Prepare");
 
     for (auto &node : graphNodes) {
-        OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
-        DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
-        node->getSupportedDescriptors();
+        try {
+            OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
+            DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
+            node->getSupportedDescriptors();
 
-        OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.initSupportedPrimitiveDescriptors);
-        DEBUG_LOG("Init supported primitive descriptors for node: ", node->getName());
-        node->initSupportedPrimitiveDescriptors();
+            OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.initSupportedPrimitiveDescriptors);
+            DEBUG_LOG("Init supported primitive descriptors for node: ", node->getName());
+            node->initSupportedPrimitiveDescriptors();
 
-        OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
-        DEBUG_LOG("Filter supported primitive descriptors for node: ", node->getName());
-        node->filterSupportedPrimitiveDescriptors();
+            OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
+            DEBUG_LOG("Filter supported primitive descriptors for node: ", node->getName());
+            node->filterSupportedPrimitiveDescriptors();
+        } catch (const std::exception& e) {
+            OPENVINO_THROW(node, e.what());
+        }
 
 #ifdef CPU_DEBUG_CAPS
         const auto& SPDs = node->getSupportedPrimitiveDescriptors();
@@ -412,7 +420,11 @@ void Graph::InitDescriptors() {
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.selectOptimalPrimitiveDescriptor);
         DEBUG_LOG("Select optimal primitive descriptors for node: ", node->getName());
-        node->selectOptimalPrimitiveDescriptor();
+        try {
+            node->selectOptimalPrimitiveDescriptor();
+        } catch (const std::exception& e) {
+            OPENVINO_THROW(node, e.what());
+        }
     }
 }
 
@@ -429,7 +441,11 @@ void Graph::InitOptimalPrimitiveDescriptors() {
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
         DEBUG_LOG("Init optimal primitive descriptors for node: ", node->getName());
-        node->initOptimalPrimitiveDescriptor();
+        try {
+            node->initOptimalPrimitiveDescriptor();
+        } catch (const std::runtime_error& exp) {
+            OPENVINO_THROW(node, exp.what());
+        }
         DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n",
                   *node->getSelectedPrimitiveDescriptor(), "selectedPrimitiveDescriptorIdx = ", node->selectedPrimitiveDescriptorIndex);
     }
@@ -1359,7 +1375,11 @@ void Graph::InferDynamic(SyncInferRequest* request) {
 
             if (request)
                 request->throw_if_canceled();
-            ExecuteNode(node, stream);
+            try {
+                ExecuteNode(node, stream);
+            } catch (const std::runtime_error& exp) {
+                OPENVINO_THROW(node, exp.what());
+            }
         }
     }
 }

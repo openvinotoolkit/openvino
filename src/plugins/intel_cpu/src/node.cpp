@@ -548,11 +548,15 @@ void Node::updateShapes() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-    if (needShapeInfer()) {
-        auto result = shapeInfer();
-        if (ShapeInferStatus::success == result.status) {
-            redefineOutputMemory(result.dims);
+    try {
+        if (needShapeInfer()) {
+            auto result = shapeInfer();
+            if (ShapeInferStatus::success == result.status) {
+                redefineOutputMemory(result.dims);
+            }
         }
+    } catch (const std::runtime_error& exp) {
+        THROW_CPU_NODE_ERR(exp.what());
     }
 }
 
@@ -562,18 +566,22 @@ void Node::updateDynamicParams() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-    if (isExecutable()) {
-        if (needPrepareParams()) {
-            OPENVINO_ASSERT(inputShapesDefined(),
-                            "Can't prepare params for ",
-                            getTypeStr(),
-                            " node with name: ",
-                            getName(),
-                            " since the input shapes are not defined.");
-            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
-                      " ", getName(), " ", getOriginalLayers());
-            prepareParams();
+    try {
+        if (isExecutable()) {
+            if (needPrepareParams()) {
+                OPENVINO_ASSERT(inputShapesDefined(),
+                                "Can't prepare params for ",
+                                getTypeStr(),
+                                " node with name: ",
+                                getName(),
+                                " since the input shapes are not defined.");
+                DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                        " ", getName(), " ", getOriginalLayers());
+                prepareParams();
+            }
         }
+    } catch (const std::exception& e) {
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 
@@ -1942,5 +1950,13 @@ void Node::resolveInPlaceDirection() {
     }
 }
 
+std::ostream& operator<<(std::ostream& out, const Node& node) {
+    return out << "Node " << node.getName() <<
+        " of type " << node.getTypeStr() << "\n";
+}
+
+std::ostream& operator<<(std::ostream& out, const Node* node) {
+    return operator<<(out, (*node));
+}
 }   // namespace intel_cpu
 }   // namespace ov
