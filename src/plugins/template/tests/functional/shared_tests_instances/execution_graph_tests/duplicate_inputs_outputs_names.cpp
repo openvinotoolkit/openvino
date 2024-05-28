@@ -3,15 +3,16 @@
 //
 
 #include "execution_graph_tests/duplicate_inputs_outputs_names.hpp"
+
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ExecutionGraphTests;
 
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(smoke_duplicateInputsOutputsNames, ExecGraphDuplicateInputsOutputsNames,
+INSTANTIATE_TEST_SUITE_P(smoke_duplicateInputsOutputsNames,
+                         ExecGraphDuplicateInputsOutputsNames,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                          ExecGraphDuplicateInputsOutputsNames::getTestCaseName);
 
 }  // namespace
-
