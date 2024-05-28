@@ -56,7 +56,7 @@ class TestAdjustSaturation(CommonTFLayerTest):
     def test_adjust_saturation_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_legacy_frontend):
         if ie_device == 'GPU':
-            pytest.skip("accuracy mismatch on GPU")
+            pytest.skip("Accuracy mismatch on GPU")
         self._test(*self.create_adjust_saturation_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
