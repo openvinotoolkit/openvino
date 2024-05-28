@@ -69,6 +69,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_20_04_x64
+            ov_test/ubuntu_20_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -308,12 +309,12 @@ jobs:
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
 
   Samples:
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
@@ -323,7 +324,7 @@ jobs:
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}"}'
 
   Conformance:
     needs: [ Build, Smart_CI ]
@@ -474,7 +475,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -482,7 +483,7 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   Python_Unit_Tests:
@@ -491,7 +492,7 @@ jobs:
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   TensorFlow_Layer_Tests:
@@ -501,7 +502,7 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   CPU_Functional_Tests:
@@ -511,7 +512,7 @@ jobs:
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
@@ -522,7 +523,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-16gb'
       model_scope: 'precommit'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
@@ -532,7 +533,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       model_scope: 'nightly_tf_hub'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   TensorFlow_Models_Tests_Nightly_HF:
     name: TensorFlow Hugging Face Models tests
@@ -542,7 +543,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       model_scope: 'nightly_hf'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   # TODO: Switch back to self-hosted runners
   # container:
@@ -567,7 +568,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64_nvidia }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -591,20 +592,6 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
-      - name: Fetch install_build_dependencies.sh
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            install_build_dependencies.sh
-          sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
-
-      - name: Install Prerequisites
-        run: apt update && apt install -y git ca-certificates
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
         with:
@@ -633,38 +620,6 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           ref: 'master'
-
-      #
-      # Dependencies
-      #
-
-      - name: Install build dependencies
-        run: |
-          ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt -y --no-install-recommends install software-properties-common curl
-
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "v0.7.5"
-
-      - name: Install CUDA
-        run: |
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-          mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-
-          apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
-          add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
-          apt update
-          apt install -y \
-            libcudnn8=8.9.4.*-1+cuda11.8 \
-            libcudnn8-dev=8.9.4.*-1+cuda11.8 \
-            libcudnn8-samples=8.9.4.*-1+cuda11.8 \
-            cuda-runtime-11-8 \
-            cuda-11-8 \
-            libcutensor1=1.6.1.5-1 \
-            libcutensor-dev=1.6.1.5-1 \
-            cuda-drivers=520.61.05-1
 
       #
       # Build
