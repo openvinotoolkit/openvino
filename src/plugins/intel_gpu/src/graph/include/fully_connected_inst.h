@@ -4,7 +4,6 @@
 
 #pragma once
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/graph/ccl_messenger.hpp"
 #include "openvino/core/parallel.hpp"
 #include "primitive_inst.h"
 #include "data_inst.h"
