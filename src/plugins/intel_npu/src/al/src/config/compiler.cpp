@@ -24,6 +24,7 @@ void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<DMA_ENGINES>();
     desc.add<USE_ELF_COMPILER_BACKEND>();
     desc.add<DYNAMIC_SHAPE_TO_STATIC>();
+    desc.add<SERIALIZATION_MODE>();
 }
 
 //
@@ -115,6 +116,62 @@ std::string intel_npu::USE_ELF_COMPILER_BACKEND::toString(const ov::intel_npu::E
         strStream << "YES";
     } else {
         OPENVINO_THROW("No valid string for current USE_ELF_COMPILER_BACKEND option");
+    }
+
+    return strStream.str();
+}
+
+//
+// COMPILER_TYPE
+//
+
+std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::SerializationMode val) {
+    switch (val) {
+    case ov::intel_npu::SerializationMode::STREAM:
+        return "STREAM";
+    case ov::intel_npu::SerializationMode::FILE:
+        return "FILE";
+    case ov::intel_npu::SerializationMode::RAW:
+        return "RAW";
+    default:
+        return "<UNKNOWN>";
+    }
+}
+
+std::string_view intel_npu::SERIALIZATION_MODE::envVar() {
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    return "IE_NPU_SERIALIZATION_MODE";
+#else
+    return "";
+#endif
+}
+
+ov::intel_npu::SerializationMode intel_npu::SERIALIZATION_MODE::defaultValue() {
+    return ov::intel_npu::SerializationMode::STREAM;
+}
+
+ov::intel_npu::SerializationMode intel_npu::SERIALIZATION_MODE::parse(std::string_view val) {
+    if (val == stringifyEnum(ov::intel_npu::SerializationMode::STREAM)) {
+        return ov::intel_npu::SerializationMode::STREAM;
+    } else if (val == stringifyEnum(ov::intel_npu::SerializationMode::FILE)) {
+        return ov::intel_npu::SerializationMode::FILE;
+    } else if (val == stringifyEnum(ov::intel_npu::SerializationMode::RAW)) {
+        return ov::intel_npu::SerializationMode::RAW;
+    }
+
+    OPENVINO_THROW("Value '", val, "' is not a valid SERIALIZATION_MODE option");
+}
+
+std::string intel_npu::SERIALIZATION_MODE::toString(const ov::intel_npu::SerializationMode& val) {
+    std::stringstream strStream;
+    if (val == ov::intel_npu::SerializationMode::STREAM) {
+        strStream << "STREAM";
+    } else if (val == ov::intel_npu::SerializationMode::FILE) {
+        strStream << "FILE";
+    } else if (val == ov::intel_npu::SerializationMode::RAW) {
+        strStream << "RAW";
+    } else {
+        OPENVINO_THROW("No valid string for current LOG_LEVEL option");
     }
 
     return strStream.str();

@@ -7,6 +7,7 @@
 
 #include "driver_compiler_adapter.hpp"
 #include "openvino/pass/manager.hpp"
+#include "intel_npu/al/config/compiler.hpp"
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
@@ -14,14 +15,7 @@
  */
 namespace intel_npu::driverCompilerAdapter {
 
-/**
- * @brief Serialization mode
- * @param version serialization result type
- *                0 - xml and weights contains serailized model and weights
- *                1 - xml and weights contains file name
- *                2 - xml contains raw ov::model
- */
-enum class SerializeMode { STREAM = 0, FILE = 1, RAW = 2 };
+using SerializeMode = ov::intel_npu::SerializationMode;
 
 /**
  * @brief Intermediate representation of the network

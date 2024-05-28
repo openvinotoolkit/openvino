@@ -360,4 +360,30 @@ struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32
     }
 };
 
+struct SERIALIZATION_MODE final : OptionBase<SERIALIZATION_MODE, ov::intel_npu::SerializationMode> {
+    static std::string_view key() {
+        return ov::intel_npu::serialization_mode.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::SerializationMode";
+    }
+
+    static std::string_view envVar();
+
+    static ov::intel_npu::SerializationMode defaultValue();
+
+    static ov::intel_npu::SerializationMode parse(std::string_view val);
+
+    static std::string toString(const ov::intel_npu::SerializationMode& val);
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
 }  // namespace intel_npu

@@ -13,11 +13,13 @@
 namespace intel_npu::driverCompilerAdapter {
 
 IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset, SerializeMode mode) {
+    Logger logger("LevelZeroCompilerAdapter::serializeToIR", Logger::global().level());
     std::stringstream xml;
     std::stringstream weights;
     if (mode == SerializeMode::RAW) {
         xml << origModel.get();
         weights << "PLACEHOLDER";
+        logger.info("Serailization mode is RAW with pointer: %p", origModel.get());
     } else {
         // There is no const variant of run_passes so use const_cast here
         // as model serialization does not mutate the model
@@ -40,8 +42,10 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
             manager.register_pass<ov::pass::Serialize>(xmlName, weightsName);
             xml << xmlName;
             weights << weightsName;
+            logger.info("Serailization mode is FILE with xml: %s and weights: %s", xmlName.c_str(), weightsName.c_str();
         } else {
             manager.register_pass<ov::pass::Serialize>(xml, weights);
+            logger.info("Serailization mode is STREAM");
         }
 
         // Depending on the driver version, the compiler attached to it may request this information as an indicator of

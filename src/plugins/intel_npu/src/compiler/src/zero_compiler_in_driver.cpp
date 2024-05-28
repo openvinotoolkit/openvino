@@ -495,7 +495,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content, std::regex(maxtilestr.str()), "");
     }
 
-    /// Removing INFERENCE_PRECISION_HINT for older compilers
+    /// Remove INFERENCE_PRECISION_HINT for older compilers
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 4)) {
         std::ostringstream precstr;
         precstr << ov::hint::inference_precision.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
@@ -519,6 +519,16 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
                  << VALUE_DELIMITER;
         _logger.warning("NPU_BATCH_MODE property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
+    /// Remove NPU_SERIALIZATION_MODE for older compilers
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 6)) {
+        std::ostringstream modestr;
+        modestr << ov::intel_npu::serialize_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                << VALUE_DELIMITER;
+        _logger.warning(
+            "NPU_SERIALIZATION_MODE property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(modestr.str()), "");
     }
 
     return "--config " + content;
