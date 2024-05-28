@@ -532,11 +532,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CompareWithRefs_4D.*/EltwiseLayerCPUTest.*Sub_secondary.*INFERENCE_PRECISION_HINT=f16.*FakeQuantize.*enforceSnippets=1.*)");
         retVector.emplace_back(R"(smoke_Reduce.*/ReduceCPULayerTest.*axes=\((0.1|1)\).*Prod_KeepDims.*INFERENCE_PRECISION_HINT=f16.*)");
         retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
-        // skip after convert precision migrate
-        retVector.emplace_back(R"(smoke.*4D.*TransposeLayerCPUTest.*_inputOrder=\(0.2.3.1\).*INFERENCE_PRECISION_HINT=f16.*)");
-        retVector.emplace_back(R"(smoke.*4D.*TransposeLayerCPUTest.*_inputOrder=\(0.2.1.3\).*INFERENCE_PRECISION_HINT=f16.*)");
-        retVector.emplace_back(R"(smoke.*4D.*TransposeLayerCPUTest.*_inputOrder=\(1.0.2.3\).*INFERENCE_PRECISION_HINT=f16.*)");
-        retVector.emplace_back(R"(smoke.*4D.*TransposeLayerCPUTest.*_inputOrder=\(\).*INFERENCE_PRECISION_HINT=f16.*)");
     }
 
     return retVector;
