@@ -330,7 +330,7 @@ ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_t
 namespace tensor_comparation {
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
-inline double less(double a, double b) {
+inline bool less(const double a, const double b) {
     if (std::isnan(a) || std::isnan(b)) {
         return false;
     } else if (std::isinf(b) && std::isinf(b)) {
@@ -344,7 +344,7 @@ inline double less(double a, double b) {
     return std::fabs(a - b) > eps && a < b;
 }
 
-inline double equal(double a, double b) {
+inline bool equal(const double a, const double b) {
     if (std::isnan(a) || std::isnan(b)) {
         return false;
     } else if (std::isinf(b) && std::isinf(b)) {
@@ -358,12 +358,12 @@ inline double equal(double a, double b) {
     return std::fabs(b - a) <= eps;
 }
 
-inline double less_or_equal(double a, double b) {
+inline bool less_or_equal(double a, double b) {
     return less(a, b) || equal(a, b);
 }
 
 template <typename T1, typename T2>
-inline bool is_value_suitable_for_comparation(double value1, double value2) {
+inline bool is_value_suitable_for_comparation(const double value1, const double value2) {
     bool res = true;
     auto max_val1 = std::numeric_limits<T1>::max();
     auto min_val1 = std::numeric_limits<T1>::lowest();
