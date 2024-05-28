@@ -403,6 +403,27 @@ bool ov::util::is_absolute_file_path(const std::string& path) {
 #endif  // _WIN32
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void ov::util::create_directory_recursive(const std::wstring& path) {
+    if (path.empty() || directory_exists(path)) {
+        return;
+    }
+
+    std::size_t pos = path.rfind(ov::util::FileTraits<wchar_t>::file_separator);
+    if (pos != std::wstring::npos) {
+        create_directory_recursive(path.substr(0, pos));
+    }
+
+    int err = wmakedir(path);
+    if (err != 0 && errno != EEXIST) {
+        std::stringstream ss;
+        // TODO: in case of exception it may be needed to remove all created sub-directories
+        ss << "Couldn't create directory [" << ov::util::wstring_to_string(path) << "], err=" << strerror(errno) << ")";
+        throw std::runtime_error(ss.str());
+    }
+}
+#endif
+
 void ov::util::create_directory_recursive(const std::string& path) {
     if (path.empty() || directory_exists(path)) {
         return;
@@ -421,27 +442,6 @@ void ov::util::create_directory_recursive(const std::string& path) {
         throw std::runtime_error(ss.str());
     }
 }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-void ov::util::create_directory_recursive(const std::wstring& path) {
-    if (path.empty() || directory_exists(path)) {
-        return;
-    }
-
-    std::size_t pos = path.rfind(ov::util::FileTraits<char>::file_separator);
-    if (pos != std::string::npos) {
-        create_directory_recursive(path.substr(0, pos));
-    }
-
-    int err = wmakedir(path);
-    if (err != 0 && errno != EEXIST) {
-        std::stringstream ss;
-        // TODO: in case of exception it may be needed to remove all created sub-directories
-        ss << "Couldn't create directory [" << ov::util::wstring_to_string(path) << "], err=" << strerror(errno) << ")";
-        throw std::runtime_error(ss.str());
-    }
-}
-#endif
 
 bool ov::util::directory_exists(const std::string& path) {
     struct stat sb;
