@@ -234,6 +234,8 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v15::EmbeddingBagPacked::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v0::GRN::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v1::Add::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v15::ROIAlignRotated::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v1::BatchToSpace::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
 };
 
 class ModelRange {
