@@ -548,16 +548,16 @@ void Node::updateShapes() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-    try {
         if (needShapeInfer()) {
             auto result = shapeInfer();
             if (ShapeInferStatus::success == result.status) {
-                redefineOutputMemory(result.dims);
+                try {
+                    redefineOutputMemory(result.dims);
+                } catch (const std::runtime_error& exp) {
+                    THROW_CPU_NODE_ERR(exp.what());
+                }
             }
         }
-    } catch (const std::runtime_error& exp) {
-        THROW_CPU_NODE_ERR(exp.what());
-    }
 }
 
 void Node::updateDynamicParams() {
