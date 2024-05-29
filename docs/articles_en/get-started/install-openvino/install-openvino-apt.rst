@@ -73,6 +73,13 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
    .. tab-set::
 
+      .. tab-item:: Ubuntu 24
+         :sync: ubuntu-24
+
+         .. code-block:: sh
+
+            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2024.list
+
       .. tab-item:: Ubuntu 22
          :sync: ubuntu-22
 
@@ -148,7 +155,7 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
          .. code-block:: sh
 
 
-            sudo apt install openvino-2024.0.0
+            sudo apt install openvino-2024.2.0
 
 .. note::
 
@@ -221,7 +228,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo apt autoremove openvino-2024.0.0
+         sudo apt autoremove openvino-2024.2.0
 
 
 What's Next?

@@ -93,9 +93,13 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
 bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize) {
     const auto& element_type = fakeQuantize->get_output_element_type(0);
     const auto levels = fakeQuantize->get_levels();
+    if (levels == 0) {
+        return false;
+    }
     const auto min_value = DataPrecision::getMinValue(element_type, levels);
     const auto max_value = DataPrecision::getMaxValue(element_type, levels);
-    const auto max_diff = (max_value - min_value) / levels;
+    // let's divide before to avoid overflow
+    const auto max_diff = max_value / levels - min_value / levels;
     // input intervals can be not equal with type intervals for low precision only
     const auto exact_comparison = !element_type.is_integral();
 

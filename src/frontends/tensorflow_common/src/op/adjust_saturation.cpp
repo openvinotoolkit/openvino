@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/subtract.hpp"
@@ -28,6 +29,7 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     auto type = images.get_element_type();
 
     auto hsv_components = rgb_to_hsv(images.get_node_shared_ptr(), type);
+
     auto hh = get<0>(*hsv_components);
     auto ss = get<1>(*hsv_components);
     auto vv = get<2>(*hsv_components);

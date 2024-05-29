@@ -204,6 +204,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                                                         getOriginalInputPrecisionAtPort(DATA_ID),
                                                         context->getConfig().fcSparseWeiDecompressionRate);
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
+    attrs.modelType = context->getConfig().modelType;
+
     postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();

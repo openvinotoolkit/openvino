@@ -48,55 +48,43 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
 
     set_reg_types(linear_ir);
     const auto& exprs = linear_ir.get_ops();
-    const auto& io_exprs = linear_ir.get_IO_ops();
+    const auto& params = linear_ir.get_parameters();
+    const auto& results = linear_ir.get_results();
     Reg num_expressions = exprs.size();
-    Reg num_parameters = 0;
-    Reg num_results = 0;
-    for (const auto& expr : io_exprs) {
-        switch (expr->get_type()) {
-            case snippets::lowered::IOExpression::io_type::INPUT: {
-                num_parameters++;
-                break;
-            }
-            case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                num_results++;
-                break;
-            } default : {
-                OPENVINO_THROW("Kernel detected unsupported io_type");
-            }
+    Reg num_parameters = params.size();
+    Reg num_results = results.size();
+
+    size_t io_index = 0;
+    // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation is done manually
+    std::map<tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
+    for (const auto& param : params) {
+        manually_assigned_gprs[param->get_output_port_connector(0)] = io_index;
+        // TODO [96434]: Support shape infer ops in arbitrary place in pipeline, not just after inputs
+        // shape infer ops sequence after input
+        const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(param);
+        for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+            manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] = io_index;
         }
+        io_index++;
+    }
+    for (const auto& result : results) {
+        manually_assigned_gprs[result->get_input_port_connector(0)] = io_index;
+        // shape infer ops sequence before result
+        const auto& shape_infer_sources = utils::get_first_parent_shape_infer_expr_seq(result);
+        for (const auto& parent_shape_infer_expr : shape_infer_sources) {
+            manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = io_index;
+        }
+        io_index++;
     }
 
     size_t counter_vec = 0;
     size_t counter_gpr = 0;
     std::map<tensor, Reg> regs_vec, regs_gpr;
-    // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation is done manually
-    std::map<tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
     const auto IS_MANUALLY_ALLOCATED_REG = SIZE_MAX;
     auto accumulator_reg = 0lu;
     for (const auto& expr : exprs) {
         auto op = expr->get_node();
-        if (const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr)) {
-            if (io_expr->get_type() == IOExpression::io_type::INPUT) {
-                const auto& out_connector = expr->get_output_port_connector(0);
-                manually_assigned_gprs[out_connector] = io_expr->get_index();
-                // TODO [96434]: Support shape infer ops in arbitrary place in pipeline, not just after inputs
-                // shape infer ops sequence after input
-                const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(io_expr);
-                for (const auto& child_shape_infer_expr : shape_infer_consumers) {
-                    manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] = io_expr->get_index();
-                }
-            } else if (io_expr->get_type() == IOExpression::io_type::OUTPUT) {
-                manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
-                // shape infer ops sequence before result
-                const auto& shape_infer_sources = utils::get_first_parent_shape_infer_expr_seq(io_expr);
-                for (const auto& parent_shape_infer_expr : shape_infer_sources) {
-                    manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
-                }
-            } else {
-                OPENVINO_THROW("Unsupported io_type detected");
-            }
-        } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
+        if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
             const auto buffer_id = buffer->get_id();
             // All buffers have one common data pointer
             if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {

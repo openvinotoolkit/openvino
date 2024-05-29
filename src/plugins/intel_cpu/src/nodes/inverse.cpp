@@ -101,15 +101,8 @@ void Inverse::inverse() {
     std::vector<size_t> P(m_side);
 
     for (size_t b = 0; b < m_batches_count; ++b) {
-        bool sign = true;
-
-        lu_decomposition(data, L, U, P, sign, b);
-
+        lu_decomposition(data, L, U, P, b);
         lu_solve(output, L, U, P, b);
-
-        if (m_adjoint) {
-            to_adjoint(output, U, sign, b);
-        }
     }
 }
 
@@ -117,13 +110,18 @@ void Inverse::lu_decomposition(const float* data,
                                std::vector<float>& L,
                                std::vector<float>& U,
                                std::vector<size_t>& P,
-                               bool& sign,
                                size_t b) {
     // Make L identity, U a copy of data and P a range(0, side)
     const auto batch_idx = b * m_side_squared;
 
     std::fill(L.begin(), L.end(), 0.0f);
-    cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(float) * m_side_squared);
+    if (!m_adjoint) {
+        cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(float) * m_side_squared);
+    } else {
+        parallel_for2d(m_side, m_side, [&](size_t i, size_t j) {
+            U[j * m_side + i] = data[batch_idx + i * m_side + j];
+        });
+    }
 
     parallel_for(m_side, [&](size_t i) {
         L[i * m_side + i] = 1.0f;
@@ -146,7 +144,6 @@ void Inverse::lu_decomposition(const float* data,
 
         if (pivot_row != k) {
             // Swap rows in L, U and P
-            sign = !sign;
             std::swap(P[k], P[pivot_row]);
             parallel_for(m_side, [&](size_t i) {
                 std::swap(L[k_idx + i], L[pivot_idx + i]);
@@ -202,19 +199,6 @@ void Inverse::lu_solve(float* output, std::vector<float>& L, std::vector<float>&
         for (size_t row = 0; row < m_side; ++row) {
             output[batch_column_idx + row * m_side] = X[row];
         }
-    });
-}
-
-void Inverse::to_adjoint(float* output, std::vector<float>& U, bool sign, size_t b) {
-    auto determinant = sign ? 1.0f : -1.0f;
-
-    for (size_t i = 0; i < m_side; ++i) {
-        determinant = determinant * U[i * m_side + i];
-    }
-
-    const auto batch_idx = b * m_side_squared;
-    parallel_for(m_side_squared, [&](size_t i) {
-        output[batch_idx + i] = output[batch_idx + i] * determinant;
     });
 }
 
