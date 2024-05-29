@@ -41,13 +41,13 @@ public:
 
     void send_message(const MessageInfo& msg_info);
 
-    std::vector<MessageInfo> wait_message(int cur_rank, int streams_num);
+    std::vector<MessageInfo> wait_message(int stream_id);
 
     void infer_wait();
 
-    void reduce_wait(int cur_rank, int streams_num);
+    void reduce_wait(int stream_id);
 
-    void server_wait(int streams_num);
+    void server_wait();
 
     void stop_server_thread();
 
@@ -61,7 +61,10 @@ public:
     void set_sub_infer_requests(std::vector<std::shared_ptr<ov::IAsyncInferRequest>> requests);
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> get_sub_infer_requests();
 
+    int get_num_sub_streams();
+
 private:
+    int _num_sub_streams;
     std::vector<std::shared_ptr<ov::ICompiledModel>> _sub_compiled_models;
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> _sub_infer_requests;
     std::thread _serverThread;
