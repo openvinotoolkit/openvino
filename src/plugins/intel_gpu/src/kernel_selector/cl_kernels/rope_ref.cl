@@ -84,3 +84,43 @@ KERNEL(rope_ref)(
                                                  sin[cos_sin_idx + HALF_ROTARY_NDIMS + r] * in1;
 }
 #endif
+
+#ifdef LLAMA
+KERNEL(rope_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* cos,
+    const __global INPUT1_TYPE* sin,
+    __global OUTPUT_TYPE* output)
+{
+    const uint b = get_global_id(0);
+    const uint h = get_global_id(1);
+    const uint p = get_global_id(2) / HALF_ROTARY_NDIMS;
+    const uint r = get_global_id(2) % HALF_ROTARY_NDIMS;
+
+#ifdef ENABLE_SLICE
+    uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, b, h, p, 0);
+
+    input_idx += SLICED_FROM_START * (b * INPUT0_FEATURE_NUM + h + 1)
+              + SLICED_FROM_END * (b * INPUT0_FEATURE_NUM + h);
+#elif ENABLE_TRANSPOSE
+    uint input_idx = GET_DATA_INDEX(TRANSPOSED_INPUT0, b, h, p, 0);
+#else
+    uint input_idx = INPUT0_GET_INDEX(b, h, p, 0);
+#endif
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;
+    uint cos_sin_p = p < INPUT1_SIZE_Y ? p : 0;
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+
+    uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
+
+    INPUT0_TYPE in1 = input[input_idx + r];
+    INPUT0_TYPE in2 = input[input_idx + HALF_ROTARY_NDIMS + r];
+
+    output[output_idx + r] = cos[cos_sin_idx + r] * in1 - sin[cos_sin_idx + r] * in2;
+
+    output[output_idx + HALF_ROTARY_NDIMS + r] = cos[cos_sin_idx + HALF_ROTARY_NDIMS + r] * in2 +
+                                                 sin[cos_sin_idx + HALF_ROTARY_NDIMS + r] * in1;
+}
+#endif

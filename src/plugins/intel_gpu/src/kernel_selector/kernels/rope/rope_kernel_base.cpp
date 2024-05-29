@@ -28,22 +28,42 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         auto f = toCodeString(params.inputs[0].Feature(), 1);
         auto x = toCodeString(params.inputs[0].X(), 2);
         auto y = toCodeString(params.inputs[0].Y(), 3);
-        auto sliced_y = toCodeString(params.slice_stop - params.slice_start);
+
+        auto sliced_val = toCodeString(params.slice_stop - params.slice_start);
+        auto sliced_x = params.axis == 3 ? sliced_val : x;
+        auto sliced_y = params.axis == 2 ? sliced_val : y;
 
         jit.AddConstant(MakeJitConstant("SLICED_INPUT0_X_PITCH", 1));
-        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_Y_PITCH", x));
-        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_FEATURE_PITCH", x + "*" + sliced_y));
-        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_BATCH_PITCH", x + "*" + sliced_y + "*" + f));
+        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_Y_PITCH", sliced_x));
+        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_FEATURE_PITCH", sliced_x + "*" + sliced_y));
+        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_BATCH_PITCH", sliced_x + "*" + sliced_y + "*" + f));
         jit.AddConstant(MakeJitConstant("SLICED_INPUT0_OFFSET", 0));
-
         jit.AddConstant(MakeJitConstant("SLICED_FROM_START", toCodeString(params.slice_start)));
-        jit.AddConstant(MakeJitConstant("SLICED_FROM_END", "(" + y + "-" + toCodeString(params.slice_stop) + ")"));
+
+        if (params.axis == 2) {
+            jit.AddConstant(MakeJitConstant("SLICED_FROM_END", "(" + y + "-" + toCodeString(params.slice_stop) + ")"));
+        } else if (params.axis == 3) {
+            jit.AddConstant(MakeJitConstant("SLICED_FROM_END", "(" + x + "-" + toCodeString(params.slice_stop) + ")"));
+        } else {
+            OPENVINO_ASSERT(false, "[GPU] Invalid axis value for RoPE operation");
+        }
+    }
+
+    if (params.transposed_input) {
+        jit.AddConstant(MakeJitConstant("ENABLE_TRANSPOSE", true));
+        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_OFFSET", 0));
+        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_X_PITCH", 1));
+        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_Y_PITCH", "INPUT0_FEATURE_PITCH"));
+        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_FEATURE_PITCH", "INPUT0_Y_PITCH"));
+        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_BATCH_PITCH", "INPUT0_BATCH_PITCH"));
     }
 
     if (params.is_qwen) {
         jit.AddConstant(MakeJitConstant("QWEN", true));
     } else if (params.is_chatglm) {
         jit.AddConstant(MakeJitConstant("CHATGLM", true));
+    } else {
+        jit.AddConstant(MakeJitConstant("LLAMA", true));
     }
 
     return jit;
@@ -57,9 +77,16 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
                                                                      { Tensor::DataChannelName::FEATURE },
                                                                      { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
-    dispatchData.gws = {input.Batch().v,
-                        input.Feature().v,
-                        params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
+    if (params.is_chatglm || params.is_qwen) {
+        dispatchData.gws = {input.Batch().v,
+                            input.Feature().v,
+                            params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
+    } else {
+        dispatchData.gws = {input.Batch().v,
+                            input.Y().v,
+                            input.Feature().v * params.rotary_ndims / 2ul};
+    }
+
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, input.GetLayout(), output.GetLayout(), dims_by_gws);
 
     return dispatchData;
