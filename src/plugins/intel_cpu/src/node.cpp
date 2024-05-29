@@ -555,7 +555,7 @@ void Node::updateShapes() {
                     redefineOutputMemory(result.dims);
                 }
             }
-        } catch (const std::runtime_error& exp) {
+        } catch (const std::exception& exp) {
             THROW_CPU_NODE_ERR(exp.what());
         }
 }
@@ -570,11 +570,7 @@ void Node::updateDynamicParams() {
         if (isExecutable()) {
             if (needPrepareParams()) {
                 OPENVINO_ASSERT(inputShapesDefined(),
-                                "Can't prepare params for ",
-                                getTypeStr(),
-                                " node with name: ",
-                                getName(),
-                                " since the input shapes are not defined.");
+                                "Input shapes are not defined.");
                 DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
                         " ", getName(), " ", getOriginalLayers());
                 prepareParams();
@@ -1605,7 +1601,7 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
         }
 
         return std::move(result.dims);
-    } catch (const std::runtime_error& exp) {
+    } catch (const std::exception& exp) {
         OPENVINO_THROW("Shape inference of ", getTypeStr(), " node with name ", getName(), " failed: ", exp.what());
     }
 }
