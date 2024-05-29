@@ -30,7 +30,7 @@ bool concat_predicate(ov::Output<ov::Node> output) {
     if (!concat)
         return false;
 
-    const auto& norm_axis = ov::util::normalize(concat->get_axis(), output_pshape.rank().get_length());
+    const auto norm_axis = ov::util::normalize(concat->get_axis(), output_pshape.rank().get_length());
     return norm_axis >= output_pshape.rank().get_length() - 2;
 }
 

@@ -46,7 +46,7 @@ TSConcatForward::TSConcatForward() {
         }
 
         const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
-        auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank);
+        const auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank);
 
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
         const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
