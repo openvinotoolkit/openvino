@@ -530,7 +530,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode,
 
 
 //------------------------------------------------------------------------------
-// Pattern: 4SymW16A for CWAI. Should also suit GPTQ we know.
+// Pattern: 4SymW16A for CWAI
 //
 // Note: it is the same pattern as in above, but it is called in the different
 // function processing pipeline and at a different stage. The purpose is different
@@ -540,7 +540,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode,
 // FIXME: Think how it can be unified with the above
 //
 //   "tensor"   "zero point"  "scale"
-//   Parameter:A  Const:B    Const:C
+//    Const:A      Const:B    Const:C
 //         u4      u4|f32    f16|f32
 //         :         :          :
 //         V         :         :
@@ -591,6 +591,59 @@ CWAI1::CWAI1(CWAI1::Results scales) {
     }; // matcher_callback
 
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI1"), matcher_callback);
+}
+
+// FIXME: Think how it can be unified with the above. THIS is the GPTQ verision
+//
+//   "tensor"   "zero point"  "scale"
+//    Const:A      Const:B    Const:C
+//         u4       f32       f16|f32
+//         :         :          :
+//         V         :         :
+//        Convert    :        :
+//           f32     :       :
+//            :      :      :
+//            V      V     :
+//            Subtract    :
+//              f16|f32  :
+//               :      :
+//               V      V
+//               Multiply
+//               fp16|f32
+
+CWAI2::CWAI2(CWAI2::Results scales) {
+    auto constA = opp::wrap_type<ov::op::v0::Constant>();
+    auto constB = opp::wrap_type<ov::op::v0::Constant>();
+    auto constC = opp::wrap_type<ov::op::v0::Constant>();
+    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({constA});
+    auto subtr  = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
+    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
+
+    auto matcher_callback = [=](ov::pass::pattern::Matcher &m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto  matched_nodeA  = node_to_output.at(constA).get_node_shared_ptr();
+        auto  matched_nodeB  = node_to_output.at(constB).get_node_shared_ptr();
+        auto  matched_nodeC  = node_to_output.at(constC).get_node_shared_ptr();
+
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeC));
+
+        auto  matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
+        auto  matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
+        auto  matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
+
+        if (ov::element::u4  == matched_valueA->get_element_type() &&
+            ov::element::f32 == matched_valueB->get_element_type() &&
+            (ov::element::f16 == matched_valueC->get_element_type() ||
+             ov::element::f32 == matched_valueC->get_element_type())) {
+            LOG_DEBUG("Matched: " << matched_valueC);
+            scales.get().push_back(matched_valueC);
+        }
+        return true;
+    }; // matcher_callback
+
+    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI2"), matcher_callback);
 }
 
 // As seen in LLaMa-v2-7b:
