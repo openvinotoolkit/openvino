@@ -176,7 +176,7 @@ void IStreamsExecutor::Config::apply_cpu_core_ids() {
         if (index != std::string::npos)
             item = item.substr(index + 1);
         int maxID = std::stoi(item);
-        for(int i=minID;i<=maxID;i++)
+        for (int i = minID; i <= maxID; i++)
             ids.push_back(i);
     }
     _executor_id = config_available_cpus(_executor_id, ids);

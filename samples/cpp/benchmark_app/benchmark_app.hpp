@@ -114,7 +114,8 @@ static const char infer_num_streams_message[] =
 /// @brief message for #cpu_core_ids bind with streams for CPU inference
 static const char infer_cpu_core_ids_message[] =
     "Optional. cpu cores used to run streams. "
-    "<ids_string> is a comma delimited list of core numbers or A-B ranges. using like 2,3,4 means using core 2,3,4 for infer. "
+    "<ids_string> is a comma delimited list of core numbers or A-B ranges. "
+    "using like 2,3,4 means using core 2,3,4 for infer. "
     "When set this parameter, OpenVINO CPU Plugin will only use the cores which you seted, "
     "Otherwise the all CPU cores will be used by OpenVINO to run inference.";
 
