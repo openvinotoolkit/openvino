@@ -20,16 +20,16 @@
 
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_SIMPLE
-    return GET_DATA_INDEX_6D_SAFE(INPUT0, b, f, w, z, y, x);
+    return GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
 #else
 #if INPUT0_DIMS == 4
-    return INPUT0_GET_INDEX_SAFE(b, f, y, x);
+    return INPUT0_GET_INDEX(b, f, y, x);
 #elif INPUT0_DIMS == 5
-    return INPUT0_GET_INDEX_SAFE(b, f, z, y, x);
+    return INPUT0_GET_INDEX(b, f, z, y, x);
 #elif INPUT0_DIMS == 6
-    return INPUT0_GET_INDEX_SAFE(b, f, w, z, y, x);
+    return INPUT0_GET_INDEX(b, f, w, z, y, x);
 #else
-#   error sdpa_ref.cl : Unsupported input 0 format
+#   error sdpa_opt.cl : Unsupported input 0 format
 #endif
 #endif
 }
@@ -47,16 +47,16 @@ inline uint FUNC(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, ui
     DO_BROADCAST_KEY_VALUE;
 #endif
 #if INPUT1_SIMPLE
-    return GET_DATA_INDEX_6D_SAFE(INPUT1, b, f, w, z, y, x);
+    return GET_DATA_INDEX_6D(INPUT1, b, f, w, z, y, x);
 #else
 #if INPUT1_DIMS == 4
-    return INPUT1_GET_INDEX_SAFE(b, f, y, x);
+    return INPUT1_GET_INDEX(b, f, y, x);
 #elif INPUT1_DIMS == 5
-    return INPUT1_GET_INDEX_SAFE(b, f, z, y, x);
+    return INPUT1_GET_INDEX(b, f, z, y, x);
 #elif INPUT1_DIMS == 6
-    return INPUT1_GET_INDEX_SAFE(b, f, w, z, y, x);
+    return INPUT1_GET_INDEX(b, f, w, z, y, x);
 #else
-#   error sdpa_ref.cl : Unsupported input 1 format
+#   error sdpa_opt.cl : Unsupported input 1 format
 #endif
 #endif
 }
@@ -77,13 +77,13 @@ inline uint FUNC(get_input2_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, ui
     return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, y, x);
 #else
 #if INPUT2_DIMS == 4
-    return INPUT2_GET_INDEX_SAFE(b, f, y, x);
+    return INPUT2_GET_INDEX(b, f, y, x);
 #elif INPUT2_DIMS == 5
-    return INPUT2_GET_INDEX_SAFE(b, f, z, y, x);
+    return INPUT2_GET_INDEX(b, f, z, y, x);
 #elif INPUT2_DIMS == 6
-    return INPUT2_GET_INDEX_SAFE(b, f, w, z, y, x);
+    return INPUT2_GET_INDEX(b, f, w, z, y, x);
 #else
-#   error sdpa_ref.cl : Unsupported input 1 format
+#   error sdpa_opt.cl : Unsupported input 1 format
 #endif
 #endif
 }
@@ -101,7 +101,7 @@ inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w
 #if BEAM_TABLE_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(BEAM_TABLE, b, f, w, z, y, x);
 #else
-#   error sdpa_ref.cl : Unsupported beam table format
+#   error sdpa_opt.cl : Unsupported beam table format
 #endif
 }
 
@@ -466,8 +466,8 @@ KERNEL(sdpa_opt)(
 
         for (uint seq_len = 0; seq_len < partition_seq_len / SUBGROUP_SIZE; seq_len++) {
 #ifdef BEAM_TABLE_TYPE
-            uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, (head_size_idx / SUBGROUP_SIZE) * SUBGROUP_SIZE)];
-            uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, (head_size_idx / SUBGROUP_SIZE) * SUBGROUP_SIZE);
+            uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE)];
+            uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE);
 #else
 #ifdef INPUT2_DIMS_ORDER
             uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
@@ -715,7 +715,7 @@ KERNEL(sdpa_opt)(
 #endif
 #if INPUT0_TYPE_SIZE ==  2
                         /* Adding this clamp improves performance for some reason */
-                        acc[i] = SOFTMAX_ACCUMULATOR_MIN_FUNC(SOFTMAX_ACCUMULATOR_MAX_FUNC(acc[i], INPUT0_VAL_MIN), INPUT0_VAL_MAX);
+                        acc[i] = INPUT0_MIN_FUNC(INPUT0_MAX_FUNC(acc[i], INPUT0_VAL_MIN), INPUT0_VAL_MAX);
 #endif
                         if (seq_len + i >= partition_seq_len) {
                             acc[i] = INPUT0_VAL_MIN;
