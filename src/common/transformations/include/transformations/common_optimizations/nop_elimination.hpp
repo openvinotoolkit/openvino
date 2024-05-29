@@ -19,6 +19,7 @@ class TRANSFORMATIONS_API EliminatePad;
 class TRANSFORMATIONS_API EliminateSplit;
 class TRANSFORMATIONS_API EliminateSplitConcat;
 class TRANSFORMATIONS_API EliminateSqueeze;
+class TRANSFORMATIONS_API EliminateUnsqueeze;
 class TRANSFORMATIONS_API EliminateTranspose;
 class TRANSFORMATIONS_API EliminateNopBroadcast;
 class TRANSFORMATIONS_API NopSliceBeforeGatherElements;
@@ -88,6 +89,16 @@ class ov::pass::EliminateSqueeze : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateSqueeze", "0");
     EliminateSqueeze();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateUnsqueeze eliminates squeeze that does nothing
+ */
+class ov::pass::EliminateUnsqueeze : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateUnsqueeze", "0");
+    EliminateUnsqueeze();
 };
 
 /**
