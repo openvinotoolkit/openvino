@@ -246,6 +246,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             OPENVINO_THROW("Fatal: submodel ", id, " is neither a model nor a function call!");
         }
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
+
+        // FIXME: a hotfix for a crash where we have too many names in submodel's output
+        // Do it just once if that's a function
+        if (real_id == id) {
+            remove_long_output_names(m_compiled_submodels[real_id].model);
+        }
+
         const auto *dump_opt = ov::npuw::get_env({
                 "OPENVINO_NPUW_DUMP_SUB_" + m_name + "_" + std::to_string(id),
                 "OPENVINO_NPUW_DUMP_SUB_" + m_name,
@@ -352,10 +359,22 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     reset_io();
 }
 
+void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
+    NPUW_ASSERT(model.get() != nullptr);
+    for (auto& output : model->outputs()) {
+        auto tensor_names = output.get_tensor().get_names();
+        if (tensor_names.size() > 32) { // maximum supported
+            output.get_tensor().set_names({});
+            LOG_INFO("Removed output tensor names for " << model->get_friendly_name());
+            LOG_BLOCK();
+        }
+    }
+}
+
 void ov::npuw::CompiledModel::reset_io() {
     // Restore inputs/outputs from compiled submodels
-    // FIXME: this method is also called frmo IBaseInferReqeust::create_infer_request
-    // whcih is called in the CompiledModel(). So this method executes even before it
+    // FIXME: this method is also called from IBaseInferReqeust::create_infer_request
+    // which is called in the CompiledModel(). So this method executes even before it
     // is called for the right thing from the ctor directly.
     if (!m_finalized)
         return; // avoid getting called before it is really the time

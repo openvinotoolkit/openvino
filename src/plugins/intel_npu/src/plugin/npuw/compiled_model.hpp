@@ -56,6 +56,9 @@ private:
     bool m_finalized = false;
     void reset_io();
 
+    // This is used for removing too long output tensor names to fix some compilation issues
+    void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
+
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
 
     std::shared_ptr<ov::ISyncInferRequest> create_just_sync_infer_request();
