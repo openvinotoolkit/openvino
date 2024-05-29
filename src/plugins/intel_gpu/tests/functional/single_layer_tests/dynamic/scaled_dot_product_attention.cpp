@@ -106,21 +106,9 @@ void ScaledAttnLayerGPUTest::SetUp() {
         }
     }
 
-    // Add artificial read/value operations to the model to trigger the enabling of the SDPA operation
-    auto read_key = std::make_shared<ov::op::v3::ReadValue>(inputParams.at(1), "v0");
-    auto assign_key = std::make_shared<ov::op::v3::Assign>(read_key, "v0");
-
-    auto read_value = std::make_shared<ov::op::v3::ReadValue>(inputParams.at(2), "v0");
-    auto assign_value = std::make_shared<ov::op::v3::Assign>(read_value, "v0");
-
     ov::OutputVector inputs;
     for (size_t i = 0; i < inputParams.size(); i++) {
-        if (i == 1)
-            inputs.push_back(read_key);
-        else if (i == 2)
-            inputs.push_back(read_value);
-        else
-            inputs.push_back(inputParams[i]);
+        inputs.push_back(inputParams[i]);
     }
 
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
@@ -128,7 +116,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
 
     auto output = std::make_shared<ov::op::v0::Result>(sdp->output(0));
 
-    function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::SinkVector{assign_key, assign_value}, inputParams, "sdpa_model");
+    function = std::make_shared<ov::Model>(ov::OutputVector{output}, inputParams, "sdpa_model");
 
     functionRefs = function->clone();
     ov::pass::Manager manager;
@@ -137,11 +125,8 @@ void ScaledAttnLayerGPUTest::SetUp() {
     manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
     manager.run_passes(functionRefs);
 
-    // Enable SDPA
-    configuration.insert(ov::intel_gpu::hint::enable_sdpa_optimization(true));
-
     auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape){
-        return shape[2] >= 384;
+        return shape[2] >= 384 || shape[3] >= 128;
     });
 
     bool has_long_seq = it != inputShapes[1].second.end();
@@ -190,12 +175,12 @@ const std::vector<std::vector<InputShape>> shapes{
     // normal case, shapes of q,k,v are same
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
         // kv shape
-        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
@@ -204,12 +189,12 @@ const std::vector<std::vector<InputShape>> shapes{
     },
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 64},
-            {ov::Shape{2, 5, 100, 64}, ov::Shape{2, 5, 1, 64}, ov::Shape{2, 5, 384, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 384, 128}}}
         },
         // kv shape
-        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 64},
-            {ov::Shape{2, 5, 100, 64}, ov::Shape{2, 5, 1, 64}, ov::Shape{2, 5, 384, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 384, 128}}}
         },
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
@@ -219,12 +204,12 @@ const std::vector<std::vector<InputShape>> shapes{
     // heads number of kv is 1, attn mask: [B, H, L1, L0+L1]
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
         // kv shape
-        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 64},
-            {ov::Shape{1, 1, 100, 64}, ov::Shape{1, 1, 1, 64}, ov::Shape{2, 1, 10, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 128},
+            {ov::Shape{1, 1, 100, 128}, ov::Shape{1, 1, 1, 128}, ov::Shape{2, 1, 10, 128}}}
         },
         // attn shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, -1},
