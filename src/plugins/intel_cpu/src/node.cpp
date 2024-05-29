@@ -548,15 +548,15 @@ void Node::updateShapes() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-        if (needShapeInfer()) {
-            auto result = shapeInfer();
-            if (ShapeInferStatus::success == result.status) {
-                try {
+        try {
+            if (needShapeInfer()) {
+                auto result = shapeInfer();
+                if (ShapeInferStatus::success == result.status) {
                     redefineOutputMemory(result.dims);
-                } catch (const std::runtime_error& exp) {
-                    THROW_CPU_NODE_ERR(exp.what());
                 }
             }
+        } catch (const std::runtime_error& exp) {
+            THROW_CPU_NODE_ERR(exp.what());
         }
 }
 
@@ -1611,28 +1611,23 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
 }
 
 IShapeInfer::Result Node::shapeInfer() const {
-    try {
-        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
-        auto input_value_port_mask = shapeInference->get_port_mask();
+    std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+    auto input_value_port_mask = shapeInference->get_port_mask();
 
-        input_shapes.reserve(inputShapes.size());
-        for (size_t port = 0; port < inputShapes.size(); ++port)
-            input_shapes.emplace_back(std::ref(getParentEdgeAt(port)->getMemory().getStaticDims()));
+    input_shapes.reserve(inputShapes.size());
+    for (size_t port = 0; port < inputShapes.size(); ++port)
+        input_shapes.emplace_back(std::ref(getParentEdgeAt(port)->getMemory().getStaticDims()));
 
-        std::unordered_map<size_t, MemoryPtr> input_values;
-        if (input_value_port_mask) {
-            for (size_t port = 0; port < inputShapes.size(); ++port) {
-                if (input_value_port_mask & (1 << port)) {
-                    input_values[port] = getSrcMemoryAtPort(port);
-                }
+    std::unordered_map<size_t, MemoryPtr> input_values;
+    if (input_value_port_mask) {
+        for (size_t port = 0; port < inputShapes.size(); ++port) {
+            if (input_value_port_mask & (1 << port)) {
+                input_values[port] = getSrcMemoryAtPort(port);
             }
         }
+    }
 
-        return shapeInference->infer(input_shapes, input_values);
-    }
-    catch (const std::runtime_error& exp) {
-        OPENVINO_THROW("Shape inference of ", getTypeStr() , " node with name ", getName(), " failed: ", exp.what());
-    }
+    return shapeInference->infer(input_shapes, input_values);
 }
 
 void Node::updateLastInputDims() {
@@ -1950,6 +1945,7 @@ void Node::resolveInPlaceDirection() {
     }
 }
 
+#ifndef CPU_DEBUG_CAPS
 std::ostream& operator<<(std::ostream& out, const Node& node) {
     return out << "Node " << node.getName() <<
         " of type " << node.getTypeStr() << "\n";
@@ -1958,5 +1954,7 @@ std::ostream& operator<<(std::ostream& out, const Node& node) {
 std::ostream& operator<<(std::ostream& out, const Node* node) {
     return operator<<(out, (*node));
 }
+#endif
+
 }   // namespace intel_cpu
 }   // namespace ov

@@ -833,9 +833,11 @@ private:
     CPU_DEBUG_CAP_ENABLE(friend class Verbose);
 };
 
+#ifndef CPU_DEBUG_CAPS
 std::ostream& operator<<(std::ostream&, const Node&);
 
 std::ostream& operator<<(std::ostream&, const Node*);
+#endif
 
 template <class... T>
 constexpr uint64_t PortMask(T... rest) {
