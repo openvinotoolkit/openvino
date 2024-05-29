@@ -42,7 +42,7 @@ namespace op {
 
 namespace adjust_hue {
 
-shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_rgb_to_hsv_range(
+shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_hsv(
     const shared_ptr<Node>& images,
     element::Type type) {
     // image format conversion based on
@@ -113,7 +113,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> convert_
     return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
 }
 
-shared_ptr<Node> hsv_range_to_rgb(const shared_ptr<Node>& h,
+shared_ptr<Node> hsv_components_to_rgb(const shared_ptr<Node>& h,
                             const shared_ptr<Node>& s,
                             const shared_ptr<Node>& v,
                             element::Type type) {
@@ -181,21 +181,23 @@ shared_ptr<Node> hsv_range_to_rgb(const shared_ptr<Node>& h,
 OutputVector translate_adjust_hue_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AdjustHue"});
     auto images = node.get_input(0);
-    auto scale = node.get_input(1);
+    auto delta = node.get_input(1);
     auto node_name = node.get_name();
 
     auto type = images.get_element_type();
 
-    auto hsv_components = adjust_hue::convert_rgb_to_hsv_range(images.get_node_shared_ptr(), type);
+    auto hsv_components = adjust_hue::rgb_to_hsv(images.get_node_shared_ptr(), type);
     auto hh = get<0>(*hsv_components);
     auto ss = get<1>(*hsv_components);
     auto vv = get<2>(*hsv_components);
 
-    scale = make_shared<v1::ConvertLike>(scale, images);
+    delta = make_shared<v1::ConvertLike>(delta, images);
 
-    auto ss_adjust = make_shared<v0::Clamp>(make_shared<v1::Multiply>(ss, scale), 0.0f, 1.0f);
+    auto hh_adjust_ = make_shared<v1::Add>(hh, delta);
+    auto hh_adjust_floor = make_shared<v0::Floor>(hh_adjust_);
+    auto hh_adjust = make_shared<v1::Subtract>(hh_adjust_, hh_adjust_floor);
 
-    auto new_images = adjust_hue::hsv_range_to_rgb(hh, ss_adjust, vv, type);
+    auto new_images = adjust_hue::hsv_components_to_rgb(hh_adjust, ss, vv, type);
 
     auto adjust_saturation = new_images->output(0);
 

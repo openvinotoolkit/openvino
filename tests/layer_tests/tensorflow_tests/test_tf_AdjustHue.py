@@ -21,8 +21,8 @@ class TestAdjustSaturation(CommonTFLayerTest):
             images_shape = inputs_info['images:0']
             inputs_data = {}
             inputs_data['images:0'] = np.random.rand(*images_shape).astype(self.input_type)
-            
-        inputs_data['delta:0'] = np.random.rand()
+        # delta: [-1,1]
+        inputs_data['delta:0'] = 2*np.random.rand() - 1 
         
         return inputs_data
 
@@ -55,6 +55,8 @@ class TestAdjustSaturation(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_adjust_saturation_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_legacy_frontend):
+        # if ie_device == 'GPU':
+        #     pytest.skip("Accuracy mismatch on GPU")
         self._test(*self.create_adjust_saturation_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
