@@ -264,7 +264,7 @@ You need a model that is specific for your inference task. You can get it from o
 Convert the Model
 --------------------
 
-If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.3/openvino_docs_../../get-started_../../get-started_demos.html>`__ for information how to do it.
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/get-started-demos.html>`__ for information how to do it.
 
 .. _download-media:
 

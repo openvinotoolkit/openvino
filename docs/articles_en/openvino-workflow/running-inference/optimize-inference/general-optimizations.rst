@@ -62,7 +62,7 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
-Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <../../../learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
+Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2024/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2024/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <../../../learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
 
 .. note::
 
