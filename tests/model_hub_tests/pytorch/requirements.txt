@@ -27,7 +27,6 @@ wheel
 PyYAML
 kornia
 
---extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly/
 openvino-tokenizers
 # use latest released version once it's available
 git+https://github.com/huggingface/optimum-intel.git@main
