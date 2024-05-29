@@ -484,6 +484,11 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         {ARG_DST, dstDescs[0]},
     };
 
+    if (tp_mode == 2) {
+        attrs.decompressionMultiplyPtr = cached_scale;
+        attrs.decompressionSubtractPtr = cached_zeropoint;
+    }
+
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     factory = std::make_shared<ExecutorFactory<FCAttrs, node::FullyConnected>>(attrs, postOps, executionContext, descs);
     const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
@@ -703,10 +708,25 @@ ov::element::Type FullyConnected::getRuntimePrecision() const {
 
 void FullyConnected::fuseDecompressionMultiply(const MemoryCPtr& memory) {
     attrs.decompressionMultiplyPtr = memory;
+    if (tp_mode == 2 && !cached_scale) {
+        auto scale_mem = std::const_pointer_cast<IMemory>(memory);
+        cached_scale = attrs.weightsNonTransposed ? split_v(scale_mem, 0, w_rank, w_size)
+                       : split_h(scale_mem, 0, w_rank, w_size);
+    }
 }
 
 void FullyConnected::fuseDecompressionSubtract(const MemoryCPtr& memory) {
     attrs.decompressionSubtractPtr = memory;
+    if (tp_mode == 2 && !cached_zeropoint) {
+        auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory);
+        auto element_num = memory->getSize() / memory->getPrecision().size();
+        if (element_num == 1) {
+            cached_zeropoint = zeropoint_mem;
+        } else {
+            cached_zeropoint = attrs.weightsNonTransposed ? split_v(zeropoint_mem, 0, w_rank, w_size)
+                                : split_h(zeropoint_mem, 0, w_rank, w_size);
+        }
+    }
 }
 
 }  // namespace node

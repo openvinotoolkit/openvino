@@ -95,6 +95,8 @@ private:
     int tp_mode;
     MemoryPtr cached_splited_weight;
     MemoryPtr cached_splited_bias;
+    MemoryPtr cached_scale = nullptr;
+    MemoryPtr cached_zeropoint= nullptr;
 };
 
 }  // namespace node
