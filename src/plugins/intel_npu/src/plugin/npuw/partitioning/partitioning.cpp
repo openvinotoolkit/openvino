@@ -776,8 +776,7 @@ void Partitioner::propagateWeights(const std::string &func_name) {
             && const_bank.end() == std::find_if(const_bank.begin(),
                                                 const_bank.end(),
                                                 BankContains{this_layer_name})
-             // FIXME: workaround for scalars which might pass the weights check
-            && node_ptr->outputs().size() == 1
+            // FIXME: workaround for scalars which might pass the weights check
             && (node_ptr->get_shape().size() > 1
                 || (node_ptr->get_shape().size() == 1
                     && node_ptr->get_shape()[0] > 10))
