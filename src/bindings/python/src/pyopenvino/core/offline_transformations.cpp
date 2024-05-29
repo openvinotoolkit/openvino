@@ -10,6 +10,7 @@
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/sdpa_to_paged_attention.hpp>
 #include <openvino/pass/serialize.hpp>
+#include <openvino/pass/visualize_tree.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
@@ -137,4 +138,16 @@ void regmodule_offline_transformations(py::module m) {
             manager.run_passes(model);
         },
         py::arg("model"));
+
+    // developer utilities which are only available in the package:
+    // ov._pyopenvino._offline_transformations
+    m_offline_transformations.def(
+        "_visualize",
+        [](std::shared_ptr<ov::Model> model, const std::string& output_file_name) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::VisualizeTree>(output_file_name);
+            manager.run_passes(model);
+        },
+        py::arg("model"),
+        py::arg("output_file_name"));
 }
