@@ -521,24 +521,26 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 // 2. GroupNormalizationDecomposition produce MVN, and MVN have a conditional pass MVN6Decomposition. If call MVN6Decomposition again after
                 //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not tokenized into subgraph again.
                 // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
-                if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined))
+                if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined) || snippetsMode == Config::SnippetsMode::Disable)
                     return false;
-                const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
-                if (!group_norm || !implication(inferencePrecision == element::undefined, group_norm->get_element_type() == element::f32))
-                    return false;
-                const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
-                const auto shape = group_norm->get_input_partial_shape(0).to_shape();
-                size_t snippets_work_amount = shape[0] * num_groups;
-                size_t concurrency = parallel_get_max_threads();
-                if (concurrency > snippets_work_amount)
-                    return false;
-                size_t spatial_dim = 1;
-                for (size_t i = 2; i < shape.size(); ++i)
-                    spatial_dim = spatial_dim * shape[i];
-                size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
-                size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
-                if (snippets_tensor_size > cache_size_l1) {
-                    return false;
+                if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
+                    const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
+                    if (!group_norm || !implication(inferencePrecision == element::undefined, group_norm->get_element_type() == element::f32))
+                        return false;
+                    const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
+                    const auto shape = group_norm->get_input_partial_shape(0).to_shape();
+                    size_t snippets_work_amount = shape[0] * num_groups;
+                    size_t concurrency = parallel_get_max_threads();
+                    if (concurrency > snippets_work_amount)
+                        return false;
+                    size_t spatial_dim = 1;
+                    for (size_t i = 2; i < shape.size(); ++i)
+                        spatial_dim = spatial_dim * shape[i];
+                    size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
+                    size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
+                    if (snippets_tensor_size > cache_size_l1) {
+                        return false;
+                    }
                 }
 
                 return true;
