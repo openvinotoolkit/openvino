@@ -503,7 +503,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_h
     return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
 }
 
-shared_ptr<Node> hsv_components_to_rgb(const shared_ptr<Node>& h,
+shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h,
                             const shared_ptr<Node>& s,
                             const shared_ptr<Node>& v,
                             element::Type type) {

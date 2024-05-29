@@ -38,7 +38,7 @@ OutputVector translate_adjust_hue_op(const NodeContext& node) {
     auto hh_adjust_floor = make_shared<v0::Floor>(hh_adjust_);
     auto hh_adjust = make_shared<v1::Subtract>(hh_adjust_, hh_adjust_floor);
 
-    auto new_images = hsv_components_to_rgb(hh_adjust, ss, vv, type);
+    auto new_images = hsv_to_rgb(hh_adjust, ss, vv, type);
 
     auto adjust_saturation = new_images->output(0);
 

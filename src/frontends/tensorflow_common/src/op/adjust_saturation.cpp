@@ -38,7 +38,7 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
 
     auto ss_adjust = make_shared<v0::Clamp>(make_shared<v1::Multiply>(ss, scale), 0.0f, 1.0f);
 
-    auto new_images = hsv_components_to_rgb(hh, ss_adjust, vv, type);
+    auto new_images = hsv_to_rgb(hh, ss_adjust, vv, type);
 
     auto adjust_saturation = new_images->output(0);
 

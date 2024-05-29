@@ -159,7 +159,7 @@ std::shared_ptr<std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>,
     const std::shared_ptr<ov::Node>& images,
     element::Type type);
 
-std::shared_ptr<ov::Node> hsv_components_to_rgb(
+std::shared_ptr<ov::Node> hsv_to_rgb(
     const std::shared_ptr<ov::Node>& h,
     const std::shared_ptr<ov::Node>& s,
                             const std::shared_ptr<ov::Node>& v,
