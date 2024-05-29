@@ -95,6 +95,7 @@ public:
         }
     }
 
+    // the lowest value (example, for signed symetric types: -max)
     static float getMinValue(const element::Type precision, const size_t levels) {
         switch (precision) {
             case element::u4:
@@ -134,6 +135,8 @@ public:
                 break;
             case element::f16:
                 return -1.0e15f;
+            case element::bf16:
+                return -3.38953139e38f;
             case element::f32:
                 return std::numeric_limits<float>::lowest();
             default:
@@ -172,6 +175,8 @@ public:
                 return 2147483648.f;  // 2147483648.f == 2147483647.f
             case element::f16:
                 return 1.0e15f;
+            case element::bf16:
+                return 3.38953139e38f;
             case element::f32:
                 return std::numeric_limits<float>::max();
             default:
