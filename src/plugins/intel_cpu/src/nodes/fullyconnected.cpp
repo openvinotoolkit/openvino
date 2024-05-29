@@ -536,7 +536,10 @@ MemoryPtr FullyConnected::split_h(const MemoryPtr src, int dim, int w_rank, int 
         return ptr;
     }
     auto srcPtr = static_cast<uint8_t*>(src->getData());
-    const size_t stride = src->getSize() / w_size;
+    size_t stride = src->getSize() / w_size;
+    if (prec == ov::element::u4) {
+        stride /= 2;
+    }
 
     MemoryPtr ptr = std::make_shared<Memory>(context->getEngine(), new_desc, srcPtr + w_rank * stride);
     return ptr;
@@ -576,7 +579,10 @@ MemoryPtr FullyConnected::split_v(const MemoryPtr src, int dim, int w_rank, int 
     auto mem_size = src->getSize(); // total bytes
     auto channel_size = dims[dim] * element_size; // selected dim bytes
     const int step = (mem_size / channel_size); // the steps need to copy.
-    const int stride = dims[dim] / w_size; // elements of half selected dim.
+    int stride = dims[dim] / w_size; // elements of half selected dim.
+    if (prec == ov::element::u4) {
+        stride /= 2;
+    }
     const auto copySize = stride * element_size; // bytes of half selected dim.
     parallel_for(step, [&](int i){
         int dst_offset = i * copySize;
