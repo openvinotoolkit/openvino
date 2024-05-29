@@ -22,6 +22,12 @@ struct typed_program_node<loop> : public typed_program_node_base<loop> {
 private:
     using parent = typed_program_node_base<loop>;
 
+    primitive_id trip_count_id;
+    primitive_id initial_execution_id;
+    primitive_id current_iteration_id;
+    primitive_id execution_condition_id;
+    primitive_id num_iterations_id;
+
     std::vector<loop::io_primitive_map>& input_primitive_maps;
     std::vector<loop::io_primitive_map>& output_primitive_maps;
     std::vector<loop::backedge_mapping>& back_edges;
@@ -31,20 +37,31 @@ public:
         parent(prim, prog),
         input_primitive_maps(prim->input_primitive_maps),
         output_primitive_maps(prim->output_primitive_maps),
-        back_edges(prim->back_edges) {}
+        back_edges(prim->back_edges) {
+        set_primitive_ids(prim);
+    }
 
     program::ptr get_body_program() const { return get_primitive()->body_program; }
 
-    const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }
-    const primitive_id& get_initial_execution_id() const { return get_primitive()->first_execution_condition_id; }
-    const primitive_id& get_current_iteration_id() const { return get_primitive()->body_current_iteration_id; }
-    const primitive_id& get_execution_condition_id() const { return get_primitive()->body_execution_condition_id; }
-    const primitive_id& get_num_iterations_id() const { return get_primitive()->num_iteration_id; }
+    const primitive_id& get_trip_count_id() const { return trip_count_id; }
+    const primitive_id& get_initial_execution_id() const { return initial_execution_id; }
+    const primitive_id& get_current_iteration_id() const { return current_iteration_id; }
+    const primitive_id& get_execution_condition_id() const { return execution_condition_id; }
+    const primitive_id& get_num_iterations_id() const { return num_iterations_id; }
+
     const int32_t get_max_num_iteration() const { return get_primitive()->max_num_iterations; }
 
     const std::vector<loop::io_primitive_map>& get_input_primitive_maps() const { return input_primitive_maps; }
     const std::vector<loop::io_primitive_map>& get_output_primitive_maps() const { return output_primitive_maps; }
     const std::vector<loop::backedge_mapping>& get_back_edges() const { return back_edges;}
+
+    void set_primitive_ids(std::shared_ptr<loop> prim) {
+        trip_count_id           = prim->trip_count_id;
+        initial_execution_id    = prim->first_execution_condition_id;
+        current_iteration_id    = prim->body_current_iteration_id;
+        execution_condition_id  = prim->body_execution_condition_id;
+        num_iterations_id       = prim->num_iteration_id;
+    }
 
     void update_primitive_map(const primitive_id& prevID, const primitive_id& newID, bool external_id = true) {
         if (external_id) {
@@ -78,6 +95,18 @@ public:
                 }
             }
         }
+
+        // Update ids
+        if (get_trip_count_id() == prevID)
+            trip_count_id = newID;
+        if (get_initial_execution_id() == prevID)
+            initial_execution_id = newID;
+        if (get_current_iteration_id() == prevID)
+            current_iteration_id = newID;
+        if (get_execution_condition_id() == prevID)
+            execution_condition_id = newID;
+        if (get_num_iterations_id() == prevID)
+            num_iterations_id = newID;
     }
 
     // current_iteration is necessary to calculate output layout in dynamic shape
@@ -328,6 +357,12 @@ public:
 
     std::vector<event::ptr> preprocess_memory_for_body_network(int64_t current_iteration_idx);
     std::vector<event::ptr> postprocess_memory_for_body_network(int64_t current_iteration_idx);
+
+    primitive_id get_trip_count_id()        { return _trip_count_id; }
+    primitive_id get_initial_execution_id() { return _initial_execution_id; }
+    primitive_id get_current_iteration_id() { return _current_iteration_id; }
+    primitive_id get_condition_id()         { return _condition_id; }
+    primitive_id get_num_iterations_id()    { return _num_iterations_id; }
 
 private:
     network::ptr body_network;
