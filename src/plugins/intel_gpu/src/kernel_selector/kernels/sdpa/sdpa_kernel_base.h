@@ -99,6 +99,9 @@ struct sdpa_params : public base_params {
     std::vector<int64_t> input1_order;
     std::vector<int64_t> input2_order;
     std::vector<int64_t> output_order;
+    int64_t indirect_axis = -1;
+
+    DataTensor beam_table;
 
     sdpa_configuration conf;
 };
