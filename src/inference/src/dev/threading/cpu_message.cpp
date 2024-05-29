@@ -132,6 +132,13 @@ void MessageManager::set_sub_compiled_models(std::vector<std::shared_ptr<ov::ICo
     _sub_compiled_models = models;
     _num_sub_streams = static_cast<int>(_sub_compiled_models.size());
     assert(_num_sub_streams);
+    MemoryInfo memory_info;
+    memory_info.flag = false;
+    memory_info.last_used = false;
+    std::vector<MemoryInfo> memorys;
+    memorys.assign(_num_sub_streams, memory_info);
+    _memorys_table.assign(2, memorys);
+    _use_count.assign(2, 0);
 }
 
 std::vector<std::shared_ptr<ov::ICompiledModel>> MessageManager::get_sub_compiled_models() {
@@ -148,6 +155,20 @@ std::vector<std::shared_ptr<ov::IAsyncInferRequest>> MessageManager::get_sub_inf
 
 int MessageManager::get_num_sub_streams() {
     return _num_sub_streams;
+}
+
+int MessageManager::get_memory_id(int sub_stream_id) {
+    for (int i = 0; i < 2; i++) {
+        if (!_memorys_table[i][sub_stream_id].last_used) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void MessageManager::set_memory_used(int memory_id, int sub_stream_id){
+    _memorys_table[memory_id][sub_stream_id].last_used = true;
+    _memorys_table[(memory_id + 1) % 2][sub_stream_id].last_used = false;
 }
 
 void MessageManager::stop_server_thread() {

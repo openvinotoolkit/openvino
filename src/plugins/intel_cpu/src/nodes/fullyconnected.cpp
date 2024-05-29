@@ -84,39 +84,37 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
 }
 
 void FullyConnected::allreduce(void* send_buf, void* recv_buf, size_t count, ov::element::Type dtype) {
-    ov::threading::MessageInfo send_message;
-    send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
-    send_message.rank = {w_rank};
-    send_message.buf = send_buf;
-    message->send_message(send_message);
-    auto vec_message = message->wait_message(/*cur_rank*/ w_rank);
-    if (dtype == ov::element::f32) {
-        float* recv_ptr = static_cast<float*>(recv_buf);
-        for (int idx = 0; idx < w_size; ++idx) {
-            // if (idx == w_rank) {
-            //     continue;
-            // }
-            float* send_ptr = static_cast<float*>(vec_message[idx].buf);
-            ov::Extensions::Cpu::XARCH::allreduce_float32(send_ptr, recv_ptr, count);
-        }
-    } else if (dtype == ov::element::bf16) {
-        ov::bfloat16* recv_ptr = static_cast<ov::bfloat16*>(recv_buf);
-        for (int idx = 0; idx < w_size; ++idx) {
-            // if (idx == w_rank) {
-            //     continue;
-            // }
-            ov::bfloat16* send_ptr = static_cast<ov::bfloat16*>(vec_message[idx].buf);
-            ov::Extensions::Cpu::XARCH::allreduce_bfloat16(send_ptr, recv_ptr, count);
-        }
-    } else {
+    if (dtype != ov::element::f32 && dtype != ov::element::bf16) {
         printf("Unsupported data type for reduceAdd.\n");
         exit(-1);
     }
-    // sync before return
-    ov::threading::MessageInfo msg_info;
-    msg_info.msg_type = ov::threading::MsgType::REDUCE;
-    message->send_message(msg_info);
-    message->reduce_wait(w_rank);
+    std::vector<int> wait_list(w_size, 1);
+    while (true) {
+        int wait_size = 0;
+        for (int idx = 0; idx < w_size; idx++) {
+            if (wait_list[idx] > 0 && message->_memorys_table[id][idx].flag) {
+                if (dtype == ov::element::f32) {
+                    float* recv_ptr = static_cast<float*>(recv_buf);
+                    float* send_ptr = static_cast<float*>(message->_memorys_table[id][idx].send_buf);
+                    ov::Extensions::Cpu::XARCH::allreduce_float32(send_ptr, recv_ptr, count);
+                } else if (dtype == ov::element::bf16) {
+                    ov::bfloat16* recv_ptr = static_cast<ov::bfloat16*>(recv_buf);
+                    ov::bfloat16* send_ptr = static_cast<ov::bfloat16*>(message->_memorys_table[id][idx].send_buf);
+                    ov::Extensions::Cpu::XARCH::allreduce_bfloat16(send_ptr, recv_ptr, count);
+                }
+
+                wait_list[idx] = 0;
+            }
+            wait_size += wait_list[idx];
+        }
+        if (wait_size == 0) {
+            break;
+        }
+    }
+    {
+        std::lock_guard<std::mutex> lock(message->_flagMutex);
+        message->_use_count[id]++;
+    }
 }
 
 bool FullyConnected::canBeExecutedInInt8() const {
@@ -189,10 +187,43 @@ void FullyConnected::prepareParams() {
 }
 
 void FullyConnected::execute(dnnl::stream strm) {
+    if (tp_mode == 1 || tp_mode == 2 || tp_mode == 3) {
+        id = message->get_memory_id(w_rank);
+        // std::cout << "execute: " << getName() << ", " << id << ", " << w_rank << "\n";
+        message->set_memory_used(id, w_rank);
+    }
     if (tp_mode == 1) {
+        while (true) {
+            if (message->_use_count[id] == w_size) {
+                std::lock_guard<std::mutex> lock(message->_flagMutex);
+                message->_use_count[id] = 0;
+                for (int i = 0; i < w_size; i++) {
+                    message->_memorys_table[id][i].flag = false;
+                }
+            }
+            if (message->_use_count[id] == 0) {
+                break;
+            }
+        }
         auto srcMemoryBuffer = getSrcMemoryAtPort(DATA_ID);
         auto select_src = split_v(srcMemoryBuffer, -1, w_rank, w_size);
         memory[ARG_SRC] = select_src;
+        auto numa_id = context->getCPUStreamExecutor()->get_numa_node_id();
+        auto dstMemoryBuffer = getDstMemoryAtPort(0);
+        MemoryPtr dst_mem;
+        if (message->_memorys_table[id][w_rank].buf == nullptr) {
+            dst_mem = std::make_shared<Memory>(context->getEngine(), dstMemoryBuffer->getDescPtr(), nullptr);
+            mbind_move(dst_mem, numa_id);
+            message->_memorys_table[id][w_rank].buf = dst_mem;
+        } else {
+            dst_mem = std::static_pointer_cast<Memory>(message->_memorys_table[id][w_rank].buf);
+            if (dst_mem->getSize() < dstMemoryBuffer->getSize()) {
+                dst_mem = std::make_shared<Memory>(context->getEngine(), dstMemoryBuffer->getDescPtr(), nullptr);
+                mbind_move(dst_mem, numa_id);
+                message->_memorys_table[id][w_rank].buf = dst_mem;
+            }
+        }
+        memory[ARG_DST] = dst_mem;
     }
     if (tp_mode == 2) {
         // memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
@@ -233,16 +264,16 @@ void FullyConnected::execute(dnnl::stream strm) {
         auto send_mem = memory[ARG_DST];
         auto send_ptr = send_mem->getData();
         auto prec = send_mem->getPrecision();
-        auto ele_num = send_mem->getSize() / prec.size();
-        // MemoryPtr recv_mem = std::make_shared<Memory>(context->getEngine(), send_mem->getDescPtr(), send_ptr);
-        MemoryPtr recv_mem = std::make_shared<Memory>(context->getEngine(), send_mem->getDescPtr(), nullptr);
-        auto recv_ptr = recv_mem->getData();
-        memset(recv_ptr, 0, recv_mem->getSize());
+        auto dstMemoryBuffer = getDstMemoryAtPort(0);
+        auto ele_num = dstMemoryBuffer->getSize() / prec.size();
+        auto recv_ptr = dstMemoryBuffer->getData();
+        memset(recv_ptr, 0, dstMemoryBuffer->getSize());
+        message->_memorys_table[id][w_rank].send_buf = send_ptr;
+        message->_memorys_table[id][w_rank].flag = true;
         // TODO
         allreduce(send_ptr, recv_ptr, ele_num, prec);
 
-        cpu_parallel_memcpy(send_ptr, recv_ptr, send_mem->getSize());
-        memory[ARG_DST] = send_mem;
+        memory[ARG_DST] = dstMemoryBuffer;
     }
 
     if (tp_mode == 2) {

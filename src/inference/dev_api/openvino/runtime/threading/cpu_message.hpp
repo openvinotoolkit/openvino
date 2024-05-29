@@ -35,6 +35,14 @@ struct MessageInfo {
     void* buf;
     Task task;
 };
+
+struct MemoryInfo {
+    void* send_buf;
+    std::shared_ptr<void> buf;
+    bool flag;
+    bool last_used;
+};
+
 class OPENVINO_RUNTIME_API MessageManager {
 public:
     MessageManager();
@@ -62,6 +70,14 @@ public:
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> get_sub_infer_requests();
 
     int get_num_sub_streams();
+
+    int get_memory_id(int sub_stream_id);
+
+    void set_memory_used(int memory_id, int sub_stream_id);
+
+    std::vector<std::vector<MemoryInfo>> _memorys_table;
+    std::vector<int> _use_count;
+    std::mutex _flagMutex;
 
 private:
     int _num_sub_streams;
