@@ -22,16 +22,27 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 How to Use
 ####################
 
-To use ``torch.compile``, you need to add an import statement and define the ``openvino`` backend.
+To use ``torch.compile``, you need to define the ``openvino`` backend.
 This way Torch FX subgraphs will be directly converted to OpenVINO representation without
 any additional PyTorch-based tracing/scripting.
 
 
 .. code-block:: sh
 
-   import openvino.torch
    ...
    model = torch.compile(model, backend='openvino')
+   ...
+
+For OpenVINO versions below 2024.1, an additional import was needed to use ``openvino`` backend. However, OpenVINO package is now configured with `torch_dynamo_backends entrypoint <https://pytorch.org/docs/stable/torch.compiler_custom_backends.html#registering-custom-backends>`__. The additional import is not needed, if OpenVINO is installed as a pip package. For other install channels such as conda, import statement can be used as below.
+
+.. code-block:: sh
+
+   import openvino.torch
+
+   ...
+   model = torch.compile(model, backend='openvino')
+   ...
+
 
 Execution diagram:
 
@@ -51,6 +62,10 @@ enable model caching, set the cache directory etc. You can use a dictionary of t
   By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications
   on CPU. If you set this variable to ``GPU.0``, for example, the application will
   use the integrated graphics processor instead.
+* ``aot_autograd`` - enables aot_autograd graph capture. The aot_autograd graph capture
+  is needed to enable dynamic shapes or to finetune a model. For models with dynamic
+  shapes, it is recommended to set this option to ``True``. By default, aot_autograd 
+  is set to ``False``.
 * ``model_caching`` - enables saving the optimized model files to a hard drive,
   after the first application run. This makes them available for the following
   application executions, reducing the first-inference latency. By default, this
@@ -58,6 +73,15 @@ enable model caching, set the cache directory etc. You can use a dictionary of t
 * ``cache_dir`` - enables defining a custom directory for the model files (if
   ``model_caching`` is set to ``True``). By default, the OpenVINO IR is saved
   in the cache sub-directory, created in the application's root directory.
+* ``decompositions`` - enables defining additional operator decompositions. By 
+  default, this is an empty list. For example, to add a decomposition for 
+  an operator ``my_op``, add ``'decompositions': [torch.ops.aten.my_op.default]``
+  to the options. 
+* ``disabled_ops`` - enables specifying operators that can be disabled from
+  openvino execution and make it fall back to native PyTorch runtime. For 
+  example, to disable an operator ``my_op`` from OpenVINO execution, add 
+  ``'disabled_ops': [torch.ops.aten.my_op.default]`` to the options. By 
+  default, this is an empty list.
 * ``config`` - enables passing any OpenVINO configuration option as a dictionary
   to this variable. For details on the various options, refer to the
   :ref:`OpenVINO Advanced Features <openvino-advanced-features>`.
@@ -104,6 +128,11 @@ the below instructions:
        if sys.version_info >= (3, 11):
            `raise RuntimeError("Python 3.11+ not yet supported for torch.compile")
 
+Support for PyTorch 2 export quantization
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Torchserve Integration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Support for Automatic1111 Stable Diffusion WebUI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
