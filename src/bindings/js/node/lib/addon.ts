@@ -22,12 +22,12 @@ type elementTypeString =
   | 'string';
 
 /**
- * Core represents OpenVINO runtime Core entity.
+ * Core represents an OpenVINO runtime Core entity.
  *
  * User applications can create several Core class instances,
  * but in this case, the underlying plugins
  * are created multiple times and not shared between several Core instances.
- * The recommended way is to have a single Core instance per application.
+ * It is recommended to have a single Core instance per application.
  */
 interface Core {
   /**
@@ -38,11 +38,11 @@ interface Core {
   /**
    * Asynchronously creates a compiled model from a source {@link Model} object.
    *
-   * Users can create as many compiled models as they need and use them
+   * You can create as many compiled models as needed and use them
    * simultaneously (up to the limitation of the hardware resources).
-   * @param model {@link Model} object acquired from {@link Core.readModel}
-   * @param deviceName Name of device to load model to.
-   * @param config Object with key-value pairs
+   * @param model The {@link Model} object acquired from {@link Core.readModel}
+   * @param deviceName The name of a device, to which the model is loaded.
+   * @param config An object with the key-value pairs
    * (property name, property value): relevant only for this load operation.
    */
   compileModel(
@@ -57,11 +57,11 @@ interface Core {
    * This can be more efficient
    * than using {@link Core.readModel} + core.compileModel(Model) flow
    * especially for cases when caching is enabled and a cached model is
-   * available. Users can create as many compiled models as they need and use
+   * available. You can create as many compiled models as needed and use
    * them simultaneously (up to the limitation of the hardware resources).
-   * @param modelPath Path to a model.
-   * @param deviceName Name of a device to load a model to.
-   * @param config Object with key-value pairs
+   * @param modelPath The path to a model.
+   * @param deviceName The name of a device, to which a model is loaded.
+   * @param config An object with the key-value pairs
    * (property name, property value): relevant only for this load operation.
    */
   compileModel(
@@ -70,8 +70,8 @@ interface Core {
     config?: { [propertyName: string]: string }
   ): Promise<CompiledModel>;
   /**
-   * Synchronous version of {@link Core.compileModel}.
-   * Creates a compiled model from a source model object.
+   * A synchronous version of {@link Core.compileModel}.
+   * It creates a compiled model from a source model object.
    */
   compileModelSync(
     model: Model,
@@ -79,8 +79,8 @@ interface Core {
     config?: { [propertyName: string]: string }
   ): CompiledModel;
   /**
-   * Synchronous version of {@link Core.compileModel}.
-   * Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+   * A synchronous version of {@link Core.compileModel}.
+   * It reads a model and creates a compiled model from the IR/ONNX/PDPD file.
    */
   compileModelSync(
     modelPath: string,
@@ -88,24 +88,24 @@ interface Core {
     config?: { [propertyName: string]: string }
   ): CompiledModel;
   /**
-   * Returns devices available for inference.
+   * It returns a list of available inference devices.
    * Core objects go over all registered plugins.
-   * @returns A list of devices. The devices are returned as: CPU, GPU.0,
+   * @returns The list of devices may include any of the following: CPU, GPU.0,
    * GPU.1, NPU… If there is more than one device of a specific type, they are
    * enumerated with .# suffix. Such enumerated devices can later be used
-   * as a device name in all Core methods like compile_model, query_model,
+   * as a device name in all Core methods, like compile_model, query_model,
    * set_property and so on.
    */
   getAvailableDevices(): string[];
   /**
-   * Gets properties dedicated to device behaviour.
-   * @param propertyName Property name.
+   * It gets the properties dedicated to device behaviour.
+   * @param propertyName A property name.
    */
   getProperty(propertyName: string): string | number | boolean;
 
   /**
-   * Gets properties dedicated to device behaviour.
-   * @param deviceName Name of a device to get a properties
+   * It gets the properties dedicated to device behaviour.
+   * @param deviceName The name of a device, the properties of which you get.
    * @param propertyName Property name.
    */
   getProperty(
@@ -113,8 +113,8 @@ interface Core {
     propertyName: string,
   ): string | number | boolean;
   /**
-   * Returns device plugins version information.
-   * @param deviceName Device name to identify a plugin.
+   * It returns information on the version of device plugins.
+   * @param deviceName A device name to identify a plugin.
    */
   getVersions(deviceName: string): {
     [deviceName: string]: {
@@ -123,13 +123,13 @@ interface Core {
     },
   };
   /**
-   * Imports a compiled model from a previously exported one.
-   * @param modelStream Input stream, containing a model previously exported,
-   * using {@link CompiledModel.exportModelSync} method.
-   * @param device Name of a device to import a compiled model for.
-   * Note, if the device name was not used to compile the original mode,
+   * It imports a previously exported compiled model.
+   * @param modelStream The input stream that contains a model, previously exported
+   * with the {@link CompiledModel.exportModelSync} method.
+   * @param device The name of a device, for which you import a compiled model.
+   * Note, if the device name was not used to compile the original model,
    * an exception is thrown.
-   * @param config Object with key-value pairs
+   * @param config An object with the key-value pairs
    * (property name, property value): relevant only for this load operation.
    */
   importModelSync(
@@ -138,46 +138,46 @@ interface Core {
     config?: { [key: string]: string | number | boolean }
   ): CompiledModel;
   /**
-   * Reads models from IR / ONNX / PDPD / TF and TFLite formats.
-   * @param modelPath A path to a model
-   * in IR / ONNX / PDPD / TF and TFLite format.
-   * @param weightsPath A path to a data file For IR format (.bin): if the path
-   * is empty, it tries to read a bin file with the same name as xml and if
-   * the bin file with the same name was not found, loads IR without weights.
-   * For ONNX format (.onnx): weights parameter is not used.
-   * For PDPD format (.pdmodel) weights parameter is not used.
-   * For TF format (.pb) weights parameter is not used.
-   * For TFLite format (*.tflite) weights parameter is not used.
+   * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
+   * @param modelPath The path to a model
+   * in the IR / ONNX / PDPD / TF or TFLite format.
+   * @param weightsPath The path to a data file for the IR format (.bin): if the path
+   * is empty, it tries to read the bin file with the same name as xml and if
+   * the bin file with the same name was not found, it loads IR without weights.
+   * For the ONNX format (.onnx), the weights parameter is not used.
+   * For the PDPD format (.pdmodel), the weights parameter is not used.
+   * For the TF format (.pb), the weights parameter is not used.
+   * For the TFLite format (*.tflite), the weights parameter is not used.
    */
   readModel(modelPath: string, weightsPath?: string): Promise<Model>;
 
   /**
-   * Reads models from IR / ONNX / PDPD / TF and TFLite formats.
-   * @param modelBuffer Binary data with model
-   * in IR / ONNX / PDPD / TF and TFLite format.
-   * @param weightsBuffer Binary data with tensor’s data.
+   * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
+   * @param modelBuffer Binary data with a model
+   * in the IR / ONNX / PDPD / TF or TFLite format.
+   * @param weightsBuffer Binary data with tensor data.
    */
   readModel(
     modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
   /**
-   * Synchronous version of {@link Core.readModel}.
-   * Reads models from IR / ONNX / PDPD / TF and TFLite formats.
+   * A synchronous version of {@link Core.readModel}.
+   * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
    */
   readModelSync(modelPath: string, weightsPath?: string): Model;
   /**
-   * Synchronous version of {@link Core.readModel}.
-   * Reads models from IR / ONNX / PDPD / TF and TFLite formats.
+   * A synchronous version of {@link Core.readModel}.
+   * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
    */
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
   /**
-   * Sets properties.
-   * @param properties Object with pairs: property name - property value
+   * It sets the properties.
+   * @param properties An object with the property name - property value pairs.
    */
   setProperty(properties: { [key: string]: string | number | boolean }): void;
   /**
-   * Sets properties for the device.
-   * @param deviceName Name of the device.
-   * @param properties Object with pairs: property name - property value
+   * It sets the properties for a device.
+   * @param deviceName The name of a device.
+   * @param properties An object with the property name - property value pairs.
    */
   setProperty(
     deviceName: string,
