@@ -90,6 +90,7 @@ public:
     }
 
     bool needPrepareParams() const override;
+    void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
     bool isExecutable() const override;

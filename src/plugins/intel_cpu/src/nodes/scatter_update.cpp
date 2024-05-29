@@ -75,10 +75,10 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
         axisRelaxed = false;
         isUpdateScalar = ov::is_scalar(op->get_input_partial_shape(2));
     } else {
-        OPENVINO_THROW(errorPrefix, " is not supported");
+        THROW_CPU_NODE_ERR(errorPrefix, " is not supported");
     }
     if (is_not_supported_input) {
-        OPENVINO_THROW(errorPrefix, " do not support scalar input");
+        THROW_CPU_NODE_ERR(errorPrefix, " do not support scalar input");
     }
 
     reduction_type = ScatterUpdate::Reduction::NONE;
@@ -136,104 +136,14 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
 
 void ScatterUpdate::getSupportedDescriptors() {
     if ((getParentEdges().size() != 3) && (getParentEdges().size() != 4))
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+        THROW_CPU_NODE_ERR(errorPrefix, " has incorrect number of input edges");
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+        THROW_CPU_NODE_ERR(errorPrefix, " has incorrect number of output edges");
 }
 
 void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
-    const auto& srcDataDim = getInputShapeAtPort(DATA_ID).getDims();
-    const auto& indicesDim = getInputShapeAtPort(INDICES_ID).getDims();
-    const auto& updateDim =  getInputShapeAtPort(UPDATE_ID).getDims();
-    const auto& dstDataDim = getOutputShapeAtPort(0).getDims();
-
-    size_t srcRank = srcDataDim.size();
-    size_t indicesRank = indicesDim.size();
-    size_t updateRank = updateDim.size();
-    size_t dstRank = dstDataDim.size();
-
-    // common check
-    if (srcRank != dstRank) {
-        OPENVINO_THROW(errorPrefix, " should have same rank for input and output tensor");
-    } else {
-        for (size_t r = 0; r < srcRank; r++) {
-            if (!dimsEqualWeak(srcDataDim[r], dstDataDim[r])) {
-                OPENVINO_THROW(errorPrefix,
-                               " should have same shape for input and output tensor. The input shape is ",
-                               srcDataDim[r],
-                               ", while output shape is ",
-                               dstDataDim[r],
-                               " for ",
-                               r,
-                               "th dimension");
-            }
-        }
-    }
-    // specific check
-    switch (scatterUpdateMode) {
-        case ScatterUpdateMode::ScatterUpdate: {
-            if (updateRank != (srcRank + indicesRank - 1)) {
-                OPENVINO_THROW(errorPrefix,
-                               " do not have matched tensor rank relationship for input, indices and update");
-            }
-            break;
-        }
-        case ScatterUpdateMode::ScatterNDUpdate: {
-            if (indicesDim[indicesRank - 1] != Shape::UNDEFINED_DIM) {
-                size_t k = indicesDim[indicesRank - 1];
-                if (k > srcRank) {
-                    OPENVINO_THROW(errorPrefix,
-                                   "' do not have an correct indices' last dimension value, ",
-                                   "which should be smaller than or equal to input tensor rank");
-                }
-
-                size_t tupleRank = indicesRank - 1;
-                VectorDims expectUpdateShape(tupleRank + srcRank - k, 0);
-                if (isUpdateScalar) {
-                    // Workaround to properly identify rank of scalar
-                    updateRank = 0;
-                }
-                int updateAxisIter = 0;
-                for (size_t ri = 0; ri < tupleRank; ri++) {
-                    expectUpdateShape[updateAxisIter] = indicesDim[ri];
-                    updateAxisIter++;
-                }
-                for (size_t rd = k; rd < srcRank; rd++) {
-                    expectUpdateShape[updateAxisIter] = srcDataDim[rd];
-                    updateAxisIter++;
-                }
-                if (expectUpdateShape.size() != updateRank) {
-                    OPENVINO_THROW(errorPrefix,
-                                   " do not have matched tensor rank relationship for input, indices and update");
-                }
-                for (size_t ru = 0; ru < updateRank; ru++) {
-                    if (!dimsEqualWeak(updateDim[ru], expectUpdateShape[ru])) {
-                        OPENVINO_THROW(errorPrefix,
-                                       " do not have matched tensor shape relationship for input, indices and update");
-                    }
-                }
-            }
-            break;
-        }
-        case ScatterUpdateMode::ScatterElementsUpdate: {
-            if (srcRank != indicesRank || srcRank != updateRank) {
-                OPENVINO_THROW(errorPrefix, " do not have the same tensor rank for input, indices and update");
-            }
-            for (size_t ri = 0; ri < indicesRank; ri++) {
-                if (!dimsEqualWeak(indicesDim[ri], updateDim[ri])) {
-                    OPENVINO_THROW(errorPrefix, " do not have the same tensor shape for indices and update");
-                }
-            }
-            break;
-        }
-        default: {
-            OPENVINO_THROW(errorPrefix, " is not supported");
-        }
-    }
-
     indicesPrec = getOriginalInputPrecisionAtPort(INDICES_ID);
     auto indicesType = DnnlExtensionUtils::ElementTypeToDataType(indicesPrec);
     indicesSize = DnnlExtensionUtils::sizeOfDataType(indicesType);
@@ -273,8 +183,8 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
     std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1},
-                                                {LayoutType::ncsp, indicesPrec},
-                                                {LayoutType::ncsp, dataPrec}};
+                                               {LayoutType::ncsp, indicesPrec},
+                                               {LayoutType::ncsp, dataPrec}};
     if (axisRelaxed)
         inPortConfig.emplace_back(LayoutType::ncsp, axisPrec);
     addSupportedPrimDesc(inPortConfig,
@@ -283,7 +193,98 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
 }
 
 bool ScatterUpdate::needPrepareParams() const {
-    return false;
+    return true;
+}
+
+void ScatterUpdate::prepareParams() {
+    const auto& srcDataDim = getInputShapeAtPort(DATA_ID).getDims();
+    const auto& indicesDim = getInputShapeAtPort(INDICES_ID).getDims();
+    const auto& updateDim =  getInputShapeAtPort(UPDATE_ID).getDims();
+    const auto& dstDataDim = getOutputShapeAtPort(0).getDims();
+
+    size_t srcRank = srcDataDim.size();
+    size_t indicesRank = indicesDim.size();
+    size_t updateRank = updateDim.size();
+    size_t dstRank = dstDataDim.size();
+
+    // common check
+    if (srcRank != dstRank) {
+        THROW_CPU_NODE_ERR(errorPrefix, " should have same rank for input and output tensor");
+    } else {
+        for (size_t r = 0; r < srcRank; r++) {
+            if (!dimsEqualWeak(srcDataDim[r], dstDataDim[r])) {
+                THROW_CPU_NODE_ERR(errorPrefix,
+                                   " should have same shape for input and output tensor. The input shape is ",
+                                   srcDataDim[r],
+                                   ", while output shape is ",
+                                   dstDataDim[r],
+                                   " for ",
+                                   r,
+                                   "th dimension");
+            }
+        }
+    }
+    // specific check
+    switch (scatterUpdateMode) {
+        case ScatterUpdateMode::ScatterUpdate: {
+            if (updateRank != (srcRank + indicesRank - 1)) {
+                THROW_CPU_NODE_ERR(errorPrefix,
+                                   " do not have matched tensor rank relationship for input, indices and update");
+            }
+            break;
+        }
+        case ScatterUpdateMode::ScatterNDUpdate: {
+            if (indicesDim[indicesRank - 1] != Shape::UNDEFINED_DIM) {
+                size_t k = indicesDim[indicesRank - 1];
+                if (k > srcRank) {
+                    THROW_CPU_NODE_ERR(errorPrefix,
+                                       "' do not have an correct indices' last dimension value, ",
+                                       "which should be smaller than or equal to input tensor rank");
+                }
+
+                size_t tupleRank = indicesRank - 1;
+                VectorDims expectUpdateShape(tupleRank + srcRank - k, 0);
+                if (isUpdateScalar) {
+                    // Workaround to properly identify rank of scalar
+                    updateRank = 0;
+                }
+                int updateAxisIter = 0;
+                for (size_t ri = 0; ri < tupleRank; ri++) {
+                    expectUpdateShape[updateAxisIter] = indicesDim[ri];
+                    updateAxisIter++;
+                }
+                for (size_t rd = k; rd < srcRank; rd++) {
+                    expectUpdateShape[updateAxisIter] = srcDataDim[rd];
+                    updateAxisIter++;
+                }
+                if (expectUpdateShape.size() != updateRank) {
+                    THROW_CPU_NODE_ERR(errorPrefix,
+                                       " do not have matched tensor rank relationship for input, indices and update");
+                }
+                for (size_t ru = 0; ru < updateRank; ru++) {
+                    if (!dimsEqualWeak(updateDim[ru], expectUpdateShape[ru])) {
+                        THROW_CPU_NODE_ERR(errorPrefix,
+                                           " do not have matched tensor shape relationship for input, indices and update");
+                    }
+                }
+            }
+            break;
+        }
+        case ScatterUpdateMode::ScatterElementsUpdate: {
+            if (srcRank != indicesRank || srcRank != updateRank) {
+                THROW_CPU_NODE_ERR(errorPrefix, " do not have the same tensor rank for input, indices and update");
+            }
+            for (size_t ri = 0; ri < indicesRank; ri++) {
+                if (!dimsEqualWeak(indicesDim[ri], updateDim[ri])) {
+                    THROW_CPU_NODE_ERR(errorPrefix, " do not have the same tensor shape for indices and update");
+                }
+            }
+            break;
+        }
+        default: {
+            THROW_CPU_NODE_ERR(errorPrefix, " is not supported");
+        }
+    }
 }
 
 void ScatterUpdate::executeDynamicImpl(dnnl::stream strm) {
@@ -810,8 +811,8 @@ void ScatterUpdate::execute(dnnl::stream strm) {
         }
 
         if (axis >= static_cast<int>(srcRank) || axis < (static_cast<int>(srcRank) * - 1)) {
-            OPENVINO_THROW(errorPrefix
-           , " should have axis value in range [-r, r - 1], where r is the rank of input data");
+            THROW_CPU_NODE_ERR(errorPrefix,
+            " should have axis value in range [-r, r - 1], where r is the rank of input data");
         }
         axis = axis < 0 ? (axis + srcRank) : axis;
 
@@ -824,8 +825,8 @@ void ScatterUpdate::execute(dnnl::stream strm) {
                 int64_t idxValue =  getIndicesValue(indicesPtr, i);
                 if (idxValue >= static_cast<int64_t>(srcDimAxis) ||
                     (idxValue < 0 && scatterUpdateMode != ScatterUpdateMode::ScatterElementsUpdate)) {
-                    OPENVINO_THROW(errorPrefix
-                              , " have indices value that points to non-existing output tensor element");
+                    THROW_CPU_NODE_ERR(errorPrefix,
+                    " have indices value that points to non-existing output tensor element");
                 }
             }
         });
@@ -849,15 +850,15 @@ void ScatterUpdate::execute(dnnl::stream strm) {
                 }
             }
             if (updateRank > expectUpdateShape.size())
-                OPENVINO_THROW(errorPrefix,
+                THROW_CPU_NODE_ERR(errorPrefix,
                                " cannot update shape. New rank: ",
                                updateRank,
                                ", expected: ",
                                expectUpdateShape.size());
             for (size_t ru = 0; ru < updateRank; ru++) {
                 if (updateDim[ru] != expectUpdateShape[ru]) {
-                    OPENVINO_THROW(errorPrefix,
-                                   " do not have matched tensor shape relationship for input, indices and update");
+                    THROW_CPU_NODE_ERR(errorPrefix,
+                    " do not have matched tensor shape relationship for input, indices and update");
                 }
             }
         }
@@ -892,7 +893,7 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         default: {
-            OPENVINO_THROW(errorPrefix, " is not supported");
+            THROW_CPU_NODE_ERR(errorPrefix, " is not supported");
         }
     }
 }
