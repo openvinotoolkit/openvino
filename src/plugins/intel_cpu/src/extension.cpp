@@ -11,6 +11,7 @@
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
@@ -18,7 +19,6 @@
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
-#include "transformations/cpu_opset/common/op/rope.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
@@ -70,8 +70,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::FullyConnectedNode)                         \
     OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
-    OP_EXTENSION(ov::intel_cpu::RoPENode)                                   \
-    OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                             \
+    OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                   \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
     OP_EXTENSION(ov::op::internal::GatherCompressed)                        \
@@ -80,6 +79,7 @@ private:
     OP_EXTENSION(ov::op::internal::AUGRUCell)                               \
     OP_EXTENSION(ov::op::internal::AUGRUSequence)                           \
     OP_EXTENSION(ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>) \
+    OP_EXTENSION(ov::op::internal::RoPE)                                    \
     OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
     OP_EXTENSION_X64(ov::intel_cpu::ScaledDotProductAttentionWithKVCache)   \

@@ -17,6 +17,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/roi_align.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/loop.hpp"
@@ -221,7 +222,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
                 constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
-        } else if (ov::is_type<ov::op::v3::ROIAlign>(outOp) || ov::is_type<ov::op::v9::ROIAlign>(outOp)) {
+        } else if (ov::is_type<ov::op::v3::ROIAlign>(outOp) || ov::is_type<ov::op::v9::ROIAlign>(outOp) ||
+                   ov::is_type<ov::op::v15::ROIAlignRotated>(outOp)) { //< Hacks...
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if ((ov::is_type<ov::op::v5::Loop>(outOp) || ov::is_type<ov::op::v0::TensorIterator>(outOp))) {
             // when inner network has 1d parameter which is connected to outer loop's constant 1d data,
