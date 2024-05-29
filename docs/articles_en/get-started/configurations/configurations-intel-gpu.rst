@@ -32,12 +32,16 @@ Below are the instructions on how to install the OpenCL packages on supported Li
 
 .. tab-set::
 
-   .. tab-item:: Ubuntu 22.04 LTS
+   .. tab-item:: Ubuntu 22.04 LTS / Ubuntu 24.04 LTS
       :sync: ubuntu-22
 
-      Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__ and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
+      Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__
+      and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
 
-      Alternatively, you can add the apt repository by following the `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__. Then install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero` apt packages:
+      Alternatively, you can add the apt repository by following the
+      `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__.
+      Then install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero`
+      apt packages:
 
       .. code-block:: sh
 
@@ -87,13 +91,13 @@ To check if the driver has been installed:
 1. Type **device manager** in the **Search Windows** field and press Enter. **Device Manager** will open.
 2. Click the drop-down arrow to display **Display Adapters**. You can see the adapter that is installed in your computer:
 
-   .. image:: ../../_static/images/DeviceManager.PNG
+   .. image:: ../../assets/images/DeviceManager.PNG
       :width: 400
 
 3. Right-click on the adapter name and select **Properties**.
 4. Click the **Driver** tab to view the driver version.
 
-   .. image:: ../../_static/images/DeviceDriverVersion.svg
+   .. image:: ../../assets/images/DeviceDriverVersion.svg
       :width: 400
 
 Your device driver has been updated and is now ready to use your GPU.
@@ -119,7 +123,7 @@ Below are the required steps to make it work with OpenVINO:
      wsl --update
      wsl --shutdown
 
-- When booting Ubuntu 20.04 or Ubuntu 22.04, install the same drivers as described above in the Linux section
+- When booting Ubuntu 20.04, 22.04, or 24.04 install the same drivers as described above in the Linux section
 
 .. note::
 
@@ -127,29 +131,6 @@ Below are the required steps to make it work with OpenVINO:
 
 Additional Resources
 ####################
-
-.. The following Intel® Graphics Driver versions were used during OpenVINO's internal validation:
-
-.. <The table below is out of date and we do not have an updated list of drivers used for validation as of 2024.0 release date.>
-.. <The table will be updated when an updated list of drivers is available>
-
-.. +------------------+-------------------------------------------------------------------------------------------+
-.. | Operation System | Driver version                                                                            |
-.. +==================+===========================================================================================+
-.. | Ubuntu 22.04     | `22.43.24595.30 <https://github.com/intel/compute-runtime/releases/tag/22.43.24595.30>`__ |
-.. +------------------+-------------------------------------------------------------------------------------------+
-.. | Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__       |
-.. +------------------+-------------------------------------------------------------------------------------------+
-.. | Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__       |
-.. +------------------+-------------------------------------------------------------------------------------------+
-.. | CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__       |
-.. +------------------+-------------------------------------------------------------------------------------------+
-.. | RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__       |
-.. +------------------+-------------------------------------------------------------------------------------------+
-
-
-.. What’s Next?
-.. ############
 
 * :doc:`GPU Device <../../openvino-workflow/running-inference/inference-devices-and-modes/gpu-device>`
 * :doc:`Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image <../install-openvino/install-openvino-archive-linux>`

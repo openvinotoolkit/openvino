@@ -38,7 +38,7 @@ KERNEL (permute_f_y_axes)(
         const int y_out_idx = bf % INPUT0_FEATURE_NUM;
 #if HAS_FUSED_OPS
         OUT_VEC_TYPE result;
-        OUT_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
+        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         FUSED_OPS_VEC;
         result = FUSED_OPS_RESULT_VEC;
 #else
@@ -137,7 +137,7 @@ KERNEL (permute_f_y_axes)(
         const int j_vec = j * VEC_SIZE;
         const int y_idx = y_begin + j_vec;
 #if HAS_FUSED_OPS
-        OUT_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
+        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         __attribute__((opencl_unroll_hint(VEC_SIZE)))
         for (int k = 0; k < VEC_SIZE; ++k) {
             transpose_buf[j_vec + k][bf_local] = res[k];
