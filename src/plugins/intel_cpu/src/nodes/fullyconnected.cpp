@@ -89,7 +89,7 @@ void FullyConnected::allreduce(void* send_buf, void* recv_buf, size_t count, ov:
     send_message.rank = {w_rank};
     send_message.buf = send_buf;
     message->send_message(send_message);
-    auto vec_message = message->wait_message(/*cur_rank*/ w_rank, /*streams_num*/ w_size);
+    auto vec_message = message->wait_message(/*cur_rank*/ w_rank);
     if (dtype == ov::element::f32) {
         float* recv_ptr = static_cast<float*>(recv_buf);
         for (int idx = 0; idx < w_size; ++idx) {
@@ -116,7 +116,7 @@ void FullyConnected::allreduce(void* send_buf, void* recv_buf, size_t count, ov:
     ov::threading::MessageInfo msg_info;
     msg_info.msg_type = ov::threading::MsgType::REDUCE;
     message->send_message(msg_info);
-    message->reduce_wait(w_rank, w_size);
+    message->reduce_wait(w_rank);
 }
 
 bool FullyConnected::canBeExecutedInInt8() const {
@@ -283,7 +283,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         send_message.buf = cur_dst->getData();
         message->send_message(send_message);
 
-        auto vec_message = message->wait_message(/*cur_rank*/w_rank, /*streams_num*/w_size);
+        auto vec_message = message->wait_message(/*cur_rank*/w_rank);
 
         for (int i = 0; i < w_size; ++i) {
             const int recv_rank = vec_message[i].rank[0];
@@ -323,7 +323,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         message->send_message(send_message);
         // auto fp32_cur = cur_dst->getDataAs<float>();
         // printf("[dbg] current w_rank=%d, %f - %f - %f - %f - %f\n", w_rank,fp32_cur[0], fp32_cur[1], fp32_cur[2], fp32_cur[3], fp32_cur[4]);
-        auto vec_message = message->wait_message(/*cur_rank*/w_rank, /*streams_num*/w_size);
+        auto vec_message = message->wait_message(/*cur_rank*/w_rank);
         for (int i = 0; i < w_size; ++i) {
             const int recv_rank = vec_message[i].rank[0];
             if (recv_rank == w_rank) {
