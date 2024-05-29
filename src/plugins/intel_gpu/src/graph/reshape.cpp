@@ -228,7 +228,11 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         output_format = node.get_preferred_output_fmt();
     }
 
-    return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), out_pad} };
+    auto new_out_pad = out_pad;
+    if (new_out_pad == padding())
+        new_out_pad = impl_param.get_output_layout(0).data_padding;
+
+    return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), new_out_pad} };
 }
 
 template std::vector<layout> reshape_inst::calc_output_layouts<ov::PartialShape>(reshape_node const& node, const kernel_impl_params& impl_param);

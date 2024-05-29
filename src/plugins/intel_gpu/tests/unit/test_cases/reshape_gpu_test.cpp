@@ -1688,3 +1688,76 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic) {
         }
     }
 }
+
+TEST(reshape_gpu_f32, followed_by_convolution_dynamic_w_pad) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in0_shape = { 1, 1, 4, 5 };
+    auto in0_dyn_layout = layout{ov::PartialShape::dynamic(in0_shape.size()), data_types::f32, format::bfyx};
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    set_values(weights, {
+        1.0f, 2.0f, 1.0f,
+        2.0f, 1.0f, 2.0f
+    });
+
+    topology topology(
+        input_layout("input", in0_dyn_layout),
+        shape_of("shape_of_input", input_info("input"), data_types::i32),
+        reshape("reshape", input_info("input"), input_info("shape_of_input"), false, ov::PartialShape::dynamic(4),
+                cldnn::reshape::reshape_mode::base, padding({0, 0, 1, 1}, {0, 0, 2, 2})),
+        data("weights", weights),
+        pooling("pooling", input_info("weights"), pooling_mode::max, ov::Shape{3, 3}, { 1, 1 }, {0, 0}, {0, 0}, tensor(3, 3, 1, 1), data_types::f32),
+        convolution("conv", input_info("reshape"), "pooling", "", 1, { 1, 1 }, {1, 1}, {2, 2}, {0, 0}, false)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::allow_static_input_reorder(true));
+    
+    network network(engine, topology, config);
+
+    // execute
+    {
+        auto input0 = engine.allocate_memory({ in0_shape, data_types::f32, format::bfyx });
+        set_values(input0, {
+            1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+            2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+            3.0f, 3.0f, 3.0f, 5.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+        });
+        network.set_input_data("input", input0);
+
+        auto outputs = network.execute();
+
+        // check 'conv'
+        auto output_memory = outputs.at("conv").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
+
+        ASSERT_EQ(output_layout.format, format::bfyx);
+        ASSERT_EQ(y_size, 6);
+        ASSERT_EQ(x_size, 7);
+        ASSERT_EQ(f_size, 1);
+        ASSERT_EQ(b_size, 1);
+
+        VVF<float> output_vec = {
+            { 0, 0, 0, 0, 0, 0, 0 },
+            { 0, 0, 0, 0, 0, 0, 0 },
+            { 0, 0, 2, 4, 6, 8, 10 },
+            { 0, 0, 4, 4, 6, 8, 12 },
+            { 0, 0, 6, 6, 6, 10, 2 },
+            { 0, 0, 2, 2, 2, 2, 2 }
+        };
+
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+            }
+        }
+    }
+}
