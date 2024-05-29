@@ -754,8 +754,8 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
             if (target.size() < 3) {
                 return false;
             }
-            int32_t head_size = config.head_size;
-            int32_t head_cnt = config.head_cnt;
+            int32_t head_size = static_cast<int32_t>(config.head_size);
+            int32_t head_cnt = static_cast<int32_t>(config.head_cnt);
             // reshape splits the head_size of input to [2, head_size / 2]
             // head_cnt of target_shape could be 0 or head_cnt
             size_t target_rank = target.size();
