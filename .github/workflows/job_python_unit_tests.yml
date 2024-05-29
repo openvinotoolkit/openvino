@@ -68,7 +68,6 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        if: ${{ runner.os != 'Linux' }} # We do not need to install Python as we use Docker on Linux with it installed
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -77,7 +76,6 @@ jobs:
           path: 'action_root'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        if: ${{ runner.os != 'Linux' }} # We do not need to install Python as we use Docker on Linux with it installed
         uses: ./action_root/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}

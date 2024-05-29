@@ -72,7 +72,6 @@ jobs:
           path: 'openvino'
 
       - name: Setup Python 3.11
-        if: ${{ runner.os != 'Linux' }} # We do not need to install Python as we use Docker on Linux with it installed
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.11'
