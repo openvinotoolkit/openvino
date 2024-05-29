@@ -14,6 +14,7 @@ Supported Models
 
 .. raw:: html
 
+   <link rel="stylesheet" type="text/css" href="_static/css/openVinoDataTables.css">
    <div>
    <input type="checkbox" id="topology" name="interest" value="topology" data-column="0" class="toggle-vis"/>
    <label for="topology" >Hide topology</label>
@@ -32,6 +33,6 @@ Supported Models
    :class: modeldata
    :name: id-of-table
    :header-rows: 1
-   :file: _static/models.csv
+   :file: ../../../_static/models.csv
 
 
