@@ -25,24 +25,28 @@ inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function
 }
 
 TEST_P(RoPETestLlama2, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestChatGLM, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestQwen7b, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
 TEST_P(RoPETestGPTJ, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);

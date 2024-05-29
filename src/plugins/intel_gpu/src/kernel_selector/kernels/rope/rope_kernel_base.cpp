@@ -103,7 +103,7 @@ KernelsData RoPEKernelBase::GetCommonKernelsData(const Params& params) const {
                      EXE_MODE_DEFAULT,
                      false,
                      false,
-                     orgParams.num_of_inputs,
+                     static_cast<int>(orgParams.num_of_inputs),
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      orgParams.outputs[0].is_dynamic());

@@ -1212,7 +1212,8 @@ public:
                         return false;
                     }
 
-                    if (ele_type == ov::element::i32 || ele_type == ov::element::f32 || ele_type == ov::element::f16 || ele_type == ov::element::i64) {
+                    if (ele_type == ov::element::i32 || ele_type == ov::element::i64 || ele_type == ov::element::f16 ||
+                        ele_type == ov::element::f32) {
                         auto observed = constop->cast_vector<double>();
                         for (size_t i = 0; i < symbols.size(); i++)
                             detail::add_symbol_observed(sov, symbols[i], observed[i]);

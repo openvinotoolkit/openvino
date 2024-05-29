@@ -164,7 +164,7 @@ void RoPETestLlama2::SetUp() {
 std::string RoPETestLlama2::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
     std::string targetDevice = obj.param;
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << std::endl;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -308,7 +308,7 @@ void RoPETestChatGLM::SetUp() {
 std::string RoPETestChatGLM::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
     std::string targetDevice = obj.param;
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << std::endl;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -448,7 +448,7 @@ std::string RoPETestQwen7b::getTestCaseName(const testing::TestParamInfo<std::tu
     std::tie(specialReshape, targetDevice) = obj.param;
     std::ostringstream result;
     result << "specialReshape=" << specialReshape << "_"
-           << "targetDevice=" << targetDevice << std::endl;
+           << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -566,7 +566,7 @@ std::string RoPETestGPTJ::getTestCaseName(const testing::TestParamInfo<std::tupl
     std::tie(hasShapeOf, targetDevice) = obj.param;
     std::ostringstream result;
     result << "hasShapeOf=" << hasShapeOf << "_"
-           << "targetDevice=" << targetDevice << std::endl;
+           << "targetDevice=" << targetDevice;
     return result.str();
 }
 

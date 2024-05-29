@@ -815,7 +815,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
-        manager.register_pass<ov::pass::EliminateStridedSlice>();
         manager.register_pass<ov::pass::RoPEFusion>();
         pass_config->disable<ov::pass::RoPEFusionGPTNEOX>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();

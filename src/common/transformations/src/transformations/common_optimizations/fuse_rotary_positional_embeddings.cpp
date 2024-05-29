@@ -9,10 +9,10 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
