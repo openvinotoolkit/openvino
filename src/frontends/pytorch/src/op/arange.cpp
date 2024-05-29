@@ -7,6 +7,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
