@@ -51,7 +51,7 @@ std::shared_ptr<ov::Model> createModelWithUnknownNode() {
     const ov::Shape input_shape = {1, 4096};
     const ov::element::Type precision = ov::element::f32;
     ov::ParameterVector params = {std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{input_shape})};
-    auto constant = ov::test::utils::deprecated::make_constant(precision, {4096, 1024}, std::vector<float>{}, true);
+    auto constant = ov::test::utils::make_constant(precision, ov::Shape{4096, 1024});
     auto custom_op = std::make_shared<UnsupportedTestOp>(constant);
 
     ov::NodeVector results{custom_op};
