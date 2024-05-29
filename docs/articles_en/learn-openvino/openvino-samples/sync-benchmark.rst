@@ -11,7 +11,7 @@ Sync Benchmark Sample
 This sample demonstrates how to estimate performance of a model using Synchronous
 Inference Request API. It makes sense to use synchronous inference only in latency
 oriented scenarios. Models with static input shapes are supported. Unlike
-`demos <https://docs.openvino.ai/nightly/omz_demos.html>`__ this sample does not have other configurable command-line
+`demos <https://docs.openvino.ai/2024/omz_demos.html>`__ this sample does not have other configurable command-line
 arguments. Feel free to modify sample's source code to try out different options.
 Before using the sample, refer to the following requirements:
 

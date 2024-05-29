@@ -226,11 +226,3 @@ function(ov_coverage_merge)
 
     add_dependencies(ov_coverage_${OV_COVERAGE_OUTPUT}_info ${dependencies})
 endfunction()
-
-# deprecated
-
-if(NOT TARGET ie_coverage)
-    add_custom_target(ie_coverage)
-    set_target_properties(ie_coverage PROPERTIES FOLDER coverage)
-    add_dependencies(ie_coverage ov_coverage)
-endif()
