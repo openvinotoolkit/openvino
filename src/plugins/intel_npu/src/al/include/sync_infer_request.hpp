@@ -150,13 +150,8 @@ protected:
                          const ov::Allocator& allocator = {},
                          const std::optional<std::size_t> batchSize = std::nullopt);
 
-    std::vector<std::shared_ptr<ov::ITensor>> _inputTensors;
-    std::vector<std::shared_ptr<ov::ITensor>> _outputTensors;
-
-    // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
-    // memory area for the tensor.
-    std::vector<std::shared_ptr<ov::ITensor>> _copyInputTensors;
-    std::vector<std::shared_ptr<ov::ITensor>> _copyOutputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
 
     std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 

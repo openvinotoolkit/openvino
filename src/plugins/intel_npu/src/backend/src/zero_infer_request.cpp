@@ -179,6 +179,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         // The I/O buffers already allocated using the Level Zero API are being reused here
         allocate_tensor(inputDescriptor, INPUT, inputAllocator, batchSizeArgument);
+        _levelZeroInputTensors.push_back(_userInputTensors.at(inputIndex));
 
         ++inputIndex;
     }
@@ -187,6 +188,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     for (const IODescriptor& outputDescriptor : _metadata.outputs) {
         checkLevelZeroAttributesMatch(outputDescriptor, executorOutputDescriptors.at(outputIndex));
         allocate_tensor(outputDescriptor, OUTPUT, allocator, batchSizeArgument);
+        _levelZeroOutputTensors.push_back(_userOutputTensors.at(outputIndex));
 
         ++outputIndex;
     }
@@ -199,8 +201,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                              _profilingPool,
                              _profilingQuery,
                              _npuProfiling,
-                             _copyInputTensors,
-                             _copyOutputTensors,
+                             _levelZeroInputTensors,
+                             _levelZeroOutputTensors,
                              _batchSize);
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest completed");
 }
@@ -215,31 +217,31 @@ void ZeroInferRequest::infer_async() {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
 
     size_t inputIndex = 0;
-    for (const std::shared_ptr<ov::ITensor>& inputTensor : _inputTensors) {
-        const std::shared_ptr<ov::ITensor>& copyInputTensor = _copyInputTensors.at(inputIndex);
+    for (const std::shared_ptr<ov::ITensor>& userTensor : _userInputTensors) {
+        const std::shared_ptr<ov::ITensor>& levelZeroTensor = _levelZeroInputTensors.at(inputIndex);
 
         const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
         if (inputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value(),
                             "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
                             inputDescriptor.nameFromCompiler);
-            const auto& inputDims = _inputTensors.at(*inputDescriptor.relatedDescriptorIndex)->get_shape();
+            const auto& inputDims = _userInputTensors.at(*inputDescriptor.relatedDescriptorIndex)->get_shape();
 
-            for (size_t i = 0; i < inputTensor->get_size(); ++i) {
+            for (size_t i = 0; i < userTensor->get_size(); ++i) {
                 const auto reverseIdx = inputDims.size() - 1 - i;
-                inputTensor->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
+                userTensor->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
             }
         }
 
-        const uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(inputTensor->data());
-        uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(copyInputTensor->data());
+        const uint8_t* userBuffer = reinterpret_cast<uint8_t*>(userTensor->data());
+        uint8_t* levelZeroBuffer = reinterpret_cast<uint8_t*>(levelZeroTensor->data());
 
-        if (tensorBuffer != copyTensorBuffer) {
-            if (tensorBuffer == nullptr || copyTensorBuffer == nullptr) {
+        if (userBuffer != levelZeroBuffer) {
+            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
                 OPENVINO_THROW("Empty buffer");
             }
 
-            std::memcpy(copyTensorBuffer, tensorBuffer, inputTensor->get_byte_size());
+            std::memcpy(levelZeroBuffer, userBuffer, userTensor->get_byte_size());
         }
 
         ++inputIndex;
@@ -258,8 +260,8 @@ void ZeroInferRequest::get_result() {
     }
 
     size_t outputIndex = 0;
-    for (const std::shared_ptr<ov::ITensor>& outputTensor : _outputTensors) {
-        const std::shared_ptr<ov::ITensor>& copyOutputTensor = _copyOutputTensors.at(outputIndex);
+    for (const std::shared_ptr<ov::ITensor>& userTensor : _userOutputTensors) {
+        const std::shared_ptr<ov::ITensor>& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
 
         const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
         if (outputDescriptor.isShapeTensor) {
@@ -268,25 +270,25 @@ void ZeroInferRequest::get_result() {
                             outputDescriptor.nameFromCompiler);
 
             ov::Shape actualDims;
-            actualDims.reserve(outputTensor->get_size());
+            actualDims.reserve(userTensor->get_size());
 
-            for (size_t i = 0; i < outputTensor->get_size(); ++i) {
-                const auto reverseIdx = outputTensor->get_size() - 1 - i;
-                actualDims.push_back(outputTensor->data<uint32_t>()[reverseIdx]);
+            for (size_t i = 0; i < userTensor->get_size(); ++i) {
+                const auto reverseIdx = userTensor->get_size() - 1 - i;
+                actualDims.push_back(userTensor->data<uint32_t>()[reverseIdx]);
             }
-            auto& tensorToBeReshaped = _outputTensors.at(*outputDescriptor.relatedDescriptorIndex);
+            auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
             tensorToBeReshaped->set_shape(actualDims);
         }
 
-        uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(outputTensor->data());
-        const uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(copyOutputTensor->data());
+        uint8_t* userBuffer = reinterpret_cast<uint8_t*>(userTensor->data());
+        const uint8_t* levelZeroBuffer = reinterpret_cast<uint8_t*>(levelZeroTensor->data());
 
-        if (tensorBuffer != copyTensorBuffer) {
-            if (tensorBuffer == nullptr || copyTensorBuffer == nullptr) {
+        if (userBuffer != levelZeroBuffer) {
+            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
                 OPENVINO_THROW("Empty buffer");
             }
 
-            std::memcpy(tensorBuffer, copyTensorBuffer, outputTensor->get_byte_size());
+            std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
         }
 
         ++outputIndex;

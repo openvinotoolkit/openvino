@@ -114,9 +114,9 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
 
     if (foundPort.is_input()) {
-        return _inputTensors.at(foundPort.idx);
+        return _userInputTensors.at(foundPort.idx);
     }
-    return _outputTensors.at(foundPort.idx);
+    return _userOutputTensors.at(foundPort.idx);
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
@@ -131,9 +131,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
-        _inputTensors.at(foundPort.idx) = tensor._ptr;
+        _userInputTensors.at(foundPort.idx) = tensor._ptr;
     } else {
-        _outputTensors.at(foundPort.idx) = tensor._ptr;
+        _userOutputTensors.at(foundPort.idx) = tensor._ptr;
     }
 }
 
@@ -187,12 +187,12 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], _inputTensors.at(i));
+        check_tensor(inputs[i], _userInputTensors.at(i));
     }
 
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], _outputTensors.at(i));
+        check_tensor(outputs[i], _userOutputTensors.at(i));
     }
 }
 
@@ -216,7 +216,7 @@ void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
         OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
                         "The link between state descriptors is missing, state name: ",
                         descriptor.nameFromCompiler);
-        tensor = _inputTensors.at(*descriptor.relatedDescriptorIndex);
+        tensor = _userInputTensors.at(*descriptor.relatedDescriptorIndex);
     } else if (allocator) {
         tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);
     } else {
@@ -224,15 +224,13 @@ void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
     }
 
     if (isInput) {
-        _inputTensors.push_back(tensor);
-        _copyInputTensors.push_back(tensor);
+        _userInputTensors.push_back(tensor);
 
         if (descriptor.isStateInput) {
             _variableStates.push_back(std::make_shared<VariableState>(descriptor.nameFromCompiler, tensor));
         }
     } else {
-        _outputTensors.push_back(tensor);
-        _copyOutputTensors.push_back(tensor);
+        _userOutputTensors.push_back(tensor);
     }
 }
 }  // namespace intel_npu

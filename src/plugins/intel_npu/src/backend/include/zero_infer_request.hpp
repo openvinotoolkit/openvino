@@ -65,6 +65,11 @@ private:
     const Config _config;
     Logger _logger;
 
+    // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
+    // memory area for the tensor.
+    std::vector<std::shared_ptr<ov::ITensor>> _levelZeroInputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
+
     zeroProfiling::ProfilingPool _profilingPool;
     zeroProfiling::ProfilingQuery _profilingQuery;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npuProfiling;
