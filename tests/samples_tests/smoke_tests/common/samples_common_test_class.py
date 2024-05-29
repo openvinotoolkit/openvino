@@ -26,6 +26,7 @@ import zipfile
 import logging as log
 from common.common_utils import shell
 from shutil import which
+import openvino.runtime as ov
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
@@ -80,7 +81,12 @@ def prepend(cache, inp='', model=''):
     if inp:
         inp = '-i', download(test_data_dir, test_data_dir / inp)
     if model:
-        model = '-m', download(test_data_dir, test_data_dir / model)
+        if type(model) is ov.ie_api.Model:
+            model_sv_path = test_data_dir / "tmp.xml"
+            ov.save_model(model, model_sv_path)
+            model = '-m', model_sv_path
+        else:
+            model = '-m', download(test_data_dir, test_data_dir / model)
     return *inp, *model
 
 

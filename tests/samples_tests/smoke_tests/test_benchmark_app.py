@@ -15,7 +15,8 @@ import os
 import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
-
+from openvino.runtime import opset8 as opset
+import openvino.runtime as ov
 
 def get_executable(sample_language):
     executable = 'benchmark_app'
@@ -99,3 +100,12 @@ def test_reshape(sample_language, device, cache):
 @pytest.mark.parametrize('device', get_devices())
 def test_dynamic_shape(sample_language, device, cache):
     verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx', shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache)
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_4bit_precision_input(sample_language, device, cache):
+    input = opset.parameter([-1,224,224,3], ov.Type.i4, name='in')
+    cvt = opset.convert(input, ov.Type.f32)
+    result = opset.result(cvt, name='cvt')
+    model_4bit = ov.Model([result], [input], 'Model_4Bit_Input')
+    verify(sample_language, device, model=model_4bit, cache=cache)
