@@ -27,7 +27,7 @@ def run_pa(tmp_path, model_id, model_link):
                 assert shape[-2].is_static, f"Dimension {len(shape) - 2} of input '{name}' in '{model_id}' is not static: {shape}"
 
 @pytest.mark.precommit
-@pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join("pytorch", "models", "hf-tiny-random-models-precommit")))
+@pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
 def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
