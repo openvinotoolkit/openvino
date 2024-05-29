@@ -462,6 +462,16 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
+    // EXECUTION_MODE_HINT is not supported in versions < 5.6 - need to remove it
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 6)) {
+        std::ostringstream batchstr;
+        batchstr << ov::hint::execution_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                 << VALUE_DELIMITER;
+        _logger.warning(
+            "EXECUTION_MODE_HINT property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
     return "--config " + content;
 }
 
@@ -753,6 +763,8 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
                     getLatestBuildError());
 
     auto networkMeta = getNetworkMeta(graphHandle);
+    networkMeta.name = model->get_friendly_name();
+
     result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {

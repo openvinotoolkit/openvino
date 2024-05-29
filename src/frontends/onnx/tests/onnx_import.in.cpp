@@ -1257,6 +1257,38 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square_13) {
+    auto model = convert_model("reduce_sum_square_13.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square_18) {
+    auto model = convert_model("reduce_sum_square_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant) {
     auto model = convert_model("reduce_sum_13_axes_as_constant.onnx");
 
@@ -6614,6 +6646,29 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
                                           0.208001f,  2.986535f,  7.691896f,  0.453058f,  -0.000074f, 0.0f});
 
     test_case.run_with_tolerance_as_fp(0.000001f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
+    float eps = 0.0001f;
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        eps = 0.01f;
+    }
+
+    auto model = convert_model("mmdeploy_roi_align_rotated.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 5, 5}, {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,
+                                                   10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f,
+                                                   19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f});
+
+    test_case.add_input<float>(Shape{1, 6}, {0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 1.0471975512f});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 2},
+        {5.1271f, 1.2473f, 6.1773f, 2.9598f, 7.2275f, 3.2300f, 8.2777f, 3.7458f, 9.3279f, 4.4060f});
+
+    test_case.run_with_tolerance_as_fp(eps);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_18) {

@@ -211,8 +211,7 @@ void add_required_reorders::run(program& p) {
         }
 
         bool correct_layout_selected = false;
-        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() ||
-                             usr->is_type<deformable_conv>() || usr->is_type<fully_connected>());
+        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>());
 
         layout original_layout = usr->get_output_layout();
 

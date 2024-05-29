@@ -14,7 +14,7 @@ namespace pass {
 /**
  * @interface UpdateSubtensors
  * @brief The pass updates subtensors of all operations in Loop based on tail size.
- * Firstly, the pass updates subtensors of all Loop entry points.
+ * Firstly, the pass updates subtensors of all Loop input ports.
  * After that, shape inference infrastructure is used to update subtensors of all ops in Loop body
  * @param m_offset - offset which must be set
  * @ingroup snippets

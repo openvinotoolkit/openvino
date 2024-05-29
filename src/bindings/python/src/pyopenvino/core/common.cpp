@@ -37,8 +37,8 @@ py::dtype get_dtype(const ov::element::Type& ov_type) {
     return ov_type_to_dtype().at(ov_type);
 }
 
-const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
-    static const std::map<std::string, ov::element::Type> dtype_to_ov_type_mapping = {
+std::map<int, ov::element::Type> init_num_to_ov_type() {
+    static const std::map<std::string, ov::element::Type> str_to_type_mapping = {
         {"float16", ov::element::f16},
         {"float32", ov::element::f32},
         {"float64", ov::element::f64},
@@ -56,6 +56,18 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
         {"bytes", ov::element::string},
         {"str", ov::element::string},
     };
+
+    std::map<int, ov::element::Type> int_to_type_mapping;
+
+    for (const auto& e : str_to_type_mapping) {
+        int_to_type_mapping[py::dtype(e.first).num()] = e.second;
+    }
+
+    return int_to_type_mapping;
+}
+
+const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
+    static const std::map<int, ov::element::Type> dtype_to_ov_type_mapping = init_num_to_ov_type();
     return dtype_to_ov_type_mapping;
 }
 
@@ -66,7 +78,7 @@ ov::element::Type get_ov_type(const py::array& array) {
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
     }
-    return dtype_to_ov_type().at(py::str(array.dtype()));
+    return dtype_num_to_ov_type().at(array.dtype().num());
 }
 
 ov::element::Type get_ov_type(py::dtype& dtype) {
@@ -76,7 +88,7 @@ ov::element::Type get_ov_type(py::dtype& dtype) {
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
     }
-    return dtype_to_ov_type().at(py::str(dtype));
+    return dtype_num_to_ov_type().at(dtype.num());
 }
 
 };  // namespace type_helpers

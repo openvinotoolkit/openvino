@@ -297,7 +297,6 @@ void Graph::InitGraph(bool optimize) {
 #endif
 
     ExtractExecutableNodes();
-    SearchInternalStateNodes();
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 
@@ -965,7 +964,11 @@ bool Graph::ProcessDynNodes() {
                 // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
                 // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
                 // for this node sequentially.
-                (node->getType() == Type::Convolution && node->isInPlace())) {
+                (node->getType() == Type::Convolution && node->isInPlace()) ||
+                // Due to the special handling of the internal states and initialization subgraphs, MemoryInput nodes must
+                // be processed as a internal dynamism node, allowing to hide the aforementioned complexity inside the
+                // MemoryInput::executeDynamic implementation
+                (node->getType() == Type::MemoryInput)) {
                 syncNodesInds.insert({node.get(), i});
             }
         }
@@ -1738,7 +1741,7 @@ void Graph::EnforceInferencePrecision() {
 
     const auto inferPrec = getConfig().inferencePrecision;
 
-    if (inferPrec == ov::element::f32)
+    if (one_of(inferPrec, element::f32, element::undefined))
         return; // nothing to do, only precision reduction is currently allowed
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (inferPrec == ov::element::f16)
@@ -1814,8 +1817,7 @@ void Graph::EnforceInferencePrecision() {
                     return true;
 
                 // kvcache of PagedAttention should be written directly
-                if (node->getType() == Type::ScaledDotProductAttention && node->getOriginalInputsNumber() == 13 &&
-                    (inPort == 3 || inPort == 4))
+                if (node->getType() == Type::PagedAttention && (inPort == 3 || inPort == 4))
                     return true;
                 const auto &parent = node->getParentEdgeAt(inPort)->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
@@ -1883,16 +1885,8 @@ std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 
-void Graph::SearchInternalStateNodes() {
-    for (auto&& node : graphNodes) {
-        if (node->getType() == Type::MemoryInput) {
-            auto cur_node = std::dynamic_pointer_cast<node::MemoryStateNode>(node);
-            if (!cur_node) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryStateNode");
-            }
-            internalStateNodes.insert({cur_node->getId(), cur_node});
-        }
-    }
+const std::unordered_map<std::string, node::MemoryStateNode*>& Graph::getInternalStateNodes() const {
+    return context->getMemoryStatesRegister()->getMemoryStates();
 }
 
 }   // namespace intel_cpu

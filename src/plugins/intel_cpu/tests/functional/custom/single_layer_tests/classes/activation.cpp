@@ -122,9 +122,10 @@ void ActivationLayerCPUTest::SetUp() {
     if (activationType == utils::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
         selectedType = std::string("ref_") + netPrecision.to_string();
 #    endif
-    if (activationType == utils::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with transformation
+    if ((primitiveType != "jit") &&
+        (activationType == utils::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with transformation
         activationType == utils::ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with transformation
-        inputShapes.front().first.rank().get_length() > 5)               // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
+        inputShapes.front().first.rank().get_length() > 5))    // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
         selectedType = std::string("ref_") + netPrecision.to_string();
 #else
     if (activationType == utils::ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
@@ -154,7 +155,11 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #if defined(OPENVINO_ARCH_ARM64)
     if ((element_type == ov::element::f32) &&
         ((activation_type == utils::ActivationTypes::Clamp) ||
+        (activation_type == utils::ActivationTypes::Elu) ||
         (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::HSwish) ||
+        (activation_type == utils::ActivationTypes::HardSigmoid) ||
+        (activation_type == utils::ActivationTypes::Mish) ||
         (activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
         (activation_type == utils::ActivationTypes::Swish) ||

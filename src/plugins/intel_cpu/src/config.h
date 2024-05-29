@@ -40,6 +40,7 @@ struct Config {
 
     enum class ModelType {
         CNN,
+        LLM,
         Unknown
     };
 
