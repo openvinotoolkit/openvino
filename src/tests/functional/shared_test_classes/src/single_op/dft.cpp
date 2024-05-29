@@ -43,12 +43,8 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
     }
 
     if (it != ov::test::utils::inputRanges.end()) {
-        const auto& ranges = it->second;
-        if (ranges.size() != 2) {
-            throw std::runtime_error("Incorrect size of ranges. It should be 2 (real and int cases)");
-        }
-        const auto& range = ranges.at(elemType.is_real());
-        inGenData = range.size() < inNodeCnt ? range.front() : range.at(0);
+        ov::test::utils::Range ranges = it->second;
+        inGenData = ranges.get_data(0, elemType);
     }
 
     inputs.clear();

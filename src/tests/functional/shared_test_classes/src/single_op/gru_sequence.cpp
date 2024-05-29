@@ -82,7 +82,6 @@ void GRUSequenceTest::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]),
                                std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1])};
-
     const auto& w_shape = ov::Shape{num_directions, 3 * hidden_size, input_size};
     const auto& r_shape = ov::Shape{num_directions, 3 * hidden_size, hidden_size};
     const auto& b_shape = ov::Shape{num_directions, (linear_before_reset ? 4 : 3) * hidden_size};
