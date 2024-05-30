@@ -34,7 +34,7 @@ namespace {
 inline bool can_use_usm_host(const cldnn::engine& engine) {
     auto can_use_usm = engine.use_unified_shared_memory();
 
-    if (engine.get_device_info().gfx_ver.major == 12 && engine.get_device_info().gfx_ver.major == 60) {
+    if (engine.get_device_info().gfx_ver.major == 12 && engine.get_device_info().gfx_ver.minor == 60) {
         // WA: Disable USM host memory for infer request`s tensors for PVC as
         // it has performance issues in case of host <-> device data transfers inside kernels
         GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
