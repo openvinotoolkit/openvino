@@ -85,7 +85,7 @@ TransformInnerSplitLoop::TransformInnerSplitLoop(size_t tail_size) : RangedPass(
 bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     const auto& expr = *end;
     const auto node = expr->get_node();
-    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(node);
+    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(node);
     OPENVINO_ASSERT(loop_end, "the last operation in range must be LoopEnd");
 
     const auto& loop_manager = linear_ir.get_loop_manager();
@@ -97,7 +97,7 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
     bool modified = false;
     for (auto it = begin; it != end; ++it) {
         const auto& expr = *it;
-        const auto inner_loop_end = ov::as_type_ptr<op::LoopEndStatic>(expr->get_node());
+        const auto inner_loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
         if (!inner_loop_end)
             continue;
         // There is already ExpandedLoopInfo
@@ -105,6 +105,8 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         const auto inner_dim_idx = inner_loop_info->get_dim_idx();
         if (inner_dim_idx != current_dim_idx)
             continue;
+        // TODO [141735] : At the moment Splitted loops are not supported in dynamic case
+        OPENVINO_ASSERT(!inner_loop_end->has_dynamic_params(), "inner loop must be static in TransformInnerSplitLoop");
         const auto inner_loop_begin = inner_loop_end->get_loop_begin();
         const auto inner_loop_work_amount = static_cast<int64_t>(inner_loop_end->get_work_amount());
         const auto inner_loop_increment = inner_loop_end->get_increment();

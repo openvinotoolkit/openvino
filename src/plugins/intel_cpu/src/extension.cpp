@@ -159,10 +159,8 @@ private:
     OP_EXTENSION(ov::snippets::op::IntermediateMemoryBuffer) \
     OP_EXTENSION(ov::snippets::op::Load)                     \
     OP_EXTENSION(ov::snippets::op::LoadReshape)              \
-    OP_EXTENSION(ov::snippets::op::LoopBeginStatic)          \
-    OP_EXTENSION(ov::snippets::op::LoopBeginDynamic)         \
-    OP_EXTENSION(ov::snippets::op::LoopEndStatic)            \
-    OP_EXTENSION(ov::snippets::op::LoopEndDynamic)           \
+    OP_EXTENSION(ov::snippets::op::LoopBegin)                \
+    OP_EXTENSION(ov::snippets::op::LoopEnd)                  \
     OP_EXTENSION(ov::snippets::op::NewMemoryBuffer)          \
     OP_EXTENSION(ov::snippets::op::Nop)                      \
     OP_EXTENSION(ov::snippets::op::PowerStatic)              \

@@ -72,7 +72,7 @@ inline void init_is_incremented(LoopPort& port, size_t loop_id) {
     }
 }
 
-inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount) {
+inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, size_t port_count) {
     if (!loop_port.is_incremented)
         return 0;
 
@@ -87,8 +87,8 @@ inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount) 
     } else {
         OPENVINO_THROW("Unsupported expression port type!");
     }
-    // When we cannot say about broadcasting by last dim
-    if (dim == shape.size() - 1 && utils::is_dynamic_value(shape.back())) {
+    // When we cannot say about broadcasting
+    if (utils::is_dynamic_value(shape[dim]) && port_count > 1) {
         return utils::get_dynamic_value<int64_t>();
     } else if (!(shape[dim] == 1 && work_amount != 1)) {
         return get_stride(dim, shape);
@@ -134,9 +134,12 @@ void InitLoops::init_loop_info(const UnifiedLoopInfoPtr& loop_info, const size_t
         init_work_amount(loop_info);
 
     const auto work_amount = loop_info->get_work_amount();
+    const auto input_count = loop_info->get_input_count();
+    const auto output_count = loop_info->get_output_count();
 
-    auto init_runtime_parameters = [&work_amount](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
-        ptr_shifts_params.ptr_increment = get_ptr_increment(loop_port, work_amount);
+    auto init_runtime_parameters = [&work_amount, &input_count, &output_count](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+        ptr_shifts_params.ptr_increment = get_ptr_increment(loop_port, work_amount,
+                                                            loop_port.expr_port->get_type() == ExpressionPort::Input ? input_count : output_count);
         ptr_shifts_params.finalization_offset = get_finalization_offset(work_amount, ptr_shifts_params.ptr_increment);
     };
 

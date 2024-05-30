@@ -110,18 +110,16 @@ void ValidateExpandedLoops::validate_loop_expressions(const LinearIR& linear_ir)
             const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_manager->get_loop_info(loop_id));
             INFORMATIVE_ASSERT(expanded_loop_info, "expects only ExpandedLoopInfo in LoopManager");
 
+            INFORMATIVE_ASSERT(loop_end->get_work_amount() == expanded_loop_info->get_work_amount(),
+                               "incompatible work amount of LoopEnd and ExpandedLoopInfo");
             INFORMATIVE_ASSERT(loop_end->get_increment() == expanded_loop_info->get_increment(),
                                "incompatible increment of LoopEnd and ExpandedLoopInfo");
             INFORMATIVE_ASSERT(loop_end->get_element_type_sizes() == expanded_loop_info->get_data_sizes(),
                                "incompatible element sizes of LoopEnd and ExpandedLoopInfo");
-            if (const auto static_loop_end = ov::as_type_ptr<op::LoopEndStatic>(expr->get_node())) {
-                INFORMATIVE_ASSERT(static_loop_end->get_work_amount() == expanded_loop_info->get_work_amount(),
-                                   "incompatible work amount of LoopEnd and ExpandedLoopInfo");
-                INFORMATIVE_ASSERT(static_loop_end->get_ptr_increments() == expanded_loop_info->get_ptr_increments(),
-                                   "incompatible pointer increments of LoopEnd and ExpandedLoopInfo");
-                INFORMATIVE_ASSERT(static_loop_end->get_finalization_offsets() == expanded_loop_info->get_finalization_offsets(),
-                                   "incompatible finalization offsets of LoopEnd and ExpandedLoopInfo");
-            }
+            INFORMATIVE_ASSERT(loop_end->get_ptr_increments() == expanded_loop_info->get_ptr_increments(),
+                               "incompatible pointer increments of LoopEnd and ExpandedLoopInfo");
+            INFORMATIVE_ASSERT(loop_end->get_finalization_offsets() == expanded_loop_info->get_finalization_offsets(),
+                               "incompatible finalization offsets of LoopEnd and ExpandedLoopInfo");
         }
     }
     INFORMATIVE_ASSERT(unique_loop_ids.size() == loop_manager->get_map().size(),

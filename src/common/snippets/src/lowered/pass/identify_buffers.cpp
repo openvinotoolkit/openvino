@@ -4,10 +4,9 @@
 
 #include "snippets/lowered/pass/identify_buffers.hpp"
 
-#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/op/brgemm.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -36,9 +35,13 @@ size_t IdentifyBuffers::get_buffer_idx(const ExpressionPtr& target, const Buffer
 }
 
 bool IdentifyBuffers::can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs) {
+    // If data pointer shift parameters are unknown on model compilation stage (dynamic),
+    // we cannot be sure that these data pointers will be proportionally shifted.
+    // Then we force `false` value here to set unique registers for these buffers
+    const auto are_static = lhs.is_static() && rhs.is_static();
     const auto equal_ptr_params_shifting = lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset;
     const auto equal_element_type_sizes = lhs.data_size == rhs.data_size;
-    return equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.ptr_increment == 0 && lhs.finalization_offset == 0));
+    return are_static && equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.ptr_increment == 0 && lhs.finalization_offset == 0));
 }
 
 bool IdentifyBuffers::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
@@ -57,7 +60,7 @@ bool IdentifyBuffers::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams
         const auto are_outer_loops_the_same = lhs_ids.size() != rhs_ids.size() &&
             std::equal(rhs_ids.cbegin(), rhs_ids.cbegin() + count_outer_loops, lhs_ids.cbegin());
         const auto outer_buffer_has_zero_shifts = outer_buffer.second.ptr_increment == 0 && outer_buffer.second.finalization_offset == 0;
-        return !are_outer_loops_the_same || !outer_buffer_has_zero_shifts;
+        return !(are_outer_loops_the_same && outer_buffer_has_zero_shifts);
     }
 }
 
@@ -88,7 +91,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(LinearIR::constExprIt
 
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto &expr = *expr_it;
-        if (!ov::is_type<op::LoopEndStatic>(expr->get_node()))
+        if (!ov::is_type<op::LoopEnd>(expr->get_node()))
             continue;
 
         const auto buffer_loop_neighbours = get_buffer_loop_neighbours(expr);
@@ -111,7 +114,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(LinearIR::constExprIt
 }
 
 IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr) {
-    const auto& loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_end_expr->get_node());
+    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
 
@@ -142,7 +145,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
             if (ov::is_type<op::Buffer>(child_expr->get_node())) {
                 buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
                 buffer_count++;
-            } else if (ov::is_type<op::LoopEndStatic>(child_expr->get_node())) {
+            } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
                 loop_count++;
             }
         }
@@ -155,7 +158,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
 }
 
 IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it) {
-    const auto& loop_end = ov::as_type_ptr<op::LoopEndStatic>((*loop_end_it)->get_node());
+    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>((*loop_end_it)->get_node());
     const auto loop_begin = loop_end->get_loop_begin();
     BufferMap inner_buffers;
     for (auto it = std::reverse_iterator<LinearIR::constExprIt>(loop_end_it); (*it)->get_node() != loop_begin; ++it) {

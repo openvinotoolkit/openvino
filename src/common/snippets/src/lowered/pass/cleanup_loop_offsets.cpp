@@ -5,7 +5,8 @@
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -18,7 +19,7 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
     bool is_modified = false;
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& node = expr_it->get()->get_node();
-        if (auto loop_end = as_type_ptr<op::LoopEndStatic>(node)) {
+        if (auto loop_end = as_type_ptr<op::LoopEnd>(node)) {
             auto next_expr_it = std::next(expr_it);
             const auto& next_node = next_expr_it->get()->get_node();
             // Note: Finalization offsets before the Result can be safely disregarded
@@ -29,7 +30,7 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
                 loop_end->set_finalization_offsets(std::vector<int64_t>(fin_offsets.size(), 0));
                 is_modified = true;
             }
-            if (auto outer_loop_end = as_type_ptr<op::LoopEndStatic>(next_node)) {
+            if (auto outer_loop_end = as_type_ptr<op::LoopEnd>(next_node)) {
                 const auto& is_incremented = loop_end->get_is_incremented();
                 const auto& data_sizes = loop_end->get_element_type_sizes();
                 auto fin_offsets = loop_end->get_finalization_offsets();
@@ -50,6 +51,8 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
                     const auto& found = per_port_connector_offset.find(managed_connector);
                     if (found != per_port_connector_offset.end()) {
                         if (!is_incremented[found->second] || outer_data_sizes[i] != data_sizes[found->second])
+                            continue;
+                        if (utils::is_dynamic_value(outer_ptr_increments[i]) || utils::is_dynamic_value(fin_offsets[found->second]))
                             continue;
                         // Since data ptr is incremented on [ptr_increment x increment],
                         // we should guarantee proportionality of ptr shifts.
