@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <experimental/filesystem>
 #include <fstream>
 #include <sstream>
 
@@ -57,6 +58,8 @@
 /// @brief mkdir wrapper
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
+
+namespace fs = std::experimental::filesystem;
 
 std::string ov::util::get_file_name(const std::string& s) {
     std::string rc = s;
@@ -677,3 +680,20 @@ const char* ov::util::trim_file_name(const char* const fname) {
 #endif
     return fname_trim_ptr;
 }
+
+bool ov::util::is_symlink_or_hardlink(const std::string& path) {
+    fs::path p = fs::path(path);
+    if (fs::is_symlink(p) || (fs::hard_link_count(p) > 1))
+        return true;
+    return false;
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+bool ov::util::is_symlink_or_hardlink(const std::wstring& path) {
+    fs::path p = fs::path(path);
+    if (fs::is_symlink(p) || (fs::hard_link_count(p) > 1))
+        return true;
+    return false;
+}
+#endif

@@ -355,6 +355,22 @@ void save_binary(const std::string& path, const char* binary, size_t bin_size);
  */
 const char* trim_file_name(const char* const fname);
 
+/**
+ * @brief Check the file path is symlink or hardlink
+ * @param path - file path to be checked
+ * @return Return true, if the path is symlink or hardlink
+ */
+bool is_symlink_or_hardlink(const std::string& path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Check the file path is symlink or hardlink
+ * @param path - file path (wstring) to be checked
+ * @return Return true, if the path is symlink or hardlink
+ */
+bool is_symlink_or_hardlink(const std::wstring& path);
+#endif
+
 template <typename C>
 using enableIfSupportedChar =
     typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
