@@ -103,9 +103,9 @@ You can also set OpenVINO specific configuration options by adding them as a dic
 Windows support
 +++++++++++++++++++++
 
-PyTorch supports ``torch.compile`` officially on Windows from Version 2.3.0 onwards. 
+PyTorch supports ``torch.compile`` officially on Windows from version 2.3.0 onwards. 
 
-For PyTorch versions velow 2.3.0, ``torch.compile`` feature is not supported on Windows officially. However, it can be accessed by running
+For PyTorch versions below 2.3.0, ``torch.compile`` feature is not supported on Windows officially. However, it can be accessed by running
 the below instructions:
 
 1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/nightly/cpu/torch-2.1.0.dev20230713%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
