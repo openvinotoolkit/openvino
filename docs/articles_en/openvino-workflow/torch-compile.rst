@@ -64,7 +64,7 @@ enable model caching, set the cache directory etc. You can use a dictionary of t
   use the integrated graphics processor instead.
 * ``aot_autograd`` - enables aot_autograd graph capture. The aot_autograd graph capture
   is needed to enable dynamic shapes or to finetune a model. For models with dynamic
-  shapes, it is recommended to set this option to ``True``. By default, aot_autograd 
+  shapes, it is recommended to set this option to ``True``. By default, aot_autograd
   is set to ``False``.
 * ``model_caching`` - enables saving the optimized model files to a hard drive,
   after the first application run. This makes them available for the following
@@ -73,14 +73,14 @@ enable model caching, set the cache directory etc. You can use a dictionary of t
 * ``cache_dir`` - enables defining a custom directory for the model files (if
   ``model_caching`` is set to ``True``). By default, the OpenVINO IR is saved
   in the cache sub-directory, created in the application's root directory.
-* ``decompositions`` - enables defining additional operator decompositions. By 
-  default, this is an empty list. For example, to add a decomposition for 
+* ``decompositions`` - enables defining additional operator decompositions. By
+  default, this is an empty list. For example, to add a decomposition for
   an operator ``my_op``, add ``'decompositions': [torch.ops.aten.my_op.default]``
-  to the options. 
+  to the options.
 * ``disabled_ops`` - enables specifying operators that can be disabled from
-  openvino execution and make it fall back to native PyTorch runtime. For 
-  example, to disable an operator ``my_op`` from OpenVINO execution, add 
-  ``'disabled_ops': [torch.ops.aten.my_op.default]`` to the options. By 
+  openvino execution and make it fall back to native PyTorch runtime. For
+  example, to disable an operator ``my_op`` from OpenVINO execution, add
+  ``'disabled_ops': [torch.ops.aten.my_op.default]`` to the options. By
   default, this is an empty list.
 * ``config`` - enables passing any OpenVINO configuration option as a dictionary
   to this variable. For details on the various options, refer to the
@@ -103,7 +103,7 @@ You can also set OpenVINO specific configuration options by adding them as a dic
 Windows support
 +++++++++++++++++++++
 
-PyTorch supports ``torch.compile`` officially on Windows from version 2.3.0 onwards. 
+PyTorch supports ``torch.compile`` officially on Windows from version 2.3.0 onwards.
 
 For PyTorch versions below 2.3.0, ``torch.compile`` feature is not supported on Windows officially. However, it can be accessed by running
 the below instructions:
@@ -175,6 +175,10 @@ PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compil
 
 Torchserve Integration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Torchserve is a performant, flexible and easy to  use tool for serving Pytorch models in production. For more information on the details of Torchserve,
+you can refer to `Torchserve github repository. <https://github.com/pytorch/serve>`__. With OpenVINO ``torch.compile`` integration into Torchserve you can serve
+Pytorch models in production and accelerate them with OpenVINO on various Intel hardware. Detailed instructions on how to use OpenVINO with Torchserve are
+available in `Torchserve examples. <https://github.com/pytorch/serve/tree/master/examples/pt2/torch_compile_openvino>`__
 
 Support for Automatic1111 Stable Diffusion WebUI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
