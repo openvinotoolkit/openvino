@@ -31,6 +31,7 @@ void LoopBegin::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> LoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
+    OPENVINO_ASSERT(inputs.empty(), "LoopBegin should not contain inputs");
     return std::make_shared<LoopBegin>();
 }
 
