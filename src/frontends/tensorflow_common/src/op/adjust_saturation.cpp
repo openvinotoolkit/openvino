@@ -3,11 +3,9 @@
 //
 
 #include "common_op_table.hpp"
-
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
-
 #include "utils.hpp"
 
 using namespace std;
