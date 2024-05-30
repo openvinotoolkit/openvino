@@ -70,27 +70,4 @@ TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {
         manager.register_pass<pass::ApplySymbolEquivalence>();
         manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
     }
-    {
-        auto input_1 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
-        auto input_2 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
-        auto concat = make_shared<v0::Concat>(OutputVector{input_1, input_2}, -1);
-
-        auto shape_1 = make_shared<v3::ShapeOf>(input_1);
-        auto gather_1 = make_shared<v8::Gather>(shape_1,
-                                                v0::Constant::create(element::i64, {1}, {3}),
-                                                v0::Constant::create(element::i64, {}, {0}));
-
-        auto shape_2 = make_shared<v3::ShapeOf>(input_2);
-        auto gather_2 = make_shared<v8::Gather>(shape_2,
-                                                v0::Constant::create(element::i64, {1}, {3}),
-                                                v0::Constant::create(element::i64, {}, {0}));
-
-        auto sum = make_shared<v1::Add>(gather_1, gather_2);
-
-        auto reshape = make_shared<v1::Reshape>(
-            concat,
-            make_shared<v0::Concat>(OutputVector{sum, v0::Constant::create(element::i64, {1}, {-1})}, 0),
-            false);
-        model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{input_2, input_1});
-    }
 }

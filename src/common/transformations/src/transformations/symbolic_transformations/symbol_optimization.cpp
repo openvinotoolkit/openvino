@@ -15,6 +15,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -218,17 +219,52 @@ void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_so
     }
 }
 
-void save_shape_sources(const ov::Output<ov::Node>& output, STS_map& symbol_shape_source) {
-    for (const auto& d : output.get_partial_shape()) {
-        if (d.is_static())
-            continue;
-        auto symbol = d.get_symbol();
-        if (symbol == nullptr)
-            continue;
-        if (symbol_shape_source.count(symbol))
-            continue;
-        symbol_shape_source[symbol] = output;
+std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<ov::Model>& m) {
+    const std::string local_rt_info_name = "topological_sort_weight";
+
+    auto reverse_order = m->get_ordered_ops();
+    std::reverse(reverse_order.begin(), reverse_order.end());
+
+    // backward: weight = max(output_weights) + 1
+    for (const auto& op : reverse_order) {
+        int64_t weight = 0;
+        if (!ov::as_type_ptr<ov::op::v0::Result>(op) && !ov::op::util::is_sink(op)) {
+            for (const auto& output : op->outputs()) {
+                for (const auto& input : output.get_target_inputs()) {
+                    const auto& output_op = input.get_node();
+                    const auto& rt_info = output_op->get_rt_info();
+                    auto output_weight = rt_info.at(local_rt_info_name).as<int64_t>();
+                    weight = output_weight > weight ? output_weight : weight;
+                }
+            }
+            weight += 1;
+        }
+        op->get_rt_info()[local_rt_info_name] = weight;
     }
+
+    std::map<int64_t, std::vector<std::shared_ptr<ov::Node>>> level_to_vector;
+    // forward: weight = min(input_weights) - 1
+    for (const auto& op : m->get_ordered_ops()) {
+        auto weight = op->get_rt_info().at(local_rt_info_name).as<int64_t>();
+        // min(weight, min(inputs) - 1)
+        for (const auto& input : op->input_values()) {
+            auto input_op = input.get_node_shared_ptr();
+            const auto& rt_info = input_op->get_rt_info();
+            auto input_weight = rt_info.at(local_rt_info_name).as<int64_t>() - 1;
+            weight = input_weight < weight ? input_weight : weight;
+        }
+        op->get_rt_info()[local_rt_info_name] = weight;
+        level_to_vector[weight].push_back(op);
+    }
+
+    std::vector<std::shared_ptr<ov::Node>> result;
+    result.reserve(reverse_order.size());
+    for (const auto& item : level_to_vector)
+        result.insert(result.end(), item.second.rbegin(), item.second.rend());
+    for (const auto& node : result)
+        node->get_rt_info().erase(local_rt_info_name);
+    std::reverse(result.begin(), result.end());
+    return result;
 }
 }  // namespace
 
@@ -236,7 +272,7 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
     RUN_ON_FUNCTION_SCOPE(OptimizeSymbolsUsedAsValues);
     STS_map symbol_shape_source;
     STS_map symbol_value_source;
-    for (const auto& op : m->get_ordered_ops()) {
+    for (const auto& op : topological_order(m)) {
         // Result has output port which has shared (during validate_and_infer_type) tensor with input port.
         // Transformations may replace input of Result. After replacement and before Result::validate_and_infer_type --
         // output tensor of Result may contain inaccurate shape / symbols due to the sharing with tensor which may be
@@ -250,7 +286,6 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
 
         for (auto& output : op->outputs()) {
             optimize_value_usage(output, symbol_shape_source, symbol_value_source);
-            save_shape_sources(output, symbol_shape_source);
         }
     }
     return true;
