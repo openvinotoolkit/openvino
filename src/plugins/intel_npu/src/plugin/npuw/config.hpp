@@ -24,8 +24,7 @@ struct Configuration {
     Configuration& operator=(Configuration&&) = default;
 
     explicit Configuration(const ov::AnyMap& config,
-                           const Configuration& defaultCfg = {},
-                           bool throwOnUnsupported = false);
+                           const Configuration& defaultCfg = {});
 
     ov::Any get(const std::string& name) const;
 

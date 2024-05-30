@@ -36,12 +36,23 @@ namespace {
 ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                      const std::string& device_priorities,
                                                      const ov::AnyMap& properties) {
+    auto core = plugin->get_core();
     auto device_names = ov::DeviceIDParser::get_hetero_devices(device_priorities);
     DeviceProperties device_properties;
     for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
-        if (device_properties.end() == properties_it)
-            device_properties[device_name] = plugin->get_core()->get_supported_property(device_name, properties);
+        if (device_properties.end() == properties_it) {
+            device_properties[device_name] = core->get_supported_property(device_name, properties);
+
+            // Do extra handling for the private NPU options
+            if (ov::npuw::util::starts_with(device_name, "NPU")) {
+                for (auto &&opt : properties) {
+                    if (ov::npuw::util::starts_with(opt.first, "NPU")) {
+                        device_properties[device_name][opt.first] = opt.second;
+                    }
+                }
+            } // if(NPU)
+        }
     }
     return device_properties;
 }
