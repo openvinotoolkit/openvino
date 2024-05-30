@@ -502,10 +502,10 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_h
 shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s, const shared_ptr<Node>& v) {
     // image format conversion based on
     // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
-    auto const_six_f_ = create_same_type_const_scalar<double>(h, 6.0f);
-    auto const_two_f_ = create_same_type_const_scalar<double>(h, 2.0f);
-    auto const_one_f_ = create_same_type_const_scalar<double>(h, 1.0f);
-    auto const_zero_f_ = create_same_type_const_scalar<double>(h, 0.0f);
+    auto const_six_f_ = create_same_type_const_scalar<float>(h, 6.0f);
+    auto const_two_f_ = create_same_type_const_scalar<float>(h, 2.0f);
+    auto const_one_f_ = create_same_type_const_scalar<float>(h, 1.0f);
+    auto const_zero_f_ = create_same_type_const_scalar<float>(h, 0.0f);
 
     auto const_minus_one_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -1);
     auto const_minus_two_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -2);
