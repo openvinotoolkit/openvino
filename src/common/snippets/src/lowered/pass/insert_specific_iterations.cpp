@@ -101,12 +101,10 @@ void InsertSpecificIterations::init_decomposed_loop(LinearIR& linear_ir, LinearI
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto new_id = loop_manager->replace_with_new_loop(linear_ir, begin, std::next(end), decomposed_loop_info, unified_loop_id);
     decomposed_loop_end->set_id(new_id);
+    decomposed_loop_end->set_work_amount(decomposed_loop_info->get_work_amount());
     decomposed_loop_end->set_increment(decomposed_loop_info->get_increment());
-    if (const auto static_loop_end = ov::as_type_ptr<op::LoopEndStatic>(decomposed_loop_end)) {
-        static_loop_end->set_work_amount(decomposed_loop_info->get_work_amount());
-        static_loop_end->set_ptr_increments(decomposed_loop_info->get_ptr_increments());
-        static_loop_end->set_finalization_offsets(decomposed_loop_info->get_finalization_offsets());
-    }
+    decomposed_loop_end->set_ptr_increments(decomposed_loop_info->get_ptr_increments());
+    decomposed_loop_end->set_finalization_offsets(decomposed_loop_info->get_finalization_offsets());
     // Note: handlers must be run on the range started with the first operation in the loop body.
     const auto handlers = decomposed_loop_info->get_handler_passes();
     handlers.run(linear_ir, std::next(begin), end);
