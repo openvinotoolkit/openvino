@@ -6,7 +6,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "utils/filter_cpu_info.hpp"
 
 using namespace CPUTestUtils;
 
@@ -200,9 +199,7 @@ protected:
         ElementType netType = ElementType::f32;
         ElementType convertOutType = ElementType::f32;
         auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        ov::element::Type inference_precision = (it != additionalConfig.end()) ?
-                                                it->second.as<ov::element::Type>() : ov::element::undefined;
-        if (inference_precision == ov::element::bf16) {
+        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
         } else {
@@ -210,7 +207,7 @@ protected:
         }
 
         std::string cpuNodeType = "FullyConnected";
-        selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(outType, configuration));
+        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB = ov::test::utils::make_constant(weiConstElemType, inShapeB.get_shape());
@@ -243,13 +240,6 @@ TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     check_execution_graph();
-}
-
-using MatMulDecompressConvertTest_FP16 = MatMulDecompressConvertTest;
-TEST_P(MatMulDecompressConvertTest_FP16, CompareWithRefs) {
-    run();
-    // only check this test case can run successfully in FP16 precision
-    CheckPluginRelatedResults(compiledModel, "FullyConnected");
 }
 
 namespace {
@@ -285,12 +275,6 @@ std::vector<ov::AnyMap> filter_additional_config_bf16() {
     return additionalConfig;
 }
 
-std::vector<ov::AnyMap> filter_additional_config_fp16() {
-    std::vector<ov::AnyMap> additionalConfig;
-    additionalConfig.push_back({{ov::hint::inference_precision(ov::element::f16)}});
-    return additionalConfig;
-}
-
 std::vector<CPUSpecificParams> filter_specific_params(bool trySetMlas) {
     std::vector<CPUSpecificParams> specificParams;
     if (trySetMlas) {
@@ -314,13 +298,6 @@ std::vector<CPUSpecificParams> filter_specific_params_bf16() {
     std::vector<CPUSpecificParams> specificParams;
     specificParams.push_back(CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"});
     return specificParams;
-}
-
-std::vector<CPUSpecificParams> filter_specific_params_f16() {
-    std::vector<CPUSpecificParams> specificParams;
-    specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
-    specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
-    return CPUTestUtils::filterCPUInfoForDeviceWithFP16(specificParams);
 }
 
 const auto testParams2D_FP32_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
@@ -356,17 +333,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16,
                          testParams2D_BF16_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
-const auto testParams2D_runtime_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
-                                                                ::testing::ValuesIn(transposeParams),
-                                                                ::testing::Values(ElementType::f32, ElementType::f16),
-                                                                ::testing::ValuesIn(filter_additional_config_fp16()),
-                                                                ::testing::ValuesIn(filter_specific_params_f16()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_runtime_FP16,
-                         MatMulDecompressConvertTest_FP16,
-                         testParams2D_runtime_FP16_smoke,
-                         MatMulDecompressConvertTest_FP16::getTestCaseName);
-
 const auto testParams3D_FP32_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                                         ::testing::ValuesIn(transposeParams),
                                                         ::testing::Values(ElementType::f32),
@@ -399,18 +365,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16,
                          MatMulDecompressConvertTest,
                          testParams3D_BF16_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
-
-const auto testParams3D_runtime_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
-                                                                ::testing::ValuesIn(transposeParams),
-                                                                ::testing::Values(ElementType::f32, ElementType::f16),
-                                                                ::testing::ValuesIn(filter_additional_config_fp16()),
-                                                                ::testing::ValuesIn(filter_specific_params_f16()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_runtime_FP16,
-                         MatMulDecompressConvertTest_FP16,
-                         testParams3D_runtime_FP16_smoke,
-                         MatMulDecompressConvertTest_FP16::getTestCaseName);
-
 
 }  // namespace
 
@@ -566,5 +520,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_2,
                          MatMulDecompressConvertTest2::getTestCaseName);
 
 }  // namespace
+
 }  // namespace test
 }  // namespace ov

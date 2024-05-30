@@ -491,7 +491,7 @@ CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& in_type,
     }
 
     ov::element::Type type = in_type;
-    // ngraph tranform stage
+    // ngraph transform stage
     if (type == ov::element::bf16) {
         type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
     } else {
