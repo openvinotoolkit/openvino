@@ -43,11 +43,12 @@ class TestAdjustSaturation(CommonTFLayerTest):
     # Each input is a tensor of at least 3 dimensions. 
     # The last dimension is interpreted as channels, and must be three.
     test_data_basic = [
+        # tf op does not support np.float16
         dict(input_shape=[7, 7, 3], input_type=np.float32, special_case="Black Image"),
         dict(input_shape=[7, 7, 3], input_type=np.float32, special_case="Grayscale Image"),
         dict(input_shape=[5, 5, 3], input_type=np.float32),
-        dict(input_shape=[2, 3, 4, 3], input_type=np.float32),
-        dict(input_shape=[1, 2, 3, 3, 3], input_type=np.float32),
+        dict(input_shape=[5, 23, 27, 3], input_type=np.float32),
+        dict(input_shape=[3, 4, 13, 15, 3], input_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
