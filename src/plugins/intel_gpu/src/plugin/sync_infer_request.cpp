@@ -34,12 +34,12 @@ namespace {
 inline bool can_use_usm_host(const cldnn::engine& engine) {
     auto can_use_usm = engine.use_unified_shared_memory();
 
-    // WA: Disable USM host memory for infer request`s tensors for PVC as
-    // it has performance issues in case of host <-> device data transfers inside kernels
-    // Use unsupported SIMD8 as unique attribute of PVC
-    auto supported_simd_sizes = engine.get_device_info().supported_simd_sizes;
-    if (std::find(supported_simd_sizes.begin(), supported_simd_sizes.end(), 8) == supported_simd_sizes.end())
+    if (engine.get_device_info().gfx_ver.major == 12 && engine.get_device_info().gfx_ver.major == 60) {
+        // WA: Disable USM host memory for infer request`s tensors for PVC as
+        // it has performance issues in case of host <-> device data transfers inside kernels
+        GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
         can_use_usm = false;
+    }
 
     return can_use_usm;
 }
