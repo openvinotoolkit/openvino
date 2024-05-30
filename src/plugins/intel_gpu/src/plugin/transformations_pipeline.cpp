@@ -817,7 +817,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::RoPEFusion>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
-        pass_config->disable<ov::pass::RoPEFusionCosSinPreprocess>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 

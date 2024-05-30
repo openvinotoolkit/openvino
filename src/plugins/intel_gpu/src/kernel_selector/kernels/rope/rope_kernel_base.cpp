@@ -22,6 +22,11 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         jit.AddConstant(MakeJitConstant("ENABLE_IO_COPY", true));
     }
 
+    if (params.gather_rank > 0) {
+        jit.AddConstant(MakeJitConstant("ENABLE_GATHER", true));
+        jit.AddConstant(MakeJitConstant("GATHER_RANK", params.gather_rank));
+    }
+
     if (params.slice_stop - params.slice_start > 0) {
         jit.AddConstant(MakeJitConstant("ENABLE_SLICE", true));
 
