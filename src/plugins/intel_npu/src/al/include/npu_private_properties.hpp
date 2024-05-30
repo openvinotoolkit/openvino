@@ -380,18 +380,16 @@ inline std::ostream& operator<<(std::ostream& os, const Version& version) {
 inline std::istream& operator>>(std::istream& is, Version& version) {
     std::string str;
     is >> str;
-    const auto firstDelim = str.find('.');
-    const auto secondDelim = str.find('.', firstDelim);
-    if (firstDelim == std::string::npos || secondDelim == std::string::npos) {
-        OPENVINO_THROW("Could not deserialize Version, \"%s\" is an invalid format!", str);
-    }
     try {
-        version.major = std::stol(str.substr(0, firstDelim));
-        version.minor = std::stol(str.substr(firstDelim, secondDelim));
-        version.patch = std::stol(str.substr(secondDelim));
+        std::replace(str.begin(), str.end(), '.', ' ');
+        std::stringstream strStream;
+        strStream << str;
+        strStream >> version.major;
+        strStream >> version.minor;
+        strStream >> version.patch;
         return is;
     } catch (const std::logic_error& error) {
-        OPENVINO_THROW("Could not deserialize Version: %s", error.what());
+        OPENVINO_THROW("Could not deserialize Version, \"", str, "\" is an invalid format: ", error.what());
     }
 }
 /** @endcond */
