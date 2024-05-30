@@ -1191,7 +1191,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_mean_18) {
             .get_vector()};
 
     // output data shape (1,)
-    auto expected_output = ov::test::NDArray<uint8_t, 1>({13, 14, 15, 16}).get_vector();
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({7, 8, 9, 10}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
