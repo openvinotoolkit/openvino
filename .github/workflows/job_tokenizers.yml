@@ -56,7 +56,6 @@ jobs:
             install_build_dependencies.sh
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        if: ${{ runner.os != 'Linux' }} # We do not need to install Python on Linux as we use Docker with it installed
         uses: ./.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
