@@ -749,7 +749,7 @@ KERNEL(sdpa_opt)(
                 #define QK_ITERS_END QK_MAX_NUMS_PER_SG
             #endif
 
-            OUTPUT_TYPE qk_max[QK_MAX_NUMS_PER_SG];
+            SOFTMAX_ACCUMULATOR_TYPE qk_max[QK_MAX_NUMS_PER_SG];
             for (uint i = 0; i < QK_MAX_NUMS_PER_SG; i++)
                 qk_max[i] = SOFTMAX_ACCUMULATOR_VAL_MIN;
 
