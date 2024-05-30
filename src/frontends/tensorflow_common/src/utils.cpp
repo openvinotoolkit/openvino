@@ -475,7 +475,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_h
         make_shared<v1::Add>(make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)), const_2_by_6);
 
     // b == vv: hh = norm * (r - g) + 4.0 / 6.0
-    auto const_4_by_6 = create_same_type_const_scalar<double>(images, 4.0f / 6.0f);
+    auto const_4_by_6 = create_same_type_const_scalar<float>(images, 4.0f / 6.0f);
     auto hue_case_b =
         make_shared<v1::Add>(make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)), const_4_by_6);
 
