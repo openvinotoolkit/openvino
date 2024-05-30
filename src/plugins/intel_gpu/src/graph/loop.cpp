@@ -1029,6 +1029,9 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 auto ev = mapping.from_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
                 if (ev) event_vec = {ev};
                 GPU_DEBUG_LOG << iter << ") [SINGLE_SHARED] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
+            } else {
+                mapping.from_mem = mapping.initial_mem;
+                set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
             }
         } else {
             // In dynamic model, output memory is not defined before execution.
