@@ -8,10 +8,10 @@
 
 #include <string>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -65,7 +65,7 @@ TEST_F(TransformationTestsF, SqueezeRemainsSqueezeAfterMOC) {
     {
         using namespace ov::op;
         auto input = std::make_shared<v0::Parameter>(element::f32, Shape{30});
-        auto shape  = v0::Constant::create(element::i64, Shape{5}, {2, 3, 1, 5, 1});
+        auto shape = v0::Constant::create(element::i64, Shape{5}, {2, 3, 1, 5, 1});
         auto reshape = std::make_shared<v1::Reshape>(input, shape, false);
         auto unsqueeze_axes = v0::Constant::create(element::i64, Shape{1}, {0});
         auto unsqueeze = std::make_shared<v0::Unsqueeze>(reshape, unsqueeze_axes);
@@ -78,4 +78,3 @@ TEST_F(TransformationTestsF, SqueezeRemainsSqueezeAfterMOC) {
         manager.register_pass<ov::pass::MOCTransformations>(false);
     }
 }
-
