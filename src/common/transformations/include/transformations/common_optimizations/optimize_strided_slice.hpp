@@ -17,6 +17,7 @@ class TRANSFORMATIONS_API StridedSliceOptimization;
 class TRANSFORMATIONS_API UselessSliceEraser;
 class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
 class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
+class TRANSFORMATIONS_API SliceSequenceToSingleSlice;
 
 }  // namespace pass
 }  // namespace ov
@@ -54,6 +55,24 @@ class ov::pass::GroupedSliceToVSplitOptimization : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief SliceSequenceToSingleSlice transformation replaces group of Slice
+ * operations with single Slice. All Slice operations must slice data
+ * with the different axis.
+ *
+ * Before:
+ * data (shape: 2, 3, 4) -> Slice (axis 0) -> Slice (axis 1) -> Slice (axis 2)
+ *
+ * After:
+ * data (shape: 2, 3, 4) -> Slice (axes: 0, 1, 2)
+ */
+class ov::pass::SliceSequenceToSingleSlice : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("SliceSequenceToSingleSlice", "0");
+    SliceSequenceToSingleSlice();
 };
 
 /**
