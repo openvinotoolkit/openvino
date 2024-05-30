@@ -455,7 +455,7 @@ pass::EliminateUnsqueeze::EliminateUnsqueeze() {
     auto unsqueeze_pattern = pattern::wrap_type<ov::op::v0::Unsqueeze>();
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-                return eliminate_unsqueeze(m.get_match_root());
+        return eliminate_unsqueeze(m.get_match_root());
     };
     auto m = make_shared<pattern::Matcher>(unsqueeze_pattern, matcher_name);
     this->register_matcher(m, callback);
