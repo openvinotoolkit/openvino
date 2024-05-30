@@ -26,6 +26,10 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       DEBIAN_PACKAGES_DIR: ${{ github.workspace }}/packages
     steps:
+      - name: Set apt retries
+        if: runner.os == 'Linux'
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Download OpenVINO debian packages
         uses: actions/download-artifact@v4
         with:
@@ -41,6 +45,7 @@ jobs:
           apt-get update -y
 
           if [[ "${{ runner.arch }}" == "X64" ]]; then
+            apt-get install --no-install-recommends -y gnupg wget ca-certificates
             # Install debian packages from previous release
             wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB

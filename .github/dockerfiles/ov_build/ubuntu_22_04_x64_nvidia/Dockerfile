@@ -32,9 +32,6 @@ RUN apt-get update && \
         python3.11-distutils \
         # For Java API
         default-jdk \
-        # Compiler \
-        gcc-10 \
-        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -43,10 +40,6 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
-
-# Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -69,8 +62,8 @@ RUN apt update && apt install -y \
     libcudnn8-samples=8.9.4.*-1+cuda11.8 \
     cuda-runtime-11-8 \
     cuda-11-8 \
-    libcutensor1=1.6.1.5-1 \
-    libcutensor-dev=1.6.1.5-1 \
+    libcutensor1=1.7.0.1-1 \
+    libcutensor-dev=1.7.0.1-1 \
     cuda-drivers=520.61.05-1 && \
     rm -rf /var/lib/apt/lists/*
 
