@@ -221,7 +221,7 @@ ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
 ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
-    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
+    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
 ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
