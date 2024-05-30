@@ -433,14 +433,12 @@ Output<Node> compute_broadcast_args(const Output<Node>& shape1, const Output<Nod
 }
 
 shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_hsv(
-    const shared_ptr<Node>& images,
-    element::Type type) {
+    const shared_ptr<Node>& images) {
     // image format conversion based on
     // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
-
-    auto const_zero_f_ = make_shared<v0::Constant>(type, Shape{}, 0.0f);
-    auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
-    auto const_six_f_ = make_shared<v0::Constant>(type, Shape{}, 6.0f);
+    auto const_zero_f_ = create_same_type_const_scalar<double>(images, 0.0f);
+    auto const_one_f_ = create_same_type_const_scalar<double>(images, 1.0f);
+    auto const_six_f_ = create_same_type_const_scalar<double>(images, 6.0f);
 
     // Find max and min across channel axis. Max = Value (V)
     auto const_minus_one_i_1 = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
@@ -474,12 +472,12 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_h
     auto hue_case_r = make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(g, b));
 
     // g == vv: hh = norm * (b - r) + 2.0 / 6.0
-    auto const_2_by_6 = make_shared<v0::Constant>(type, Shape{}, 2.0f / 6.0f);
+    auto const_2_by_6 = create_same_type_const_scalar<double>(images, 2.0f / 6.0f);
     auto hue_case_g =
         make_shared<v1::Add>(make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)), const_2_by_6);
 
     // b == vv: hh = norm * (r - g) + 4.0 / 6.0
-    auto const_4_by_6 = make_shared<v0::Constant>(type, Shape{}, 4.0f / 6.0f);
+    auto const_4_by_6 =create_same_type_const_scalar<double>(images, 4.0f / 6.0f);
     auto hue_case_b =
         make_shared<v1::Add>(make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)), const_4_by_6);
 
@@ -505,14 +503,13 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_h
 
 shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h,
                             const shared_ptr<Node>& s,
-                            const shared_ptr<Node>& v,
-                            element::Type type) {
+                            const shared_ptr<Node>& v) {
     // image format conversion based on
     // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
-    auto const_six_f_ = make_shared<v0::Constant>(type, Shape{}, 6.0f);
-    auto const_two_f_ = make_shared<v0::Constant>(type, Shape{}, 2.0f);
-    auto const_one_f_ = make_shared<v0::Constant>(type, Shape{}, 1.0f);
-    auto const_zero_f_ = make_shared<v0::Constant>(type, Shape{}, 0.0f);
+    auto const_six_f_ = create_same_type_const_scalar<double>(h, 6.0f);
+    auto const_two_f_ = create_same_type_const_scalar<double>(h, 2.0f);
+    auto const_one_f_ = create_same_type_const_scalar<double>(h, 1.0f);
+    auto const_zero_f_ = create_same_type_const_scalar<double>(h, 0.0f);
 
     auto const_minus_one_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -1);
     auto const_minus_two_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -2);

@@ -6,7 +6,6 @@
 
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert_like.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/multiply.hpp"
 
 #include "utils.hpp"
@@ -26,9 +25,7 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     auto scale = node.get_input(1);
     auto node_name = node.get_name();
 
-    auto type = images.get_element_type();
-
-    auto hsv_components = rgb_to_hsv(images.get_node_shared_ptr(), type);
+    auto hsv_components = rgb_to_hsv(images.get_node_shared_ptr());
 
     auto hh = get<0>(*hsv_components);
     auto ss = get<1>(*hsv_components);
@@ -38,7 +35,7 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
 
     auto ss_adjust = make_shared<v0::Clamp>(make_shared<v1::Multiply>(ss, scale), 0.0f, 1.0f);
 
-    auto new_images = hsv_to_rgb(hh, ss_adjust, vv, type);
+    auto new_images = hsv_to_rgb(hh, ss_adjust, vv);
 
     auto adjust_saturation = new_images->output(0);
 

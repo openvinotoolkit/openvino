@@ -25,9 +25,7 @@ OutputVector translate_adjust_hue_op(const NodeContext& node) {
     auto delta = node.get_input(1);
     auto node_name = node.get_name();
 
-    auto type = images.get_element_type();
-
-    auto hsv_components = rgb_to_hsv(images.get_node_shared_ptr(), type);
+    auto hsv_components = rgb_to_hsv(images.get_node_shared_ptr());
     auto hh = get<0>(*hsv_components);
     auto ss = get<1>(*hsv_components);
     auto vv = get<2>(*hsv_components);
@@ -38,7 +36,7 @@ OutputVector translate_adjust_hue_op(const NodeContext& node) {
     auto hh_adjust_floor = make_shared<v0::Floor>(hh_adjust_);
     auto hh_adjust = make_shared<v1::Subtract>(hh_adjust_, hh_adjust_floor);
 
-    auto new_images = hsv_to_rgb(hh_adjust, ss, vv, type);
+    auto new_images = hsv_to_rgb(hh_adjust, ss, vv);
 
     auto adjust_saturation = new_images->output(0);
 
