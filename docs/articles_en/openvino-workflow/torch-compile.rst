@@ -133,6 +133,46 @@ the below instructions:
 Support for PyTorch 2 export quantization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. This feature can be accessed be following the steps below:
+
+1. Use ``torch._dynamo.export`` function to trace the model into an FX graph of flattened ATen operators.
+
+   .. code-block:: python
+
+      import torch
+      exported_graph_module, guards = torch._dynamo.export(
+          model,
+          input_tensor,
+          pre_dispatch=True,
+          aten_graph=True,
+      )
+
+2. Initialize and prepare the quantizer. At this time, ``torch.compile`` with OpenVINO backend is only verified with ``X86InductorQuantizer``.
+
+   .. code-block:: python
+
+      import torch.ao.quantization.quantizer.x86_inductor_quantizer as xiq
+      from torch.ao.quantization.quantize_pt2e import prepare_pt2e
+      quantizer = xiq.X86InductorQuantizer()
+      operator_config = xiq.get_default_x86_inductor_quantization_config()
+      quantizer.set_global(operator_config)
+      prepared_graph_module = prepare_pt2e(exported_graph_module, quantizer)
+
+3. Quantize the model and move the quantized model to eval mode. To be able to benefit from the optimizations in OpenVINO backend, constant folding in should be disabled in quantization when using ``torch.compile``. As provided below, this can be done passing ``fold_quantize=False`` parameter into the ``convert_pt2e`` function.
+
+   .. code-block:: python
+
+      from torch.ao.quantization.quantize_pt2e import convert_pt2e
+      converted_graph_module = convert_pt2e(prepared_graph_module, fold_quantize=False)
+      torch.ao.quantization.move_exported_model_to_eval(converted_graph_module)
+
+4. Set ``torch.compile`` backend as OpenVINO and execute the model.
+
+   .. code-block:: python
+
+      ov_optimized_model_int8 = torch.compile(converted_graph_module, backend="openvino")
+      ov_optimized_model_int8(example_inputs[0])
+
 Torchserve Integration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
