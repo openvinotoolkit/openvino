@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <experimental/filesystem>
 #include <fstream>
 #include <sstream>
 
@@ -59,7 +58,13 @@
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
+#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || __cplusplus >= 201703L)
+#    include <filesystem>
+namespace fs = std::filesystem;
+#else
+#    include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
+#endif
 
 std::string ov::util::get_file_name(const std::string& s) {
     std::string rc = s;
