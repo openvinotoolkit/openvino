@@ -362,7 +362,7 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
         ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_weightsName);
 
     try {
-        ov::test::utils::createDirectory(cache_path_mb);
+        ov::test::utils::createDirectory(cache_path_w);
 
         // Copy IR files into unicode folder for read_model test
         ov::test::utils::copyFile(m_modelName, model_xml_path_w);
