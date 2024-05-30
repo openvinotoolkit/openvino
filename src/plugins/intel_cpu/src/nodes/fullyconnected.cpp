@@ -191,8 +191,6 @@ void FullyConnected::execute(dnnl::stream strm) {
         id = message->get_memory_id(w_rank);
         // std::cout << "execute: " << getName() << ", " << id << ", " << w_rank << "\n";
         message->set_memory_used(id, w_rank);
-    }
-    if (tp_mode == 1) {
         while (true) {
             if (message->_use_count[id] == w_size) {
                 std::lock_guard<std::mutex> lock(message->_flagMutex);
@@ -205,6 +203,8 @@ void FullyConnected::execute(dnnl::stream strm) {
                 break;
             }
         }
+    }
+    if (tp_mode == 1) {
         auto srcMemoryBuffer = getSrcMemoryAtPort(DATA_ID);
         auto select_src = split_v(srcMemoryBuffer, -1, w_rank, w_size);
         memory[ARG_SRC] = select_src;
@@ -283,7 +283,7 @@ void FullyConnected::execute(dnnl::stream strm) {
 
         // cur dst
         auto cur_dst = memory[ARG_DST];
-        auto cur_dst_ptr = static_cast<uint8_t*>(cur_dst->getData());
+        // auto cur_dst_ptr = static_cast<uint8_t*>(cur_dst->getData());
 
         auto shape = dst->getShape();
         // {
@@ -302,34 +302,31 @@ void FullyConnected::execute(dnnl::stream strm) {
         const int step = (mem_size / channel_size);     // the steps need to copy.
 
         const auto copySize = (dims[dim] / w_size) * prec.size();    // bytes of half selected dim.
-        parallel_for(step, [&](int i){
-            int src_offset = i * copySize;
-            int dst_offset = i * copySize* 2 + w_rank * copySize;
-            cpu_parallel_memcpy(dst_ptr + dst_offset, cur_dst_ptr + src_offset, copySize);
-        });
+        message->_memorys_table[id][w_rank].send_buf = cur_dst->getData();
+        message->_memorys_table[id][w_rank].flag = true;
 
-        ov::threading::MessageInfo send_message;
-        send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
-        send_message.rank = {w_rank};
-        send_message.buf = cur_dst->getData();
-        message->send_message(send_message);
-
-        auto vec_message = message->wait_message(/*cur_rank*/w_rank);
-
-        for (int i = 0; i < w_size; ++i) {
-            const int recv_rank = vec_message[i].rank[0];
-            if (recv_rank == w_rank) {
-                continue;
+        std::vector<int> wait_list(w_size, 1);
+        while (true) {
+            int wait_size = 0;
+            for (int idx = 0; idx < w_size; idx++) {
+                if (wait_list[idx] > 0 && message->_memorys_table[id][idx].flag) {
+                    auto new_ptr = static_cast<uint8_t*>(message->_memorys_table[id][idx].send_buf);
+                    parallel_for(step, [&](int i) {
+                        int src_offset = i * copySize;
+                        int dst_offset = i * copySize * 2 + idx * copySize;
+                        cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
+                    });
+                    wait_list[idx] = 0;
+                }
+                wait_size += wait_list[idx];
             }
-            // auto fp32_ptr = static_cast<float*>(vec_message[i].buf);
-            // printf("[dbg] idx=%d, w_rank=%d, %f - %f - %f - %f - %f\n",i, w_rank, fp32_ptr[0], fp32_ptr[1],
-            // fp32_ptr[2], fp32_ptr[3], fp32_ptr[4]);
-            auto new_ptr = static_cast<uint8_t*>(vec_message[i].buf);
-            parallel_for(step, [&](int i) {
-                int src_offset = i * copySize;
-                int dst_offset = i * copySize * 2 + recv_rank * copySize;
-                cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
-            });
+            if (wait_size == 0) {
+                break;
+            }
+        }
+        {
+            std::lock_guard<std::mutex> lock(message->_flagMutex);
+            message->_use_count[id]++;
         }
     }
 
@@ -340,33 +337,55 @@ void FullyConnected::execute(dnnl::stream strm) {
         const auto copySize = dst->getSize() / w_size;
         // cur dst
         auto cur_dst = memory[ARG_DST];
-        auto cur_dst_ptr = static_cast<uint8_t*>(cur_dst->getData());
+        // auto cur_dst_ptr = static_cast<uint8_t*>(cur_dst->getData());
         // std::cout << "[dbg] target size: " << dst->getSize() << ", current size: " << copySize << "\n";
         // copy cur dst buffer to dst buffer. But cur dst buffer should be in dst buffer already.
         // printf("[dbg] w_rank=%d, target address:%d, current address:%d\n", w_rank, dst_ptr + w_rank * copySize,
         // cur_dst_ptr);
-        cpu_parallel_memcpy(dst_ptr + w_rank * copySize, cur_dst_ptr, copySize);
-        // sync with another stream's buffer
-        ov::threading::MessageInfo send_message;
-        send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
-        send_message.rank = {w_rank};
-        send_message.buf = cur_dst->getData();
-        message->send_message(send_message);
-        // auto fp32_cur = cur_dst->getDataAs<float>();
-        // printf("[dbg] current w_rank=%d, %f - %f - %f - %f - %f\n", w_rank,fp32_cur[0], fp32_cur[1], fp32_cur[2], fp32_cur[3], fp32_cur[4]);
-        auto vec_message = message->wait_message(/*cur_rank*/w_rank);
-        for (int i = 0; i < w_size; ++i) {
-            const int recv_rank = vec_message[i].rank[0];
-            if (recv_rank == w_rank) {
-                continue;
-            }
-            // auto fp32_ptr = static_cast<float*>(vec_message[i].buf);
-            // printf("[dbg] idx=%d, w_rank=%d, %f - %f - %f - %f - %f\n",i, w_rank, fp32_ptr[0], fp32_ptr[1],
-            // fp32_ptr[2], fp32_ptr[3], fp32_ptr[4]);
-            auto new_ptr = static_cast<uint8_t*>(vec_message[i].buf);
-            cpu_parallel_memcpy(dst_ptr + recv_rank * copySize, new_ptr, copySize);
-        }
+        // cpu_parallel_memcpy(dst_ptr + w_rank * copySize, cur_dst_ptr, copySize);
+        // // sync with another stream's buffer
+        // ov::threading::MessageInfo send_message;
+        // send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
+        // send_message.rank = {w_rank};
+        // send_message.buf = cur_dst->getData();
+        // message->send_message(send_message);
+        // // auto fp32_cur = cur_dst->getDataAs<float>();
+        // // printf("[dbg] current w_rank=%d, %f - %f - %f - %f - %f\n", w_rank,fp32_cur[0], fp32_cur[1], fp32_cur[2], fp32_cur[3], fp32_cur[4]);
+        // auto vec_message = message->wait_message(/*cur_rank*/w_rank);
+        // for (int i = 0; i < w_size; ++i) {
+        //     const int recv_rank = vec_message[i].rank[0];
+        //     if (recv_rank == w_rank) {
+        //         continue;
+        //     }
+        //     // auto fp32_ptr = static_cast<float*>(vec_message[i].buf);
+        //     // printf("[dbg] idx=%d, w_rank=%d, %f - %f - %f - %f - %f\n",i, w_rank, fp32_ptr[0], fp32_ptr[1],
+        //     // fp32_ptr[2], fp32_ptr[3], fp32_ptr[4]);
+        //     auto new_ptr = static_cast<uint8_t*>(vec_message[i].buf);
+        //     cpu_parallel_memcpy(dst_ptr + recv_rank * copySize, new_ptr, copySize);
+        // }
         // No sync here. First done, first finish.
+        message->_memorys_table[id][w_rank].send_buf = cur_dst->getData();
+        message->_memorys_table[id][w_rank].flag = true;
+
+        std::vector<int> wait_list(w_size, 1);
+        while (true) {
+            int wait_size = 0;
+            for (int idx = 0; idx < w_size; idx++) {
+                if (wait_list[idx] > 0 && message->_memorys_table[id][idx].flag) {
+                    auto new_ptr = static_cast<uint8_t*>(message->_memorys_table[id][idx].send_buf);
+                    cpu_parallel_memcpy(dst_ptr + idx * copySize, new_ptr, copySize);
+                    wait_list[idx] = 0;
+                }
+                wait_size += wait_list[idx];
+            }
+            if (wait_size == 0) {
+                break;
+            }
+        }
+        {
+            std::lock_guard<std::mutex> lock(message->_flagMutex);
+            message->_use_count[id]++;
+        } 
     }
 }
 
