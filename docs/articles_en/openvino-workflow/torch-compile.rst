@@ -133,45 +133,35 @@ the below instructions:
 Support for PyTorch 2 export quantization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. This feature can be accessed be following the steps below:
+PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. To be able to access this feature, please follow the steps provided in [PyTorch 2 Export Post Training Quantization with X86 Backend through Inductor](https://pytorch.org/tutorials/prototype/pt2e_quant_ptq_x86_inductor.html) and update the provided sample as explained below.
 
-1. Use ``torch._dynamo.export`` function to trace the model into an FX graph of flattened ATen operators.
+1. If you are using the PyTorch version 2.3.0 or above, disable constant folding in quantization to be able to benefit from the optimization in OpenVINO backend. This can be done passing ``fold_quantize=False`` parameter into the ``convert_pt2e`` function.
 
-   .. code-block:: python
-
-      import torch
-      exported_graph_module, guards = torch._dynamo.export(
-          model,
-          input_tensor,
-          pre_dispatch=True,
-          aten_graph=True,
-      )
-
-2. Initialize and prepare the quantizer. At this time, ``torch.compile`` with OpenVINO backend is only verified with ``X86InductorQuantizer``.
+    Update this line below:
 
    .. code-block:: python
 
-      import torch.ao.quantization.quantizer.x86_inductor_quantizer as xiq
-      from torch.ao.quantization.quantize_pt2e import prepare_pt2e
-      quantizer = xiq.X86InductorQuantizer()
-      operator_config = xiq.get_default_x86_inductor_quantization_config()
-      quantizer.set_global(operator_config)
-      prepared_graph_module = prepare_pt2e(exported_graph_module, quantizer)
+      converted_model = convert_pt2e(prepared_model)
 
-3. Quantize the model and move the quantized model to eval mode. To be able to benefit from the optimizations in OpenVINO backend, constant folding in should be disabled in quantization when using ``torch.compile``. As provided below, this can be done passing ``fold_quantize=False`` parameter into the ``convert_pt2e`` function.
+    As below:
 
    .. code-block:: python
 
-      from torch.ao.quantization.quantize_pt2e import convert_pt2e
-      converted_graph_module = convert_pt2e(prepared_graph_module, fold_quantize=False)
-      torch.ao.quantization.move_exported_model_to_eval(converted_graph_module)
+      converted_model = convert_pt2e(prepared_model, fold_quantize=False)
 
-4. Set ``torch.compile`` backend as OpenVINO and execute the model.
+2. Set ``torch.compile`` backend as OpenVINO and execute the model.
+
+    Update this line below:
 
    .. code-block:: python
 
-      ov_optimized_model_int8 = torch.compile(converted_graph_module, backend="openvino")
-      ov_optimized_model_int8(example_inputs[0])
+      optimized_model = torch.compile(converted_model)
+
+    As below:
+
+   .. code-block:: python
+
+      optimized_model = torch.compile(converted_model, backend="openvino")
 
 Torchserve Integration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
