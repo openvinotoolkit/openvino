@@ -20,7 +20,7 @@ const char* ov::npuw::get_env(const std::vector<std::string> &list_to_try,
 
 Configuration::Configuration() : dump_graph(false) {}
 
-Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
+Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     *this = defaultCfg;
 
@@ -28,15 +28,10 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         const auto& key = it.first;
         const auto& value = it.second;
 
-        // if (NPUW_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {
-        //     dump_graph = value.as<bool>();
-        // } else
-            if (ov::device::priorities == key) {
+        if (ov::device::priorities == key) {
             // Use priorities to override the default order only
             device_priorities = value.as<std::string>();
         } else {
-            if (throwOnUnsupported)
-                OPENVINO_THROW("Property was not found: ", key);
             device_properties.emplace(key, value);
         }
     }
@@ -45,10 +40,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 
 ov::Any Configuration::get(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
-    // if (name == NPUW_CONFIG_KEY(DUMP_GRAPH_DOT)) {
-    //     return {dump_graph};
-    // } else 
-        if (name == ov::device::priorities) {
+    if (name == ov::device::priorities) {
         return {device_priorities};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
