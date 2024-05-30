@@ -62,12 +62,13 @@ Supported configurations:
   3. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
      set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;%PYTHONPATH%
-     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;%OPENVINO_LIB_PATH%
+     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<tbb_bin_path>;%OPENVINO_LIB_PATHS%
      ```
      or install the wheel with pip:
      ```
      pip install build/wheel/openvino-2023.0.0-9612-cp11-cp11-win_arm64.whl
      ```
+     note: By default, TBB binaries are downloaded by the CMake-based script to the `<path/to/openvino>/temp/tbb/bin` folder.
 
 ### Building OpenVINO with Ninja* Build System
 
