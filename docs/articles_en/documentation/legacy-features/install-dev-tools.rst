@@ -153,7 +153,7 @@ For example, to install and configure dependencies required for working with Ten
 For more details on the openvino-dev PyPI package, see `pypi.org <https://pypi.org/project/openvino-dev/2023.2.0>`__ .
 
 Step 5. Test the Installation
-+++++++++++++++++++++++++++++
+------------------------------
 
 To verify the package is properly installed, run the command below (this may take a few seconds):
 
@@ -173,21 +173,21 @@ Learn more about OpenVINO and use it in your own application by trying out some 
 Get started with Python
 +++++++++++++++++++++++
 
-.. image:: ../../_static/images/get_started_with_python.gif
+.. image:: ../../assets/images/get_started_with_python.gif
   :width: 400
 
-Try the `Python Quick Start Example <../../notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+Try the `Python Quick Start Example <../../notebooks/vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
 Visit the :doc:`Tutorials <../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <../../notebooks/002-openvino-api-with-output.html>`__
-* `Basic image classification program with Hello Image Classification <../../notebooks/001-hello-world-with-output.html>`__
-* `Convert a PyTorch model and use it for image background removal <../../notebooks/205-vision-background-removal-with-output.html>`__
+* `OpenVINO Python API Tutorial <../../notebooks/openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <../../notebooks/hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <../../notebooks/vision-background-removal-with-output.html>`__
 
 Get started with C++
 ++++++++++++++++++++
 
-.. image:: ../../_static/images/get_started_with_cpp.jpg
+.. image:: ../../assets/images/get_started_with_cpp.jpg
   :width: 400
 
 

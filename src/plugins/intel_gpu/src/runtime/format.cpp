@@ -27,6 +27,9 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(bfyx,                  1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {}),
         FMT_TRAITS(fbyx,                  1, 1, 2, 0, {1, 0, 2, 3},             "fbyx",     "bfxy",     {}),
         FMT_TRAITS(fyxb,                  1, 1, 2, 0, {1, 2, 3, 0},             "fyxb",     "bfxy",     {}),
+        FMT_TRAITS(fybx,                  1, 1, 2, 0, {1, 2, 0, 3},             "fybx",     "bfxy",     {}),
+        FMT_TRAITS(xbfy,                  1, 1, 2, 0, {3, 0, 1, 2},             "xbfy",     "bfxy",     {}),
+        FMT_TRAITS(ybfx,                  1, 1, 2, 0, {2, 0, 1, 3},             "ybfx",     "bfxy",     {}),
         FMT_TRAITS(byfx,                  1, 1, 2, 0, {0, 2, 1, 3},             "byfx",     "bfxy",     {}),
         FMT_TRAITS(bxfy,                  1, 1, 2, 0, {0, 3, 1, 2},             "bxfy",     "bfxy",     {}),
         FMT_TRAITS(b_fs_yx_fsv2,          1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 2}}),
@@ -165,8 +168,9 @@ static const std::map<format::type, format_traits> format_traits_map {
 };
 
 const format_traits& format::traits(type fmt) {
-    OPENVINO_ASSERT(format_traits_map.find(fmt) != format_traits_map.end(), "[GPU] Format description is missing in fmt traits");
-    return format_traits_map.at(fmt);
+    auto it = format_traits_map.find(fmt);
+    OPENVINO_ASSERT(it != format_traits_map.end(), "[GPU] Format description is missing in fmt traits");
+    return it->second;
 }
 
 const format_traits& format::traits() const {

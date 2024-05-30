@@ -1031,12 +1031,13 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
         constant = op::v0::Constant::create(constant_type, shape2, {1});
         break;
     case ConstantKind::RANDOM:
-        constant = ov::test::utils::deprecated::make_constant(constant_type,
-                                                              shape2,
-                                                              {},
-                                                              true,
-                                                              20 /* upTo */,
-                                                              2 /* startFrom */);
+        int32_t resolution = 1;
+        if (constant_type.is_real()) {
+            resolution = 1000;
+        }
+        constant = ov::test::utils::make_constant(constant_type,
+                                                  shape2,
+                                                  ov::test::utils::InputGenerateData(2, 18, resolution));
         break;
     }
 
@@ -1630,5 +1631,37 @@ TEST_F(TransformationTestsF, SqueezeBinaryReshape) {
         auto binary = std::make_shared<op::v1::Multiply>(data, op::v0::Constant::create(element::f32, Shape{1}, {0.2}));
         auto relu = std::make_shared<op::v0::Relu>(binary);
         model_ref = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeWithEmptyOrder) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto empty_order = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<size_t>());
+        auto transpose = std::make_shared<op::v1::Transpose>(relu, empty_order);
+
+        auto result = std::make_shared<op::v0::Result>(transpose);
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::NopElimination>();
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeElimination) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto order = std::make_shared<op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{0, 1});
+        auto transpose = std::make_shared<op::v1::Transpose>(relu, order);
+
+        auto result = std::make_shared<op::v0::Result>(transpose);
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::NopElimination>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<op::v0::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
     }
 }

@@ -1,5 +1,3 @@
-.. {#system_requirements}
-
 System Requirements
 ===================
 
@@ -30,6 +28,7 @@ CPU
 
    .. tab-item:: Supported Operating Systems
 
+      * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+)
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
@@ -38,6 +37,7 @@ CPU
       * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
       * Red Hat Enterprise Linux 8, 64-bit
+      * openSUSE Tumbleweed, 64-bit and ARM64
       * Ubuntu 18 ARM64
 
 GPU
@@ -58,6 +58,7 @@ GPU
 
    .. tab-item::  Supported Operating Systems
 
+      * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Ubuntu 20.04 long-term support (LTS), 64-bit
       * Windows 10, 64-bit
@@ -74,7 +75,7 @@ GPU
         for information about your processor.
       * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
         for Intel discrete graphic cards does not fully support Ubuntu 20.04.
-        We recommend using Ubuntu 22.04 when executing on discrete graphics.
+        We recommend using Ubuntu 22.04 and later when executing on discrete graphics.
       * The following minimum (i.e., used for old hardware) OpenCL™ driver's versions
         were used during OpenVINO internal validation: 22.43 for Ubuntu 22.04, 21.48
         for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8 (some hardware may require
@@ -87,6 +88,7 @@ Intel® Neural Processing Unit
 
    .. tab-item:: Operating Systems for NPU
 
+      * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Windows 11, 64-bit (22H2, 23H2)
 
@@ -105,6 +107,7 @@ Operating systems and developer environment
 
    .. tab-item:: Linux OS
 
+      * Ubuntu 24.04 with Linux kernel 6.8+
       * Ubuntu 22.04 with Linux kernel 5.15+
       * Ubuntu 20.04 with Linux kernel 5.15+
       * Red Hat Enterprise Linux 8 with Linux kernel 5.4

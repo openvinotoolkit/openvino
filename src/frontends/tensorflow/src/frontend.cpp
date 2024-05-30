@@ -9,10 +9,8 @@
 #include "graph_iterator_proto_txt.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "helper_ops/internal_operation.hpp"
-#include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
-#include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "helper_transforms/saved_model_unused_remover.hpp"
 #include "helper_transforms/tensor_array_v3_replacer.hpp"
 #include "input_model.hpp"
@@ -471,7 +469,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
                 << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
                    "provides conversion extension(s): "
                 << unsupported_ops_from_tokenizers
-                << ". Refer to OpenVINO Tokenizers documentation: "
+                << ". Install OpenVINO Tokenizers, refer to the documentation: "
                    "https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html \n";
         }
     }
@@ -566,8 +564,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::SavedModelUnusedRemover>();
     manager.register_pass<pass::UninitializedVariableResolver>();
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-    manager.register_pass<pass::BlockLSTMReplacer>();
-    manager.register_pass<pass::GRUBlockCellReplacer>();
     manager.register_pass<pass::TensorArrayV3Replacer>();
     manager.register_pass<pass::ConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();

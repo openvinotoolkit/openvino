@@ -80,10 +80,10 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
-          path: 'openvino'
+          path: 'action_root'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
+        uses: ./action_root/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
@@ -211,7 +211,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
@@ -277,7 +277,7 @@ jobs:
         if: runner.os != 'macOS'
         uses: actions/checkout@v4
         with:
-          sparse-checkout: openvino/docs/snippets
+          sparse-checkout: docs/snippets
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
 
