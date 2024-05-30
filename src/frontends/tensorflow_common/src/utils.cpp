@@ -438,7 +438,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_h
     auto const_one_f_ = create_same_type_const_scalar<float>(images, 1.0f);
     auto const_six_f_ = create_same_type_const_scalar<float>(images, 6.0f);
 
-    // Find max and min across channel axis. Max = Value (V)
+    // find max and min across channel axis. Max = Value (V)
     auto const_minus_one_i_1 = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
     auto max_rgb = make_shared<v1::ReduceMax>(images, const_minus_one_i_1, true);
     auto min_rgb = make_shared<v1::ReduceMin>(images, const_minus_one_i_1, true);
@@ -453,7 +453,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_h
     // compute normalization factor (for Hue calculation)
     auto norm = make_shared<v1::Divide>(const_one_f_, make_shared<v1::Multiply>(const_six_f_, range));
 
-    // Split the image tensor into R, G, B channels
+    // split the image tensor into R, G, B channels
     auto const_minus_one_i = make_shared<v0::Constant>(element::i32, Shape{}, -1);
     auto channels = make_shared<v1::Split>(images, const_minus_one_i, 3);
 
