@@ -133,7 +133,7 @@ the below instructions:
 Support for PyTorch 2 export quantization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. To be able to access this feature, please follow the steps provided in [PyTorch 2 Export Post Training Quantization with X86 Backend through Inductor](https://pytorch.org/tutorials/prototype/pt2e_quant_ptq_x86_inductor.html) and update the provided sample as explained below.
+PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. To be able to access this feature, please follow the steps provided in [PyTorch 2 Export Quantization](https://pytorch.org/docs/stable/quantization.html#prototype-pytorch-2-export-quantization) and update the provided sample as explained below.
 
 1. If you are using the PyTorch version 2.3.0 or above, disable constant folding in quantization to be able to benefit from the optimization in OpenVINO backend. This can be done passing ``fold_quantize=False`` parameter into the ``convert_pt2e`` function.
 
@@ -141,27 +141,20 @@ PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compil
 
    .. code-block:: python
 
-      converted_model = convert_pt2e(prepared_model)
+      m = convert_pt2e(m)
 
     As below:
 
    .. code-block:: python
 
-      converted_model = convert_pt2e(prepared_model, fold_quantize=False)
+      m = convert_pt2e(m, fold_quantize=False)
 
-2. Set ``torch.compile`` backend as OpenVINO and execute the model.
-
-    Update this line below:
+2. After the model is quantized, use ``torch.compile`` with OpenVINO backend and execute the model as below.
 
    .. code-block:: python
 
-      optimized_model = torch.compile(converted_model)
-
-    As below:
-
-   .. code-block:: python
-
-      optimized_model = torch.compile(converted_model, backend="openvino")
+      optimized_ov_model = torch.compile(m, backend="openvino")
+      optimized_ov_model(*example_inputs)
 
 Torchserve Integration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
