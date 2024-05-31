@@ -133,7 +133,7 @@ the below instructions:
 Support for PyTorch 2 export quantization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. To be able to access this feature, please follow the steps provided in [PyTorch 2 Export Quantization](https://pytorch.org/docs/stable/quantization.html#prototype-pytorch-2-export-quantization) and update the provided sample as explained below.
+PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. To be able to access this feature, please follow the steps provided in `PyTorch 2 Export Quantization <https://pytorch.org/docs/stable/quantization.html#prototype-pytorch-2-export-quantization>`__ and update the provided sample as explained below.
 
 1. If you are using the PyTorch version 2.3.0 or above, disable constant folding in quantization to be able to benefit from the optimization in OpenVINO backend. This can be done passing ``fold_quantize=False`` parameter into the ``convert_pt2e`` function.
 
