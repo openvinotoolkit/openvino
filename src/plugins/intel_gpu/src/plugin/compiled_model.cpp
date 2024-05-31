@@ -100,7 +100,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
             sub_tasks.push_back(std::bind(compile_tp_model, i));
         }
         tp_compile_executor->run_and_wait(std::move(sub_tasks));
-        message->setSubCompileModels(sub_models);
+        message->set_sub_compiled_models(sub_models);
 
         // clear up the tp executor for async compile
         get_plugin()->get_executor_manager()->clear("async compile executor for TP");
@@ -211,12 +211,12 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                                                    get_callback_executor());
     if (m_subCompileModel) {
         auto message = ov::threading::message_manager();
-        auto sub_models = message->getSubCompileModels();
+        auto sub_models = message->get_sub_compiled_models();
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         for (auto model : sub_models) {
             requests.push_back(model->create_infer_request());
         }
-        message->setSubInferRequest(requests);
+        message->set_sub_infer_requests(requests);
         async_infer_request->setSubInfer(true);
     }
     return async_infer_request;
@@ -279,7 +279,7 @@ void CompiledModel::export_model(std::ostream& model) const {
 
 CompiledModel::Ptr CompiledModel::get_tp_compiled_model() const {
     auto messenger = ov::threading::message_manager();
-    auto sub_models = messenger->getSubCompileModels();
+    auto sub_models = messenger->get_sub_compiled_models();
     for (auto& iter : sub_models) {
         if (iter->get_context()->get_device_name() == get_context()->get_device_name())
             return std::dynamic_pointer_cast<CompiledModel>(iter);

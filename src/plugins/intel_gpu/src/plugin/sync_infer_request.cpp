@@ -118,8 +118,8 @@ void SyncInferRequest::infer() {
     auto message = ov::threading::message_manager();
     if (m_asyncRequest->m_sub_infers) {
         std::cout << "m_asyncRequest->m_sub_infers\n";
-        message->server_wait(message->getSubInferRequest().size());
-        std::cout << "message->getSubInferRequest().size: " << message->getSubInferRequest().size() << std::endl;
+        message->server_wait(message->get_sub_infer_requests().size());
+        std::cout << "message->get_sub_infer_requests().size: " << message->get_sub_infer_requests().size() << std::endl;
         ov::threading::MessageInfo msg_info;
         msg_info.msg_type = ov::threading::MsgType::START_INFER;
         ov::threading::Task task = [&] {
@@ -141,7 +141,7 @@ void SyncInferRequest::infer() {
 void SyncInferRequest::sub_streams_infer() {
     // sub streams infer
     auto message = ov::threading::message_manager();
-    auto requests = message->getSubInferRequest();
+    auto requests = message->get_sub_infer_requests();
     size_t requests_num = requests.size();
     auto inputs = get_inputs();
     auto outputs = get_outputs();

@@ -44,7 +44,7 @@ private:
     bool is_metric(const std::string& name) const;
     ov::Any get_metric(const std::string& name, const ov::AnyMap& arguments) const;
 
-    std::shared_ptr<ov::threading::MessageManage> m_msg_manager;
+    std::shared_ptr<ov::threading::MessageManager> m_msg_manager;
 
 public:
     Plugin();
