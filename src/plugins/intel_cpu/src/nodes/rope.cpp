@@ -54,6 +54,8 @@ struct jit_uni_rotary_kernel {
     jit_rotary_compile_params jcp_;
 };
 
+#ifdef OPENVINO_ARCH_X86_64
+
 template <cpu_isa_t isa>
 struct jit_rotary_kernel : public jit_uni_rotary_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_rotary_kernel)
@@ -64,6 +66,7 @@ struct jit_rotary_kernel : public jit_uni_rotary_kernel, public jit_generator {
         jit_generator::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
+
 private:
     using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu_isa_t::sse41, Xmm, isa == cpu_isa_t::avx2, Ymm, Zmm>::type;
     void generate() override {
@@ -253,7 +256,7 @@ private:
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa,ov::element::f32, dst_prc, elt_num));
+            emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
         }
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
@@ -276,6 +279,8 @@ private:
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(reg_params.getIdx()), static_cast<size_t>(reg_not_params.getIdx()) };
     const std::vector<size_t> pool_aux_vmm_idxs = { 6 };
 };
+
+#endif
 
 RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
@@ -306,6 +311,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
 
         if (!m_init) {
             m_init = true;
+#ifdef OPENVINO_ARCH_X86_64
             jit_rotary_compile_params jcp;
             jcp.src_prc = precision_of<T>::value;
             jcp.dst_prc = precision_of<T>::value;
@@ -318,6 +324,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             }
             if (m_rotaryKernel)
                 m_rotaryKernel->create_ker();
+#endif
         }
 
         bool can_inplace = true;
@@ -404,6 +411,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         auto half_rotary_dims = rotary_dims / 2;
         if (!m_init) {
             m_init = true;
+#ifdef OPENVINO_ARCH_X86_64
             jit_rotary_compile_params jcp;
             jcp.src_prc = precision_of<T>::value;
             jcp.dst_prc = precision_of<T>::value;
@@ -423,6 +431,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
 
             if (m_rotaryKernel)
                 m_rotaryKernel->create_ker();
+#endif
         }
 
         parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
@@ -477,6 +486,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
         if (!m_init) {
             m_init = true;
+#ifdef OPENVINO_ARCH_X86_64
             jit_rotary_compile_params jcp;
             jcp.src_prc = precision_of<T>::value;
             jcp.dst_prc = precision_of<T>::value;
@@ -496,6 +506,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
             if (m_rotaryKernel)
                 m_rotaryKernel->create_ker();
+#endif
         }
 
         parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
@@ -542,6 +553,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
 
         if (!m_init) {
             m_init = true;
+#ifdef OPENVINO_ARCH_X86_64
             jit_rotary_compile_params jcp;
             jcp.src_prc = precision_of<T>::value;
             jcp.dst_prc = precision_of<T>::value;
@@ -555,6 +567,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
 
             if (m_rotaryKernel)
                 m_rotaryKernel->create_ker();
+#endif
         }
 
         bool can_inplace = true;
