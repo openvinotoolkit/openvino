@@ -136,6 +136,8 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                         if (visited_nodes[j])
                             continue;
                         const auto& child_op = shared_nodes[j];
+
+                        // no functionality is implemented to compare bodies of Loop operations
                         if (ov::as_type_ptr<ov::op::v5::Loop>(root_op)) {
                             continue;
                         }
