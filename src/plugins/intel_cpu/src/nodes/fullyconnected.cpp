@@ -537,7 +537,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         {ARG_DST, dstDescs[0]},
     };
 
-    if (tp_mode == 2) {
+    if (tp_mode == 2 && cached_scale && cached_zeropoint) {
         attrs.decompressionMultiplyPtr = cached_scale;
         attrs.decompressionSubtractPtr = cached_zeropoint;
     }

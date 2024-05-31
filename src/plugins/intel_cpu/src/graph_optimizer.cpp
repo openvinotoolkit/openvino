@@ -138,7 +138,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     if (std::getenv("ENABLE_TP")) {
         const char* str_enable = std::getenv("ENABLE_TP");
         int tp_mode = std::atoi(str_enable);
-        if (tp_mode != 1) {
+        if (tp_mode != 1 && tp_mode != 2) {
             OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFullyConnectedAndSimpleOperation");
             FuseFullyConnectedAndSimpleOperation(graph);
             graph.RemoveDroppedNodes();
