@@ -58,7 +58,7 @@
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
-#if (__cplusplus >= 201703L)
+#ifdef _WIN32
 #    include <filesystem>
 namespace fs = std::filesystem;
 #else
