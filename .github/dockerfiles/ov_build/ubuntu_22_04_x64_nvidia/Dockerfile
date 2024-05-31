@@ -52,20 +52,9 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 # Install CUDA
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin && \
-    mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600 && \
-    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub && \
-    add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
-RUN apt update && apt install -y \
-    libcudnn8=8.9.4.*-1+cuda11.8 \
-    libcudnn8-dev=8.9.4.*-1+cuda11.8 \
-    libcudnn8-samples=8.9.4.*-1+cuda11.8 \
-    cuda-runtime-11-8 \
-    cuda-11-8 \
-    libcutensor1=1.7.0.1-1 \
-    libcutensor-dev=1.7.0.1-1 \
-    cuda-drivers=520.61.05-1 && \
-    rm -rf /var/lib/apt/lists/*
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb
+RUN apt-get update && apt-get install cuda-toolkit
 
 # Setup pip
 ENV PIP_VERSION="24.0"
@@ -77,6 +66,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+ENV PATH="/venv/bin:$SCCACHE_HOME:/usr/local/cuda-12.4/bin:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
