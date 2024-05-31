@@ -26,6 +26,7 @@
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/profiler.hpp"
 #include "kernels/ccl/allreduce.hpp"
 
 using namespace dnnl;
@@ -188,6 +189,7 @@ void FullyConnected::prepareParams() {
 
 void FullyConnected::execute(dnnl::stream strm) {
     if (tp_mode == 1 || tp_mode == 2 || tp_mode == 3) {
+        PROFILE(_prof1, "fc_sync");
         id = message->get_memory_id(w_rank);
         // std::cout << "execute: " << getName() << ", " << id << ", " << w_rank << "\n";
         message->set_memory_used(id, w_rank);
@@ -205,6 +207,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         }
     }
     if (tp_mode == 1) {
+        PROFILE(_prof1, "fc_pre");
         auto srcMemoryBuffer = getSrcMemoryAtPort(DATA_ID);
         auto select_src = split_v(srcMemoryBuffer, -1, w_rank, w_size);
         memory[ARG_SRC] = select_src;
@@ -226,6 +229,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         memory[ARG_DST] = dst_mem;
     }
     if (tp_mode == 2) {
+        PROFILE(_prof1, "fc_pre");
         // memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
         // memory[ARG_BIAS] = cached_splited_bias;
         // memory[ARG_WEI] = cached_splited_weight;
@@ -237,6 +241,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         //     w_rank, memory[ARG_SRC]->getData(), memory[ARG_WEI]->getData(), memory[ARG_DST]->getData());
     }
     if (tp_mode == 3) {
+        PROFILE(_prof1, "fc_pre");
         auto srcMemoryBuffer = getSrcMemoryAtPort(DATA_ID);
         auto select_src = split_h(srcMemoryBuffer, 0, w_rank, w_size);
         memory[ARG_SRC] = select_src;
@@ -256,10 +261,12 @@ void FullyConnected::execute(dnnl::stream strm) {
     }
 
     {
+        PROFILE(_prof1, "fc_exec");
         executor->execute(memory);
     }
 
     if (tp_mode == 1) {
+        PROFILE(_prof1, "fc_post");
         // post process output
         auto send_mem = memory[ARG_DST];
         auto send_ptr = send_mem->getData();
@@ -277,6 +284,7 @@ void FullyConnected::execute(dnnl::stream strm) {
     }
 
     if (tp_mode == 2) {
+        PROFILE(_prof1, "fc_post");
         // dst
         auto dst = getDstMemoryAtPort(0);
         auto dst_ptr = static_cast<uint8_t*>(dst->getData());
@@ -331,6 +339,7 @@ void FullyConnected::execute(dnnl::stream strm) {
     }
 
     if (tp_mode == 3) {
+        PROFILE(_prof1, "fc_post");
         // dst
         auto dst = getDstMemoryAtPort(0);
         auto dst_ptr = static_cast<uint8_t*>(dst->getData());
