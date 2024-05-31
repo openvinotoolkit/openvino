@@ -22,7 +22,7 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 How to Use
 ####################
 
-To use ``torch.compile``, you need to define the ``openvino`` backend.
+To use ``torch.compile``, you need to define the ``openvino`` backend in your PyTorch application.
 This way Torch FX subgraphs will be directly converted to OpenVINO representation without
 any additional PyTorch-based tracing/scripting.
 
@@ -130,7 +130,7 @@ the below instructions:
        if sys.version_info >= (3, 11):
            `raise RuntimeError("Python 3.11+ not yet supported for torch.compile")
 
-Support for PyTorch 2 export quantization
+Support for PyTorch 2 export quantization (Preview)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. To be able to access this feature, please follow the steps provided in `PyTorch 2 Export Post Training Quantization with X86 Backend through Inductor <https://pytorch.org/tutorials/prototype/pt2e_quant_ptq_x86_inductor.html>`__ and update the provided sample as explained below.
