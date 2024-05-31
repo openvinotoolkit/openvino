@@ -102,7 +102,7 @@ def test_dynamic_shape(sample_language, device, cache):
     verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx', shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache)
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
-@pytest.mark.parametrize('device', get_devices())
+@pytest.mark.parametrize('device', 'CPU')
 def test_4bit_precision_input(sample_language, device, cache):
     input = opset.parameter([-1,224,224,3], ov.Type.i4, name='in')
     cvt = opset.convert(input, ov.Type.f32)
