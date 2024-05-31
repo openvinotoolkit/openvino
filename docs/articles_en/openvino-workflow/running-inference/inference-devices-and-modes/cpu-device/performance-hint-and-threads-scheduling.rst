@@ -49,7 +49,7 @@ In this scenario, the default setting of ``ov::hint::scheduling_core_type`` is d
 
 .. note::
 
-    For 14th Gen Intel® Core™ Processor on Windows, use P-cores only for large language models and P_cores+E-cores together for others in this scenario.
+   Both P-cores and E-cores may be used for any configuration starting from 14th Gen Intel® Core™ Processor on Windows.
 
 Then the default settings of low-level performance properties on Windows and Linux are as follows:
 
@@ -58,21 +58,21 @@ Then the default settings of low-level performance properties on Windows and Lin
 +======================================+================================================================+================================================================+
 | ``ov::num_streams``                  | 1                                                              | 1                                                              |
 +--------------------------------------+----------------------------------------------------------------+----------------------------------------------------------------+
-| ``ov::inference_num_threads``        | is equal to number of P_cores or P_cores+E_cores on one socket | is equal to number of P_cores or P_cores+E_cores on one socket |
+| ``ov::inference_num_threads``        | is equal to number of P-cores or P-cores+E-cores on one socket | is equal to number of P-cores or P-cores+E-cores on one socket |
 +--------------------------------------+----------------------------------------------------------------+----------------------------------------------------------------+
 | ``ov::hint::scheduling_core_type``   | `Core Type Table of Latency Hint`_                             | `Core Type Table of Latency Hint`_                             |
 +--------------------------------------+----------------------------------------------------------------+----------------------------------------------------------------+
 | ``ov::hint::enable_hyper_threading`` | No                                                             | No                                                             |
 +--------------------------------------+----------------------------------------------------------------+----------------------------------------------------------------+
-| ``ov::hint::enable_cpu_pinning``     | No / Not Support                                               | Yes except using P-cores and E-cores together                  |
+| ``ov::hint::enable_cpu_pinning``     | No / Not Supported                                             | Yes except using P-cores and E-cores together                  |
 +--------------------------------------+----------------------------------------------------------------+----------------------------------------------------------------+
 
 .. note::
 
     - ``ov::hint::scheduling_core_type`` might be adjusted for particular inferred model on particular platform based on internal heuristics to guarantee best performance.
     - Both P-cores and E-cores are used for the Latency Hint on Intel® Core™ Ultra Processors on Windows, except in the case of large language models.
-    - In hyper threading situation, two logical processors share hardware resource of one CPU core. OpenVINO do not expect to use both logical processors in one stream for one infer request. So ``ov::hint::enable_hyper_threading`` is ``No`` in this scenario.
-    - Usually user on Windows will run multiple applications at the same time, so ``ov::hint::enable_cpu_pinning`` for Windows is ``No`` on single socket platform and ``Not Supported`` on dual sockets platform. However user on Linux request the best performance of one application, so ``ov::hint::enable_cpu_pinning`` is ``Yes`` for Linux.
+    - In case hyper-threading is enabled, two logical processors share hardware resource of one CPU core. OpenVINO do not expect to use both logical processors in one stream for one infer request. So ``ov::hint::enable_hyper_threading`` is ``No`` in this scenario.
+    - ``ov::hint::enable_cpu_pinning`` is disabled by default on Windows/Mac, and enabled on Linux. Such default settings are aligned with typical workloads running in corresponding environment to guarantee better OOB performance.
 
 Throughput Hint
 ######################################
@@ -107,8 +107,7 @@ Then the value of ``ov::num_streams`` is calculated as ``ov::inference_num_threa
 
 .. note::
 
-    - By default, each stream is created on P-core only or E-core only on single numa node even all P-cores and E-cores are used in this scenario.
-    - By default, ``ov::hint::enable_hyper_threading`` is ``Yes`` on single socket platform to run more streams in parallel. And it is ``No`` on dual sockets platform because dual sockets platform has more CPU cores and streams already.
+    - By default, different core types are not mixed within single stream in this scenario. And cores from different numa nodes are not mixed within single stream.
 
 Multi-Threading Optimization
 ##############################################
