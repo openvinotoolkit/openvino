@@ -170,13 +170,14 @@ TSSplitBackward::TSSplitBackward() {
             split = FindInputNode<ov::op::v1::VariadicSplit>(transpose_label_node);
         }
 
+        if (!split || transformation_callback(split)) {
+            return false;
+        }
+
         if (split->get_input_partial_shape(0).rank().is_dynamic()) {
             return false;
         }
 
-        if (!split || transformation_callback(split)) {
-            return false;
-        }
         auto split_axis_constant = as_type_ptr<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
         if (!split_axis_constant) {
             return false;
