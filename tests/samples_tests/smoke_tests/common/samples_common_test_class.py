@@ -76,13 +76,14 @@ def download(test_data_dir, file_path):
         time.sleep(1.0)
 
 
-def prepend(cache, inp='', model=''):
+def prepend(cache, inp='', model='', tmp_path=None):
     test_data_dir = cache.mkdir('test_data')
     if inp:
         inp = '-i', download(test_data_dir, test_data_dir / inp)
     if model:
         if type(model) is ov.ie_api.Model:
-            model_sv_path = test_data_dir / "tmp.xml"
+            model_sv_path = (
+                tmp_path if tmp_path is not None else str(".")) + str("/model_with_4bit_input.xml")
             ov.save_model(model, model_sv_path)
             model = '-m', model_sv_path
         else:

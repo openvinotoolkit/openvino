@@ -30,7 +30,7 @@ def get_executable(sample_language):
 def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx'):
     output = get_cmd_output(
         get_executable(sample_language),
-        *prepend(cache, 'dog-224x224.bmp', model),
+        *prepend(cache, 'dog-224x224.bmp', model, tmp_path),
         *('-nstreams', nstreams) if nstreams else '',
         *('-layout', layout) if layout else '',
         *('-nireq', nireq) if nireq else '',
@@ -102,10 +102,10 @@ def test_dynamic_shape(sample_language, device, cache):
     verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx', shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache)
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
-@pytest.mark.parametrize('device', 'CPU')
+@pytest.mark.parametrize('device', ['CPU'])
 def test_4bit_precision_input(sample_language, device, cache):
     input = opset.parameter([-1,224,224,3], ov.Type.i4, name='in')
     cvt = opset.convert(input, ov.Type.f32)
     result = opset.result(cvt, name='cvt')
-    model_4bit = ov.Model([result], [input], 'Model_4Bit_Input')
+    model_4bit = ov.Model([result], [input], 'model_with_4bit_input')
     verify(sample_language, device, model=model_4bit, cache=cache)
