@@ -1314,7 +1314,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     _mem_changed = false;
     const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
-    if (is_dynamic() && !has_inner_networks()) {
+    if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
