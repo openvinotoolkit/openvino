@@ -70,7 +70,7 @@ Places to Begin
    :class-container: ov-homepage-higlight-grid
 
    .. grid-item-card:: Installation
-      :img-top: ./_static/images/home_begin_tile_01.png
+      :img-top: ./assets/images/home_begin_tile_01.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -83,7 +83,7 @@ Places to Begin
          Get Started
 
    .. grid-item-card:: Performance Benchmarks
-      :img-top: ./_static/images/home_begin_tile_02.png
+      :img-top: ./articles_en/assets/images/home_begin_tile_02.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -96,7 +96,7 @@ Places to Begin
          View data
 
    .. grid-item-card:: Framework Compatibility
-      :img-top: ./_static/images/home_begin_tile_03.png
+      :img-top: ../assets/images/home_begin_tile_03.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -122,7 +122,7 @@ Places to Begin
          Run Inference
 
    .. grid-item-card:: Serving at scale
-      :img-top: ./_static/images/home_begin_tile_05.png
+      :img-top: docs/articles_en/assets/images/home_begin_tile_05.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -135,7 +135,7 @@ Places to Begin
          Try it out
 
    .. grid-item-card:: Model Compression
-      :img-top: ./_static/images/home_begin_tile_06.png
+      :img-top: ./docs/articles_en/assets/images/home_begin_tile_06.png
       :class-card: homepage_begin_tile
       :shadow: none
 
