@@ -80,10 +80,15 @@ public:
  */
 class FileStorageCacheManager final : public ICacheManager {
     std::string m_cachePath;
-
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    std::wstring getBlobFile(const std::string& blobHash) const {
+        return ov::util::string_to_wstring(FileUtils::makePath(m_cachePath, blobHash + ".blob"));
+    }
+#else
     std::string getBlobFile(const std::string& blobHash) const {
         return FileUtils::makePath(m_cachePath, blobHash + ".blob");
     }
+#endif
 
 public:
     /**
@@ -114,8 +119,13 @@ private:
 
     void remove_cache_entry(const std::string& id) override {
         auto blobFileName = getBlobFile(id);
-        if (FileUtils::fileExist(blobFileName))
+        if (FileUtils::fileExist(blobFileName)) {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+            _wremove(blobFileName.c_str());
+#else
             std::remove(blobFileName.c_str());
+#endif
+        }
     }
 };
 
