@@ -105,7 +105,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
     if: "!needs.smart_ci.outputs.skip_workflow"
 
@@ -333,7 +333,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
+    runs-on: ubuntu-22.04-8-cores
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -466,7 +466,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-32gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
+      sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
 
   ONNX_Models:
     name: ONNX Models Tests
@@ -589,7 +589,7 @@ jobs:
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_Release
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
