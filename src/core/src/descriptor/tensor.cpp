@@ -11,67 +11,63 @@
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 
-ov::descriptor::Tensor::~Tensor() {
-    if (m_has_data) {
-        m_data.~OptionalData();
-    }
-}
-
-ov::descriptor::Tensor::Tensor() : m_has_data{false}, m_empty{} {}
-
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
                                const std::unordered_set<std::string>& names)
-    : m_element_type{element_type},
-      m_partial_shape{pshape},
-      m_has_data{true},
-      m_data{} {
+    : m_element_type(element_type),
+      m_partial_shape(pshape) {
     set_names(names);
 }
 
-ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, ov::Node*, size_t)
-    : Tensor(element_type, pshape, {}) {}
+ov::descriptor::Tensor::Tensor(const element::Type& element_type,
+                               const PartialShape& pshape,
+                               ov::Node* node,
+                               size_t node_output_number)
+    : m_element_type(element_type),
+      m_partial_shape(pshape) {
+    m_name_it = m_names.cend();
+}
 
 void ov::descriptor::Tensor::invalidate_values() {
     if (ov::skip_invalidation(*this))
         return;
-    m_data.m_upper_value = {};
-    m_data.m_lower_value = {};
-    m_data.m_value_symbol.clear();
+    m_upper_value = {};
+    m_lower_value = {};
+    m_value_symbol.clear();
 }
 
 void ov::descriptor::Tensor::set_lower_value(const ov::Tensor& value) {
     OPENVINO_ASSERT(static_cast<bool>(value));
-    OPENVINO_ASSERT(get_partial_shape().same_scheme(value.get_shape()));
-    OPENVINO_ASSERT(get_element_type() == value.get_element_type());
-    m_data.m_lower_value = value;
+    OPENVINO_ASSERT(m_partial_shape.same_scheme(value.get_shape()));
+    OPENVINO_ASSERT(m_element_type == value.get_element_type());
+    m_lower_value = value;
 }
 
 void ov::descriptor::Tensor::set_upper_value(const ov::Tensor& value) {
     OPENVINO_ASSERT(static_cast<bool>(value));
-    OPENVINO_ASSERT(get_partial_shape().same_scheme(value.get_shape()));
-    OPENVINO_ASSERT(get_element_type() == value.get_element_type());
-    m_data.m_upper_value = value;
+    OPENVINO_ASSERT(m_partial_shape.same_scheme(value.get_shape()));
+    OPENVINO_ASSERT(m_element_type == value.get_element_type());
+    m_upper_value = value;
 }
 
 void ov::descriptor::Tensor::set_value_symbol(const TensorSymbol& value_symbol) {
     const auto& symbols_size = value_symbol.size();
     if (symbols_size == 0) {
-        m_data.m_value_symbol.clear();
+        m_value_symbol.clear();
     } else {
-        OPENVINO_ASSERT(get_partial_shape().is_static());
-        OPENVINO_ASSERT(shape_size(get_partial_shape().to_shape()) == symbols_size);
-        m_data.m_value_symbol = value_symbol;
+        OPENVINO_ASSERT(m_partial_shape.is_static());
+        OPENVINO_ASSERT(shape_size(m_partial_shape.to_shape()) == symbols_size);
+        m_value_symbol = value_symbol;
     }
 }
 
 const ov::Shape& ov::descriptor::Tensor::get_shape() const {
-    AtomicGuard lock(m_data.m_shape_changing);
-    if (m_data.m_shape_changed) {
-        m_data.m_shape = get_partial_shape().to_shape();
-        m_data.m_shape_changed = false;
+    AtomicGuard lock(m_shape_changing);
+    if (m_shape_changed) {
+        m_shape = m_partial_shape.to_shape();
+        m_shape_changed = false;
     }
-    return m_data.m_shape;
+    return m_shape;
 }
 
 size_t ov::descriptor::Tensor::size() const {
@@ -83,41 +79,39 @@ const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const
 }
 
 const std::string& ov::descriptor::Tensor::get_any_name() const {
-    if (m_data.m_name_it == m_names.cend()) {
+    if (m_name_it == m_names.cend()) {
         OPENVINO_THROW("Attempt to get a name for a Tensor without names");
     }
-    return *m_data.m_name_it;
+    return *m_name_it;
 }
 
 void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) {
     m_names = names;
-    m_data.m_name_it = m_names.cbegin();
+    m_name_it = m_names.cbegin();
     for (auto it = m_names.cbegin(); it != m_names.cend(); it++) {
-        if (*it < *m_data.m_name_it)
+        if (*it < *m_name_it)
             // Update any name
-            m_data.m_name_it = it;
+            m_name_it = it;
     }
 }
 
 void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& names) {
     for (const auto& name : names) {
         auto res = m_names.insert(name);
-        if (m_data.m_name_it == m_names.end() || *res.first < *m_data.m_name_it)
+        if (m_name_it == m_names.end() || *res.first < *m_name_it)
             // Update any name
-            m_data.m_name_it = res.first;
+            m_name_it = res.first;
     }
 }
 
-void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& other) {
-    set_tensor_type(*this, other.get_element_type(), other.get_partial_shape());
-    set_names(other.get_names());
-    m_legacy_name = other.m_legacy_name;
-    if (other.m_has_data) {
-        m_data.m_lower_value = other.get_lower_value();
-        m_data.m_upper_value = other.get_upper_value();
-        m_data.m_value_symbol = other.get_value_symbol();
-        m_data.m_rt_info = other.get_rt_info();
-    }
+void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& old) {
+    set_tensor_type(*this, old.get_element_type(), old.get_partial_shape());
+    set_names(old.get_names());
+    m_lower_value = old.get_lower_value();
+    m_upper_value = old.get_upper_value();
+    m_value_symbol = old.get_value_symbol();
+    m_legacy_name = old.m_legacy_name;
+    m_rt_info = old.get_rt_info();
 }
 
 std::string ov::descriptor::get_ov_tensor_legacy_name(const ov::descriptor::Tensor& tensor) {
@@ -132,13 +126,9 @@ void ov::descriptor::set_tensor_type(ov::descriptor::Tensor& tensor,
                                      const element::Type& element_type,
                                      const PartialShape& pshape) {
     tensor.m_element_type = element_type;
-    if (tensor.m_has_data) {
-        AtomicGuard lock(tensor.m_data.m_shape_changing);
-        tensor.m_partial_shape = pshape;
-        tensor.m_data.m_shape_changed = true;
-    } else {
-        tensor.m_partial_shape = pshape;
-    }
+    AtomicGuard lock(tensor.m_shape_changing);
+    tensor.m_partial_shape = pshape;
+    tensor.m_shape_changed = true;
 }
 
 void ov::descriptor::set_element_type(ov::descriptor::Tensor& tensor, const element::Type& element_type) {

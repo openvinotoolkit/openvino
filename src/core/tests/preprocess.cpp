@@ -23,7 +23,7 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     op->get_output_tensor(0).set_names({"tensor_Relu"});
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
-    res->get_output_tensor(0).set_names({"tensor_output1"});
+    res->output(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -33,7 +33,7 @@ static std::shared_ptr<Model> create_trivial(element::Type type, const PartialSh
     data1->get_output_tensor(0).set_names({"tensor_input1"});
     auto res = std::make_shared<op::v0::Result>(data1);
     res->set_friendly_name("Result1");
-    res->get_output_tensor(0).set_names({"tensor_output1"});
+    res->output(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -50,7 +50,7 @@ static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialS
         op1->set_friendly_name("Relu" + index_str);
         auto res1 = std::make_shared<op::v0::Result>(op1);
         res1->set_friendly_name("Result" + index_str);
-        res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
+        res1->output(0).set_names({"tensor_output" + index_str});
         params.push_back(data1);
         res.push_back(res1);
     }

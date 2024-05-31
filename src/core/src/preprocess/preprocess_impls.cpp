@@ -4,9 +4,6 @@
 
 #include "preprocess_impls.hpp"
 
-#include <iostream>
-#include <iterator>
-
 #include "layout_utils.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"

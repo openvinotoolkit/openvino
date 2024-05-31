@@ -35,16 +35,16 @@ size_t Output<Node>::get_index() const {
     return m_index;
 }
 descriptor::Tensor& Output<Node>::get_tensor() const {
-    return m_node->m_outputs.at(m_index).get_tensor();
+    return m_node->m_outputs.at(m_index)->get_tensor();
 }
 std::shared_ptr<descriptor::Tensor> Output<Node>::get_tensor_ptr() const {
-    return m_node->m_outputs.at(m_index).get_tensor_ptr();
+    return m_node->m_outputs.at(m_index)->get_tensor_ptr();
 }
 const element::Type& Output<Node>::get_element_type() const {
     return m_node->get_output_element_type(m_index);
 }
 void Output<Node>::set_tensor_ptr(std::shared_ptr<descriptor::Tensor> tensor_ptr) {
-    return m_node->m_outputs.at(m_index).set_tensor_ptr(tensor_ptr);
+    return m_node->m_outputs.at(m_index)->set_tensor_ptr(tensor_ptr);
 }
 const Shape& Output<Node>::get_shape() const {
     return m_node->get_output_shape(m_index);
@@ -56,7 +56,7 @@ const PartialShape& Output<Node>::get_partial_shape() const {
 std::set<Input<Node>> Output<Node>::get_target_inputs() const {
     std::set<Input<Node>> result;
 
-    for (auto& input : m_node->m_outputs.at(m_index).get_inputs()) {
+    for (auto& input : m_node->m_outputs.at(m_index)->get_inputs()) {
         result.emplace(input->get_raw_pointer_node(), input->get_index());
     }
 
@@ -64,7 +64,7 @@ std::set<Input<Node>> Output<Node>::get_target_inputs() const {
 }
 
 void Output<Node>::remove_target_input(const Input<Node>& target_input) const {
-    m_node->m_outputs.at(m_index).remove_input(&(target_input.get_node()->m_inputs.at(target_input.get_index())));
+    m_node->m_outputs.at(m_index)->remove_input(&(target_input.get_node()->m_inputs.at(target_input.get_index())));
 }
 
 void Output<Node>::replace(const Output<Node>& replacement) {
@@ -97,19 +97,21 @@ void Output<Node>::replace(const Output<Node>& replacement) {
 }
 
 RTMap& Output<Node>::get_rt_info() {
-    return m_node->m_outputs.at(m_index).get_rt_info();
+    return get_tensor().get_rt_info();
+    // return m_node->m_outputs.at(m_index)->get_rt_info();
 }
 
 const RTMap& Output<Node>::get_rt_info() const {
-    return m_node->m_outputs.at(m_index).get_rt_info();
+    return get_tensor().get_rt_info();
+    // return m_node->m_outputs.at(m_index)->get_rt_info();
 }
 
 const RTMap& Output<const Node>::get_rt_info() const {
-    return m_node->m_outputs.at(m_index).get_rt_info();
+    return m_node->m_outputs.at(m_index)->get_rt_info();
 }
 
 const std::unordered_set<std::string>& Output<Node>::get_names() const {
-    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
+    return get_tensor().get_names();
 }
 
 std::string Output<Node>::get_any_name() const {
@@ -117,15 +119,17 @@ std::string Output<Node>::get_any_name() const {
 }
 
 void Output<Node>::set_names(const std::unordered_set<std::string>& names) {
-    return m_node->m_outputs.at(m_index).get_tensor_ptr()->set_names(names);
+    m_node->m_outputs.at(m_index)->set_names(names);
+    // return m_node->m_outputs.at(m_index)->get_tensor_ptr()->set_names(names);
 }
 
 void Output<Node>::add_names(const std::unordered_set<std::string>& names) {
-    return m_node->m_outputs.at(m_index).get_tensor_ptr()->add_names(names);
+    m_node->m_outputs.at(m_index)->add_names(names);
+    // return m_node->m_outputs.at(m_index)->get_tensor_ptr()->add_names(names);
 }
 
 const std::unordered_set<std::string>& Output<const Node>::get_names() const {
-    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
+    return get_tensor().get_names();
 }
 
 std::string Output<const Node>::get_any_name() const {
@@ -183,10 +187,10 @@ size_t Output<const Node>::get_index() const {
     return m_index;
 }
 descriptor::Tensor& Output<const Node>::get_tensor() const {
-    return m_node->m_outputs.at(m_index).get_tensor();
+    return m_node->m_outputs.at(m_index)->get_tensor();
 }
 std::shared_ptr<descriptor::Tensor> Output<const Node>::get_tensor_ptr() const {
-    return m_node->m_outputs.at(m_index).get_tensor_ptr();
+    return m_node->m_outputs.at(m_index)->get_tensor_ptr();
 }
 const element::Type& Output<const Node>::get_element_type() const {
     return m_node->get_output_element_type(m_index);
@@ -201,7 +205,7 @@ const PartialShape& Output<const Node>::get_partial_shape() const {
 std::set<Input<Node>> Output<const Node>::get_target_inputs() const {
     std::set<Input<Node>> result;
 
-    for (auto& input : m_node->m_outputs.at(m_index).get_inputs()) {
+    for (auto& input : m_node->m_outputs.at(m_index)->get_inputs()) {
         result.emplace(input->get_raw_pointer_node(), input->get_index());
     }
 

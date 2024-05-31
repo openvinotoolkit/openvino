@@ -42,7 +42,8 @@ public:
     std::shared_ptr<Tensor> get_tensor_ptr() const {
         return m_tensor;
     }
-    void set_tensor_ptr(const std::shared_ptr<Tensor>& tensor) {
+
+    virtual void set_tensor_ptr(const std::shared_ptr<Tensor>& tensor) {
         m_tensor = tensor;
     }
     void add_input(Input* input);
@@ -70,8 +71,14 @@ public:
     Output(const Output&) = default;
     Output(Output&&) = default;
     Output& operator=(const Output&) = default;
+    virtual ~Output() = default;
 
 protected:
+    friend void ov::Output<Node>::set_names(const std::unordered_set<std::string>& names);
+    friend void ov::Output<Node>::add_names(const std::unordered_set<std::string>& names);
+    virtual void set_names(const std::unordered_set<std::string>& names);
+    virtual void add_names(const std::unordered_set<std::string>& names);
+
     Node* m_node;
     size_t m_index;
     std::shared_ptr<Tensor> m_tensor;
