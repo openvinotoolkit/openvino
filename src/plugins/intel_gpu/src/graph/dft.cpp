@@ -44,8 +44,15 @@ std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kern
     std::vector<layout> layouts;
 
     const auto primitive = impl_param.typed_desc<dft>();
-    const auto input0_layout = impl_param.get_input_layout(0);
-    const auto input1_layout = impl_param.get_input_layout(1);
+    const auto& input0_layout = impl_param.get_input_layout(0);
+    if (impl_param.input_layouts.size() == 1) {
+        auto dt = primitive->get_output_data_type(0).value_or(input0_layout.data_type);
+        format output_format = format::adjust_to_rank(input0_layout.format, primitive->output_shape.size());
+        layouts.push_back(layout{primitive->output_shape, dt, output_format});
+        return layouts;
+    }
+
+    const auto& input1_layout = impl_param.get_input_layout(1);
 
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),

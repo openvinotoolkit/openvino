@@ -211,7 +211,7 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB = ov::test::utils::make_constant(weiConstElemType, inShapeB.get_shape());
-        if (weiConstElemType == ElementType::f16) {
+        if (weiConstElemType == ElementType::f16 || weiConstElemType == ElementType::bf16) {
             inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
         }
@@ -311,15 +311,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP32,
                          testParams2D_FP32_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
-const auto testParams2D_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
-                                                        ::testing::ValuesIn(transposeParams),
-                                                        ::testing::Values(ElementType::f16),
-                                                        ::testing::Values(emptyConfig),
-                                                        ::testing::ValuesIn(filter_specific_params(false)));
+const auto testParams2D_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
+                                                   ::testing::ValuesIn(transposeParams),
+                                                   ::testing::Values(ElementType::f16, ElementType::bf16),
+                                                   ::testing::Values(emptyConfig),
+                                                   ::testing::ValuesIn(filter_specific_params(false)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16,
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D,
                          MatMulDecompressConvertTest,
-                         testParams2D_FP16_smoke,
+                         testParams2D_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
 const auto testParams2D_BF16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
@@ -344,15 +344,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP32,
                          testParams3D_FP32_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
-const auto testParams3D_FP16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
+const auto testParams3D_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                                         ::testing::ValuesIn(transposeParams),
-                                                        ::testing::Values(ElementType::f16),
+                                                        ::testing::Values(ElementType::f16, ElementType::bf16),
                                                         ::testing::Values(emptyConfig),
                                                         ::testing::ValuesIn(filter_specific_params(false)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP16,
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D,
                          MatMulDecompressConvertTest,
-                         testParams3D_FP16_smoke,
+                         testParams3D_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
 const auto testParams3D_BF16_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
@@ -368,11 +368,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16,
 
 }  // namespace
 
-/* In case of Convert has 2 or more consumers there is a problem with memory allocation in CPU plug-in (see Edge::init()
- method). Maybe we can just remove the check (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant())
- and everything will be OK, But this solution should be additionally checked. For now, for these cases we will not be
- doing CF on the CPU side and it should be done on the graph side.
-
+/* This test covers decompression convert with several consumers.
  * Graph before:
    ------------              ------------            ------------
    |Input(f32)|              |Input(f16)|            |Input(f32)|
@@ -396,7 +392,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16,
 
  * Exec graph:
    ------------   --------------------------------   ------------
-   |Input(f32)|   |           Input(f32)         |   |Input(f32)|
+   |Input(f32)|   |           Input(f16)         |   |Input(f32)|
    ------------   --------------------------------   ------------
         |             |                       |             |
     -----------------------               -----------------------
@@ -487,8 +483,7 @@ protected:
             inputWeights = std::make_shared<ov::op::v0::Convert>(inputWeights, convertOutType);
             mark_as_decompression(inputWeights);
         }
-        // In this test, convert must be folded on the graph side, so the constant with fp32 precision is expected
-        expectedWeiConstElemType = ElementType::f32;
+        expectedWeiConstElemType = weiConstElemType;
 
         auto matMul0 = std::make_shared<ov::op::v0::MatMul>(params[0], inputWeights, transpA, transpB);
         auto matMul1 = std::make_shared<ov::op::v0::MatMul>(params[1], inputWeights, transpA, transpB);
@@ -512,7 +507,7 @@ const auto testParams2D_FP16_2_smoke =
                        ::testing::Values(std::pair<bool, bool>{false, true}),
                        ::testing::Values(ElementType::f16),
                        ::testing::Values(emptyConfig),
-                       ::testing::ValuesIn(filter_specific_params(true)));
+                       ::testing::ValuesIn(filter_specific_params(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_2,
                          MatMulDecompressConvertTest2,

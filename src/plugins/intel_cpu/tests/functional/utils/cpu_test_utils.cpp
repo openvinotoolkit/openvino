@@ -110,7 +110,8 @@ std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t>& fmts,
 ov::PrimitivesPriority CPUTestsBase::impls2primProiority(const std::vector<std::string>& priority) {
     std::string str;
     for (auto& impl : priority) {
-        ((str += "cpu:") += impl) += ",";
+        if (!impl.empty())
+            ((str += "cpu:") += impl) += ",";
     }
     if (!str.empty()) {
         str.pop_back();
@@ -329,7 +330,6 @@ CPUTestsBase::CPUInfo CPUTestsBase::makeCPUInfo(const std::vector<cpu_memory_for
     if (!priority.empty()) {
         cpuInfo.emplace(ov::PrimitivesPriority::get_type_info_static(), impls2primProiority(priority));
     }
-
     cpuInfo.insert({"enforceBF16evenForGraphTail", true});
 
     return cpuInfo;

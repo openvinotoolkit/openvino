@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "shared_test_classes/single_op/tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
@@ -236,5 +237,21 @@ void TensorIteratorTest::SetUp() {
         m.run_passes(function);
     }
 }
+
+void TensorIteratorTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+
+    const auto& funcInputs = function->inputs();
+    for (size_t i = 0; i < funcInputs.size(); i++) {
+        const auto& funcInput = funcInputs[i];
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 8;
+        in_data.resolution = funcInput.get_element_type().is_real() ? 32 : 1;
+        ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+    }
+}
+
 }  // namespace test
 }  // namespace ov
