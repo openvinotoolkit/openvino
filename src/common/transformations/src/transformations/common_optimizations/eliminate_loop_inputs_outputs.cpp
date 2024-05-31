@@ -38,13 +38,11 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         using OutputD = MultiSubGraphOp::BodyOutputDescription;
         using ConcatD = MultiSubGraphOp::ConcatOutputDescription;
 
-        // deleting parameter/results are inserted to the beginning of deque, adding Descriptions to the end
-        // deque: delete_param, delete_param, add_input_desc, add_inputs_desc ...
-        // delete_param updates Parameter index in the vector, add_input_desc will use the updated indexes.
-        std::deque<std::function<void()>> delete_inputs;
-        std::deque<std::function<void()>> delete_outputs;
-        std::deque<std::function<void()>> process_inputs;
-        std::deque<std::function<void()>> process_outputs;
+        // delete useless Parameter and Result nodes in isolated graph (Parameter->Result)
+        // after that, set indices of sliced and invariant inputs
+        // and outputs in the resulted SubGraph operation
+        std::deque<std::function<void()>> delete_inputs_outputs;
+        std::deque<std::function<void()>> process_inputs_outputs;
 
         const auto& pattern_to_output = m.get_pattern_value_map();
 
@@ -67,6 +65,9 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             auto new_loop = make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
             new_loop->set_special_body_ports(loop->get_special_body_ports());
             new_node = new_loop;
+            // condition Result node index may be shifted due to removing
+            // useless Parameter->Result subgraphs in the body
+            // save initial body_condition_output_idx before removing
             body_condition_output_idx = loop->get_special_body_ports().body_condition_output_idx;
         } else {
             new_node = make_shared<ov::op::v0::TensorIterator>();
@@ -81,24 +82,24 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
                 const auto& body_res = body_results[merged_input_desc->m_body_value_index];
                 auto param = get_parent_param(body_res);
                 if (param && param->get_output_target_inputs(0).size() == 1) {
-                    delete_inputs.emplace_front([=, &body_model]() {
+                    delete_inputs_outputs.emplace_front([=, &body_model]() {
                         body_model->remove_parameter(param);
                     });
                 } else if (param) {
-                    process_inputs.emplace_back([=, &new_node]() {
+                    process_inputs_outputs.emplace_back([=, &new_node]() {
                         new_node->set_invariant_input(body_param, init_value);
                     });
                 } else {
-                    process_inputs.emplace_back([=, &new_node]() {
+                    process_inputs_outputs.emplace_back([=, &new_node]() {
                         new_node->set_merged_input(body_param, init_value, body_res);
                     });
                 }
             } else if (const auto invariant_input_desc = as_type_ptr<InvariantD>(input_description)) {
-                process_inputs.emplace_back([=, &new_node]() {
+                process_inputs_outputs.emplace_back([=, &new_node]() {
                     new_node->set_invariant_input(body_param, init_value);
                 });
             } else if (const auto sliced_input_desc = as_type_ptr<SlicedD>(input_description)) {
-                process_inputs.emplace_back([=, &new_node]() {
+                process_inputs_outputs.emplace_back([=, &new_node]() {
                     new_node->set_sliced_input(body_param,
                                                init_value,
                                                sliced_input_desc->m_start,
@@ -119,27 +120,31 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
                                 subgraph_in_values[input_description->m_input_index]);
         }
         std::unordered_map<uint64_t, Output<Node>> idx_to_new_output;
+        int64_t num_deleted_results = 0;
         for (const auto& output_description : subgraph->get_output_descriptions()) {
             const auto& out_idx = output_description->m_output_index;
             const auto& body_result = body_results[output_description->m_body_value_index];
 
             if (output_description->m_body_value_index == body_condition_output_idx) {
+                // no need to do anything with body condition Result node
+                // only update of its index is required after body graph clean-up
                 continue;
             }
 
             const auto& body_param = get_parent_param(body_result);
             if (body_param && output_description->m_body_value_index != body_condition_output_idx) {
                 auto new_output = loop_inputs[body_param->get_instance_id()];
-                delete_outputs.emplace_front([=, &body_model, &idx_to_new_output]() {
+                ++num_deleted_results;
+                delete_inputs_outputs.emplace_front([=, &body_model, &idx_to_new_output]() {
                     body_model->remove_result(body_result);
                     idx_to_new_output[out_idx] = new_output;
                 });
             } else if (const auto body_output_desc = as_type_ptr<OutputD>(output_description)) {
-                process_outputs.emplace_back([=, &idx_to_new_output, &body_output_desc]() {
+                process_inputs_outputs.emplace_back([=, &idx_to_new_output, &body_output_desc]() {
                     idx_to_new_output[out_idx] = new_node->get_iter_value(body_result, body_output_desc->m_iteration);
                 });
             } else if (const auto concat_output_desc = as_type_ptr<ConcatD>(output_description)) {
-                process_outputs.emplace_back([=, &idx_to_new_output, &concat_output_desc]() {
+                process_inputs_outputs.emplace_back([=, &idx_to_new_output, &concat_output_desc]() {
                     idx_to_new_output[out_idx] = new_node->get_concatenated_slices(body_result,
                                                                                    concat_output_desc->m_start,
                                                                                    concat_output_desc->m_stride,
@@ -153,21 +158,18 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
                 return false;
             }
         }
+
         if (auto loop = as_type_ptr<ov::op::v5::Loop>(new_node)) {
+            // update of body condition index is required due to body graph clean-up
             auto special_body_ports = loop->get_special_body_ports();
-            special_body_ports.body_condition_output_idx -= static_cast<int64_t>(delete_outputs.size());
+            special_body_ports.body_condition_output_idx -= num_deleted_results;
             loop->set_special_body_ports(special_body_ports);
         }
-        for_each(delete_inputs.begin(), delete_inputs.end(), [](function<void()>& f) {
+
+        for_each(delete_inputs_outputs.begin(), delete_inputs_outputs.end(), [](function<void()>& f) {
             f();
         });
-        for_each(delete_outputs.begin(), delete_outputs.end(), [](function<void()>& f) {
-            f();
-        });
-        for_each(process_inputs.begin(), process_inputs.end(), [](function<void()>& f) {
-            f();
-        });
-        for_each(process_outputs.begin(), process_outputs.end(), [](function<void()>& f) {
+        for_each(process_inputs_outputs.begin(), process_inputs_outputs.end(), [](function<void()>& f) {
             f();
         });
 
