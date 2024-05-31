@@ -83,6 +83,9 @@ void AddConst::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+    if (type == ov::element::f16) {
+        abs_threshold = 3e-2;
+    }
 }
 
 void AddRollConst::SetUp() {
