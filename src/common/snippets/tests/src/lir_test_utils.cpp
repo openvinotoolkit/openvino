@@ -96,6 +96,18 @@ void create_and_add_unified_loop_info(const LinearIRPtr& linear_ir,
     loop_manager->mark_loop(linear_ir->begin(), linear_ir->begin(), work_amount, increment, entries, exits, set_default_handlers);
 }
 
+void create_and_add_unified_loop_info(const LinearIRPtr& linear_ir,
+                                      ov::snippets::lowered::LinearIR::constExprIt loop_begin_pos,
+                                      ov::snippets::lowered::LinearIR::constExprIt loop_end_pos,
+                                      size_t work_amount,
+                                      size_t increment,
+                                      const std::vector<LoopPort>& entries,
+                                      const std::vector<LoopPort>& exits,
+                                      bool set_default_handlers) {
+    const auto& loop_manager = linear_ir->get_loop_manager();
+    loop_manager->mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

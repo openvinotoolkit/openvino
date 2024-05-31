@@ -259,7 +259,7 @@ void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
                     "Failed to sort values: `new_order` must contain new indexes for ALL values");
     std::vector<T> ordered_values(values.size());
     for (size_t i = 0; i < values.size(); ++i) {
-        ordered_values[new_order[i]] = values[i];
+        ordered_values[i] = values[new_order[i]];
     }
     values = std::move(ordered_values);
 }

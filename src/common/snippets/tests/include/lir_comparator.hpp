@@ -75,6 +75,9 @@ private:
     static Result compare_loop_managers(const ov::snippets::lowered::LoopManagerPtr& loop_manager,
                                         const ov::snippets::lowered::LoopManagerPtr& loop_manager_ref);
 
+    static Result compare_loop_managers_without_index(const ov::snippets::lowered::LoopManagerPtr& loop_manager,
+                                        const ov::snippets::lowered::LoopManagerPtr& loop_manager_ref);
+
     static Result compare_loop_info(const ov::snippets::lowered::LoopInfoPtr& loop_info,
                                     const ov::snippets::lowered::LoopInfoPtr& loop_info_ref);
 
