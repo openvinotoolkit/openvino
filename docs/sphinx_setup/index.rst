@@ -57,7 +57,7 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
 |
 |
 
-.. image:: ./_static/images/openvino-overview-diagram.jpg
+.. image:: ./assets/images/openvino-overview-diagram.jpg
    :align: center
    :alt: openvino diagram
 
@@ -70,7 +70,7 @@ Places to Begin
    :class-container: ov-homepage-higlight-grid
 
    .. grid-item-card:: Installation
-      :img-top: ./_static/images/home_begin_tile_01.png
+      :img-top: ./assets/images/home_begin_tile_01.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -83,7 +83,7 @@ Places to Begin
          Get Started
 
    .. grid-item-card:: Performance Benchmarks
-      :img-top: ./_static/images/home_begin_tile_02.png
+      :img-top: ./assets/images/home_begin_tile_02.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -96,7 +96,7 @@ Places to Begin
          View data
 
    .. grid-item-card:: Framework Compatibility
-      :img-top: ./_static/images/home_begin_tile_03.png
+      :img-top: ./assets/images/home_begin_tile_03.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -109,7 +109,7 @@ Places to Begin
          Load your model
 
    .. grid-item-card:: Easy Deployment
-      :img-top: ./_static/images/home_begin_tile_04.png
+      :img-top: ./assets/images/home_begin_tile_04.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -122,7 +122,7 @@ Places to Begin
          Run Inference
 
    .. grid-item-card:: Serving at scale
-      :img-top: ./_static/images/home_begin_tile_05.png
+      :img-top: ./assets/images/home_begin_tile_05.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -135,7 +135,7 @@ Places to Begin
          Try it out
 
    .. grid-item-card:: Model Compression
-      :img-top: ./_static/images/home_begin_tile_06.png
+      :img-top: ./assets/images/home_begin_tile_06.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -157,28 +157,28 @@ Key Features
    :class-container: homepage_begin_container
 
    .. grid-item-card:: Model Compression
-      :img-top: ./_static/images/home_key_feature_01.png
+      :img-top: ./assets/images/home_key_feature_01.png
       :class-card: homepage_begin_key
       :shadow: none
 
       You can either link directly with OpenVINO Runtime to run inference locally or use OpenVINO Model Server to serve model inference from a separate server or within Kubernetes environment.
 
    .. grid-item-card:: Fast & Scalable Deployment
-      :img-top: ./_static/images/home_key_feature_02.png
+      :img-top: ./assets/images/home_key_feature_02.png
       :class-card: homepage_begin_key
       :shadow: none
 
       Write an application once, deploy it anywhere, achieving maximum performance from hardware. Automatic device discovery allows for superior deployment flexibility. OpenVINO Runtime supports Linux, Windows and MacOS and provides Python, C++ and C API. Use your preferred language and OS.
 
    .. grid-item-card:: Lighter Deployment
-      :img-top: ./_static/images/home_key_feature_03.png
+      :img-top: ./assets/images/home_key_feature_03.png
       :class-card: homepage_begin_key
       :shadow: none
 
       Designed with minimal external dependencies reduces the application footprint, simplifying installation and dependency management. Popular package managers enable application dependencies to be easily installed and upgraded. Custom compilation for your specific model(s) further reduces final binary size.
 
    .. grid-item-card:: Enhanced App Start-Up Time
-      :img-top: ./_static/images/home_key_feature_04.png
+      :img-top: ./assets/images/home_key_feature_04.png
       :class-card: homepage_begin_key
       :shadow: none
 
