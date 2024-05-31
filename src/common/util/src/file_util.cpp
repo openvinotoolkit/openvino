@@ -58,7 +58,7 @@
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
-#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || __cplusplus >= 201703L)
+#if (__cplusplus >= 201703L)
 #    include <filesystem>
 namespace fs = std::filesystem;
 #else
