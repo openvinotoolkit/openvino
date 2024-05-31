@@ -118,7 +118,7 @@ void SyncInferRequest::infer() {
     auto message = ov::threading::message_manager();
     if (m_asyncRequest->m_sub_infers) {
         std::cout << "m_asyncRequest->m_sub_infers\n";
-        message->server_wait(message->get_sub_infer_requests().size());
+        message->server_wait();
         std::cout << "message->get_sub_infer_requests().size: " << message->get_sub_infer_requests().size() << std::endl;
         ov::threading::MessageInfo msg_info;
         msg_info.msg_type = ov::threading::MsgType::START_INFER;
@@ -160,7 +160,7 @@ void SyncInferRequest::sub_streams_infer() {
                 requests[i]->set_tensor(input, tensor);
             }
 
-            requests[i]->set_callback([i, message](const std::exception_ptr& ptr) {
+            requests[i]->set_callback([message](const std::exception_ptr& ptr) {
                 // std::cout << "set_callback------ " << i << "\n";
                 ov::threading::MessageInfo msg_info;
                 msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
