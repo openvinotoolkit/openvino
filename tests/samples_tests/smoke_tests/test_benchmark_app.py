@@ -12,6 +12,7 @@
 """
 import json
 import os
+import numpy as np
 import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
@@ -26,11 +27,20 @@ def get_executable(sample_language):
         return executable
     return 'benchmark_app'
 
+def create_random_4bit_bin_file(tmp_path, shape, name):
+    fullname = tmp_path / name
+    rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
+    pack_shape = [x for x in shape]
+    pack_shape[-1] = pack_shape[-1]*4
+    rand_data = (rs.uniform(0, 15, list(pack_shape)) >= 7).astype(int).flatten()
+    raw_data = np.packbits(rand_data)
+    with open(fullname, "wb") as f:
+        f.write(raw_data)
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx'):
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch=1):
     output = get_cmd_output(
         get_executable(sample_language),
-        *prepend(cache, 'dog-224x224.bmp', model, tmp_path),
+        *prepend(cache, inp, model, tmp_path),
         *('-nstreams', nstreams) if nstreams else '',
         *('-layout', layout) if layout else '',
         *('-nireq', nireq) if nireq else '',
@@ -41,7 +51,8 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         *('-api', api) if api else '',
         *('-dump_config', tmp_path / 'conf.json') if tmp_path else '',
         *('-exec_graph_path', tmp_path / 'exec_graph.xml') if tmp_path else '',
-        '-d', device, '-b', '1', '-niter', '10'
+        *('-b', batch) if batch else '',
+        '-d', device, '-niter', '10'
     )
     assert 'FPS' in output
     if tmp_path:
@@ -103,9 +114,14 @@ def test_dynamic_shape(sample_language, device, cache):
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', ['CPU'])
-def test_4bit_precision_input(sample_language, device, cache):
-    input = opset.parameter([-1,224,224,3], ov.Type.i4, name='in')
+@pytest.mark.parametrize('inp', [None, 'random_4bit_data.bin'])
+def test_4bit_precision_input(sample_language, device, inp, cache, tmp_path):
+    inp_type = ov.Type.i4
+    inp_shape = [128] # only pass scalar.
+    input = opset.parameter(inp_shape, inp_type, name='in')
     cvt = opset.convert(input, ov.Type.f32)
     result = opset.result(cvt, name='cvt')
     model_4bit = ov.Model([result], [input], 'model_with_4bit_input')
-    verify(sample_language, device, model=model_4bit, cache=cache)
+    if inp != None and inp.endswith(".bin"):
+        create_random_4bit_bin_file(tmp_path, inp_shape, inp)
+    verify(sample_language, device, model=model_4bit, inp=inp ,cache=cache, tmp_path=tmp_path, batch=None)

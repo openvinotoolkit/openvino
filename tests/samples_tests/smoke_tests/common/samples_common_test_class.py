@@ -78,17 +78,22 @@ def download(test_data_dir, file_path):
 
 def prepend(cache, inp='', model='', tmp_path=None):
     test_data_dir = cache.mkdir('test_data')
-    if inp:
-        inp = '-i', download(test_data_dir, test_data_dir / inp)
     if model:
         if type(model) is ov.ie_api.Model:
-            model_sv_path = (
-                tmp_path if tmp_path is not None else str(".")) + str("/model_with_4bit_input.xml")
+            model_sv_path = tmp_path / "model_with_4bit_input.xml"
             ov.save_model(model, model_sv_path)
             model = '-m', model_sv_path
         else:
             model = '-m', download(test_data_dir, test_data_dir / model)
-    return *inp, *model
+
+    if inp:
+        if os.path.exists(tmp_path / inp):
+            inp = '-i', tmp_path / inp
+        else:
+            inp = '-i', download(test_data_dir, test_data_dir / inp)
+        return *inp, *model
+    else:
+        return *model,
 
 
 def get_tests(cmd_params, use_device=True, use_batch=False):
