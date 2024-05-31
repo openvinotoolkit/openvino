@@ -94,10 +94,6 @@ jobs:
       # Dependencies
       #
 
-      - name: Install build dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: ./install_build_dependencies.sh
-
       - name: Install python dependencies
         run: |
           # wheel packaging
