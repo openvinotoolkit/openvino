@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -17,7 +19,6 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 
