@@ -53,6 +53,7 @@ parameters Convert::generate_params_random() const {
         case ov::element::f32:
         case ov::element::i32:
         case ov::element::bf16:
+        case ov::element::f16:
             startFrom = -10;
             range = 20;
             break;
@@ -115,6 +116,7 @@ parameters ConvertInput::generate_params_random() const {
         switch (funcInputs[i].get_element_type()) {
             case ov::element::f32:
             case ov::element::bf16:
+            case ov::element::f16:
                 startFrom = -10;
                 range = 20;
                 resolution = 7;
