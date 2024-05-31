@@ -69,7 +69,7 @@ namespace {
 std::unique_ptr<descriptor::Output> make_result_output(Node* node,
                                                        const size_t index,
                                                        const std::shared_ptr<descriptor::Tensor> tensor) {
-    return std::unique_ptr<descriptor::Output>{new descriptor::ResultOutput(node, index, tensor)};
+    return std::unique_ptr<descriptor::ResultOutput>(new descriptor::ResultOutput(node, index, tensor));
 }
 }  // namespace
 }  // namespace descriptor
@@ -86,8 +86,6 @@ void Result::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
     // Result doesn't change change in/out tensors
-    // Make output description base on input and sync required fields
-    // but have possibility to have specific tensor names for input/output
     auto& output = get_output_descriptor(0);
     auto& input = get_input_descriptor(0);
     output.set_tensor_ptr(input.get_tensor_ptr());
