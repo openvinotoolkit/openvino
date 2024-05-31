@@ -47,16 +47,15 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     if (variants[0].is<std::string>()) {
         auto model_path = variants[0].as<std::string>();
-        // Fix unicode name
-        #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            std::wstring model_path_wstr = ov::util::string_to_wstring(model_path.c_str());
-        #else
-            std::string model_path_wstr = model_path;
-        #endif
+// Fix unicode name
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        std::wstring model_path_wstr = ov::util::string_to_wstring(model_path.c_str());
+#else
+        std::string model_path_wstr = model_path;
+#endif
         ov::AnyVector params{model_path_wstr};
         FRONTEND_CALL_STATEMENT("Loading input model", model->m_actual = m_actual->load_impl(params))
-    }
-    else {
+    } else {
         FRONTEND_CALL_STATEMENT("Loading input model", model->m_actual = m_actual->load_impl(variants))
     }
     return model;
