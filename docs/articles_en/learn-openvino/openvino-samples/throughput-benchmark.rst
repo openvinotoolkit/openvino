@@ -9,7 +9,7 @@ Throughput Benchmark Sample
 
 
 This sample demonstrates how to estimate performance of a model using Asynchronous
-Inference Request API in throughput mode. Unlike `demos <https://docs.openvino.ai/nightly/omz_demos.html>`__ this sample
+Inference Request API in throughput mode. Unlike `demos <https://docs.openvino.ai/2024/omz_demos.html>`__ this sample
 does not have other configurable command-line arguments. Feel free to modify sample's
 source code to try out different options.
 
