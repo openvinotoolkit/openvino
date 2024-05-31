@@ -1984,7 +1984,7 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult)
         auto sin = make_shared<opset10::Sin>(converted_param);
         sin->get_output_tensor(0).add_names({"sine:0"});
         auto converted_sin = make_shared<opset10::Convert>(sin, element::f64);
-        converted_sin->get_output_tensor(0).add_names({"sine:0"});
+        converted_sin->set_friendly_name("sine.0");
         auto result_sin = make_shared<opset10::Result>(converted_sin);
         model_ref = make_shared<Model>(result_sin, ParameterVector{param_1});
     }
@@ -1994,7 +1994,7 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult)
     ASSERT_TRUE(result.valid) << result.message;
 
     const auto& results = model->get_results();
-    ASSERT_EQ("sine", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("sine.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
 }
 
 TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
@@ -2062,10 +2062,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
         mul->get_output_tensor(0).add_names({"mul:0"});
         sin->get_output_tensor(0).add_names({"sine:0"});
 
-        converted_add->get_output_tensor(0).add_names({"add:0"});
-        converted_mul->get_output_tensor(0).add_names({"mul:0"});
-        sin->get_output_tensor(0).add_names({"sine:0"});
-
         auto result_add = make_shared<opset10::Result>(converted_add);
         auto result_mul = make_shared<opset10::Result>(converted_mul);
         auto result_sin = make_shared<opset10::Result>(sin);
@@ -2099,6 +2095,8 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
         ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(2), "legacy_split:2");
         OPENVINO_SUPPRESS_DEPRECATED_END
         model = make_shared<Model>(split->outputs(), ParameterVector{param_1});
+        // set version 10 to use names compatibility mode
+        model->get_rt_info()["version"] = static_cast<int64_t>(10);
 
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;
@@ -2191,6 +2189,8 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
         result.get_node()->set_friendly_name("if_result");
         result.add_names({"if_result:0"});
         model = make_shared<Model>(OutputVector{result}, ParameterVector{cond, param_1, param_2});
+        // set version 10 to use names compatibility mode
+        model->get_rt_info()["version"] = static_cast<int64_t>(10);
 
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;
