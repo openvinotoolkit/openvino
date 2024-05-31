@@ -54,7 +54,6 @@ void compile_graph::run(program& p) {
 
         if (change_initial_impl) {
             if (node->is_type<fully_connected>()) {
-                const auto fc_prim = node->as<fully_connected>().get_primitive();
                 // Do not change impl (i.e. do not use ocl shape-agnostic kernels)
                 // since oneDNN primitives/kernels caching mechanism will be used instead.
                 change_initial_impl = false;
