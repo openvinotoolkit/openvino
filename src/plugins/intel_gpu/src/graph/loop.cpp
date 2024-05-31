@@ -985,7 +985,15 @@ int64_t loop_inst::get_num_iterations() {
 void loop_inst::set_memory_in_body_network(cldnn::network::ptr body_network,
                 const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) {
     if (inst->is_input()) {
-        body_network->set_input_data(inst->id(), mem);
+        memory::ptr updated_mem = mem;
+        layout impl_layout = inst->get_impl_params()->get_output_layout();
+        OPENVINO_ASSERT(impl_layout.bytes_count() <= updated_mem->get_layout().bytes_count(),
+                        "impl_params layout size(", impl_layout.to_short_string(),
+                        ") should not exceed memory size(", updated_mem->get_layout().to_short_string(), ")");
+        if (impl_layout.bytes_count() < updated_mem->get_layout().bytes_count()) {
+            updated_mem = body_network->get_engine().reinterpret_buffer(*updated_mem, impl_layout);
+        }
+        body_network->set_input_data(inst->id(), updated_mem);
     } else if (inst->is_output()) {
         body_network->set_output_memory(inst->id(), mem);
     } else {
@@ -1029,9 +1037,6 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 auto ev = mapping.from_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
                 if (ev) event_vec = {ev};
                 GPU_DEBUG_LOG << iter << ") [SINGLE_SHARED] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
-            } else {
-                mapping.from_mem = mapping.initial_mem;
-                set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
             }
         } else {
             // In dynamic model, output memory is not defined before execution.
