@@ -164,7 +164,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         user_tensors[port_index] = { tensor._ptr, new_tensor_owner };
 
         // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
-        // so remove plugin's tensor to reallocate it in prepare_input() mehtod
+        // so remove plugin's tensor to reallocate it in prepare_input() method
         if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
             if (plugin_tensors.count(port_index) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
                 plugin_tensors.erase(plugin_tensors.find(port_index));
@@ -661,7 +661,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     bool is_remote = remote_ptr != nullptr;
     bool is_usm_host_tensor = usm_host_ptr != nullptr;
 
-    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name << " ( is_remote ? " << is_remote << ")" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name
+            << " ( is_remote ? " << is_remote << ", is_usm_host_tensor ? " << is_usm_host_tensor << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 

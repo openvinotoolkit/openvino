@@ -54,11 +54,9 @@ void compile_graph::run(program& p) {
 
         if (change_initial_impl) {
             if (node->is_type<fully_connected>()) {
-                const auto fc_prim = node->as<fully_connected>().get_primitive();
-                // Do not change impl (i.e. do not use ocl shape-agnostic kernels) in case of compressed weights,
+                // Do not change impl (i.e. do not use ocl shape-agnostic kernels)
                 // since oneDNN primitives/kernels caching mechanism will be used instead.
-                if (fc_prim->compressed_weights)
-                    change_initial_impl = false;
+                change_initial_impl = false;
             } else if (node->is_type<gemm>() && !disable_permute_fuse_onednn_gemm) {
                 // permute is fused to onednn gemm. The updated memory formats are not supported by ocl this keep onednn impl
                 for (const auto& dep : node->get_dependencies()) {
