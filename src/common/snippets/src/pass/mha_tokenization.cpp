@@ -16,7 +16,7 @@
 
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {
-    return t.get_partial_shape().is_static() && ov::snippets::utils::one_of(t.get_shape().size(), 3lu, 4lu);
+    return t.get_partial_shape().rank().is_static() && ov::snippets::utils::one_of(t.get_partial_shape().size(), 3lu, 4lu);
 }
 
 bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
@@ -68,6 +68,10 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
         // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
         if (broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY &&
             broadcast->get_output_target_inputs(0).size() == 1) {
+            // TODO: Add support of Broadcast with ShapeOf subgraph on second input
+            if (!ov::is_type<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr()))
+                continue;
+
             broadcast_nodes.push_back(broadcast);
 
             const auto pshape = broadcast->get_input_partial_shape(0);
@@ -96,10 +100,17 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
 bool tokenize_reshape_around_softmax(std::shared_ptr<ov::Node>& interm_op, std::shared_ptr<ov::opset1::Reshape>& reshape, ov::NodeVector& ordered_ops) {
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(interm_op);
     if (reshape) {
-        const auto in_shape = reshape->get_input_shape(0);
-        const auto out_shape = reshape->get_output_shape(0);
-        if (in_shape.back() != out_shape.back() || reshape->get_output_target_inputs(0).size() != 1)
+        // TODO: Add support of Reshape with ShapeOf subgraph on second input
+        if (!ov::is_type<ov::op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr()))
             return false;
+
+        const auto in_shape = reshape->get_input_partial_shape(0);
+        const auto out_shape = reshape->get_output_partial_shape(0);
+        const auto in_last_dim = *in_shape.crbegin();
+        const auto out_last_dim = *out_shape.crbegin();
+        if (in_last_dim.is_dynamic() || out_last_dim.is_dynamic() || in_last_dim != out_last_dim || reshape->get_output_target_inputs(0).size() != 1)
+            return false;
+
         ordered_ops.push_back(reshape);
         interm_op = reshape->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
     }
@@ -204,8 +215,7 @@ bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::sh
 ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(TokenizeMHASnippets);
 
-    auto m_matmul0 = std::make_shared<ov::opset1::MatMul>(ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
-                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()));
+    auto m_matmul0 = std::make_shared<ov::opset1::MatMul>(ov::pass::pattern::any_input(), ov::pass::pattern::any_input());
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
         [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher &m) {
@@ -302,7 +312,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             return false;
 
         if (((reshape0 == nullptr) != (reshape1 == nullptr)) ||
-             (reshape0 && reshape1 && (reshape0->get_input_shape(0) != reshape1->get_output_shape(0))))
+             (reshape0 && reshape1 && (reshape0->get_input_partial_shape(0) != reshape1->get_output_partial_shape(0))))
             return false;
 
         // Add supported operations which are between Softmax and MatMul1 to ordered_ops
@@ -310,8 +320,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             return false;
 
         const auto matmul1 = ov::as_type_ptr<ov::opset1::MatMul>(interm_op);
-        if (!matmul1 || matmul1->get_output_target_inputs(0).size() != 1 ||
-            matmul1->get_transpose_a() || matmul1->get_transpose_b())
+        if (!matmul1 || matmul1->get_transpose_a() || matmul1->get_transpose_b())
             return false;
 
         const auto matmul1_out_type = op::Brgemm::get_output_type(matmul1->get_input_element_type(0),
@@ -412,7 +421,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         bool are_ops_after_matmul1 = false;
         auto child = matmul1->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        while (is_supported_intermediate_op(child)) {
+        const auto can_be_ops_after_matmul1_tokenized = matmul1->get_output_target_inputs(0).size() == 1;
+        while (can_be_ops_after_matmul1_tokenized && is_supported_intermediate_op(child)) {
             are_ops_after_matmul1 = true;
             // All supported ops have only one output port
             if (child->get_output_target_inputs(0).size() != 1)
@@ -439,7 +449,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         //     MatMul1
         //  <Supported ops>
         //    Transpose3
-        if (!are_ops_after_matmul1) {
+        if (can_be_ops_after_matmul1_tokenized && !are_ops_after_matmul1) {
             auto transpose3 = config.get_mha_token_enable_transpose_on_output() ? ov::as_type_ptr<ov::opset1::Transpose>(child) : nullptr;
             if (is_valid_transpose(transpose3, config.get_mha_supported_transpose_ranks(), get_fusion_transpose_order(pattern_rank)) &&
                 transpose3->get_input_element_type(0) == matmul1_out_type) {  // To avoid Convert between MatMul1 and Transpose3
