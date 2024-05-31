@@ -24,6 +24,8 @@ void intel_npu::registerCommonOptions(OptionsDesc& desc) {
     desc.add<CACHE_DIR>();
     desc.add<LOADED_FROM_CACHE>();
     desc.add<BATCH_MODE>();
+    desc.add<DRIVER_ELF_FORMAT_VERSION>();
+    desc.add<DRIVER_MI_VERSION>();
 }
 
 //
