@@ -25,8 +25,6 @@ KERNEL(quantize_input)(
     __global char* quantized_input,
     __global INPUT0_TYPE* de_quan_scale) {
     const uint offset = get_global_id(0);
-    if (offset != (get_group_id(0) * 16 + get_local_id(0)))
-        printf("!!!!!!!!!!!!!!!!!!!!!!\n")
 
     uint input_offset = offset * QUANTIZE_GROUP_SIZE;
     half4 input_0[8];

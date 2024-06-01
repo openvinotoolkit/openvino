@@ -42,6 +42,9 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
 
 // DYNAMIC_QUANTIZE
 static bool is_dynamic_quantize(const fully_connected_params& params) {
+    if (params.dynamic_quantization_group_size < 32)
+        return false;
+
     auto threads = get_input_bf_size(params);
     auto input_b = threads.first;
     auto input_f = threads.second;
@@ -53,12 +56,6 @@ static bool is_dynamic_quantize(const fully_connected_params& params) {
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
         (params.decompression_zero_point.Feature().v == 1))
         return true;
-
-    GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size " << scale_group_size << ", Shape_Agnostic(" << (int)params.is_shape_agnostic <<
-                ") : Input (" <<  kernel_selector::toString(params.inputs[0].GetDType()) <<
-                ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v <<
-                ",  Weight " << kernel_selector::toString(params.weights.GetDType()) << ",  zp_f " << params.decompression_zero_point.Feature().v <<
-                ",  format : " << kernel_selector::toString(params.outputs[0].GetLayout()) << std ::endl;
 
     return false;
 }
@@ -589,7 +586,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             // Check default or SLM version FC, and disable remain version
             kd.kernels[skip_kernel_idx].skip_execution = true;
 
-            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == kernel_num ? "SLM" : "Default") << " shape-agnostic kernel version "
+            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << " shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
 
             auto dispatchData = SetDefault(prim_params, -1, (int)execute_type);
