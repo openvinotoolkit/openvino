@@ -37,7 +37,7 @@ def create_random_4bit_bin_file(tmp_path, shape, name):
     with open(fullname, "wb") as f:
         f.write(raw_data)
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch=1):
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch='1'):
     output = get_cmd_output(
         get_executable(sample_language),
         *prepend(cache, inp, model, tmp_path),
@@ -77,8 +77,8 @@ def test_benchmark_app_help(sample_language):
 @pytest.mark.parametrize('api', ['sync', 'async'])
 @pytest.mark.parametrize('nireq', ['4', ''])
 @pytest.mark.parametrize('device', get_devices())
-def test_nireq(sample_language, api, nireq, device, cache):
-    verify(sample_language, device, api=api, nireq=nireq, cache=cache)
+def test_nireq(sample_language, api, nireq, device, cache, tmp_path):
+    verify(sample_language, device, api=api, nireq=nireq, cache=cache, tmp_path=tmp_path)
 
 
 @pytest.mark.skipif('CPU' not in get_devices(), reason='affinity is a CPU property')
@@ -103,14 +103,15 @@ def test_api(sample_language, api, device, cache, tmp_path):
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
-def test_reshape(sample_language, device, cache):
-    verify(sample_language, device, shape='data_0[2,3,224,224]', cache=cache)
+def test_reshape(sample_language, device, cache, tmp_path):
+    verify(sample_language, device, shape='data_0[2,3,224,224]', cache=cache, tmp_path=tmp_path)
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
-def test_dynamic_shape(sample_language, device, cache):
-    verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx', shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache)
+def test_dynamic_shape(sample_language, device, cache, tmp_path):
+    verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx',
+           shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache, tmp_path=tmp_path)
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', ['CPU'])
