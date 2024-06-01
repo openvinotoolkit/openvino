@@ -58,7 +58,7 @@
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
-#ifdef _WIN32
+#if defined(__cpp_lib_filesystem)
 #    include <filesystem>
 namespace fs = std::filesystem;
 #else
