@@ -50,5 +50,9 @@
     {
         "error_text": "The requested URL returned error: 500",
         "ticket": 139384
+    },
+    {
+        "error_text": "Unable to fetch some archives",
+        "ticket": 130965
     }
 ]
