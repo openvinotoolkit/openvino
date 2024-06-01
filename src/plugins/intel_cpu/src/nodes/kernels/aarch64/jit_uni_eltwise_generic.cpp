@@ -586,6 +586,15 @@ struct EltwiseEmitter<jit_swish_emitter> {
 };
 
 template<>
+struct EltwiseEmitter<jit_logicalnot_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_logicalnot_emitter>(ctx.host,
+                                                                 ctx.host_isa,
+                                                                 ctx.exec_prc);
+    }
+};
+
+template<>
 struct EltwiseEmitter<jit_clamp_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host,
@@ -626,6 +635,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     OV_CASE(Algorithm::EltwiseEqual, ov::intel_cpu::aarch64::jit_equal_emitter),
     OV_CASE(Algorithm::EltwiseExp, ov::intel_cpu::aarch64::jit_exp_emitter),
     OV_CASE(Algorithm::EltwiseHswish, ov::intel_cpu::aarch64::jit_hswish_emitter),
+    OV_CASE(Algorithm::EltwiseLogicalNot, ov::intel_cpu::aarch64::jit_logicalnot_emitter),
     OV_CASE(Algorithm::EltwiseMaximum, ov::intel_cpu::aarch64::jit_maximum_emitter),
     OV_CASE(Algorithm::EltwiseMinimum, ov::intel_cpu::aarch64::jit_minimum_emitter),
     OV_CASE(Algorithm::EltwiseMulAdd, ov::intel_cpu::aarch64::jit_mul_add_emitter),
@@ -790,6 +800,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
         OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
         OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
+        OV_CASE(Algorithm::EltwiseLogicalNot, jit_logicalnot_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
         OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
         OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),

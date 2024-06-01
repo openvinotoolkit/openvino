@@ -42,6 +42,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/logical_not.hpp"
 
 namespace ov {
 namespace test {
@@ -144,6 +145,8 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
         return std::make_shared<ov::op::v7::Gelu>(in, ov::op::GeluApproximationMode::TANH);
     case ov::test::utils::ActivationTypes::SoftSign:
         return std::make_shared<ov::op::v9::SoftSign>(in);
+    case ov::test::utils::ActivationTypes::LogicalNot:
+        return std::make_shared<ov::op::v1::LogicalNot>(in);
     default:
         OPENVINO_THROW("Can't create layer for this activation type");
     }
