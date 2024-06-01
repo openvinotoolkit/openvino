@@ -35,10 +35,10 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
 
     auto new_images = hsv_to_rgb(hh, ss_adjust, vv);
 
-    auto adjust_saturation = new_images->output(0);
+    auto new_images_adjust_saturation = new_images->output(0);
 
-    set_node_name(node_name, adjust_saturation.get_node_shared_ptr());
-    return {adjust_saturation};
+    set_node_name(node_name, new_images_adjust_saturation.get_node_shared_ptr());
+    return {new_images_adjust_saturation};
 }
 
 }  // namespace op
