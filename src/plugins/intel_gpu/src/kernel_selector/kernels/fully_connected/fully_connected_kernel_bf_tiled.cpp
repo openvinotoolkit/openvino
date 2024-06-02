@@ -14,37 +14,41 @@ static constexpr size_t min_slm_size = 256;
 
 namespace kernel_selector {
 
-static std::pair<size_t, size_t> get_input_threads(const fully_connected_params& params) {
-    size_t ifm_threads = params.inputs[0].Feature().v;
-    size_t batch_threads = params.inputs[0].Batch().v;
+static std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params) {
+    size_t input_f = params.inputs[0].Feature().v;
+    size_t input_batch = params.inputs[0].Batch().v;
+    // 3D input
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        ifm_threads = params.inputs[0].Y().v;
-        batch_threads = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
+        input_f = params.inputs[0].Y().v;
+        input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
     }
 
-    return {batch_threads, ifm_threads};
+    return {input_batch, input_f};
 }
 
-static std::pair<size_t, size_t> get_output_threads(const fully_connected_params& params, uint32_t tile_ofm) {
-    size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tile_ofm * simd);
-    size_t batch_threads = params.outputs[0].Batch().v;
+static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params, bool is_aligned, uint32_t align_b = 1, uint32_t align_f = 1) {
+    size_t output_f = (is_aligned == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
+    size_t output_b = params.outputs[0].Batch().v;
+    // 3D output
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        feature_threads = CeilDiv(params.outputs[0].Y().v, tile_ofm * simd);
-        batch_threads = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
+        output_f = (is_aligned == true) ? CeilDiv(params.outputs[0].Y().v, align_f) : params.outputs[0].Y().v;
+        output_b = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
     }
 
-    return {batch_threads, feature_threads};
+    output_b = (is_aligned == true) ? CeilDiv(output_b, align_b) : output_b;
+
+    return {output_b, output_f};
 }
 
 // DYNAMIC_QUANTIZE
 static bool is_dynamic_quantize(const fully_connected_params& params) {
-    auto threads = get_input_threads(params);
-    auto batch_threads = threads.first;
-    auto ifm_threads = threads.second;
+    auto threads = get_input_bf_size(params);
+    auto input_b = threads.first;
+    auto input_f = threads.second;
 
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
-    if ((scale_group_size % simd == 0) && (ifm_threads % quantize_grp_size == 0) &&
-        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && batch_threads > min_slm_size)) &&
+    if ((scale_group_size % simd == 0) && (input_f % quantize_grp_size == 0) &&
+        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
         (params.decompression_zero_point.Feature().v == 1))
@@ -201,12 +205,9 @@ struct TuneParamsSelector {
 
 bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, const tune_params& tparams) {
     // Check divisibility by dispatch tile sizes.
-    size_t output_f = params.outputs[0].Feature().v;
-    size_t output_b = params.outputs[0].Batch().v;
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        output_b *= params.outputs[0].Feature().v;
-        output_f = params.outputs[0].Y().v;
-    }
+    auto bf_size = get_output_aligned_bf_size(params, false);
+    size_t output_b = bf_size.first;
+    size_t output_f = bf_size.second;
 
     if (params.compressed &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
@@ -275,14 +276,10 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
 
-    size_t batch = params.outputs[0].Batch().v;
-    size_t output_f = params.outputs[0].Feature().v;
+    auto bf_size = get_output_aligned_bf_size(params, false);
+    size_t batch = bf_size.first;
+    size_t output_f = bf_size.second;
 
-    // 3d output
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        batch *= params.outputs[0].Feature().v;
-        output_f = params.outputs[0].Y().v;
-    }
     Datatype dtype = params.inputs[0].GetDType();
 
     auto selector = TuneParamsSelector(params);
@@ -390,11 +387,9 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
 
-    auto threads = get_output_threads(params, tparams.tile_ofm);
+    auto threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * simd);
     auto batch_threads = threads.first;
     auto feature_threads = threads.second;
-
-    batch_threads = CeilDiv(batch_threads, tparams.tile_b);
 
     const size_t lws_batches = 8;
     const size_t aligned_batch = Align(batch_threads, lws_batches); // Each WG calculates 8x8 batches (TILE_B x LWS[2] size)
@@ -423,9 +418,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
-    size_t output_b = fc_params.outputs[0].Batch().v;
-    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx)
-        output_b *= fc_params.outputs[0].Feature().v;
+    size_t output_b = get_output_aligned_bf_size(fc_params, false).first;
 
     float estimated_time = FORCE_PRIORITY_9;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
@@ -579,9 +572,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
             const auto& prim_params = static_cast<const fully_connected_params&>(params);
 
-            size_t output_batch = prim_params.outputs[0].Batch().v;
-            if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
-                output_batch *= prim_params.outputs[0].Feature().v;
+            size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
 
             // Get index of the added shape-agnostic kernel
             int kernel_num = kd.kernels.size() - 1;
@@ -601,17 +592,10 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == kernel_num ? "SLM" : "Default") << " shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
 
-            // printf("   -- previous kernel idx(%d) in kernels.size(%lu) for sa : gws(%lu, %lu, %lu)\n", execute_kernel_idx, kd.kernels.size(),
-            //             kd.kernels[execute_kernel_idx].params.workGroups.global[0], kd.kernels[execute_kernel_idx].params.workGroups.global[1], kd.kernels[execute_kernel_idx].params.workGroups.global[2]);
-
             auto dispatchData = SetDefault(prim_params, -1, (int)execute_type);
             kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
             kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
             kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
-
-            // printf("   -- update kernel idx(%d) for sa : gws(%lu, %lu, %lu) lws(%lu, %lu, %lu) physical(%lu)\n", execute_kernel_idx,
-            //             dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2], dispatchData.lws[0], dispatchData.lws[1], dispatchData.lws[2], prim_params.inputs[0].PhysicalSize());
-            // printf("       -- relevant values : Physical(%lu) Y(%lu) TILE_B(%u) gws(%lu) lws(%lu) \n", prim_params.inputs[0].PhysicalSize(), prim_params.inputs[0].Y().v, dispatchData.tile_m, dispatchData.gws[2], dispatchData.lws[2]);
 
             if (!kd.internalBufferSizes.empty()) {
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
@@ -621,21 +605,15 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     kd.kernels[0].skip_execution = false;
                     size_t ifm_threads = get_input_threads(prim_params).second;
                     size_t input_size = ifm_threads * dispatchData.tile_m * dispatchData.gws[2];
-                    // printf("   -- Require update intermediate buffer\n");
-                    // printf("     -- previous kernel(%d) for sa : input size(%lu) gws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0, input_size,
-                    //             kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2], (int)kd.internalBufferSizes.size());
 
                     if (kd.kernels[0].params.workGroups.global[0] < (input_size / quantize_grp_size)) {
                         kd.internalBufferSizes.clear();
-                        kd.internalBufferSizes.push_back(input_size * 2);
-                        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
+                        kd.internalBufferSizes.push_back(input_size);                           // quantized input is char type
+                        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);   // de_quan_scale is half type
                     }
 
                     kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
                     kd.kernels[0].params.workGroups.local = {16, 1, 1};
-                    // printf("     -- update kernel(%d) for sa : gws(%lu, %lu, %lu) lws(%lu, %lu, %lu) kd.internalBufferSizes.size(%d)\n", 0,
-                    //     kd.kernels[0].params.workGroups.global[0], kd.kernels[0].params.workGroups.global[1], kd.kernels[0].params.workGroups.global[2],
-                    //     kd.kernels[0].params.workGroups.local[0], kd.kernels[0].params.workGroups.local[1], kd.kernels[0].params.workGroups.local[2], (int)kd.internalBufferSizes.size());
                 }
             }
         };
@@ -665,21 +643,18 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     }
 
     KernelsData kernels_data;
-    // printf(">> GetTunedKernelsDataByIndex \n");
     if (is_dynamic_quantize(fc_params)) {
         // Use seperate 2 kernels for dynamic quantizing : quantizing_kernel + fc_kernel
-        // First kernel : Dynamic quantizing with 32 group size
-        // Second kernel : fully connected with char type size using quantized inputs and scale values
+        // 1st kernel : Dynamic quantizing by quantize_grp_size
+        // 2nd kernel : fully connected kernel with KernelType::DEFAULT. Quantized inputs and scale values could be used.
+        // 3rd kernel : fully connected kernel with KernelType::SLM. Quantized inputs and scale values would be used.
         kernels_data = GetMultiKernelsData(params,
                                                 fc_params.inputs[0].GetLayout(),
                                                 weights_layout,
                                                 tparams.exec_options,
-                                                autoTuneIndex,
-                                                0);
+                                                autoTuneIndex);
         OPENVINO_ASSERT(!kernels_data.empty() && !kernels_data[0].kernels.empty(), "[GPU] Error to create multi kernel for dynamic quantizing.");
 
-        // GPU_DEBUG_TRACE_DETAI << " Dynamic quantizing : Use kernels size " << kernels_data[0].kernels.size() << "\n";
-        // std::cout << "   >> Dynamic quantizing : Use kernels size " << kernels_data[0].kernels.size() << "\n";
         if (params.is_shape_agnostic)
             GetUpdateDispatchDataFunc(kernels_data[0]);
     } else {
@@ -689,9 +664,6 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                                 tparams.exec_options,
                                                 autoTuneIndex,
                                                 0);
-
-        // GPU_DEBUG_TRACE_DETAI << " No Dynamic quantizing : Use kernels size " << kernels_data[0].kernels.size() << "\n";
-        // std::cout << "   >> No!  Dynamic quantizing : Use kernels size " << kernels_data[0].kernels.size() << "\n";
 
         if (params.is_shape_agnostic) {
             auto tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
@@ -751,8 +723,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
                                                            DataLayout dl,
                                                            WeightsLayout wl,
                                                            const std::string exeMode,
-                                                           int autoTuneIndex,
-                                                           int kernel_number) const {
+                                                           int autoTuneIndex) const {
     if (!Validate(params)) {
         return KernelsData();
     }
@@ -788,8 +759,11 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
             inputs_count++;
     }
 
-    // Quantize kernel
+    // Generate dispatch data for KernelType::DEFAULT
+    int kernel_number = 0;
     const DispatchData dispatchData = SetDefault(new_params, autoTuneIndex, kernel_number);
+
+    // Dynamic-quantize kernel
     {
         auto& quan_kernel = kd.kernels[0];
         DispatchData dyn_quan_dispatch = dispatchData;
@@ -799,14 +773,10 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
         quan_kernel.skip_execution = false;
 
-        // printf(" >> GetMultiKernelsData : Input0.Batch(%lu) Input0.Feature(%lu) Input0.Y(%lu) Input0.pysical(%lu)\n",
-        //         fc_params.inputs[0].Batch().v, fc_params.inputs[0].Feature().v, fc_params.inputs[0].Y().v, fc_params.inputs[0].PhysicalSize());
-        // printf("   -- Quantizing kernel : gws(%ld, %ld, %ld), lws(%ld, %ld, %ld)\n", dyn_quan_dispatch.gws[0], dyn_quan_dispatch.gws[1], dyn_quan_dispatch.gws[2],
-        //                                 dyn_quan_dispatch.lws[0], dyn_quan_dispatch.lws[1], dyn_quan_dispatch.lws[2]);
-
         auto quan_entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
         auto quan_cldnn_jit = GetJitConstants(new_params, dyn_quan_dispatch);
         quan_cldnn_jit.AddConstant(MakeJitConstant("FC_KERNEL_DYNAMIC_QUANTIZE", 1));
+        quan_cldnn_jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
         auto quan_jit = CreateJit(kernelName, quan_cldnn_jit, quan_entry_point);
 
 
@@ -834,7 +804,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     }
     kd.internalBufferDataType = Datatype::F16;
 
-    // FC kernel for dynamic quantized input
+    // FC kernel for dynamic quantized input with KernelType::DEFAULT
     {
         auto entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
         auto cldnn_jit = GetJitConstants(new_params, dispatchData);
@@ -867,8 +837,8 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     const DispatchData slm_Data = SetDefault(new_params, autoTuneIndex, kernel_number);
     auto slm_params = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
     auto can_select_slm_kernel = slm_params.kernel_type == KernelType::SLM;
+    // FC kernel for dynamic quantized input with KernelType::SLM
     if (params.is_shape_agnostic && can_select_slm_kernel) {
-        // std::cout << "   -- is_shape_agnostic quantizing : previous kernels size " << kd.kernels.size() << "\n";
         kd.kernels.resize(kernel_number + 1);
 
         auto entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
@@ -889,16 +859,15 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
                         slm_params.exec_options,
                         true,
                         !fc_params.bias.empty(),
-                        inputs_count, // input : intermediate buffers (quantized input + scale value)
+                        inputs_count,
                         GetFusedPrimitiveInputsCount(params),
-                        1,  // Output
+                        1,
                         fc_params.is_shape_agnostic);
 
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
     }
 
-    // TODO Pass estimated time only through DispatchData
     kd.autoTuneIndex = autoTuneIndex;
     return {kd};
 }

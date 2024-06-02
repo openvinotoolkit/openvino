@@ -35,8 +35,7 @@ public:
                                      DataLayout dl,
                                      WeightsLayout wl,
                                      const std::string exeMode = EXE_MODE_DEFAULT,
-                                     int autoTuneIndex = -1,
-                                     int kernel_number = 0) const;
+                                     int autoTuneIndex = -1) const;
 
     struct tune_params {
         tune_params(unsigned tile_b,
