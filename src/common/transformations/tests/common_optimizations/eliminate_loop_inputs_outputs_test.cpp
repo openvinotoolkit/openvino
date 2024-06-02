@@ -91,36 +91,65 @@ TEST_F(TransformationTestsF, LoopInputsInvariantAndOutput) {
 }
 
 TEST_F(TransformationTestsF, LoopInputsNothing) {
-    auto main_param0 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
-    auto main_const1 = std::make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    {
+        auto main_param0 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
+        auto main_const1 = std::make_shared<v0::Constant>(element::i32, Shape{1}, 1);
 
-    auto trip_count = std::make_shared<v0::Constant>(element::i32, Shape{}, 10);
-    auto condition = std::make_shared<v0::Constant>(element::boolean, Shape{}, true);
-    auto loop = std::make_shared<v5::Loop>(trip_count, condition);
+        auto trip_count = std::make_shared<v0::Constant>(element::i32, Shape{}, 10);
+        auto condition = std::make_shared<v0::Constant>(element::boolean, Shape{}, true);
+        auto loop = std::make_shared<v5::Loop>(trip_count, condition);
 
-    auto param0 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
-    auto param1 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
-    auto add = std::make_shared<v1::Add>(param0, param1);
-    auto result0 = std::make_shared<v0::Result>(add);
-    auto result1 = std::make_shared<v0::Result>(param1);
+        auto param0 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
+        auto param1 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
+        auto add = std::make_shared<v1::Add>(param0, param1);
+        auto result0 = std::make_shared<v0::Result>(add);
+        auto result1 = std::make_shared<v0::Result>(param1);
 
-    auto body = std::make_shared<Model>(OutputVector{condition, result0, result1}, ParameterVector{param0, param1});
-    loop->set_special_body_ports({-1, 0});
-    loop->set_function(body);
+        auto body = std::make_shared<Model>(OutputVector{condition, result0, result1}, ParameterVector{param0, param1});
+        loop->set_special_body_ports({-1, 0});
+        loop->set_function(body);
 
-    loop->set_invariant_input(param0, main_param0);
-    loop->set_invariant_input(param1, main_const1);
+        loop->set_invariant_input(param0, main_param0);
+        loop->set_invariant_input(param1, main_const1);
 
-    auto tanh = std::make_shared<v0::Tanh>(loop->get_iter_value(result0));
-    auto sinh = std::make_shared<v0::Sinh>(main_const1);
+        auto tanh = std::make_shared<v0::Tanh>(loop->get_iter_value(result0));
+        auto sinh = std::make_shared<v0::Sinh>(main_const1);
 
-    auto main_result0 = std::make_shared<v0::Result>(tanh);
-    auto main_result1 = std::make_shared<v0::Result>(sinh);
+        auto main_result0 = std::make_shared<v0::Result>(tanh);
+        auto main_result1 = std::make_shared<v0::Result>(sinh);
 
-    model = std::make_shared<Model>(OutputVector{main_result0, main_result1}, ParameterVector{main_param0});
-    model_ref = model->clone();
+        model = std::make_shared<Model>(OutputVector{main_result0, main_result1}, ParameterVector{main_param0});
 
-    manager.register_pass<ov::pass::EliminateLoopInputsOutputs>();
+        manager.register_pass<ov::pass::EliminateLoopInputsOutputs>();
+    }
+    {
+        auto main_param0 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
+        auto main_const1 = std::make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+
+        auto trip_count = std::make_shared<v0::Constant>(element::i32, Shape{}, 10);
+        auto condition = std::make_shared<v0::Constant>(element::boolean, Shape{}, true);
+        auto loop = std::make_shared<v5::Loop>(trip_count, condition);
+
+        auto param0 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
+        auto param1 = std::make_shared<v0::Parameter>(element::i32, Shape{1});
+        auto add = std::make_shared<v1::Add>(param0, param1);
+        auto result0 = std::make_shared<v0::Result>(add);
+
+        auto body = std::make_shared<Model>(OutputVector{condition, result0}, ParameterVector{param0, param1});
+        loop->set_special_body_ports({-1, 0});
+        loop->set_function(body);
+
+        loop->set_invariant_input(param0, main_param0);
+        loop->set_invariant_input(param1, main_const1);
+
+        auto tanh = std::make_shared<v0::Tanh>(loop->get_iter_value(result0));
+        auto sinh = std::make_shared<v0::Sinh>(main_const1);
+
+        auto main_result0 = std::make_shared<v0::Result>(tanh);
+        auto main_result1 = std::make_shared<v0::Result>(sinh);
+
+        model_ref = std::make_shared<Model>(OutputVector{main_result0, main_result1}, ParameterVector{main_param0});
+    }
 }
 
 TEST_F(TransformationTestsF, LoopInputsTensorIteratorInvariantAndOutput) {

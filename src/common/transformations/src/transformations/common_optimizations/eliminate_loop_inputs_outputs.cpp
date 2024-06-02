@@ -16,28 +16,84 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
+using namespace ov;
+using namespace ov::op;
+using namespace ov::op::util;
 using namespace ov::element;
 using namespace ov::pass::pattern;
 
+using InvariantD = MultiSubGraphOp::InvariantInputDescription;
+using SlicedD = MultiSubGraphOp::SliceInputDescription;
+using MergedD = MultiSubGraphOp::MergedInputDescription;
+using OutputD = MultiSubGraphOp::BodyOutputDescription;
+using ConcatD = MultiSubGraphOp::ConcatOutputDescription;
+
+using ResultPtr = std::shared_ptr<v0::Result>;
+using OutputDescPtr = MultiSubGraphOp::OutputDescription::Ptr;
+using OutputDescMap = std::unordered_map<ResultPtr, OutputDescPtr>;
+using InputDescPtr = MultiSubGraphOp::InputDescription::Ptr;
+using BodyResultIdxMap = std::unordered_map<ResultPtr, uint64_t>;
+
 namespace {
-std::shared_ptr<ov::op::v0::Parameter> get_parent_param(const std::shared_ptr<ov::op::v0::Result>& result) {
-    return ov::as_type_ptr<ov::op::v0::Parameter>(result->input_values()[0].get_node_shared_ptr());
+std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>& param,
+                                            const InputDescPtr& input_desc,
+                                            OutputDescMap& output_desc_map,
+                                            const BodyResultIdxMap& result_map,
+                                            int64_t current_iteration_input_idx,
+                                            int64_t body_condition_output_idx) {
+    if (current_iteration_input_idx == static_cast<int64_t>(input_desc->m_body_parameter_index)) {
+        // skip Parameter node storing the current iteration
+        return {};
+    }
+
+    // remove sub-graphs when Parameter is going to only Result nodes
+    // but Parameter node must be marked as Invariant or Merged Parameter
+    // and Result node must be unmarked (no OutputDescription) or marked as BodyOutputDescription
+    // all other cases do not guarantee to leave a graph valid
+    if (!ov::as_type_ptr<InvariantD>(input_desc) && !ov::as_type_ptr<MergedD>(input_desc)) {
+        return {};
+    }
+
+    std::unordered_set<uint64_t> removed_result_inds;
+    for (const auto& target_input : param->get_output_target_inputs(0)) {
+        const auto& consumer = target_input.get_node()->shared_from_this();
+        const auto& result = ov::as_type_ptr<v0::Result>(consumer);
+        if (!result) {
+            continue;
+        }
+        if (static_cast<int64_t>(result_map.at(result)) == body_condition_output_idx) {
+            // body condition output and related Parameter node must not be removed
+            continue;
+        }
+
+        const auto& output_desc = output_desc_map[result];
+        if (output_desc && ov::as_type_ptr<OutputD>(output_desc)) {
+            removed_result_inds.insert(result_map.at(result));
+        } else if (!output_desc) {
+            removed_result_inds.insert(result_map.at(result));
+        } else {
+            // unknown or unsupported case is met
+            continue;
+        }
+    }
+
+    if (const auto merged_input_desc = ov::as_type_ptr<MergedD>(input_desc)) {
+        if (removed_result_inds.count(merged_input_desc->m_body_value_index) > 0) {
+            return removed_result_inds;
+        }
+        return {};
+    }
+
+    return removed_result_inds;
 }
 }  // namespace
 
 ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
     MATCHER_SCOPE(EliminateLoopInputsOutputs);
 
-    auto subgraph_label = wrap_type<ov::op::v5::Loop, ov::op::v0::TensorIterator>();
+    auto subgraph_label = wrap_type<v5::Loop, v0::TensorIterator>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        using namespace ov::op::util;
-        using InvariantD = MultiSubGraphOp::InvariantInputDescription;
-        using SlicedD = MultiSubGraphOp::SliceInputDescription;
-        using MergedD = MultiSubGraphOp::MergedInputDescription;
-        using OutputD = MultiSubGraphOp::BodyOutputDescription;
-        using ConcatD = MultiSubGraphOp::ConcatOutputDescription;
-
         // delete useless Parameter and Result nodes in isolated graph (Parameter->Result)
         // after that, set indices of sliced and invariant inputs
         // and outputs in the resulted SubGraph operation
@@ -46,8 +102,7 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
 
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        auto subgraph =
-            as_type_ptr<ov::op::util::SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
+        auto subgraph = as_type_ptr<SubGraphOp>(pattern_to_output.at(subgraph_label).get_node_shared_ptr());
         if (!subgraph) {
             return false;
         }
@@ -58,42 +113,107 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
         std::shared_ptr<SubGraphOp> new_node;
         const auto& subgraph_in_values = subgraph->input_values();
         int64_t body_condition_output_idx = -1;
-        if (auto loop = as_type_ptr<ov::op::v5::Loop>(subgraph)) {
+        int64_t current_iteration_input_idx = -1;
+        if (auto loop = as_type_ptr<v5::Loop>(subgraph)) {
             const auto& trip_count = subgraph_in_values[0];
             const auto& exec_cond = subgraph_in_values[1];
 
-            auto new_loop = make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+            auto new_loop = make_shared<v5::Loop>(trip_count, exec_cond);
             new_loop->set_special_body_ports(loop->get_special_body_ports());
             new_node = new_loop;
             // condition Result node index may be shifted due to removing
             // useless Parameter->Result subgraphs in the body
             // save initial body_condition_output_idx before removing
             body_condition_output_idx = loop->get_special_body_ports().body_condition_output_idx;
+            current_iteration_input_idx = loop->get_special_body_ports().current_iteration_input_idx;
         } else {
-            new_node = make_shared<ov::op::v0::TensorIterator>();
+            new_node = make_shared<v0::TensorIterator>();
         }
         new_node->set_function(body_model);
 
+        // walk through OutputDescription vector and store marks for body Result nodes
+        OutputDescMap output_desc_map;
+        for (const auto& output_description : subgraph->get_output_descriptions()) {
+            const auto& body_result = body_results[output_description->m_body_value_index];
+            output_desc_map[body_result] = output_description;
+        }
+        BodyResultIdxMap result_map;
+        for (uint64_t idx = 0; idx < body_results.size(); ++idx) {
+            result_map[body_results[idx]] = idx;
+        }
+        std::unordered_map<size_t, Output<Node>> loop_inputs;  // body_param->instance_id -> loop_input
         for (const auto& input_description : subgraph->get_input_descriptions()) {
-            const auto& body_param = body_params[input_description->m_body_parameter_index];
+            loop_inputs.emplace(body_params[input_description->m_body_parameter_index]->get_instance_id(),
+                                subgraph_in_values[input_description->m_input_index]);
+        }
+
+        // collect Parameter and Result nodes to be removed
+        // some isolated sub-graphs (Parameter->Result) are removed
+        std::unordered_set<uint64_t> remove_result_inds;
+        // calculate a number of removed Result nodes standing before body condition Result
+        // it needs to update body_condition_output_idx
+        int64_t delta_body_condition_output_idx = 0;
+        int64_t delta_current_iteration_input_idx = 0;
+        // a map of new producers by each Loop/TI output index
+        std::unordered_map<uint64_t, Output<Node>> idx_to_new_output;
+
+        for (const auto& input_description : subgraph->get_input_descriptions()) {
+            auto body_param = body_params[input_description->m_body_parameter_index];
             const auto& init_value = subgraph_in_values[input_description->m_input_index];
 
+            auto cur_remove_result_inds = remove_results(body_param,
+                                                         input_description,
+                                                         output_desc_map,
+                                                         result_map,
+                                                         current_iteration_input_idx,
+                                                         body_condition_output_idx);
+            if (cur_remove_result_inds.size() > 0) {
+                for (const auto& result_idx : cur_remove_result_inds) {
+                    auto body_result = body_results[result_idx];
+                    if (const auto& output_desc = output_desc_map[body_result]) {
+                        auto out_idx = output_desc->m_output_index;
+                        auto new_output = loop_inputs[body_param->get_instance_id()];
+                        delete_inputs_outputs.emplace_front([=, &body_model, &idx_to_new_output]() {
+                            body_model->remove_result(body_result);
+                            idx_to_new_output[out_idx] = new_output;
+                        });
+                    } else {
+                        delete_inputs_outputs.emplace_front([=, &body_model]() {
+                            body_model->remove_result(body_result);
+                        });
+                    }
+
+                    if (static_cast<int64_t>(result_idx) < body_condition_output_idx) {
+                        ++delta_body_condition_output_idx;
+                    }
+                    remove_result_inds.insert(result_idx);
+                }
+            }
+
+            if (body_param->get_output_target_inputs(0).size() == cur_remove_result_inds.size()) {
+                // remove Parameter node since all consumers (Result nodes) will be also removed
+                delete_inputs_outputs.emplace_front([=, &body_model]() {
+                    body_model->remove_parameter(body_param);
+                });
+                if (static_cast<int64_t>(input_description->m_body_parameter_index) < current_iteration_input_idx) {
+                    ++delta_current_iteration_input_idx;
+                }
+                // nothing to mark with input description
+                continue;
+            }
+
+            // move input description for unremoved node
             if (const auto merged_input_desc = as_type_ptr<MergedD>(input_description)) {
-                const auto& body_res = body_results[merged_input_desc->m_body_value_index];
-                auto param = get_parent_param(body_res);
-                if (param && param->get_output_target_inputs(0).size() == 1) {
-                    delete_inputs_outputs.emplace_front([=, &body_model]() {
-                        body_model->remove_parameter(param);
-                    });
-                } else if (param) {
+                if (cur_remove_result_inds.size() > 0) {
                     process_inputs_outputs.emplace_back([=, &new_node]() {
                         new_node->set_invariant_input(body_param, init_value);
                     });
-                } else {
-                    process_inputs_outputs.emplace_back([=, &new_node]() {
-                        new_node->set_merged_input(body_param, init_value, body_res);
-                    });
+                    continue;
                 }
+                const auto& body_res = body_results[merged_input_desc->m_body_value_index];
+                process_inputs_outputs.emplace_back([=, &new_node]() {
+                    new_node->set_merged_input(body_param, init_value, body_res);
+                });
             } else if (const auto invariant_input_desc = as_type_ptr<InvariantD>(input_description)) {
                 process_inputs_outputs.emplace_back([=, &new_node]() {
                     new_node->set_invariant_input(body_param, init_value);
@@ -114,32 +234,22 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
                 return false;
             }
         }
-        std::unordered_map<size_t, ov::Output<ov::Node>> loop_inputs;  // body_param->instance_id -> loop_input
-        for (const auto& input_description : subgraph->get_input_descriptions()) {
-            loop_inputs.emplace(body_params[input_description->m_body_parameter_index]->get_instance_id(),
-                                subgraph_in_values[input_description->m_input_index]);
+
+        if (delete_inputs_outputs.size() == 0) {
+            // nothing is to remove
+            return false;
         }
-        std::unordered_map<uint64_t, Output<Node>> idx_to_new_output;
-        int64_t num_deleted_results = 0;
+
         for (const auto& output_description : subgraph->get_output_descriptions()) {
             const auto& out_idx = output_description->m_output_index;
             const auto& body_result = body_results[output_description->m_body_value_index];
 
-            if (output_description->m_body_value_index == body_condition_output_idx) {
-                // no need to do anything with body condition Result node
-                // only update of its index is required after body graph clean-up
+            if (remove_result_inds.count(output_description->m_body_value_index) > 0) {
+                // the corresponsing result will be removed so it needs to insert skip connection
                 continue;
             }
 
-            const auto& body_param = get_parent_param(body_result);
-            if (body_param && output_description->m_body_value_index != body_condition_output_idx) {
-                auto new_output = loop_inputs[body_param->get_instance_id()];
-                ++num_deleted_results;
-                delete_inputs_outputs.emplace_front([=, &body_model, &idx_to_new_output]() {
-                    body_model->remove_result(body_result);
-                    idx_to_new_output[out_idx] = new_output;
-                });
-            } else if (const auto body_output_desc = as_type_ptr<OutputD>(output_description)) {
+            if (const auto body_output_desc = as_type_ptr<OutputD>(output_description)) {
                 process_inputs_outputs.emplace_back([=, &idx_to_new_output, &body_output_desc]() {
                     idx_to_new_output[out_idx] = new_node->get_iter_value(body_result, body_output_desc->m_iteration);
                 });
@@ -159,10 +269,16 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             }
         }
 
-        if (auto loop = as_type_ptr<ov::op::v5::Loop>(new_node)) {
+        if (auto loop = as_type_ptr<v5::Loop>(new_node)) {
             // update of body condition index is required due to body graph clean-up
             auto special_body_ports = loop->get_special_body_ports();
-            special_body_ports.body_condition_output_idx -= num_deleted_results;
+            if (special_body_ports.body_condition_output_idx >= 0) {
+                special_body_ports.body_condition_output_idx -= delta_body_condition_output_idx;
+            }
+
+            if (special_body_ports.current_iteration_input_idx >= 0) {
+                special_body_ports.current_iteration_input_idx -= delta_current_iteration_input_idx;
+            }
             loop->set_special_body_ports(special_body_ports);
         }
 
