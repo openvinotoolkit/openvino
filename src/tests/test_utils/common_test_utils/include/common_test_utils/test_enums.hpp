@@ -121,7 +121,8 @@ enum ActivationTypes {
     RoundHalfAwayFromZero,
     GeluErf,
     GeluTanh,
-    SoftSign
+    SoftSign,
+    IsNaN,
 };
 
 enum MinMaxOpType {
