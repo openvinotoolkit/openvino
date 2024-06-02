@@ -36,6 +36,7 @@ from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion
     init_mo_telemetry
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
+from openvino.tools.ovc.moc_frontend.jax_frontend_utils import get_jax_decoder
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
@@ -228,6 +229,13 @@ def check_model_object(argv):
                                                                     paddle.fluid.dygraph.layers.Layer) or isinstance(
             model, paddle.fluid.executor.Executor):
             return "paddle"
+        
+    if 'jax' in sys.modules:
+        import jax
+        import types
+        # This a workaround to avoid mistaking a normal function as jax module. Needs to be optimized in the future.
+        if isinstance(model, types.FunctionType) and hasattr(model, '__jax_debug__'):
+            return "jax"
 
     raise Error('Unknown model type: {}'.format(type(model)))
 
@@ -462,6 +470,13 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                                                                      outputs)
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
+            if model_framework == "jax":
+                example_inputs = []
+                if 'example_input' in args and args['example_input'] is not None:
+                    example_inputs = args['example_input']
+                
+                get_jax_decoder(args['input_model'], example_inputs, args)
+                
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
         argv.framework = model_framework

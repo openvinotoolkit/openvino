@@ -41,6 +41,7 @@ public:
             {"tflite", "tensorflow_lite"},
             {"paddle", "paddle"},
             {"pytorch", "pytorch"},
+            {"jax", "jax"}
         };
         auto it = predefined_frontends.find(framework);
         std::lock_guard<std::mutex> guard(m_loading_mutex);
@@ -155,7 +156,8 @@ private:
                                                   {"tf", "tensorflow"},
                                                   {"tflite", "tensorflow_lite"},
                                                   {"paddle", "paddle"},
-                                                  {"pytorch", "pytorch"}};
+                                                  {"pytorch", "pytorch"}, 
+                                                  {"jax", "jax"}};
         if (variants.empty()) {
             return nullptr;
         }
