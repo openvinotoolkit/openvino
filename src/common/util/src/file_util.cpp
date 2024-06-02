@@ -58,13 +58,8 @@
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
-#if defined(__cpp_lib_filesystem)
-#    include <filesystem>
-namespace fs = std::filesystem;
-#else
-#    include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
+#include CXX_FILESYSTEM_HEADER
+namespace fs = CXX_FILESYSTEM_NAMESPACE;
 
 std::string ov::util::get_file_name(const std::string& s) {
     std::string rc = s;
