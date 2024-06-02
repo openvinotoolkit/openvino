@@ -603,8 +603,8 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     kd.kernels[0].skip_execution = true;
                 } else {
                     kd.kernels[0].skip_execution = false;
-                    size_t ifm_threads = get_input_threads(prim_params).second;
-                    size_t input_size = ifm_threads * dispatchData.tile_m * dispatchData.gws[2];
+                    size_t input_f = get_input_bf_size(prim_params).second;
+                    size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
 
                     if (kd.kernels[0].params.workGroups.global[0] < (input_size / quantize_grp_size)) {
                         kd.internalBufferSizes.clear();
