@@ -12,11 +12,11 @@
 #include <transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/utils/gen_pattern.hpp>
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "utils/gen_pattern.hpp"
 #include "utils/print_model.hpp"
 
 using namespace testing;
