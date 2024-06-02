@@ -21,8 +21,8 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | AddV2                                                   | YES                           |                               |
 | AdjustContrast                                          | NO                            |                               |
 | AdjustContrastv2                                        | YES                           |                               |
-| AdjustHue                                               | NO                            |                               |
-| AdjustSaturation                                        | YES                            |                               |
+| AdjustHue                                               | YES                           |                               |
+| AdjustSaturation                                        | YES                           |                               |
 | All                                                     | YES                           |                               |
 | AllCandidateSampler                                     | NO                            |                               |
 | AllToAll                                                | NO                            |                               |

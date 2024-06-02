@@ -8,7 +8,7 @@ import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
-class TestAdjustSaturation(CommonTFLayerTest):
+class TestAdjustHue(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'images:0' in inputs_info
         if self.special_case == "Black Image":
@@ -23,20 +23,20 @@ class TestAdjustSaturation(CommonTFLayerTest):
             images_shape = inputs_info['images:0']
             inputs_data = {}
             inputs_data['images:0'] = np.random.rand(*images_shape).astype(self.input_type)
-            
-        inputs_data['scale:0'] = np.random.rand()
+        # delta: [-1,1]
+        inputs_data['delta:0'] = 2*np.random.rand() - 1 
         
         return inputs_data
 
-    def create_adjust_saturation_net(self, input_shape, input_type, special_case=False):
+    def create_adjust_hue_net(self, input_shape, input_type, special_case=False):
         self.special_case = special_case
         self.input_type = input_type
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             images = tf.compat.v1.placeholder(input_type, input_shape, 'images')
-            scale = tf.compat.v1.placeholder(input_type, [], 'scale')
-            tf.raw_ops.AdjustSaturation(images=images, scale=scale)
+            delta = tf.compat.v1.placeholder(input_type, [], 'delta')
+            tf.raw_ops.AdjustHue(images=images, delta=delta)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
@@ -60,10 +60,10 @@ class TestAdjustSaturation(CommonTFLayerTest):
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'],
                        reason='Ticket - 126314, 132699')
-    def test_adjust_saturation_basic(self, params, ie_device, precision, ir_version, temp_dir,
+    def test_adjust_hue_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("Accuracy mismatch on GPU")
-        self._test(*self.create_adjust_saturation_net(**params),
+        self._test(*self.create_adjust_hue_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
