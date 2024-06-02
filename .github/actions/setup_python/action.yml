@@ -23,7 +23,19 @@ runs:
   using: 'composite'
   steps:
 
-    - if: ${{ runner.os == 'Linux' && inputs.self-hosted-runner == 'true' }}
+    - name: Check if Python is already installed (Linux)
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      id: check_python
+      run: |
+        PYTHON_INSTALLED=$(python${{ inputs.version }} -V) || true
+        if [[ $PYTHON_INSTALLED ]]; then
+          echo "installed=true" >> $GITHUB_OUTPUT
+        else
+          echo "installed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - if: ${{ runner.os == 'Linux' && inputs.self-hosted-runner == 'true' && steps.check_python.outputs.installed == 'false' }}
       name: Install 'actions/setup-python@v4' dependencies
       shell: bash
       run: apt-get update && apt-get install -y ca-certificates software-properties-common gpg-agent tzdata
@@ -31,18 +43,18 @@ runs:
         DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
         TZ: "Europe/London" # to prevent tzdata from waiting user input
 
-    - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
+    - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' && steps.check_python.outputs.installed == 'false'  }}
       name: Setup sudo and python3
       shell: bash
       run: apt-get update && apt-get install -y sudo python3 # Needed for the deadsnakes action
 
-    - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
+    - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' && steps.check_python.outputs.installed == 'false'  }}
       name: Setup Python ${{ inputs.version }}
       uses: akashchi/deadsnakes-action@92417281055a5878a0450f240a5b95883eb2d7e2
       with:
         python-version: ${{ inputs.version }}
 
-    - if: ${{ runner.os == 'macOS' || runner.os == 'Windows' || (runner.os == 'Linux' && runner.arch != 'ARM64') }}
+    - if: ${{ runner.os == 'macOS' || runner.os == 'Windows' || (runner.os == 'Linux' && runner.arch != 'ARM64' && steps.check_python.outputs.installed == 'false' ) }}
       name: Setup Python ${{ inputs.version }}
       uses: actions/setup-python@v5
       with:

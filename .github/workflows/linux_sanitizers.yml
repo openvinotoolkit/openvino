@@ -401,7 +401,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
-        if: ${{ 'false' }} # Ticket: 134423
+        if: always()
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \

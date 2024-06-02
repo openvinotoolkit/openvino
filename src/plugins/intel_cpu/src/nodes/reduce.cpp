@@ -190,6 +190,7 @@ private:
     Xbyak::Reg64 reg_params = abi_param1;
 
     Xbyak::Reg8 reg_tmp_8 = r15b;
+    Xbyak::Reg16 reg_tmp_16 = r15w;
     Xbyak::Reg32 reg_tmp_32 = r15d;
     Xbyak::Reg64 reg_tmp_64 = r15;
 
@@ -1012,7 +1013,9 @@ private:
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::f16:
-                vcvtps2ph(op, xmm_dst, 0x4);
+                vcvtps2ph(xmm_dst, xmm_dst, 0x4);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_16);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1241,6 +1244,7 @@ private:
     Xbyak::Reg64 reg_params = abi_param1;
 
     Xbyak::Reg8 reg_tmp_8 = r14b;
+    Xbyak::Reg16 reg_tmp_16 = r14w;
     Xbyak::Reg32 reg_tmp_32 = r14d;
     Xbyak::Reg64 reg_tmp_64 = r14;
 
@@ -1676,7 +1680,9 @@ private:
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::f16:
-                vcvtps2ph(op, xmm_dst, 0x4);
+                vcvtps2ph(xmm_dst, xmm_dst, 0x4);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_16);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);

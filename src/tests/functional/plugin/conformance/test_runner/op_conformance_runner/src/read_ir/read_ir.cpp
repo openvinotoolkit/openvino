@@ -146,7 +146,7 @@ void ReadIRTest::SetUp() {
             // auto next_node = param->get_default_output().get_node_shared_ptr();
             auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
-            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
+            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape(), nullptr);
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
             const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
