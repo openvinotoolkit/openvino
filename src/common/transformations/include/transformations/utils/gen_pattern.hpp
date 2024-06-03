@@ -1183,7 +1183,8 @@ public:
                         return false;
                     }
 
-                    if (ele_type == ov::element::i32 || ele_type == ov::element::f32 || ele_type == ov::element::i64) {
+                    if (ele_type == ov::element::i32 || ele_type == ov::element::i64 || ele_type == ov::element::f16 ||
+                        ele_type == ov::element::f32) {
                         auto observed = constop->cast_vector<double>();
                         for (size_t i = 0; i < symbols.size(); i++)
                             detail::add_symbol_observed(sov, symbols[i], observed[i]);
@@ -1225,6 +1226,15 @@ public:
                         vconst_node->get_output_element_type(0).is_signed()) {
                         auto p_values = pconst_node->cast_vector<int64_t>();
                         auto v_values = vconst_node->cast_vector<int64_t>();
+                        if (p_values == v_values) {
+                            continue;
+                        }
+                    }
+
+                    if (pconst_node->get_output_element_type(0).is_real() &&
+                        vconst_node->get_output_element_type(0).is_real()) {
+                        auto p_values = pconst_node->cast_vector<float>();
+                        auto v_values = vconst_node->cast_vector<float>();
                         if (p_values == v_values) {
                             continue;
                         }
