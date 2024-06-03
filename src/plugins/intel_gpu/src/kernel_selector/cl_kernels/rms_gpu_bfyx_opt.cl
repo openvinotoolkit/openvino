@@ -10,16 +10,19 @@
 #define CALC_POWER(n) ({uint pos = 0; uint i = n; do { i >>= 1; ++pos; } while (i); --pos;})
 #endif
 
+// Check alignment restrictions for using block writes on output.
+#define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * OUTPUT_FEATURE_PITCH) % 16 == 0)
+
 #if SUBGROUP_BLOCK_SIZE == 1
 #define BLOCK_READ(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
-#define IN_BLOCK_TYPE INPUT0_TYPE
-#define OUT_BLOCK_TYPE OUTPUT_TYPE
+#define INPUT_VEC_TYPE INPUT0_TYPE
+#define OUTPUT_VEC_TYPE OUTPUT_TYPE
 #else
 #define BLOCK_READ(ptr, offset) CAT(DT_INPUT_BLOCK_READ, SUBGROUP_BLOCK_SIZE)(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) CAT(DT_OUTPUT_BLOCK_WRITE, SUBGROUP_BLOCK_SIZE)(ptr, offset, val)
-#define IN_BLOCK_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, SUBGROUP_BLOCK_SIZE)
-#define OUT_BLOCK_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, SUBGROUP_BLOCK_SIZE)
+#define INPUT_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, SUBGROUP_BLOCK_SIZE)
+#define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, SUBGROUP_BLOCK_SIZE)
 #endif
 
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
@@ -44,26 +47,26 @@ KERNEL(rms_gpu_bfyx_opt)(
     const uint data_offset = data_idx * data_size;
     const uint subgroup_offset = get_sub_group_id() * get_sub_group_size() * items_num;
 
-    INPUT0_TYPE my_chunk[STACK_SIZE];
+    INPUT0_TYPE data[STACK_SIZE];
     ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
 
     __local ACCUMULATOR_TYPE slm_buf[SLM_SIZE];
 
-    uint i=0;
+    uint i = 0;
     if (workers_per_data > SUB_GROUP_SIZE)
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
         {
-            IN_BLOCK_TYPE vec_tmp = BLOCK_READ(input, data_offset + subgroup_offset + i * get_sub_group_size());
+            INPUT_VEC_TYPE vec_tmp = BLOCK_READ(input, data_offset + subgroup_offset + i * get_sub_group_size());
 #if SUBGROUP_BLOCK_SIZE == 1
             rms += TO_ACCUMULATOR_TYPE(native_powr(vec_tmp, 2));
-            my_chunk[i] = vec_tmp;
+            data[i] = vec_tmp;
 #else
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
             {
                 INPUT0_TYPE tmp = vec_tmp[j];
                 rms += TO_ACCUMULATOR_TYPE(native_powr(tmp, 2));
-                my_chunk[i + j] = tmp;
+                data[i + j] = tmp;
             }
 #endif
         }
@@ -73,14 +76,14 @@ KERNEL(rms_gpu_bfyx_opt)(
     {
         INPUT0_TYPE tmp = input[data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()];
         rms += TO_ACCUMULATOR_TYPE(native_powr(tmp, 2));
-        my_chunk[i] = tmp;
+        data[i] = tmp;
     }
 
     if (in_data_idx < leftovers)
     {
         INPUT0_TYPE tmp = input[data_offset + workers_per_data * items_num + in_data_idx];
         rms += TO_ACCUMULATOR_TYPE(native_powr(tmp, 2));
-        my_chunk[i] = tmp;
+        data[items_num] = tmp;
     }
 
     rms = sub_group_reduce_add(rms);
@@ -101,37 +104,40 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     rms = slm_buf[0];
 
-    i=0;
-    if (workers_per_data > SUB_GROUP_SIZE)
+    i = 0;
+    if ((workers_per_data > SUB_GROUP_SIZE) && USE_BLOCK_WRITE)
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
         {
-            IN_BLOCK_TYPE vec_gamma = BLOCK_READ(gamma, subgroup_offset + i * get_sub_group_size());
-            OUT_BLOCK_TYPE vec_tmp;
+            INPUT_VEC_TYPE vec_gamma = BLOCK_READ(gamma, subgroup_offset + i * get_sub_group_size());
+            OUTPUT_VEC_TYPE vec_tmp;
 #if SUBGROUP_BLOCK_SIZE == 1
-            vec_tmp = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(my_chunk[i]) * TO_ACCUMULATOR_TYPE(vec_gamma));
+            vec_tmp = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(data[i]) * TO_ACCUMULATOR_TYPE(vec_gamma));
 #else
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
-                vec_tmp[j] = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(my_chunk[i + j]) * TO_ACCUMULATOR_TYPE(vec_gamma[j]));
+                vec_tmp[j] = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(data[i + j]) * TO_ACCUMULATOR_TYPE(vec_gamma[j]));
 #endif
             BLOCK_WRITE(output, data_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
         }
     }
+
     for (; i < items_num; i++)
     {
         INPUT1_TYPE temp = gamma[subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()];
-        output[data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(my_chunk[i]) * TO_ACCUMULATOR_TYPE(temp));
+        output[data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(data[i]) * TO_ACCUMULATOR_TYPE(temp));
     }
+
     if (in_data_idx < leftovers)
     {
         INPUT1_TYPE temp = gamma[workers_per_data * items_num + in_data_idx];
-        output[data_offset + workers_per_data * items_num + in_data_idx] = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(my_chunk[items_num]) * TO_ACCUMULATOR_TYPE(temp));
+        output[data_offset + workers_per_data * items_num + in_data_idx] = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(data[items_num]) * TO_ACCUMULATOR_TYPE(temp));
     }
 }
 #ifdef CALC_POWER
 #undef CALC_POWER
 #endif
+#undef USE_BLOCK_WRITE
 #undef BLOCK_READ
 #undef BLOCK_WRITE
-#undef IN_BLOCK_TYPE
-#undef OUT_BLOCK_TYPE
+#undef INPUT_VEC_TYPE
+#undef OUTPUT_VEC_TYPE
