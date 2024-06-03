@@ -84,12 +84,13 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
     if (concat_node == nullptr) {
         return false;
     }
-    if (concat_node->get_output_partial_shape(0).rank().is_dynamic()) {
+
+    const auto rank = concat_node->get_output_partial_shape(0).rank();
+    if (rank.is_dynamic()) {
         return false;
     }
 
-    const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
-    const auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank);
+    const auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank.get_length());
 
     for (size_t i = 0; i < 4; i++) {
         curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
