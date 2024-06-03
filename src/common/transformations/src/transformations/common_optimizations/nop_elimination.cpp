@@ -338,6 +338,7 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     };
 
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, ov::op::v1::Reshape);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, eliminate_unsqueeze, ov::op::v0::Unsqueeze);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, op::v1::Broadcast, op::v3::Broadcast);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather,
                                simplify_gather,
@@ -447,17 +448,6 @@ pass::EliminateSplit::EliminateSplit() {
     };
 
     auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-pass::EliminateUnsqueeze::EliminateUnsqueeze() {
-    MATCHER_SCOPE(EliminateUnsqueeze);
-    auto unsqueeze_pattern = pattern::wrap_type<ov::op::v0::Unsqueeze>();
-
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        return eliminate_unsqueeze(m.get_match_root());
-    };
-    auto m = make_shared<pattern::Matcher>(unsqueeze_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
