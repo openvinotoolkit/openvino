@@ -65,6 +65,7 @@ namespace fs = std::filesystem;
 #    endif
 #else
 #    define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#    define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
 #    include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
 #endif
