@@ -484,28 +484,45 @@ CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& in_type,
     return in_type;
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
-    const std::string key = ov::hint::inference_precision.name();
     // if is not float
     if (!in_type.is_real()) {
         return in_type;
     }
 
-    ov::element::Type type = in_type;
-    // ngraph transform stage
+    const std::string precison_key = ov::hint::inference_precision.name();
+    const auto& it = configuration.find(precison_key);
+    auto inferencePrecision =  it != configuration.end() ? it->second.as<ov::element::Type>() : ov::element::undefined;
+    if (inferencePrecision == ov::element::undefined) {
+        const std::string perf_key = ov::hint::execution_mode.name();
+        const auto& perf_it = configuration.find(perf_key);
+        if (perf_it != configuration.end() && perf_it->second.as<ov::hint::ExecutionMode>() == ov::hint::ExecutionMode::PERFORMANCE) {
+            inferencePrecision = ov::element::f32;
+            if (ov::with_cpu_x86_bfloat16()) {
+                inferencePrecision = ov::element::bf16;
+            }
+        }
+    }
+
+    // ngraph transform pipeline stage
+        ov::element::Type type = in_type;
+    if (inferencePrecision == ov::element::f16) {
+        if (type == ov::element::f32) {
+            type = ov::element::f16;
+        }
+    }
     if (type == ov::element::bf16) {
         type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+    } else if (type == ov::element::f16) {
+        if (inferencePrecision != ov::element::f16 && inferencePrecision != ov::element::undefined) {
+            type = ov::element::f32;
+        }
     } else {
         type = ov::element::f32;
     }
 
-    // configure stage
-    if (type == ov::element::f32) {
-        const auto& it = configuration.find(key);
-        if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
-            type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
-        } else if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::f16) {
-            type = ov::with_cpu_x86_avx512_core_fp16() ? ov::element::f16 : ov::element::f32;
-        }
+    // enforceInferPrecision stage
+    if (inferencePrecision == ov::element::bf16) {
+        type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
     }
 
     return type;
