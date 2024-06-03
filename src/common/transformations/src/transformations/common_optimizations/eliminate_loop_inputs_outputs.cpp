@@ -250,11 +250,11 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             }
 
             if (const auto body_output_desc = as_type_ptr<OutputD>(output_description)) {
-                process_inputs_outputs.emplace_back([=, &idx_to_new_output, &body_output_desc]() {
+                process_inputs_outputs.emplace_back([=, &idx_to_new_output]() {
                     idx_to_new_output[out_idx] = new_node->get_iter_value(body_result, body_output_desc->m_iteration);
                 });
             } else if (const auto concat_output_desc = as_type_ptr<ConcatD>(output_description)) {
-                process_inputs_outputs.emplace_back([=, &idx_to_new_output, &concat_output_desc]() {
+                process_inputs_outputs.emplace_back([=, &idx_to_new_output]() {
                     idx_to_new_output[out_idx] = new_node->get_concatenated_slices(body_result,
                                                                                    concat_output_desc->m_start,
                                                                                    concat_output_desc->m_stride,
