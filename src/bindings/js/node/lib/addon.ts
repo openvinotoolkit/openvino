@@ -87,7 +87,7 @@ interface Model {
    */
   getOutputShape(index: number): number[];
   /**
-   * It returns the number of outputs of the model.
+   * It returns the number of the model outputs.
    */
   getOutputSize(): number;
   /**
