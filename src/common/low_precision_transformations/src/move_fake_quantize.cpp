@@ -84,14 +84,16 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
     if (concat_node == nullptr) {
         return false;
     }
-    int64_t concat_axis = -1;
-    if (concat_node->get_output_partial_shape(0).rank().is_static()) {
-        const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
-        concat_axis = ov::util::normalize(concat_node->get_axis(), rank);
+    if (concat_node->get_output_partial_shape(0).rank().is_dynamic()) {
+        return false;
     }
+
+    const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
+    const auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank);
+
     for (size_t i = 0; i < 4; i++) {
         curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && concat_axis >= 0 && curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis)
+        if (!multi_chanels && curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis)
             && curr_constants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
         }
