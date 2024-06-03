@@ -366,6 +366,12 @@ static bool can_reshape_be_optimized(const reshape_node& node) {
 static bool is_optimizable_padding_for_crop(const crop_node& node) {
     const auto& crop_layout = node.get_output_layout();
     auto input_layout = node.get_dependency(0).get_output_layout();
+
+    if (input_layout.data_padding.lower_size().batch[0] != 0 || input_layout.data_padding.upper_size().batch[0] != 0 ||
+        input_layout.data_padding.lower_size().spatial[0] != 0 || input_layout.data_padding.upper_size().spatial[0] != 0 ||
+        input_layout.data_padding.lower_size().spatial[1] != 0 || input_layout.data_padding.upper_size().spatial[1] != 0)
+        return false;
+
     auto crop_prim = node.get_primitive();
     auto opt_lower_pad = crop_prim->offsets.feature[0];
     auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_layout.get_tensor().feature[0];
@@ -375,11 +381,6 @@ static bool is_optimizable_padding_for_crop(const crop_node& node) {
         auto usr_layout = usr->get_output_layout();
         if (usr_layout.format == format::b_fs_yx_fsv16 &&
             (opt_lower_pad % 16 != 0 || opt_upper_pad % 16 != 0))
-            return false;
-
-        if (input_layout.data_padding.lower_size().batch[0] != 0 || input_layout.data_padding.upper_size().batch[0] != 0 ||
-            input_layout.data_padding.lower_size().spatial[0] != 0 || input_layout.data_padding.upper_size().spatial[0] != 0 ||
-            input_layout.data_padding.lower_size().spatial[1] != 0 || input_layout.data_padding.upper_size().spatial[1] != 0)
             return false;
 
         // oneDNN doesn't support paddings
@@ -410,19 +411,14 @@ static bool can_crop_be_optimized_along_feature(const crop_node& node) {
     return false;
 }
 
-static bool can_crop_be_optimized_along_batch(const crop_node& node) {
+static bool can_crop_be_optimized_simple_data_format(const crop_node& node) {
     const auto& crop_layout = node.get_output_layout();
     auto format = crop_layout.format;
     auto input_layout = node.get_dependency(0).get_output_layout();
-    const auto crop_shape = crop_layout.get_ordered_dims();
-    const auto input_shape = input_layout.get_ordered_dims();
     const auto& in_padding = input_layout.data_padding;
     const auto& out_padding = crop_layout.data_padding;
 
-    // Check format's order is 'bxxx' and only batch size is different
-    if (format::is_simple_data_format(format) && format.dims_order()[0] == 0 &&
-        std::equal(input_shape.begin()+1, input_shape.end(), crop_shape.begin()+1) &&
-        !out_padding && !in_padding) {
+    if (format::is_simple_data_format(format) && !out_padding && !in_padding) {
         return true;
     }
 
@@ -491,7 +487,6 @@ void prepare_buffer_fusing::run(program& p) {
         auto& node = (*node_itr++);
         if (!node->is_valid_output_layout())
             continue;
-
         if (!can_optimize(node))
             continue;
 
@@ -581,37 +576,23 @@ void prepare_buffer_fusing::run(program& p) {
                                 opt_upper_pad,
                                 out_pad.upper_size().spatial[0],
                                 out_pad.upper_size().spatial[1]}));
-                } else if (can_crop_be_optimized_along_batch(node)) {
+                } else if (can_crop_be_optimized_simple_data_format(node)) {
                     auto crop_prim = node.get_primitive();
-                    auto opt_lower_pad = crop_prim->offsets.batch[0];
-                    auto opt_upper_pad = input_layout.batch() - crop_prim->offsets.batch[0] - crop_size.batch[0];
 
-                    padding new_padding;
-                    if (crop_layout.get_rank() == 4) {
-                        new_padding = padding({opt_lower_pad,
-                                    out_pad.lower_size().feature[0],
-                                    out_pad.lower_size().spatial[0],
-                                    out_pad.lower_size().spatial[1]},
-                                    {opt_upper_pad,
-                                    out_pad.upper_size().feature[0],
-                                    out_pad.upper_size().spatial[0],
-                                    out_pad.upper_size().spatial[1]});
-                    } else if (crop_layout.get_rank() == 5) {
-                        new_padding = padding({opt_lower_pad,
-                                out_pad.lower_size().feature[0],
-                                out_pad.lower_size().spatial[0],
-                                out_pad.lower_size().spatial[1],
-                                out_pad.lower_size().spatial[2]},
-                                {opt_upper_pad,
-                                out_pad.upper_size().feature[0],
-                                out_pad.upper_size().spatial[0],
-                                out_pad.upper_size().spatial[1],
-                                out_pad.upper_size().spatial[2]});
-                    } else {
-                        return;
+                    std::vector<int32_t> lower_sizes;
+                    lower_sizes.push_back(crop_prim->offsets.batch[0]);
+                    lower_sizes.push_back(crop_prim->offsets.feature[0]);
+                    for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
+                        lower_sizes.push_back(crop_prim->offsets.spatial[i]);
+                    }
+                    std::vector<int32_t> upper_sizes;
+                    upper_sizes.push_back(input_layout.batch() - crop_prim->offsets.batch[0] - crop_size.batch[0]);
+                    upper_sizes.push_back(input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0]);
+                    for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
+                        upper_sizes.push_back(input_layout.spatial(i) - crop_prim->offsets.spatial[i] - crop_size.spatial[i]);
                     }
 
-                    node.set_output_padding(new_padding);
+                    node.set_output_padding(padding(lower_sizes, upper_sizes));
                 } else {
                     return;
                 }
@@ -699,14 +680,6 @@ void prepare_buffer_fusing::run(program& p) {
                 }
                 if (gather_prim) {
                     update_dep(gather_prim);
-                }
-
-                // Fallback to ocl impl since oneDNN doesn't support dynamic paddings
-                for (auto user : node.get_users()) {
-                    if (user->get_preferred_impl_type() == impl_types::onednn) {
-                        GPU_DEBUG_TRACE_DETAIL << user->id() << ": change impl to ocl because of dynamic input paddings\n";
-                        user->set_preferred_impl_type(impl_types::ocl);
-                    }
                 }
             }
         });

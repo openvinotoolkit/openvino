@@ -25,14 +25,14 @@ RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         OPENVINO_THROW("CPU: " + errorMessage);
     }
 
-    const auto node = std::dynamic_pointer_cast<const RoPENode>(op);
+    const auto node = std::dynamic_pointer_cast<const op::internal::RoPE>(op);
     m_config = node->get_config();
 }
 
 template <typename T>
 struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
     void execute(dnnl::stream strm,
-                 const RoPENode::Config& config,
+                 const op::internal::RoPE::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -96,7 +96,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
 template <typename T>
 struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
     void execute(dnnl::stream strm,
-                 const RoPENode::Config& config,
+                 const op::internal::RoPE::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -131,7 +131,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
 template <typename T>
 struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
     void execute(dnnl::stream strm,
-                 const RoPENode::Config& config,
+                 const op::internal::RoPE::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -173,7 +173,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 template <typename T>
 struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
     void execute(dnnl::stream strm,
-                 const RoPENode::Config& config,
+                 const op::internal::RoPE::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);    // [batch, length, head_cnt*head_size * 3]
@@ -289,9 +289,9 @@ void RoPE::execute(dnnl::stream strm) {
 
 bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const RoPENode>(op);
+        const auto node = std::dynamic_pointer_cast<const op::internal::RoPE>(op);
         if (!node) {
-            errorMessage = "Only RoPENode operation is supported";
+            errorMessage = "Only RoPE operation is supported";
             return false;
         }
     } catch (...) {

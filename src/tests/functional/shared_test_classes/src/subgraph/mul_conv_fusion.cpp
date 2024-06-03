@@ -39,11 +39,11 @@ void MulConvFusion::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
     auto spatial_dims = input_shape.size() - 2;
 
-    auto mul_const = ov::test::utils::deprecated::make_constant<float>(precision, const_shape, {}, true);
+    auto mul_const = ov::test::utils::make_constant(precision, const_shape);
     auto mul = std::make_shared<ov::op::v1::Multiply>(param, mul_const);
     ov::Shape strides(spatial_dims, 1);
     std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-    auto weights = ov::test::utils::deprecated::make_constant<float>(precision, weights_shape, {}, true);
+    auto weights = ov::test::utils::make_constant(precision, weights_shape);
     std::shared_ptr<ov::Node> conv;
     if (conv_type == ov::op::v1::Convolution::get_type_info_static()) {
         conv = std::make_shared<ov::op::v1::Convolution>(mul, weights, strides, pad_begin, pad_end, strides);

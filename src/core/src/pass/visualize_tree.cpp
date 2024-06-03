@@ -13,9 +13,11 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 /*
  * As we are visualizing the graph, we will make some tweaks to the generated dot file to make
@@ -213,6 +215,16 @@ static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
 
 bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(VisualizeTree);
+
+    static const bool ovasp = ov::util::getenv_bool("OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION");
+    if (ovasp) {
+        std::cerr << "Warning: OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION enabled. ov::pass::SymbolicPropagation will be "
+                     "triggered"
+                  << std::endl;
+        ov::pass::SymbolicPropagation().run_on_model(f);
+        std::cerr << "ov::pass::SymbolicPropagation finished successfully" << std::endl;
+    }
+
     std::unordered_map<Node*, HeightMap> height_maps;
 
     for (auto& node : f->get_ops()) {
@@ -257,7 +269,13 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 
     // Clean up local variable not to hold node pointers
     m_nodes_with_attributes.clear();
-
+    if (ovasp) {
+        std::cerr << "Warning: Due to previously triggered SymbolicPropagation we need to clean-up the model from "
+                     "symbols. It includes model revalidation"
+                  << std::endl;
+        ov::remove_skip_invalidation_rti(f);
+        std::cerr << "Model revalidation finished successfully" << std::endl;
+    }
     return false;
 }
 
@@ -611,7 +629,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
     if (node->get_friendly_name() != node->get_name()) {
         rc += "\\n" + (nvtmn ? std::string("name: ") : "") + node->get_name();
     }
-    const auto type_info = node->get_type_info();
+    const auto& type_info = node->get_type_info();
     rc += "\\n" + (nvtmn ? std::string("type_name: ") : "") + std::string(type_info.version_id) +
           "::" + std::string(type_info.name);
 
@@ -655,7 +673,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
 
     static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti) {
-        const auto rt = node->get_rt_info();
+        const auto& rt = node->get_rt_info();
         if (!rt.empty()) {
             rc += "\\nrt info: " + get_attribute_values(rt, "\\n");
         }

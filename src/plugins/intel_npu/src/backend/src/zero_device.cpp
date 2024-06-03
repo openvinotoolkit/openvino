@@ -16,6 +16,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     : _initStructs(initStructs),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
+    log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
@@ -46,6 +47,23 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
                        ze_result_to_description(retpci));
     }
 
+    /// Calculate and store device GOPS with formula: frequency * number of tiles * ops per tile
+    /// cross-OS backwards compatibilty: only calculate gops if driver supports it (version>x)
+    uint32_t gops_support_drv_version = UINT32_MAX;
+#if defined(_WIN32) || defined(__CYGWIN__)
+    gops_support_drv_version = 2465;  /// Windows driver version which supports Gops calculations
+#else                                 // _WIN32 || __CYGWIN__
+    gops_support_drv_version = 1715354569;  /// Linux driver version which supports Gops calculations
+#endif                                // _WIN32 || __CYGWIN__
+    if (_initStructs->getDriverVersion() >= gops_support_drv_version) {
+        float gops = (device_properties.coreClockRate / powf(1000, 3)) * device_properties.numSlices *
+                     device_properties.physicalEUSimdWidth;
+        device_gops[ov::element::f32] = 0;
+        device_gops[ov::element::u8] = gops;
+        device_gops[ov::element::i8] = gops;
+        device_gops[ov::element::f16] = 0.5f * gops;
+    }
+
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
     // Discover all command queue groups
@@ -53,6 +71,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(), &command_queue_group_count, nullptr));
 
+    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
     command_group_properties.resize(command_queue_group_count);
 
     for (auto& prop : command_group_properties) {
@@ -66,7 +85,9 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
                                                                   command_group_properties.data()));
 
     // Find the corresponding command queue group.
+    log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
+    log.debug("ZeroDevice::ZeroDevice - init completed");
 }
 
 std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
@@ -141,6 +162,18 @@ ov::device::PCIInfo ZeroDevice::getPciInfo() const {
                                pci_properties.address.bus,
                                pci_properties.address.device,
                                pci_properties.address.function};
+}
+
+std::map<ov::element::Type, float> ZeroDevice::getGops() const {
+    return device_gops;
+}
+
+ov::device::Type ZeroDevice::getDeviceType() const {
+    if (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
+        return ov::device::Type::INTEGRATED;
+    } else {
+        return ov::device::Type::DISCRETE;
+    }
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(

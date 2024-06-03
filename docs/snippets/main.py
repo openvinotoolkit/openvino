@@ -29,7 +29,7 @@ def import_python_modules(directory, subdirectory=""):
 
             print(f"Snippet {item} succesfully executed.")
 
-        
+
         if os.path.isdir(os.path.join(directory, item)):
             dir_path = os.path.join(directory, item)
             import_python_modules(dir_path, item)

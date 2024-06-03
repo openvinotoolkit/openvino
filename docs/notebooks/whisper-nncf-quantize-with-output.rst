@@ -140,8 +140,7 @@ Select the task for the model:
 
 
 Create and initialize quantization
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+---------------------------------------
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -177,6 +176,19 @@ Load FP32 model IR.
 .. code:: ipython3
 
     import whisper
+
+    # Fetch `notebook_utils` module
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    from notebook_utils import download_file
+
+    if not Path("./utils.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/whisper-subtitles-generation/utils.py")
+
     from utils import (
         patch_whisper_for_ov_inference,
         OpenVINOAudioEncoder,
@@ -357,6 +369,8 @@ and save the quantized IRs after that.
 .. parsed-literal::
 
     Saved quantized decoder at ./whisper_large-v2_decoder_int8.xml
+
+
 
 
 

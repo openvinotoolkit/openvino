@@ -47,7 +47,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
-.. image:: ../../_static/images/ovsa_diagram.svg
+.. image:: ../../assets/images/ovsa_diagram.svg
 
 The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in `this document. <https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md>`__
 
@@ -142,9 +142,9 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
 
 3. Install the Kernel-based Virtual Machine (KVM) and QEMU packages.
 
-	.. code-block:: sh
+   .. code-block:: sh
 
-	   sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager
+      sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager
 
 
 4. Check the QEMU version:
@@ -288,16 +288,16 @@ This example in this step uses the following names. Your configuration might use
 
 10. Create a script named ``virbr0-qemu-ifdown`` to bring down the ``virbr0`` interface. Add the following script contents:
 
-   .. code-block:: sh
+    .. code-block:: sh
 
-      #!/bin/sh
-      nic=$1
-      if [ -f /etc/default/qemu-kvm ]; then
-      . /etc/default/qemu-kvm
-      fi
-      switch=virbr0
-      brctl delif $switch $nic
-      ifconfig $nic 0.0.0.0 down
+       #!/bin/sh
+       nic=$1
+       if [ -f /etc/default/qemu-kvm ]; then
+       . /etc/default/qemu-kvm
+       fi
+       switch=virbr0
+       brctl delif $switch $nic
+       ifconfig $nic 0.0.0.0 down
 
 
 See the QEMU documentation for more information about the QEMU network configuration.
@@ -390,43 +390,43 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
 
 10. Start the vTPM on Host, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
 
-   .. code-block:: sh
+    .. code-block:: sh
 
-      sudo swtpm socket --tpm2 --server port=8280 \
-                        --ctrl type=tcp,port=8281 \
-                        --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev &
+       sudo swtpm socket --tpm2 --server port=8280 \
+                         --ctrl type=tcp,port=8281 \
+                         --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev &
 
-      sudo tpm2_startup --clear -T swtpm:port=8280
-      sudo tpm2_startup -T swtpm:port=8280
-      python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8280
-      sudo pkill -f vtpm_isv_dev
+       sudo tpm2_startup --clear -T swtpm:port=8280
+       sudo tpm2_startup -T swtpm:port=8280
+       python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8280
+       sudo pkill -f vtpm_isv_dev
 
-     swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
-      --tpm2 \
-      --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
-      --log level=20
+      swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
+       --tpm2 \
+       --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
+       --log level=20
 
 
 11. Start the Guest VM:
 
-   .. code-block:: sh
+    .. code-block:: sh
 
-      sudo qemu-system-x86_64 \
-       -cpu host \
-       -enable-kvm \
-       -m 8192 \
-       -smp 8,sockets=1,cores=8,threads=1 \
-       -device e1000,netdev=hostnet0,mac=52:54:00:d1:66:6f \
-       -netdev tap,id=hostnet0,script=<path-to-scripts>/br0-qemu-ifup,downscript=<path-to-scripts>/br0-qemu-ifdown \
-       -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
-       -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
-       -drive if=virtio,file=<path-to-disk-image>/ovsa_isv_dev_vm_disk.qcow2,cache=none \
-       -chardev socket,id=chrtpm,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
-       -tpmdev emulator,id=tpm0,chardev=chrtpm \
-       -device tpm-tis,tpmdev=tpm0 \
-       -vnc :1
+       sudo qemu-system-x86_64 \
+        -cpu host \
+        -enable-kvm \
+        -m 8192 \
+        -smp 8,sockets=1,cores=8,threads=1 \
+        -device e1000,netdev=hostnet0,mac=52:54:00:d1:66:6f \
+        -netdev tap,id=hostnet0,script=<path-to-scripts>/br0-qemu-ifup,downscript=<path-to-scripts>/br0-qemu-ifdown \
+        -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+        -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+        -drive if=virtio,file=<path-to-disk-image>/ovsa_isv_dev_vm_disk.qcow2,cache=none \
+        -chardev socket,id=chrtpm,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
+        -tpmdev emulator,id=tpm0,chardev=chrtpm \
+        -device tpm-tis,tpmdev=tpm0 \
+        -vnc :1
 
-   Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
+    Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
 
 12. Use a VNC client to log on to the Guest VM at ``<host-ip-address>:1``
 
@@ -701,9 +701,9 @@ The Model Hosting components install the OpenVINO™ Security Add-on Runtime Doc
 1. Log on to the Guest VM as ``<user>``.
 2. Create the OpenVINO™ Security Add-on directory in the home directory
 
-    .. code-block:: sh
+   .. code-block:: sh
 
-       mkdir -p ~/OVSA
+      mkdir -p ~/OVSA
 
 3. While on the Host Machine copy the ovsa-model-hosting.tar.gz from release_files to the Guest VM:
 
@@ -744,7 +744,7 @@ The following figure describes the interactions between the Model Developer, Ind
 
    The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named ``ovsa_isv``. It is possible to have all roles set up on the same Host Machine.
 
-.. image:: ../../_static/images/ovsa_example.svg
+.. image:: ../../assets/images/ovsa_example.svg
 
 Model Developer Instructions
 ++++++++++++++++++++++++++++
@@ -770,7 +770,8 @@ Step 2: Create a key store and add a certificate to it
 ------------------------------------------------------
 
 1. Create files to request a certificate:
-This example uses a self-signed certificate for demonstration purposes. In a production environment, use CSR files to request for a CA-signed certificate.
+
+   This example uses a self-signed certificate for demonstration purposes. In a production environment, use CSR files to request for a CA-signed certificate.
 
    .. code-block:: sh
 
@@ -869,8 +870,8 @@ Step 7: Receive a User Request
 
 5. Provide these files to the User:
 
-	* ``face_detection_model.dat``
-	* ``face_detection_model.lic``
+   * ``face_detection_model.dat``
+   * ``face_detection_model.lic``
 
 Model User Instructions
 +++++++++++++++++++++++
@@ -988,9 +989,9 @@ Step 5: Start the NGINX Model Server
 
 The NGINX Model Server publishes the access controlled model.
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      ./start_secure_ovsa_model_server.sh
+   ./start_secure_ovsa_model_server.sh
 
 For information about the NGINX interface follow `here <https://github.com/openvinotoolkit/model_server/blob/main/extras/nginx-mtls-auth/README.md>`__.
 
@@ -1051,6 +1052,7 @@ References
 ##########
 
 Use these links for more information:
+
 - `OpenVINO toolkit <https://software.intel.com/en-us/openvino-toolkit>`__
 - `OpenVINO Model Server Quick Start Guide <https://github.com/openvinotoolkit/model_server/blob/main/docs/ovms_quickstart.md>`__
 - `Model repository <https://github.com/openvinotoolkit/model_server/blob/main/docs/models_repository.md>`__
