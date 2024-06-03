@@ -48,3 +48,4 @@ RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+ENV PIP_INSTALL_PATH=/venv/lib/python3.11/site-packages
