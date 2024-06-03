@@ -96,6 +96,24 @@ inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 #endif
 }
 
+#ifdef BEAM_TABLE_TYPE
+inline uint FUNC(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if BEAM_TABLE_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(BEAM_TABLE, b, f, w, z, y, x);
+#else
+#   error sdpa_ref.cl : Unsupported beam table format
+#endif
+}
+
+inline uint FUNC(get_bt_index_key)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
+}
+
+inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+    return FUNC_CALL(get_bt_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT2_DIMS_ORDER);
+}
+#endif
+
 #define VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT2_TYPE, 1, ptr, offset)
 #define SUBGROUPS_PER_WG (HEAD_SIZE / SUBGROUP_SIZE)
 
@@ -117,6 +135,9 @@ KERNEL(sdpa_opt)(
     const __global INPUT4_TYPE* scale,
 #endif
     __global OUTPUT_TYPE* output,
+#ifdef BEAM_TABLE_TYPE
+    const __global BEAM_TABLE_TYPE* beam_table,
+#endif
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
     __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
     __global OUTPUT_TYPE* tmp_out
@@ -125,12 +146,7 @@ KERNEL(sdpa_opt)(
     const uint batch_idx = get_global_id(0);
     const uint b0_idx = batch_idx / NUM_HEADS; /* BATCH dim */
     const uint b1_idx = batch_idx % NUM_HEADS; /* HEADS_NUM dim */
-
-#if TARGET_SEQ_LEN_BLOCK_SIZE > 1
-    const uint target_seq_idx = (uint)get_global_id(1) * TARGET_SEQ_LEN_BLOCK_SIZE;
-#else
     const uint target_seq_idx = get_global_id(1);
-#endif
     const uint lid = get_local_id(2);
     const uint head_size_idx = lid;
 
@@ -173,12 +189,7 @@ KERNEL(sdpa_opt)(
                 // Query input loading to SLM
                 #define QUERY_STEP_LOCAL SUBGROUP_SIZE * SUBGROUPS_PER_WG
                 uint query_local_offset = sgid * SUBGROUP_SIZE + sglid;
-
-#if TARGET_SEQ_LEN_BLOCK_SIZE > 1
-                const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
-#else
                 const uint seq_idx_end = 1;
-#endif
 #ifdef INPUT0_DIMS_ORDER
                 uint query_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, target_seq_idx, (sgid * SUBGROUP_SIZE));
                 uint query_offset_next_seq = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, target_seq_idx + 1, (sgid * SUBGROUP_SIZE));
@@ -207,9 +218,14 @@ KERNEL(sdpa_opt)(
             // HEAD_SIZE / SUBGROUPS_PER_WG times in the loop and saves the result to the qk_local SLM buffer
             for (uint seq_len = sgid; seq_len < partition_seq_len; seq_len += (HEAD_SIZE / SUBGROUP_SIZE)) {
 #ifdef INPUT1_DIMS_ORDER
-                uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
+#ifdef BEAM_TABLE_TYPE
+                const uint b_idx = beam_table[FUNC_CALL(get_bt_index_key)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0)];
 #else
-                uint key_offset = INPUT1_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, 0);
+                const uint b_idx = b0_idx;
+#endif
+                const uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
+#else
+                const uint key_offset = INPUT1_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, 0);
 #endif
 
                 INPUT0_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {INPUT0_VAL_ZERO};
@@ -316,11 +332,7 @@ KERNEL(sdpa_opt)(
                 barrier(CLK_LOCAL_MEM_FENCE);
 
                 INPUT0_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
-#if TARGET_SEQ_LEN_BLOCK_SIZE > 1
-                const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
-#else
                 const uint seq_idx_end = 1;
-#endif
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     // Iterate over all values QK values in SLM and apply scale and attention mask
                     for (uint seq_len = sgid * SUBGROUP_SIZE + sglid; seq_len < partition_seq_len; seq_len += (HEAD_SIZE)) {
@@ -349,11 +361,7 @@ KERNEL(sdpa_opt)(
 
         {
             // SoftMax calculation
-#if TARGET_SEQ_LEN_BLOCK_SIZE > 1
-            const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
-#else
             const uint seq_idx_end = 1;
-#endif
             // Find the maximum value of qk in the subgroup
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                 qk_max[seq_idx] = sub_group_reduce_max(qk_max[seq_idx]);
@@ -446,7 +454,7 @@ KERNEL(sdpa_opt)(
     {
         // Gemm2 calculation
         OUTPUT_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {OUTPUT_VAL_ZERO};
-
+#ifndef BEAM_TABLE_TYPE
 #ifdef INPUT2_DIMS_ORDER
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
         uint value_offset_next_seq = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0);
@@ -454,12 +462,18 @@ KERNEL(sdpa_opt)(
 #else
         const uint value_pitch = HEAD_SIZE;
 #endif
+#endif
 
         for (uint seq_len = 0; seq_len < partition_seq_len / SUBGROUP_SIZE; seq_len++) {
+#ifdef BEAM_TABLE_TYPE
+            uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, (head_size_idx / SUBGROUP_SIZE) * SUBGROUP_SIZE)];
+            uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, (head_size_idx / SUBGROUP_SIZE) * SUBGROUP_SIZE);
+#else
 #ifdef INPUT2_DIMS_ORDER
             uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
 #else
             uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+#endif
 #endif
 
             OUTPUT_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
@@ -468,19 +482,30 @@ KERNEL(sdpa_opt)(
             }
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+#ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+#else
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
+#endif
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
                 }
 
+#ifndef BEAM_TABLE_TYPE
                 value_offset += value_pitch;
+#endif
             }
         }
 
         const uint seq_len_leftovers_start = (partition_seq_len / SUBGROUP_SIZE) * SUBGROUP_SIZE;
         for (uint seq_len = seq_len_leftovers_start; seq_len < partition_seq_len; seq_len++) {
 #ifdef INPUT2_DIMS_ORDER
-            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx);
+#ifdef BEAM_TABLE_TYPE
+            const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx)];
+#else
+            const uint b_idx = b0_idx;
+#endif
+            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx);
 #else
             const uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, head_size_idx);
 #endif
@@ -500,11 +525,7 @@ KERNEL(sdpa_opt)(
         // If the number of partitions is greater than 1, save results to the temporary buffer;
         // otherwise, save results directly to the main output.
         if (num_of_partitions > 1) {
-#if TARGET_SEQ_LEN_BLOCK_SIZE > 1
-            const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
-#else
             const uint seq_idx_end = 1;
-#endif
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                 // Data layout of tmp_output buf: [batch, heads_num, q_len, partition_idx, head_size]
                 const uint tmp_out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
@@ -515,15 +536,11 @@ KERNEL(sdpa_opt)(
                 tmp_out[tmp_out_offset] = acc[seq_idx];
             }
         } else {
-#if TARGET_SEQ_LEN_BLOCK_SIZE > 1
-            const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
-#else
             const uint seq_idx_end = 1;
-#endif
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
-                    const uint output_offset = OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx + seq_idx, head_size_idx);
+                const uint output_offset = OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx + seq_idx, head_size_idx);
 
-                    output[output_offset] = acc[seq_idx];
+                output[output_offset] = acc[seq_idx];
             }
         }
     } // Gemm2 calculation end
@@ -545,6 +562,9 @@ KERNEL(sdpa_opt)(
     const __global INPUT4_TYPE* scale,
 #endif
     __global OUTPUT_TYPE* output,
+#ifdef BEAM_TABLE_TYPE
+    const __global BEAM_TABLE_TYPE* beam_table,
+#endif
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
     __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
     __global OUTPUT_TYPE* tmp_out
@@ -637,6 +657,10 @@ KERNEL(sdpa_opt)(
             // Main Gemm1 calculation loop
             uint seq_len = sgid * TARGET_SEQ_LEN_BLOCK_SIZE;
             for (; seq_len < partition_seq_len; seq_len += SUBGROUPS_PER_WG * SUBGROUP_SIZE) {
+#ifdef BEAM_TABLE_TYPE
+                const uint b_idx = beam_table[FUNC_CALL(get_bt_index_key)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len + sglid, 0)];
+                const uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len + sglid, 0);
+#else
 #ifdef INPUT1_DIMS_ORDER
                 uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
                 uint key_offset_next_seq = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len + 1, 0);
@@ -644,6 +668,7 @@ KERNEL(sdpa_opt)(
 #else
                 uint key_offset = INPUT1_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, 0);
                 const uint key_pitch = HEAD_SIZE;
+#endif
 #endif
 
                 INPUT0_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {INPUT0_VAL_ZERO};
@@ -660,7 +685,11 @@ KERNEL(sdpa_opt)(
                     }
 
                     unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
+#ifdef BEAM_TABLE_TYPE
+                        INPUT1_TYPE key_vals = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index);
+#else
                         INPUT1_TYPE key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
+#endif
 
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                             acc[key_row_idx] = mad(sub_group_broadcast(key_vals, i), queries_vec[i], acc[key_row_idx]);
@@ -801,10 +830,15 @@ KERNEL(sdpa_opt)(
 #endif
 
         for (uint seq_len = 0; seq_len < partition_seq_len / SUBGROUP_SIZE; seq_len++) {
+#ifdef BEAM_TABLE_TYPE
+            const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE)];
+            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE);
+#else
 #ifdef INPUT2_DIMS_ORDER
             uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
 #else
             uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+#endif
 #endif
 
             OUTPUT_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
@@ -813,12 +847,18 @@ KERNEL(sdpa_opt)(
             }
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+#ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+#else
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
+#endif
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
                 }
 
+#ifndef BEAM_TABLE_TYPE
                 value_offset += value_pitch;
+#endif
             }
         }
 
@@ -833,17 +873,31 @@ KERNEL(sdpa_opt)(
                 qk_val[seq_idx] = qk_local[qk_offset];
                 qk_offset += SEQ_LEN_PARTITION_SIZE;
             }
-
+#ifdef BEAM_TABLE_TYPE
+            const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start + sglid, sgid * SUBGROUP_SIZE)];
+            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start + sglid, sgid * SUBGROUP_SIZE);
+#else
+#ifdef INPUT2_DIMS_ORDER
             uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start, head_size_idx);
+#else
+            uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len_leftovers_start, head_size_idx);
+#endif
+#endif
 
             for (uint seq_len_idx = 0; seq_len_idx < partition_seq_len - seq_len_leftovers_start; seq_len_idx++) {
+#ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
+#else
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
+#endif
 
                 for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], seq_len_idx), value_val, acc[seq_idx]);
                 }
 
+#ifndef BEAM_TABLE_TYPE
                 value_offset += value_pitch;
+#endif
             }
         }
 
@@ -890,10 +944,15 @@ KERNEL(sdpa_opt)(
 #endif
 
         for (uint seq_len = 0; seq_len < partition_seq_len / SUBGROUP_SIZE; seq_len++) {
+#ifdef BEAM_TABLE_TYPE
+            const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE)];
+            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE);
+#else
 #ifdef INPUT2_DIMS_ORDER
             uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
 #else
             uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+#endif
 #endif
 
             OUTPUT_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
@@ -902,12 +961,18 @@ KERNEL(sdpa_opt)(
             }
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+#ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+#else
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
+#endif
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
                 }
 
+#ifndef BEAM_TABLE_TYPE
                 value_offset += value_pitch;
+#endif
             }
         }
 
