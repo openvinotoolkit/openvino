@@ -355,7 +355,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto optimal_subgroup_size = 16;
             const auto head_size = query_ps[query_ps.size() - 1].get_length();
             bool valid_head_size = head_size % optimal_subgroup_size == 0;
-            valid_head_size &= (head_size == 128) || (func->get_variables().size() > 0 && head_size >= 64 && head_size <= 256);
+            valid_head_size &= (head_size >= 64 && head_size <= 256);
             if (!valid_head_size) {
                 return false;
             }
