@@ -9,9 +9,7 @@ namespace ov {
 namespace intel_gpu {
 namespace op {
 
-IndirectSDPA::IndirectSDPA(const ov::Output<Node>& Q,
-                           const ov::Output<Node>& K,
-                           const ov::Output<Node>& V,
+IndirectSDPA::IndirectSDPA(const OutputVector& data_inputs,
                            const ov::Output<Node>& beam_table,
                            const bool is_causal,
                            const int64_t indirect_axis,
@@ -20,62 +18,28 @@ IndirectSDPA::IndirectSDPA(const ov::Output<Node>& Q,
                            const std::vector<int64_t>& order_v,
                            const std::vector<int64_t>& order_out,
                            const ov::element::Type output_type)
-    : ov::intel_gpu::op::SDPA(Q, K, V, order_q, order_k, order_v, order_out, is_causal, output_type)
+    : ov::intel_gpu::op::SDPA(data_inputs, is_causal, order_q, order_k, order_v, order_out, output_type)
     , m_indirect_axis(indirect_axis) {
-    set_argument(3, beam_table);
-    validate_and_infer_types();
-}
-
-IndirectSDPA::IndirectSDPA(const ov::Output<Node>& Q,
-                           const ov::Output<Node>& K,
-                           const ov::Output<Node>& V,
-                           const ov::Output<Node>& attn_mask,
-                           const ov::Output<Node>& beam_table,
-                           const bool is_causal,
-                           const int64_t indirect_axis,
-                           const std::vector<int64_t>& order_q,
-                           const std::vector<int64_t>& order_k,
-                           const std::vector<int64_t>& order_v,
-                           const std::vector<int64_t>& order_out,
-                           const ov::element::Type output_type)
-    : ov::intel_gpu::op::SDPA(Q, K, V, attn_mask, order_q, order_k, order_v, order_out, is_causal, output_type)
-    , m_indirect_axis(indirect_axis) {
-    set_argument(4, beam_table);
-    validate_and_infer_types();
-}
-
-IndirectSDPA::IndirectSDPA(const ov::Output<Node>& Q,
-                           const ov::Output<Node>& K,
-                           const ov::Output<Node>& V,
-                           const ov::Output<Node>& attn_mask,
-                           const ov::Output<Node>& scale,
-                           const ov::Output<Node>& beam_table,
-                           const bool is_causal,
-                           const int64_t indirect_axis,
-                           const std::vector<int64_t>& order_q,
-                           const std::vector<int64_t>& order_k,
-                           const std::vector<int64_t>& order_v,
-                           const std::vector<int64_t>& order_out,
-                           const ov::element::Type output_type)
-    : ov::intel_gpu::op::SDPA(Q, K, V, attn_mask, scale, order_q, order_k, order_v, order_out, is_causal, output_type)
-    , m_indirect_axis(indirect_axis) {
-    set_argument(5, beam_table);
+    auto beam_table_idx = data_inputs.size();
+    set_argument(beam_table_idx, beam_table);
     validate_and_infer_types();
 }
 
 std::shared_ptr<ov::Node> IndirectSDPA::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
-    if (new_args.size() == 4) {
-        return std::make_shared<IndirectSDPA>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                              m_is_causal, m_indirect_axis, m_order_q, m_order_k, m_order_v, m_order_out, m_output_type);
-    } else if (new_args.size() == 5) {
-        return std::make_shared<IndirectSDPA>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4),
-                                              m_is_causal, m_indirect_axis, m_order_q, m_order_k, m_order_v, m_order_out, m_output_type);
-    } else {
-        return std::make_shared<IndirectSDPA>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4), new_args.at(5),
-                                              m_is_causal, m_indirect_axis, m_order_q, m_order_k, m_order_v, m_order_out, m_output_type);
-    }
+    // Exclude beam_table input
+    OutputVector data_inputs(new_args.begin(), new_args.end() - 1);
+
+    return std::make_shared<IndirectSDPA>(data_inputs,
+                                          new_args.back(),
+                                          m_is_causal,
+                                          m_indirect_axis,
+                                          m_order_q,
+                                          m_order_k,
+                                          m_order_v,
+                                          m_order_out,
+                                          m_output_type);
 }
 
 void IndirectSDPA::validate_and_infer_types() {

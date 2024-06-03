@@ -72,7 +72,6 @@ protected:
     }
 
     static size_t get_beam_table_id(std::shared_ptr<const scaled_dot_product_attention> primitive) {
-        GPU_DEBUG_TRACE << "get_beam_table_id " << primitive->input_size() - 1 << "\n";
         return primitive->input_size() - 1;
     }
 
