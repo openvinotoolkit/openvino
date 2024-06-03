@@ -701,7 +701,7 @@ void Node::filterSupportedPrimitiveDescriptors() {
                                                fmt);
         return desc.isCompatible(fmt_tdesc);
     };
-
+    //
     auto isNotSuitableDesc = [&](const NodeDesc& desc) {
         const auto &config = desc.getConfig();
         if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
