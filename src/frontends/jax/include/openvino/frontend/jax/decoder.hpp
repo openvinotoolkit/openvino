@@ -5,10 +5,11 @@
 #pragma once
 
 #include <cstddef>
+
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
-#include "openvino/frontend/jax/JaxprEqn.hpp"
 #include "openvino/frontend/jax/JaxEffect.hpp"
+#include "openvino/frontend/jax/JaxprEqn.hpp"
 
 namespace ov {
 namespace frontend {
@@ -72,7 +73,8 @@ public:
     // Returns jax node schema as a string
     virtual const std::string& get_schema() const = 0;
 
-    // Get the inputs size. Note that jaxpr flattens the inputs in python. Therefore we do not need to deal with nested inputs here.
+    // Get the inputs size. Note that jaxpr flattens the inputs in python. Therefore we do not need to deal with nested
+    // inputs here.
     virtual size_t num_inputs() const = 0;
 
     // Get the outputs size.

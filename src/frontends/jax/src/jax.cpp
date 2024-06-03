@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/jax/frontend.hpp"
 #include "openvino/frontend/jax/visibility.hpp"
+#include "openvino/frontend/manager.hpp"
 
 JAX_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;

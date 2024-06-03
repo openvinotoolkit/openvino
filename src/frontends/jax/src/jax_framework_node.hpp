@@ -18,9 +18,9 @@ public:
     static constexpr const char* failed_conversion_key = "PtException";
 
     JaxFrameworkNode(const std::shared_ptr<JaxDecoder>& decoder,
-                    const OutputVector& inputs,
-                    size_t output_size,
-                    bool is_reverseprop = false)
+                     const OutputVector& inputs,
+                     size_t output_size,
+                     bool is_reverseprop = false)
         : ov::op::util::FrameworkNode(inputs, output_size, decoder->get_subgraph_size()),
           m_decoder(decoder) {
         ov::op::util::FrameworkNodeAttrs attrs;

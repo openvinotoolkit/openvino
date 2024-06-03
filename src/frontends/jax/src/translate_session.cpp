@@ -5,10 +5,10 @@
 #include "translate_session.hpp"
 
 #include "input_model.hpp"
+#include "jax_framework_node.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
-#include "jax_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -67,10 +67,9 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
     return model;
 }
 
-std::shared_ptr<Model> TranslateSession::convert_jax_model(
-    std::shared_ptr<JaxDecoder> jax_model,
-    const TensorMap& external_tensor_map,
-    const std::shared_ptr<jax::InputModel>& input_model) {
+std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDecoder> jax_model,
+                                                           const TensorMap& external_tensor_map,
+                                                           const std::shared_ptr<jax::InputModel>& input_model) {
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         auto parameters = std::make_shared<ParameterVector>();
@@ -363,8 +362,7 @@ using ReversepropCreatorFunction = std::function<ov::Output<ov::Node>(const Outp
 Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<JaxDecoder>& node,
                                                   const Output<Node>& direct_op_output,
                                                   const Output<Node>& value) {
-    std::map<std::string, ReversepropCreatorFunction> backprop_map = {
-    };
+    std::map<std::string, ReversepropCreatorFunction> backprop_map = {};
 
     Output<Node> backprop_node;
     try {
@@ -381,6 +379,6 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<JaxDecod
     return std::make_shared<JaxFrameworkNode>(node, OutputVector{value}, 1, true);
 }
 
-}
+}  // namespace jax
 }  // namespace frontend
 }  // namespace ov

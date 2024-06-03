@@ -10,10 +10,8 @@ namespace ov {
 namespace frontend {
 namespace jax {
 
-class JAX_API JaxprEqn{
-    
-};
+class JAX_API JaxprEqn {};
 
-} // namespace jax
-} // namespace frontend
-} // namespace ov
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

@@ -4,12 +4,12 @@
 
 #include "utils.hpp"
 
+#include "jax_framework_node.hpp"
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
-#include "jax_framework_node.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
@@ -159,7 +159,7 @@ const std::unordered_map<int64_t, element::Type> JAX_TO_OV_TYPE{
 };
 
 const std::unordered_map<std::string, ov::op::PadType> JAX_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
-                                                                            {"same", ov::op::PadType::SAME_UPPER}};
+                                                                          {"same", ov::op::PadType::SAME_UPPER}};
 }  // namespace
 
 element::Type convert_dtype(int64_t pt_type) {
@@ -211,9 +211,9 @@ bool is_empty_list(const Output<Node>& input) {
 
 namespace {
 std::shared_ptr<JaxFrameworkNode> create_fw_node_with_exception(const NodeContext& context,
-                                                               const ov::OutputVector& inputs,
-                                                               size_t num_outputs,
-                                                               const std::string& exception_message) {
+                                                                const ov::OutputVector& inputs,
+                                                                size_t num_outputs,
+                                                                const std::string& exception_message) {
     auto fw_node = std::make_shared<JaxFrameworkNode>(context.get_decoder(), inputs, num_outputs);
     context.mark_node(fw_node);
     auto attrs = fw_node->get_attrs();

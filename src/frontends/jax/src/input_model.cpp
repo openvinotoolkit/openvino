@@ -4,10 +4,10 @@
 
 #include "input_model.hpp"
 
+#include <iostream>
+
 #include "place.hpp"
 #include "utils.hpp"
-
-#include <iostream>
 
 namespace ov {
 namespace frontend {
@@ -68,9 +68,8 @@ void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialSha
 
 ov::PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
     auto jax_place = std::dynamic_pointer_cast<jax::Place>(place);
-    FRONT_END_GENERAL_CHECK(
-        jax_place,
-        "Provided place is invalid. Only place of input or output is supported by Jax Frontend.");
+    FRONT_END_GENERAL_CHECK(jax_place,
+                            "Provided place is invalid. Only place of input or output is supported by Jax Frontend.");
     return jax_place->get_partial_shape();
 }
 
@@ -84,9 +83,8 @@ void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Ty
 
 ov::element::Type InputModel::get_element_type(const Place::Ptr& place) const {
     auto jax_place = std::dynamic_pointer_cast<jax::Place>(place);
-    FRONT_END_GENERAL_CHECK(
-        jax_place,
-        "Provided place is invalid. Only place of input or output is supported by Jax Frontend.");
+    FRONT_END_GENERAL_CHECK(jax_place,
+                            "Provided place is invalid. Only place of input or output is supported by Jax Frontend.");
     return jax_place->get_element_type();
 }
 

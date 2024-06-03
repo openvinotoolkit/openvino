@@ -28,8 +28,8 @@ public:
     /// main body conversion.
     /// \return fully converted OV Model
     std::shared_ptr<Model> convert_jax_model(std::shared_ptr<JaxDecoder> jax_model,
-                                                 const TensorMap& external_tensor_map = {},
-                                                 const std::shared_ptr<jax::InputModel>& input_model = nullptr);
+                                             const TensorMap& external_tensor_map = {},
+                                             const std::shared_ptr<jax::InputModel>& input_model = nullptr);
 
     /// \brief Returns reverseprop operations for direct operation
     Output<Node> get_reverseprop_op(const std::shared_ptr<JaxDecoder>& node,
@@ -60,6 +60,6 @@ private:
     std::map<std::string, uint64_t> m_op_statistics;
 };
 
-} // namespace jax
-} // namespace frontend
-} // namespace ov
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

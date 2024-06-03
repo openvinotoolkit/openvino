@@ -4,11 +4,11 @@
 
 #include "placeholder_pass.hpp"
 
+#include "jax_framework_node.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "jax_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -25,8 +25,8 @@ PrimPlaceholderReplacer::PrimPlaceholderReplacer() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(tuple_unpack,
-                                                          "ov::frontend::jax::pass::PrimPlaceholderReplacer");
+    auto m =
+        std::make_shared<ov::pass::pattern::Matcher>(tuple_unpack, "ov::frontend::jax::pass::PrimPlaceholderReplacer");
     this->register_matcher(m, callback);
 };
 

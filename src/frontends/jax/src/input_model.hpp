@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #pragma once
 
 #include "openvino/frontend/input_model.hpp"
@@ -48,6 +47,6 @@ private:
     std::unordered_map<size_t, PlaceDesc> m_descriptors;
 };
 
-} // namespace jax
-} // namespace frontend
-} // namespace ov
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov
