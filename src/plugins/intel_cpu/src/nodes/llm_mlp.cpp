@@ -17,11 +17,6 @@
 
 #include "llm_mlp_utils.hpp"
 
-#define ASSERT(cond) \
-    if (!(cond)) { \
-        OPENVINO_THROW(""); \
-    }
-
 struct ANSIcolor {
     const char* code;
     std::string str;
@@ -152,274 +147,6 @@ public:
     }
 };
 
-// https://stackoverflow.com/questions/570669/checking-if-a-double-or-float-is-nan-in-c/57770634#57770634
-static inline uint32_t load_ieee754_rep(float a) {
-    uint32_t r;
-    static_assert(sizeof r == sizeof a, "Unexpected sizes.");
-    std::memcpy(&r, &a, sizeof a); // Generates movd instruction.
-    return r;
-}
-constexpr uint32_t inf_float_shl1 = UINT32_C(0xff000000);
-// The shift left removes the sign bit. The exponent moves into the topmost bits,
-// so that plain unsigned comparison is enough.
-static inline bool isnan2(float a)     { return load_ieee754_rep(a) << 1  > inf_float_shl1; }
-static inline bool isinf2(float a)     { return load_ieee754_rep(a) << 1 == inf_float_shl1; }
-static inline bool isfinite2(float a)  { return load_ieee754_rep(a) << 1  < inf_float_shl1; }
-
-static int use_mmap = readenv("USE_MMAP", 0, "using mmap/munmap insread of aligned_alloc/free to allocate tensor.");
-
-static void * do_alloc(size_t size, size_t align=64) {
-    if (use_mmap)
-        return mmap(0, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-    return aligned_alloc(align, size);
-}
-
-static void do_free(void * p, size_t size) {
-    if (use_mmap) {
-        ::munmap(p, size);
-        return;
-    }
-    ::free(p);
-}
-
-template<typename T>
-struct tensor2D {
-    int dims[2] = {0};
-    std::shared_ptr<T> data;
-    uint64_t capacity = 0;
-    int stride = 0;
-    bool force_compact = false;
-    int padded_dim1 = 0;
-
-    tensor2D() = default;
-
-    operator bool() {
-        return dims[0] * dims[1] > 0;
-    }
-
-    tensor2D(int d0, int d1, bool _force_compact = false) {
-        capacity = 0;
-        resize(d0, d1, _force_compact);
-    }
-
-    tensor2D(int d0, int d1, T * ext, int _stride) {
-        capacity = 1;
-        data = std::shared_ptr<T>(ext, [](void *) {});
-        dims[0] = d0;
-        dims[1] = d1;
-        stride = _stride;
-        padded_dim1 = stride / sizeof(T);
-    }
-
-    void set_ext(void * pv) {
-        data = std::shared_ptr<T>(reinterpret_cast<T*>(pv), [](void *) {});
-    }
-
-    tensor2D<T> Tr() {
-        tensor2D<T> ret(dims[1], dims[0]);
-        for(int c0=0; c0 < dims[0]; ++c0) {
-            for(int c1=0; c1 < dims[1]; ++c1) {
-                ret(c1, c0) = (*this)(c0, c1);
-            }
-        }
-        return ret;
-    }
-    tensor2D<T> clone() const {
-        tensor2D<T> ret;
-        ret.resize(dims[0], dims[1], force_compact);
-        if (ret.stride == stride) {
-            memcpy(ret.data.get(), data.get(), dims[0] * stride);
-        }else{
-            for(int i=0;i<dims[0];i++) {
-                memcpy(&ret(i,0), &(*this)(i,0), ret.stride);
-            }
-        }
-        return ret;
-    }
-
-    void resize(int d0, int d1, bool _force_compact = false) {
-        force_compact = _force_compact;
-        dims[0] = d0;
-        dims[1] = d1;
-        stride = d1 * sizeof(T);
-        if ((stride % 64) && (!force_compact)) {
-            ASSERT(false);
-            //auto stride_fix = rndup(stride, 64);
-            //logger() << "\tWarnning: stride " << stride << " is not aligned to cache line, will increase to " << stride_fix
-            //          << " (" << stride_fix/64 << " cache lines)\n";
-            //stride = stride_fix;
-        }
-        padded_dim1 = stride / sizeof(T);
-
-        // resize method never shrink capacity, and extra T is added to put nan as test
-        auto need_capacity = dims[0] * stride + sizeof(T);
-        if (capacity < need_capacity) {
-            capacity = need_capacity;
-            // align begin address to cache line is vital, so tile load can
-            // use all bandwidth (L1D/L2 only deliver data in unit of 64-byte aligned cache-line)
-            data = std::shared_ptr<T>(
-                        reinterpret_cast<T*>(do_alloc(capacity)),
-                        [need_capacity](void * p) { do_free(p, need_capacity); });
-            if (reinterpret_cast<uintptr_t>(data.get()) % 64)
-                std::cout << "WARNING: resize(), data is not cache-line aligned!" << std::endl;
-        }
-        // put a NaN at the end to test over-read
-        // https://en.wikipedia.org/wiki/Bfloat16_floating-point_format
-        #define INF 0xff80 
-        #define NAN1 (INF + 1)
-        if (sizeof(T) == 2) {
-            *reinterpret_cast<uint16_t*>(data.get() + dims[0] * padded_dim1) = NAN1;
-        }
-        if (sizeof(T) == 4) {
-            *reinterpret_cast<uint32_t*>(data.get() + dims[0] * padded_dim1) = (INF << 16) + 1;
-        }
-    }
-
-    T & operator[](int i) {
-        return data.get()[i];
-    }
-
-    const T & operator[](int i) const {
-        return data.get()[i];
-    }
-
-    //https://stackoverflow.com/questions/1936399/c-array-operator-with-multiple-arguments
-    T & operator()(int i0, int i1) {
-        return (*this)[i0 * padded_dim1 + i1];
-    }
-
-    const T & operator()(int i0, int i1) const {
-        return (*this)[i0 * padded_dim1 + i1];
-    }
-
-    void operator=(const T & v) {
-        for(int k = 0; k<dims[0]*padded_dim1; k++)
-            (*this)[k] = v;
-    }
-
-    tensor2D<T>& operator=(const tensor2D<T> & t2) {
-        assert(dims[0]*dims[1] == t2.dims[0] * t2.dims[1]);
-        for(int c0 = 0; c0 < dims[0]; c0++)
-        for(int c1 = 0; c1 < dims[1]; c1++) {
-            int k = c0*dims[1] + c1;
-            auto c2 = k / t2.dims[1];
-            auto c3 = k % t2.dims[1];
-            (*this)(c0, c1) = t2(c2, c3);
-        }
-        return *this;
-    }
-
-    // move semantics
-    tensor2D(tensor2D<T> && t2) {
-        dims[0] = t2.dims[0];
-        dims[1] = t2.dims[1];
-        data = t2.data;
-        capacity = t2.capacity;
-        stride = t2.stride;
-        padded_dim1 = t2.padded_dim1;
-        force_compact = t2.force_compact;
-        t2.capacity = 0;
-        t2.data.reset();
-    }
-
-    tensor2D<T>&  operator=(tensor2D<T> && t2) {
-        dims[0] = t2.dims[0];
-        dims[1] = t2.dims[1];
-        data = t2.data;
-        capacity = t2.capacity;
-        stride = t2.stride;
-        padded_dim1 = t2.padded_dim1;
-        force_compact = t2.force_compact;
-        t2.capacity = 0;
-        t2.data.reset();
-        return *this;
-    }
-
-    bool operator==(const tensor2D<T> & rhs) const {
-        return allclose(rhs);
-    }
-
-    bool allclose(const tensor2D<T> & rhs, float rtol=1e-05, float atol=1e-08) const {
-        // 
-        // absolute(a - b) <= (atol + rtol * absolute(b))
-        //   here *this is a, rhs is b
-        if (dims[0] != rhs.dims[0] || dims[1] != rhs.dims[1])
-            return false;
-        float max_rtol = 0;
-        float max_atol = 0;
-        for(int i0=0; i0<dims[0]; i0++)
-        for(int i1=0; i1<dims[1]; i1++) {
-            // with -ffast-math,  std::isnan, std::isinf,  x != x  always return false
-            // so we need special logic to test nan here
-            if (std::is_same<T, ov::bfloat16>::value ||
-                std::is_same<T, float>::value) {
-                float f0 = (*this)(i0,i1);
-                float f1 = rhs(i0,i1);
-                if (isnan2(f1) || isnan2(f0)) {
-                    std::cout << " nan is found @(" << i0 << "," << i1 << ") : f0=" << f0 << ",  f1=" << f1 << std::endl;
-                    return false;
-                }
-            }
-
-            float a = (*this)(i0,i1);
-            float b = rhs(i0,i1);
-
-            auto absolute_diff = std::abs(a - b);
-            auto absolute_b = std::abs(b);
-            
-            auto cur_rtol = (absolute_diff - atol)/absolute_b;
-            auto cur_atol = absolute_diff - rtol * absolute_b;
-
-            max_rtol = std::max(max_rtol, cur_rtol);
-            max_atol = std::max(max_atol, cur_atol);
-            if (absolute_diff <= (atol + rtol * absolute_b))
-                continue;
-            std::cout << " operator== failed at (" << i0 << ", " << i1 << ")  value "
-                        << (*this)(i0,i1) << "!=" << rhs(i0,i1) << std::endl;
-            std::cout << "to pass: adjust rtol to " << cur_rtol << " OR atol to " << cur_atol << std::endl;
-            return false;
-        }
-        std::cout << "[all pass] with max rtol,atol=" << max_rtol << "," << max_atol << std::endl;
-        return true;
-    }
-    bool compare(const tensor2D<T> & rhs, float tolerance) {
-        float max_abs_diff = 0;
-        float max_rel_diff = 0;
-        if (dims[0] != rhs.dims[0] || dims[1] != rhs.dims[1])
-            return false;
-        for(int i0=0; i0<dims[0]; i0++)
-        for(int i1=0; i1<dims[1]; i1++) {
-            auto diff = std::fabs((*this)(i0,i1) - rhs(i0,i1));
-            auto rel_diff = diff/std::fabs((*this)(i0,i1));
-            max_abs_diff = std::max(max_abs_diff, diff);
-            if (std::fabs((*this)(i0,i1) > 0) && diff > 0)
-                max_rel_diff = std::max(max_rel_diff, rel_diff);
-        }
-        std::cout << "max_abs_diff=" << max_abs_diff << " max_rel_diff=" << max_rel_diff;
-        return tolerance > max_abs_diff;
-    }
-    friend std::ostream& operator<<(std::ostream& out, const tensor2D<T>& obj) {
-        int i0;
-        auto showline = [&](int i) {
-            out << "[" << i << "," << 0 << "]: ";
-            int i1;
-            for(i1=0; i1<obj.dims[1] && i1 < 8; i1++) {
-                out << +obj(i0,i1) << ",";
-            }
-            if (i1 < obj.dims[1]) out << "...";
-            out << std::endl;
-        };
-        for(i0=0; i0 < obj.dims[0] && i0 < 32; i0++) {
-            showline(i0);
-        }
-        if (i0 < obj.dims[0]) {
-            out << "... ... ... ..." << std::endl;
-            showline(obj.dims[0] - 1);
-        }
-        return out;
-    }
-};
-
 class MKernel : public jit_generator {
 public:
     TileConfig m_tile_cfg;
@@ -541,18 +268,17 @@ public:
     // N should be m_BN
     // K should be m_BK
     template <typename T>
-    void prepareB(tensor2D<ov::bfloat16>& ret, T* p_weight, int stride, int N, int K, bool do_resize=true) {
-        ASSERT((N % 32) == 0);
-        ASSERT((K % 32) == 0);
+    void prepareB(PlainTensor& ret, T* p_weight, int stride, int N, int K) {
+        OPENVINO_ASSERT((N % 32) == 0);
+        OPENVINO_ASSERT((K % 32) == 0);
         // weight matrix is in unit of [N/32, Kx32]
-        if (do_resize)
-            ret.resize(N / 32, K * 32, true);
+        ret.resize<ov::bfloat16>({N / 32, K * 32});
 
         auto N_stride = stride / sizeof(T);
         for (int n = 0, blkn = 0; n < N; n += 32, blkn++) {
             for (int k = 0, blkk = 0; k < K; k += 32, blkk++) {
                 // two adjacent 32x16 (512) block of weight: dst0 & dst1
-                auto* dst0 = &ret(blkn, blkk * 1024);
+                auto* dst0 = ret.ptr<ov::bfloat16>(blkn, blkk * 1024);
                 auto* dst1 = dst0 + 16 * 32;
                 auto valid_k = (K - k) < 32 ? (K - k) : 32;
 
@@ -730,18 +456,18 @@ public:
     //
     void run(int M,  // actual M
              uint8_t* pA,
-             int strideA,                         // A [M, K]
-             tensor2D<ov::bfloat16>& repacked_B,  // B [N/32, K*32]
+             int strideA,              // A [M, K]
+             PlainTensor& repacked_B,  // B [N/32, K*32] ov::bfloat16
              uint8_t* pC,
-             int strideC,          // C [M, N]
+             int strideC,              // C [M, N]
              uint8_t* prefetch_B,  // prefetch B
              bool do_accumulation) {
         call_args args;
         // number of blocks in N dimension (in unit of 32 columns)
-        auto num_blkN = repacked_B.dims[0];
-        auto K = repacked_B.dims[1] / 32;
-        auto* pB = reinterpret_cast<uint8_t*>(&repacked_B[0]);
-        auto strideB = repacked_B.stride;
+        auto num_blkN = repacked_B.size(0);
+        auto K = repacked_B.size(1) / 32;
+        auto* pB = repacked_B.ptr<uint8_t>();
+        auto strideB = repacked_B.stride_bytes(0);
 
         args.do_accumulation = do_accumulation;
         args.k_tiles = K / 32;
@@ -1046,8 +772,8 @@ public:
 
 };
 
-static tensor2D<float>& getC(int ithr) {
-    static std::vector<tensor2D<float>> all_C(parallel_get_max_threads());
+static PlainTensor& getC(int ithr) {
+    static std::vector<PlainTensor> all_C(parallel_get_max_threads());
     return all_C[ithr];
 }
 
@@ -1059,7 +785,7 @@ public:
         ReduceAdd2bh* p_jit_reduce2bh_1 = nullptr;
         ReduceAdd2bh* p_jit_reduce2bh_2 = nullptr;
 
-        std::vector<tensor2D<ov::bfloat16>> weights;
+        std::vector<PlainTensor> weights;   // ov::bfloat16 weights for current thread
 
         std::shared_ptr<std::atomic_int> sync_flag;
         int n0 = 0;
@@ -1092,7 +818,7 @@ public:
 
         TileConfig m_tcfg[32];
 
-        void run(int M, uint8_t* pA, int strideA, tensor2D<float>& C) {
+        void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
             int num_blk_K = (k1 - k0) / blk_K_size;
 
             auto Mtails = M % 32;
@@ -1100,9 +826,9 @@ public:
 
             auto C_M = Mbody + (Mtails ? 32 : 0);
             //if (C.dims[0] < C_M)
-            C.resize(C_M, BN);
-            auto pC = reinterpret_cast<uint8_t*>(&C[0]);
-            
+            C.resize<float>({C_M, BN});
+            auto pC = reinterpret_cast<uint8_t*>(C.ptr_v());
+
             auto& tile_configer = (Singleton<TileConfiger>::get());
 
             pA += k0 * sizeof(ov::bfloat16);
@@ -1113,8 +839,8 @@ public:
             //int BK = (k1 - k0);
 
             for (int ki = 0; ki < num_blk_K; ki++) {
-                tensor2D<ov::bfloat16>& blockB = weights[ki];
-                tensor2D<ov::bfloat16>& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
+                PlainTensor& blockB = weights[ki];
+                PlainTensor& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
                 if (Mbody) {
                     tile_configer.do_config(&m_tcfg[0]);
                     p_jit_amx0->run(Mbody,
@@ -1122,8 +848,8 @@ public:
                                     strideA,
                                     blockB,
                                     pC,
-                                    C.stride,
-                                    reinterpret_cast<uint8_t*>(&blockB1[0]),
+                                    C.stride_bytes(0),
+                                    reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
                                     do_accumulation);
                 }
 
@@ -1133,9 +859,9 @@ public:
                                     pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
                                     strideA,
                                     blockB,
-                                    pC + Mbody * C.stride,
-                                    C.stride,
-                                    reinterpret_cast<uint8_t*>(&blockB1[0]),
+                                    pC + Mbody * C.stride_bytes(0),
+                                    C.stride_bytes(0),
+                                    reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
                                     do_accumulation);
                 }
                 do_accumulation = true;
@@ -1163,8 +889,8 @@ public:
         const int blk_K_size = 256;
         // prepare weights, split N among threads
         // in unit of 32
-        ASSERT((N % 32) == 0);
-        ASSERT((K % blk_K_size) == 0);
+        OPENVINO_ASSERT((N % 32) == 0);
+        OPENVINO_ASSERT((K % blk_K_size) == 0);
         auto nthr = parallel_get_max_threads();
         auto num_blk_N = N / 32;
         auto num_blk_K = K / blk_K_size;
@@ -1289,10 +1015,10 @@ public:
                         auto& peer = works[peer_ithr];
                         auto& peerC = getC(peer_ithr);
                         // the other one has finished, we can do the reduce sum
-                        auto* src0 = &workC[0];
-                        auto* src1 = &peerC[0];
+                        auto* src0 = workC.ptr<float>();
+                        auto* src1 = peerC.ptr<float>();
                         auto* dst = dstC + work.n0;
-                        auto strideS = workC.stride / sizeof(*src0);
+                        auto strideS = workC.stride(0);
                         auto strideD = strideC / sizeof(*dst);
                         for (int m = 0; m < M; m++, src0 += strideS, src1 += strideS, dst += strideD) {
                             // the prefetch distance is increased to ensure by the time store happens
@@ -1302,9 +1028,9 @@ public:
                         }
                     }
                 } else {
-                    auto* src = &workC[0];
+                    auto* src = workC.ptr<float>();
                     auto* dst = dstC + work.n0;
-                    auto strideS = workC.stride / sizeof(*src);
+                    auto strideS = workC.stride(0);
                     auto strideD = strideC / sizeof(*dst);
                     for (int m = 0; m < M; m++, src += strideS, dst += strideD) {
                         // the prefetch distance is increased to ensure by the time store happens
@@ -1326,8 +1052,8 @@ public:
                 work.run(M, pA, strideA, workC);
                 // K reduce is done, results of [M, BN] sub-block is ready in L2.
                 // combine Gate & Up
-                auto* src = &workC[0];
-                auto strideS = workC.stride / sizeof(*src);
+                auto* src = workC.ptr<float>();
+                auto strideS = workC.stride(0);
                 auto* dst = dstC + (work.n0 / 2);  // important output is only half of the total N
                 auto strideD = strideC / sizeof(*dst);
                 for (int m = 0; m < M; m++, src += strideS, dst += strideD) {
@@ -1345,7 +1071,7 @@ struct QKVProj : public LLMMLP::Executor  {
         MKernel* p_jit_amx0 = nullptr;
         ReduceAdd2bh* p_jit2bh = nullptr;
 
-        std::vector<tensor2D<ov::bfloat16>> weights;
+        std::vector<PlainTensor> weights;
 
         int output_id;
         int n0 = 0;
@@ -1375,20 +1101,20 @@ struct QKVProj : public LLMMLP::Executor  {
 
         TileConfig m_tcfg[32];
 
-        void run(int M, uint8_t* pA, int strideA, tensor2D<float>& C) {
+        void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
             int num_blk_K = weights.size();
 
             auto Mtails = M % 32;
             auto Mbody = M - Mtails;
 
             auto& tile_configer = (Singleton<TileConfiger>::get());
-            C.resize(Mbody + (Mtails ? 32 : 0), BN);
+            C.resize<float>({Mbody + (Mtails ? 32 : 0), BN});
 
-            auto pC = reinterpret_cast<uint8_t*>(&C[0]);
+            auto pC = reinterpret_cast<uint8_t*>(C.ptr<float>());
             bool do_accumulation = false;
             for (int ki = 0; ki < num_blk_K; ki++) {
-                tensor2D<ov::bfloat16>& blockB = weights[ki];
-                tensor2D<ov::bfloat16>& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
+                PlainTensor& blockB = weights[ki];
+                PlainTensor& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
 
                 if (Mbody) {
                     tile_configer.do_config(&m_tcfg[0]);
@@ -1397,8 +1123,8 @@ struct QKVProj : public LLMMLP::Executor  {
                                     strideA,
                                     blockB,
                                     pC,
-                                    C.stride,
-                                    reinterpret_cast<uint8_t*>(&blockB1[0]),
+                                    C.stride_bytes(0),
+                                    reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
                                     do_accumulation);
                 }
 
@@ -1408,9 +1134,9 @@ struct QKVProj : public LLMMLP::Executor  {
                                     pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
                                     strideA,
                                     blockB,
-                                    pC + Mbody * C.stride,
-                                    C.stride,
-                                    reinterpret_cast<uint8_t*>(&blockB1[0]),
+                                    pC + Mbody * C.stride_bytes(0),
+                                    C.stride_bytes(0),
+                                    reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
                                     do_accumulation);
                 }
                 do_accumulation = true;
@@ -1427,8 +1153,8 @@ struct QKVProj : public LLMMLP::Executor  {
         const int blk_K_size = 256;
         // prepare weights, split N among threads
         // in unit of 32
-        ASSERT((N % 32) == 0);
-        ASSERT((K % blk_K_size) == 0);
+        OPENVINO_ASSERT((N % 32) == 0);
+        OPENVINO_ASSERT((K % blk_K_size) == 0);
         auto nthr = parallel_get_max_threads();
         auto num_blk_N = N / 32;
         auto num_blk_K = K / blk_K_size;
@@ -1468,7 +1194,7 @@ struct QKVProj : public LLMMLP::Executor  {
 
                     work.weights.resize(num_blk_K);
                     for(auto& weight : work.weights)
-                        weight.resize(blkN, blk_K_size * 32, true);
+                        weight.resize<ov::bfloat16>({blkN, blk_K_size * 32});
 
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
@@ -1511,8 +1237,8 @@ struct QKVProj : public LLMMLP::Executor  {
                     work.run(BM, pA, strideA, C);
 
                     // compress accumulation result into target
-                    auto* src = &C[0];
-                    auto stride_src = C.stride / sizeof(*src);
+                    auto* src = C.ptr<float>();
+                    auto stride_src = C.stride(0);
                     ov::bfloat16* dst = nullptr;
                     int stride_dst = 0;
                     if (work.output_id == 0) {
@@ -1579,36 +1305,36 @@ struct MLP : LLMMLP::Executor {
     MLP() {}
 
     // MLP is not supposed to run in parallel
-    tensor2D<ov::bfloat16>& get_actUp() {
-        static tensor2D<ov::bfloat16> actUp;
+    PlainTensor& get_actUp() {
+        static PlainTensor actUp;
         return actUp;
     }
 
     // [M, K] x [N, K] => [M, N] x [K, N] => [M, K]
     // w_gate/w_up : [N, K]
     //     w_down  : [K, N]
-    void setup(ov::bfloat16* pw_gate, ov::bfloat16* pw_up, ov::bfloat16* pw_down, int K, int N) {
+    void setup(PlainTensor w_gate, PlainTensor w_up, PlainTensor w_down, int K, int N) {
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
-        tensor2D<ov::bfloat16> w_gate(N, K, pw_gate, K * sizeof(ov::bfloat16));
-        tensor2D<ov::bfloat16> w_up(N, K, pw_up, K * sizeof(ov::bfloat16));
-        tensor2D<ov::bfloat16> w_down(K, N, pw_down, N * sizeof(ov::bfloat16));
+        //tensor2D<ov::bfloat16> w_gate(N, K, pw_gate, K * sizeof(ov::bfloat16));
+        //tensor2D<ov::bfloat16> w_up(N, K, pw_up, K * sizeof(ov::bfloat16));
+        //tensor2D<ov::bfloat16> w_down(K, N, pw_down, N * sizeof(ov::bfloat16));
 
-        static tensor2D<ov::bfloat16> w_gate_up;
-        w_gate_up.resize(2 * N, K, true);
+        static PlainTensor w_gate_up;
+        w_gate_up.resize<ov::bfloat16>({2 * N, K});
         for (int n = 0; n < N; n += 16) {
             for (int i = 0; i < 16; i++)
-                memcpy(&w_gate_up(2 * n + i, 0), &w_gate(n + i, 0), K * sizeof(ov::bfloat16));
+                memcpy(w_gate_up.ptr_v(2 * n + i, 0), w_gate.ptr_v(n + i, 0), K * sizeof(ov::bfloat16));
             for (int i = 0; i < 16; i++)
-                memcpy(&w_gate_up(2 * n + 16 + i, 0), &w_up(n + i, 0), K * sizeof(ov::bfloat16));
+                memcpy(w_gate_up.ptr_v(2 * n + 16 + i, 0), w_up.ptr_v(n + i, 0), K * sizeof(ov::bfloat16));
         }
-        gate_up.setup(&w_gate_up[0], w_gate_up.stride, N * 2, K);
-        down.setup(&w_down[0], w_down.stride, K, N, true);
+        gate_up.setup(w_gate_up.ptr<ov::bfloat16>(), w_gate_up.stride_bytes(0), N * 2, K);
+        down.setup(w_down.ptr<ov::bfloat16>(), w_down.stride_bytes(0), K, N, true);
         m_N = N;
     }
 
     void setM(int M) {
         if (m_M < M) {
-            get_actUp().resize(M, m_N, false);
+            get_actUp().resize<ov::bfloat16>({M, m_N});
             //std::cout << "M=" << M << std::endl;
             m_M = M;
         }
@@ -1620,8 +1346,8 @@ struct MLP : LLMMLP::Executor {
             int BM = std::min(M - m, 512);
             setM(BM);
 
-            gate_up.runGateUp(pA, strideA, BM, &actUp[0], actUp.stride);
-            down.run(reinterpret_cast<uint8_t*>(&actUp[0]), actUp.stride, BM, dstC, strideC);
+            gate_up.runGateUp(pA, strideA, BM, actUp.ptr<ov::bfloat16>(), actUp.stride_bytes(0));
+            down.run(reinterpret_cast<uint8_t*>(actUp.ptr<ov::bfloat16>()), actUp.stride_bytes(0), BM, dstC, strideC);
 
             m += BM;
             pA += BM*strideA;
@@ -1690,9 +1416,9 @@ void LLMMLP::execute(dnnl::stream strm) {
             m_executor = exec;
         } else {
             auto exec = std::make_shared<AMX_MLP::MLP>();
-            exec->setup(getSrcMemoryAtPort(1)->getDataAs<ov::bfloat16>(),
-                    getSrcMemoryAtPort(2)->getDataAs<ov::bfloat16>(),
-                    getSrcMemoryAtPort(3)->getDataAs<ov::bfloat16>(),
+            exec->setup(getSrcMemoryAtPort(1),
+                    getSrcMemoryAtPort(2),
+                    getSrcMemoryAtPort(3),
                     m_config.hidden_size,
                     m_config.intermediate_size);
             m_executor = exec;
