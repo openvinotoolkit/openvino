@@ -194,8 +194,8 @@ void FullyConnected::execute(dnnl::stream strm) {
         // std::cout << "execute: " << getName() << ", " << id << ", " << w_rank << "\n";
         message->set_memory_used(id, w_rank);
         while (true) {
+            std::lock_guard<std::mutex> lock(message->_flagMutex);
             if (message->_use_count[id] == w_size) {
-                std::lock_guard<std::mutex> lock(message->_flagMutex);
                 message->_use_count[id] = 0;
                 for (int i = 0; i < w_size; i++) {
                     message->_memorys_table[id][i].flag = false;
@@ -394,7 +394,7 @@ void FullyConnected::execute(dnnl::stream strm) {
         {
             std::lock_guard<std::mutex> lock(message->_flagMutex);
             message->_use_count[id]++;
-        } 
+        }
     }
 }
 
