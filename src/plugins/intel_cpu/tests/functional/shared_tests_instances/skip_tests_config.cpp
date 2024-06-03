@@ -545,10 +545,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_MM_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_Conv_.*_FP16/.*_Fused=PRelu1D\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
-        retVector.emplace_back(R"(smoke_Deconv_2D_Blocked_FP16/.*brgconv_avx512.*)");
-        retVector.emplace_back(R"(nightly_Deconv_2D_Blocked_FP16/.*brgconv_avx512.*)");
-        retVector.emplace_back(R"(smoke_Deconv_3D_Blocked_FP16/.*brgconv_avx512.*)");
-        retVector.emplace_back(R"(nightly_Deconv_3D_Blocked_FP16/.*brgconv_avx512.*)");
         retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_AvgPool_CPU_4D_FP16/PoolingLayerCPUTest.CompareWithRefs/IS=\(\[\?.*\).*_Prc=f32_AvgPool_ExcludePad=1_K\(4\.4\)_S\(4\.4\)_PB\(2\.2\)_PE\(2\.2\)_Rounding=ceil.*)");
         retVector.emplace_back(R"(smoke_FC_(2|3)D_runtime_FP16/MatMulDecompressConvertTest.*transpose_b=1_weiLemType=f32.*)");
@@ -557,9 +553,6 @@ std::vector<std::string> disabledTestPatterns() {
 
     if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
         // Issue 131632
-       retVector.emplace_back(R"(smoke_Deconv_2D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
-       retVector.emplace_back(R"(smoke_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
-       retVector.emplace_back(R"(nightly_Deconv_3D_NSPC_FP16_AMX_NO_FUSING/.*brgconv_avx512_amx.*)");
        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)");
        retVector.emplace_back(R"(nightly_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)");
        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_Dynamic_FP16/.*brgemm_avx512_amx.*)");
