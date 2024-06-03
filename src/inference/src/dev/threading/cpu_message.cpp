@@ -192,7 +192,6 @@ public:
 std::shared_ptr<MessageManager> message_manager() {
     static MessageManageHolder message_manage;
     auto a = message_manage.get();
-    std::cout << "message: " << message_manage.get() << std::endl;
     return a;
 }
 

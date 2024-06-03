@@ -67,7 +67,7 @@ protected:
         std::unordered_map<int, dnnl::memory> args;
         {
             auto& input = instance.get_input_rank_placeholder_mem();
-            std::cout << input.get_layout().to_short_string() << std::endl;
+            // std::cout << input.get_layout().to_short_string() << std::endl;
             auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
             // mapping input memory here
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
