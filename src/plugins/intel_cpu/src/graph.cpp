@@ -1360,11 +1360,7 @@ void Graph::InferDynamic(SyncInferRequest* request) {
 
             if (request)
                 request->throw_if_canceled();
-            try {
-                ExecuteNode(node, stream);
-            } catch (const std::exception& exp) {
-                OPENVINO_THROW(node, exp.what());
-            }
+            ExecuteNode(node, stream);
         }
     }
 }

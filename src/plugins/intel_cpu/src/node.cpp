@@ -548,16 +548,12 @@ void Node::updateShapes() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-        try {
-            if (needShapeInfer()) {
-                auto result = shapeInfer();
-                if (ShapeInferStatus::success == result.status) {
-                    redefineOutputMemory(result.dims);
-                }
-            }
-        } catch (const std::exception& exp) {
-            THROW_CPU_NODE_ERR(exp.what());
+    if (needShapeInfer()) {
+        auto result = shapeInfer();
+        if (ShapeInferStatus::success == result.status) {
+            redefineOutputMemory(result.dims);
         }
+    }
 }
 
 void Node::updateDynamicParams() {
@@ -566,18 +562,18 @@ void Node::updateDynamicParams() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-    try {
-        if (isExecutable()) {
-            if (needPrepareParams()) {
-                OPENVINO_ASSERT(inputShapesDefined(),
-                                "Input shapes are not defined.");
-                DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
-                        " ", getName(), " ", getOriginalLayers());
-                prepareParams();
-            }
+    if (isExecutable()) {
+        if (needPrepareParams()) {
+            OPENVINO_ASSERT(inputShapesDefined(),
+                            "Can't prepare params for ",
+                            getTypeStr(),
+                            " node with name: ",
+                            getName(),
+                            " since the input shapes are not defined.");
+            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                      " ", getName(), " ", getOriginalLayers());
+            prepareParams();
         }
-    } catch (const std::exception& e) {
-        THROW_CPU_NODE_ERR(e.what());
     }
 }
 
@@ -1601,29 +1597,34 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
         }
 
         return std::move(result.dims);
-    } catch (const std::exception& exp) {
+    } catch (const std::runtime_error& exp) {
         OPENVINO_THROW("Shape inference of ", getTypeStr(), " node with name ", getName(), " failed: ", exp.what());
     }
 }
 
 IShapeInfer::Result Node::shapeInfer() const {
-    std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
-    auto input_value_port_mask = shapeInference->get_port_mask();
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
 
-    input_shapes.reserve(inputShapes.size());
-    for (size_t port = 0; port < inputShapes.size(); ++port)
-        input_shapes.emplace_back(std::ref(getParentEdgeAt(port)->getMemory().getStaticDims()));
+        input_shapes.reserve(inputShapes.size());
+        for (size_t port = 0; port < inputShapes.size(); ++port)
+            input_shapes.emplace_back(std::ref(getParentEdgeAt(port)->getMemory().getStaticDims()));
 
-    std::unordered_map<size_t, MemoryPtr> input_values;
-    if (input_value_port_mask) {
-        for (size_t port = 0; port < inputShapes.size(); ++port) {
-            if (input_value_port_mask & (1 << port)) {
-                input_values[port] = getSrcMemoryAtPort(port);
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getSrcMemoryAtPort(port);
+                }
             }
         }
-    }
 
-    return shapeInference->infer(input_shapes, input_values);
+        return shapeInference->infer(input_shapes, input_values);
+    }
+    catch (const std::runtime_error& exp) {
+        OPENVINO_THROW("Shape inference of ", getTypeStr() , " node with name ", getName(), " failed: ", exp.what());
+    }
 }
 
 void Node::updateLastInputDims() {
@@ -1940,17 +1941,6 @@ void Node::resolveInPlaceDirection() {
         }
     }
 }
-
-#ifndef CPU_DEBUG_CAPS
-std::ostream& operator<<(std::ostream& out, const Node& node) {
-    return out << "Node " << node.getName() <<
-        " of type " << node.getTypeStr() << "\n";
-}
-
-std::ostream& operator<<(std::ostream& out, const Node* node) {
-    return operator<<(out, (*node));
-}
-#endif
 
 }   // namespace intel_cpu
 }   // namespace ov
