@@ -172,7 +172,7 @@ void IStreamsExecutor::Config::apply_cpu_core_ids() {
     std::string item;
     while (getline(ss, item, ',')) {
         int minID = std::stoi(item);
-        int index = item.find('-');
+        size_t index = item.find('-');
         if (index != std::string::npos)
             item = item.substr(index + 1);
         int maxID = std::stoi(item);
