@@ -1123,7 +1123,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 void Graph::InferStatic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-    for (const auto& node : m_execuableGraphNodes) {
+    for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
 
