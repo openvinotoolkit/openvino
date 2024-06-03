@@ -777,98 +777,105 @@ static PlainTensor& getC(int ithr) {
     return all_C[ithr];
 }
 
+
+struct Work {
+    std::vector<PlainTensor> weights;   // ov::bfloat16 weights for current thread
+
+    std::shared_ptr<std::atomic_int> sync_flag;
+    int n0 = 0;
+    int n1 = 0;
+    int k0 = 0;
+    int k1 = 0;
+    int BN = 0;
+    int blk_K_size = 0;
+    int output_id;
+    ov::bfloat16 * p_raw_weights;
+    operator bool() {
+        return BN > 0;
+    }
+
+    MKernel& get_MKernel() {
+        constexpr int BM = 256;
+        static MKernel jit_amx0(BM);
+        return jit_amx0;
+    }
+
+    // input : weight [N, K], setup repacks range of N [n_start, n_end)
+    template <typename T>
+    void setup(T* p_weight, int stride) {
+        auto& mkernel = get_MKernel();
+        auto num_blk_K = (k1 - k0) / blk_K_size;
+        auto* pw = p_weight + n0 * stride / sizeof(T) + k0;
+
+        weights.resize(num_blk_K);
+        for (int k = 0; k < num_blk_K; k++) {
+            mkernel.prepareB(weights[k], pw + k * blk_K_size, stride, BN, blk_K_size);
+            //printf("---------- weight at %p\n", &weights[k][0]);
+        }
+
+        for (int Mtails = 0; Mtails < 32; Mtails++) {
+            mkernel.tile_config_M(m_tcfg[Mtails], Mtails == 0? 32 : Mtails);
+        }
+    }
+
+    TileConfig m_tcfg[32];
+
+    void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
+        auto& mkernel = get_MKernel();
+
+        int num_blk_K = (k1 - k0) / blk_K_size;
+
+        auto Mtails = M % 32;
+        auto Mbody = M - Mtails;
+
+        auto C_M = Mbody + (Mtails ? 32 : 0);
+        //if (C.dims[0] < C_M)
+        C.resize<float>({C_M, BN});
+        auto pC = reinterpret_cast<uint8_t*>(C.ptr_v());
+
+        auto& tile_configer = (Singleton<TileConfiger>::get());
+
+        pA += k0 * sizeof(ov::bfloat16);
+        bool do_accumulation = false;
+
+        //size_t strideB = blk_K_size * 32 * sizeof(ov::bfloat16);// repacked_B.stride;
+        //int num_blkN = BN/32;  // repacked_B.dims[0];     BN/32
+        //int BK = (k1 - k0);
+
+        for (int ki = 0; ki < num_blk_K; ki++) {
+            PlainTensor& blockB = weights[ki];
+            PlainTensor& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
+            if (Mbody) {
+                tile_configer.do_config(&m_tcfg[0]);
+                mkernel.run(Mbody,
+                                pA + ki * blk_K_size * sizeof(ov::bfloat16),
+                                strideA,
+                                blockB,
+                                pC,
+                                C.stride_bytes(0),
+                                reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
+                                do_accumulation);
+            }
+
+            if (Mtails) {
+                tile_configer.do_config(&m_tcfg[Mtails]);
+                mkernel.run(Mtails,
+                                pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
+                                strideA,
+                                blockB,
+                                pC + Mbody * C.stride_bytes(0),
+                                C.stride_bytes(0),
+                                reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
+                                do_accumulation);
+            }
+            do_accumulation = true;
+        }
+        tile_configer.do_config(nullptr);
+    }
+};
+
 class Linear {
 public:
-    struct Work {
-        MKernel* p_jit_amx0 = nullptr;
-        GateUpCombine* p_jit_gateup = nullptr;
-        ReduceAdd2bh* p_jit_reduce2bh_1 = nullptr;
-        ReduceAdd2bh* p_jit_reduce2bh_2 = nullptr;
-
-        std::vector<PlainTensor> weights;   // ov::bfloat16 weights for current thread
-
-        std::shared_ptr<std::atomic_int> sync_flag;
-        int n0 = 0;
-        int n1 = 0;
-        int k0 = 0;
-        int k1 = 0;
-        int BN = 0;
-        int blk_K_size = 0;
-        int ithr = 0;
-        operator bool() {
-            return BN > 0;
-        }
-
-        // input : weight [N, K], setup repacks range of N [n_start, n_end)
-        template <typename T>
-        void setup(T* p_weight, int stride) {
-            auto num_blk_K = (k1 - k0) / blk_K_size;
-            auto* pw = p_weight + n0 * stride / sizeof(T) + k0;
-
-            weights.resize(num_blk_K);
-            for (int k = 0; k < num_blk_K; k++) {
-                p_jit_amx0->prepareB(weights[k], pw + k * blk_K_size, stride, BN, blk_K_size);
-                //printf("---------- weight at %p\n", &weights[k][0]);
-            }
-
-            for (int Mtails = 0; Mtails < 32; Mtails++) {
-                p_jit_amx0->tile_config_M(m_tcfg[Mtails], Mtails == 0? 32 : Mtails);
-            }
-        }
-
-        TileConfig m_tcfg[32];
-
-        void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
-            int num_blk_K = (k1 - k0) / blk_K_size;
-
-            auto Mtails = M % 32;
-            auto Mbody = M - Mtails;
-
-            auto C_M = Mbody + (Mtails ? 32 : 0);
-            //if (C.dims[0] < C_M)
-            C.resize<float>({C_M, BN});
-            auto pC = reinterpret_cast<uint8_t*>(C.ptr_v());
-
-            auto& tile_configer = (Singleton<TileConfiger>::get());
-
-            pA += k0 * sizeof(ov::bfloat16);
-            bool do_accumulation = false;
-
-            //size_t strideB = blk_K_size * 32 * sizeof(ov::bfloat16);// repacked_B.stride;
-            //int num_blkN = BN/32;  // repacked_B.dims[0];     BN/32
-            //int BK = (k1 - k0);
-
-            for (int ki = 0; ki < num_blk_K; ki++) {
-                PlainTensor& blockB = weights[ki];
-                PlainTensor& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
-                if (Mbody) {
-                    tile_configer.do_config(&m_tcfg[0]);
-                    p_jit_amx0->run(Mbody,
-                                    pA + ki * blk_K_size * sizeof(ov::bfloat16),
-                                    strideA,
-                                    blockB,
-                                    pC,
-                                    C.stride_bytes(0),
-                                    reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
-                                    do_accumulation);
-                }
-
-                if (Mtails) {
-                    tile_configer.do_config(&m_tcfg[Mtails]);
-                    p_jit_amx0->run(Mtails,
-                                    pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
-                                    strideA,
-                                    blockB,
-                                    pC + Mbody * C.stride_bytes(0),
-                                    C.stride_bytes(0),
-                                    reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
-                                    do_accumulation);
-                }
-                do_accumulation = true;
-            }
-            tile_configer.do_config(nullptr);
-        }
-    };
     std::vector<Work> works;
 
     int used_nthr = 0;
@@ -880,12 +887,8 @@ public:
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
-    template <typename T, int BM = 256>
+    template <typename T>
     void setup(T* p_weight, int stride, int N, int K, bool _do_splitK = false) {
-        static MKernel jit_amx0(BM);
-        static GateUpCombine jit_gateup;
-        static ReduceAdd2bh jit_reduce2bh_1(false);
-        static ReduceAdd2bh jit_reduce2bh_2(true);
         const int blk_K_size = 256;
         // prepare weights, split N among threads
         // in unit of 32
@@ -924,11 +927,6 @@ public:
 
                     auto& work = works[ithr + ik];
 
-                    work.ithr = ithr + ik;
-                    work.p_jit_amx0 = &jit_amx0;
-                    work.p_jit_gateup = &jit_gateup;
-                    work.p_jit_reduce2bh_1 = &jit_reduce2bh_1;
-                    work.p_jit_reduce2bh_2 = &jit_reduce2bh_2;
                     work.sync_flag = shared_atomic;
                     work.blk_K_size = blk_K_size;
 
@@ -1000,6 +998,8 @@ public:
     */
 
     void run(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC) {
+        static ReduceAdd2bh jit_reduce2bh_1(false);
+        static ReduceAdd2bh jit_reduce2bh_2(true);
 
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
@@ -1024,7 +1024,7 @@ public:
                             // the prefetch distance is increased to ensure by the time store happens
                             // prefetch has done and no HW prefetcher is triggered
                             auto* prefetch_dst = (m + 2 < M) ? (dst + 2 * strideD) : (dst);
-                            (*work.p_jit_reduce2bh_2)(src0, src1, dst, prefetch_dst, work.BN);
+                            jit_reduce2bh_2(src0, src1, dst, prefetch_dst, work.BN);
                         }
                     }
                 } else {
@@ -1036,7 +1036,7 @@ public:
                         // the prefetch distance is increased to ensure by the time store happens
                         // prefetch has done and no HW prefetcher is triggered
                         auto* prefetch_dst = (m + 2 < M) ? (dst + 2 * strideD) : (dst);
-                        (*work.p_jit_reduce2bh_1)(src, dst, prefetch_dst, work.BN);
+                        jit_reduce2bh_1(src, dst, prefetch_dst, work.BN);
                     }
                 }
             }
@@ -1045,6 +1045,7 @@ public:
 
     // gate & up are interleaved: 16 gates + 16 up
     void runGateUp(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC) {
+        static GateUpCombine jit_gateup;
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = getC(ithr);
@@ -1058,7 +1059,7 @@ public:
                 auto strideD = strideC / sizeof(*dst);
                 for (int m = 0; m < M; m++, src += strideS, dst += strideD) {
                     auto* prefetch_dst = (m + 1 < M) ? (dst + strideD) : (dst);
-                    (*work.p_jit_gateup)(src, dst, prefetch_dst, work.BN);
+                    jit_gateup(src, dst, prefetch_dst, work.BN);
                 }
             }
         });
@@ -1067,89 +1068,10 @@ public:
 
 struct QKVProj : public LLMMLP::Executor  {
     QKVProj() {}
-    struct Work {
-        MKernel* p_jit_amx0 = nullptr;
-        ReduceAdd2bh* p_jit2bh = nullptr;
-
-        std::vector<PlainTensor> weights;
-
-        int output_id;
-        int n0 = 0;
-        int n1 = 0;
-        int BN = 0;
-        int BK = 0;
-        operator bool() {
-            return BN > 0;
-        }
-        int blk_K_size;
-
-        ov::bfloat16 * p_raw_weights;
-
-        // input : weight [N, K], setup repacks range of N [n_start, n_end)
-        template <typename T>
-        void setup(T* p_weight, int stride) {
-            auto num_blk_K = BK / blk_K_size;
-            auto* pw = p_weight + n0 * stride / sizeof(T);
-            //weights.resize(num_blk_K);
-            for (int k = 0; k < num_blk_K; k++) {
-                p_jit_amx0->prepareB(weights[k], pw + k * blk_K_size, stride, BN, blk_K_size);
-            }
-            for (int Mtails = 0; Mtails < 32; Mtails++) {
-                p_jit_amx0->tile_config_M(m_tcfg[Mtails], Mtails == 0? 32 : Mtails);
-            }            
-        }
-
-        TileConfig m_tcfg[32];
-
-        void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
-            int num_blk_K = weights.size();
-
-            auto Mtails = M % 32;
-            auto Mbody = M - Mtails;
-
-            auto& tile_configer = (Singleton<TileConfiger>::get());
-            C.resize<float>({Mbody + (Mtails ? 32 : 0), BN});
-
-            auto pC = reinterpret_cast<uint8_t*>(C.ptr<float>());
-            bool do_accumulation = false;
-            for (int ki = 0; ki < num_blk_K; ki++) {
-                PlainTensor& blockB = weights[ki];
-                PlainTensor& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
-
-                if (Mbody) {
-                    tile_configer.do_config(&m_tcfg[0]);
-                    p_jit_amx0->run(Mbody,
-                                    pA + ki * blk_K_size * sizeof(ov::bfloat16),
-                                    strideA,
-                                    blockB,
-                                    pC,
-                                    C.stride_bytes(0),
-                                    reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
-                                    do_accumulation);
-                }
-
-                if (Mtails) {
-                    tile_configer.do_config(&m_tcfg[Mtails]);
-                    p_jit_amx0->run(Mtails,
-                                    pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
-                                    strideA,
-                                    blockB,
-                                    pC + Mbody * C.stride_bytes(0),
-                                    C.stride_bytes(0),
-                                    reinterpret_cast<uint8_t*>(blockB1.ptr_v()),
-                                    do_accumulation);
-                }
-                do_accumulation = true;
-            }
-            tile_configer.do_config(nullptr);
-        }
-    };
     std::vector<Work> works;
 
     // q k v each have 1/3 or worker-thread
     void setup(ov::bfloat16* wq, ov::bfloat16* wk, ov::bfloat16* wv, int N, int K) {
-        static MKernel jit_amx0(256);
-        static ReduceAdd2bh jit_2bh(false);
         const int blk_K_size = 256;
         // prepare weights, split N among threads
         // in unit of 32
@@ -1183,14 +1105,13 @@ struct QKVProj : public LLMMLP::Executor  {
                 }
                 if (blkN) {
                     auto& work = works[cur_work_id++];
-                    work.p_jit_amx0 = &jit_amx0;
-                    work.p_jit2bh = &jit_2bh;
                     work.blk_K_size = blk_K_size;
 
                     work.n0 = (start_blkN)*32;
                     work.n1 = (start_blkN + blkN) * 32;
                     work.BN = blkN * 32;
-                    work.BK = blk_K_size * num_blk_K;
+                    work.k0 = 0;
+                    work.k1 = blk_K_size * num_blk_K;
 
                     work.weights.resize(num_blk_K);
                     for(auto& weight : work.weights)
@@ -1226,7 +1147,7 @@ struct QKVProj : public LLMMLP::Executor  {
              int stride_k,
              ov::bfloat16* dst_v,
              int stride_v) {
-
+        static ReduceAdd2bh jit_2bh(false);
         for (int m = 0; m < M;) {
             int BM = std::min(M - m, 256);
 
@@ -1258,7 +1179,7 @@ struct QKVProj : public LLMMLP::Executor  {
                         // the prefetch distance is increased to ensure by the time store happens
                         // prefetch has done and no HW prefetcher is triggered
                         auto* prefetch_dst = (mi + 2 < BM) ? (dst + 2 * stride_dst) : (dst);
-                        (*work.p_jit2bh)(src, dst, prefetch_dst, work.BN);
+                        jit_2bh(src, dst, prefetch_dst, work.BN);
                     }
                 }
             });
