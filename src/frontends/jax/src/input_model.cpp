@@ -7,6 +7,8 @@
 #include "place.hpp"
 #include "utils.hpp"
 
+#include <iostream>
+
 namespace ov {
 namespace frontend {
 namespace jax {

@@ -372,21 +372,7 @@ bool is_none_node(const Output<Node>& node) {
 }
 
 Any simplified_type_interpret(Any type) {
-    // Interpret Tensor[type] as just type
-    // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements
-    // of the same types
-    if (type.is<type::Tensor>()) {
-        const auto& tensor = type.as<type::Tensor>();
-        if (tensor.element_type.is<element::Type>()) {
-            return tensor.element_type;
-        }
-    } else if (type.is<type::PyScalar>()) {
-        const auto& scalar = type.as<type::PyScalar>();
-        if (scalar.element_type.is<element::Type>()) {
-            return scalar.element_type;
-        }
-    }
-
+    // Type in jaxpr is already the dtype.
     return type;
 }
 

@@ -18,11 +18,14 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 class JaxprPythonDecoder (Decoder):
-    def __init__(self, jax_module, example_inputs=None, jax_eqn=None):
+    def __init__(self, jax_module, example_inputs=None, jax_eqn=None, name=None):
         Decoder.__init__(self)
         
         self.jax_module = jax_module
         self.example_inputs = example_inputs
+        self.name = name
+        if self.name is None:
+            self.name = "jax_module"
         if self.example_inputs is None:
             self.example_inputs = []
         elif isinstance(self.example_inputs, tuple):
@@ -43,6 +46,9 @@ class JaxprPythonDecoder (Decoder):
     
     def input(self, idx: int) -> int:
         return id(self.jaxpr.invars[idx])
+    
+    def get_attribute(self, name):
+        return OVAny(None)
     
     def get_input_debug_name(self, index) -> str:
         return "jaxpr_invar_" + str(index)
@@ -77,13 +83,13 @@ class JaxprPythonDecoder (Decoder):
         if isinstance(self.jaxpr, jax.core.JaxprEqn):
             return
         for node in self.jaxpr.eqns:
-            decoder = JaxprPythonDecoder(self.jax_module, jax_eqn=node)
+            decoder = JaxprPythonDecoder(self.jax_module, jax_eqn=node, name=self.name + "/" + node.primitive.name)
             self.m_decoders.append(decoder)
-            node_visitor.visit(decoder)
+            node_visitor(decoder)
             
     def get_op_type(self) -> str:
         if isinstance(self.jaxpr, jax.core.JaxprEqn):
-            return self.jaxpr.primitive
+            return self.jaxpr.primitive.name
         else:
             return "root"
         
@@ -93,6 +99,20 @@ class JaxprPythonDecoder (Decoder):
     
     def get_subgraph_decoder(self, index: int) -> Decoder:
         raise NotImplementedError("Haven't figured out when it should be used.")
+    
+    def get_subgraph_size(self) -> int:
+        if isinstance(self.jaxpr, jax.core.JaxprEqn):
+            return 0
+        else:
+            # TODO: check again if there's no subgraph in jaxpr
+            return 1
+        
+    def mark_node(self, node):
+        name = self.get_op_type()
+        if "FrameworkNode" not in node.get_type_name():
+            name += "/" + node.get_type_name()
+        node.set_friendly_name(self.name + "/" + name)
+        return node
     
     def outputs(self) -> List[int]:
         return [id(v) for v in self.jaxpr.outvars]
@@ -119,9 +139,11 @@ class JaxprPythonDecoder (Decoder):
      
     @staticmethod
     def get_type_for_value(value):
-        if isinstance(value, jax.core.Var):
+        if isinstance(value, (jax.core.Var, jax.core.Literal)):
             for k, v in jax_to_ov_type_map.items():
                 if isinstance(value.aval.dtype, k):
-                    return v
+                    return OVAny(v)
+        elif isinstance(value, (int, float, bool)):
+            return OVAny(jax_to_ov_type_map[type(value)])
         else:
-            raise NotImplementedError("Not implemented yet.")
+            raise NotImplementedError(f"dtype for {value} of type {type(value)} has not been supported yet.")
