@@ -13,17 +13,34 @@ module.exports = {
   sum,
   pool2d,
   heatmapNms,
+  range,
+  reshape,
+  toTFTensor,
+  fromTFTensor,
 };
 
+function toTFTensor(ovTensor) {
+  console.log({ dataSize: ovTensor.data.length, shape: ovTensor.getShape() });
+
+  return tf.tensor(ovTensor.data, ovTensor.getShape());
+}
+
+function fromTFTensor(ov, precision, tfTensor) {
+  return new ov.Tensor(precision, tfTensor.shape, tfTensor.data);
+}
+
 /**
- * Extracts the top K elements and their indices from the given tensor along the last dimension.
+ * Extracts the top K elements and their indices from the given tensor along
+ * the last dimension.
  * @param {tf.Tensor} tensor - The input tensor.
  * @param {number} k - The number of top elements to extract.
- * @returns {Array} - An array containing two tensors: the top K values and their indices.
+ * @returns {Array} - An array containing two tensors: the top K values
+ * and their indices.
  */
 async function topK(tensor, k) {
-    const [values, indices] = tf.topk(tensor, k);
-    return [values, indices];
+  const [values, indices] = tf.topk(tensor, k);
+
+  return [values, indices];
 }
 
 /**
@@ -33,7 +50,7 @@ async function topK(tensor, k) {
  * @returns {tf.Tensor} - The masked tensor.
  */
 async function booleanMaskAsync(tensor, mask) {
-    return tf.booleanMaskAsync(tensor, mask);
+  return tf.booleanMaskAsync(tensor, mask);
 }
 
 /**
@@ -44,18 +61,19 @@ async function booleanMaskAsync(tensor, mask) {
  * @returns {tf.Tensor} - The clipped tensor.
  */
 function clipByValue(tensor, min, max) {
-    return tensor.clipByValue(min, max);
+  return tensor.clipByValue(min, max);
 }
 
 /**
  * Splits the input tensor into sub tensors.
  * @param {tf.Tensor} tensor - The input tensor.
- * @param {number} numOrSizeSplits - Either an integer indicating the number of splits, or an array of sizes for each split.
+ * @param {number} numOrSizeSplits - Either an integer indicating the number of
+ * splits, or an array of sizes for each split.
  * @param {number} axis - The dimension along which to split.
  * @returns {Array} - An array of tensors.
  */
 function split(tensor, numOrSizeSplits, axis = 0) {
-    return tf.split(tensor, numOrSizeSplits, axis);
+  return tf.split(tensor, numOrSizeSplits, axis);
 }
 
 /**
@@ -65,7 +83,7 @@ function split(tensor, numOrSizeSplits, axis = 0) {
  * @returns {tf.Tensor} - The stacked tensor.
  */
 function stack(tensors, axis = 0) {
-    return tf.stack(tensors, axis);
+  return tf.stack(tensors, axis);
 }
 
 /**
@@ -76,7 +94,7 @@ function stack(tensors, axis = 0) {
  * @returns {tf.Tensor} - The gathered tensor.
  */
 function gather(tensor, indices, axis = 0) {
-    return tf.gather(tensor, indices, axis);
+  return tf.gather(tensor, indices, axis);
 }
 
 /**
@@ -87,31 +105,32 @@ function gather(tensor, indices, axis = 0) {
  * @returns {Array} - An array containing the filtered indices and scores.
  */
 async function connectionsNms(aIdx, bIdx, affinityScores) {
-    const order = affinityScores.argsort().reverse();
-    const sortedAffinityScores = tf.gather(affinityScores, order);
-    const sortedAIdx = tf.gather(aIdx, order);
-    const sortedBIdx = tf.gather(bIdx, order);
+  const order = affinityScores.argsort().reverse();
+  const sortedAffinityScores = tf.gather(affinityScores, order);
+  const sortedAIdx = tf.gather(aIdx, order);
+  const sortedBIdx = tf.gather(bIdx, order);
 
-    const idx = [];
-    const hasKptA = new Set();
-    const hasKptB = new Set();
+  const idx = [];
+  const hasKptA = new Set();
+  const hasKptB = new Set();
 
-    for (let t = 0; t < sortedAIdx.shape[0]; t++) {
-        const i = sortedAIdx.arraySync()[t];
-        const j = sortedBIdx.arraySync()[t];
-        if (!hasKptA.has(i) && !hasKptB.has(j)) {
-            idx.push(t);
-            hasKptA.add(i);
-            hasKptB.add(j);
-        }
+  for (let t = 0; t < sortedAIdx.shape[0]; t++) {
+    const i = sortedAIdx.arraySync()[t];
+    const j = sortedBIdx.arraySync()[t];
+    if (!hasKptA.has(i) && !hasKptB.has(j)) {
+      idx.push(t);
+      hasKptA.add(i);
+      hasKptB.add(j);
     }
+  }
 
-    const finalIdx = tf.tensor1d(idx, 'int32');
-    return [
-        tf.gather(sortedAIdx, finalIdx),
-        tf.gather(sortedBIdx, finalIdx),
-        tf.gather(sortedAffinityScores, finalIdx)
-    ];
+  const finalIdx = tf.tensor1d(idx, 'int32');
+
+  return [
+    tf.gather(sortedAIdx, finalIdx),
+    tf.gather(sortedBIdx, finalIdx),
+    tf.gather(sortedAffinityScores, finalIdx),
+  ];
 }
 
 /**
@@ -121,7 +140,7 @@ async function connectionsNms(aIdx, bIdx, affinityScores) {
  * @returns {tf.Tensor} - The result of element-wise addition.
  */
 function add(a, b) {
-    return tf.add(a, b);
+  return tf.add(a, b);
 }
 
 /**
@@ -132,7 +151,7 @@ function add(a, b) {
  * @returns {tf.Tensor} - The filled tensor.
  */
 function fill(shape, value, dtype = 'float32') {
-    return tf.fill(shape, value, dtype);
+  return tf.fill(shape, value, dtype);
 }
 
 /**
@@ -142,30 +161,55 @@ function fill(shape, value, dtype = 'float32') {
  * @returns {tf.Tensor} - The reduced tensor.
  */
 function sum(tensor, axes) {
-    return tf.sum(tensor, axes);
+  return tf.sum(tensor, axes);
 }
 
 /**
- * 2D Pooling function.
- * @param {tf.Tensor} A - The input tensor.
- * @param {number} kernelSize - The size of the pooling window.
+ * 2D Pooling
+ *
+ * @param {tf.Tensor} A - Input 2D tensor.
+ * @param {number} kernelSize - The size of the window over which we take pool.
  * @param {number} stride - The stride of the window.
- * @param {number} padding - The padding size.
- * @param {string} poolMode - The pooling mode: 'max' or 'avg'.
- * @returns {tf.Tensor} - The pooled tensor.
+ * @param {number} [padding=0] - Implicit zero paddings on both sides
+ * of the input.
+ * @param {string} [poolMode='max'] - Pooling mode: 'max' or 'avg'.
+ * @returns {tf.Tensor} - The result of pooling.
  */
-function pool2d(A, kernelSize, stride, padding, poolMode = 'max') {
-  const padA = tf.pad(A, [[padding, padding], [padding, padding]], 'constant');
-  const windowShape = [kernelSize, kernelSize];
-  const strides = [stride, stride];
+function pool2d(A, kernelSize, stride, padding = 0, poolMode = 'max') {
+  // Add padding to the input tensor
+  let paddedA = A.pad([[padding, padding], [padding, padding]]);
 
+  // Reshape the input tensor to 4D for patch extraction
+  const batchSize = 1;
+  const channels = 1; // Assuming single-channel (grayscale) input
+  const [inputHeight, inputWidth] = paddedA.shape;
+  const paddedA4D =
+    paddedA.reshape([batchSize, inputHeight, inputWidth, channels]);
+
+  // Extract patches
+  const patches = tf.image.extractPatches(paddedA4D, {
+    sizes: [1, kernelSize, kernelSize, 1],
+    strides: [1, stride, stride, 1],
+    rates: [1, 1, 1, 1],
+    padding: 'VALID',
+  });
+
+  // Pooling
+  let pooled;
   if (poolMode === 'max') {
-      return tf.maxPool(padA, windowShape, strides, 'valid');
+    pooled = patches.max(3);
   } else if (poolMode === 'avg') {
-      return tf.avgPool(padA, windowShape, strides, 'valid');
-  } else {
-      throw new Error(`Unknown poolMode: ${poolMode}`);
+    pooled = patches.mean(3);
   }
+
+  // Reshape pooled result to 2D
+  const [outputHeight, outputWidth] = [
+    Math.floor((inputHeight - kernelSize) / stride) + 1,
+    Math.floor((inputWidth - kernelSize) / stride) + 1
+  ];
+  pooled = pooled.reshape([outputHeight, outputWidth]);
+
+  return pooled;
 }
 
 /**
@@ -176,4 +220,28 @@ function pool2d(A, kernelSize, stride, padding, poolMode = 'max') {
 */
 function heatmapNms(heatmaps, pooledHeatmaps) {
   return heatmaps.mul(heatmaps.equal(pooledHeatmaps));
+}
+
+/**
+ * Proxy function for tf.range
+ *
+ * @param {number} start - The start value of the range.
+ * @param {number} stop - The stop value of the range (exclusive).
+ * @param {number} [step=1] - The step size between values in the range.
+ * @param {string} [dtype='float32'] - The data type of the output tensor.
+ * @returns {tf.Tensor} A tensor with values in the specified range.
+ */
+function range(start, stop, step = 1, dtype = 'float32') {
+  return tf.range(start, stop, step, dtype);
+}
+
+/**
+* Proxy function for tf.reshape
+*
+* @param {tf.Tensor} tensor - The input tensor to be reshaped.
+* @param {number[]} shape - The desired shape of the output tensor.
+* @returns {tf.Tensor} The reshaped tensor.
+*/
+function reshape(tensor, shape) {
+  return tf.reshape(tensor, shape);
 }
