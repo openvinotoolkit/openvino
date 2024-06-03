@@ -27,7 +27,7 @@ This way Torch FX subgraphs will be directly converted to OpenVINO representatio
 any additional PyTorch-based tracing/scripting.
 
 
-.. code-block:: sh
+.. code-block:: python
 
    ...
    model = torch.compile(model, backend='openvino')
@@ -35,7 +35,7 @@ any additional PyTorch-based tracing/scripting.
 
 For OpenVINO versions below 2024.1, an additional import was needed to use ``openvino`` backend. However, OpenVINO package is now configured with `torch_dynamo_backends entrypoint <https://pytorch.org/docs/stable/torch.compiler_custom_backends.html#registering-custom-backends>`__. The additional import is not needed, if OpenVINO is installed as a pip package. For other install channels such as conda, import statement can be used as below.
 
-.. code-block:: sh
+.. code-block:: python
 
    import openvino.torch
 
@@ -163,12 +163,12 @@ PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compil
 
       optimized_model = torch.compile(converted_model, backend="openvino")
 
-Torchserve Integration
+TorchServe Integration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Torchserve is a performant, flexible and easy to  use tool for serving Pytorch models in production. For more information on the details of Torchserve,
-you can refer to `Torchserve github repository. <https://github.com/pytorch/serve>`__. With OpenVINO ``torch.compile`` integration into Torchserve you can serve
-Pytorch models in production and accelerate them with OpenVINO on various Intel hardware. Detailed instructions on how to use OpenVINO with Torchserve are
-available in `Torchserve examples. <https://github.com/pytorch/serve/tree/master/examples/pt2/torch_compile_openvino>`__
+TorchServe is a performant, flexible and easy to  use tool for serving PyTorch models in production. For more information on the details of TorchServe,
+you can refer to `TorchServe github repository. <https://github.com/pytorch/serve>`__. With OpenVINO ``torch.compile`` integration into TorchServe you can serve
+PyTorch models in production and accelerate them with OpenVINO on various Intel hardware. Detailed instructions on how to use OpenVINO with TorchServe are
+available in `TorchServe examples. <https://github.com/pytorch/serve/tree/master/examples/pt2/torch_compile_openvino>`__
 
 Support for Automatic1111 Stable Diffusion WebUI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
