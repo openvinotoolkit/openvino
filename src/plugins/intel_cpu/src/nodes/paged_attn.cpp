@@ -72,49 +72,44 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     auto orgInputNumber = getOriginalInputsNumber();
     config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
-    config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        rtPrecision, getInputShapeAtPort(0)));
-    config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        rtPrecision, getInputShapeAtPort(1)));
-    config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        rtPrecision, getInputShapeAtPort(2)));
+    config.inConfs[PagedAttentionExecutor::ID_Q].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_Q)));
+    config.inConfs[PagedAttentionExecutor::ID_K].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_K)));
+    config.inConfs[PagedAttentionExecutor::ID_V].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    OPENVINO_ASSERT(orgInputNumber == 13 || orgInputNumber == 14, "The input number of PagedAttention should be 13 or 14.");
+    OPENVINO_ASSERT(orgInputNumber == 13, "The input number of PagedAttention should be 13.");
     // kvcache, float, []
     auto past_kv_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     config.inConfs[PagedAttentionExecutor::ID_KCACHE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE)));
     config.inConfs[PagedAttentionExecutor::ID_VCACHE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE)));
-    // is_prompt, bool, []
-    config.inConfs[PagedAttentionExecutor::ID_IS_PROMPT].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::u8, getInputShapeAtPort(PagedAttentionExecutor::ID_IS_PROMPT)));
-    // slot_mapping, int, [batch_size, max_context_len]
-    config.inConfs[PagedAttentionExecutor::ID_SLOT_MAPPING].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SLOT_MAPPING)));
-    // max_context_len, int, []
-    config.inConfs[PagedAttentionExecutor::ID_MAX_CONTEXT_LEN].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_MAX_CONTEXT_LEN)));
-    // context_lens, int, [batch_size]
-    config.inConfs[PagedAttentionExecutor::ID_CONTEXT_LENS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_CONTEXT_LENS)));
-    // block_tables, int, [batch_size, max_block_per_request]
-    config.inConfs[PagedAttentionExecutor::ID_BLOCK_TABLES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_TABLES)));
+    // past_lens, int, [b_seq]
+    config.inConfs[PagedAttentionExecutor::ID_PAST_LENS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_PAST_LENS)));
+    // subsequence_begins, int, [b_seq]
+    config.inConfs[PagedAttentionExecutor::ID_SUBSEQUENCE_BEGINS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SUBSEQUENCE_BEGINS)));
+    // block_indices, int, [num_blocks]
+    config.inConfs[PagedAttentionExecutor::ID_BLOCK_INDICES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_INDICES)));
+    // block_indices_begins, int, [b_seq]
+    config.inConfs[PagedAttentionExecutor::ID_BLOCK_INDICES_BEGINS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_INDICES_BEGINS)));
     // scale, float, []
     config.inConfs[PagedAttentionExecutor::ID_SCALE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_SCALE)));
-    // alibi_slopes, float, [?] or nullptr
-    config.inConfs[PagedAttentionExecutor::ID_ALIBI_SLOPES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_ALIBI_SLOPES)));
     // sliding_window, int, []
     config.inConfs[PagedAttentionExecutor::ID_SLIDING_WINDOW].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SLIDING_WINDOW)));
-    if (orgInputNumber == 14) {
-        // subsequence_lens, int, [batch_size]
-        config.inConfs[PagedAttentionExecutor::ID_SUBSEQUENCE_LENS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SUBSEQUENCE_LENS)));
-    }
+    // alibi_slopes, float, [H|0]
+    config.inConfs[PagedAttentionExecutor::ID_ALIBI_SLOPES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_ALIBI_SLOPES)));
+    // max_context_len, int, []
+    config.inConfs[PagedAttentionExecutor::ID_MAX_CONTEXT_LEN].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_MAX_CONTEXT_LEN)));
 
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getOutputShapeAtPort(0)));
@@ -153,8 +148,6 @@ void PagedAttention::execute(dnnl::stream strm) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
 
-    gatherConcatPastkvForPagedAttn(inputs);
-
     m_executor->execute(inputs, output);
 }
 
@@ -168,36 +161,6 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
         return false;
     }
     return true;
-}
-
-void PagedAttention::gatherConcatPastkvForPagedAttn(const std::vector<MemoryPtr>& inputs) {
-    PlainTensor k, v, k_cache, v_cache, slot_mapping;
-
-    k.reset(inputs[PagedAttentionExecutor::ID_K]);                          // [B, L1, H * S]
-    v.reset(inputs[PagedAttentionExecutor::ID_V]);
-    k_cache.reset(inputs[PagedAttentionExecutor::ID_KCACHE]);               // [NUM_BLOCKS, H, 32, S]
-    v_cache.reset(inputs[PagedAttentionExecutor::ID_VCACHE]);               // [NUM_BLOCKS, H, 32, S]
-    slot_mapping.reset(inputs[PagedAttentionExecutor::ID_SLOT_MAPPING]);    // [B, max_context_len]
-
-    auto B = k.size(0);
-    auto L1 = k.size(1);
-    auto H = k_cache.size(1);
-    auto S = v_cache.size(3) - (k_cache.m_dt == ov::element::Type_t::u8 ? 8 : 0);
-
-    k.assert_dims({B, L1, H * S});
-    v.assert_dims({B, L1, H * S});
-    slot_mapping.assert_dims({B, 0}, true);
-    k = k.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
-    v = v.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
-    if (k_cache.m_dt == ov::element::Type_t::u8) {
-        k_cache.assert_dims({0, H, 0, S + 8}, true);
-        v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S + 8});
-        paged_attn_quantkv(k, v, k_cache, v_cache, slot_mapping);
-    } else {
-        k_cache.assert_dims({0, H, 0, S}, true);
-        v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S});
-        paged_attn_memcpy(k, v, k_cache, v_cache, slot_mapping);
-    }
 }
 
 ov::element::Type PagedAttention::getRuntimePrecision() const {

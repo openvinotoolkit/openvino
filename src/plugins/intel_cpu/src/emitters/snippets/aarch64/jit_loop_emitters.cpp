@@ -16,96 +16,39 @@ using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-inline static std::vector<XReg> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
-    std::vector<XReg> regs;
-    regs.resize(idxs.size(), XReg(0));
-    std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return XReg(idx);});
-    return regs;
-}
-
 /* ================== jit_loop_begin_emitter ====================== */
 
 jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                                const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa), loop_begin_label{new Xbyak_aarch64::Label()} {
-    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-}
-
-std::shared_ptr<ov::snippets::op::LoopEnd> jit_loop_begin_emitter::get_loop_end(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_connectors().size() == 1, "Has invalid LoopBegin expression configuration");
-    const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
-    OV_CPU_JIT_EMITTER_ASSERT(consumers.size() == 1, "Has invalid LoopBegin expression configuration");
-    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(consumers.cbegin()->get_expr()->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "Has invalid LoopBegin expression configuration");
-    return loop_end;
-}
-
-jit_loop_begin_static_emitter::jit_loop_begin_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-                                                             const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_loop_begin_emitter(h, isa, expr) {
-    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBeginStatic>(expr->get_node()),
-                              "Expects LoopBeginStatic expression");
-    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEndStatic>(get_loop_end(expr));
+    const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "expects LoopBegin expression");
+    const auto loop_end = loop_begin->get_loop_end();
+    OV_CPU_JIT_EMITTER_ASSERT(!loop_end->has_dynamic_params(), "supports only static loops!");
     work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-void jit_loop_begin_static_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
     // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr, "has not inited label!");
 }
 
-void jit_loop_begin_static_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    XReg reg_work_amount = XReg(out[0]);
-    if (!evaluate_once) {
-        h->mov(reg_work_amount, work_amount);
-    }
-    h->L(*loop_begin_label);
-}
-
-void jit_loop_begin_static_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
-                                              const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+void jit_loop_begin_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
+                                       const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-jit_loop_begin_dynamic_emitter::jit_loop_begin_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-                                                               const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_loop_begin_emitter(h, isa, expr), loop_end_label(nullptr) {
-    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBeginDynamic>(expr->get_node()), "Expects LoopBeginDynamic expression");
-    const auto loop_end = get_loop_end(expr);
-    wa_increment = loop_end->get_increment();
-    loop_id = loop_end->get_id();
-}
-
-void jit_loop_begin_dynamic_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    // Note: the only expected input is the reg_runtime_params_idx
-    OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
-    // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "Has not inited labels!");
-}
-
-void jit_loop_begin_dynamic_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
-                                               const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
-    validate_arguments(in, out);
-    jit_emitter::emit_code(in, out);
-}
-
-void jit_loop_begin_dynamic_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    XReg reg_runtime_params = XReg(Operand::X0);  // defined by jit_kernel_emitter
+void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     XReg reg_work_amount = XReg(out[0]);
-    XReg reg_loop_args_ptr = XReg(aux_gpr_idxs[0]);
-    const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
-    h->ldr(reg_loop_args_ptr, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
-    h->ldr(reg_work_amount, ptr(reg_loop_args_ptr, static_cast<int32_t>(id_offset + GET_OFF_LOOP_ARGS(m_work_amount))));
-
-    // if wa < increment, skip the loop
-    h->cmp(reg_work_amount, wa_increment);
-    h->b(LT, *loop_end_label);
-
+    if (!evaluate_once) {
+        h->mov(reg_work_amount, work_amount);
+    }
     h->L(*loop_begin_label);
 }
 
@@ -118,12 +61,17 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generat
     : jit_emitter(h, isa), loop_begin_label{nullptr} {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "Expected LoopEnd expr");
-    // Note that 1 edge connects LoopBegin and LoopEnd
+    OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "expected LoopEnd expr");
+    OV_CPU_JIT_EMITTER_ASSERT(!loop_end->has_dynamic_params(), "supports only static loops!");
     num_inputs = loop_end->get_input_num();
     num_outputs = loop_end->get_output_num();
+    work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
     is_incremented = loop_end->get_is_incremented();
+    ptr_increments = loop_end->get_ptr_increments();
+    finalization_offsets = loop_end->get_finalization_offsets();
+    data_sizes = loop_end->get_element_type_sizes();
+    evaluate_once = loop_end->get_evaluate_once();
 
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_emitter>(begin_expr->get_emitter());
@@ -138,36 +86,25 @@ ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(c
     return begin_expr;
 }
 
-jit_loop_end_static_emitter::jit_loop_end_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-                                                         const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_loop_end_emitter(h, isa, expr) {
-    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEndStatic>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "Expected LoopEndStatic expr");
-    work_amount = static_cast<int64_t>(loop_end->get_work_amount());
-    is_incremented = loop_end->get_is_incremented();
-    ptr_increments = loop_end->get_ptr_increments();
-    finalization_offsets = loop_end->get_finalization_offsets();
-    data_sizes = loop_end->get_element_type_sizes();
-    evaluate_once = loop_end->get_evaluate_once();
-}
-
-void jit_loop_end_static_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    const auto io_size = num_inputs + num_outputs;
+void jit_loop_end_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+const auto io_size = num_inputs + num_outputs;
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1, "Invalid number of in arguments: expected ", io_size + 1, " got ", in.size());
+    OV_CPU_JIT_EMITTER_ASSERT(is_incremented.size() == io_size, "Invalid is_incremented size: expected ", io_size, " got ", is_incremented.size());
     OV_CPU_JIT_EMITTER_ASSERT(ptr_increments.size() == io_size, "Invalid ptr_increments size: expected ", io_size, " got ", ptr_increments.size());
     OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == io_size,
                               "Invalid finalization_offsets size: expected: ", io_size, " got ", finalization_offsets.size());
     OV_CPU_JIT_EMITTER_ASSERT(data_sizes.size() == io_size, "Invalid data_sizes size: expected: ", io_size, " got ", data_sizes.size());
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr, "has not inited begin label!");
 }
 
-void jit_loop_end_static_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
-                                            const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+void jit_loop_end_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
+                                     const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_loop_end_static_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
@@ -199,68 +136,6 @@ void jit_loop_end_static_emitter::emit_impl(const std::vector<size_t>& in, const
             h->sub_imm(data_reg, data_reg, - finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
         }
     }
-}
-
-jit_loop_end_dynamic_emitter::jit_loop_end_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-                                                           const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_loop_end_emitter(h, isa, expr), loop_end_label{new Xbyak_aarch64::Label()} {
-    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEndDynamic>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "Expected LoopEndDynamic expr");
-    loop_id = loop_end->get_id();
-
-    const auto begin_expr = get_loop_begin_expr(expr);
-    const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_dynamic_emitter>(begin_expr->get_emitter());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBeginDynamic expected jit_loop_begin_dynamic_emitter");
-    loop_begin_emitter->set_loop_end_label(loop_end_label);
-}
-
-void jit_loop_end_dynamic_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "Has not inited labels!");
-    // Note: there must be additional input argument for runtime parameters
-    const auto io_size = num_inputs + num_outputs;
-    OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1, "Invalid number of in arguments: expected ", io_size + 1, " got ", in.size());
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
-}
-
-void jit_loop_end_dynamic_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
-                                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
-    validate_arguments(in, out);
-    jit_emitter::emit_code(in, out);
-}
-
-void jit_loop_end_dynamic_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    XReg reg_runtime_params = XReg(Operand::X0);  // defined by jit_kernel_emitter
-    XReg reg_work_amount = XReg(in.back());
-    XReg reg_increments = XReg(aux_gpr_idxs[0]);
-    XReg reg_aux = XReg(aux_gpr_idxs[1]);
-    const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
-
-    std::vector<XReg> data_ptr_regs = transform_idxs_to_regs(std::vector<size_t>(in.begin(), in.end() - 1));
-
-    // todo: Note that we can pre-save reg_loop_args_ptr in jit_loop_begin_dynamic_emitter and pass it here like work_amount_reg
-    //        this would save us one dereferencing here and in finalization offsets
-    h->ldr(reg_increments, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
-    h->ldr(reg_increments, ptr(reg_increments, static_cast<int32_t>(id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments))));
-    for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
-        if (is_incremented[idx]) {
-            h->ldr(reg_aux, ptr(reg_increments, static_cast<int32_t>(idx * sizeof(int64_t))));
-            h->add(data_ptr_regs[idx], data_ptr_regs[idx], reg_aux);
-        }
-    }
-    h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
-    h->cmp(reg_work_amount, wa_increment);
-    h->b(GE, *loop_begin_label);
-
-    h->ldr(reg_increments, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
-    h->ldr(reg_increments, ptr(reg_increments, static_cast<int32_t>(id_offset + GET_OFF_LOOP_ARGS(m_finalization_offsets))));
-    for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
-        if (is_incremented[idx]) {
-            h->ldr(reg_aux, ptr(reg_increments, static_cast<int32_t>(idx * sizeof(int64_t))));
-            h->add(data_ptr_regs[idx], data_ptr_regs[idx], reg_aux);
-        }
-    }
-
-    h->L(*loop_end_label);
 }
 
 /* ============================================================== */
