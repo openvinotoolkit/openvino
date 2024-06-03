@@ -17,58 +17,33 @@ namespace pass {
 
 void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
     const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
-    auto loop_entries = loop_info->get_input_ports();
-    auto loop_exits = loop_info->get_output_ports();
     const auto work_amount = loop_info->get_work_amount();
     const auto work_amount_increment = loop_info->get_increment();
-
-    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
+    const auto in_num = loop_info->get_input_count();
+    const auto out_num = loop_info->get_output_count();
 
     std::vector<PortConnectorPtr> loop_end_inputs;
-    loop_end_inputs.reserve(loop_entries.size() + loop_exits.size());
+    loop_end_inputs.reserve(in_num + out_num);
     loop_info->iterate_through_ports([&loop_end_inputs](const LoopPort& port) {
         loop_end_inputs.push_back(port.expr_port->get_port_connector_ptr());
     });
 
     const auto is_incremented = loop_info->get_is_incremented();
+    const auto ptr_increments = loop_info->get_ptr_increments();
+    const auto finalization_offsets = loop_info->get_finalization_offsets();
     const auto io_data_sizes = loop_info->get_data_sizes();
 
-    // Should be inited by LoopInfo
-    const auto is_dynamic_loop = is_loop_dynamic(loop_info);
+    const auto loop_begin = std::make_shared<op::LoopBegin>();
+    const auto loop_end = std::make_shared<op::LoopEnd>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,
+                                                        finalization_offsets, io_data_sizes, in_num, out_num, loop_id);
 
-    std::shared_ptr<op::LoopBegin> loop_begin = nullptr;
-    std::shared_ptr<op::LoopEnd> loop_end = nullptr;
-    if (is_dynamic_loop) {
-        loop_begin = std::make_shared<op::LoopBeginDynamic>();
-        loop_end = std::make_shared<op::LoopEndDynamic>(loop_begin, work_amount_increment, is_incremented, io_data_sizes,
-                                                        loop_entries.size(), loop_exits.size(), loop_id);
-
-    } else {
-        const auto ptr_increments = loop_info->get_ptr_increments();
-        const auto finalization_offsets = loop_info->get_finalization_offsets();
-
-        loop_begin = std::make_shared<op::LoopBeginStatic>();
-        loop_end = std::make_shared<op::LoopEndStatic>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,
-                                                       finalization_offsets, io_data_sizes, loop_entries.size(), loop_exits.size(), loop_id);
-    }
-
+    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
     const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_bounds.first, loop_id);
 
     const auto loop_begin_expr = *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_bounds.first);
     // Add LoopBegin port connector
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
     linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
-}
-
-bool InsertLoops::is_loop_dynamic(const UnifiedLoopInfoPtr& loop_info) {
-    auto is_loop_port_dynamic = [](const UnifiedLoopInfo::LoopPortDesc& shifts) {
-        return utils::is_dynamic_value(shifts.ptr_increment) || utils::is_dynamic_value(shifts.finalization_offset);
-    };
-    const auto& entry_shifts = loop_info->get_input_port_descs();
-    const auto& exit_shifts = loop_info->get_output_port_descs();
-    return utils::is_dynamic_value(loop_info->get_work_amount()) ||
-           std::any_of(entry_shifts.cbegin(), entry_shifts.cend(), is_loop_port_dynamic) ||
-           std::any_of(exit_shifts.cbegin(), exit_shifts.cend(), is_loop_port_dynamic);
 }
 
 bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
