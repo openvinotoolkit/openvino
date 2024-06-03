@@ -39,22 +39,17 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
 
 find_package(Filesystem)
 
-# See https://cmake.org/cmake/help/latest/module/FindBoost.html
-if (NOT Filesystem_FOUND)
-    find_package(Boost COMPONENTS filesystem)
-endif()
-
 if (Filesystem_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE std::filesystem)
     target_compile_definitions(${TARGET_NAME} PRIVATE -DCXX_FILESYSTEM_HEADER=<${CXX_FILESYSTEM_HEADER}>)
     target_compile_definitions(${TARGET_NAME} PRIVATE -DCXX_FILESYSTEM_NAMESPACE=${CXX_FILESYSTEM_NAMESPACE})
-elseif(Boost_FOUND)
-    target_link_libraries(${TARGET_NAME} PRIVATE Boost::filesystem)
-    target_compile_definitions(${TARGET_NAME} PRIVATE -DCXX_FILESYSTEM_HEADER=<boost/filesystem.hpp>)
-    target_compile_definitions(${TARGET_NAME} PRIVATE -DCXX_FILESYSTEM_NAMESPACE=boost::filesystem)
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE stdc++fs)
+    target_compile_definitions(${TARGET_NAME} PRIVATE -DCXX_FILESYSTEM_HEADER=<experimental/filesystem>)
+    target_compile_definitions(${TARGET_NAME} PRIVATE -DCXX_FILESYSTEM_NAMESPACE=std::experimental::filesystem)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::pugixml stdc++fs)
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::pugixml)
 if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
