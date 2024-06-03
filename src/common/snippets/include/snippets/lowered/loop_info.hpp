@@ -35,6 +35,12 @@ public:
     virtual std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const = 0;
 
     /**
+     * @brief Check if some parameters of Loop are dynamic (undefined)
+     * @return True if some parameters of Loop are unknown, False if all parameters are static
+     */
+    virtual bool is_dynamic() const;
+
+    /**
      * @brief Returns count of input ports
      * @return count
      */
@@ -184,6 +190,8 @@ public:
         int64_t ptr_increment = 0;
         int64_t finalization_offset = 0;
         int64_t data_size = 0;
+
+        bool is_dynamic() const;
     };
     // The structure describes full information about port
     // - TODO [140365] : UnifiedLoopInfo should have the map of LoopPorts and LoopDesc as class field
@@ -211,6 +219,12 @@ public:
      * @return the copy
      */
     std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
+
+    /**
+     * @brief Check if some parameters of Loop are dynamic (undefined)
+     * @return True if some parameters of Loop are unknown, False if all parameters are static
+     */
+    bool is_dynamic() const override;
 
     /**
      * @brief Returns handlers of loop specific iterations
@@ -372,6 +386,12 @@ public:
      * @return the copy
      */
     std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
+
+    /**
+     * @brief Check if some parameters of Loop are dynamic (undefined)
+     * @return True if some parameters of Loop are unknown, False if all parameters are static
+     */
+    bool is_dynamic() const override;
 
     /**
      * @brief Returns original unified LoopInfo from which this LoopInfo was created
