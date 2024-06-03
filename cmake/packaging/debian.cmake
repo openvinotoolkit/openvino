@@ -234,6 +234,19 @@ macro(ov_cpack_settings)
         set(ir_copyright "generic")
     endif()
 
+    if(ENABLE_OV_JAX_FRONTEND)
+        set(CPACK_COMPONENT_JAX_DESCRIPTION "OpenVINO JAX Frontend")
+        set(CPACK_COMPONENT_JAX_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_JAX_PACKAGE_NAME "libopenvino-jax-frontend-${cpack_name_ver}")
+        # since we JAX FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_JAX_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(jax
+            # we have different package name strategy; it suggests libopenvino-jax-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends jax)
+        set(jax_copyright "generic")
+    endif()
+
     if(ENABLE_OV_ONNX_FRONTEND)
         set(CPACK_COMPONENT_ONNX_DESCRIPTION "OpenVINO ONNX Frontend")
         set(CPACK_COMPONENT_ONNX_DEPENDS "${OV_CPACK_COMP_CORE}")
