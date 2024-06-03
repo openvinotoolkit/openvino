@@ -105,7 +105,7 @@ TEST_F(TransformationTestsF, IndirectKVCache3) {
     {
         auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{1, 32, -1, 80}, ov::element::f32, "v0"});
         auto new_token_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, 80});
-        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{32});
         auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
         auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 1);
         auto gather_past = std::make_shared<ov::op::v8::Gather>(past, beam_idx, axis);
@@ -120,7 +120,7 @@ TEST_F(TransformationTestsF, IndirectKVCache3) {
     {
         auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{1, 32, -1, 80}, ov::element::f32, "v0"});
         auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, 80});
-        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{32});
         auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
         auto kv_cache = std::make_shared<ov::intel_gpu::op::KVCache>(past, parameter, beam_idx, variable, 2, 1, ov::element::f32);
         auto gemm_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, -1});

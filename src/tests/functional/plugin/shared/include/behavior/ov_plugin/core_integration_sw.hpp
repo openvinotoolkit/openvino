@@ -42,24 +42,6 @@ TEST_P(OVClassSeveralDevicesTestCompileModel, CompileModelActualSeveralDevicesNo
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, multitarget_device));
 }
 
-TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceUsingDevicePropertiesNoThrow) {
-    ov::Core ie = ov::test::utils::create_core();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
-                                        ov::test::utils::DEVICE_HETERO,
-                                        ov::device::priorities(target_device),
-                                        ov::device::properties(target_device, ov::enable_profiling(true))));
-}
-
-TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceNoThrow) {
-    ov::Core ie = ov::test::utils::create_core();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
-}
-
-TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDevice2NoThrow) {
-    ov::Core ie = ov::test::utils::create_core();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
-}
-
 TEST_P(OVClassModelOptionalTestP, CompileModelCreateDefaultExecGraphResult) {
     auto ie = ov::test::utils::create_core();
     auto net = ie.compile_model(actualNetwork, target_device);

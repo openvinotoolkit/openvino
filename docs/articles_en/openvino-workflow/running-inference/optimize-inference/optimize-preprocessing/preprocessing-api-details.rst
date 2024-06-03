@@ -26,14 +26,14 @@ If the model has only one input, then simple ``ov::preprocess::PrePostProcessor:
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:input_1
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:input_1
 
@@ -46,14 +46,14 @@ In general, when a model has multiple inputs/outputs, each one can be addressed 
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:input_name
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:input_name
 
@@ -65,14 +65,14 @@ Or by it's index.
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:input_index
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:input_index
 
@@ -101,14 +101,14 @@ Typical data normalization includes 2 operations for each data item: subtract me
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:mean_scale
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:mean_scale
 
@@ -121,14 +121,14 @@ In Computer Vision area normalization is usually done separately for R, G, B val
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:mean_scale_array
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:mean_scale_array
 
@@ -152,14 +152,14 @@ To integrate precision conversion into an execution graph as a pre-processing st
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:convert_element_type
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:convert_element_type
 
@@ -185,14 +185,14 @@ Conversion can be done implicitly, using the :doc:`layout <layout-api-overview>`
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:convert_layout
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:convert_layout
 
@@ -205,14 +205,14 @@ For a manual transpose of axes without the use of a :doc:`layout <layout-api-ove
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:convert_layout_2
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:convert_layout_2
 
@@ -239,14 +239,14 @@ To resize the input image, it is needed to define ``H`` and ``W`` dimensions of 
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:resize_1
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:resize_1
 
@@ -259,14 +259,14 @@ When original model has known spatial dimensions (``width``+``height``), target 
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:resize_2
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:resize_2
 
@@ -287,14 +287,14 @@ Typical use case is to reverse color channels from ``RGB`` to ``BGR`` and vice v
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:convert_color_1
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:convert_color_1
 
@@ -311,14 +311,14 @@ In advanced cases, such YUV images can be split into separate planes, e.g., for 
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:convert_color_2
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:convert_color_2
 
@@ -349,14 +349,14 @@ If there is a need to insert additional operations to the execution graph right 
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:custom
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:custom
 
@@ -389,14 +389,14 @@ Usage of these operations is similar to pre-processing. See the following exampl
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
            :language: python
            :fragment: ov:preprocess:postprocess
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
             :language: cpp
             :fragment: ov:preprocess:postprocess
 
