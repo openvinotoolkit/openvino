@@ -44,6 +44,16 @@ INFERENCE_ENGINE_API_CPP(std::string) absoluteFilePath(const std::string& filePa
  */
 INFERENCE_ENGINE_API_CPP(void) createDirectoryRecursive(const std::string& dirPath);
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Interface function to create directorty recursively by given path
+ * @ingroup ie_dev_api_file_utils
+ * @param dirPath - path to file (wstring), can be relative to current working directory
+ * @throw InferenceEngine::Exception if any error occurred
+ */
+INFERENCE_ENGINE_API_CPP(void) createDirectoryRecursive(const std::wstring& dirPath);
+#endif
+
 /**
  * @brief Interface function to check if directory exists for given path
  * @ingroup ie_dev_api_file_utils
