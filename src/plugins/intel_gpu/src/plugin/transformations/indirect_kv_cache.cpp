@@ -190,44 +190,26 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         auto order_out = sdpa->get_output_transpose_order();
         auto is_causal = sdpa->get_causal();
 
-        std::shared_ptr<op::SDPA> indirect_sdpa;
-        if (pattern_map.find(sdpa_without_attn_mask_m) != pattern_map.end()) {
-            indirect_sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(sdpa->get_input_node_shared_ptr(0),
-                                                                              sdpa->get_input_node_shared_ptr(1),
-                                                                              sdpa->get_input_node_shared_ptr(2),
-                                                                              indirect_kv_cache_0->output(1), // beam table
-                                                                              is_causal,
-                                                                              gather_axis_1,
-                                                                              order_in0,
-                                                                              order_in1,
-                                                                              order_in2,
-                                                                              order_out);
-        } else if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
-            indirect_sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(sdpa->get_input_node_shared_ptr(0),
-                                                                              sdpa->get_input_node_shared_ptr(1),
-                                                                              sdpa->get_input_node_shared_ptr(2),
-                                                                              sdpa->get_input_node_shared_ptr(3),
-                                                                              indirect_kv_cache_0->output(1), // beam table
-                                                                              is_causal,
-                                                                              gather_axis_1,
-                                                                              order_in0,
-                                                                              order_in1,
-                                                                              order_in2,
-                                                                              order_out);
+        OutputVector data_inputs;
+        data_inputs.push_back(sdpa->get_input_node_shared_ptr(0)); // Q
+        data_inputs.push_back(sdpa->get_input_node_shared_ptr(1)); // K
+        data_inputs.push_back(sdpa->get_input_node_shared_ptr(2)); // V
+
+        if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
+            data_inputs.push_back(sdpa->get_input_source_output(3));
         } else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
-            indirect_sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(sdpa->get_input_node_shared_ptr(0),
-                                                                              sdpa->get_input_node_shared_ptr(1),
-                                                                              sdpa->get_input_node_shared_ptr(2),
-                                                                              sdpa->get_input_node_shared_ptr(3),
-                                                                              sdpa->get_input_node_shared_ptr(4),
-                                                                              indirect_kv_cache_0->output(1), // beam table
-                                                                              is_causal,
-                                                                              gather_axis_1,
-                                                                              order_in0,
-                                                                              order_in1,
-                                                                              order_in2,
-                                                                              order_out);
+            data_inputs.push_back(sdpa->get_input_source_output(3));
+            data_inputs.push_back(sdpa->get_input_source_output(4));
         }
+
+        auto indirect_sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(data_inputs,
+                                                                               indirect_kv_cache_0->output(1), // beam table
+                                                                               is_causal,
+                                                                               gather_axis_1,
+                                                                               order_in0,
+                                                                               order_in1,
+                                                                               order_in2,
+                                                                               order_out);
 
         OPENVINO_ASSERT(indirect_sdpa != nullptr);
 
