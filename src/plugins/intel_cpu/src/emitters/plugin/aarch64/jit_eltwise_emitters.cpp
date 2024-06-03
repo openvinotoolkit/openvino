@@ -540,6 +540,49 @@ std::set<std::vector<element::Type>> jit_hswish_emitter::get_supported_precision
     return {{element::f32}};
 }
 
+/// IS_NAN ///
+jit_is_nan_emitter::jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node)
+                                   : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+}
+
+jit_is_nan_emitter::jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const ov::element::Type exec_prc)
+                                   : jit_emitter(host, host_isa, exec_prc) {
+}
+
+size_t jit_is_nan_emitter::get_inputs_count() const { return 1; }
+
+size_t jit_is_nan_emitter::get_aux_vecs_count() const { return 1; }
+
+std::set<std::vector<element::Type>> jit_is_nan_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_is_nan_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+
+    TReg tmp = TReg(aux_vec_idxs[0]);
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    h->movi(tmp.s, 0);
+    h->fmaxnm(dst.s, src.s, tmp.s);
+}
+
 /// MAX ///
 jit_maximum_emitter::jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,

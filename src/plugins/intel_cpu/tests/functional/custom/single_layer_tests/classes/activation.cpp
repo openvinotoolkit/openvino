@@ -153,6 +153,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
                                                      const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
 #if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
+    std::cout << "debug: " << element_type << " " << activation_type << std::endl;
     if ((element_type == ov::element::f32) &&
         ((activation_type == utils::ActivationTypes::Clamp) ||
         (activation_type == utils::ActivationTypes::Elu) ||
@@ -165,6 +166,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Sigmoid) ||
         (activation_type == utils::ActivationTypes::Swish) ||
         (activation_type == utils::ActivationTypes::Tanh))) {
+        std::cout << "debug2: " << element_type << " " << activation_type << std::endl;
         return "jit";
     }
 
@@ -206,6 +208,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {GeluTanh,    {{}}},
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
+        {IsNaN,    {{}}},
     };
 
     return activationTypes;
@@ -291,6 +294,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Selu,        {{1.6732f, 1.0507f}}},
         {Ceiling,     {{}}},
         {SoftSign,    {{}}},
+        {IsNaN,    {{}}},
     };
 
     return activationTypesDynamicMath;
