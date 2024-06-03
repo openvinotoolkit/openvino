@@ -58,8 +58,16 @@
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
-#include CXX_FILESYSTEM_HEADER
-namespace fs = CXX_FILESYSTEM_NAMESPACE;
+#if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1913))
+#    if __has_include(<filesystem>)
+#        include <filesystem>
+namespace fs = std::filesystem;
+#    endif
+#else
+#    define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#    include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
 
 std::string ov::util::get_file_name(const std::string& s) {
     std::string rc = s;
@@ -689,7 +697,6 @@ bool ov::util::is_symlink_or_hardlink(const std::string& path) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
 bool ov::util::is_symlink_or_hardlink(const std::wstring& path) {
     fs::path p = fs::path(path);
     if (fs::is_symlink(p) || (fs::hard_link_count(p) > 1))
