@@ -71,8 +71,8 @@ interface CoreConstructor {
  */
 interface Model {
   /**
-   * It gets the friendly name for a model. If no friendly name has been set
-   * via {@link Model.setFriendlyName} then the model’s unique name is returned.
+   * It gets the friendly name for a model. If a friendly name is not set
+   * via {@link Model.setFriendlyName}, a unique model name is returned.
    * @returns A string with a friendly name of the model.
    */
   getFriendlyName(): string;
