@@ -18,6 +18,11 @@ std::pair<uint32_t, uint32_t> split_high_low(uint64_t value) {
     return {low, high};
 }
 
+// Concatenates two uint32 values into single uint64 values.
+uint64_t unite_high_low(uint32_t high, uint32_t low) {
+    return (static_cast<uint64_t>(high) << 32) + low;
+}
+
 // Splits uint64 global_seed value into two uint32 values to create a key.
 std::array<uint32_t, 2> split_into_key(uint64_t global_seed) {
     std::array<uint32_t, 2> key;
@@ -120,9 +125,12 @@ OpenvinoPhilloxGenerator::OpenvinoPhilloxGenerator(const uint64_t global_seed,
                        previous_state.second > 0 ? previous_state.second : operator_seed,
                        previous_state,
                        4UL),
-      m_n(split_high_low(previous_state.first)),
-      m_key(split_high_low(global_seed)),
-      m_counter(split_high_low(previous_state.second > 0 ? previous_state.second : operator_seed)),
+      m_n64(previous_state.first),
+      m_key64(global_seed),
+      m_counter64(previous_state.second > 0 ? previous_state.second : operator_seed),
+      m_n(split_high_low(m_n64)),
+      m_key(split_high_low(m_key64)),
+      m_counter(split_high_low(m_counter64)),
       m_total_generated_elements(0) {}
 
 void OpenvinoPhilloxGenerator::increment_key() {
@@ -141,7 +149,7 @@ void OpenvinoPhilloxGenerator::execute_single_round() {
     auto prod1 = split_high_low(STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER * m_counter.first);
     m_n.first = prod1.second ^ m_n.second ^ m_key.first;
     m_n.second = prod1.first;
-    m_counter.first = prod0.second ^ m_counter.second ^ m_counter.second;
+    m_counter.first = prod0.second ^ m_counter.second ^ m_key.second;
     m_counter.second = prod0.first;
 }
 
@@ -163,30 +171,17 @@ PhilloxOutput OpenvinoPhilloxGenerator::random() {
     }
     execute_single_round();
 
-    auto res1 = m_n;
-    auto res2 = m_counter;
+    result[0] = m_n.first;
+    result[1] = m_n.second;
+    result[2] = m_counter.first;
+    result[3] = m_counter.second;
 
-    result[0] = res1.first;
-    result[1] = res1.second;
-    result[2] = res2.first;
-    result[3] = res2.second;
-
-    auto n_low = res1.first;
-    auto n_high = res1.second;
-    auto counter_low = res2.first;
-    auto counter_high = res2.second;
-
-    if (++n_low == 0) {
-        if (++n_high == 0) {
-            if (++counter_low == 0) {
-                ++counter_high;
-            }
-        }
+    if (++m_n64 == 0) {
+        ++m_counter64;
     }
-    m_n.first = n_low;
-    m_n.second = n_high;
-    m_counter.first = counter_low;
-    m_counter.second = counter_high;
+
+    m_n = split_high_low(m_n64);
+    m_counter = split_high_low(m_counter64);
 
     ++m_total_generated_elements;
 
@@ -279,18 +274,18 @@ void TensorflowPhilloxGenerator::skip_one() {
 }
 
 void TensorflowPhilloxGenerator::raise_key(std::array<uint32_t, 2>& key) {
-    key[0] += STATISTIC_MAXIMIZING_MULTIPLIER_N;
-    key[1] += STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER;
+    key[0] += CRUSH_RESISTANCE_LOWER_VALUE;
+    key[1] += CRUSH_RESISTANCE_UPPER_VALUE;
 }
 
 void TensorflowPhilloxGenerator::compute_single_round(std::array<uint32_t, 2>& key, std::array<uint32_t, 4>& counter) {
     uint32_t lo0;
     uint32_t hi0;
-    multiply_high_low(CRUSH_RESISTANCE_LOWER_VALUE, counter[0], &lo0, &hi0);
+    multiply_high_low(STATISTIC_MAXIMIZING_MULTIPLIER_N, counter[0], &lo0, &hi0);
 
     uint32_t lo1;
     uint32_t hi1;
-    multiply_high_low(CRUSH_RESISTANCE_UPPER_VALUE, counter[2], &lo1, &hi1);
+    multiply_high_low(STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER, counter[2], &lo1, &hi1);
 
     counter[0] = hi1 ^ counter[1] ^ key[0];
     counter[1] = lo1;

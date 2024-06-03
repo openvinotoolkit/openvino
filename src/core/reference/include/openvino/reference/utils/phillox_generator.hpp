@@ -81,10 +81,10 @@ protected:
     // https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
     //
     // Values for OpenVINO, Tensorflow
-    static constexpr uint32_t CRUSH_RESISTANCE_LOWER_VALUE = 0x9E3779B9;
-    static constexpr uint32_t CRUSH_RESISTANCE_UPPER_VALUE = 0xBB67AE85;
-    static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
-    static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
+    static constexpr uint32_t CRUSH_RESISTANCE_LOWER_VALUE = 0x9E3779B9;             // _TENSORFLOW_kPhiloxW32A
+    static constexpr uint32_t CRUSH_RESISTANCE_UPPER_VALUE = 0xBB67AE85;             // _TENSORFLOW_kPhiloxW32B
+    static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;        // _TENSORFLOW_kPhiloxM4x32A
+    static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;  // _TENSORFLOW_kPhiloxM4x32B
     // Values for PyTorch
     static constexpr int MERSENNE_STATE_N = 624;
     static constexpr int MERSENNE_STATE_M = 397;
@@ -135,6 +135,9 @@ private:
     void execute_single_round();
     void increment_key();
 
+    uint64_t m_n64;
+    uint64_t m_key64;
+    uint64_t m_counter64;
     std::pair<uint32_t, uint32_t> m_n;
     std::pair<uint32_t, uint32_t> m_key;
     std::pair<uint32_t, uint32_t> m_counter;

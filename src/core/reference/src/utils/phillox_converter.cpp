@@ -130,6 +130,7 @@ T uint32_to_T_type_float(uint32_t x) {
 template <typename T>
 void convert_to_output_type(const std::vector<uint32_t>& res,
                             size_t uints_generated_per_exec,
+                            size_t output_type_generated_values,
                             const element::Type& elem_type,
                             const char* min_val,
                             const char* max_val,
@@ -146,8 +147,8 @@ void convert_to_output_type(const std::vector<uint32_t>& res,
     memcpy(mx, max_val, elem_type.size());
 
     std::vector<T> res_out_type(uints_generated_per_exec);
-    // elem_type.size() is one of the following: {2, 4, 8} (for 16, 32 and 64 bit data types)
-    if (elem_type.size() > 4) {
+    // Either 2 or 4 (2 for 64 bit values, 4 otherwise)
+    if (output_type_generated_values == 2) {
         // Each element of resulting sequence is formed using two uint32 values,
         // therefore only half of the res_out_type array is used.
         for (size_t i = 0; i < uints_generated_per_exec / 2; ++i) {
@@ -189,7 +190,7 @@ void MockPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
 }
 
 size_t MockPhilloxConverter::get_converted_elements_count() const {
-    return 1;
+    return 4;
 }
 
 // ======= TensorflowPhilloxConverter functions =======
@@ -216,7 +217,7 @@ void TensorflowPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     switch (m_elem_type) {
     case element::Type_t::f32: {
         convert_to_output_type<float>(result,
-                                      m_uints_generated_per_exec,
+                                       m_uints_generated_per_exec, get_converted_elements_count(),
                                       m_elem_type,
                                       m_min_val,
                                       m_max_val,
@@ -228,7 +229,7 @@ void TensorflowPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::f16: {
         convert_to_output_type<float16>(result,
-                                        m_uints_generated_per_exec,
+                                         m_uints_generated_per_exec, get_converted_elements_count(),
                                         m_elem_type,
                                         m_min_val,
                                         m_max_val,
@@ -240,7 +241,7 @@ void TensorflowPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::bf16: {
         convert_to_output_type<bfloat16>(result,
-                                         m_uints_generated_per_exec,
+                                          m_uints_generated_per_exec, get_converted_elements_count(),
                                          m_elem_type,
                                          m_min_val,
                                          m_max_val,
@@ -252,7 +253,7 @@ void TensorflowPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::f64: {
         convert_to_output_type<double>(result,
-                                       m_uints_generated_per_exec,
+                                        m_uints_generated_per_exec, get_converted_elements_count(),
                                        m_elem_type,
                                        m_min_val,
                                        m_max_val,
@@ -267,7 +268,7 @@ void TensorflowPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::i32: {
         convert_to_output_type<int>(result,
-                                    m_uints_generated_per_exec,
+                                     m_uints_generated_per_exec, get_converted_elements_count(),
                                     m_elem_type,
                                     m_min_val,
                                     m_max_val,
@@ -283,7 +284,7 @@ void TensorflowPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::i64: {
         convert_to_output_type<int64_t>(result,
-                                        m_uints_generated_per_exec,
+                                         m_uints_generated_per_exec, get_converted_elements_count(),
                                         m_elem_type,
                                         m_min_val,
                                         m_max_val,
@@ -312,7 +313,9 @@ PyTorchPhilloxConverter::PyTorchPhilloxConverter(char* out,
     : PhilloxConverter(out, elem_type, elem_count, min_val, max_val, uints_generated_per_exec) {}
 
 size_t PyTorchPhilloxConverter::get_converted_elements_count() const {
-    return m_elem_type.size() > 4 ? 1 : 2;
+    // PyTorch uses one uint32_t value per generated output
+    // except for int64 only
+    return m_elem_type == element::i64 ? 2 : 4;
 }
 
 void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
@@ -320,7 +323,7 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     switch (m_elem_type) {
     case element::Type_t::f32: {
         convert_to_output_type<float>(result,
-                                      m_uints_generated_per_exec,
+                                       m_uints_generated_per_exec, get_converted_elements_count(),
                                       m_elem_type,
                                       m_min_val,
                                       m_max_val,
@@ -332,7 +335,7 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::f16: {
         convert_to_output_type<float16>(result,
-                                        m_uints_generated_per_exec,
+                                         m_uints_generated_per_exec, get_converted_elements_count(),
                                         m_elem_type,
                                         m_min_val,
                                         m_max_val,
@@ -344,7 +347,7 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::bf16: {
         convert_to_output_type<bfloat16>(result,
-                                         m_uints_generated_per_exec,
+                                          m_uints_generated_per_exec, get_converted_elements_count(),
                                          m_elem_type,
                                          m_min_val,
                                          m_max_val,
@@ -356,7 +359,7 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::f64: {
         convert_to_output_type<double>(result,
-                                       m_uints_generated_per_exec,
+                                        m_uints_generated_per_exec, get_converted_elements_count(),
                                        m_elem_type,
                                        m_min_val,
                                        m_max_val,
@@ -368,7 +371,7 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::i32: {
         convert_to_output_type<int>(result,
-                                    m_uints_generated_per_exec,
+                                     m_uints_generated_per_exec, get_converted_elements_count(),
                                     m_elem_type,
                                     m_min_val,
                                     m_max_val,
@@ -384,7 +387,7 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
     }
     case element::Type_t::i64: {
         convert_to_output_type<int64_t>(result,
-                                        m_uints_generated_per_exec,
+                                         m_uints_generated_per_exec, get_converted_elements_count(),
                                         m_elem_type,
                                         m_min_val,
                                         m_max_val,
