@@ -559,7 +559,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-    CPU_SET_CALLBACK_X64(manager,
+    CPU_SET_CALLBACK_COMMON(manager,
         [this](const_node_ptr &node) -> bool {
             std::string errorMsg;
             // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf regression.

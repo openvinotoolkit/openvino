@@ -205,12 +205,12 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
+    INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
-    INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
 #endif
 }
