@@ -37,7 +37,8 @@ For additional details on the above configurations, refer to `Multi-stream Execu
 Latency Hint
 ###################################
 
-In this scenario, the default setting of ``ov::hint::scheduling_core_type`` is determined by the model precision and the ratio of P-cores and E-cores.
+In this scenario, the default setting of ``ov::hint::scheduling_core_type`` is determined by
+the model precision and the ratio of P-cores and E-cores.
 
 .. note::
 
@@ -84,7 +85,8 @@ Then the default settings for low-level performance properties on Windows and Li
 Throughput Hint
 ######################################
 
-In this scenario, thread scheduling first evaluates the memory pressure of the model being inferred on the current platform, and determines the number of threads per stream, as shown below.
+In this scenario, thread scheduling first evaluates the memory pressure of the model being
+inferred on the current platform, and determines the number of threads per stream, as shown below.
 
 +-----------------+-----------------------+
 | Memory Pressure | Threads per Stream    |
@@ -96,7 +98,8 @@ In this scenario, thread scheduling first evaluates the memory pressure of the m
 | high            | 3 or 4 or 5           |
 +-----------------+-----------------------+
 
-Then the value of ``ov::num_streams`` is calculated by dividing ``ov::inference_num_threads`` by the number of threads per stream. The default settings for low-level performance properties on Windows and Linux are as follows:
+Then the value of ``ov::num_streams`` is calculated by dividing ``ov::inference_num_threads``
+by the number of threads per stream. The default settings for low-level performance properties on Windows and Linux are as follows:
 
 +--------------------------------------+-------------------------------+-------------------------------+
 | Property                             | Windows                       | Linux                         |
@@ -114,12 +117,13 @@ Then the value of ``ov::num_streams`` is calculated by dividing ``ov::inference_
 
 .. note::
 
-    - By default, different core types are not mixed within single stream in this scenario. And cores from different numa nodes are not mixed within single stream.
+    - By default, different core types are not mixed within a single stream in this scenario. The cores from different NUMA nodes are not mixed within a single stream.
 
 Multi-Threading Optimization
 ##############################################
 
-User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU.
+The following properties can be used to limit the available CPU resources for model inference.
+If the platform or operating system supports this behavior, the OpenVINO Runtime will perform multi-threading scheduling based on the limited available CPU.
 
 - ``ov::inference_num_threads``
 - ``ov::hint::scheduling_core_type``
@@ -144,9 +148,11 @@ User can use the following properties to limit available CPU resource for model 
 
 .. note::
 
-   ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
+   ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in the current release.
 
-In some use cases, OpenVINO Runtime will enable CPU threads pinning by default for better performance. User can also turn it on or off using property ``ov::hint::enable_cpu_pinning``. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel.
+In some use cases, OpenVINO Runtime will enable CPU thread pinning by default for better performance.
+Users can also turn this feature on or off using the property ``ov::hint::enable_cpu_pinning``.
+Disabling thread pinning may be beneficial in complex applications where several workloads are executed in parallel.
 
 .. tab-set::
 
