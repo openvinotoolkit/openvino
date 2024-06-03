@@ -6,7 +6,8 @@
 
 #include "openvino/opsets/opset10.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/store.hpp"
 
 namespace ov {
 namespace test {

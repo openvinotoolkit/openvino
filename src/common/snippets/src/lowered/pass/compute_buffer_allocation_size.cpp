@@ -47,9 +47,9 @@ size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& lo
         const auto& dim_idx = loop_port.dim_idx;
         if (loop_port.is_incremented && dim_idx < rank) {
             if (const auto& unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info))
-                utils::dynamic_safe_mul(allocation_size, unified_loop_info->get_work_amount());
+                allocation_size = utils::dynamic_safe_mul(allocation_size, unified_loop_info->get_work_amount());
             else if (const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_info))
-                utils::dynamic_safe_mul(allocation_size, expanded_loop_info->get_unified_loop_info()->get_work_amount());
+                allocation_size = utils::dynamic_safe_mul(allocation_size, expanded_loop_info->get_unified_loop_info()->get_work_amount());
             else
                 OPENVINO_THROW("Unknown LoopInfo type");
             processed_dim_idxs.insert(dim_idx);
@@ -59,16 +59,16 @@ size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& lo
     for (size_t i = 0; i < std::min(processing_rank, rank); ++i) {
         if (processed_dim_idxs.count(i) == 0) {
             if (i < subtensor.size())
-                utils::dynamic_safe_mul(allocation_size, std::min(*(planar_shape.rbegin() + i), *(subtensor.rbegin() + i)));
+                allocation_size = utils::dynamic_safe_mul(allocation_size, std::min(*(planar_shape.rbegin() + i), *(subtensor.rbegin() + i)));
             else
-                utils::dynamic_safe_mul(allocation_size, *(planar_shape.rbegin() + i));
+                allocation_size = utils::dynamic_safe_mul(allocation_size, *(planar_shape.rbegin() + i));
         }
     }
 
     // Corner case when the current information is not enough
     if (processing_rank == 0 && processed_dim_idxs.empty()) {
         for (size_t i = 0; i < rank; ++i) {
-            utils::dynamic_safe_mul(allocation_size, *(planar_shape.rbegin() + i));
+            allocation_size = utils::dynamic_safe_mul(allocation_size, *(planar_shape.rbegin() + i));
         }
     }
 
@@ -83,11 +83,12 @@ bool ComputeBufferAllocationSize::run(LinearIR& linear_ir, lowered::LinearIR::co
     const auto& buffer_expressions = linear_ir.get_buffers();
     for (const auto& buffer_expr : buffer_expressions) {
         const auto node = buffer_expr->get_node();
-        OPENVINO_ASSERT(ov::is_type<op::Buffer>(node), "Expected Buffer ops in Buffer expressions of LinearIR");
         if (const auto buffer = ov::as_type_ptr<op::IntermediateMemoryBuffer>(node)) {
             // If the current size is undefined, update it
             if (!buffer->is_defined())
                 buffer->set_allocation_size(get_allocation_size(loop_manager, buffer_expr, m_buffer_allocation_rank));
+        } else {
+            OPENVINO_ASSERT(ov::is_type<op::NewMemoryBuffer>(node), "Expected Buffer ops in Buffer expressions of LinearIR");
         }
     }
 

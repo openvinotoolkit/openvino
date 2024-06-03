@@ -151,7 +151,7 @@ protected:
 
     inline void init_call_args(jit_snippets_call_args& call_args) {
         call_args.register_loops(loop_args);
-        std::copy(buffer_offsets.cbegin(), buffer_offsets.cend(), call_args.memory_access_offsets);
+        std::copy(buffer_offsets.cbegin(), buffer_offsets.cend(), call_args.buffer_offsets);
 
         if (m_buffer_scratchpad_size > 0)
             call_args.buffer_scratchpad_ptr =

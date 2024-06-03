@@ -73,7 +73,7 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
             total_finalization_offsets.resize(num_ports, 0);
         }
 
-        utils::dynamic_safe_add(current_work_amount, expanded_loop_info->get_work_amount());
+        current_work_amount = utils::dynamic_safe_add(current_work_amount, expanded_loop_info->get_work_amount());
         INFORMATIVE_ASSERT(current_unified_loop_info->get_ptr_increments() == expanded_loop_info->get_ptr_increments(),
                            "incompatible pointer increments with UnifiedLoopInfo");
 
@@ -81,7 +81,7 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
         INFORMATIVE_ASSERT(finalization_offsets.size() == total_finalization_offsets.size(),
                            "incompatible finalization offset count");
         for (size_t i = 0; i < num_ports; ++i)
-            utils::dynamic_safe_add(total_finalization_offsets[i], finalization_offsets[i]);
+            total_finalization_offsets[i] = utils::dynamic_safe_add(total_finalization_offsets[i], finalization_offsets[i]);
     }
 }
 

@@ -69,6 +69,13 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
     OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
                     "Buffer expects MemoryAccess parent");
+    const auto buffer_siblings = in->get_consumers();
+    for (const auto& buffer_sibling : buffer_siblings) {
+        const auto& buffer_sibling_expr = buffer_sibling.get_expr();
+        OPENVINO_ASSERT(buffer_sibling_expr == expr || ov::is_type<op::LoopEnd>(buffer_sibling_expr->get_node()),
+                        "Buffer can have only LoopEnd siblings!");
+    }
+
     const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
     const auto& out = expr_val->get_output_port_connector(0);
@@ -77,9 +84,9 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
         const auto& node = consumer_input.get_expr()->get_node();
         if (const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(node)) {
             OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
-                            "Buffer expects MemoryAccess on output");
+                            "Buffer expects MemoryAccess and LoopEnd on output");
         } else {
-            OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(node), "Parameter must be connected to MemoryAccess op or LoopEnd");
+            OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(node), "Buffer expects MemoryAccess and LoopEnd on output");
         }
     }
 }
@@ -116,6 +123,37 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     validate_loop_ports(input_port_infos);
     validate_loop_ports(output_port_infos, loop_end->get_input_num());
 }
+
+void validate_buffer_expressions(const LinearIR::container& buffer_expressions) {
+    std::set<size_t> cluster_ids;
+    std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
+
+    for (const auto& buffer_expr : buffer_expressions) {
+        const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
+        OPENVINO_ASSERT(buffer, "Expected Buffer ops in Buffer expressions of LinearIR");
+
+        auto& clusters = buffer->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
+        clusters[buffer->get_cluster_id()].insert(buffer_expr);
+        cluster_ids.insert(buffer->get_cluster_id());
+    }
+
+    OPENVINO_ASSERT(cluster_ids.size() == dynamic_buffer_clusters.size() + static_buffer_clusters.size(), "Incorrect count of Buffer clusters");
+    OPENVINO_ASSERT(cluster_ids.empty() || (*cluster_ids.cbegin() == 0 && *cluster_ids.crbegin() == (cluster_ids.size() - 1)),
+                    "Incorrect indetifiers of Buffer clusters");
+
+    for (const auto& p : static_buffer_clusters) {
+        const auto& cluster_id = p.first;
+        const auto& cluster = p.second;
+        OPENVINO_ASSERT(dynamic_buffer_clusters.count(cluster_id) == 0, "Buffers from the same cluster must be only static or dynamic");
+
+        OPENVINO_ASSERT(cluster.size() > 0, "Incorrect size of buffer cluster");
+        size_t cluster_offset = ov::as_type_ptr<op::Buffer>((*cluster.cbegin())->get_node())->get_offset();
+        for (const auto& buffer_expr : cluster) {
+            OPENVINO_ASSERT(cluster_offset == ov::as_type_ptr<op::Buffer>(buffer_expr->get_node())->get_offset(),
+                            "Static Buffers from the same cluster must have the same offset!");
+        }
+    }
+}
 } // namespace
 
 Validate::Validate() {
@@ -142,6 +180,8 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
         if (!ov::is_type<op::LoopBase>(node))
             validate_ports(expr);
     }
+
+    validate_buffer_expressions(linear_ir.get_buffers());
 
     return false;
 }

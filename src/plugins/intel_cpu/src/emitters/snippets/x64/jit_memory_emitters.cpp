@@ -34,12 +34,12 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const Ex
         OV_CPU_JIT_EMITTER_ASSERT(memory_access->is_memory_access_input_port(0), "must be input port - memory access");
         count = memory_access->get_input_count();
         compiled_byte_offset = memory_access->get_input_offset();
-        runtime_args_offset = get_parent_buffer_cluster_id(expr);
+        buffer_cluster_id = get_parent_buffer_cluster_id(expr);
     } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
         OV_CPU_JIT_EMITTER_ASSERT(memory_access->is_memory_access_output_port(0), "must be output port - memory access");
         count = memory_access->get_output_count();
         compiled_byte_offset = memory_access->get_output_offset();
-        runtime_args_offset = get_consumer_buffer_cluster_id(expr);
+        buffer_cluster_id = get_consumer_buffer_cluster_id(expr);
     } else {
         OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
     }
@@ -48,7 +48,7 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const Ex
         is_offset_runtime = true;
         // Compiled byte offset is zero to manually `add` runtime offset before operation and `sub` after to reset pointer in the register
         compiled_byte_offset = 0;
-        OPENVINO_ASSERT(runtime_args_offset != SIZE_MAX, "Incorrect buffer offset in call_args");
+        OPENVINO_ASSERT(buffer_cluster_id != SIZE_MAX, "Incorrect buffer offset in call_args");
     }
 }
 
@@ -76,9 +76,11 @@ size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lo
 }
 
 std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
-    if (aux_gpr_idxs.empty())
-        return aux_gpr_idxs;
-    return std::vector<size_t>(aux_gpr_idxs.cbegin() + static_cast<size_t>(is_offset_runtime), aux_gpr_idxs.cend());
+    OPENVINO_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()), "If offset is dynamic, memory emitter need to have one aux gpr at least!");
+    auto available_aux_gprs = aux_gpr_idxs;
+    if (!aux_gpr_idxs.empty())
+        available_aux_gprs.pop_back();
+    return available_aux_gprs;
 }
 
 void jit_memory_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -98,7 +100,7 @@ void jit_memory_emitter::emit_code(const std::vector<size_t> &in_idxs, const std
     }
 
     if (is_offset_runtime) {
-        h->mov(aux_gpr, h->ptr[reg_runtime_params + GET_OFF(memory_access_offsets) + runtime_args_offset * sizeof(size_t)]);
+        h->mov(aux_gpr, h->ptr[reg_runtime_params + GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t)]);
         h->add(data_reg, aux_gpr);
     }
 

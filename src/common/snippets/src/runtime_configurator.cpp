@@ -113,9 +113,9 @@ void RuntimeConfigurator::init_data_info(const std::shared_ptr<lowered::LinearIR
 }
 
 void RuntimeConfigurator::init_buffer_info(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
-    std::set<size_t> cluster_ids;
     std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
 
+    // All needed checks are in Validate pass
     const auto& buffer_expressions = linear_ir->get_buffers();
     for (const auto& buffer_expr : buffer_expressions) {
         const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
@@ -123,28 +123,18 @@ void RuntimeConfigurator::init_buffer_info(const std::shared_ptr<lowered::Linear
 
         auto& clusters = buffer->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
         clusters[buffer->get_cluster_id()].insert(buffer_expr);
-        cluster_ids.insert(buffer->get_cluster_id());
     }
 
-    OPENVINO_ASSERT(cluster_ids.size() == dynamic_buffer_clusters.size() + static_buffer_clusters.size(), "Incorrect count of Buffer clusters");
-    OPENVINO_ASSERT(cluster_ids.empty() || (*cluster_ids.cbegin() == 0 && *cluster_ids.crbegin() == (cluster_ids.size() - 1)),
-                    "Incorrect indetifiers of Buffer clusters");
-
+    const auto cluster_count = dynamic_buffer_clusters.size() + static_buffer_clusters.size();
     m_config->buffer_scratchpad_size = linear_ir->get_static_buffer_scratchpad_size();
-    m_config->buffer_cluster_offsets.resize(cluster_ids.size(), utils::get_dynamic_value<size_t>());
+    m_config->buffer_cluster_offsets.resize(cluster_count, utils::get_dynamic_value<size_t>());
 
     for (const auto& p : static_buffer_clusters) {
         const auto& cluster_id = p.first;
         const auto& cluster = p.second;
-        OPENVINO_ASSERT(dynamic_buffer_clusters.count(cluster_id) == 0, "Buffers from the same cluster must be only static or dynamic");
 
         OPENVINO_ASSERT(cluster.size() > 0, "Incorrect size of buffer cluster");
         size_t cluster_offset = ov::as_type_ptr<op::Buffer>((*cluster.cbegin())->get_node())->get_offset();
-        for (const auto& buffer_expr : cluster) {
-            OPENVINO_ASSERT(cluster_offset == ov::as_type_ptr<op::Buffer>(buffer_expr->get_node())->get_offset(),
-                            "Static Buffers from the same cluster must have the same offset!");
-        }
-
         m_config->buffer_cluster_offsets[cluster_id] = cluster_offset;
     }
 

@@ -78,21 +78,19 @@ inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
 }
 
 template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-inline void dynamic_safe_add(T& lhs, const T& rhs) {
+inline T dynamic_safe_add(const T& lhs, const T& rhs) {
     if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
-        lhs = utils::get_dynamic_value<T>();
-        return;
+        return utils::get_dynamic_value<T>();
     }
-    lhs += rhs;
+    return lhs + rhs;
 }
 
 template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-inline void dynamic_safe_mul(T& lhs, const T& rhs) {
+inline T dynamic_safe_mul(const T& lhs, const T& rhs) {
     if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
-        lhs = utils::get_dynamic_value<T>();
-        return;
+        return utils::get_dynamic_value<T>();
     }
-    lhs *= rhs;
+    return lhs * rhs;
 }
 
 template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>

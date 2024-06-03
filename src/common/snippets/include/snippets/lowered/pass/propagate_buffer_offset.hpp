@@ -29,6 +29,7 @@ public:
      */
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
+private:
     /**
      * @brief Propagates Buffer offset to the connected memory access ops
      * @param buffer_expr expression with Buffer op with inited offset

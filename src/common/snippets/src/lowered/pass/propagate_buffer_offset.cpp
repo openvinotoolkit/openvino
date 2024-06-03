@@ -5,7 +5,10 @@
 
 #include "snippets/lowered/pass/propagate_buffer_offset.hpp"
 
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

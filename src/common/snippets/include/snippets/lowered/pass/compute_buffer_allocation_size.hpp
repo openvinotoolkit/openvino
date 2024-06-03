@@ -29,7 +29,7 @@ public:
     static size_t get_allocation_size(const LoopManagerPtr& loop_manager, const ExpressionPtr& buffer_expr, size_t allocation_rank);
 
 private:
-    size_t m_buffer_allocation_rank = 0;
+    const size_t m_buffer_allocation_rank = 0;
 };
 
 } // namespace pass

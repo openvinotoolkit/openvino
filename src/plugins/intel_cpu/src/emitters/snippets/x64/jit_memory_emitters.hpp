@@ -32,7 +32,7 @@ protected:
 
     size_t count = 0;
     size_t compiled_byte_offset = 0;
-    size_t runtime_args_offset = 0;
+    size_t buffer_cluster_id = 0;
     bool is_offset_runtime = false;
 
 #ifdef SNIPPETS_DEBUG_CAPS
