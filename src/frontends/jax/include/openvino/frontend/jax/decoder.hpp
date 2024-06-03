@@ -51,7 +51,7 @@ public:
     // Return signature name of the input tensor
     virtual const std::string& get_input_signature_name(size_t index) const = 0;
 
-    // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
+    // Return the input shape
     virtual PartialShape get_input_shape(size_t index) const = 0;
 
     virtual Any get_input_type(size_t index) const = 0;
@@ -62,7 +62,7 @@ public:
     // Return debug name of the input tensor
     virtual const std::string& get_output_debug_name(size_t index) const = 0;
 
-    // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
+    // Return the output shape
     virtual PartialShape get_output_shape(size_t index) const = 0;
 
     // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object

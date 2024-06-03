@@ -14,24 +14,9 @@
 namespace py = pybind11;
 
 using namespace ov::frontend;
-using ov::Any;
 
 
 void regclass_frontend_jax_decoder(py::module m) {
     py::class_<jax::JaxDecoder, IDecoder, PyDecoder, std::shared_ptr<jax::JaxDecoder>>(m, "_FrontEndJaxDecoder")
         .def(py::init<>());
-
-    // auto type_module = m.def_submodule("_Type");
-
-    // // Register classes for TorchScript type system
-    // py::class_<type::Tensor>(type_module, "Tensor").
-    //     def(py::init<Any>());
-    // py::class_<type::List>(type_module, "List").
-    //     def(py::init<Any>());
-    // py::class_<type::Str>(type_module, "Str").
-    //     def(py::init<>());
-    // py::class_<type::PyNone>(type_module, "PyNone").
-    //     def(py::init<>());
-    // py::class_<type::PyScalar>(type_module, "PyScalar").
-    //     def(py::init<Any>());
 }

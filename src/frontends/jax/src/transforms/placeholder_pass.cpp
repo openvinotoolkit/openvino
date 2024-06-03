@@ -35,6 +35,6 @@ bool PlaceholderInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
 };
 
 }  // namespace pass
-}  // namespace pytorch
+}  // namespace jax
 }  // namespace frontend
 }  // namespace ov

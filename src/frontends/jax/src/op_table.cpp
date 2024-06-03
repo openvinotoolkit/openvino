@@ -11,12 +11,11 @@ namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 
-// TorchScript translations
 OP_CONVERTER(translate_add);
 
 }  // namespace op
 
-// Supported ops for TorchScript
+// Supported ops for Jaxpr
 const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
     return {
         {"add", op::translate_add},

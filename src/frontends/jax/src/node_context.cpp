@@ -142,7 +142,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
         if (parameter->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
             OPENVINO_DEBUG << "Removing parameter " << parameter
-                           << " in converted Pytorch model, because it is never used\n";
+                           << " in converted Jax model, because it is never used\n";
             model->remove_parameter(parameter);
         }
     }
