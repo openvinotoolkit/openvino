@@ -54,17 +54,15 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                 unique_axes.reset(new std::set<int64_t>(axes->cbegin(), axes->cend()));
             } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input is a single element tensor which is unique by definition, deducing output rank
-                NODE_VALIDATION_CHECK(op,
-                                      std::any_of(arg_shape.cbegin(),
-                                                  arg_shape.cend(),
-                                                  [](const DimType& dim) {
-                                                      return dim.compatible(1);
-                                                  }),
-                                      "Data input shape ",
-                                      arg_shape,
-                                      " doesn't contain squeezable dimension,"
-                                      " but axes input is expected to have one element.");
-                output_shape = PartialShape::dynamic(arg_rank.get_length() - 1);
+                const auto has_squeezable_dim =
+                    std::any_of(arg_shape.cbegin(), arg_shape.cend(), [](const DimType& dim) {
+                        return dim.compatible(1);
+                    });
+                if (has_squeezable_dim) {
+                    output_shape = PartialShape::dynamic(arg_rank.get_length() - 1);
+                } else {
+                    output_shape = arg_shape;
+                }
                 return output_shapes;
             }
         }
@@ -97,13 +95,11 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
             auto rm_axis_end = unique_axes->cend();
 
             // Returns true if dimension not squeezable on axis from input axes.
-            const auto not_squeezable_at_axis = [&op, &rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
+            const auto not_squeezable_at_axis = [&rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
                 if ((rm_axis_iter != rm_axis_end) && (*rm_axis_iter == idx++)) {
-                    NODE_VALIDATION_CHECK(op,
-                                          dim.compatible(1),
-                                          "provided axis value is invalid. Only axes of size 1 may be removed.");
                     ++rm_axis_iter;
-                    return false;
+                    // Ignore: Pointed by axis, but not squeezable
+                    return !dim.compatible(1);
                 } else {
                     return true;
                 }
