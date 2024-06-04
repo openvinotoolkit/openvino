@@ -67,7 +67,7 @@ std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>
         }
 
         const auto& output_desc = output_desc_map[result];
-        if (output_desc && ov::as_type_ptr<OutputD>(output_desc) || !output_desc) {
+        if ((output_desc && ov::as_type_ptr<OutputD>(output_desc)) || !output_desc) {
             removed_result_inds.insert(result_map.at(result));
         } else {
             // unknown or unsupported case is met
