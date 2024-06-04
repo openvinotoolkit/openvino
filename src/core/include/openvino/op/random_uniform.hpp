@@ -60,7 +60,7 @@ public:
     void set_op_seed(uint64_t seed2);
 
     /// \return The state value.
-    std::pair<uint64_t, uint64_t> get_state();
+    std::pair<uint64_t, uint64_t> get_state() const;
 
     /// \return The alignment mode.
     PhilloxAlignment get_alignment() const;

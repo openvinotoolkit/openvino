@@ -89,7 +89,7 @@ std::shared_ptr<Node> RandomUniform::clone_with_new_inputs(const OutputVector& n
 }
 
 /// \return Turns off constant folding for RandomUniform operation.
-bool RandomUniform::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
+bool RandomUniform::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     return false;
 }
 
