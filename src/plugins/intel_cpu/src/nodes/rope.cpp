@@ -6,8 +6,7 @@
 
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
-#include "dnnl_extension_utils.h"
-#include "openvino/core/type/element_type.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 #include "kernels/x64/rope_kernel.hpp"
@@ -33,15 +32,33 @@ RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
     m_config = node->get_config();
 }
 
-static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param) {
+static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param, bool check_vec_size2 = false) {
     std::shared_ptr<kernel::JitKernelBase> res;
+
+    MAYBE_UNUSED(param);
+    MAYBE_UNUSED(check_vec_size2);
 
 #if defined(OPENVINO_ARCH_X86_64)
 
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-        res = std::make_shared<jit_rotary_kernel<dnnl::impl::cpu::x64::avx512_core>>(param);
-    else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2))
-        res = std::make_shared<jit_rotary_kernel<dnnl::impl::cpu::x64::avx2>>(param);
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+        bool flag = true;
+        if (check_vec_size2) {
+            auto vec_size = jit_rotary_kernel<dnnl::impl::cpu::x64::avx512_core>::vec_size;
+            if (param.rotary_ndims % (vec_size * 2) != 0)
+                flag = false;
+        }
+        if (flag)
+            res = std::make_shared<jit_rotary_kernel<dnnl::impl::cpu::x64::avx512_core>>(param);
+    } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        bool flag = true;
+        if (check_vec_size2) {
+            auto vec_size = jit_rotary_kernel<dnnl::impl::cpu::x64::avx2>::vec_size;
+            if (param.rotary_ndims % (vec_size * 2) != 0)
+                flag = false;
+        }
+        if (flag)
+            res = std::make_shared<jit_rotary_kernel<dnnl::impl::cpu::x64::avx2>>(param);
+    }
 
     if (res)
         res->create_kernel();
@@ -49,6 +66,25 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_c
 #endif // OPENVINO_ARCH_X86_64
 
     return res;
+}
+
+static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, const void* src, void* dst, const float* cos, const float* sin) {
+    MAYBE_UNUSED(ker);
+    MAYBE_UNUSED(src);
+    MAYBE_UNUSED(dst);
+    MAYBE_UNUSED(cos);
+    MAYBE_UNUSED(sin);
+
+#if defined(OPENVINO_ARCH_X86_64)
+
+    jit_rotary_call_args call_args;
+    call_args.src = src;
+    call_args.cos = cos;
+    call_args.sin = sin;
+    call_args.dst = dst;
+    (*ker)(&call_args);
+
+#endif // OPENVINO_ARCH_X86_64
 }
 
 template <typename T>
@@ -114,12 +150,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             auto* dst = t_dst.ptr<T>(b, h, p, 0);
 
             if (m_rotaryKernel) {
-                jit_rotary_call_args call_args;
-                call_args.src = src;
-                call_args.cos = cos;
-                call_args.sin = sin;
-                call_args.dst = dst;
-                (*m_rotaryKernel)(&call_args);
+                execJitKernel(m_rotaryKernel, src, dst, cos, sin);
             } else {
                 auto half_rotary_dims = rotary_dims / 2;
                 size_t i = 0;
@@ -148,7 +179,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         jcp.rotary_ndims = config.rotary_ndims;
         jcp.interleave = true;
         jcp.mix_cos_sin = false;
-        m_rotaryKernel = createJitKernel(jcp);
+        m_rotaryKernel = createJitKernel(jcp, true);
     }
 
     void execute(dnnl::stream strm,
@@ -174,12 +205,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
             auto* dst = t_dst.ptr<T>(b, h, p);
 
             if (m_rotaryKernel) {
-                jit_rotary_call_args call_args;
-                call_args.src = x;
-                call_args.cos = cos;
-                call_args.sin = sin;
-                call_args.dst = dst;
-                (*m_rotaryKernel)(&call_args);
+                execJitKernel(m_rotaryKernel, x, dst, cos, sin);
             } else {
                 size_t i = 0;
                 for (size_t j = 0; i < rotary_dims; i += 2, j++) {
@@ -203,7 +229,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         jcp.rotary_ndims = config.rotary_ndims;
         jcp.interleave = true;
         jcp.mix_cos_sin = true;
-        m_rotaryKernel = createJitKernel(jcp);
+        m_rotaryKernel = createJitKernel(jcp, true);
     }
 
     void execute(dnnl::stream strm,
@@ -233,11 +259,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
             auto* dst = t_dst.ptr<T>(p, b, h, 0);
 
             if (m_rotaryKernel) {
-                jit_rotary_call_args call_args;
-                call_args.src = src;
-                call_args.cos = cos_sin;
-                call_args.dst = dst;
-                (*m_rotaryKernel)(&call_args);
+                execJitKernel(m_rotaryKernel, src, dst, cos_sin, nullptr);
             } else {
                 size_t i = 0;
                 for (; i < rotary_dims; i += 2) {
@@ -293,12 +315,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
             auto* dst = t_dst.ptr<T>(b, p, h);
 
             if (m_rotaryKernel) {
-                jit_rotary_call_args call_args;
-                call_args.src = src;
-                call_args.cos = cos;
-                call_args.sin = sin;
-                call_args.dst = dst;
-                (*m_rotaryKernel)(&call_args);
+                execJitKernel(m_rotaryKernel, src, dst, cos, sin);
             } else {
                 auto half_rotary_dims = rotary_dims / 2;
                 size_t i = 0;
