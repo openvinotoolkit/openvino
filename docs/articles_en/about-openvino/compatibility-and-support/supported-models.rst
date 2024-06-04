@@ -10,28 +10,35 @@ Supported Models
    Release Notes <about-openvino/release-notes-openvino>
    Additional Resources <about-openvino/additional-resources>
 
-
 .. raw:: html
 
-   <link rel="stylesheet" type="text/css" href="_static/css/openVinoDataTables.css">
-   <div>
-   <input type="checkbox" id="topology" name="interest" value="topology" data-column="0" class="toggle-vis"/>
-   <label for="topology" >Hide topology</label>
-   </div>
-   <div>
-   <input type="checkbox" id="precision" name="interest" value="precision" data-column="2" class="toggle-vis"/>
-   <label for="precision" >Hide precision</label>
-   </div>
-   <div>
-   <input type="checkbox" disabled id="source" name="source" value="source" data-column="1" class="toggle-vis"/>
-   <label for="source" >Hide source framework</label>
-   </div>
-
+   <link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css">
+   <h4>Here is just sample data.</h4>
+   <label class="column-container">
+       Hide topology
+      <input type="checkbox" id="topology" name="topology" value="topology" data-column="0" class="toggle-vis"/>
+      <label for="topology" class="checkmark"></label>
+   </label>
+   <label class="column-container">
+      Hide source framework
+      <input type="checkbox" id="source" name="source" value="source" data-column="1" class="toggle-vis"/>
+      <label for="source" class="checkmark"></label>
+   </label>
+   <label class="column-container">
+      Hide precision
+      <input type="checkbox" id="precision" name="precision" value="precision" data-column="2" class="toggle-vis"/>
+      <label for="precision" class="checkmark"></label>
+   </label>
+   <label class="column-container">
+      Hide arc
+      <input type="checkbox" id="arc" name="arc" value="arc" data-column="6" class="toggle-vis"/>
+      <label for="arc" class="checkmark"></label>
+   </label>
 
 .. csv-table::
-   :class: modeldata
-   :name: id-of-table
+   :class: modeldata stripe
+   :name: supportedModelsTable
    :header-rows: 1
-   :file: ../../../sphinx_setup/_static/models.csv
+   :file:  ../../_static/models.csv
 
 
