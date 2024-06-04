@@ -19,11 +19,7 @@ std::string Transpose::getTestCaseName(testing::TestParamInfo<ov::test::snippets
     std::tie(inputShapes, order, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
-    result << "TS=";
-    for (const auto& shape : inputShapes.second) {
-        result << "(" << ov::test::utils::vec2str(shape) << ")_";
-    }
+    result << "IS=" << inputShapes << "_";
     result << "Order=" << ov::test::utils::vec2str(order) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -52,16 +48,8 @@ std::string TransposeMul::getTestCaseName(testing::TestParamInfo<ov::test::snipp
     std::tie(inputShapes, order, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes.first.first}) << "_";
-    result << "TS[0]=";
-    for (const auto& shape : inputShapes.first.second) {
-        result << "(" << ov::test::utils::vec2str(shape) << ")_";
-    }
-    result << "IS[1]=" << ov::test::utils::partialShape2str({inputShapes.second.first}) << "_";
-    result << "TS[1]=";
-    for (const auto& shape : inputShapes.second.second) {
-        result << "(" << ov::test::utils::vec2str(shape) << ")_";
-    }
+    result << "IS[0]=" << inputShapes.first << "_";
+    result << "IS[1]=" << inputShapes.second << "_";
     result << "Order=" << ov::test::utils::vec2str(order) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
