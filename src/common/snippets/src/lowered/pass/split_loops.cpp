@@ -26,7 +26,9 @@ bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const Uni
     const bool equal_dim_idxes = current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
     const bool only_main_body = handlers.get_passes<SpecificLoopIterType::FIRST_ITER>().empty() &&
                                 handlers.get_passes<SpecificLoopIterType::LAST_ITER>().empty();
-    return loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
+    // TODO [141735] : At the moment Splitted loops are not supported in dynamic case
+    const auto are_static = !loop_to_split->is_dynamic() && !loop_to_fuse->is_dynamic();
+    return are_static && loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
            loop_to_split->get_increment() != loop_to_fuse->get_increment() && equal_dim_idxes && only_main_body;
 }
 
