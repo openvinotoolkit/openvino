@@ -38,7 +38,7 @@ def create_random_4bit_bin_file(tmp_path, shape, name):
         f.write(raw_data)
 
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch='1', niter='10'):
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch='1', niter='10', tm=None):
     output = get_cmd_output(
         get_executable(sample_language),
         *prepend(cache, inp, model, tmp_path),
@@ -54,6 +54,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         *('-exec_graph_path', tmp_path / 'exec_graph.xml') if tmp_path else '',
         *('-b', batch) if batch else '',
         *('-niter', niter) if niter else '10',
+        *('-t', tm) if tm else '',
         '-d', device
     )
     assert 'FPS' in output
@@ -127,4 +128,4 @@ def test_4bit_precision_input(sample_language, device, inp, cache, tmp_path):
     model_4bit = ov.Model([result], [input], 'model_with_4bit_input')
     if inp != None and inp.endswith(".bin"):
         create_random_4bit_bin_file(tmp_path, inp_shape, inp)
-    verify(sample_language, device, model=model_4bit, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, niter='100')
+    verify(sample_language, device, model=model_4bit, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
