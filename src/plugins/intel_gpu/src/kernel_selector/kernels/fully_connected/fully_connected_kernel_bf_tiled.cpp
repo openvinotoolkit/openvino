@@ -42,7 +42,10 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
 
 // DYNAMIC_QUANTIZE
 static bool is_dynamic_quantize(const fully_connected_params& params) {
-    if (params.dynamic_quantization_group_size < 32)
+    if (params.inputs[0].GetFirstElementOffset() != 0)
+        return false;
+
+    if (params.dynamic_quantization_group_size < quantize_grp_size)
         return false;
 
     auto threads = get_input_bf_size(params);
@@ -491,6 +494,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
+    jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
@@ -773,7 +777,6 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         auto quan_entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
         auto quan_cldnn_jit = GetJitConstants(new_params, dyn_quan_dispatch);
         quan_cldnn_jit.AddConstant(MakeJitConstant("FC_KERNEL_DYNAMIC_QUANTIZE", 1));
-        quan_cldnn_jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
         auto quan_jit = CreateJit(kernelName, quan_cldnn_jit, quan_entry_point);
 
 
@@ -795,8 +798,8 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize() * 2);
-        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize() / 32 * 2);
+        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize());
+        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize() / quantize_grp_size * 2);
         kernel_number++;
     }
     kd.internalBufferDataType = Datatype::F16;

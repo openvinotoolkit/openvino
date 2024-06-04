@@ -860,19 +860,19 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     for (uint ni = 0; ni < iterations; ++ni) {
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4 & DYNAMIC_QUANTIZE
             uint in_offset = input_offset + (idx_sglid + batch_sglid * TILE_IN_B_PITCH);
-            uint scale_offset = input_offset / 32;
+            uint scale_offset = input_offset / QUANTIZE_GROUP_SIZE;
             for (uint bi = 0; bi < HALF_TILE_B; ++bi) {
                 // Load quantizing info from pre-quantizing kernel
                 tiled_input_0[bi] = vload4(0, &quantized_input[in_offset]);
                 de_quantize_scale[bi * 2] = scale[scale_offset];
-                de_quantize_scale[bi * 2 + 1] = scale[scale_offset+TILE_IN_B_PITCH/32];
+                de_quantize_scale[bi * 2 + 1] = scale[scale_offset+ (TILE_IN_B_PITCH/QUANTIZE_GROUP_SIZE)];
 
                 // Packing : Get 4(B)x4(K) integer vector (packing to 4x1 vector)
                 packed_in_0[bi] = as_int(tiled_input_0[bi]);
 
                 // Next batch
                 in_offset += (TILE_IN_B_PITCH * 2);
-                scale_offset += (TILE_IN_B_PITCH/32 * 2);
+                scale_offset += (TILE_IN_B_PITCH/QUANTIZE_GROUP_SIZE * 2);
             }
 
             input_offset += TILE_IFM * SIMD;
