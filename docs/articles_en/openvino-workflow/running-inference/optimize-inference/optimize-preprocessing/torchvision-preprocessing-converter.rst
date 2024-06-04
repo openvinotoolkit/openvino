@@ -37,6 +37,6 @@ and enabling additional performance optimizations.
 Example
 ###################
 
-.. doxygensnippet:: docs/snippets/torchvision_preprocessing.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/torchvision_preprocessing.py
     :language: Python
     :fragment: torchvision_preprocessing

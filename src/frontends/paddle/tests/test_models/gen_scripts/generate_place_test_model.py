@@ -39,15 +39,17 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
         if paddle.__version__ >= '2.0.0':
             feed_vars = [data]
             fetch_vars = [y, h, c, relu_1, relu_2, relu_3]
-            saveModel("place_test_model", exe, feedkeys=feed_vars,
+            saveModel("place_test_model", exe, feed_vars=feed_vars,
                     fetchlist=fetch_vars,
                     inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
-                    outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1],
-                    use_static_api=True)
+                    outputs=outs, target_dir=sys.argv[1])
             path_prefix = os.path.join(sys.argv[1], "place_test_model", "place_test_model")
             program, feed_target_names, fetch_targets = paddle.static.io.load_inference_model(path_prefix, exe)
 
-            from paddle.fluid import core
+            if paddle.__version__ >= '2.6.0':
+                from paddle.base import core
+            else:
+                from paddle.fluid import core
             condition = lambda v : not v.persistable and v.name != "transpose_1.tmp_1" and v.name != "transpose_0.tmp_1"
             vars_ = list(filter(condition, program.list_vars()))
             vars_name = [v.name for v in vars_]
@@ -63,11 +65,10 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
                     f.writelines(f"{name}\n")
 
         else:
-            saveModel("place_test_model", exe, feedkeys=[data],
-                    fetchlist=[y, h, c, relu_1, relu_2, relu_3],
+            saveModel("place_test_model", exe, feed_vars=[data],
+                    fetch_vars=[y, h, c, relu_1, relu_2, relu_3],
                     inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
-                    outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1],
-                    use_static_api=True)
+                    outputs=outs, target_dir=sys.argv[1])
 
     return outs[0]
 

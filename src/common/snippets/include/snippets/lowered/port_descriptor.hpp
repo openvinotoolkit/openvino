@@ -14,15 +14,11 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-// [139785] We have to foward-declare this pass since the pass uses private methods `get_shape_ptr` and `set_shape_ptr`.
-//          For more info, take a look please at the description in private section.
-namespace pass {
-class InsertSpecificIterations;
-}  // namespace pass
-
+class LinearIRBuilder;
 class PortDescriptor;
 using PortDescriptorPtr = std::shared_ptr<PortDescriptor>;
 class PortDescriptor {
+    friend class LinearIRBuilder;
 public:
     // The structure with service values for scheduling parameters
     struct ServiceDimensions {
@@ -66,17 +62,6 @@ public:
     friend bool operator!=(const PortDescriptor& lhs, const PortDescriptor& rhs) {return !(lhs == rhs);}
 
 private:
-    friend class pass::InsertSpecificIterations;
-    // [139785] These methods update `m_tensor_shape` as `shared_ptr` and are used only in specific case of LinearIR cloning:
-    //          when we need to have copies with the same `shared_ptr` of `m_tensor_shape` in PortDescriptors of
-    //          cloned and original Expressions. At the moment it's needed only in InsertSpecificIterations pass to have
-    //          loop specific iterations with the same shapes.
-    //          Note: It's temporary solution and there should be implemented special class `Builder`.
-    //                This class will be able to clone LinearIR by different ways using special config:
-    //                for example, with `m_tensor_shape` (as `shared_ptr`) copy or with deep copy of `m_tensor_shape` (copy of stored pointer).
-    void set_shape_ptr(const VectorDimsPtr& tensor);
-    const VectorDimsPtr& get_shape_ptr() const;
-
     void validate_arguments();
     /// \brief Original tensor shape
     VectorDimsPtr m_tensor_shape = nullptr;

@@ -20,10 +20,10 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
                                              const std::vector<float>& inputHighData,
                                              const std::vector<float>& outputLowData,
                                              const std::vector<float>& outputHighData) {
-    auto inputLowNode = deprecated::make_constant(type, constShapes, inputLowData, inputLowData.empty());
-    auto inputHighNode = deprecated::make_constant(type, constShapes, inputHighData, inputHighData.empty());
-    auto outputLowNode = deprecated::make_constant(type, constShapes, outputLowData, outputLowData.empty());
-    auto outputHighNode = deprecated::make_constant(type, constShapes, outputHighData, outputHighData.empty());
+    auto inputLowNode = make_constant(type, constShapes, inputLowData);
+    auto inputHighNode = make_constant(type, constShapes, inputHighData);
+    auto outputLowNode = make_constant(type, constShapes, outputLowData);
+    auto outputHighNode = make_constant(type, constShapes, outputHighData);
 
     auto fq = std::make_shared<ov::op::v0::FakeQuantize>(in,
                                                          inputLowNode,
@@ -37,19 +37,18 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
 std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
                                              const ov::element::Type& type,
                                              std::size_t levels,
-                                             std::vector<size_t> constShapes,
-                                             const int32_t seed) {
+                                             std::vector<size_t> constShapes) {
     size_t constDataSize = ov::shape_size(constShapes);
     std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
-    inputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+    inputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1);
     if (levels != 2) {
-        inputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
-        outputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
-        outputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        inputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1);
+        outputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1);
+        outputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1);
     } else {
         inputHighData = inputLowData;
-        outputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
-        outputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1);
+        outputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1);
 
         for (int i = 0; i < constDataSize; i++) {
             if (outputLowData[i] > outputHighData[i]) {
@@ -76,34 +75,10 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
             outputHighData[i] += 1;
     }
 
-    auto inputLowNode = ov::test::utils::deprecated::make_constant(type,
-                                                                   constShapes,
-                                                                   inputLowData,
-                                                                   inputLowData.empty(),
-                                                                   10.f,
-                                                                   1.f,
-                                                                   seed);
-    auto inputHighNode = ov::test::utils::deprecated::make_constant(type,
-                                                                    constShapes,
-                                                                    inputHighData,
-                                                                    inputHighData.empty(),
-                                                                    10.f,
-                                                                    1.f,
-                                                                    seed);
-    auto outputLowNode = ov::test::utils::deprecated::make_constant(type,
-                                                                    constShapes,
-                                                                    outputLowData,
-                                                                    outputLowData.empty(),
-                                                                    10.f,
-                                                                    1.f,
-                                                                    seed);
-    auto outputHighNode = ov::test::utils::deprecated::make_constant(type,
-                                                                     constShapes,
-                                                                     outputHighData,
-                                                                     outputHighData.empty(),
-                                                                     10.f,
-                                                                     1.f,
-                                                                     seed);
+    auto inputLowNode = ov::test::utils::make_constant(type, constShapes, inputLowData);
+    auto inputHighNode = ov::test::utils::make_constant(type, constShapes, inputHighData);
+    auto outputLowNode = ov::test::utils::make_constant(type, constShapes, outputLowData);
+    auto outputHighNode = ov::test::utils::make_constant(type, constShapes, outputHighData);
 
     auto fq = std::make_shared<ov::op::v0::FakeQuantize>(in,
                                                          inputLowNode,

@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 
+#include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "zero_init.hpp"
 
@@ -30,6 +31,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _instance;
 
     std::map<std::string, std::shared_ptr<IDevice>> _devices{};
+    Logger _logger;
 };
 
 }  // namespace intel_npu

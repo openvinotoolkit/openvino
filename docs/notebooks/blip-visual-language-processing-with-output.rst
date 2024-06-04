@@ -323,6 +323,10 @@ text and vision modalities and postprocessing of generation results.
 
 .. code:: ipython3
 
+    from pathlib import Path
+
+    if not Path("./utils.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/utils.py")
     from utils import visualize_results
 
     fig = visualize_results(raw_image, answer, question)
@@ -380,7 +384,6 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
 
     # if openvino model does not exist, convert it to IR
     if not VISION_MODEL_OV.exists():
-
         # export pytorch model to ov.Model
         with torch.no_grad():
             ov_vision_model = ov.convert_model(vision_model, example_input=inputs["pixel_values"])
@@ -642,6 +645,8 @@ initial token for decoder work.
 
 .. code:: ipython3
 
+    if not Path("./blip_model.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/blip_model.py")
     from blip_model import OVBlipModel
 
     ov_model = OVBlipModel(model.config, model.decoder_start_token_id, ov_vision_model, ov_text_encoder, text_decoder)

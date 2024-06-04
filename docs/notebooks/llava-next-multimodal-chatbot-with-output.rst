@@ -136,8 +136,8 @@ Download PyTorch model
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
 
 
-OpenVINO## Convert model to OpenVINO Intermediate Representation 
-
+OpenVINO## Convert model to OpenVINO Intermediate Representation `back
+to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -645,7 +645,7 @@ inference faster. The optimization process contains the following steps:
 
 .. code:: ipython3
 
-    IMAGE_ENCODER_PATH_INT8 = IMAGE_ENCODER_PATH.parent / IMAGE_ENCODER_PATH.name.replace(".xml", "-int4.xml")
+    IMAGE_ENCODER_PATH_INT8 = IMAGE_ENCODER_PATH.parent / IMAGE_ENCODER_PATH.name.replace(".xml", "-int8.xml")
     
     
     import requests
@@ -1183,8 +1183,12 @@ Select device
 
     core = ov.Core()
     
+    support_devices = core.available_devices
+    if "NPU" in support_devices:
+        support_devices.remove("NPU")
+    
     device = widgets.Dropdown(
-        options=core.available_devices,
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
@@ -1224,7 +1228,7 @@ Select device
 
     use_int8_image_encoder = widgets.Checkbox(
         value=IMAGE_ENCODER_PATH_INT8.exists(),
-        description="INT4 language model",
+        description="INT8 image encoder",
         disabled=not IMAGE_ENCODER_PATH_INT8.exists(),
     )
     
