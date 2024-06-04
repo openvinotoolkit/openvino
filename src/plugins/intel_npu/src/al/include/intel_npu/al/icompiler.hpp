@@ -112,16 +112,6 @@ struct NetworkMetadata final {
 
     size_t numStreams = 1;
 
-    std::optional<size_t> findByName(const std::vector<IODescriptor>& descriptors, const std::string_view targetName) {
-        for (size_t descriptorIndex = 0; descriptorIndex < descriptors.size(); ++descriptorIndex) {
-            if (descriptors.at(descriptorIndex).nameFromCompiler == targetName) {
-                return std::optional(descriptorIndex);
-            }
-        }
-
-        return std::nullopt;
-    }
-
     /**
      * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
      * "relatedDescriptorIndex" attribute.
@@ -131,54 +121,11 @@ struct NetworkMetadata final {
      * For shape tensors, the lookup is performed in the same container (inputs or outputs). The value is once again set
      * to the index of the entry which bears the same name.
      */
-    void bindRelatedDescriptors() {
-        size_t ioIndex = 0;
+    void bindRelatedDescriptors();
 
-        for (IODescriptor& input : inputs) {
-            if (input.relatedDescriptorIndex.has_value()) {
-                ++ioIndex;
-                continue;
-            }
+private:
+    std::optional<size_t> findByName(const std::vector<IODescriptor>& descriptors, const std::string_view targetName);
 
-            if (input.isStateInput) {
-                const std::optional<size_t> relatedDescriptorIndex = findByName(outputs, input.nameFromCompiler);
-
-                if (relatedDescriptorIndex.has_value()) {
-                    input.relatedDescriptorIndex = relatedDescriptorIndex;
-                    outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
-                }
-            } else if (input.isShapeTensor) {
-                const std::optional<size_t> relatedDescriptorIndex = findByName(inputs, input.nameFromCompiler);
-
-                if (relatedDescriptorIndex.has_value() && *relatedDescriptorIndex != ioIndex) {
-                    input.relatedDescriptorIndex = relatedDescriptorIndex;
-                    inputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
-                }
-            }
-
-            ++ioIndex;
-        }
-
-        ioIndex = 0;
-
-        for (IODescriptor& output : outputs) {
-            if (output.relatedDescriptorIndex.has_value()) {
-                ++ioIndex;
-                continue;
-            }
-
-            if (output.isShapeTensor) {
-                const std::optional<size_t> relatedDescriptorIndex = findByName(outputs, output.nameFromCompiler);
-
-                if (relatedDescriptorIndex.has_value() && *relatedDescriptorIndex != ioIndex) {
-                    output.relatedDescriptorIndex = relatedDescriptorIndex;
-                    outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
-                }
-            }
-
-            ++ioIndex;
-        }
-    }
 };  // namespace intel_npu
 
 /**
