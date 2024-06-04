@@ -13,8 +13,8 @@ KERNEL(rope_ref)(
 {
     const uint p = get_global_id(0);
     const uint b = get_global_id(1);
-    const uint h = get_global_id(2) % HEAD_COUNT;
-    const uint rf = get_global_id(2) / HEAD_COUNT;
+    const uint h = (uint)get_global_id(2) % HEAD_COUNT;
+    const uint rf = (uint)get_global_id(2) / HEAD_COUNT;
     uint r = rf < HALF_ROTARY_NDIMS ? rf * 2 : 0;
     uint f = rf < HEAD_SIZE - ROTARY_NDIMS ? rf : 0;
 
@@ -52,13 +52,13 @@ KERNEL(rope_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* cos,
-    const __global INPUT1_TYPE* sin,
+    const __global INPUT2_TYPE* sin,
     __global OUTPUT_TYPE* output)
 {
     const uint b = get_global_id(0);
     const uint p = get_global_id(1);
-    const uint h = get_global_id(2) / HALF_ROTARY_NDIMS;
-    const uint r = get_global_id(2) % HALF_ROTARY_NDIMS;
+    const uint h = (uint)get_global_id(2) / HALF_ROTARY_NDIMS;
+    const uint r = (uint)get_global_id(2) % HALF_ROTARY_NDIMS;
 
 #ifdef ENABLE_SLICE
     uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, b, p, h * HEAD_SIZE, 0);
@@ -85,12 +85,12 @@ KERNEL(rope_ref)(
 }
 #endif
 
-#ifdef LLAMA
+#ifdef RotateHalf
 KERNEL(rope_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* cos,
-    const __global INPUT1_TYPE* sin,
+    const __global INPUT2_TYPE* sin,
 #ifdef ENABLE_GATHER
     const __global INPUT3_TYPE* gather,
 #endif
@@ -98,8 +98,8 @@ KERNEL(rope_ref)(
 {
     const uint b = get_global_id(0);
     const uint h = get_global_id(1);
-    const uint p = get_global_id(2) / HALF_ROTARY_NDIMS;
-    const uint r = get_global_id(2) % HALF_ROTARY_NDIMS;
+    const uint p = (uint)get_global_id(2) / HALF_ROTARY_NDIMS;
+    const uint r = (uint)get_global_id(2) % HALF_ROTARY_NDIMS;
 
 #ifdef ENABLE_SLICE
     uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, b, h, p, 0);

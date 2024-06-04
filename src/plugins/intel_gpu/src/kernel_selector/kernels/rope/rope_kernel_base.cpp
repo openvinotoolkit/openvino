@@ -27,7 +27,7 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         jit.AddConstant(MakeJitConstant("GATHER_RANK", params.gather_rank));
     }
 
-    if (params.slice_stop - params.slice_start > 0) {
+    if (params.slice_stop > params.slice_start) {
         jit.AddConstant(MakeJitConstant("ENABLE_SLICE", true));
 
         auto f = toCodeString(params.inputs[0].Feature(), 1);
@@ -50,7 +50,7 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         } else if (params.axis == 3) {
             jit.AddConstant(MakeJitConstant("SLICED_FROM_END", "(" + x + "-" + toCodeString(params.slice_stop) + ")"));
         } else {
-            OPENVINO_ASSERT(false, "[GPU] Invalid axis value for RoPE operation");
+            OPENVINO_THROW("[GPU] Invalid axis value for RoPE operation");
         }
     }
 
@@ -68,7 +68,7 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
     } else if (params.is_chatglm) {
         jit.AddConstant(MakeJitConstant("CHATGLM", true));
     } else {
-        jit.AddConstant(MakeJitConstant("LLAMA", true));
+        jit.AddConstant(MakeJitConstant("RotateHalf", true));
     }
 
     return jit;
@@ -79,14 +79,16 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
     if (params.is_chatglm || params.is_qwen) {
+        dims_by_gws = {{ Tensor::DataChannelName::BATCH }, { Tensor::DataChannelName::FEATURE },
+                       { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
         dispatchData.gws = {input.Batch().v,
                             input.Feature().v,
                             params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
     } else {
+        dims_by_gws = {{ Tensor::DataChannelName::BATCH }, { Tensor::DataChannelName::Y },
+                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::X }};
         dispatchData.gws = {input.Batch().v,
                             input.Y().v,
                             input.Feature().v * params.rotary_ndims / 2ul};

@@ -39,6 +39,7 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.head_cnt = primitive->config.head_cnt;
         params.head_size = primitive->config.head_size;
         params.rotary_ndims = primitive->config.rotary_ndims;
+        params.gather_rank = primitive->gather_rank;
 
         params.slice_start = primitive->config.slice_start;
         params.slice_stop = primitive->config.slice_stop;
@@ -46,8 +47,7 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.axis = primitive->config.is_qwen || primitive->config.is_chatglm ? 2 : 3;
         params.num_of_inputs = primitive->config.is_chatglm || primitive->config.is_interleaved ? 2 : 3;
 
-        if (primitive->gather_rank > 0) {
-            params.gather_rank = primitive->gather_rank;
+        if (params.gather_rank > 0) {
             params.num_of_inputs++;
         }
 
