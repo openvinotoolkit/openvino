@@ -787,15 +787,6 @@ void Transformations::PostLpt() {
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
     postLPTPassManager.run_passes(model);
-
-    size_t count = 0;
-    for (const auto& op : model->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v1::Softmax>(op))
-            count++;
-        if (ov::is_type<ov::op::v8::Softmax>(op))
-            count++;
-    }
-    std::cout << "SOFTMAX_COUNT: " << count << std::endl;
 }
 
 void Transformations::MainSnippets(void) {
@@ -884,6 +875,8 @@ void Transformations::MainSnippets(void) {
             return false;
         if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && one_of(inferencePrecision, element::f32, element::undefined))
             return true;
+        if (matmul->is_dynamic())
+            return false;
         // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
@@ -905,8 +898,22 @@ void Transformations::MainSnippets(void) {
         }
         return true;
     };
-    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
-        const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
+    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::PartialShape& pshape) {
+        // pshape = [b0,..., bn, m, n], `parallel_work_amount` = (b0*...*bn)
+        // 1. `parallel_work_amount` is dynamic:
+        //    1.1. In dynamic case we cannot explicitly say: this parallel work amount is supported or not
+        // 2. `parallel_work_amount` is static:
+        //    2.1. `parallel_work_amount` < `thread_count`
+        //         2.1.1. If m or n are dynamic, SplitDimensionM::can_be_optimized returns `false` - SplitDimensionM doesn't support dynamic shapes
+        //         2.1.2. If m and n are static, SplitDimensionM::can_be_optimized decides
+        //    2.2.  `parallel_work_amount` >= `thread_count` - this parallel work amount is supported. MHA can be tokenized
+        size_t parallel_work_amount = 1;
+        for (size_t i = 2; i < pshape.size(); ++i) {
+            if (pshape[i].is_dynamic())
+                return false;
+            parallel_work_amount *= pshape[i].get_length();
+        }
+
         const auto is_unsupported_parallel_work_amount =
             parallel_work_amount < tokenization_config.get_concurrency() &&
             !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());
@@ -990,11 +997,11 @@ void Transformations::MainSnippets(void) {
             if (!is_supported_matmul(child))
                 return true;
 
-            const auto& shape = child->get_input_shape(0);
+            const auto& shape = child->get_input_partial_shape(0);
             return is_unsupported_parallel_work_amount(n, shape);
         }, snippets::pass::TokenizeMHASnippets);
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-            return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_shape(0));
+            return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0));
         }, snippets::pass::ExtractReshapesFromMHA);
     }
 
