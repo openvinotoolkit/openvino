@@ -72,7 +72,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
     MATCHER_SCOPE(ConvertMaxPool14ToMaxPool8);
     const auto max_pool_v14_pattern = pattern::wrap_type<ov::op::v14::MaxPool>();
 
-    const matcher_pass_callback callback = [](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         using ov::op::v0::Constant;
         using ov::op::v0::Concat;
         using ov::op::v1::Subtract;
@@ -87,6 +87,9 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
         using ov::op::v12::Pad;
 
         const auto max_pool_v14 = std::dynamic_pointer_cast<ov::op::v14::MaxPool>(m.get_match_root());
+        if (!max_pool_v14 || transformation_callback(max_pool_v14)) {
+            return false;
+        }
         const auto rounding_type_v14 = max_pool_v14->get_rounding_type();
         std::shared_ptr<ov::op::v8::MaxPool> max_pool_v8;
         NodeRegistry node_registry;
