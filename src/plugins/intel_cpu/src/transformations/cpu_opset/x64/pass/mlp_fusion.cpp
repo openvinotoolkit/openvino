@@ -126,22 +126,9 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
 
     auto q_proj_weight = makePattern<opset1::Constant>({});
     auto q_proj_weight_cvt =
-        makePattern<opset1::Convert>({q_proj_weight}, {{"destination_type", "f32"}});  //  tensor_array<f32[4096,4096]>
-    auto q_proj =
-        makePattern<opset1::MatMul>({input, q_proj_weight_cvt | q_proj_weight},
-                                    {{"transpose_a", false}, {"transpose_b", true}});  //  tensor_array<f32[?,?,4096]>
-
-    /*
-    auto k_proj_weight_compressed = makeConst(element::f16, ov::Shape({4096,4096,}), {...});
-    auto k_proj_weight = makePattern<opset1::Convert>({k_proj_weight_compressed}, {{"destination_type", "f32"}});   //
-    tensor_array<f32[4096,4096]> auto k_proj = makePattern<opset1::MatMul>({input, k_proj_weight}, {{"transpose_a",
-    false}, {"transpose_b", true}});   //  tensor_array<f32[?,?,4096]>
-
-    auto v_proj_weight_compressed = makeConst(element::f16, ov::Shape({4096,4096,}), {...});
-    auto v_proj_weight = makePattern<opset1::Convert>({v_proj_weight_compressed}, {{"destination_type", "f32"}});   //
-    tensor_array<f32[4096,4096]> auto v_proj = makePattern<opset1::MatMul>({input, v_proj_weight}, {{"transpose_a",
-    false}, {"transpose_b", true}});   //  tensor_array<f32[?,?,4096]>
-    */
+        makePattern<opset1::Convert>({q_proj_weight}, {{"destination_type", "f32"}});  //  [4096,4096]
+    auto q_proj = makePattern<opset1::MatMul>({input, q_proj_weight_cvt | q_proj_weight},
+                                              {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
     auto result = q_proj;
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -157,8 +144,9 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
 
         auto&& children = src.get_target_inputs();
 
-        if (children.size() < 3)
+        if (children.size() < 3) {
             return false;
+        }
 
         OutputVector args = {src};
         OutputVector outputs;
@@ -166,7 +154,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         for (auto& child : children) {
             auto mm = dynamic_cast<opset1::MatMul*>(child.get_node());
             if (!mm) {
-                return false;
+                // maybe a ShapeOf
+                continue;
             }
             if (mm->get_transpose_a() != false || mm->get_transpose_b() != true) {
                 return false;
@@ -179,25 +168,29 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                 }
                 constw = ov::as_type_ptr<opset1::Constant>(cvt->input_value(0).get_node_shared_ptr());
             }
-            if (!constw)
+            if (!constw) {
                 return false;
+            }
 
             // make sure all weights are the same
-            if (proj_weight_shape.empty())
+            if (proj_weight_shape.empty()) {
                 proj_weight_shape = constw->get_shape();
-            else if (proj_weight_shape != constw->get_shape())
+            } else if (proj_weight_shape != constw->get_shape()) {
                 return false;
+            }
 
             args.push_back(constw);
             outputs.push_back(mm->get_default_output());
         }
 
         // make sure just 3 projections are found
-        if (outputs.size() != 3)
+        if (outputs.size() != 3) {
             return false;
+        }
 
-        if (proj_weight_shape[0] != proj_weight_shape[1])
+        if (proj_weight_shape[0] != proj_weight_shape[1]) {
             return false;
+        }
 
         LLMMLPNode::Config config;
         config.is_qkv_proj = true;
@@ -210,8 +203,6 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         ov::copy_runtime_info({old_node}, new_node);
 
         for (size_t i = 0; i < outputs.size(); i++) {
-            // ov::replace_node(outputs[i].get_node_shared_ptr(), new_node, {int64_t(i)});
-
             auto target = outputs[i].get_node_shared_ptr();
             outputs[i].replace(new_node->output(i));
             new_node->add_node_control_dependents(target);
