@@ -2844,7 +2844,6 @@ public:
         ov::Shape in1_shape_aligned = in1_shape;
         ov::Shape in2_shape_aligned = { 1, BATCH_SIZE, aligned_n_size, K_SIZE };
 
-        // Use dynamic padding for all BFYX dimensions
         tensor dyn_pad_dims_input2({0, 0, 0, 0}, 0);
         dyn_pad_dims_input2 = tensor({0, 0, 0, 1}, 0);
 
