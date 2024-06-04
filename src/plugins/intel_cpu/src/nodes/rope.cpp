@@ -89,9 +89,10 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, con
 
 template <typename T>
 struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
+    const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    RoPEExecutorRotateHalf(const op::internal::RoPE::Config& config) {
+    RoPEExecutorRotateHalf(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -101,7 +102,6 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
     }
 
     void execute(dnnl::stream strm,
-                 const op::internal::RoPE::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -109,19 +109,19 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         ov::intel_cpu::PlainTensor t_sin(inputs[2]);
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
         ov::intel_cpu::PlainTensor gather;
-        auto rotary_dims = config.rotary_ndims;
+        auto rotary_dims = m_config.rotary_ndims;
 
         bool can_inplace = true;
-        if (config.slice_stop - config.slice_start > 0) {
-            t_src = t_src.slice(3, config.slice_start, config.slice_stop);
+        if (m_config.slice_stop - m_config.slice_start > 0) {
+            t_src = t_src.slice(3, m_config.slice_start, m_config.slice_stop);
             can_inplace = false;
         }
-        if (config.input_trans0213) {
+        if (m_config.input_trans0213) {
             t_src = t_src.permute({0, 2, 1, 3});
             can_inplace = false;
         }
-        if (config.gather_position_arg_id > 0) {
-            gather.reset(inputs[config.gather_position_arg_id]);
+        if (m_config.gather_position_arg_id > 0) {
+            gather.reset(inputs[m_config.gather_position_arg_id]);
         }
 
         if (t_cos.m_rank == 2) {
@@ -170,9 +170,10 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
 
 template <typename T>
 struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
+    const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    RoPEExecutorInterleaved(const op::internal::RoPE::Config& config) {
+    RoPEExecutorInterleaved(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -183,7 +184,6 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
     }
 
     void execute(dnnl::stream strm,
-                 const op::internal::RoPE::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -195,7 +195,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         auto head_cnt = t_src.size(2);
         auto head_dims = t_src.size(3);
 
-        auto rotary_dims = config.rotary_ndims;
+        auto rotary_dims = m_config.rotary_ndims;
         auto half_rotary_dims = rotary_dims / 2;
 
         parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
@@ -220,9 +220,10 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
 
 template <typename T>
 struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
+    const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    RoPEExecutorChatGLM(const op::internal::RoPE::Config& config) {
+    RoPEExecutorChatGLM(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -233,7 +234,6 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
     }
 
     void execute(dnnl::stream strm,
-                 const op::internal::RoPE::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -241,16 +241,16 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
 
         // [seq_len, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
-        if (config.slice_stop - config.slice_start > 0) {
-            t_src = t_src.slice(2, config.slice_start, config.slice_stop);
+        if (m_config.slice_stop - m_config.slice_start > 0) {
+            t_src = t_src.slice(2, m_config.slice_start, m_config.slice_stop);
         }
         auto seq_len = t_src.size(0);
         auto batch_size = t_src.size(1);
 
-        auto head_cnt = config.head_cnt;
-        auto head_size = config.head_size;
+        auto head_cnt = m_config.head_cnt;
+        auto head_size = m_config.head_size;
 
-        auto rotary_dims = config.rotary_ndims;
+        auto rotary_dims = m_config.rotary_ndims;
 
         parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
             auto* src = t_src.ptr<T>(p, b, h * head_size);
@@ -277,9 +277,10 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
 template <typename T>
 struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
+    const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    RoPEExecutorQwen(const op::internal::RoPE::Config& config) {
+    RoPEExecutorQwen(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -289,7 +290,6 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
     }
 
     void execute(dnnl::stream strm,
-                 const op::internal::RoPE::Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);    // [batch, length, head_cnt*head_size * 3]
@@ -298,14 +298,14 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);   // [batch, length, head_cnt, head_size]>
         auto rotary_dims = t_cos.size(3);
 
-        if (config.slice_stop - config.slice_start > 0) {
-            t_src = t_src.slice(2, config.slice_start, config.slice_stop);
+        if (m_config.slice_stop - m_config.slice_start > 0) {
+            t_src = t_src.slice(2, m_config.slice_start, m_config.slice_stop);
         }
 
         auto batch_size = t_src.size(0);
         auto seq_len = t_src.size(1);
-        auto head_cnt = config.head_cnt;
-        auto head_size = config.head_size;
+        auto head_cnt = m_config.head_cnt;
+        auto head_size = m_config.head_size;
         auto present_kv_len = t_cos.size(1);
 
         parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
@@ -406,7 +406,7 @@ void RoPE::execute(dnnl::stream strm) {
     for (size_t i = 0; i < outputs.size(); i++) {
         outputs[i] = getDstMemoryAtPort(i);
     }
-    m_executor->execute(strm, m_config, inputs, outputs);
+    m_executor->execute(strm, inputs, outputs);
 }
 
 bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
