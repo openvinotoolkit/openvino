@@ -114,7 +114,7 @@ void DefineBufferClusters::parse_loop(const LinearIR::constExprIt& expr_it) {
 
             // If allocated sizes of buffers are unkown on compilation stage (dynamic),
             // we cannot be sure that they're will be the same in runtime.
-            if ((utils::is_dynamic_value(input_buffer->get_byte_size()) || utils::is_dynamic_value(output_buffer->get_byte_size())))
+            if (!input_buffer->is_defined()|| !output_buffer->is_defined())
                 continue;
 
             // Memory can be reused if reading and writing are executed proportionally:
@@ -199,6 +199,8 @@ void DefineBufferClusters::parse_nested_loops(const BufferPorts& input_buffers, 
                     OPENVINO_ASSERT(cluster_it != m_clusters.cend(), "Buffer cluster has not been found");
                     // If the buffers are already in the same cluster or have different Buffer ID - skip
                     if (cluster_it == inner_cluster_it) continue;
+                    // Buffer from one cluster must be only defined (with known allocation_size) or dynamic (with unknown allocation_size)
+                    if (inner_buffer->is_defined() != ov::as_type_ptr<op::Buffer>(port.first->get_node())->is_defined()) continue;
 
                     bool can_be_reused = true;
                     for (const auto idx : port.second) {
