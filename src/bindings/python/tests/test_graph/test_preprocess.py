@@ -730,42 +730,39 @@ def test_graph_set_layout_by_layout_class_thow_exception():
     assert "Layout name is invalid" in str(e.value)
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [[0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT])
-def test_pad_vector_constant_layout(pads_begin, pads_end, values, mode):
+def test_pad_vector_constant_layout():
     shape = [1, 3, 200, 200]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
     model = Model(model, [parameter_a], "TestModel")
     ppp = PrePostProcessor(model)
     ppp.input().tensor().set_shape([1, 3, 199, 199])
-    ppp.input().preprocess().pad(pads_begin, pads_end, values, mode)
+    ppp.input().preprocess().pad([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)
     assert ppp.build()
     assert list(model.get_output_shape(0)) == shape
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [[0, 0, -2, 0], [0, 0, -4, 1], 0, PaddingMode.CONSTANT], pytest.raises(TypeError), "Incorrect value for pads_begin and pads_end")
-def test_pad_vector_out_of_range(pads_begin, pads_end, values, mode):
+def test_pad_vector_out_of_range():
     shape = [1, 3, 5, 5]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
     model = Model(model, [parameter_a], "TestModel")
     ppp = PrePostProcessor(model)
     try:
-        ppp.input().preprocess().pad(pads_begin, pads_end, values, mode)
+        ppp.input().preprocess().pad([0, 0, -2, 0], [0, 0, -4, 1], 0, PaddingMode.CONSTANT)
     except Exception:
         raise
     assert list(model.get_output_shape(0)) == shape
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [[0, 0, 2, 0, 1], [0, 0, 4, 1, 1], 0, PaddingMode.CONSTANT], pytest.raises(TypeError), "Incorrect size for pads_begin and pads_end")
-def test_pad_vector_dim_mismatch(pads_begin, pads_end, values, mode):
+def test_pad_vector_dim_mismatch():
     shape = [1, 3, 5, 5]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
     model = Model(model, [parameter_a], "TestModel")
     ppp = PrePostProcessor(model)
     try:
-        ppp.input().preprocess().pad(pads_begin, pads_end, values, mode)
+        ppp.input().preprocess().pad([0, 0, 2, 0, 1], [0, 0, 4, 1, 1], 0, PaddingMode.CONSTANT)
     except Exception:
         raise
     assert list(model.get_output_shape(0)) == shape
