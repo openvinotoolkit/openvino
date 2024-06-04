@@ -19,9 +19,7 @@ public:
     bool created() const override {
         return getType() == Type::LLMMLP;
     }
-    bool needPrepareParams() const override {
-        return false;
-    };
+    void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override {
         execute(strm);
     }
@@ -30,8 +28,13 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     struct Executor {
+        virtual void execute(LLMMLP* pnode) = 0;
         virtual ~Executor() {};
     };
+
+    const LLMMLPNode::Config& getConfig() {
+        return m_config;
+    }
 
 private:
     LLMMLPNode::Config m_config;
