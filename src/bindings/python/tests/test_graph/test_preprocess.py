@@ -730,8 +730,9 @@ def test_graph_set_layout_by_layout_class_thow_exception():
     assert "Layout name is invalid" in str(e.value)
 
 
-
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)])
+@pytest.mark.parametrize(
+    ("pads_begin", "pads_end", "values", "mode"),
+    [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)])
 def test_pad_vector_constant_layout(pads_begin, pads_end, values, mode):
     shape = [1, 3, 200, 200]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
