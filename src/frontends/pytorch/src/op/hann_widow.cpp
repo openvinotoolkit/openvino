@@ -52,8 +52,7 @@ OutputVector translate_hann_window(const NodeContext& context) {
         if (!context.input_is_none(dtype_id)) {
             squared_sin = apply_dtype(context, dtype_id, squared_sin);
         }
-    }
-    if (num_inputs <= 3) {
+    } else {
         size_t out_id = num_inputs == 3 ? 2 : 1;
         if (!context.input_is_none(out_id)) {
             squared_sin = context.mark_node(std::make_shared<v1::ConvertLike>(squared_sin, context.get_input(out_id)));
