@@ -19,37 +19,12 @@ public:
 
     SDPA() = default;
 
-    SDPA(const ov::Output<Node>& Q,
-         const ov::Output<Node>& K,
-         const ov::Output<Node>& V,
+    SDPA(const OutputVector& inputs,
+         const bool is_causal,
          const std::vector<int64_t>& order_q,
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
-         const bool is_causal,
-         const ov::element::Type output_type = ov::element::undefined);
-
-    SDPA(const ov::Output<Node>& Q,
-         const ov::Output<Node>& K,
-         const ov::Output<Node>& V,
-         const ov::Output<Node>& attn_mask,
-         const std::vector<int64_t>& order_q,
-         const std::vector<int64_t>& order_k,
-         const std::vector<int64_t>& order_v,
-         const std::vector<int64_t>& order_out,
-         const bool is_causal,
-         const ov::element::Type output_type = ov::element::undefined);
-
-    SDPA(const ov::Output<Node>& Q,
-         const ov::Output<Node>& K,
-         const ov::Output<Node>& V,
-         const ov::Output<Node>& attn_mask,
-         const ov::Output<Node>& scale,
-         const std::vector<int64_t>& order_q,
-         const std::vector<int64_t>& order_k,
-         const std::vector<int64_t>& order_v,
-         const std::vector<int64_t>& order_out,
-         const bool is_causal,
          const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
@@ -73,11 +48,11 @@ public:
     }
 
 protected:
+    bool m_is_causal;
     std::vector<int64_t> m_order_q;
     std::vector<int64_t> m_order_k;
     std::vector<int64_t> m_order_v;
     std::vector<int64_t> m_order_out;
-    bool m_is_causal;
     ov::element::Type m_output_type;
 };
 
