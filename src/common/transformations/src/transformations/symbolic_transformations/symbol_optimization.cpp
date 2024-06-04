@@ -226,13 +226,16 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
     for (const auto& op : m->get_ordered_ops()) {
         if (ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             op->get_rt_info()[op_depends_on_parameter] = true;
-        } else if (ov::as_type_ptr<ov::op::v0::Constant>(op) || ov::as_type_ptr<ov::op::v0::ShapeOf>(op) || ov::as_type_ptr<ov::op::v3::ShapeOf>(op) || std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v0::Constant>(op) || ov::as_type_ptr<ov::op::v0::ShapeOf>(op) ||
+                   ov::as_type_ptr<ov::op::v3::ShapeOf>(op) ||
+                   std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
             op->get_rt_info()[op_depends_on_parameter] = false;
-        } else { // deduce op type from inputs
+        } else {  // deduce op type from inputs
             const auto& inputs = op->input_values();
-            op->get_rt_info()[op_depends_on_parameter] = std::any_of(inputs.begin(), inputs.end(), [=](const ov::Output<ov::Node>& input) {
-                return input.get_node_shared_ptr()->get_rt_info()[op_depends_on_parameter].as<bool>();
-            });
+            op->get_rt_info()[op_depends_on_parameter] =
+                std::any_of(inputs.begin(), inputs.end(), [=](const ov::Output<ov::Node>& input) {
+                    return input.get_node_shared_ptr()->get_rt_info()[op_depends_on_parameter].as<bool>();
+                });
         }
     }
     // step 2: starting from Result -- assign weight to ops:
