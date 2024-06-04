@@ -29,9 +29,10 @@
 #include "functional_test_utils/crash_handler.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include "shared_test_classes/base/utils/calculate_thresholds.hpp"
+
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
 namespace test {
@@ -311,18 +312,18 @@ void SubgraphBaseTest::compile_model() {
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
-    auto inputMap = utils::getInputMap();
+    ov::test::utils::ModelRange modelRange;
+    modelRange.find_mode_ranges(function);
+
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {
         std::shared_ptr<ov::Node> inputNode = param;
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                auto it = inputMap.find(nodePtr->get_type_info());
-                ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
+                        inputs.insert({param, modelRange.generate_input(nodePtr, port, *itTargetShape)});
                         break;
                     }
                 }
