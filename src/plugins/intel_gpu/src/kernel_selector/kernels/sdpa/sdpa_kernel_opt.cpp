@@ -23,10 +23,13 @@ static size_t get_target_seq_len_block_size() {
     return block_size;
 }
 
-
 static size_t get_seq_len_partition_size() {
     const size_t seq_len = 256;
     return seq_len;
+}
+
+static Datatype get_softmax_acc_type() {
+    return Datatype::F32;
 }
 
 static std::string GetKernelName(std::string base_name, KernelsTypes type, bool is_indirect) {
@@ -80,7 +83,7 @@ bool SDPAKernelOpt::Validate(const Params& p) const {
 JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t kernel_idx) const {
     auto jit = SDPAKernelBase::GetJitConstants(params);
 
-    const auto softmax_acc_dt = params.inputs[0].GetDType();
+    const auto softmax_acc_dt = get_softmax_acc_type();
     jit.Merge(MakeTypeJitConstants(softmax_acc_dt, "SOFTMAX_ACCUMULATOR"));
 
     const auto& config = params.conf;
@@ -232,7 +235,7 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
         auto num_of_partitions = CeilDiv(source_seq_len, get_seq_len_partition_size());
 
-        auto buf_dt_size = output.ElementSize();
+        auto buf_dt_size = BytesPerElement(get_softmax_acc_type());
         auto buf_elements_count = (num_of_partitions == 1) ? 1 : output.LogicalSize() / head_size * num_of_partitions;
         auto buf_size = buf_elements_count * buf_dt_size;
 
@@ -241,26 +244,26 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         auto tmp_out_size = tmp_out_elements_count * tmp_out_dt_size;
 
         auto dispatch_data1 = SetDefault(prim_params, 0);
-        kernel_data.kernels[0].params.workGroups.global = dispatch_data1.gws;
-        kernel_data.kernels[0].params.workGroups.local = dispatch_data1.lws;
-        kernel_data.kernels[0].skip_execution = target_seq_len > 1;
+        kernel_data.kernels[KernelsTypes::SINGLE_TOKEN].params.workGroups.global = dispatch_data1.gws;
+        kernel_data.kernels[KernelsTypes::SINGLE_TOKEN].params.workGroups.local = dispatch_data1.lws;
+        kernel_data.kernels[KernelsTypes::SINGLE_TOKEN].skip_execution = target_seq_len > 1;
 
         auto dispatch_data2 = SetDefault(prim_params, 1);
-        kernel_data.kernels[1].params.workGroups.global = dispatch_data2.gws;
-        kernel_data.kernels[1].params.workGroups.local = dispatch_data2.lws;
-        kernel_data.kernels[1].skip_execution = target_seq_len == 1;
+        kernel_data.kernels[KernelsTypes::MULTI_TOKENS].params.workGroups.global = dispatch_data2.gws;
+        kernel_data.kernels[KernelsTypes::MULTI_TOKENS].params.workGroups.local = dispatch_data2.lws;
+        kernel_data.kernels[KernelsTypes::MULTI_TOKENS].skip_execution = target_seq_len == 1;
 
         ScalarDescriptor num_of_partitions_scalar;
         num_of_partitions_scalar.t = ScalarDescriptor::Types::UINT32;
         num_of_partitions_scalar.v.u32 = static_cast<uint32_t>(num_of_partitions);
 
         auto dispatch_data3 = SetDefault(prim_params, 2);
-        kernel_data.kernels[2].params.workGroups.global = dispatch_data3.gws;
-        kernel_data.kernels[2].params.workGroups.local = dispatch_data3.lws;
-        kernel_data.kernels[2].skip_execution = num_of_partitions == 1;
+        kernel_data.kernels[KernelsTypes::FINALIZATION].params.workGroups.global = dispatch_data3.gws;
+        kernel_data.kernels[KernelsTypes::FINALIZATION].params.workGroups.local = dispatch_data3.lws;
+        kernel_data.kernels[KernelsTypes::FINALIZATION].skip_execution = num_of_partitions == 1;
 
-        kernel_data.kernels[2].params.scalars.clear();
-        kernel_data.kernels[2].params.scalars.push_back(num_of_partitions_scalar);
+        kernel_data.kernels[KernelsTypes::FINALIZATION].params.scalars.clear();
+        kernel_data.kernels[KernelsTypes::FINALIZATION].params.scalars.push_back(num_of_partitions_scalar);
 
         kernel_data.internalBufferSizes.clear();
         kernel_data.internalBufferSizes.push_back(buf_size);

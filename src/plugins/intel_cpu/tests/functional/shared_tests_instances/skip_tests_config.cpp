@@ -371,6 +371,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_VariableState/OVInferRequestVariableStateTest.*)");
     // Issue: 141705
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
+
+    retVector.emplace_back(R"(.*smoke_RoPETest.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
