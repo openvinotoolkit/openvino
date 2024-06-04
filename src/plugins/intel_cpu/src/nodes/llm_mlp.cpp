@@ -18,8 +18,10 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
+#if defined(OPENVINO_ARCH_X86_64)
 using TileConfig = ov::Extensions::Cpu::TileConfig;
 using TileConfiger = ov::Extensions::Cpu::TileConfiger;
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -27,6 +29,7 @@ namespace node {
 
 namespace {
 
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 
 class AutoTileConfiger : public TileConfiger {
@@ -771,7 +774,7 @@ struct QKVProj : public LLMMLP::Executor {
 
                     work.weights.resize(num_blk_K);
                     for (auto& weight : work.weights)
-                        weight.resize<ov::bfloat16>({static_cast<size_t>(blkN), blk_K_size * 32});
+                        weight.resize<ov::bfloat16>({static_cast<size_t>(blkN), static_cast<size_t>(blk_K_size * 32)});
 
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
@@ -782,9 +785,8 @@ struct QKVProj : public LLMMLP::Executor {
         create_works(wq, 0);
         create_works(wk, 1);
         create_works(wv, 2);
-        auto used_nthr = cur_work_id;
 
-        DEBUG_LOG("QKVProj N,K=", N, ",", K, " used_nthr=", used_nthr);
+        DEBUG_LOG("QKVProj N,K=", N, ",", K, " used_nthr=", cur_work_id);
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
@@ -936,6 +938,7 @@ struct MLP : LLMMLP::Executor {
         run(pA, strideA, M, dst0, strideC);
     }
 };
+#endif
 
 };  // namespace
 
@@ -1028,6 +1031,7 @@ bool ExecutorKey::operator==(const ExecutorKey &rhs) const {
 #endif
 
 void LLMMLP::prepareParams() {
+#if defined(OPENVINO_ARCH_X86_64)
     if (!m_executor) {
         if (m_config.is_qkv_proj) {
             auto exec = std::make_shared<QKVProj>();
@@ -1047,10 +1051,14 @@ void LLMMLP::prepareParams() {
             m_executor = exec;
         }
     }
+#endif
 }
 
 void LLMMLP::execute(dnnl::stream strm) {
+    MAYBE_UNUSED(strm);
+#if defined(OPENVINO_ARCH_X86_64)
     m_executor->execute(this);
+#endif
 }
 
 bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

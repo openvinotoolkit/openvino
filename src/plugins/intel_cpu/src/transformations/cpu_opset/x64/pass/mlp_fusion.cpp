@@ -45,7 +45,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
 
     auto result = down_proj;
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -131,7 +131,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                                               {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
     auto result = q_proj;
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
