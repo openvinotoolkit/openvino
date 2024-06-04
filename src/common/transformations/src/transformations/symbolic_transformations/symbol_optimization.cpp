@@ -220,49 +220,92 @@ void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_so
 }
 
 std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<ov::Model>& m) {
-    const std::string local_rt_info_name = "topological_sort_weight";
-
+    // step 1: split model into parameter related and parameter non-related ops
+    const std::string op_depends_on_parameter = "topological_sort_op_depends_on";
+    // values: true - parameter dependent; false otherwise
+    for (const auto& op : m->get_ordered_ops()) {
+        if (ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
+            op->get_rt_info()[op_depends_on_parameter] = true;
+        } else if (ov::as_type_ptr<ov::op::v0::Constant>(op) || ov::as_type_ptr<ov::op::v0::ShapeOf>(op) || ov::as_type_ptr<ov::op::v3::ShapeOf>(op) || std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+            op->get_rt_info()[op_depends_on_parameter] = false;
+        } else { // deduce op type from inputs
+            const auto& inputs = op->input_values();
+            op->get_rt_info()[op_depends_on_parameter] = std::any_of(inputs.begin(), inputs.end(), [=](const ov::Output<ov::Node>& input) {
+                return input.get_node_shared_ptr()->get_rt_info()[op_depends_on_parameter].as<bool>();
+            });
+        }
+    }
+    // step 2: starting from Result -- assign weight to ops:
+    //      if parameter dependant, weights is maximum of output indices plus one
+    //      else weights is maximum of output indices
+    // this step doesn't assign weights to all the ops, this is intentional and will be used in the following step
+    const std::string weight_rt_info_name = "topological_sort_weight";
     auto reverse_order = m->get_ordered_ops();
     std::reverse(reverse_order.begin(), reverse_order.end());
-
-    // backward: weight = max(output_weights) + 1
     for (const auto& op : reverse_order) {
         int64_t weight = 0;
-        if (!ov::as_type_ptr<ov::op::v0::Result>(op) && !ov::op::util::is_sink(op)) {
+        if (ov::as_type_ptr<ov::op::v0::Result>(op)) {
+            op->get_rt_info()[weight_rt_info_name] = weight;
+        } else {
+            bool output_has_weight = false;
             for (const auto& output : op->outputs()) {
                 for (const auto& input : output.get_target_inputs()) {
                     const auto& output_op = input.get_node();
                     const auto& rt_info = output_op->get_rt_info();
-                    auto output_weight = rt_info.at(local_rt_info_name).as<int64_t>();
+                    if (!rt_info.count(weight_rt_info_name))
+                        continue;
+                    output_has_weight = true;
+                    auto output_weight = rt_info.at(weight_rt_info_name).as<int64_t>();
                     weight = output_weight > weight ? output_weight : weight;
                 }
             }
-            weight += 1;
+            if (output_has_weight) {
+                if (op->get_rt_info()[op_depends_on_parameter].as<bool>()) {
+                    weight += 1;
+                }
+                op->get_rt_info()[weight_rt_info_name] = weight;
+            }
         }
-        op->get_rt_info()[local_rt_info_name] = weight;
     }
-
+    // step 3: make propagation for all the nodes:
+    // if weight is already assigned -- skip operation
+    // else operation weights is minimum of input indices
+    // if all operation inputs have no weights -- this op is isolated and this algorithm doesn't make sense,
+    // such cases are extremely rare and rather theoretical, to handle them we return original ov::Model op order
     std::map<int64_t, std::vector<std::shared_ptr<ov::Node>>> level_to_vector;
-    // forward: weight = min(input_weights) - 1
     for (const auto& op : m->get_ordered_ops()) {
-        auto weight = op->get_rt_info().at(local_rt_info_name).as<int64_t>();
-        // min(weight, min(inputs) - 1)
-        for (const auto& input : op->input_values()) {
-            auto input_op = input.get_node_shared_ptr();
-            const auto& rt_info = input_op->get_rt_info();
-            auto input_weight = rt_info.at(local_rt_info_name).as<int64_t>() - 1;
-            weight = input_weight < weight ? input_weight : weight;
+        if (op->get_rt_info().count(weight_rt_info_name)) {
+            level_to_vector[op->get_rt_info().at(weight_rt_info_name).as<int64_t>()].push_back(op);
+            continue;
+        } else {
+            int64_t weight = 0;
+            bool inputs_have_weight = false;
+            for (const auto& input : op->input_values()) {
+                const auto& rt_info = input.get_node_shared_ptr()->get_rt_info();
+                if (!rt_info.count(weight_rt_info_name))
+                    continue;
+                auto input_weight = rt_info.at(weight_rt_info_name).as<int64_t>();
+                if (!inputs_have_weight)
+                    weight = input_weight;
+                weight = input_weight < weight ? input_weight : weight;
+                inputs_have_weight = true;
+            }
+            if (inputs_have_weight)
+                op->get_rt_info()[weight_rt_info_name] = weight;
+            else
+                return m->get_ordered_ops();
+            level_to_vector[weight].push_back(op);
         }
-        op->get_rt_info()[local_rt_info_name] = weight;
-        level_to_vector[weight].push_back(op);
     }
-
+    // finalization: descending order for levels and ops within level are ordered by get_ordered_ops
     std::vector<std::shared_ptr<ov::Node>> result;
     result.reserve(reverse_order.size());
     for (const auto& item : level_to_vector)
         result.insert(result.end(), item.second.rbegin(), item.second.rend());
-    for (const auto& node : result)
-        node->get_rt_info().erase(local_rt_info_name);
+    for (const auto& op : result) {
+        op->get_rt_info().erase(weight_rt_info_name);
+        op->get_rt_info().erase(op_depends_on_parameter);
+    }
     std::reverse(result.begin(), result.end());
     return result;
 }
