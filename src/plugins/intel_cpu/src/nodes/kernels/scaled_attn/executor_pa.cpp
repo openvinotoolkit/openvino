@@ -23,6 +23,7 @@
 #include "transpose_kernel.hpp"
 #include "utils/plain_tensor.hpp"
 #include "attn_memcpy.hpp"
+#include "attn_quant.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
 
 namespace ov {
@@ -598,10 +599,11 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
     }
 }
 
-// N and K must be multiple of 16
+// N must be multiple of 16
 template<typename TDST, typename TSRC>
-void transpose_16Nx16K(TDST* dst, TSRC* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
-    for (size_t k = 0; k < K; k += 16) {
+void transpose_16NxK(TDST* dst, TSRC* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+    size_t k = 0;
+    for (; k + 16 <= K; k += 16) {
         for (size_t n = 0; n < N; n += 16) {
             transpose_16x16_kernel(dst + n, src + n * src_stride, dst_stride, src_stride);
         }
@@ -609,19 +611,24 @@ void transpose_16Nx16K(TDST* dst, TSRC* src, TDST* tmp, size_t N, size_t K, size
         dst += 16 * dst_stride;
         src += 16;
     }
+    if (k < K) {
+        for (size_t n = 0; n < N; n += 16) {
+            transpose_16xK_kernel(dst + n, src + n * src_stride, K - k, dst_stride, src_stride);
+        }
+    }
 }
 
 #if defined(HAVE_AVX512F)
-static void transpose_16Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+static void transpose_16NxK(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // will treat as uint32_t transpose
     auto s = reinterpret_cast<uint32_t*>(src);
     auto d = reinterpret_cast<uint32_t*>(dst);
-    transpose_16Nx16K(d, s, reinterpret_cast<uint32_t*>(0), N, K >> 1, dst_stride, src_stride >> 1);
+    transpose_16NxK(d, s, reinterpret_cast<uint32_t*>(0), N, K >> 1, dst_stride, src_stride >> 1);
 }
 #endif
 
 template<typename TDST>
-void transpose_16Nx16K(TDST* dst, uint8_t* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+void transpose_16NxK(TDST* dst, uint8_t* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -633,7 +640,7 @@ void transpose_16Nx16K(TDST* dst, uint8_t* src, TDST* tmp, size_t N, size_t K, s
         s += src_stride + 2 * sizeof(float);
         t += src_stride;
     }
-    transpose_16Nx16K(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
+    transpose_16NxK(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
 }
 
 // dequant f16/u8 to float
@@ -663,55 +670,55 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K) {
 
 #if defined(HAVE_AVX512F)
 // pack bf16/u8 to bf16
-static void pack_32x32_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t stride) {
+static void pack_32x32_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     for (size_t i = 0; i < 16; i++) {
         auto a = _mm512_loadu_si512(src);               // [a1  a2  a3 a4 | a5  a6  a7 a8]   total 512-bits in 8 64bits unit
-        auto b = _mm512_loadu_si512(src + stride);      // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
+        auto b = _mm512_loadu_si512(src + src_stride);  // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
         a = _mm512_permutexvar_epi64(midx, a);          // [a1 a5 | a2 a6 | a3 a7 | a4 a8]
         b = _mm512_permutexvar_epi64(midx, b);          // [b1 b5 | b2 b6 | b3 b7 | b4 b8]
         auto B0 = _mm512_unpacklo_epi16(a, b);          // [ a1&b1  a2&b2   a3&b3   a4&b4] for each 128-bits lane, interleave word in low 64 bits
         auto B1 = _mm512_unpackhi_epi16(a, b);          // [ a5&b5  a6&b6   a7&b7   a8&b8] for each 128-bits lane, interleave word in high 64 bits
         _mm512_storeu_si512(dst, B0);
         _mm512_storeu_si512(dst + 32, B1);
-        src += 2 * stride;
-        dst += 2 * stride;
+        src += 2 * src_stride;
+        dst += 2 * dst_stride;
     }
 }
 
-static void pack_32x16_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t stride) {
+static void pack_32x16_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     for (size_t i = 0; i < 16; i++) {
         auto x = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src));               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
-        auto y = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src + stride));      // [b1  b2  b3 b4]   total 256-bits
+        auto y = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src + src_stride));  // [b1  b2  b3 b4]   total 256-bits
         auto a = _mm512_castsi256_si512(x);
         auto b = _mm512_castsi256_si512(y);
         a = _mm512_permutexvar_epi64(midx, a);                                      // [a1 x | a2 x | a3 x | a4 x]
         b = _mm512_permutexvar_epi64(midx, b);                                      // [b1 x | b2 x | b3 x | b4 x]
         auto B0 = _mm512_unpacklo_epi16(a, b);
         _mm512_storeu_si512(dst, B0);
-        src += 2 * stride;
-        dst += 2 * stride;
+        src += 2 * src_stride;
+        dst += 2 * dst_stride;
     }
 }
 
-static void pack_32Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     for (size_t n = 0; n < N; n += 32) {
         size_t k = 0;
         for (; k + 32 <= K; k += 32) {
-            pack_32x32_kernel(dst + k * 2, src + k, stride);
+            pack_32x32_kernel(dst + k * 2, src + k, dst_stride, src_stride);
         }
         if (k < K)
-            pack_32x16_kernel(dst + k * 2, src + k, stride);
+            pack_32x16_kernel(dst + k * 2, src + k, dst_stride, src_stride);
 
-        dst += 32 * stride;
-        src += 32 * stride;
+        dst += 32 * dst_stride;
+        src += 32 * src_stride;
     }
 }
 
-static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -720,15 +727,15 @@ static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, siz
     for (size_t n = 0; n < N; n ++) {
         auto f = reinterpret_cast<float*>(s);
         attn_dequant_u8_kernel(s + 2 * sizeof(float), t, K, f[0], f[1]);
-        s += stride + 2 * sizeof(float);
-        t += stride;
+        s += src_stride + 2 * sizeof(float);
+        t += src_stride;
     }
-    pack_32Nx16K(dst, tmp, reinterpret_cast<ov::bfloat16*>(0), N, K, stride);
+    pack_32Nx16K(dst, tmp, reinterpret_cast<ov::bfloat16*>(0), N, K, dst_stride, src_stride);
 }
 #endif
 
 template<typename T>
-static void pack_32Nx16K(float* dst, T* src, float* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32Nx16K(float* dst, T* src, float* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // never called
     OPENVINO_THROW("pack_32Nx16K: should not be called.");
 }
@@ -751,6 +758,7 @@ struct MHAHelper {
     PlainTensor _qk_scratch_b;      // [B, rnd_up(kv_len, block_size), Hk, scratch_b_size]
     PlainTensor _wv_scratch_a;
     PlainTensor _wv_scratch_b;
+    PlainTensor _alibi_lookup;
     std::vector<size_t> _wsp;
     size_t _wsp_size_per_thread = 0;
 
@@ -770,7 +778,7 @@ struct MHAHelper {
     }
 
     void init(size_t H, size_t S, size_t Hk, size_t h_each_group_len, size_t block_size, size_t sliding_window,
-              float d_scale, size_t kv_len) {
+              float d_scale, size_t kv_len, bool init_alibi_lookup) {
         // query shape: [B, H, L, S]
         // present_key shape: [block, H, 32, S]
         // Q*K': [M1, S] * [M2, S]'
@@ -846,11 +854,17 @@ struct MHAHelper {
             if (_fastpath_valid && !_gemv)
                 _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
         }
+
+        if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
+            _alibi_lookup.resize<float>({kv_len * 2});
+            for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++)
+                _alibi_lookup.ptr<float>()[i] = - static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
+        }
     }
 
     void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
         _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * _S});
-        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * _S});
+        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * rnd_up(_S, _block_size)});
     }
 
     // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
@@ -862,7 +876,7 @@ struct MHAHelper {
     //  wv_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
     void exec_kernel_multiple(const PlainTensor& query, const PlainTensor& present_value, const PlainTensor& output_emb,
         const PlainTensor& qk_scratch_b, const PlainTensor& wv_scratch_b,
-        const int32_t* block_table, size_t ithr, size_t q_blk, size_t hk, size_t q_len, size_t cur_kv_len) {
+        const int32_t* block_table, size_t ithr, size_t q_blk, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -913,17 +927,25 @@ struct MHAHelper {
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
+                    // alibi may available when _sliding_window is false
+                    float* alibi_lookup = nullptr;
+                    float alibi_slope = 0.f;
+                    if (alibi_slopes) {
+                        alibi_slope = alibi_slopes.ptr<float>()[h];
+                        alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
+                    }
                     attn_softmax_kernel(score,
                                         reinterpret_cast<DATA_TYPE*>(score),
                                         _d_scale,
-                                        nullptr,
+                                        alibi_lookup,
                                         nullptr,
                                         nullptr,
                                         false,
                                         ncausal,
                                         rnd_up(cur_kv_len, _block_size),
                                         precision_of<DATA_TYPE>::value,
-                                        precision_of<DATA_TYPE>::value);
+                                        precision_of<DATA_TYPE>::value,
+                                        alibi_slope);
                 }
             }
 
@@ -976,7 +998,7 @@ struct MHAHelper {
     //  weight: [nthr, H, 32, rnd_up(kv_len, block_size)]
     //  output: [nthr, 32, H, S]
     void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
-        const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len) {
+        const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes) {
         if (_fastpath_valid) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
@@ -1004,17 +1026,24 @@ struct MHAHelper {
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
                 // apply attention mask & sofmax
+                float* alibi_lookup = nullptr;
+                float alibi_slope = 0.f;
+                if (alibi_slopes) {
+                    alibi_slope = alibi_slopes.ptr<float>()[h];
+                    alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
+                }
                 attn_softmax_kernel(_weight.ptr<float>(ithr, h, pq),
                                     _weight.ptr<float>(ithr, h, pq),
                                     _d_scale,
-                                    nullptr,
+                                    alibi_lookup,
                                     nullptr,
                                     nullptr,
                                     false,
                                     cur_kv_len,
                                     cur_kv_len,
                                     ov::element::f32,
-                                    ov::element::f32);
+                                    ov::element::f32,
+                                    alibi_slope);
             }
         }
 
@@ -1049,22 +1078,25 @@ struct MHAHelper {
                        const PlainTensor& present_key,
                        const PlainTensor& present_value,
                        const PlainTensor& output_emb,
-                       const PlainTensor& block_tables,
                        size_t max_context_len,
-                       const PlainTensor& context_lens) {
-        auto B = query.size(0);
+                       const PlainTensor& past_lens,
+                       const PlainTensor& subsequence_begins,
+                       const PlainTensor& block_indices,
+                       const PlainTensor& block_indices_begins,
+                       const PlainTensor& alibi_slopes) {
+        auto B = past_lens.size(0);
         auto q_len = query.size(2);
-        auto kv_len_in_blocks = block_tables.m_dims[1];
+        auto kv_len_in_blocks = div_up(max_context_len, _block_size);
 
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
         _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
 
         parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
-            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             // kv_len must be valid
             auto pk = pk_in_blocks * _block_size;
             if (pk < context_len) {
-                auto block_number = block_tables.ptr<int32_t>(b)[pk_in_blocks];
+                auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pk_in_blocks];
                 if (_fastpath_valid) {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
@@ -1086,20 +1118,27 @@ struct MHAHelper {
         });
 
         parallel_for3d_dynamic(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
-            auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto ncausal = cur_kv_len;
             // apply attention mask & sofmax
+            float* alibi_lookup = nullptr;
+            float alibi_slope = 0.f;
+            if (alibi_slopes) {
+                alibi_slope = alibi_slopes.ptr<float>()[h];
+                alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
+            }
             attn_softmax_kernel(_weight_bhl.ptr<float>(b, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq),
                                 _d_scale,
-                                nullptr,
+                                alibi_lookup,
                                 nullptr,
                                 nullptr,
                                 false,
                                 ncausal,
                                 cur_kv_len,
                                 ov::element::f32,
-                                ov::element::f32);
+                                ov::element::f32,
+                                alibi_slope);
         });
 
         // attn_w * V
@@ -1111,11 +1150,11 @@ struct MHAHelper {
 
         parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pv_in_blocks, size_t hk) {
             auto ithr = parallel_get_thread_num();
-            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto pv = pv_in_blocks * _block_size;
             // kv_len must be valid
             if (pv < context_len) {
-                auto block_number = block_tables.ptr<int32_t>(b)[pv_in_blocks];
+                auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
                 auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
@@ -1139,133 +1178,16 @@ struct MHAHelper {
 };
 
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
-struct MHAMultiple {
-    MHAHelper<DATA_TYPE, KVCACHE_TYPE>& _helper;
-
-    MHAMultiple(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
-
-    void operator()(PlainTensor& query,
-                    PlainTensor& present_key,
-                    PlainTensor& present_value,
-                    PlainTensor& output_emb,
-                    const PlainTensor& block_tables,
-                    size_t max_context_len,
-                    const PlainTensor& context_lens) {
-        auto B = query.m_dims[0];
-        auto Hk = present_value.m_dims[1];
-        constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
-        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
-
-        // buffer for transpose and repack
-        _helper.init_reorder_buffers(B, block_tables.m_dims[1]);
-
-        // packed k, v
-        parallel_for3d_dynamic(B, block_tables.m_dims[1], Hk, [&](size_t b, size_t kv_block, size_t hk) {
-            auto block_number = block_tables.ptr<int32_t>(b)[kv_block];
-            if (block_number < 0)
-                return;
-            auto ithr = parallel_get_thread_num();
-            auto* k_ptr = present_key.ptr<KVCACHE_TYPE>(block_number, hk);
-            auto* v_ptr = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
-            // in AttentionExecutor::executor block_size must be multiple of 32 and head_size must be multiple of 16,
-            // transpose 16Nx16K/pack 32Nx16K should be enough
-            transpose_16Nx16K(_helper._qk_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk),
-                k_ptr,
-                _helper._output.template ptr<DATA_TYPE>(ithr),
-                _helper._block_size,
-                _helper._S, _helper._block_size, _helper._S);
-            if (q_is_bf16) {
-                pack_32Nx16K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk),
-                    v_ptr,
-                    _helper._output.template ptr<DATA_TYPE>(ithr),
-                    _helper._block_size,
-                    _helper._S,
-                    _helper._S);
-            } else {
-                // if not bf16 and type of kvcache is not same with query, we need to decompress the kvcache.
-                // Currently dequant f16/u8 to f32
-                if (!q_cache_is_same) {
-                    dequant(_helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk), v_ptr, _helper._block_size, _helper._S);
-                }
-            }
-        });
-
-        // query breaks to [B, H, m_blocks, block_size, S], k cache is split to [B, H, m_blocks', S, block_size]
-        // v cache may be [B, H, m_blocks', block_size, S] or [block_number, H, block_size, S]
-        // outer loop will use B, H, m_blocks to walkthrough query
-        parallel_for3d_dynamic(B, block_tables.m_dims[1], Hk, [&](size_t b, size_t q_blk, size_t hk) {
-            if (block_tables.ptr<int32_t>(b)[q_blk] < 0)
-                return;
-            size_t ithr = parallel_get_thread_num();
-            auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            auto q_len = cur_kv_len;
-            _helper.exec_kernel_multiple(query.slice(0, b, b), present_value, output_emb.slice(0, b, b),
-                _helper._qk_scratch_b.slice(0, b, b), _helper._wv_scratch_b.slice(0, b, b),
-                block_tables.ptr<int32_t>(b), ithr, q_blk, hk, q_len, std::min(cur_kv_len, (q_blk + 1) * _helper._block_size));
-        });
-    }
-};
-
-// 2nd token case : only 1 token in query
-template <typename DATA_TYPE, typename KVCACHE_TYPE>
-struct MHASingle {
-    MHAHelper<DATA_TYPE, KVCACHE_TYPE>& _helper;
-
-    MHASingle(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
-
-    // one loop along batch and head dimensions
-    void exec_loop_bh(PlainTensor& query,
-                      PlainTensor& present_key,
-                      PlainTensor& present_value,
-                      PlainTensor& output_emb,
-                      const PlainTensor& block_tables,
-                      size_t max_context_len,
-                      const PlainTensor& context_lens) {
-        auto B = query.m_dims[0];
-        auto Hk = present_value.m_dims[1];
-        parallel_for2d_dynamic(B, Hk, [&](size_t b, size_t hk) {
-            size_t ithr = parallel_get_thread_num();
-            auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            auto q_len = 1ul;
-            _helper.exec_kernel_one_bh(query.slice(0, b, b), present_key, present_value,
-                output_emb.slice(0, b, b), block_tables.ptr<int32_t>(b), ithr, hk, q_len, cur_kv_len);
-        });
-    }
-
-    // Q, K, V is ready, do attention
-    // query         [B, H, q_len, S]
-    // present_key   [B, H, kv_len, S]  stride of last dim maybe > 1
-    // present_value [B, H, kv_len, S]
-    // output_emb    [B, L1, H, S]
-    void operator()(PlainTensor& query,
-                    PlainTensor& present_key,
-                    PlainTensor& present_value,
-                    PlainTensor& output_emb,
-                    const PlainTensor& block_tables,
-                    size_t max_context_len,
-                    const PlainTensor& context_lens) {
-        auto B = query.size(0);
-        auto nthr = static_cast<size_t>(parallel_get_max_threads());
-
-        if (B >= nthr) {
-            exec_loop_bh(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
-        } else {
-            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
-        }
-    }
-};
-
-template <typename DATA_TYPE, typename KVCACHE_TYPE>
-struct MHAMixed {
+struct MHA {
     MHAHelper<DATA_TYPE, KVCACHE_TYPE>& _helper;
     struct AttnWorkItem {
         int32_t batch_in_reorder;                   // which batch in reorder buffer will be used
-        int32_t batch_in_query;                     // batch idx in query
+        int32_t batch_in_seq;                       // batch idx in sequence
         int32_t q_len;                              // current sequence length, 1 for second token, 2+ for first token
         int32_t q_block_id;                         // block id in this seq, valid at first token
     };
     struct ReorderWorkItem {
-        int32_t batch_in_query_last;                // last batch idx in a sentence
+        int32_t batch_in_seq;                       // batch idx in sequence
         int32_t batch_in_reorder;                   // which batch in reorder buffer will be used
         int32_t kv_block_id;                        // block id in this kv cache seq
     };
@@ -1278,37 +1200,32 @@ struct MHAMixed {
         int32_t total_kv_len;
 
     public:
-        void reset(const PlainTensor& query, const PlainTensor& context_lens, const PlainTensor& subsequence_lens, size_t block_size) {
+        void reset(const PlainTensor& query, const PlainTensor& past_lens, const PlainTensor& subsequence_begins, size_t block_size) {
             attn_items.clear();
             reorder_items.clear();
             max_kv_len_in_reorder = 0;
             max_batch_in_reorder = 0;
             total_kv_len = 0;
 
-            int32_t start_batch_in_query = 0;
-            auto seq_cout = static_cast<int32_t>(subsequence_lens.m_dims[0]);
+            auto seq_cout = static_cast<int32_t>(past_lens.m_dims[0]);
             for (int32_t i = 0; i < seq_cout; i++) {
-                auto q_len = subsequence_lens.ptr<int32_t>()[i];
-                // workitems for transpose, repack
-                // last token corresponding batch index
-                auto batch_in_query_last = start_batch_in_query + q_len - 1;
-                auto kv_len = context_lens.ptr<int32_t>()[batch_in_query_last];
+                auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
+                auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
                 auto kv_len_in_block = static_cast<int32_t>(div_up(kv_len, block_size));
                 if (q_len == 1) {
                     attn_items.emplace_back(AttnWorkItem{
                         0,                          // batch_in_reorder
-                        start_batch_in_query,       // batch_in_query
+                        i,                          // batch_in_seq
                         1ull,                       // q_len
                         // kv_len in blocks, used in the sort function
                         kv_len_in_block - 1
                     });
-                    start_batch_in_query++;
                 } else {
                     auto reorder_sub_work_count = kv_len_in_block;
                     max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
                     for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
                         reorder_items.emplace_back(ReorderWorkItem{
-                            batch_in_query_last,     // batch_in_query_last
+                            i,                       // batch_in_seq
                             max_batch_in_reorder,    // batch_in_reorder
                             block_id                 // kv_block_id
                         });
@@ -1319,12 +1236,11 @@ struct MHAMixed {
                     for (int32_t block_id = 0; block_id < attn_sub_work_count; block_id++) {
                         attn_items.emplace_back(AttnWorkItem{
                             max_batch_in_reorder,    // batch_in_reorder
-                            start_batch_in_query,    // batch_in_query
+                            i,                       // batch_in_seq
                             q_len,                   // q_len
                             block_id                 // q_block_id
                         });
                     }
-                    start_batch_in_query += q_len;
                     max_batch_in_reorder++;
                 }
                 total_kv_len += kv_len;
@@ -1361,18 +1277,20 @@ struct MHAMixed {
 
     WorkItems _workitems;
 
-    MHAMixed(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
+    MHA(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
 
     // one loop to handle first and second tokens
-    void exec_loop_mixed(const PlainTensor& query,
-                         const PlainTensor& present_key,
-                         const PlainTensor& present_value,
+    void exec_loop_mixed(const PlainTensor& q,
+                         const PlainTensor& k_cache,
+                         const PlainTensor& v_cache,
                          const PlainTensor& output_emb,
-                         const PlainTensor& block_tables,
                          size_t max_context_len,
-                         const PlainTensor& context_lens,
-                         const PlainTensor& subsequence_lens) {
-        auto Hk = present_value.m_dims[1];
+                         const PlainTensor& past_lens,
+                         const PlainTensor& subsequence_begins,
+                         const PlainTensor& block_indices,
+                         const PlainTensor& block_indices_begins,
+                         const PlainTensor& alibi_slopes) {
+        auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
@@ -1385,17 +1303,17 @@ struct MHAMixed {
         // packed k, v
         parallel_for2d_dynamic(reorder_work_count, Hk, [&](size_t w, size_t hk) {
             const auto& item = _workitems.get_reorder_work_item(w);
-            const auto batch_in_query_last = item.batch_in_query_last;
+            const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_reorder = item.batch_in_reorder;
             const auto kv_block = item.kv_block_id;
-            auto block_number = block_tables.ptr<int32_t>(batch_in_query_last)[kv_block];
+            auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[batch_in_seq] + kv_block];
             if (block_number < 0)
                 return;
 
             auto ithr = parallel_get_thread_num();
-            auto* k_ptr = present_key.ptr<KVCACHE_TYPE>(block_number, hk);
-            auto* v_ptr = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
-            transpose_16Nx16K(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+            auto* k_ptr = k_cache.ptr<KVCACHE_TYPE>(block_number, hk);
+            auto* v_ptr = v_cache.ptr<KVCACHE_TYPE>(block_number, hk);
+            transpose_16NxK(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                 k_ptr,
                 _helper._output.template ptr<DATA_TYPE>(ithr),
                 _helper._block_size,
@@ -1406,6 +1324,7 @@ struct MHAMixed {
                     _helper._output.template ptr<DATA_TYPE>(ithr),
                     _helper._block_size,
                     _helper._S,
+                    rnd_up(_helper._S, _helper._block_size),
                     _helper._S);
             } else {
                 // need to decompress
@@ -1417,36 +1336,39 @@ struct MHAMixed {
 
         parallel_for2d_dynamic(attn_work_count, Hk, [&](size_t w, size_t hk) {
             const auto& item = _workitems.get_attn_work_item(w);
-            const auto batch_in_query = item.batch_in_query;
+            const auto batch_in_seq = item.batch_in_seq;
+            const auto batch_in_token = subsequence_begins.ptr<int32_t>()[batch_in_seq];
             const auto q_len = static_cast<size_t>(item.q_len);
             size_t ithr = parallel_get_thread_num();
 
             if (q_len == 1) {
-                const auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[batch_in_query]);
+                const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
 
-                _helper.exec_kernel_one_bh(query.slice(0, batch_in_query, batch_in_query), present_key, present_value,
-                    output_emb.slice(0, batch_in_query, batch_in_query), block_tables.ptr<int32_t>(batch_in_query), ithr, hk, 1ul, cur_kv_len);
+                _helper.exec_kernel_one_bh(q.slice(0, batch_in_token, batch_in_token), k_cache, v_cache,
+                    output_emb.slice(0, batch_in_token, batch_in_token),
+                    block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
+                    ithr, hk, 1ul, cur_kv_len, alibi_slopes);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
-                const auto q_start = static_cast<size_t>(batch_in_query) + q_blk * _helper._block_size;
                 const auto q_cnt = std::min(_helper._block_size, q_len - q_blk * _helper._block_size);
-                const auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[q_start + q_cnt - 1]);
+                const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + q_blk * _helper._block_size + q_cnt;
 
                 PlainTensor sub_query;
-                sub_query.resize({q_len, _helper._H, _helper._S}, query.ptr<DATA_TYPE>(batch_in_query));
+                sub_query.resize({q_len, _helper._H, _helper._S}, q.ptr<DATA_TYPE>(batch_in_token));
                 sub_query = sub_query.permute({1, 0, 2});
                 _helper.exec_kernel_multiple(sub_query,
-                    present_value,
-                    output_emb.slice(0, batch_in_query, batch_in_query + q_len).reshape({q_len, _helper._H * _helper._S}),
+                    v_cache,
+                    output_emb.slice(0, batch_in_token, batch_in_token + q_len).reshape({q_len, _helper._H * _helper._S}),
                     _helper._qk_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
                     _helper._wv_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
-                    block_tables.ptr<int32_t>(q_start + q_cnt - 1),
+                    block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
                     ithr,
                     q_blk,
                     hk,
                     q_len,
-                    cur_kv_len);
+                    cur_kv_len,
+                    alibi_slopes);
             }
         });
     }
@@ -1456,18 +1378,22 @@ struct MHAMixed {
                     PlainTensor& present_key,
                     PlainTensor& present_value,
                     PlainTensor& output_emb,
-                    const PlainTensor& block_tables,
                     size_t max_context_len,
-                    const PlainTensor& context_lens,
-                    const PlainTensor& subsequence_lens) {
-        _workitems.reset(query, context_lens, subsequence_lens, _helper._block_size);
+                    const PlainTensor& past_lens,
+                    const PlainTensor& subsequence_begins,
+                    const PlainTensor& block_indices,
+                    const PlainTensor& block_indices_begins,
+                    const PlainTensor& alibi_slopes) {
+        _workitems.reset(query, past_lens, subsequence_begins, _helper._block_size);
 
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
-        if (subsequence_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
-            exec_loop_mixed(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens);
+        if (past_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
+            exec_loop_mixed(query, present_key, present_value, output_emb, max_context_len, past_lens, subsequence_begins,
+                block_indices, block_indices_begins, alibi_slopes);
         } else {
-            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, max_context_len, past_lens, subsequence_begins,
+                block_indices, block_indices_begins, alibi_slopes);
         }
     }
 };
@@ -1475,109 +1401,115 @@ struct MHAMixed {
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
 struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KVCACHE_TYPE> _helper;
-    MHAMultiple<DATA_TYPE, KVCACHE_TYPE> _kernel_multiple;
-    MHASingle<DATA_TYPE, KVCACHE_TYPE> _kernel_single;
-    MHAMixed<DATA_TYPE, KVCACHE_TYPE> _kernel_mixed;
+    MHA<DATA_TYPE, KVCACHE_TYPE> _kernel;
+    PlainTensor _slot_mapping;
 
-    AttentionExecutor() : _kernel_multiple(_helper), _kernel_single(_helper), _kernel_mixed(_helper) {}
+    AttentionExecutor() : _kernel(_helper) {}
 
-    void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
-        bool is_prompt = false;
-        PlainTensor present_key, present_value;
-        PlainTensor q_input;           // f32[B, H, L1, S]
-        PlainTensor k_input;           // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
-        PlainTensor v_input;           // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
-        PlainTensor block_tables;      // i32[B, max_kvLen]
-        PlainTensor context_lens;
-        PlainTensor output_emb(output);
-        float scale_input = 0.0f;
-        size_t B, L1, S, H, Hk, h_each_group_len;
-        size_t sliding_window = 0;
-        size_t max_context_len = 0;
-
-        q_input.reset(inputs[0]);
-        k_input.reset(inputs[1]);
-        v_input.reset(inputs[2]);
-        present_key.reset(inputs[ID_KCACHE]);
-        present_value.reset(inputs[ID_VCACHE]);
-        auto block_size = present_key.size(2);
-
-        is_prompt = *inputs[ID_IS_PROMPT]->getDataAs<uint8_t>() == 1;
+    void init(const std::vector<MemoryPtr>& inputs, const MemoryPtr& output, PlainTensor& q, PlainTensor& k, PlainTensor& v, PlainTensor& k_cache,
+        PlainTensor& v_cache, PlainTensor& past_lens, PlainTensor& subsequence_begins, PlainTensor& block_indices, PlainTensor& block_indices_begins,
+        float& scale, size_t& sliding_window, PlainTensor& alibi_slopes, size_t& max_context_len, PlainTensor& output_emb) {
+        q.reset(inputs[ID_Q]);                                      // [B_token, H * S]
+        k.reset(inputs[ID_K]);
+        v.reset(inputs[ID_V]);
+        k_cache.reset(inputs[ID_KCACHE]);                           // [NUM_BLOCKS, H, 32, S]
+        v_cache.reset(inputs[ID_VCACHE]);                           // [NUM_BLOCKS, H, 32, S]
+        past_lens.reset(inputs[ID_PAST_LENS]);                      // [B_seq]
+        subsequence_begins.reset(inputs[ID_SUBSEQUENCE_BEGINS]);    // [B_seq+1]
+        block_indices.reset(inputs[ID_BLOCK_INDICES]);              // [num_blocks]
+        block_indices_begins.reset(inputs[ID_BLOCK_INDICES_BEGINS]);// [B_seq+1]
+        scale = *inputs[ID_SCALE]->getDataAs<float>();
+        sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
+        if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims())
+            alibi_slopes.reset(inputs[ID_ALIBI_SLOPES]);
         max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
-        context_lens.reset(inputs[ID_CONTEXT_LENS]);
-        block_tables.reset(inputs[ID_BLOCK_TABLES]);
-        scale_input = *inputs[ID_SCALE]->getDataAs<float>();
+        output_emb.reset(output);
 
-        // q: [B, L1, H*S], kv: [B, L1, Hk*S]
-        // k_cache: [NUM_BLOCKS, Hk, 32, S]
-        // v_cache: [NUM_BLOCKS, Hk, 32, S]
-        // context_lens: [B]
-        // block_tables: [B, max_block_per_request]
-        B = k_input.size(0);
-        L1 = k_input.size(1);
-        Hk = present_key.size(1);
+        auto B_token = q.size(0);
+        auto Hk = k_cache.size(1);
         // The layout for per token per head for u8 kv cache:
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
         // The actual size needs to deduct scale and zeropoint.
-        S = present_value.size(3) - (present_value.m_dt == ov::element::Type_t::u8 ? sizeof(float) * 2 : 0);
-        H = q_input.size(2) / S;
-        h_each_group_len = 1;
+        auto S = v_cache.size(3) - (k_cache.m_dt == ov::element::Type_t::u8 ? sizeof(float) * 2 : 0);
+        auto block_size = k_cache.size(2);
+        auto H = q.size(1) / S;
+        auto h_each_group_len = 1;
         if (Hk != H) {
             h_each_group_len = H / Hk;
         }
-        if (scale_input == 0.0f)
-            scale_input = 1.0f / sqrt(S);
+        auto B_seq = past_lens.size(0);
+
+        q.assert_dims({B_token, H * S});
+        k.assert_dims({B_token, Hk * S});
+        v.assert_dims({B_token, Hk * S});
+        q = q.reshape({B_token, H, 1, S});
+        k = k.reshape({B_token, Hk, 1, S});
+        v = v.reshape({B_token, Hk, 1, S});
+        if (k_cache.m_dt == ov::element::Type_t::u8) {
+            k_cache.assert_dims({0, Hk, block_size, S + sizeof(float) * 2}, true);
+            v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, S + sizeof(float) * 2});
+        } else {
+            k_cache.assert_dims({0, Hk, block_size, S}, true);
+            v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, S});
+        }
+        past_lens.assert_dims({B_seq});
+        subsequence_begins.assert_dims({B_seq + 1});
+        block_indices.assert_dims({0}, true);
+        block_indices_begins.assert_dims({B_seq + 1});
+        if (scale == 0.0f)
+            scale = 1.0f / sqrt(S);
+        if (alibi_slopes) {
+            alibi_slopes.assert_dims({H});
+        }
+        output_emb.assert_dims({B_token, H * S});
+        output_emb = output_emb.reshape({B_token, 1, H * S});
 
         // TODO: enable block_size to be multiple of 32
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
         OPENVINO_ASSERT(S % 16 == 0, "CPU: head size must be multiple of 16, current: ", S);
 
-        q_input.assert_dims({B, L1, H * S});
-        output_emb.assert_dims({B, L1, H * S});
-        q_input = q_input.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
-        k_input = k_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
-        v_input = v_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
+        _helper.init(H, S, Hk, h_each_group_len, block_size, sliding_window, scale, max_context_len, alibi_slopes);
+    }
 
-        _helper.init(H, S, Hk, h_each_group_len, block_size, sliding_window, scale_input, max_context_len);
+    void concat_pastkv(const PlainTensor& k, const PlainTensor& v, const PlainTensor& k_cache, const PlainTensor& v_cache,
+        const PlainTensor& past_lens, const PlainTensor& subsequence_begins, const PlainTensor& block_indices, const PlainTensor& block_indices_begins) {
+        auto B_token = k.size(0);
+        _slot_mapping.resize<int32_t>({B_token});
 
-        if (is_prompt) {
-            sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
-            // always construct block_tables, max_context_len, context_lens from slot_mapping
-            {
-                PlainTensor slot_mapping;
-                slot_mapping.reset(inputs[ID_SLOT_MAPPING]);    // [B, max_context_len]
-                block_tables.resize<int32_t>({B, div_up(max_context_len, block_size)});
-                context_lens.resize<int32_t>({B});
-                for (size_t i = 0; i < B; i++) {
-                    context_lens.ptr<int32_t>()[i] = 0;
-                    for (size_t j = 0; j < block_tables.m_dims[1]; j++) {
-                        auto slot = slot_mapping.ptr<int32_t>(i)[j * block_size];
-                        block_tables.ptr<int32_t>(i)[j] = slot >= 0 ? slot / block_size : -1;
-                        for (size_t k = j * block_size; k < (j + 1) * block_size && k < max_context_len; k++) {
-                            if (slot_mapping.ptr<int32_t>(i)[k] < 0)
-                                break;
-                            context_lens.ptr<int32_t>()[i]++;
-                        }
-                    }
-                }
-            }
-
-            // multi-token version
-            _kernel_multiple(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
-        } else {
-            context_lens.assert_dims({B});
-            block_tables.assert_dims({B, 0}, true);
-            if (inputs.size() > 13) {
-                // first and second tokens mixed path
-                // subsequence_lens contains the length of each sequence
-                PlainTensor subsequence_lens;
-                subsequence_lens.reset(inputs[ID_SUBSEQUENCE_LENS]);
-
-                _kernel_mixed(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens);
-            } else {
-                _kernel_single(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+        size_t idx = 0;
+        for (size_t i = 0; i < past_lens.size(0); i++) {
+            auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
+            auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
+            auto block_number_start = block_indices_begins.ptr<int32_t>()[i];
+            auto block_offset_start = kv_len - q_len;
+            for (int32_t j = 0; j < q_len; j++) {
+                auto block_offset = block_offset_start + j;
+                auto block_number = block_indices.ptr<int32_t>()[block_number_start + block_offset / _helper._block_size];
+                _slot_mapping.ptr<int32_t>()[idx++] = block_number * _helper._block_size + block_offset % _helper._block_size;
             }
         }
+
+        if (k_cache.m_dt == ov::element::Type_t::u8) {
+            paged_attn_quantkv(k, v, k_cache, v_cache, _slot_mapping);
+        } else {
+            paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping);
+        }
+    }
+
+    void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
+        PlainTensor q, k, v, k_cache, v_cache;
+        PlainTensor past_lens, subsequence_begins, block_indices, block_indices_begins;
+        float scale;
+        size_t sliding_window;
+        PlainTensor alibi_slopes;
+        size_t max_context_len;
+        PlainTensor output_emb;
+
+        init(inputs, output, q, k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins,
+            scale, sliding_window, alibi_slopes, max_context_len, output_emb);
+        concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
+
+        _kernel(q, k_cache, v_cache, output_emb, max_context_len, past_lens, subsequence_begins, block_indices, block_indices_begins, alibi_slopes);
     }
 };
 #endif

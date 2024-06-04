@@ -9,18 +9,6 @@
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
 
-#    ifndef TBBBIND_2_5_AVAILABLE
-#        define TBBBIND_2_5_AVAILABLE 0
-#    endif
-
-// On Ubuntu22.04, system tbb is 2021.5 oneTBB and tbbbind dynamic library doesn't exist.
-// In this case, tbbbind static library is needed.
-#    define USE_TBBBIND_2_5 TBBBIND_2_5_AVAILABLE
-#    if USE_TBBBIND_2_5
-#        pragma message("USE_TBBBIND_2_5 is enabled")
-#    else
-#        pragma message("USE_TBBBIND_2_5 is disabled")
-#    endif
 #    define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100)
 #    if defined(__APPLE__)
 // 2021.2 TBB doesn't export for macOS symbol:

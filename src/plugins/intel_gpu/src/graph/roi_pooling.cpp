@@ -4,6 +4,7 @@
 
 #include "roi_pooling_inst.h"
 #include "roi_pooling_shape_inference.hpp"
+#include "psroi_pooling_shape_inference.hpp"
 
 #include "primitive_type_base.h"
 #include "json_object.h"
@@ -28,23 +29,46 @@ layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node, kernel
 
 template<typename ShapeType>
 std::vector<layout> roi_pooling_inst::calc_output_layouts(roi_pooling_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<roi_pooling>();
+ auto desc = impl_param.typed_desc<roi_pooling>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto output_type = desc->output_data_types[0].value_or(input0_layout.data_type);
     auto data_shape = input0_layout.get<ShapeType>();
     auto output_format = input0_layout.format;
 
-    ov::op::v0::ROIPooling op;
-    std::vector<int> output_size { desc->pooled_height, desc->pooled_width };
-    op.set_output_roi({ output_size.begin(), output_size.end() });
-    op.set_spatial_scale(desc->spatial_scale);
-
+    std::vector<ShapeType> output_shapes;
     ShapeType rois_shape = impl_param.get_input_layout(1).get<ShapeType>();
-    std::vector<ShapeType> input_shapes = {
-        data_shape,
-        rois_shape
-    };
-    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    if (desc->mode == cldnn::pooling_mode::deformable_bilinear) {
+        auto group_size = desc->group_size;
+        auto out_dim = desc->output_dim;
+        auto num_rois = rois_shape[0];
+
+        output_shapes = { ov::PartialShape{num_rois, out_dim, group_size, group_size} };
+    } else if (desc->position_sensitive) {
+        ov::op::v0::PSROIPooling op;
+        op.set_spatial_scale(desc->spatial_scale);
+        op.set_output_dim(desc->output_dim);
+        op.set_group_size(desc->pooled_width);
+        op.set_spatial_bins_x(desc->spatial_bins_x);
+        op.set_spatial_bins_y(desc->spatial_bins_y);
+        op.set_mode("average"); // mode doesn't matter
+
+        std::vector<ShapeType> input_shapes = {
+            data_shape,
+            rois_shape
+        };
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    } else {
+        ov::op::v0::ROIPooling op;
+        std::vector<int> output_size { desc->pooled_height, desc->pooled_width };
+        op.set_output_roi({ output_size.begin(), output_size.end() });
+        op.set_spatial_scale(desc->spatial_scale);
+
+        std::vector<ShapeType> input_shapes = {
+            data_shape,
+            rois_shape
+        };
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    }
 
     return { layout{output_shapes[0], output_type, output_format} };
 }

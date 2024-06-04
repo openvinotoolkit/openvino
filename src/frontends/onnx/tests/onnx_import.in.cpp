@@ -1257,6 +1257,38 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square_13) {
+    auto model = convert_model("reduce_sum_square_13.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square_18) {
+    auto model = convert_model("reduce_sum_square_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant) {
     auto model = convert_model("reduce_sum_13_axes_as_constant.onnx");
 
@@ -6617,9 +6649,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
-    if (!(std::string("${BACKEND_NAME}") == std::string("INTERPRETER") ||
-          std::string("${BACKEND_NAME}") == std::string("IE_CPU"))) {
-        return;  //< Skip this test for not-yet-implemented on those backends.
+    float eps = 0.0001f;
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        eps = 0.01f;
     }
 
     auto model = convert_model("mmdeploy_roi_align_rotated.onnx");
@@ -6635,7 +6668,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
         Shape{1, 1, 5, 2},
         {5.1271f, 1.2473f, 6.1773f, 2.9598f, 7.2275f, 3.2300f, 8.2777f, 3.7458f, 9.3279f, 4.4060f});
 
-    test_case.run_with_tolerance_as_fp(0.0001f);
+    test_case.run_with_tolerance_as_fp(eps);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_18) {
@@ -6683,5 +6716,30 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_20_boolean) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_7) {
+    auto model = convert_model("multinomial.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    auto expected_shape = Shape{3, 5};
+    EXPECT_EQ(model->get_output_shape(0), expected_shape);
+
+    std::vector<float> input_values = {0.1f, 0.2f, 0.7f, 0.2f, 0.4f, 0.4f, 1.0f, 0.0f, 0.0f};
+    test_case.add_input<float>(ov::Shape{3, 3}, input_values);
+
+    // Values are collected for seed 1.23
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        test_case.add_expected_output<int32_t>(Shape{3, 5}, {0, 2, 0, 1, 1, 2, 1, 2, 1, 2, 0, 1, 0, 0, 0});
+    } else if (std::string("${BACKEND_NAME}") == std::string("IE_CPU")) {
+        test_case.add_expected_output<int32_t>(Shape{3, 5}, {2, 2, 2, 2, 0, 2, 2, 2, 0, 0, 0, 1, 0, 1, 0});
+    } else if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<int32_t>(Shape{3, 5}, {1, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0});
+    } else {
+        GTEST_FAIL();
+    }
+
     test_case.run();
 }
