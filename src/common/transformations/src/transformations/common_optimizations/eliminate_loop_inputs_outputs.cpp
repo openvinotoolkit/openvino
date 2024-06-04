@@ -67,9 +67,7 @@ std::unordered_set<uint64_t> remove_results(const std::shared_ptr<v0::Parameter>
         }
 
         const auto& output_desc = output_desc_map[result];
-        if (output_desc && ov::as_type_ptr<OutputD>(output_desc)) {
-            removed_result_inds.insert(result_map.at(result));
-        } else if (!output_desc) {
+        if (output_desc && ov::as_type_ptr<OutputD>(output_desc) || !output_desc) {
             removed_result_inds.insert(result_map.at(result));
         } else {
             // unknown or unsupported case is met
@@ -205,15 +203,17 @@ ov::pass::EliminateLoopInputsOutputs::EliminateLoopInputsOutputs() {
             // move input description for unremoved node
             if (const auto merged_input_desc = as_type_ptr<MergedD>(input_description)) {
                 if (cur_remove_result_inds.size() > 0) {
+                    // at least one Result node is going to be removed
+                    // no back edge after removing so use invariant input
                     process_inputs_outputs.emplace_back([=, &new_node]() {
                         new_node->set_invariant_input(body_param, init_value);
                     });
-                    continue;
+                } else {
+                    const auto& body_res = body_results[merged_input_desc->m_body_value_index];
+                    process_inputs_outputs.emplace_back([=, &new_node]() {
+                        new_node->set_merged_input(body_param, init_value, body_res);
+                    });
                 }
-                const auto& body_res = body_results[merged_input_desc->m_body_value_index];
-                process_inputs_outputs.emplace_back([=, &new_node]() {
-                    new_node->set_merged_input(body_param, init_value, body_res);
-                });
             } else if (const auto invariant_input_desc = as_type_ptr<InvariantD>(input_description)) {
                 process_inputs_outputs.emplace_back([=, &new_node]() {
                     new_node->set_invariant_input(body_param, init_value);
