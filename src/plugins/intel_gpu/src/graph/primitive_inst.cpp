@@ -458,20 +458,21 @@ void primitive_inst::update_shape() {
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
     auto updated_params = _node->type()->get_fake_aligned_params(orig_impl_param);
+    // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
+    // i.e. predecessor node was supposed be increased already
+    if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()) {
+        bool need_to_rollback = false;
+        if (dependencies()[0].first->can_be_optimized())
+            need_to_rollback = dependencies()[0].first->dep_memory(0).count() < updated_params.input_layouts[0].count();
+        else
+            need_to_rollback = dep_memory(0).count() < updated_params.input_layouts[0].count();
 
-    const auto &dev_info = get_node().get_program().get_engine().get_device_info();
-
-    // The target HW of this patch is limited because of performance concern
-    if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
-        // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
-        // i.e. predecessor node was supposed be increased already
-        if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
-            && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
+        if (need_to_rollback) {
             GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
                 << "  allocated: " << dep_memory(0).count()
                 << "  required: " << updated_params.input_layouts[0].count()
                 << std::endl;
-            updated_params = *_impl_params;
+            return std::move(orig_impl_param);
         }
     }
     return updated_params;
@@ -554,16 +555,32 @@ event::ptr primitive_inst::realloc_if_needed() {
     for (auto user : get_user_insts()) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
-        if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {
-            GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
-            user->update_shape();
-            user->update_shape_done_by_other = true;
+        if (!user->is_dynamic())
+            continue;
 
-            auto fc_impl_params = *user->_impl_params;
-            auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
+        cldnn::primitive_inst* fc_inst = nullptr;
+        if (user->get_node().is_type<fully_connected>() && !can_be_optimized()) {
+            fc_inst = user;
+        } else if (user->can_be_optimized() && user->dependencies().size() == 1) {
+            for (auto next_user : user->get_user_insts()) {
+                if (next_user->get_node().is_type<fully_connected>() && next_user->is_dynamic()) {
+                    user->update_shape();
+                    fc_inst = next_user;
+                }
+            }
+        }
+
+        if (fc_inst != nullptr) {
+            GPU_DEBUG_TRACE_DETAIL << "Check fc user " << fc_inst->id() << "'s fake alignment-ed input size" << std::endl;
+            fc_inst->update_shape();
+            fc_inst->update_shape_done_by_other = true;
+            auto fc_impl_params = *fc_inst->_impl_params;
+            auto fc_input_layout = fc_inst->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
             if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
-                                       << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
+                GPU_DEBUG_TRACE_DETAIL << this->id() << ": increase output layout allocation size from "
+                    << ": increase output layout allocation size from "
+                    << updated_layout.to_short_string() << " -> " << fc_input_layout.to_short_string()
+                    << " to meet the input buffer alignment requirements for FC" << std::endl;
                 updated_layout = fc_input_layout;
             }
         }
