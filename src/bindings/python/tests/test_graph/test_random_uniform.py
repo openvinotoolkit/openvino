@@ -4,6 +4,7 @@
 
 import numpy as np
 import openvino.runtime.opset8 as ops
+from openvino import Type
 
 
 def test_random_uniform():

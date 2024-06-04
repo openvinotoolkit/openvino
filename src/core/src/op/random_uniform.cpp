@@ -88,6 +88,46 @@ std::shared_ptr<Node> RandomUniform::clone_with_new_inputs(const OutputVector& n
     return ru_copy;
 }
 
+/// \return Turns off constant folding for RandomUniform operation.
+bool RandomUniform::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
+    return false;
+}
+
+/// \return The output tensor type.
+const ov::element::Type& RandomUniform::get_out_type() const {
+    return m_output_type;
+}
+
+void RandomUniform::set_out_type(const ov::element::Type& output_type) {
+    m_output_type = output_type;
+}
+
+/// \return The global seed value.
+uint64_t RandomUniform::get_global_seed() const {
+    return m_global_seed;
+}
+void RandomUniform::set_global_seed(uint64_t seed) {
+    m_global_seed = seed;
+}
+
+/// \return The operational seed value.
+uint64_t RandomUniform::get_op_seed() const {
+    return m_op_seed;
+}
+void RandomUniform::set_op_seed(uint64_t seed2) {
+    m_op_seed = seed2;
+}
+
+/// \return The state value.
+std::pair<uint64_t, uint64_t> RandomUniform::get_state() const {
+    return m_state;
+}
+
+/// \return The alignment mode.
+PhilloxAlignment RandomUniform::get_alignment() const {
+    return m_alignment;
+}
+
 bool RandomUniform::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v8_RandomUniform_evaluate);
 

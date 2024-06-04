@@ -20,7 +20,6 @@ TEST(type_prop, random_uniform_default_ctor) {
     r->set_out_type(element::f32);
     r->set_global_seed(121);
     r->set_op_seed(100);
-    r->set_alignment(op::PhilloxAlignment::OPENVINO);
     r->validate_and_infer_types();
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);

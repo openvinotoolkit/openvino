@@ -42,47 +42,30 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return Turns off constant folding for RandomUniform operation.
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
-        return false;
-    }
+    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
     /// \return The output tensor type.
-    const ov::element::Type& get_out_type() const {
-        return m_output_type;
-    }
+    const ov::element::Type& get_out_type() const;
 
-    void set_out_type(const ov::element::Type& output_type) {
-        m_output_type = output_type;
-    }
+    void set_out_type(const ov::element::Type& output_type);
 
     /// \return The global seed value.
-    uint64_t get_global_seed() const {
-        return m_global_seed;
-    }
-    void set_global_seed(uint64_t seed) {
-        m_global_seed = seed;
-    }
+    uint64_t get_global_seed() const;
+
+    void set_global_seed(uint64_t seed);
 
     /// \return The operational seed value.
-    uint64_t get_op_seed() const {
-        return m_op_seed;
-    }
-    void set_op_seed(uint64_t seed2) {
-        m_op_seed = seed2;
-    }
+    uint64_t get_op_seed() const;
+
+    void set_op_seed(uint64_t seed2);
 
     /// \return The state value.
-    std::pair<uint64_t, uint64_t> get_state() const {
-        return m_state;
-    }
+    std::pair<uint64_t, uint64_t> get_state();
 
     /// \return The alignment mode.
-    PhilloxAlignment get_alignment() const {
-        return m_alignment;
-    }
-    void set_alignment(PhilloxAlignment alignmnent) {
-        m_alignment = alignmnent;
-    }
+    PhilloxAlignment get_alignment() const;
+
+    void set_alignment(PhilloxAlignment alignmnent);
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -91,7 +74,7 @@ protected:
     ov::element::Type m_output_type;
     uint64_t m_global_seed;
     uint64_t m_op_seed;
-    PhilloxAlignment m_alignment;
+    PhilloxAlignment m_alignment = PhilloxAlignment::OPENVINO;
 
     mutable std::pair<uint64_t, uint64_t> m_state;
 };
