@@ -32,7 +32,7 @@ protected:
 
     ov::Dimension::value_type GetROISecondDimSizeForOp() const {
         // Those magic numbers comes from definition of ROIAlign ops.
-        if (std::is_same<TOp, op::v14::ROIAlignRotated>::value)
+        if (std::is_same<TOp, op::v15::ROIAlignRotated>::value)
             return 5;
         return 4;
     }
@@ -281,5 +281,5 @@ REGISTER_TYPED_TEST_SUITE_P(ROIAlignTest,
                             data_and_rois_not_same_type,
                             batch_indicies_not_integer);
 
-typedef Types<op::v3::ROIAlign, op::v9::ROIAlign, op::v14::ROIAlignRotated> ROIAlignTypes;
+typedef Types<op::v3::ROIAlign, op::v9::ROIAlign, op::v15::ROIAlignRotated> ROIAlignTypes;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, ROIAlignTest, ROIAlignTypes);

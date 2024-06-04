@@ -17,6 +17,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
+#include "transformations/rt_info/constant_node.hpp"
 
 /* GraphRewrite algorithm:
  * GraphRewrite processes an input graph in an topological order(i.e. args before users)
@@ -159,6 +160,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             // Need to push nodes in reverse order as we expect that nodes in new_nodes
             // vector are in topological order
             for (auto it = new_nodes.rbegin(); it != new_nodes.rend(); it++) {
+                mark_is_constant_node(*it);
                 nodes_to_run.emplace_front(*it);
             }
             m_pass->clear_new_nodes();

@@ -91,7 +91,7 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
         output_type = *prim->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     auto output_format = input0_layout.format;
@@ -113,7 +113,7 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
     auto output_type = prim->output_data_types[0].value_or(default_out_dt);
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ov::intel_gpu::op::Gemm op;
@@ -272,6 +272,9 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     gemm_info.add("transpose_input1", transpose_input1);
     gemm_info.add("indirect_input0", indirect_input0);
     gemm_info.add("indirect_input1", indirect_input1);
+    gemm_info.add("trasnpose_order_input0", desc->input0_transpose_order);
+    gemm_info.add("trasnpose_order_input1", desc->input1_transpose_order);
+    gemm_info.add("trasnpose_order_output", desc->output_transpose_order);
     node_info->add("gemm info", gemm_info);
     node_info->dump(primitive_description);
 

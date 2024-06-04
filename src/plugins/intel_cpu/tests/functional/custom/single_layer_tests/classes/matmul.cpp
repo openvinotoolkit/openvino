@@ -118,10 +118,14 @@ void MatMulLayerCPUTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto it = additionalConfig.find(ov::hint::inference_precision.name());
-    if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16)
+    if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
         inType = outType = netType = ElementType::bf16;
-    else
+        rel_threshold = abs_threshold = 1e-2f;
+    } else {
         inType = outType = netType;
+        rel_threshold = 1e-4f;
+        abs_threshold = 5e-4f;
+    }
 
     cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
     selectedType = makeSelectedTypeStr(selectedType, outType);
@@ -148,6 +152,40 @@ void MatMulLayerCPUTest::SetUp() {
     auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
     function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
     checkFusingPosition = false;
+}
+
+
+void MatMulLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    const auto& parameters = function->get_parameters();
+    for (size_t i = 0; i < parameters.size(); i++) {
+        const auto& parameter = parameters[i];
+        ov::Tensor tensor;
+        const auto& param_type = parameter->get_output_element_type(0);
+        const auto& static_shape = targetInputStaticShapes[i];
+        switch (i) {
+            case 0: {
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = -4;
+                    in_data.range = 8;
+                    in_data.resolution = 32;
+                    tensor = ov::test::utils::create_and_fill_tensor(param_type, static_shape, in_data);
+                break;
+            }
+            case 1: {
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 8;
+                    in_data.resolution = 32;
+                    tensor = ov::test::utils::create_and_fill_tensor(param_type, static_shape, in_data);
+                break;
+            }
+            default: {
+                throw std::runtime_error("Incorrect parameter number!");
+            }
+        }
+        inputs.insert({parameter, tensor});
+    }
 }
 
 TEST_P(MatMulLayerCPUTest, CompareWithRefs) {

@@ -10,6 +10,16 @@
 
 namespace cldnn {
 namespace ocl {
+static inline std::string pad_to_string(ov::op::PadType pad) {
+    switch (pad) {
+        case ov::op::PadType::SAME_UPPER: return "same_upper";
+        case ov::op::PadType::SAME_LOWER: return "same_lower";
+        case ov::op::PadType::VALID: return "valid";
+        default: OPENVINO_THROW("Unsupported pad type in ExtractImagePatches primitive ", pad);
+    }
+
+    return "";
+}
 
 struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patches> {
     using parent = typed_primitive_impl_ocl<extract_image_patches>;
@@ -27,10 +37,23 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
         const auto& primitive = impl_param.typed_desc<extract_image_patches>();
         auto params = get_default_params<kernel_selector::extract_image_patches_params>(impl_param);
 
-        params.sizes = primitive->sizes;
-        params.strides = primitive->strides;
-        params.rates = primitive->rates;
-        params.auto_pad = primitive->auto_pad;
+        std::vector<uint32_t> sizes;
+        std::vector<uint32_t> strides;
+        std::vector<uint32_t> rates;
+        for (auto size : primitive->sizes) {
+            sizes.push_back(static_cast<uint32_t>(size));
+        }
+        for (auto stride : primitive->strides) {
+            strides.push_back(static_cast<uint32_t>(stride));
+        }
+        for (auto rate : primitive->rates) {
+            rates.push_back(static_cast<uint32_t>(rate));
+        }
+
+        params.sizes = sizes;
+        params.strides = strides;
+        params.rates = rates;
+        params.auto_pad = pad_to_string(primitive->auto_pad);
 
         return params;
     }

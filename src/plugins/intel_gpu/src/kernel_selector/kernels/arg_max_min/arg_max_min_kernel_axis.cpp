@@ -22,7 +22,7 @@ size_t getOperationNumber(const arg_max_min_params& params) {
 
 std::string getOperationNumberString(const arg_max_min_params& params) {
     const auto& output = params.outputs[0];
-    DimensionAccessHelper dims(output);
+    DimensionAccessHelperJit dims(output);
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
         case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.b()});
@@ -164,11 +164,8 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params),
-                     orgParams.use_multiple_outputs ? 2 : 1,
+                     orgParams.outputs_num,
                      orgParams.is_shape_agnostic);
-
-    if (orgParams.has_second_output && !orgParams.use_multiple_outputs)
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
     if (is_dynamic) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -201,13 +198,6 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
         jit.AddConstant(MakeJitConstant("SORT_BY_VALUE", 1));
     else
         jit.AddConstant(MakeJitConstant("SORT_BY_INDEX", 1));
-
-    if (params.has_second_output) {
-        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_EXIST", 1));
-        if (params.use_multiple_outputs) {
-            jit.AddConstant(MakeJitConstant("MULTIPLE_OUTPUTS", 1));
-        }
-    }
 
     if (params.values_first)
         jit.AddConstant(MakeJitConstant("TOP_K_ORDER", 1));

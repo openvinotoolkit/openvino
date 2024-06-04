@@ -64,7 +64,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2024.0.0
+      conda install -c conda-forge openvino=2024.2.0
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the description below, as well as the
@@ -94,6 +94,18 @@ To reactivate your Conda environment, execute the following command:
 Once you have reactivated your Conda environment, make sure that all the necessary environment
 variables are properly set and proceed with linking the OpenVINO libraries.
 
+Enabling GPU device for inference
++++++++++++++++++++++++++++++++++
+
+To use a GPU device for OpenVINO inference on Linux, you must install OpenCL ICD:
+
+.. code-block:: sh
+
+   conda install ocl-icd-system
+
+This step is not required on Windows, as Intel® Graphics Compute Runtime for
+OpenCL™ Driver is included with the Intel® Graphics Driver package.
+
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################
@@ -103,9 +115,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
 
-   conda remove openvino=2024.0.0
-
-
+   conda remove openvino=2024.2.0
 
 What's Next?
 ############################################################
@@ -123,7 +133,4 @@ Visit the :doc:`Samples <../../../learn-openvino/openvino-samples>` page for oth
 
 * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd>`
 * :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification>`
-
-
-
 

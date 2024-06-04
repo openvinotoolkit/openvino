@@ -34,6 +34,11 @@ extensions = [
     'breathe'
     ]
 
+try:
+    import openvino
+except ImportError:
+    autodoc_mock_imports = ["openvino"]
+
 breathe_projects = {
     "openvino": "../xml/"
 }
@@ -183,17 +188,10 @@ html_css_files = [
 
 html_js_files = [
     'https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js',
-    'https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js',
-    'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels',
-    'https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js',
-    'https://cdn.jsdelivr.net/npm/chartjs-plugin-barchart-background@1.3.0/build/Plugin.Barchart.Background.min.js',
-    'https://cdn.jsdelivr.net/npm/chartjs-plugin-deferred@1',
-    'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.1/papaparse.min.js',
     'js/openvino_sphinx_theme.js',
     'js/splide.min.js',
     'js/sortable_tables.js',
     'js/graphs.js',
-    'js/graphs_ov_tf.js',
     'js/gsearch.js',
     'js/hide_banner.js',
     'js/newsletter.js',
@@ -201,6 +199,7 @@ html_js_files = [
     'js/papaparse.min.js',
     'js/viewer.min.js',
     'js/custom.js',
+    'js/modern.js',
 ]
 
 # monkeypatch sphinx api doc to prevent showing inheritance from object and enum.Enum

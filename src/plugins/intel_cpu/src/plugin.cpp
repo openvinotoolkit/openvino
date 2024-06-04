@@ -126,7 +126,7 @@ public:
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
-    get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
+    get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
     auto& ov_version = ov::get_openvino_version();
@@ -210,10 +210,15 @@ static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
-    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
-                   op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model)
-               ? Config::ModelType::CNN
-               : Config::ModelType::Unknown;
+    if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
+        op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model))
+        return Config::ModelType::CNN;
+    
+    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) &&
+        model->get_variables().size() > 0)
+        return Config::ModelType::LLM;
+
+    return Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -240,7 +245,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // verification of supported input
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
-        static const std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u8,
+        static const std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u4,
+                                                                           ov::element::Type_t::i4,
+                                                                           ov::element::Type_t::u8,
                                                                            ov::element::Type_t::i8,
                                                                            ov::element::Type_t::u16,
                                                                            ov::element::Type_t::i16,

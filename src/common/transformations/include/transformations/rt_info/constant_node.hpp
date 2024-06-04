@@ -10,8 +10,8 @@
 
 namespace ov {
 
-TRANSFORMATIONS_API void mark_as_constant_node(const std::shared_ptr<Node>& node);
-TRANSFORMATIONS_API void mark_as_constant_node(const Output<Node>& node);
+TRANSFORMATIONS_API void mark_is_constant_node(const std::shared_ptr<Node>& node);
+TRANSFORMATIONS_API void mark_is_constant_node(const Output<Node>& node);
 
 TRANSFORMATIONS_API bool is_marked_as_constant_node(const std::shared_ptr<Node>& node);
 TRANSFORMATIONS_API bool is_marked_as_constant_node(const Output<Node>& node);
@@ -26,7 +26,7 @@ public:
     OPENVINO_RTTI("constant_node", "0");
 
     bool is_copyable() const override {
-        return true;
+        return false;
     }
 };
 

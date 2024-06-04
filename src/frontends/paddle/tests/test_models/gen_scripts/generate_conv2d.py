@@ -26,7 +26,7 @@ def conv2d(name: str, x, dtype):
         var = [out]
         outs = exe.run(feed=inp_dict, fetch_list=var)
 
-        saveModel(name, exe, feedkeys=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
     return outs[0]
 
 def main():

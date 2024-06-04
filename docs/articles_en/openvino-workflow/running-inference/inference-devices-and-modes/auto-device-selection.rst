@@ -73,7 +73,7 @@ input/output or :doc:`stateful operations <../stateful-models>`
 will be loaded to the CPU if it is in the candidate list. Otherwise,
 these models will follow the normal flow and be loaded to the device based on priority.
 
-.. image:: ../../../_static/images/autoplugin_accelerate.svg
+.. image:: ../../../assets/images/autoplugin_accelerate.svg
 
 
 This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>`
@@ -202,14 +202,14 @@ The code samples on this page assume following import(Python)/using (C++) are in
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_auto.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto.py
            :language: python
            :fragment: [py_ov_property_import_header]
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/AUTO0.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/AUTO0.cpp
             :language: cpp
             :fragment: [py_ov_property_import_header]
 
@@ -232,14 +232,14 @@ See the following code for using AUTO and specifying devices:
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_auto.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto.py
            :language: python
            :fragment: [part0]
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/AUTO0.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/AUTO0.cpp
             :language: cpp
             :fragment: [part0]
 
@@ -314,8 +314,8 @@ asynchronous inference pipeline. For information on asynchronous inference, see 
 The following notebooks provide examples of how to set up an asynchronous pipeline:
 
 * :doc:`Image Classification Async Sample <../../../learn-openvino/openvino-samples/image-classification-async>`
-* `Notebook - Asynchronous Inference with OpenVINO™ <./../../../notebooks/115-async-api-with-output.html>`__
-* `Notebook - Automatic Device Selection with OpenVINO <./../../../notebooks/106-auto-device-with-output.html>`__
+* `Notebook - Asynchronous Inference with OpenVINO™ <./../../../notebooks/async-api-with-output.html>`__
+* `Notebook - Automatic Device Selection with OpenVINO <./../../../notebooks/auto-device-with-output.html>`__
 
 LATENCY
 --------------------
@@ -392,14 +392,14 @@ To enable performance hints for your application, use the following code:
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_auto.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto.py
            :language: python
            :fragment: [part3]
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/AUTO3.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/AUTO3.cpp
             :language: cpp
             :fragment: [part3]
 
@@ -420,14 +420,14 @@ The ``ov::hint::model_priority`` property enables you to control the priorities 
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_auto.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto.py
            :language: python
            :fragment: [part4]
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/AUTO4.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/AUTO4.cpp
             :language: cpp
             :fragment: [part4]
 
@@ -443,14 +443,14 @@ To query the runtime target devices on which the inferences are being executed u
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_auto.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto.py
            :language: python
            :fragment: [part7]
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/AUTO7.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/AUTO7.cpp
             :language: cpp
             :fragment: [part7]
 
@@ -465,14 +465,14 @@ Although the methods described above are currently the preferred way to execute 
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_auto.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto.py
            :language: python
            :fragment: [part5]
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/AUTO5.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/AUTO5.cpp
             :language: cpp
             :fragment: [part5]
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_NPU}
-
 NPU Device
 ==========
 
@@ -153,7 +151,7 @@ guaranteed.
 Additional Resources
 #############################
 
-* `Vision colorization Notebook <notebooks/222-vision-image-colorization-with-output.html>`__
+* `Vision colorization Notebook <notebooks/vision-image-colorization-with-output.html>`__
 * `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
 * `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
 * `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__
