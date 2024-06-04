@@ -1,18 +1,17 @@
 name: 'Dependency Review'
 on: [pull_request, merge_group]
 
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4.3.2
+        uses: actions/dependency-review-action@0c155c5e8556a497adf53f2c18edabf945ed8e70 # v4.3.2
         with:
           config-file: './.github/dependency_review.yml'
           base-ref: ${{ github.pull_request.base.sha || github.event.merge_group.base_ref }}
