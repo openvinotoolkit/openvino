@@ -13,6 +13,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-fedora33
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest

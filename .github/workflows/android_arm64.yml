@@ -13,6 +13,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-arm64-vcpkg
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
