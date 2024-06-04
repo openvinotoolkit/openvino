@@ -19,14 +19,18 @@ struct rope : public primitive_base<rope> {
     /// @param id This primitive id
     /// @param inputs Inputs primitive ids
     /// @param config Specific RoPE config
+    /// @param gather_rank Required for correct processing of gather input (if applicable)
     rope(const primitive_id& id,
          const std::vector<input_info>& inputs,
          const RoPE::Config& config,
+         size_t gather_rank = 0,
          const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}),
-          config(config) {}
+          config(config),
+          gather_rank(gather_rank) {}
 
     RoPE::Config config;
+    size_t gather_rank;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -40,6 +44,7 @@ struct rope : public primitive_base<rope> {
         seed = hash_combine(seed, config.rotary_ndims);
         seed = hash_combine(seed, config.slice_start);
         seed = hash_combine(seed, config.slice_stop);
+        seed = hash_combine(seed, gather_rank);
         return seed;
     }
 
@@ -58,7 +63,8 @@ struct rope : public primitive_base<rope> {
                config.is_qwen == rhs_casted.config.is_qwen &&
                config.rotary_ndims == rhs_casted.config.rotary_ndims &&
                config.slice_start == rhs_casted.config.slice_start &&
-               config.slice_stop == rhs_casted.config.slice_stop;
+               config.slice_stop == rhs_casted.config.slice_stop &&
+               gather_rank == rhs_casted.gather_rank;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -73,6 +79,7 @@ struct rope : public primitive_base<rope> {
         ob << config.rotary_ndims;
         ob << config.slice_start;
         ob << config.slice_stop;
+        ob << gather_rank;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -87,6 +94,7 @@ struct rope : public primitive_base<rope> {
         ib >> config.rotary_ndims;
         ib >> config.slice_start;
         ib >> config.slice_stop;
+        ib >> gather_rank;
     }
 };
 }  // namespace cldnn
