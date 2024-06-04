@@ -5,10 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_common.hpp"
-#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace ov;
@@ -23,5 +22,5 @@ TEST(SDPATOPATest, SDPANotPresent) {
 
     ov::pass::Manager manager;
     manager.register_pass<pass::SDPAToPagedAttention>();
-    ASSERT_FALSE(manager.run_passes(model));
+    EXPECT_THROW(manager.run_passes(model), ov::Exception);
 }
