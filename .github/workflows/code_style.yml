@@ -5,13 +5,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   clang-format:
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           submodules: 'true'
 
@@ -29,7 +31,7 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@v1
+        uses: reviewdog/action-suggester@185c9c06d0a28fbe43b50aca4b32777b649e7cbd # v1.12.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
@@ -40,7 +42,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           submodules: 'true'
 
@@ -58,7 +60,7 @@ jobs:
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
-        uses: reviewdog/action-shellcheck@v1
+        uses: reviewdog/action-shellcheck@72365a51bf6476fe952a117c3ff703eb7775e40a # v1.20.0
         with:
           level: style
           reporter: github-pr-review
@@ -71,7 +73,7 @@ jobs:
   NamingConventionCheck:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           submodules: 'true'
 
