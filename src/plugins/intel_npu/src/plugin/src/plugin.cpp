@@ -482,6 +482,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<USE_ELF_COMPILER_BACKEND>();
           }}},
+        {ov::intel_npu::create_executor.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<CREATE_EXECUTOR>();
+          }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,
           ov::PropertyMutability::RW,
