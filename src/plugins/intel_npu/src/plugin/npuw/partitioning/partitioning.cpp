@@ -5,6 +5,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/pass/validate.hpp"
 
 #include "openvino/util/xml_parse_utils.hpp"
@@ -253,6 +254,7 @@ public:
 
     // this implicit shared state can be lifted to some new
     // kind of object
+    void propagateSlices(const std::string &func_name);
     void propagateConverts(const std::string &func_name);
     void propagateWeights(const std::string &func_name);
     void propagateScalars(const std::string &func_name);
@@ -334,6 +336,7 @@ void Partitioner::identifySubgraphs() {
         // Input layers may be connected to the same producer nodes, weights,
         // or parameters. Cache those to avoid duplicating the parameters.
         std::unordered_map<NodeSPtr, NodeSPtr> input_mapping;
+        std::unordered_set<NodeSPtr> slice_params;
         auto parameter_as_is = [&input_mapping](NodeSPtr orig_node) {
             auto it = input_mapping.find(orig_node);
             if (it != input_mapping.end()) {
@@ -397,6 +400,19 @@ void Partitioner::identifySubgraphs() {
                     // FIXME: Finally introduce my own test routine for that!
                     // Don't do anything here too.
                     continue;
+                } else if (ov::is_type<ov::op::v8::Slice>(input_node) &&
+                           ov::op::util::is_parameter(input_node->input(0)
+                                                      .get_source_output()
+                                                      .get_node_shared_ptr())) {
+                    // So the situation is:
+                    // - a group has an input layer
+                    //  - which reads from a Slice
+                    //  - which reads from a Parameter
+                    // This happens when an offline plan is used with a kvcache
+                    // model extended with slices to maintain zero-copy (LLM case)
+                    auto slice_param = input_node->input(0).get_source_output().get_node_shared_ptr();
+                    input_mapping[input_node] = slice_param;
+                    slice_params.insert(slice_param);
                 } else {
                     // Ok, this input is connected to some other node's output
                     // Replace this connection with a link to a newly created Parameter
@@ -434,10 +450,11 @@ void Partitioner::identifySubgraphs() {
                 // some Parameters could fold into Constants, so only add real parameters
                 auto this_param = std::static_pointer_cast<ov::op::v0::Parameter>(maybe_param);
                 group.sg._parameters.push_back(this_param);
-                if (src_node != this_param) {
+                if (src_node != this_param && slice_params.count(this_param) == 0) {
                     // Parameter node and the recorded src node are different
                     // so it is a cut-off point (see above, parameter_from()):
-                    // - record connectivity between subgraphs
+                    // - record connectivity between subgraphs.
+                    // Exception: param is registered via slice
                     const auto link_from = result_cache.at(src_node);
                     const auto link_to   = LinkPtrTo{this_group_idx, this_param};
                     subgraph_ptr_links[link_to] = link_from;
@@ -713,6 +730,51 @@ void Partitioner::propagate(const std::string &func_name,
         } // for(ordered_ops)
     } // for(each)
 } // propagate
+
+void Partitioner::propagateSlices(const std::string &func_name) {
+    LOG_INFO("Propagate Slice nodes to matching banks for model "
+             << model->get_friendly_name()
+             << "...");
+    LOG_BLOCK();
+
+    // This is a special step. Normally we shouldn't do this here at all.
+    // Extra slices may be added to the LLM kvcache models _after_
+    // offline partitioning was done when adapting them to the zero
+    // -copy kvcache path. In this case, we get extra slices in the model
+    // which we need to add to the match banks
+
+    auto &bank = ens.repeated.at(func_name).matches;
+    auto match_fcn = [&](const std::shared_ptr<ov::Node> &node_ptr) -> bool {
+        const auto &this_layer_name = node_ptr->get_friendly_name();
+        return ov::is_type<ov::op::v8::Slice>(node_ptr)
+            && bank.end() == std::find_if(bank.begin(),
+                                          bank.end(),
+                                          BankContains{this_layer_name}) // (0)
+            && ov::op::util::is_parameter(node_ptr->input(0)
+                                          .get_source_output()
+                                          .get_node_shared_ptr())         // (1)
+            && [&](std::set<ov::Input<ov::Node> > &&readers) -> bool {
+                // FIXME: It could be all_of, but slices may have reads
+                // outside of the function group (e.g., a single instance
+                // of shape_of, taken only on the first kvcache tensor)
+                return std::any_of
+                    (readers.begin(),
+                     readers.end(),
+                     [&](const ov::Input<ov::Node> &reader) -> bool {
+                         auto reply = bank.end()
+                             != std::find_if(bank.begin(),
+                                             bank.end(),
+                                             BankContains{reader
+                                                          .get_node()
+                                                          ->get_friendly_name()});
+                         return reply;
+                     });
+            } (node_ptr->output(0).get_target_inputs());
+    };
+    propagate(func_name, match_fcn, bank);
+    LOG_INFO("Done");
+}
+
 
 void Partitioner::propagateConverts(const std::string &func_name) {
     LOG_INFO("Propagate Convert nodes to matching banks for model "
@@ -1726,6 +1788,7 @@ ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model) {
             for (auto &&func_group : all_functions) {
                 LOG_INFO("FOLD: Process function " << func_group << "...");
                 LOG_BLOCK();
+                p.propagateSlices(func_group);
                 p.propagateConverts(func_group);
                 p.propagateWeights(func_group);
                 p.propagateScalars(func_group);
