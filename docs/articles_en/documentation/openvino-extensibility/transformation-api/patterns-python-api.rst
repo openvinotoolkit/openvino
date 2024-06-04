@@ -1,17 +1,16 @@
-.. {#openvino_docs_Extensibility_UG_patterns-python-api}
 
-Overview of creating Transformation patterns using OpenVINO™ API
-=============================================
+Transformation Patterns with OpenVINO API
+==================================================
 
 .. meta::
    :description: Learn how to apply additional model optimizations or transform
-                 unsupported subgraphs and operations, using OpenVINO™ Transformations API.
+                 unsupported subgraphs and operations using OpenVINO™ Transformations API.
 
-Pattern matching is an essential component of OpenVINO™ transformations. Before performing any transformation on a subgraph of a graph, we need to find the subgraph in the graph.
-Here come patterns which serve as a searching utility to identify nodes we are going to work with in our transformation. In this article we are going to review the basics of pattern
-creation using OpenVINO™ API and helping utilities we may use to facilitate working with them. This guide will focus on creating patterns. If you want to learn more about ``MatcherPass`` refer to the :ref:`respective page<matcher-pass.rst>` Some examples will be intentionally simplified for ease of understanding. 
+Pattern matching is an essential component of OpenVINO™ transformations. Before performing any transformation on a subgraph of a graph, it is necessary to find that subgraph in the graph.
+Patterns serve as a searching utility to identify nodes intended for transformations. This article covers the basics of pattern
+creation using OpenVINO™ API and helpful utilities to facilitate working with them. While this guide focuses on creating patterns, if you want to learn more about ``MatcherPass``, refer to the :doc:`OpenVINO Matcher Pass article </matcher-pass>`. Note that some examples may be intentionally simplified for ease of understanding. 
 
-Though, before proceeding any further, we need to add some imports. That would import the operations we're going to use and additional utility that we are going to talk later in this guide.
+Before proceeding further, it is necessary to add some imports. These imports include the operations to be used and additional utilities described in this guide.
 Add the following lines to your file:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
@@ -22,15 +21,12 @@ Add the following lines to your file:
    :language: cpp
    :fragment: [ov:imports]
 
-This should be enough for our article.
+Pattern Creation
++++++++++++++++++++++
 
-What is a pattern and how to create one?
-++++++++++++++++++++++++++++++++++++++++
+A pattern is a simplified model comprised of nodes aimed to be matched. It lacks some features of a model and cannot function as one.
 
-Let's start with a very brief definition of pattern. In a nutshell, a pattern is a very simplified model comprised of nodes we want to match. It lacks some features of a model and generally cannot serve as one,
-but this is not very important right now.
-
-Suppose, we are having a very simple pattern consisting of 3 nodes and we want to find it in a given model.
+Consider a straightforward pattern consisting of three nodes to be found in a given model.
 
 .. image:: ./../../../_static/images/simple_pattern_example.png
 
@@ -44,10 +40,10 @@ Let's create the model and the pattern:
    :language: cpp
    :fragment: [ov:create_simple_model_and_pattern]
 
-.. note:: We are using testing utilities in this article that just directly compare given sequences of nodes. In real-life everything is a little bit more complicated with many other things happening to find a pattern in a model, but we intentionally omit this details to focus on patterns and their functionality.
+.. note:: This example uses testing utilities that directly compare given sequences of nodes. In reality, the process of finding a pattern within a model is more complicated. However, to focus only on patterns and their functionality, these details are intentionally omitted.
 
-Our code already looks promissing, however in OpenVINO™ we usually don't create patterns using the same nodes we used for creating the model. Instead, we want to use so-called wrappers that provide us for additional functionality.
-For the given case we would probably use ``WrapType`` and the code would look as following:
+Although the code is functional, in OpenVINO, patterns are typically not created using the same nodes as those used for creating the model. Instead, wrappers are preferred, providing additional functionality.
+For the given case, ``WrapType`` is used and the code looks as following:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: python
@@ -60,8 +56,8 @@ For the given case we would probably use ``WrapType`` and the code would look as
 1. WrapType
 ++++++++++++++++++++++++++++++++++++++++
 
-``WrapType`` is a wrapper used to store one or many types to match them. As we already saw, it is possible to specify a single type in ``WrapType`` and use it for matching.
-However, it is also possible to list all possible types for the given node. For example, you may do something like this:
+``WrapType`` is a wrapper used to store one or many types to match them. As demonstrated earlier, it is possible to specify a single type in ``WrapType`` and use it for matching.
+However, you can also list all possible types for a given node, for example:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: python
@@ -71,12 +67,10 @@ However, it is also possible to list all possible types for the given node. For 
    :language: cpp
    :fragment: [ov:wrap_type_list]
 
-As you may see, ``pattern_sig`` is created with the list ``["opset13.Relu", "opset13.Sigmoid"]`` which means it can either be a ``Relu`` or ``Sigmoid``. Pretty convenient, huh?
-This is why matching the same pattern against different nodes becomes possible. Basically, we may think of ``WrapType`` as "one of listed". Note, that you may provide more than 2 types
-to ``WrapType``.
+Note that ``pattern_sig`` is created with the list ``["opset13.Relu", "opset13.Sigmoid"]``, meaning it can be either a ``Relu`` or a ``Sigmoid``.
+This feature enables matching the same pattern against different nodes. Essentially, ``WrapType`` can represent "one of listed" types. ``WrapType`` supports specifying more than two types.
 
-If you want to have some additional checking for you node, you may create a predicate for it providing a function or a lambda. This function will be executed during
-matching performing the additional validation specified in the logic of the function. For example, you may want to check the consumers count of a given node:
+To add additional checks for your node, create a predicate by providing a function or a lambda. This function will be executed during matching, performing the additional validation specified in the logic of the function. For example, you might want to check the consumers count of a given node:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: python
@@ -88,7 +82,7 @@ matching performing the additional validation specified in the logic of the func
 
 2. AnyInput 
 ++++++++++++++++++++++++++++++++++++++++
-You have already seen ``AnyInput`` in the above examples. We use it when we don't really care about a specific input for a given node.
+``AnyInput`` is used when there is no need to specify a particular input for a given node.
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: python
@@ -98,7 +92,7 @@ You have already seen ``AnyInput`` in the above examples. We use it when we don'
    :language: cpp
    :fragment: [ov:any_input]
 
-You may also create ``AnyInput()`` with a predicate, if you want some additional checks for you input. It would look similar to ``WrapType`` with a lambda or a function. Let's say we want to make sure the inputs has a rank of 4.
+You can also create ``AnyInput()`` with a predicate, if you want additional checks for you input. It will look similar to ``WrapType`` with a lambda or a function. For example, to ensure that the input has a rank of 4:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: python
@@ -110,14 +104,14 @@ You may also create ``AnyInput()`` with a predicate, if you want some additional
 
 3. Or
 ++++++++++++++++++++++++++++++++++++++++
-``Or`` is somewhat similar to ``WrapType``, however if ``WrapType`` can only match one of types provided in the list, ``Or`` is used to match different _branches_ of nodes.
-It would be much easier to understand with a visualization. Let's say, we want to try to match the model against two different sequences of nodes. The ``Or`` type
-facilitates this by creating 2 different branches (``Or`` supports more than 2 branches). It would look as following:
+``Or`` functions similar to ``WrapType``, however, while ``WrapType`` can only match one of the types provided in the list, ``Or`` is used to match different branches of nodes.
+Suppose the goal is to match the model against two different sequences of nodes. The ``Or`` type
+facilitates this by creating two different branches (``Or`` supports more than two branches), looking as follows:
 
 .. image:: ./../../../_static/images/or_branches.png
 
-As you may see, the red branch will not match, however it will work perfectly fine for the blue one.
-That's what it would look in code:
+The red branch will not match, but it will work perfectly for the blue one.
+Here is how it looks in code:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: python
@@ -131,13 +125,13 @@ Note that matching will succeed for the first matching branch and the remaining 
 
 4. Optional
 ++++++++++++++++++++++++++++++++++++++++
-``Optional`` is a bit tricky one. It allows to specify what node might be or might not present in the model. Under the hood
-the pattern will create 2 branches using ``Or``: one with the optional node present, another one without it. That's what it would look like visually with the ``Optional``
-unfolding into 2 branches:
+``Optional`` is a bit tricky. It allows specifying whether a node might be present or absent in the model. Under the hood,
+the pattern will create two branches using ``Or``: one with the optional node present and another one without it. Here is what it would look like with the ``Optional``
+unfolding into two branches:
 
 .. image:: ./../../../_static/images/optional.png
 
-The code would look as following for our model:
+The code for our model looks as follows:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: python
@@ -147,7 +141,8 @@ The code would look as following for our model:
    :language: cpp
    :fragment: [ov:pattern_optional_middle]
 
-The ``Optional`` doesn't necessarily have to be in the middle of the pattern. It can be a top node and a root node.
+The ``Optional`` does not necessarily have to be in the middle of the pattern. It can be a top node and a root node.
+
 
 Top node:
 
@@ -169,7 +164,7 @@ Root node:
    :language: cpp
    :fragment: [ov:pattern_optional_root]
 
-```Optional``` also supports adding a predicate the same way ``WrapType`` and ``AnyInput`` do:
+``Optional`` also supports adding a predicate the same way ``WrapType`` and ``AnyInput`` do:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: python

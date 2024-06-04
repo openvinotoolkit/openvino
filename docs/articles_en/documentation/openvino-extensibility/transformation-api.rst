@@ -89,7 +89,7 @@ To eliminate a node, OpenVINO provides a method that considers all limitations o
    :language: cpp
    :fragment: [ov:eliminate_node]
 
-In case of successful replacement ``ov::replace_output_update_name()`` automatically preserves friendly name and runtime info.
+If the replacement is successful, ``ov::replace_output_update_name()`` automatically preserves the friendly name and runtime info.
 
 .. _transformations_types:
 
@@ -117,27 +117,27 @@ Transformation library has two internal macros to support conditional compilatio
 Transformation writing essentials
 #################################
 
-When you're developing a transformation, you need to follow these transformation rules:
+To develop a transformation, follow these transformation rules:
 
 1. Friendly Names
 +++++++++++++++++
 
-Each ``ov::Node`` has a unique name and a friendly name. In transformations we only care about friendly name because it represents the name from the model point of view.
-To avoid losing friendly name when replacing node with another one or a subgraph, we set the original friendly name to the last node in the replacing subgraph. See the example below.
+Each ``ov::Node`` has a unique name and a friendly name. In transformations, only the friendly name matters because it represents the name from the model's perspective.
+To prevent losing the friendly name when replacing a node with another node or a subgraph, the original friendly name is set to the last node in the replacing subgraph. See the example below.
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
    :fragment: [ov:replace_friendly_name]
 
-In more complicated cases, if a replaced operation has several outputs and we add additional consumers to its outputs, we decide how to set friendly name by an agreement.
+In more complicated cases, when a replaced operation has several outputs and additional consumers are added to its outputs, the decision on how to set the friendly name is determined by an agreement.
 
 2. Runtime Info
 +++++++++++++++
 
-Runtime info is a map ``std::map<std::string, ov::Any>`` located inside ``ov::Node`` class. It represents additional attributes of ``ov::Node``.
-These attributes can be set by users or plugins. When we execute a transformation that changes ``ov::Model``, we need to preserve these attributes as they will not be automatically propagated.
+Runtime info is a map ``std::map<std::string, ov::Any>`` located inside the ``ov::Node`` class. It represents additional attributes of the ``ov::Node``.
+These attributes, which can be set by users or plugins, need to be preserved when executing a transformation that changes ``ov::Model``, as they are not automatically propagated.
 In most cases, transformations have the following types: 1:1 (replace node with another node), 1:N (replace node with a sub-graph), N:1 (fuse sub-graph into a single node), N:M (any other transformation).
-Currently, there is no mechanism that automatically detects transformation types, so we need to propagate this runtime information manually. See the example below:
+Currently, there is no mechanism that automatically detects transformation types, so this runtime information needs to be propagated manually. See the example below:
 
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
@@ -146,7 +146,7 @@ Currently, there is no mechanism that automatically detects transformation types
 
 When a transformation has multiple fusions or decompositions, ``ov::copy_runtime_info`` must be called multiple times for each case.
 
-.. note:: ``copy_runtime_info`` removes ``rt_info`` from destination nodes. If you want to keep it, you need to specify them in source nodes as following: ``copy_runtime_info({a, b, c}, {a, b})``
+.. note:: ``copy_runtime_info`` removes ``rt_info`` from destination nodes. If you want to keep it, specify them in source nodes as following: ``copy_runtime_info({a, b, c}, {a, b})``
 
 3. Constant Folding
 +++++++++++++++++++
@@ -174,8 +174,8 @@ Common mistakes in transformations
 In transformation development process:
 
 * Do not use deprecated OpenVINO™ API. Deprecated methods are marked with ``OPENVINO_DEPRECATED`` macro in their definition.
-* Do not pass ``shared_ptr<Node>`` as an input for another one if a type of the node is unknown or it has multiple outputs. Use explicit output port.
-* If you replace node with another one that produces different shape, remember that new shape will not be propagated until the first ``validate_nodes_and_infer_types`` call for ``ov::Model``. If you are using ``ov::pass::Manager``, it will automatically call this method after each transformation execution.
+* Do not pass ``shared_ptr<Node>`` as input for another node if the type of the node is unknown or if it has multiple outputs. Instead, use explicit output ports.
+* If you replace a node with another node that produces different shape, note that the new shape will not be propagated until the first ``validate_nodes_and_infer_types`` call for ``ov::Model``. If you are using ``ov::pass::Manager``, it will automatically call this method after each transformation execution.
 * Do not forget to call the ``ov::pass::ConstantFolding`` pass if your transformation creates constant subgraphs.
 * Use latest OpSet if you are not developing downgrade transformation pass.
 * When developing a callback for ``ov::pass::MatcherPass``, do not change nodes that come after the root node in the topological order.
@@ -187,7 +187,7 @@ Using pass manager
 
 ``ov::pass::Manager`` is a container class that can store a list of transformations and execute them. The main idea of this class is to have a high-level representation for grouped list of transformations.
 It can register and apply any `transformation pass <#transformations_types>`__ on a model.
-In addition, ``ov::pass::Manager`` has extended debug capabilities (find more information in the `how to debug transformations <#how_to_debug_transformations>`__ section).
+In addition, ``ov::pass::Manager`` has extended debug capabilities (find more information in the `how to debug transformations <#how-to-debug-transformations>`__ section).
 
 The example below shows basic usage of ``ov::pass::Manager``
 
