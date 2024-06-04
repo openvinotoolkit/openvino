@@ -11,6 +11,21 @@ bool ov::frontend::tensorflow_lite::SparsityInfo::is_copyable() const {
 }
 
 // Unpacks sparse data. Supports only case when sparse tensor has only one sparse dimension [DENSE, ..., DENSE, SPARSE]
+// TensorFlow Lite uses a specific format for storing sparse data (TACO):
+// It uses three 1D arrays/1D tensors/vectors:
+// values - stored in model's buffers
+// segments/positions - list of row's start positions
+// indices - list of value indexes in a row (size is equal to values)
+// Algorithm is next, and it should be easily modified later for 2D sparse matrices (that's why it uses a 2D approach):
+// 1. Get a first segment position, set idx = 0
+// In a cycle
+// 2. Get next segment position
+// 3. Get an element_count by a difference between current segment position and last_segment position.
+//    If diff between last and current segment is 0 it means an empty row (contains only default values).
+//    In cycle for each element in a segment:
+//    4. Calculate a row_offset using idx-th index by indices and element_size (fp16/fp32/etc...)
+//    5. Put an idx-th value to a found target dest + row_offset
+//    6. Move to a next row
 template <typename T, typename U>
 static void read_sparse_data(uint8_t* dest,
                              uint8_t* dest_end,
