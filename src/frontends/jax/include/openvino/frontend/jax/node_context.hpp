@@ -6,8 +6,8 @@
 
 #include <functional>
 
-#include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/jax/decoder.hpp"
+#include "openvino/frontend/node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -169,6 +169,6 @@ private:
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::jax::NodeContext&)>;
 
-} // namespace jax
-} // namespace frontend
-} // namespace ov
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov
