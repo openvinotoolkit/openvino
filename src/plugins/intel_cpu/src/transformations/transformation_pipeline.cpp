@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
 #include <ov_ops/gather_compressed.hpp>
@@ -780,12 +781,16 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
-    
-    //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_before_MLP.cpp");
-    CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
-    //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_after_MLP.cpp");
 
+    // MLP & QKV fusion optimization is focused on throughput, only enabled on vLLM use case.
+    auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
+    //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_before_MLP.cpp");
+    if ((has_paged_attention || std::getenv("USE_MLP")) && (!std::getenv("NO_MLP"))) {
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+    }
+    if ((has_paged_attention || std::getenv("USE_QKV")) && (!std::getenv("NO_QKV"))) {
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+    }
     //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_after_MLP.cpp");
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);

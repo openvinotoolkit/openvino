@@ -26,32 +26,22 @@ using namespace ov::gen_pattern;
 ov::intel_cpu::MLPFusion::MLPFusion() {
     MATCHER_SCOPE(MLPFusion);
 
-    auto input = makePattern("f32[?,?,4096]");
+    auto input = makePattern("f32[?,?,?]");
 
-    auto gate_proj_weight_compressed = makePattern<opset1::Constant>({});  // [11008,4096]
-    auto gate_proj_weight =
-        makePattern<opset1::Convert>({gate_proj_weight_compressed},
-                                     {{"destination_type", "f32"}});     //  tensor_array<f32[11008,4096]>
-    auto up_proj_weight_compressed = makePattern<opset1::Constant>({});  // [11008,4096]
-    auto up_proj_weight =
-        makePattern<opset1::Convert>({up_proj_weight_compressed},
-                                     {{"destination_type", "f32"}});       //  tensor_array<f32[11008,4096]>
-    auto down_proj_weight_compressed = makePattern<opset1::Constant>({});  // 4096,11008
-    auto down_proj_weight =
-        makePattern<opset1::Convert>({down_proj_weight_compressed},
-                                     {{"destination_type", "f32"}});  //  tensor_array<f32[4096,11008]>
-    auto mlp_gate_proj =
-        makePattern<opset1::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed},
-                                    {{"transpose_a", false}, {"transpose_b", true}});  //  tensor_array<f32[?,?,11008]>
-    auto mlp_silu_gate = makePattern<opset4::Swish>({mlp_gate_proj});                  //  tensor_array<f32[?,?,11008]>
-    auto mlp_up_proj =
-        makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed},
-                                    {{"transpose_a", false}, {"transpose_b", true}});  //  tensor_array<f32[?,?,11008]>
-    auto mlp_gated_up = makePattern<opset1::Multiply>({mlp_silu_gate, mlp_up_proj},
-                                                      {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,11008]>
-    auto down_proj =
-        makePattern<opset1::MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed},
-                                    {{"transpose_a", false}, {"transpose_b", true}});  //  tensor_array<f32[?,?,4096]>
+    auto gate_proj_weight_compressed = makePattern<opset1::Constant>({});  // [up_size, down_size]
+    auto gate_proj_weight = makePattern<opset1::Convert>({gate_proj_weight_compressed}, {{"destination_type", "f32"}});
+    auto up_proj_weight_compressed = makePattern<opset1::Constant>({});  // [up_size, down_size]
+    auto up_proj_weight = makePattern<opset1::Convert>({up_proj_weight_compressed}, {{"destination_type", "f32"}});
+    auto down_proj_weight_compressed = makePattern<opset1::Constant>({});  // [down_size, up_size]
+    auto down_proj_weight = makePattern<opset1::Convert>({down_proj_weight_compressed}, {{"destination_type", "f32"}});
+    auto mlp_gate_proj = makePattern<opset1::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed},
+                                                     {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
+    auto mlp_silu_gate = makePattern<opset4::Swish>({mlp_gate_proj});
+    auto mlp_up_proj = makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed},
+                                                   {{"transpose_a", false}, {"transpose_b", true}});
+    auto mlp_gated_up = makePattern<opset1::Multiply>({mlp_silu_gate, mlp_up_proj}, {{"auto_broadcast", "numpy"}});
+    auto down_proj = makePattern<opset1::MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed},
+                                                 {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
 
     auto result = down_proj;
 
@@ -64,20 +54,51 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
-        if (std::getenv("NOMLP")) {
+        auto gate_proj_w = pattern_map.at(gate_proj_weight_compressed);
+        auto up_proj_w = pattern_map.at(up_proj_weight_compressed);
+        auto down_proj_w = pattern_map.at(down_proj_weight_compressed);
+
+        auto gate_proj_w_pshape = gate_proj_w.get_partial_shape();
+        auto up_proj_w_pshape = up_proj_w.get_partial_shape();
+        auto down_proj_w_pshape = down_proj_w.get_partial_shape();
+
+        // make sure that:
+        //  - shape of gate/up's weight is [down_size, up_size]
+        //  - shape of down's weight is [up_size, down_size]
+        if (!gate_proj_w_pshape.is_static())
             return false;
-        }
+        if (!up_proj_w_pshape.is_static())
+            return false;
+        if (!down_proj_w_pshape.is_static())
+            return false;
+
+        auto up_shape = up_proj_w_pshape.get_shape();
+        auto down_shape = down_proj_w_pshape.get_shape();
+
+        if (gate_proj_w_pshape.get_shape() != up_shape)
+            return false;
+        if (up_shape.size() != 2)
+            return false;
+        if (down_shape.size() != 2)
+            return false;
+
+        auto up_size = up_shape[0];
+        auto down_size = up_shape[1];
+        if (down_shape[0] != down_size)
+            return false;
+        if (down_shape[1] != up_size)
+            return false;
 
         LLMMLPNode::Config config;
         OutputVector new_args;
         config.is_qkv_proj = false;
-        config.hidden_size = 4096;
-        config.intermediate_size = 11008;
+        config.hidden_size = down_size;
+        config.intermediate_size = up_size;
 
         new_args.push_back(pattern_map.at(input));
-        new_args.push_back(pattern_map.at(gate_proj_weight_compressed));
-        new_args.push_back(pattern_map.at(up_proj_weight_compressed));
-        new_args.push_back(pattern_map.at(down_proj_weight_compressed));
+        new_args.push_back(gate_proj_w);
+        new_args.push_back(up_proj_w);
+        new_args.push_back(down_proj_w);
 
         auto old_node = root;
         auto new_node = std::make_shared<LLMMLPNode>(new_args, config);
@@ -90,9 +111,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
 
         ov::replace_node(old_node, new_node);
 
-        // this new node may match following additional matchers
-        // register_new_node(new_node);
-
+        std::cout << "MLPFusion:" << old_node->get_friendly_name() << std::endl;
         return true;
     };
 
@@ -103,21 +122,25 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
 ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     MATCHER_SCOPE(QKVProjFusion);
 
-    auto input = makePattern("f32[?,?,4096]");
+    auto input = makePattern("f32[?,?,?]");
 
-    // auto q_proj_weight_compressed = makeConst(element::f16, ov::Shape({4096,4096,}), {...});
     auto q_proj_weight = makePattern<opset1::Constant>({});
-    auto q_proj_weight_avt = makePattern<opset1::Convert>({q_proj_weight}, {{"destination_type", "f32"}});   //  tensor_array<f32[4096,4096]>
-    auto q_proj = makePattern<opset1::MatMul>({input, q_proj_weight_avt | q_proj_weight}, {{"transpose_a", false}, {"transpose_b", true}});   //  tensor_array<f32[?,?,4096]>
+    auto q_proj_weight_cvt =
+        makePattern<opset1::Convert>({q_proj_weight}, {{"destination_type", "f32"}});  //  tensor_array<f32[4096,4096]>
+    auto q_proj =
+        makePattern<opset1::MatMul>({input, q_proj_weight_cvt | q_proj_weight},
+                                    {{"transpose_a", false}, {"transpose_b", true}});  //  tensor_array<f32[?,?,4096]>
 
     /*
     auto k_proj_weight_compressed = makeConst(element::f16, ov::Shape({4096,4096,}), {...});
-    auto k_proj_weight = makePattern<opset1::Convert>({k_proj_weight_compressed}, {{"destination_type", "f32"}});   //  tensor_array<f32[4096,4096]>
-    auto k_proj = makePattern<opset1::MatMul>({input, k_proj_weight}, {{"transpose_a", false}, {"transpose_b", true}});   //  tensor_array<f32[?,?,4096]>
+    auto k_proj_weight = makePattern<opset1::Convert>({k_proj_weight_compressed}, {{"destination_type", "f32"}});   //
+    tensor_array<f32[4096,4096]> auto k_proj = makePattern<opset1::MatMul>({input, k_proj_weight}, {{"transpose_a",
+    false}, {"transpose_b", true}});   //  tensor_array<f32[?,?,4096]>
 
     auto v_proj_weight_compressed = makeConst(element::f16, ov::Shape({4096,4096,}), {...});
-    auto v_proj_weight = makePattern<opset1::Convert>({v_proj_weight_compressed}, {{"destination_type", "f32"}});   //  tensor_array<f32[4096,4096]>
-    auto v_proj = makePattern<opset1::MatMul>({input, v_proj_weight}, {{"transpose_a", false}, {"transpose_b", true}});   //  tensor_array<f32[?,?,4096]>
+    auto v_proj_weight = makePattern<opset1::Convert>({v_proj_weight_compressed}, {{"destination_type", "f32"}});   //
+    tensor_array<f32[4096,4096]> auto v_proj = makePattern<opset1::MatMul>({input, v_proj_weight}, {{"transpose_a",
+    false}, {"transpose_b", true}});   //  tensor_array<f32[?,?,4096]>
     */
     auto result = q_proj;
 
@@ -139,10 +162,14 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
 
         OutputVector args = {src};
         OutputVector outputs;
+        ov::Shape proj_weight_shape;
         for (auto& child : children) {
             auto mm = dynamic_cast<opset1::MatMul*>(child.get_node());
             if (!mm) {
-                continue;
+                return false;
+            }
+            if (mm->get_transpose_a() != false || mm->get_transpose_b() != true) {
+                return false;
             }
             auto constw = ov::as_type_ptr<opset1::Constant>(mm->input_value(1).get_node_shared_ptr());
             if (!constw) {
@@ -154,23 +181,28 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             }
             if (!constw)
                 return false;
+
+            // make sure all weights are the same
+            if (proj_weight_shape.empty())
+                proj_weight_shape = constw->get_shape();
+            else if (proj_weight_shape != constw->get_shape())
+                return false;
+
             args.push_back(constw);
             outputs.push_back(mm->get_default_output());
         }
 
-        if (std::getenv("NOQKV")) {
+        // make sure just 3 projections are found
+        if (outputs.size() != 3)
             return false;
-        }
 
-        //for(auto& arg: args)
-        //    std::cout << "\t arg: " << arg << std::endl;
-        //for(auto& out: outputs)
-        //    std::cout << "\t out: " << out << std::endl;
+        if (proj_weight_shape[0] != proj_weight_shape[1])
+            return false;
 
         LLMMLPNode::Config config;
         config.is_qkv_proj = true;
-        config.hidden_size = 4096;
-        config.intermediate_size = 4096*3;
+        config.hidden_size = proj_weight_shape[0];
+        config.intermediate_size = proj_weight_shape[0] * 3;
 
         auto old_node = root;
         auto new_node = std::make_shared<LLMMLPNode>(args, config);
@@ -178,7 +210,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         ov::copy_runtime_info({old_node}, new_node);
 
         for (size_t i = 0; i < outputs.size(); i++) {
-            //ov::replace_node(outputs[i].get_node_shared_ptr(), new_node, {int64_t(i)});
+            // ov::replace_node(outputs[i].get_node_shared_ptr(), new_node, {int64_t(i)});
 
             auto target = outputs[i].get_node_shared_ptr();
             outputs[i].replace(new_node->output(i));
@@ -186,6 +218,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             new_node->add_node_control_dependencies(target);
             target->clear_control_dependents();
         }
+        std::cout << "QKVProjFusion:" << old_node->get_friendly_name() << std::endl;
         return true;
     };
 

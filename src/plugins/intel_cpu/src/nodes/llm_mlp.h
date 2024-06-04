@@ -29,7 +29,7 @@ public:
 
     struct Executor {
         virtual void execute(LLMMLP* pnode) = 0;
-        virtual ~Executor() {};
+        virtual ~Executor() {}
     };
 
     const LLMMLPNode::Config& getConfig() {

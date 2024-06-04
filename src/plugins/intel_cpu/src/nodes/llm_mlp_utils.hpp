@@ -11,7 +11,7 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-void llm_mlp_transpose_epi32_16x16(void* _dst, const void* src, int stride);
+void llm_mlp_transpose_epi32_16x16(void* dst, void* src, int stride);
 
 }  // namespace XARCH
 }  // namespace Cpu
