@@ -1,5 +1,4 @@
-FROM nvidia/cuda:12.5.0-runtime-ubuntu22.04
-# FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu22.04
+FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:12.5.0-runtime-ubuntu22.04
 
 USER root
 
@@ -72,5 +71,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:/usr/local/cuda-12.5/bin:$PATH"
 ENV CUDNN_PATH="/usr/local/cuda-12.5/lib64:$CUDNN_PATH"
+ENV LD_LIBRARY_PATH="/usr/local/cuda-12.5/lib64:/usr/local/cuda-12.5/bin:$LD_LIBRARY_PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
