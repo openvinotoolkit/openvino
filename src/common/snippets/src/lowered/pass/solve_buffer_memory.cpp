@@ -14,6 +14,15 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
+namespace {
+size_t get_box_idx_by_cluster(const std::vector<ov::MemorySolver::Box>& boxes, size_t cluster_id) {
+    for (size_t idx = 0; idx < boxes.size(); ++idx) {
+        if (boxes[idx].id == static_cast<int64_t>(cluster_id))
+            return idx;
+    }
+    return SIZE_MAX;
+}
+}  // namespace
 
 std::pair<LinearIR::container, LinearIR::container> SolveBufferMemory::extract_static_and_dynamic_buffers(const LinearIR::container& buffer_expressions) {
     LinearIR::container static_buffer_exprs, dynamic_buffer_exprs;
@@ -39,17 +48,18 @@ std::pair<LinearIR::container, LinearIR::container> SolveBufferMemory::extract_s
 }
 
 std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR::container& buffer_expressions) {
-    std::map<int, ov::MemorySolver::Box> map_boxes;
+    std::vector<ov::MemorySolver::Box> boxes;
     for (const auto& buffer_expr : buffer_expressions) {
         const auto& buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
         OPENVINO_ASSERT(buffer, "Buffer clusters expects Buffer nodes");
         auto cluster_id = static_cast<int>(buffer->get_cluster_id());
 
-        if (map_boxes.count(cluster_id) == 0) {
-            map_boxes[cluster_id] = { std::numeric_limits<int>::max(), 0, 0, cluster_id };
+        size_t box_idx = get_box_idx_by_cluster(boxes, cluster_id);
+        if (box_idx == SIZE_MAX) {
+            boxes.push_back({ std::numeric_limits<int>::max(), 0, 0, cluster_id });
+            box_idx = boxes.size() - 1;
         }
-
-        auto& box = map_boxes.at(cluster_id);
+        auto& box = boxes[box_idx];
 
         int e_start = 0, e_finish = 0;
 
@@ -85,14 +95,9 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR:
         box.finish = std::max(e_finish, box.finish);
     }
 
-    std::vector<ov::MemorySolver::Box> boxes(map_boxes.size());
-    for (const auto& p : map_boxes) {
-        const auto& buffer_id = static_cast<size_t>(p.first);
-        OPENVINO_ASSERT(buffer_id < boxes.size(), "Incorrect Buffer Cluster ID");
-        boxes[buffer_id] = p.second;
-
+    for (auto& box : boxes) {
         // We use data alignment to put data in the line cache
-        boxes.at(buffer_id).size = utils::div_up(boxes.at(buffer_id).size, m_alignment);
+        box.size = utils::div_up(box.size, m_alignment);
     }
 
     return boxes;
@@ -108,9 +113,8 @@ void SolveBufferMemory::solve_static_buffer_memory(const LinearIR::container& st
     for (const auto& buffer_expr : static_buffer_expressions) {
         const auto& buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
         OPENVINO_ASSERT(buffer, "Buffer clusters expects Buffer nodes");
-        auto cluster_id = static_cast<int>(buffer->get_cluster_id());
 
-        const auto offset = static_cast<size_t>(memSolver.get_offset(static_cast<int>(boxes[cluster_id].id)));
+        const auto offset = static_cast<size_t>(memSolver.get_offset(static_cast<int>(buffer->get_cluster_id())));
         buffer->set_offset(offset * m_alignment);  // alignment in byte
     }
 }
