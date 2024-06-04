@@ -75,7 +75,7 @@ install them from [OpenCL Git](https://github.com/KhronosGroup/OpenCL-Headers)
 
 
 ## See also
-
+ * [Overview for OpenCL on Linux and troubleshoot](https://bashbaug.github.io/opencl/2019/07/06/OpenCL-On-Linux.html)
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)
