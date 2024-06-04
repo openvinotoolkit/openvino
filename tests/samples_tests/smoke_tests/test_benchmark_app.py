@@ -125,4 +125,4 @@ def test_4bit_precision_input(sample_language, device, inp, cache, tmp_path):
     model_4bit = ov.Model([result], [input], 'model_with_4bit_input')
     if inp != None and inp.endswith(".bin"):
         create_random_4bit_bin_file(tmp_path, inp_shape, inp)
-    verify(sample_language, device, model=model_4bit, inp=inp ,cache=cache, tmp_path=tmp_path, batch=None)
+    verify(sample_language, device, model=model_4bit, inp=inp, cache=cache, tmp_path=tmp_path, batch=None)
