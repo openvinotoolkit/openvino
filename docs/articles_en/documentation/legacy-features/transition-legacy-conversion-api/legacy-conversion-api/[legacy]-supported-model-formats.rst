@@ -48,7 +48,7 @@ Here are code examples of how to use these methods with different model formats:
       .. tab-set::
 
          .. tab-item:: Python
-             py
+            :sync: py
 
             * The ``convert_model()`` method:
 
