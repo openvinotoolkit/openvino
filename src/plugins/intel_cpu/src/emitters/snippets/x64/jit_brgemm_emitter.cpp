@@ -4,16 +4,9 @@
 
 #include "jit_brgemm_emitter.hpp"
 
-#include "snippets/utils.hpp"
-#include "snippets/lowered/expression.hpp"
-
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-
 #include <cpu/x64/brgemm/brgemm.hpp>
-#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
-
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -49,7 +42,11 @@ size_t jit_brgemm_emitter::get_out_leading_dim(const VectorDims& shape, const st
     return std::accumulate(shape.cbegin() + dim + 1, shape.cend(), 1, std::multiplies<size_t>()); // shape[1] x shape[2] x shape[3] = 2 x 7 x 39
 }
 
-jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr) : jit_emitter(h, isa) {
+jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
+                                       const ov::snippets::lowered::ExpressionPtr& expr,
+                                       const snippets::KernelExecutorTablePtr& kernel_table,
+                                       const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache) :
+                                       jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
@@ -77,9 +74,9 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
 
     init_in_scheduling_params(input_0_desc);
     if (brgemm_node->is_with_data_repacking()) {
-        const auto& brgemm_copy = brgemm_node->get_brgemm_copy();
-        const auto& allocated_shape = brgemm_copy->get_data_repacking_shape(input_1_desc->get_shape());
-        leading_dimensions.push_back(*allocated_shape.rbegin());
+        const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
+        OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
+        leading_dimensions.push_back(repacking_buffer_shape.back());
     } else {
         init_in_scheduling_params(input_1_desc);
     }
@@ -87,14 +84,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
 
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
-    bool with_amx = brgemm_node->is_amx();
 
-    io_data_size = {brg0Prc.size(), brg1Prc.size()};
-    if (brgemm_node->get_input_size() == 3)
-        io_data_size.push_back(brgemm_node->get_input_element_type(2).size());
-    io_data_size.push_back(brgemm_node->get_output_element_type(0).size());
-
-    m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
     const auto& output_subtensor = output_desc->get_subtensor();
@@ -108,17 +98,18 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
     OV_CPU_JIT_EMITTER_ASSERT(*input_0_subtensor.rbegin() == *(input_1_subtensor.rbegin() + 1),
                               "Brgemm has different K dimension subtensors on input0 and input1");
 
-    m_ctx.M = *(output_subtensor.rbegin() + 1);
-    m_ctx.N = *output_subtensor.rbegin();
-    m_ctx.K = *input_0_subtensor.rbegin();
-    m_ctx.LDA = leading_dimensions[0];
-    m_ctx.LDB = leading_dimensions[1];
-    m_ctx.LDC = leading_dimensions[2];
-    m_ctx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg0Prc));
-    m_ctx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1Prc));
-    m_ctx.beta = brgemm_node->get_beta();
+    auto kernel_config = std::make_shared<BrgemmKernelConfig>(brg0Prc, brg1Prc,
+                                                            brgemm_node->get_beta(),
+                                                            brgemm_node->is_amx(),
+                                                            brgemm_node->is_with_compensations());
 
-    init_brgemm_kernel(m_ctx, m_kernel, with_amx);
+    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    m_kernel_executor->update(*(output_subtensor.rbegin() + 1),
+                              *output_subtensor.rbegin(),
+                              *input_0_subtensor.rbegin(),
+                              leading_dimensions[0],
+                              leading_dimensions[1],
+                              leading_dimensions[2]);
 
     m_load_offset_a = brgemm_node->get_offset_a();
     m_load_offset_b = brgemm_node->get_offset_b();
@@ -147,30 +138,6 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     }
 }
 
-void jit_brgemm_emitter::init_brgemm_kernel(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& kernel, bool use_amx) {
-    brgemm_t desc;
-    const bool is_int8 = utils::one_of(ctx.dt_in0, data_type::u8, data_type::s8) && utils::one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-    auto isa = use_amx ? isa_undef
-                       : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
-    auto status = brgemm_desc_init(&desc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
-                                   false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, nullptr);
-    if (status != dnnl_success)
-        OV_CPU_JIT_EMITTER_THROW("cannot initialize brgemm descriptor due to invalid params");
-
-    ctx.is_with_amx = use_amx;
-    status = brgemm_init_tiles(desc, ctx.palette);
-    if (use_amx)
-        amx_tile_configure(ctx.palette);
-
-    ctx.is_with_comp = ctx.dt_in0 == dnnl_data_type_t::dnnl_s8 && !ctx.is_with_amx;
-
-    brgemm_kernel_t* kernel_ = nullptr;
-    status = brgemm_kernel_create(&kernel_, desc);
-    if (status != dnnl_success)
-        OV_CPU_JIT_EMITTER_THROW("cannot create brgemm kernel due to invalid params");
-    kernel.reset(kernel_);
-}
-
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     OV_CPU_JIT_EMITTER_ASSERT((m_with_scratch && in.size() == 3) || (!m_with_scratch && in.size() == 2),
                               "expects 3 inputs if there are compensations/wsp");
@@ -183,9 +150,7 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         Xbyak::Reg64 input_1(static_cast<int>(in[1]));
         Xbyak::Reg64 input_2(static_cast<int>(m_with_scratch ? in[2] : 0));  // scratch. Default reg index is 0 if there isn't scratch
         Xbyak::Reg64 output_0(static_cast<int>(out[0]));
-        emit_brgemm_kernel_call(m_kernel.get(),
-                                m_ctx,
-                                input_0,
+        emit_brgemm_kernel_call(input_0,
                                 input_1,
                                 input_2,
                                 output_0,
@@ -198,121 +163,44 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     }
 }
 
-void jit_brgemm_emitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, const brgemmCtx& ctx,
-                                                 Reg64 addr_A, Reg64 addr_B, Reg64 scratch, Reg64 addr_C,
+void jit_brgemm_emitter::emit_brgemm_kernel_call(Reg64 addr_A, Reg64 addr_B, Reg64 scratch, Reg64 addr_C,
                                                  const size_t in0_kernel_offset, const size_t in1_kernel_offset,
                                                  const size_t in2_kernel_offset, const size_t out0_kernel_offset) const {
-    constexpr size_t gpr_size = 8;
-    if (ctx.is_with_amx) {
-        Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
-                                         h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-        size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
-
-        h->sub(h->rsp, n_gprs_to_save * gpr_size);
-        for (size_t i = 0; i < n_gprs_to_save; ++i)
-            h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
-
-        // save function address in gpr to pass in call instruction
-        const auto& overload = static_cast<status_t(*)(const char*)>(amx_tile_configure);
-        h->mov(h->rbp, reinterpret_cast<uintptr_t>(overload));
-        h->mov(abi_param1, reinterpret_cast<uintptr_t>(ctx.palette));
-
-        // align stack on 16-byte as ABI requires
-        // note that RBX must not be changed by the callee
-        h->mov(h->rbx, h->rsp);
-        h->and_(h->rbx, 0xf);
-        h->sub(h->rsp, h->rbx);
-
-        h->call(h->rbp);
-
-        h->add(h->rsp, h->rbx);
-        // restore gpr registers
-        for (int i = n_gprs_to_save - 1; i >= 0; --i)
-            h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
-        h->add(h->rsp, n_gprs_to_save * gpr_size);
-    }
-
     internal_call_preamble();
+    h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmKernelExecutor::execute));
+    auto reserved_stack_size = sizeof(BrgemmKernelExecutor::call_args);
+    // Reserve memory on the stack
+    h->sub(h->rsp, reserved_stack_size);
 
-    // save function address in gpr to pass in call instruction
-    const auto& brgemm_kernel_overload = static_cast<void (*)(const brgemm_kernel_t*,
-                                                              const void*,
-                                                              const void*,
-                                                              void*,
-                                                              void*,
-                                                              int)>(kernel_execute);
-    h->mov(h->rbp, reinterpret_cast<uintptr_t>(brgemm_kernel_overload));
-    // todo: several of addr_{A, B, C} could be also abi_paramX, so one of them could be corrupted
-    //  if moving directly h->uni_vmovq(abi_paramX, adr_X). Save them to vector regs to avoid corruption.
-    //  It's likely that a more efficient solution exists.
-    h->uni_vmovq(Xmm(0), addr_A);
-    h->uni_vmovq(Xmm(1), addr_B);
-    h->uni_vmovq(Xmm(2), addr_C);
-    if (m_with_scratch)
-        h->uni_vmovq(Xmm(3), scratch);
-    // todo: Windows ABI : requires different num of arguments passed in regs and on the stack. Need to align.
-    const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
-        h->uni_vmovq(reg, xmm);
-        if (bytes_offset) h->add(reg, bytes_offset);
+    auto write_addr_on_stack = [&](size_t arg_offset, Reg64 addr, size_t addr_offset) {
+        const auto stack_frame = h->qword[h->rsp + arg_offset];
+        h->mov(stack_frame, addr);
+        if (addr_offset) h->add(stack_frame, addr_offset);
     };
-    h->mov(abi_param1, reinterpret_cast<uintptr_t>(brg_kernel));
-    data_ptr_reg(Xmm(0), abi_param2, in0_kernel_offset);
-    data_ptr_reg(Xmm(1), abi_param3, in1_kernel_offset);
-    data_ptr_reg(Xmm(2), abi_param4, out0_kernel_offset);
 
-#ifdef _WIN32
-    // Before function call we should allocate stack area for
-    //  - register parameters - ABI parameters (shadow space)
-    //  - stack parameters - remaining parameters
-    const size_t num_args_passed_on_stack = 6;  // count of function brgemm_kernel_overload() parameters
-    size_t abi_param_count = sizeof(abi_param_regs) / sizeof(abi_param_regs[0]);
-    h->sub(h->rsp, num_args_passed_on_stack * gpr_size);
+    write_addr_on_stack(GET_OFF_BRGEMM_ARGS(A), addr_A, in0_kernel_offset);
+    write_addr_on_stack(GET_OFF_BRGEMM_ARGS(B), addr_B, in1_kernel_offset);
+    write_addr_on_stack(GET_OFF_BRGEMM_ARGS(C), addr_C, out0_kernel_offset);
 
-    // Push the remaining parameters on the stack
     if (m_with_scratch) {
-        h->uni_vmovq(h->qword[h->rsp + (abi_param_count + 0) * gpr_size], Xmm(3));
-        if (in2_kernel_offset) h->add(h->qword[h->rsp + (abi_param_count + 0) * gpr_size], in2_kernel_offset);
+        write_addr_on_stack(GET_OFF_BRGEMM_ARGS(scratch), scratch, in2_kernel_offset);
     } else {
-        h->mov(h->qword[h->rsp + (abi_param_count + 0) * gpr_size], reinterpret_cast<uintptr_t>(nullptr));
+        h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(scratch)], reinterpret_cast<uintptr_t>(nullptr));
     }
-    h->mov(abi_not_param1, static_cast<int>(m_with_comp));
-    h->mov(h->qword[h->rsp + (abi_param_count + 1) * gpr_size], abi_not_param1);
-#else
-    if (m_with_scratch) {
-        data_ptr_reg(Xmm(3), abi_param5, in2_kernel_offset);
-    } else {
-        h->mov(abi_param5, reinterpret_cast<uintptr_t>(nullptr));
-    }
-    h->mov(abi_param6, static_cast<int>(m_with_comp));
-#endif
+
+    // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
+    h->lea(h->r10, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
+    h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(amx_tile_config)], h->r10);
+
+    h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
+    h->mov(abi_param2, h->rsp);
 
     internal_call_rsp_align();
     h->call(h->rbp);
     internal_call_rsp_restore();
 
-#ifdef _WIN32
-    h->add(h->rsp, num_args_passed_on_stack * gpr_size);
-#endif
-
+    h->add(h->rsp, reserved_stack_size);
     internal_call_postamble();
-}
-
-void jit_brgemm_emitter::kernel_execute(const brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp) {
-    brgemm_kernel_params_t brgemm_p;
-
-    brgemm_p.batch = nullptr;  // default value
-    brgemm_p.ptr_A = A;
-    brgemm_p.ptr_B = B;
-    brgemm_p.ptr_C = C;
-    brgemm_p.ptr_D = C;
-    brgemm_p.ptr_buf = scratch;
-    brgemm_p.ptr_bias = nullptr;
-    brgemm_p.do_post_ops = static_cast<size_t>(with_comp);
-    brgemm_p.do_apply_comp = static_cast<size_t>(with_comp);
-    brgemm_p.skip_accm = 0;
-    brgemm_p.BS = 1;  // default value
-    OV_CPU_JIT_EMITTER_ASSERT(brg_kernel != nullptr, "has nullptr kernel");
-    (*brg_kernel)(&brgemm_p);
 }
 
 }   // namespace intel_cpu

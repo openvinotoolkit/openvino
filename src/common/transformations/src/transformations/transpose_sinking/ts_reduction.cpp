@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
@@ -16,7 +17,6 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -42,9 +42,9 @@ bool get_keep_dims(const std::shared_ptr<Node>& main_node) {
 TSReductionForward::TSReductionForward() {
     MATCHER_SCOPE(TSReductionForward);
 
-    create_pattern<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(true, {0});
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    create_pattern<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>({0});
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto keep_dims = get_keep_dims(main_node);
         auto transpose_order = transpose_info.transpose_const;
         auto reduction_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
@@ -100,7 +100,7 @@ TSReductionBackward::TSReductionBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
         auto transpose = pattern_to_output.at(transpose_label);
         auto main_node = pattern_to_output.at(reduce_label);

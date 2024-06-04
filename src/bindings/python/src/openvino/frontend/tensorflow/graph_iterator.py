@@ -42,7 +42,7 @@ class GraphIteratorTFGraph(GraphIterator):
         inp_names = []
         if hasattr(self.m_graph, 'inputs') and self.m_graph.inputs:
             for inp in self.m_graph.inputs:
-                inp_names.append(inp.op.name)
+                inp_names.append(inp.name)
             return inp_names
         for inp in inp_ops:
             assert isinstance(inp, tf.Operation), "Unknown node type. Expected tf.Operation, got {}".format(type(inp))

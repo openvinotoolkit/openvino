@@ -12,6 +12,56 @@ catch (err) {
     versions = [];
 }
 
+document.addEventListener('DOMContentLoaded', function () {
+    var toctreeToggles = document.querySelectorAll('.toctree-toggle');
+    toctreeToggles.forEach(function (toggle) {
+        toggle.addEventListener('click', function () {
+            rotateToggle(this);
+        });
+
+        var parentElement = toggle.parentElement;
+        if (!parentElement || !parentElement.parentElement || !parentElement.parentElement.classList.contains('current')) {
+            toggle.classList.add('rotate');
+        }
+    });
+
+    function rotateToggle(element) {
+        element.classList.toggle('rotate');
+    }
+});
+
+document.addEventListener('click', () => {
+    const ddMs = document.querySelectorAll('.dropdown-menu');
+    ddMs.forEach((dm) => {
+        dm.parentElement.classList.remove('show');
+        dm.classList.remove('show');
+    });
+});
+
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    var dropdownButtons = document.querySelectorAll('.sst-btn');
+    dropdownButtons.forEach((ddBtn) => {
+        ddBtn.parentElement.classList.remove('show');
+        ddBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            ddBtn.parentElement.classList.toggle('show');
+            showMenuToggle();
+        });
+    });
+ 
+    function showMenuToggle() {
+        const ddMs = document.querySelectorAll('.dropdown-menu');
+        ddMs.forEach((dm) => {
+            dm.parentElement.classList.contains('show')
+                ? dm.classList.add('show')
+                : dm.classList.remove('show');
+        });
+    }
+});
+
+
 /* Adobe Analytics */
 var wapLocalCode = 'us-en';
 var wapSection = 'openvinotoolkit';
@@ -266,18 +316,17 @@ function addFooter() {
 }
 
 function initSplide() {
-  const slides = $('.splide__slide');
-  const height = (slides.length > 4) ? 96 + ((slides.length - 4) * 16) : 96
+
   var splide = new Splide('.splide', {
-    direction         : 'ttb',
-    type              : 'loop',
-    height            : `${height}px`,
+    type              : 'fade',
+    autoHeight        : true,
     perPage           : 1,
     autoplay          : true,
     arrows            : false,
     waitForTransition : true,
     wheel             : true,
     wheelSleep        : 250,
+    interval          : 3000,
   });
   splide.mount();
 }

@@ -36,12 +36,14 @@
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
 #include "op/ceil.hpp"
+#include "op/celu.hpp"
 #include "op/clip.hpp"
 #include "op/com.microsoft/attention.hpp"
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 #include "op/com.microsoft/fused_conv.hpp"
 #include "op/com.microsoft/fusedgemm.hpp"
+#include "op/com.microsoft/pad.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
@@ -94,6 +96,7 @@
 #include "op/is_finite.hpp"
 #include "op/is_inf.hpp"
 #include "op/is_nan.hpp"
+#include "op/layer_normalization.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
 #include "op/less_or_equal.hpp"
@@ -112,8 +115,11 @@
 #include "op/mean.hpp"
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
+#include "op/mish.hpp"
+#include "op/mmdeploy_roi_align_rotated.hpp"
 #include "op/mod.hpp"
 #include "op/mul.hpp"
+#include "op/multinomial.hpp"
 #include "op/neg.hpp"
 #include "op/nms_rotated.hpp"
 #include "op/non_max_suppression.hpp"
@@ -192,8 +198,9 @@
 
 using namespace ov::frontend::onnx;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
@@ -356,6 +363,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("AveragePool", 1, average_pool);
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
+    REGISTER_OPERATOR("BatchNormalization", 14, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
     REGISTER_OPERATOR("BitwiseNot", 1, bitwise_not);
@@ -365,6 +373,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
+    REGISTER_OPERATOR("Celu", 1, celu);
     REGISTER_OPERATOR("Clip", 1, clip);
     REGISTER_OPERATOR("Clip", 11, clip);
     REGISTER_OPERATOR("Concat", 1, concat);
@@ -426,6 +435,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("IsFinite", 1, is_finite);
     REGISTER_OPERATOR("IsInf", 1, is_inf);
     REGISTER_OPERATOR("IsNaN", 1, is_nan)
+    REGISTER_OPERATOR("LayerNormalization", 1, layer_normalization);
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
     REGISTER_OPERATOR("LessOrEqual", 1, less_or_equal);
@@ -449,9 +459,11 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("MeanVarianceNormalization", 9, mean_variance_normalization);
     REGISTER_OPERATOR("Min", 1, min);
     REGISTER_OPERATOR("Min", 8, min);
+    REGISTER_OPERATOR("Mish", 1, mish);
     REGISTER_OPERATOR("Mod", 1, mod);
     REGISTER_OPERATOR("Mul", 1, mul);
     REGISTER_OPERATOR("Mul", 7, mul);
+    REGISTER_OPERATOR("Multinomial", 1, multinomial)
     REGISTER_OPERATOR("Neg", 1, neg);
     REGISTER_OPERATOR("NonMaxSuppression", 1, non_max_suppression);
     REGISTER_OPERATOR("NonZero", 1, non_zero);
@@ -473,16 +485,28 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
+    register_operator("ReduceLogSum", VersionRange{1, 17}, op::set_1::reduce_log_sum);
+    register_operator("ReduceLogSum", VersionRange::since(18), op::set_18::reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
     REGISTER_OPERATOR("ReduceL1", 1, reduce_l1);
     REGISTER_OPERATOR("ReduceL2", 1, reduce_l2);
+    REGISTER_OPERATOR("ReduceL2", 13, reduce_l2);
+    REGISTER_OPERATOR("ReduceL2", 18, reduce_l2);
     REGISTER_OPERATOR("ReduceMax", 1, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 13, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 18, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 20, reduce_max);
     REGISTER_OPERATOR("ReduceMean", 1, reduce_mean);
     REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 13, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 18, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 20, reduce_min);
     REGISTER_OPERATOR("ReduceProd", 1, reduce_prod);
     REGISTER_OPERATOR("ReduceSum", 1, reduce_sum);
     REGISTER_OPERATOR("ReduceSum", 13, reduce_sum);
     REGISTER_OPERATOR("ReduceSumSquare", 1, reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 13, reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 18, reduce_sum_square);
     REGISTER_OPERATOR("Relu", 1, relu);
     REGISTER_OPERATOR("Reshape", 1, reshape);
     REGISTER_OPERATOR("Resize", 1, resize);
@@ -498,6 +522,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
     REGISTER_OPERATOR("Selu", 1, selu);
     REGISTER_OPERATOR("Shape", 1, shape);
+    REGISTER_OPERATOR("Shape", 15, shape)
     REGISTER_OPERATOR("Shrink", 1, shrink);
     REGISTER_OPERATOR("Sigmoid", 1, sigmoid);
     REGISTER_OPERATOR("Sign", 1, sign);
@@ -582,9 +607,10 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedConv", 1, fused_conv);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "GatherND", 1, gather_nd);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 
@@ -593,6 +619,10 @@ OperatorsBridge::OperatorsBridge() {
                                        op::set_13::dequantize_linear,
                                        "com.microsoft");
     register_operator_in_custom_domain("Gelu", VersionRange::since(1), op::set_1::gelu, "com.microsoft");
+    register_operator_in_custom_domain("Pad",
+                                       VersionRange::single_version_for_all_opsets(),
+                                       op::custom::set_1::pad,
+                                       "com.microsoft");
     register_operator_in_custom_domain("QuantizeLinear",
                                        VersionRange::since(1),
                                        op::set_13::quantize_linear,
@@ -600,10 +630,11 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);
+    REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "MMCVRoIAlignRotated", 1, mmdeploy_roi_align_rotated);
 }
 
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

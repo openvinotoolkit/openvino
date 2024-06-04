@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,7 +29,7 @@ def import_python_modules(directory, subdirectory=""):
 
             print(f"Snippet {item} succesfully executed.")
 
-        
+
         if os.path.isdir(os.path.join(directory, item)):
             dir_path = os.path.join(directory, item)
             import_python_modules(dir_path, item)

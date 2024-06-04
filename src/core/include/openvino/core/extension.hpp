@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,25 +31,22 @@ public:
 }  // namespace ov
 
 #ifndef OV_CREATE_EXTENSION
+#    define OV_CREATE_EXTENSION create_extensions
+#endif
+
 /**
  * @brief The entry point for library with OpenVINO extensions
  *
  * @param vector of extensions
  */
 OPENVINO_EXTENSION_C_API
-void create_extensions(std::vector<ov::Extension::Ptr>&);
-
-#    define OV_CREATE_EXTENSION create_extensions
-
-#endif
+void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>&);
 
 /**
  * @brief Macro generates the entry point for the library
  *
  * @param vector of extensions
  */
-#define OPENVINO_CREATE_EXTENSIONS(extensions)                                                \
-    OPENVINO_EXTENSION_C_API void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext);  \
-    OPENVINO_EXTENSION_C_API void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext) { \
-        ext = extensions;                                                                     \
-    }
+#define OPENVINO_CREATE_EXTENSIONS(extensions)                                               \
+    OPENVINO_EXTENSION_C_API void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext); \
+    OPENVINO_EXTENSION_C_API void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext) { ext = extensions; }

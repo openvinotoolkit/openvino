@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include "itt.hpp"
 
@@ -23,7 +23,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     auto weights_m = ov::pass::pattern::any_input(weights_path);
     auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({ activations_m, weights_m }, ov::pass::pattern::has_static_rank());
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
@@ -174,6 +174,9 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank,
                 matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
+        ///todo: CVS-130863 Remove after fp16_compression is copyable
+        if (ov::fp16_compression_is_disabled(matmul))
+            disable_fp16_compression(fc);
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);
         ov::replace_node(matmul, fc);

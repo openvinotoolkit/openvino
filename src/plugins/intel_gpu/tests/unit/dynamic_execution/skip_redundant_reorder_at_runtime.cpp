@@ -21,7 +21,6 @@ using namespace ::tests;
 namespace skip_reorder_tests {
 TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
     auto& engine = get_test_engine();
-
     auto weight_mem = engine.allocate_memory({{2, 32}, data_types::f32, format::bfyx});
     std::vector<float> weight_data(weight_mem->get_layout().count());
     std::iota(weight_data.begin(), weight_data.end(), 1.0f);
@@ -38,7 +37,7 @@ TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
 
     network network(engine, topology, config);
     auto reorder_inst = network.get_primitive("reorder");
-    ASSERT_EQ(reorder_inst->can_be_optimized(), false);
+    ASSERT_EQ(reorder_inst->can_be_optimized(), true);
 
     auto input_mem = engine.allocate_memory({{10, 32}, data_types::f32, format::bfyx});
     std::vector<float> input_data(input_mem->get_layout().count());
@@ -75,7 +74,7 @@ TEST(skip_reorder_at_runtime, correct_memory_reuse) {
     auto reorder_inst = network.get_primitive("reorder");
     auto reshape_inst = network.get_primitive("reshape");
     auto reorder_fsv16_inst = network.get_primitive("reorder_fsv16");
-    ASSERT_EQ(reorder_inst->can_be_optimized(), false);
+    ASSERT_EQ(reorder_inst->can_be_optimized(), true);
     ASSERT_EQ(reshape_inst->can_be_optimized(), true);
     ASSERT_EQ(reorder_fsv16_inst->can_be_optimized(), false);
 
@@ -93,9 +92,10 @@ TEST(skip_reorder_at_runtime, correct_memory_reuse) {
     ASSERT_EQ(reorder_fsv16_inst->can_be_optimized(), false);
 
     auto reshape_memory_deps = reshape_inst->get_runtime_memory_dependencies();
-    ASSERT_TRUE(reshape_memory_deps.find("fc") != reshape_memory_deps.end());
+    auto fc_unique_id = network.get_primitive("fc")->get_node().get_unique_id();
+    ASSERT_TRUE(reshape_memory_deps.find(fc_unique_id) != reshape_memory_deps.end());
 
     auto reorder_fsv16_memory_deps = reorder_fsv16_inst->get_runtime_memory_dependencies();
-    ASSERT_TRUE(reorder_fsv16_memory_deps.find("fc") != reorder_fsv16_memory_deps.end());
+    ASSERT_TRUE(reorder_fsv16_memory_deps.find(fc_unique_id) != reorder_fsv16_memory_deps.end());
 }
 }  // memory_realloc_tests

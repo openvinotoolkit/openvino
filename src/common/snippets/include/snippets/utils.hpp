@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,43 @@ inline T div_up(const T a, const U b) {
     OPENVINO_ASSERT(b != 0, "Divider must not be zero");
     return static_cast<T>((a + b - 1) / b);
 }
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+constexpr inline T get_dynamic_value() {
+    return std::numeric_limits<T>::max();
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+constexpr inline bool is_dynamic_value(T value) {
+    return value == get_dynamic_value<T>();
+}
+
+inline bool is_dynamic_vdims(const VectorDims& shape) {
+    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_value(v); });
+}
+
+inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
+    return is_dynamic_vdims(*shape);
+}
+
+void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
+
+VectorDims pshape_to_vdims(const PartialShape&);
+ov::PartialShape vdims_to_pshape(const VectorDims&);
+
+// dim_idx starts from the layout end: dim_idx = 0 -> last element in layout (layout.back())
+inline size_t get_input_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
+    OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
+    return *(layout.rbegin() + dim_idx);
+}
+// dim_idx starts from the layout end: dim_idx = 0 -> last index in layout (layout.size() - 1)
+inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
+    OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
+    return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
+}
+
+// dim_idx starts from the layout end
+size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
 
 /* ----- Shape `getters` ----- */
 /**
@@ -124,12 +161,48 @@ VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
  * @return preordered shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
  */
 VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port);
-
-bool is_dynamic_vdims(const VectorDims& shape);
-
-VectorDims pshape_to_vdims(const PartialShape&);
-ov::PartialShape vdims_to_pshape(const VectorDims&);
 /* --------------------------- */
+
+/**
+ * @brief Returns element count of a shape
+ * @param shape input shape
+ * @return element count of input shape
+ */
+inline auto get_shape_size(const VectorDims& shape) -> size_t {
+    return std::accumulate(shape.begin(), shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+}
+
+/**
+ * @brief Get zero to several consecutive child shape infer exprs(such as reshape, rankNormalization) from start_expr.
+ *        As Node maybe have multiple output. This functions return the first(left) legal sequence.
+ * @param start_expr Collect from start_expr.
+ * @return shape infer expression consumers as a sequence.
+ */
+std::vector<lowered::ExpressionPtr> get_first_child_shape_infer_expr_seq(const lowered::ExpressionPtr& start_expr);
+
+/**
+ * @brief Get zero to several consecutive parent shape infer exprs(such as reshape, rankNormalization) from start_expr.
+ *        As Node maybe have multiple input. This functions return the first(left) legal sequence.
+ * @param start_expr Collect from start_expr.
+ * @return shape infer expression sources as a sequence.
+ */
+std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const lowered::ExpressionPtr& start_expr);
+
+/**
+ * @brief Get leaf shape infer node in first child shape infer sequence from(include) start_node.
+ *        If start_node is a not shape infer node and start_node has no child shape infer node, function will return nullptr.
+ * @param start_node Search from start_node.
+ * @return the leaf shape infer node of first child shape infer sequence or nullptr.
+ */
+std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node);
+
+/**
+ * @brief Get leaf shape infer node in first parent shape infer sequence from(include) start_node.
+ *        If start_node is a not shape infer node and start_node has no parent shape infer node, function will return nullptr.
+ * @param start_node Search from start_node.
+ * @return the first leaf shape infer node or nullptr.
+ */
+std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node);
 
 } // namespace utils
 } // namespace snippets

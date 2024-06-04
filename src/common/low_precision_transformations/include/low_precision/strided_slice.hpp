@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,12 +13,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief StridedSliceTransformation propagates dequantization operations through StridedSlice operation.
  *
  * For more details about the transformation, refer to
  * [StridedSliceTransformation](@ref openvino_docs_OV_UG_lpt_StridedSliceTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API StridedSliceTransformation : public LayerTransformation {
 public:

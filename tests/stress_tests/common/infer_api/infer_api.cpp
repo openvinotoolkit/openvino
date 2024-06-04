@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,20 @@ void InferAPI2::load_network(const std::string &device) {
 
 void InferAPI2::create_infer_request() {
     infer_request = compiled_model.create_infer_request();
+}
+
+void InferAPI2::create_and_infer(const bool &async) {
+    auto new_infer_request = compiled_model.create_infer_request();
+    fillTensors(new_infer_request, inputs);
+    if (async) {
+        new_infer_request.start_async();
+        new_infer_request.wait();
+    } else {
+        new_infer_request.infer();
+    }
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        const auto &output_tensor = new_infer_request.get_output_tensor(i);
+    }
 }
 
 void InferAPI2::prepare_input() {
@@ -84,10 +98,6 @@ void InferAPI2::set_input_params(const std::string &model) {
     inputs = network->inputs();
 }
 
-std::shared_ptr<InferApiBase> create_infer_api_wrapper(const int &api_version) {
-    if (api_version == 2) {
-        return std::make_shared<InferAPI2>(InferAPI2());
-    } else {
-        throw std::logic_error("Unsupported API version");
-    }
+std::shared_ptr<InferApiBase> create_infer_api_wrapper() {
+    return std::make_shared<InferAPI2>(InferAPI2());
 }

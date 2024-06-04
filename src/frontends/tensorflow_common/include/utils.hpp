@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,9 +64,7 @@ void get_const_input(const NodeContext& node, int input_index, std::vector<T>* v
                                 std::to_string(input_size) + " inputs, but requested input port index to be " +
                                 std::to_string(input_size));
     auto ov_input = node.get_input(input_index);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = get_constant_from_source(ov_input)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto constant = ov::util::get_constant_from_source(ov_input)) {
         *vector = constant->cast_vector<T>();
         return;
     }
@@ -156,6 +154,13 @@ ov::Output<ov::Node> get_data_slice(const ov::Output<ov::Node>& data,
                                     const int64_t& step);
 
 ov::Output<ov::Node> compute_broadcast_args(const ov::Output<ov::Node>& shape1, const ov::Output<ov::Node>& shape2);
+
+std::shared_ptr<std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>> rgb_to_hsv(
+    const std::shared_ptr<ov::Node>& images);
+
+std::shared_ptr<ov::Node> hsv_to_rgb(const std::shared_ptr<ov::Node>& h,
+                                     const std::shared_ptr<ov::Node>& s,
+                                     const std::shared_ptr<ov::Node>& v);
 
 }  // namespace tensorflow
 }  // namespace frontend

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, shape_insert, undefined_shape_of_rank
@@ -41,7 +41,7 @@ class Unsqueeze(Op):
         input_value = node.in_port(0).data.get_value()
         input_shape = node.in_port(0).data.get_shape()
 
-        # TODO remove the following line when the Inference Engine plugins support 0D tensors
+        # TODO remove the following line when the OpenVINO plugins support 0D tensors
         if unsqueeze_dims.ndim == 0:
             unsqueeze_dims = int64_array([unsqueeze_dims.item()])
 

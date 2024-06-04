@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     using parent = typed_primitive_impl_ocl<broadcast>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::broadcast_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::broadcast_params, kernel_selector::broadcast_optional_params>;
+    using kernel_params_t = kernel_selector::broadcast_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::broadcast_impl)
 
@@ -35,7 +35,6 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<broadcast>();
         auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::broadcast_optional_params>(impl_param.get_program());
 
         const auto format = impl_param.get_output_layout().format;
         size_t max_axes_num = format.dimension();
@@ -55,7 +54,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
             }
         }
 
-        return {params, optional_params};
+        return params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -71,7 +70,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         auto output_rank = output_pshape.size();
 
         if (primitive->axes_mapping.empty()) {
-            bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
             if (!broadcastable(input_pshape, output_pshape, use_new_shape_infer)) {
                 input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_pshape.size());
             } else {
@@ -130,8 +129,13 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 

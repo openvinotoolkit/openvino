@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,10 +91,10 @@ OutputVector translate_pad_common(const NodeContext& context,
         {"replicate", PadMode::EDGE},
     };
     auto ov_mode = pt_to_ov_pad.find(mode);
-    FRONT_END_OP_CONVERSION_CHECK(ov_mode != pt_to_ov_pad.end(),
-                                  "aten::pad conversion doesn't support [ ",
-                                  mode,
-                                  " ] padding mode");
+    PYTORCH_OP_CONVERSION_CHECK(ov_mode != pt_to_ov_pad.end(),
+                                "aten::pad conversion doesn't support [ ",
+                                mode,
+                                " ] padding mode");
     return {context.mark_node(std::make_shared<v1::Pad>(data, pads_begins, pads_ends, pad_value_, ov_mode->second))};
 }
 }  // namespace
@@ -124,6 +124,14 @@ OutputVector translate_constant_pad_nd_fx(const NodeContext& context) {
     auto paddings = context.const_input<std::vector<int64_t>>(1);
     auto pad_value = context.get_input(2);
     return translate_pad_common(context, data, paddings, pad_value);
+}
+
+OutputVector translate_reflection_pad_nd_fx(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    auto data = context.get_input(0);
+    auto paddings = context.const_input<std::vector<int64_t>>(1);
+    Output<Node> pad_value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    return translate_pad_common(context, data, paddings, pad_value, "reflect");
 }
 
 }  // namespace op

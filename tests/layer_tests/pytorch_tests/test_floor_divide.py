@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -41,6 +41,21 @@ class TestFloorDivide(PytorchLayerTest):
 
         return aten_floor_divide(), ref_net, "aten::floor_divide"
 
+    def create_model_inplace(self):
+        import torch
+
+        class aten_floor_divide_(torch.nn.Module):
+            def __init__(self):
+                super(aten_floor_divide_, self).__init__()
+
+            def forward(self, input_tensor, other_tensor):
+                return input_tensor.floor_divide_(other_tensor), input_tensor
+
+        ref_net = None
+
+        return aten_floor_divide_(), ref_net, "aten::floor_divide_"
+
+
     @pytest.mark.parametrize('input_tensor',
     ([
         [5], [5, 5, 1], [1, 1, 5, 5],
@@ -64,6 +79,29 @@ class TestFloorDivide(PytorchLayerTest):
         else:
             self.other_tensor = other_tensor
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
+
+    @pytest.mark.parametrize('input_tensor',
+    ([
+        [5, 5, 5], [1, 1, 5, 5],
+    ]))
+    @pytest.mark.parametrize('other_tensor',
+    ([
+        np.array([0.5]).astype(np.float32), [5], [5, 1], [1, 5]
+    ]))
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_floor_divide_(self, input_tensor, other_tensor, ie_device, precision, ir_version):
+        if type(input_tensor) is list:
+            self.input_tensor = np.random.randn(*input_tensor).astype(np.float32)
+        else:
+            self.input_tensor = input_tensor
+        if type(other_tensor) is list:
+            self.other_tensor = np.random.randn(*other_tensor).astype(np.float32)
+        else:
+            self.other_tensor = other_tensor
+        self._test(*self.create_model_inplace(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
 
     @pytest.mark.parametrize('input_data',
     [

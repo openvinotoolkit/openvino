@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
-#include "ie_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "os/cpu_map_info.hpp"
@@ -278,6 +277,8 @@ CPU::CPU() {
     };
 
     _org_proc_type_table = _proc_type_table;
+
+    cpu_debug();
 }
 
 void parse_node_info_linux(const std::vector<std::string> node_info_table,

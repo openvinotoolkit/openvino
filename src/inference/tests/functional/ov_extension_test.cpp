@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,9 @@
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
-using namespace InferenceEngine;
 using namespace ov::test::utils;
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 namespace {
 
 std::string getOVExtensionPath() {
@@ -31,6 +31,7 @@ std::string getRelativeOVExtensionPath() {
 }
 
 }  // namespace
+#endif
 
 class CustomNewIdentity : public ov::op::Op {
 public:

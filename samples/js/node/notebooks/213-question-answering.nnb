@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst tokens = require('./tokens_bert.js');\n\nconst { addon: ov } = require('openvinojs-node'); \n"
+                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst tokens = require('./tokens_bert.js');\n\nconst { addon: ov } = require('openvino-node'); \n"
             ],
             "outputs": []
         },
@@ -39,8 +39,6 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
-                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
                                 "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/models/bert-small-uncased-whole-word-masking-squad-int8-0002.bin'",
                                 ""
                             ]
@@ -67,7 +65,6 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
                                 "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/text/vocab.txt'",
                                 ""
                             ]
@@ -212,10 +209,8 @@
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
                                 "Context: Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.",
-                                "Question: What is the term for a task that generally lends itself to being solved by a computer?",
-                                "Answer: A computational problem",
                                 "Score: 0.5286847737759395",
-                                "Time: 0.045163961s",
+                                "Time: 0.045750747s",
                                 ""
                             ]
                         }

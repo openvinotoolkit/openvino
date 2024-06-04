@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,8 @@
 #include <cstdint>
 #include <memory>
 
-#include "onnx_import/core/null_node.hpp"
+#include "core/null_node.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -15,13 +16,12 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace detail {
 std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
@@ -38,8 +38,8 @@ std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
 }
 }  // namespace detail
 namespace set_1 {
-ov::OutputVector dequantize_linear(const Node& node) {
-    const ov::OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector inputs{node.get_ov_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The DequantizeLinear op expects 2 required and one optional input. Got: ",
@@ -131,7 +131,7 @@ std::shared_ptr<ov::Node> reshape_input(const ov::Output<ov::Node>& input,
         target_dims.push_back(1);
     }
 
-    const auto target_shape = v0::Constant::create(ov::element::i64, Shape{target_dims.size()}, target_dims);
+    const auto target_shape = v0::Constant::create(ov::element::i64, ov::Shape{target_dims.size()}, target_dims);
 
     return std::make_shared<v1::Reshape>(input, target_shape, true);
 }
@@ -162,8 +162,8 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 }
 }  // namespace detail
 
-ov::OutputVector dequantize_linear(const Node& node) {
-    const ov::OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector inputs{node.get_ov_inputs()};
 
     FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                             "The DequantizeLinear op expects 2 required and one optional "
@@ -191,6 +191,6 @@ ov::OutputVector dequantize_linear(const Node& node) {
 }
 }  // namespace set_13
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils/conv_factory.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace conv_factory {
 std::shared_ptr<ov::op::Op> make_ng_convolution(const ov::Output<ov::Node>& data,
                                                 const ov::Output<ov::Node>& filters,
@@ -45,5 +45,6 @@ std::shared_ptr<ov::op::Op> make_ng_convolution(const ov::Output<ov::Node>& data
     }
 }
 }  // namespace conv_factory
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_op/multinomial.hpp"
-
-#include "ov_models/builders.hpp"
 
 using namespace ov::test;
 

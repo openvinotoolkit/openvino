@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 
 
@@ -81,7 +82,8 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     manager.register_pass<EnumerateNodes>();
     manager.register_pass<ExtractReshapesFromMHA>();
     manager.register_pass<TokenizeMHASnippets>(m_config);
-    manager.register_pass<TokenizeSnippets>();
+    manager.register_pass<TokenizeGNSnippets>();
+    manager.register_pass<TokenizeSnippets>(m_config);
     manager.register_pass<CommonOptimizations>(m_config);
     manager.run_passes(m);
 

@@ -1,0 +1,12 @@
+device:
+  - CPU
+precision:
+  - FP32
+# LSTM specific
+sequence_length:
+  - 1
+# Kaldi specific
+qb:
+  - 8
+device_mode:
+  - GNA_AUTO

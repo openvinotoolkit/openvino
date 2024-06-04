@@ -1,10 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "shape_inference.hpp"
+
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/opsets/opset12.hpp>
 #include <openvino/opsets/opset13.hpp>
+#include <openvino/opsets/opset14.hpp>
+#include <openvino/opsets/opset15.hpp>
 #include <openvino/opsets/opset2.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
@@ -19,6 +23,7 @@
 #include "augru_sequence_shape_inference.hpp"
 #include "avg_pool_shape_inference.hpp"
 #include "batch_to_space_shape_inference.hpp"
+#include "col2im_shape_inference.hpp"
 #include "binary_convolution_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
@@ -58,6 +63,7 @@
 #include "gru_sequence_shape_inference.hpp"
 #include "i420_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
+#include "inverse_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "lstm_sequence_shape_inference.hpp"
@@ -86,6 +92,7 @@
 #include "reshape_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
 #include "reverse_shape_inference.hpp"
+#include "rms_norm_shape_inference.hpp"
 #include "rnn_cell_shape_inference.hpp"
 #include "rnn_sequence_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
@@ -95,7 +102,6 @@
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
 #include "select_shape_inference.hpp"
-#include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
 #include "slice_shape_inference.hpp"
@@ -204,7 +210,7 @@ public:
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (auto t = tensor_accessor(i)) {
                 new_inputs.push_back(
-                    std::make_shared<ov::opset1::Constant>(t.get_element_type(), t.get_shape(), t.data()));
+                    std::make_shared<ov::opset1::Constant>(t));
             } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
                 new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
             } else {
@@ -395,6 +401,12 @@ using IStaticShapeInferFactory =
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // opset15
+    _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagOffsets, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagPacked, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Col2Im, ShapeInferTA, util::bit::mask(1, 2)),
+    // opset14
+    _OV_OP_SHAPE_INFER_MASK_REG(opset14::Inverse, ShapeInferTA, util::bit::mask()),
     // opset13
     _OV_OP_SHAPE_INFER_MASK_REG(opset13::Multinomial, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset13::ScaledDotProductAttention, ShapeInferTA, util::bit::mask(3, 5)),
@@ -554,6 +566,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     //
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUCell, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
 };
 // clang-format on
 

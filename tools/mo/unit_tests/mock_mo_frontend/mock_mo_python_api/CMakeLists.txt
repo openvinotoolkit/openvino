@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,27 +25,25 @@ set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_mo_python_api.cpp)
 
 source_group("src" FILES ${PYBIND_FE_SRC})
 
-if(Python3_VERSION_MINOR GREATER_EQUAL 11)
-    set(pybind11_min_version 2.9.2)
+if(CMAKE_CROSSCOMPILING)
+    set(pybind11_min_version 2.12.0)
 else()
-    set(pybind11_min_version 2.8.0)
+    set(pybind11_min_version 2.10.0)
 endif()
+# search for FindPython3.cmake instead of legacy modules
+set(PYBIND11_FINDPYTHON ON)
+
+ov_detect_python_module_extension()
 
 find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
     add_subdirectory(${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11
-                    ${CMAKE_CURRENT_BINARY_DIR}/pybind11_build
-                    EXCLUDE_FROM_ALL)
+                     ${CMAKE_CURRENT_BINARY_DIR}/pybind11_build
+                     EXCLUDE_FROM_ALL)
 endif()
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
-    set(python3_development_component Development.Module)
-else()
-    set(python3_development_component Development)
-endif()
-
-find_package(Python3 REQUIRED COMPONENTS Interpreter ${python3_development_component})
+ov_find_python3(REQUIRED)
 pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::runtime)

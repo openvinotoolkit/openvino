@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,9 @@ void AutoCompiledModel::set_property(const ov::AnyMap& properties) {
 
 std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
     OPENVINO_ASSERT(m_context->m_hw_compiled_model);
-    return m_context->m_hw_compiled_model->get_runtime_model();
+    auto model = m_context->m_hw_compiled_model->get_runtime_model();
+    set_model_shared_object(const_cast<ov::Model&>(*model), m_context->m_hw_compiled_model._so);
+    return model;
 }
 
 ov::Any AutoCompiledModel::get_property(const std::string& name) const {
@@ -45,7 +47,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                                                     ov::device::priorities,
                                                     ov::device::properties,
                                                     ov::hint::model_priority,
-                                                    ov::loaded_from_cache};
+                                                    ov::loaded_from_cache,
+                                                    ov::enable_profiling};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -61,6 +64,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return decltype(ov::supported_properties)::value_type(supported_properties);
+    } else if (name == ov::enable_profiling) {
+        return m_context->m_need_perf_counters;
     } else if (name == ov::hint::performance_mode) {
         return m_context->m_performance_hint;
     } else if (name == ov::device::priorities) {
@@ -118,8 +123,6 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 return decltype(ov::optimal_number_of_infer_requests)::value_type{real};
             }
             requests = 0;
-            // check if the real is default value or actual device didn't support this property.
-            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
             try {
                 // for benchmark through AUTO:CPU,GPU
                 // SetConfig directly set to CPU/GPU in this case
@@ -149,7 +152,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                         LOG_DEBUG_TAG("get_property range_for_streams from %s failed", device_info.device_name.c_str());
                     }
                 }
-                if (!m_context->m_batching_disabled) {
+                if (!m_context->m_batching_disabled && m_model) {
                     if (std::find(actual_dev_supported_properties.begin(),
                                   actual_dev_supported_properties.end(),
                                   ov::optimal_batch_size) != actual_dev_supported_properties.end()) {

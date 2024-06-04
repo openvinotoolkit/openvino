@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/infer_request.hpp"
@@ -31,10 +31,7 @@ Napi::Function InferRequestWrap::get_class(Napi::Env env) {
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
                            InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
-    //    128760
-#ifndef _WIN32
                            InstanceMethod("inferAsync", &InferRequestWrap::infer_async),
-#endif
                            InstanceMethod("getCompiledModel", &InferRequestWrap::get_compiled_model),
                        });
 }
@@ -56,39 +53,45 @@ Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_reques
 }
 
 void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() != 2 || !info[0].IsString() || !info[1].IsObject()) {
-        reportError(info.Env(), "InferRequest.setTensor() invalid argument.");
-    } else {
-        std::string name = info[0].ToString();
-        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
-        _infer_request.set_tensor(name, tensorWrap->get_tensor());
+    try {
+        if (info.Length() != 2 || !info[0].IsString() || !info[1].IsObject()) {
+            OPENVINO_THROW(std::string("InferRequest.setTensor() invalid argument."));
+        } else {
+            const std::string& name = info[0].ToString();
+            _infer_request.set_tensor(name, cast_to_tensor(info, 1));
+        }
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
     }
 }
 
 void InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1 && info[0].IsObject()) {
-        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
-        _infer_request.set_input_tensor(tensorWrap->get_tensor());
-    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
-        auto idx = info[0].ToNumber().Int32Value();
-        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
-        _infer_request.set_input_tensor(idx, tensorWrap->get_tensor());
-    } else {
-        reportError(info.Env(), "InferRequest.setInputTensor() invalid argument.");
+    try {
+        if (info.Length() == 1 && info[0].IsObject()) {
+            _infer_request.set_input_tensor(cast_to_tensor(info, 0));
+        } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
+            const auto idx = info[0].ToNumber().Int32Value();
+            _infer_request.set_input_tensor(idx, cast_to_tensor(info, 1));
+        } else {
+            OPENVINO_THROW(std::string("InferRequest.setInputTensor() invalid argument."));
+        }
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
     }
 }
 
 void InferRequestWrap::set_output_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1) {
-        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
-        auto t = tensorWrap->get_tensor();
-        _infer_request.set_output_tensor(t);
-    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
-        auto idx = info[0].ToNumber().Int32Value();
-        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
-        _infer_request.set_output_tensor(idx, tensorWrap->get_tensor());
-    } else {
-        reportError(info.Env(), "InferRequest.setOutputTensor() invalid argument.");
+    try {
+        if (info.Length() == 1 && info[0].IsObject()) {
+            _infer_request.set_output_tensor(cast_to_tensor(info, 0));
+        } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
+            const auto idx = info[0].ToNumber().Int32Value();
+            _infer_request.set_output_tensor(idx, cast_to_tensor(info, 1));
+        } else {
+            OPENVINO_THROW(std::string("InferRequest.setOutputTensor() invalid argument."));
+        }
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
     }
 }
 
@@ -149,29 +152,23 @@ Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info)
 }
 
 Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
-    if (info.Length() == 0)
-        _infer_request.infer();
-    else if (info.Length() == 1 && info[0].IsTypedArray()) {
-        reportError(info.Env(), "TypedArray cannot be passed directly into infer() method.");
-        return info.Env().Null();
-    } else if (info.Length() == 1 && info[0].IsArray()) {
-        try {
+    try {
+        if (info.Length() == 0)
+            _infer_request.infer();
+        else if (info.Length() == 1 && info[0].IsTypedArray()) {
+            OPENVINO_THROW("TypedArray cannot be passed directly into infer() method.");
+        } else if (info.Length() == 1 && info[0].IsArray()) {
             infer(info[0].As<Napi::Array>());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return info.Env().Null();
-        }
-    } else if (info.Length() == 1 && info[0].IsObject()) {
-        try {
+        } else if (info.Length() == 1 && info[0].IsObject()) {
             infer(info[0].As<Napi::Object>());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return info.Env().Null();
+        } else {
+            OPENVINO_THROW("Infer method takes as an argument an array or an object.");
         }
-    } else {
-        reportError(info.Env(), "Infer method takes as an argument an array or an object.");
+        return get_output_tensors(info);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
     }
-    return get_output_tensors(info);
 }
 
 void InferRequestWrap::infer(const Napi::Array& inputs) {
@@ -198,8 +195,6 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
     return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
-// 128760
-#ifndef _WIN32
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
     context->native_thread.join();
     delete context;
@@ -233,7 +228,7 @@ void performInferenceThread(TsfnContext* context) {
         for (const auto& [key, tensor] : res) {
             outputs_obj.Set(key, TensorWrap::wrap(env, tensor));
         }
-        context->deferred.Resolve({outputs_obj});
+        context->deferred.Resolve(outputs_obj);
     };
 
     context->tsfn.BlockingCall(context, callback);
@@ -261,4 +256,3 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     context->native_thread = std::thread(performInferenceThread, context);
     return context->deferred.Promise();
 }
-#endif

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -45,7 +45,7 @@ def strided_slice(name: str, input_data, attrs: dict):
         saveModel(
             name,
             exe,
-            feedkeys=["x"],
+            feed_vars=[Input],
             fetchlist=[out],
             inputs=[input_data],
             outputs=[outs[0]],

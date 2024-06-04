@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
+#include "openvino/util/pp.hpp"
 
 using namespace dnnl;
 namespace ov {
@@ -70,7 +71,7 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
         if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
             auto peerOutputNum = this->getOutputNum();
             auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
-            auto& vecChildEdges = childNode->getChildEdgesAtPort(peerInPlacePort);
+            auto vecChildEdges = getChild()->getChildEdgesAtPort(peerInPlacePort);
             for (auto childEdge : vecChildEdges) {
                 childEdge->collectConsumers(result);
             }
@@ -264,7 +265,7 @@ void Edge::allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& all
 }
 
 void Edge::allocate(const void* mem_ptr) {
-    auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
+    auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
         return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, mem_ptr, false);  // no pads zeroing
     };
@@ -277,7 +278,7 @@ void Edge::allocate(MemoryMngrPtr memMngr) {
         OPENVINO_THROW("Unexpected: Memory manager ptr is NULL");
     }
 
-    auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
+    auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
         return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, memMngr);
     };
@@ -510,7 +511,7 @@ EdgePtr Edge::getBaseEdge(int look) {
         }
         return next_ch_edge;
     } else if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
-        return getParent()->getParentEdgesAtPort(parentInPlacePort)[0];
+        return getParent()->getParentEdgeAt(parentInPlacePort);
     }
 
     auto edgesForSamePort = getParent()->getChildEdgesAtPort(inputNum);

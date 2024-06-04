@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -53,6 +53,8 @@ macro(ov_cpack_settings)
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # temporary block nvidia
            NOT item STREQUAL "nvidia" AND
+           # don't install node_addon
+           NOT item MATCHES "node_addon" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
@@ -89,7 +91,12 @@ macro(ov_cpack_settings)
         2023.1.0
         2023.2.0
         2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
+        2024.0.0
+        2024.1.0
+        2024.2.0
         )
+
+    ov_check_conflicts_versions(conflicting_versions)
 
     #
     # core: base dependency for each component
@@ -179,6 +186,27 @@ macro(ov_cpack_settings)
         # set(CPACK_DEBIAN_BATCH_PACKAGE_ENHANCES "${CPACK_DEBIAN_GPU_PACKAGE_NAME} (= ${cpack_full_ver})")
         _ov_add_plugin(gpu OFF)
         set(gpu_copyright "generic")
+    endif()
+
+    # intel-npu
+    if(ENABLE_INTEL_NPU)
+        set(CPACK_COMPONENT_NPU_DESCRIPTION "Intel® Neural Processing Unit inference plugin")
+        set(CPACK_COMPONENT_NPU_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_NPU_PACKAGE_NAME "libopenvino-intel-npu-plugin-${cpack_name_ver}")
+        set(CPACK_DEBIAN_NPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        _ov_add_plugin(npu OFF)
+        set(npu_copyright "generic")
+
+        # NPU plugin also builds level-zero as thirdparty
+        # let's add it to the list of dependency search directories to avoid missing dependncy on libze_loader.so.1
+        if(OV_GENERATOR_MULTI_CONFIG)
+            # $<CONFIG> generator expression does not work in this place, have to add all possible configs
+            foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+                list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_BINARY_DIR}/lib/${config}")
+            endforeach()
+        else()
+            list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_BINARY_DIR}/lib")
+        endif()
     endif()
 
     # # add pseudo plugins are recommended to core component
@@ -298,7 +326,7 @@ macro(ov_cpack_settings)
 
         set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino-${cpack_name_ver}")
         set(python_package "${CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME} (= ${cpack_full_ver})")
-        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy")
+        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy, python3-packaging")
 
         # we can have a single python installed, so we need to generate conflicts for all other versions
         ov_debian_generate_conflicts(${python_component} ${conflicting_versions})
@@ -322,7 +350,7 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
+    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkgconf")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
     set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
 

@@ -12,7 +12,7 @@ reverse_kernel_selector::reverse_kernel_selector() {
     Attach<ReverseKernelRef>();
 }
 
-KernelsData reverse_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::REVERSE);
+KernelsData reverse_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::REVERSE);
 }
 }  // namespace kernel_selector

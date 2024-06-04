@@ -31,19 +31,15 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-    if: ${{ github.event_name != 'merge_group' }}
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -62,10 +58,6 @@ jobs:
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
-
-      - name: Install OpenVINO dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
 
       #
       # Tests
@@ -162,6 +154,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Common test utils tests
+        if: ${{ runner.os != 'macOS' }} # Ticket: 134469
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
@@ -215,6 +208,13 @@ jobs:
                 --gtest_filter=*smoke* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
+      - name: OV utils unit tests
+        if: ${{ runner.os != 'macOS' }} # Ticket: 134469
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_util_tests.xml
+
       - name: OpenVINO C API tests
         if: fromJSON(inputs.affected-components).C_API.test
         run: |
@@ -232,7 +232,7 @@ jobs:
         if: fromJSON(inputs.affected-components).AUTO_BATCH.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml
+          ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
 
       - name: Proxy Plugin func tests
         if: fromJSON(inputs.affected-components).PROXY.test
@@ -250,10 +250,10 @@ jobs:
         if: fromJSON(inputs.affected-components).HETERO.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
+          ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp

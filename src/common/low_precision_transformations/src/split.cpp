@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/split.hpp"
-
 #include "itt.hpp"
-#include "low_precision/network_helper.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
+
+#include "low_precision/network_helper.hpp"
+#include "low_precision/split.hpp"
 
 namespace ov {
 namespace pass {
@@ -121,6 +122,8 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
     }
 
     updateOutputs(context, lastNodes, newSplit);
+
+    OPENVINO_DEBUG << "LPT: done: " << newSplit;
     return true;
 }
 

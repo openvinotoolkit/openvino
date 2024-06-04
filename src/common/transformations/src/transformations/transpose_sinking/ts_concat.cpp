@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,10 +21,10 @@ using namespace ov::pass::transpose_sinking::utils;
 TSConcatForward::TSConcatForward() {
     MATCHER_SCOPE(TSConcatForward);
 
-    create_pattern<ov::op::v0::Concat>(true);
+    create_pattern<ov::op::v0::Concat>();
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         // todo: support dynamic rank case
         auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
         if (!concat_node) {
@@ -70,7 +70,7 @@ TSConcatBackward::TSConcatBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());

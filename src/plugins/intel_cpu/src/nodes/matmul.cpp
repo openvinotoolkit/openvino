@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -170,7 +170,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool
 
     bool isINT8 = canBeExecutedInInt8();
 
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << (dims.size() - 1), getDQScales(), withBiases);
+    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << (dims.size() - 1), getDQScales(), withBiases);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -524,9 +524,9 @@ ov::element::Type MatMul::getRuntimePrecision() const {
 }
 
 void MatMul::prepareParams() {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto src0MemPtr = getSrcMemoryAtPort(0);
+    auto src1MemPtr = getSrcMemoryAtPort(1);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
     if (!src0MemPtr || !src0MemPtr->isAllocated() || !src1MemPtr || !src1MemPtr->isAllocated())
@@ -564,7 +564,7 @@ void MatMul::prepareParams() {
 
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
-        auto biasMemory = getParentEdgeAt(2)->getMemoryPtr();
+        auto biasMemory = getSrcMemoryAtPort(2);
         if (!biasMemory || !biasMemory->isAllocated())
             OPENVINO_THROW(errorPrefix, " did not allocate bias memory");
         dnnlBiasMemDesc = biasMemory->getDescWithType<DnnlMemoryDesc>();
@@ -623,14 +623,12 @@ void MatMul::prepareParams() {
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
     if (withBiases)
-        primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->getPrimitive();
+        primArgs[DNNL_ARG_BIAS] = getSrcMemoryAtPort(2)->getPrimitive();
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
 #ifdef CPU_DEBUG_CAPS
-    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        auto pd = execPtr->getPrimitiveDesc();
-        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-    }
+    auto pd = execPtr->getPrimitiveDesc();
+    DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
 

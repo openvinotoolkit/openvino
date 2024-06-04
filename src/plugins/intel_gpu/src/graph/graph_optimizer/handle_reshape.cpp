@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ void handle_reshape::run(program& p) {
             // In case of new shape infer we should not shrink reshapes chain if first reshape changes input rank, e.g.
             // [a, b] -> reshape1 -> [a1, b1, c1] -> reshape2 -> [a2, b2, 0] and any of the reshapes has special_zero=true
             // Configuration above will fail if we remove reshape1 node as attempt to handle special zero will fail due to small rank of input
-            if (p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+            if (p.is_new_shape_infer() &&
                 out_node->get_output_pshape().size() != node.get_input_pshape().size() &&
                 (out_reshape.get_primitive()->special_zero || node.get_primitive()->special_zero))
                 return;

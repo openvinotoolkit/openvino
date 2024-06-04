@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,20 +12,20 @@ using namespace ov::test::conformance;
 
 namespace {
 //
-// IE Class Common tests with <pluginName, deviceName params>
+// OV Class Common tests with <pluginName, deviceName params>
 //
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
                          OVClassModelTestP,
-                         ::testing::Values(targetDevice));
+                         ::testing::Values(ov::test::utils::target_device));
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVClassModelOptionalTestP,
-                         ::testing::Values(targetDevice));
+                         ::testing::Values(ov::test::utils::target_device));
 
-// IE Class Query network
+// OV Class Query network
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory,
                          OVClassQueryModelTest,
-                         ::testing::Values(targetDevice));
+                         ::testing::Values(ov::test::utils::target_device));
 }  // namespace

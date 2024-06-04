@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -39,7 +39,7 @@ std::vector<TRShape> shape_infer(const RDFT* op,
 
     util::fft_common_validation::shape_validation(op,
                                                   input_shapes,
-                                                  axes.get(),
+                                                  axes,
                                                   util::fft_common_validation::FFTKind::RealInput);
 
     if (input_shape.rank().is_dynamic()) {

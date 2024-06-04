@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,8 +60,14 @@ private:
         bool needs_split_reorder;
 
         friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
-            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
-                   lhs.needs_split_reorder == rhs.needs_split_reorder;
+            bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
+                    lhs.needs_split_reorder == rhs.needs_split_reorder;
+
+            if (ret && lhs.expected_layout.format == cldnn::format::custom) {
+                ret &= (lhs.expected_layout.format.traits().block_sizes ==
+                        rhs.expected_layout.format.traits().block_sizes);
+            }
+            return ret;
         }
 
         friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
@@ -71,6 +77,8 @@ private:
                 return (lhs.data_source < rhs.data_source);
             else if (lhs.expected_layout != rhs.expected_layout)
                 return (lhs.expected_layout < rhs.expected_layout);
+            else if (lhs.expected_layout.format == cldnn::format::custom)
+                return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
             return lhs.needs_split_reorder < rhs.needs_split_reorder;
         }
     };
@@ -82,7 +90,6 @@ class layout_optimizer {
 public:
     enum class optimization_attributes_type {
         group_convolution,
-        deformable_convolution,
         bfyx_only_layer,
         fs_b_yx_fsv32_network,
         b_fs_zyx_fsv32_network,
@@ -94,7 +101,6 @@ public:
 
     struct optimization_attributes {
         int32_t group_convolution = 0;
-        int32_t deformable_convolution = 0;
         int32_t bfyx_only_layer = 0;
         int32_t fs_b_yx_fsv32_network = 0;
         int32_t b_fs_zyx_fsv32_network = 0;

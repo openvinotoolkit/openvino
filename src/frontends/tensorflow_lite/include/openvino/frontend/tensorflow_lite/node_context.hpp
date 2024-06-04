@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "openvino/core/any.hpp"
-#include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
+#include "openvino/frontend/tensorflow_lite/decoder.hpp"
 
 namespace ov {
 namespace frontend {

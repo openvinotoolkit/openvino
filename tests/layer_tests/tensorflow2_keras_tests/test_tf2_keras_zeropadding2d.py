@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -26,8 +26,8 @@ class TestKerasZeroPadding2D(CommonTF2LayerTest):
              padding=2, data_format='channels_last'),
         dict(input_names=["x1"], input_shapes=[[3, 2, 4, 6]], input_type=tf.float32,
              padding=(3, 0), data_format='channels_last'),
-        pytest.param(dict(input_names=["x1"], input_shapes=[[1, 3, 8, 7]], input_type=tf.float32,
-                          padding=((5, 1), (3, 4)), data_format='channels_last'), marks=pytest.mark.precommit_tf_fe),
+        dict(input_names=["x1"], input_shapes=[[1, 3, 8, 7]], input_type=tf.float32,
+             padding=((5, 1), (3, 4)), data_format='channels_last'),
     ]
 
     @pytest.mark.parametrize("params", test_data_channels_last)
@@ -51,7 +51,7 @@ class TestKerasZeroPadding2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_channels_first)
     @pytest.mark.nightly
     def test_keras_zeropadding2d_channels_first(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend):
+                                                temp_dir, use_legacy_frontend):
         self._test(*self.create_keras_zeropadding2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)

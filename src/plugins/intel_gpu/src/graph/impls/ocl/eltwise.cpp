@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ struct eltwise_impl : typed_primitive_impl_ocl<eltwise> {
     using parent = typed_primitive_impl_ocl<eltwise>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::eltwise_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::eltwise_params, kernel_selector::eltwise_optional_params>;
+    using kernel_params_t = kernel_selector::eltwise_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::eltwise_impl)
 
@@ -44,7 +44,6 @@ public:
         auto inputs_count = primitive->input.size();
 
         auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
         const auto mode = convert_to_eltwise_mode(primitive->mode);
 
         for (size_t i = 1; i < inputs_count; i++) {
@@ -125,12 +124,12 @@ public:
         }
         params.int8_quantization = quantization;
 
-        return {params, optional_params};
+        return params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
-        bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
 
         auto& output_layout = updated_impl_params.output_layouts[0];
         auto out_pshape = output_layout.get_partial_shape();
@@ -153,8 +152,13 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 

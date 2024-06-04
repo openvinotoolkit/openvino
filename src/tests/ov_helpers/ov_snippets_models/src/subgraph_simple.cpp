@@ -1,9 +1,10 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "subgraph_simple.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include <snippets/op/subgraph.hpp>
 
 namespace ov {
@@ -25,6 +26,18 @@ std::shared_ptr<ov::Model> AddFunction::initReference() const {
                                           std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Add>(indata0, indata1)},
                                                                       ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
+}
+std::shared_ptr<ov::Model> ExpFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto exp = std::make_shared<op::v0::Exp>(data0);
+    return std::make_shared<ov::Model>(NodeVector{exp}, ParameterVector{data0});
+}
+std::shared_ptr<ov::Model> ExpReciprocalFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto factor = std::make_shared<op::v0::Constant>(precision, ov::Shape{1}, std::vector<float>{-1.f});
+    auto exp = std::make_shared<op::v0::Exp>(data0);
+    auto reciprocal = std::make_shared<op::v1::Power>(exp, factor);
+    return std::make_shared<ov::Model>(NodeVector{reciprocal}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> AddConstFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -90,7 +103,7 @@ std::shared_ptr<ov::Model> EltwiseMaxNumParamsFunction::initOriginal() const {
         auto param = std::make_shared<op::v0::Parameter>(precision, shape);
         params.push_back(param);
     }
-    std::vector<std::shared_ptr<Node>> add; // 5
+    std::vector<std::shared_ptr<Node>> add; // 4
     for (size_t i = 0; i < input_shapes.size() / 2; i++) {
         add.push_back(std::make_shared<op::v1::Add>(params[i * 2], params[i * 2 + 1]));
     }
@@ -100,7 +113,7 @@ std::shared_ptr<ov::Model> EltwiseMaxNumParamsFunction::initOriginal() const {
         mul.push_back(mul_node);
     }
     auto sub = std::make_shared<op::v1::Subtract>(mul[0], mul[1]);
-    auto power = std::make_shared<op::v1::Power>(add.back(), sub);
+    auto power = std::make_shared<op::v1::Power>(params.back(), sub);
     auto exit_sinh = std::make_shared<op::v0::Sinh>(power);
     return std::make_shared<ov::Model>(NodeVector{sub, exit_sinh}, params);
 }

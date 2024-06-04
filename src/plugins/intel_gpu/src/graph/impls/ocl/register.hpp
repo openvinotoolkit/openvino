@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,11 +68,14 @@
 #include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+#include "intel_gpu/primitives/rope.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -98,8 +101,6 @@ REGISTER_OCL(crop);
 REGISTER_OCL(custom_gpu_primitive);
 REGISTER_OCL(data);
 REGISTER_OCL(deconvolution);
-REGISTER_OCL(deformable_conv);
-REGISTER_OCL(deformable_interp);
 REGISTER_OCL(depth_to_space);
 REGISTER_OCL(detection_output);
 REGISTER_OCL(dft);
@@ -157,6 +158,7 @@ REGISTER_OCL(softmax);
 REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
 REGISTER_OCL(strided_slice);
+REGISTER_OCL(swiglu);
 REGISTER_OCL(tile);
 REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
@@ -172,6 +174,8 @@ REGISTER_OCL(gather_nonzero);
 REGISTER_OCL(eye);
 REGISTER_OCL(unique_count);
 REGISTER_OCL(unique_gather);
+REGISTER_OCL(scaled_dot_product_attention);
+REGISTER_OCL(rope);
 
 #undef REGISTER_OCL
 

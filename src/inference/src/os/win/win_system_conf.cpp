@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,8 @@ CPU::CPU() {
             _socketid_mapping_table.insert({socket_id, socket_id});
         }
     }
+
+    cpu_debug();
 }
 
 void parse_processor_info_win(const char* base_ptr,

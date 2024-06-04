@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,13 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "validation_util.hpp"
 
 ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);

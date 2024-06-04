@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ std::shared_ptr<ov::Model> ovGetFunction1() {
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
 
-    auto in2add = ov::test::utils::deprecated::make_constant(ngPrc, {1, 4, 1, 1}, std::vector<float>{}, true);
+    auto in2add = ov::test::utils::make_constant(ngPrc, {1, 4, 1, 1});
     auto add = ov::test::utils::make_eltwise(params[0], in2add, ov::test::utils::EltwiseTypes::ADD);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(add->output(0));
     relu1->get_output_tensor(0).set_names({"relu1"});
@@ -42,11 +42,11 @@ std::shared_ptr<ov::Model> ovGetFunction2() {
     auto splitAxisOp = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], splitAxisOp, 2);
 
-    auto in2add = ov::test::utils::deprecated::make_constant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
+    auto in2add = ov::test::utils::make_constant(ngPrc, {1, 2, 1, 1});
     auto add = ov::test::utils::make_eltwise(split->output(0), in2add, ov::test::utils::EltwiseTypes::ADD);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(add);
 
-    auto in2mult = ov::test::utils::deprecated::make_constant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
+    auto in2mult = ov::test::utils::make_constant(ngPrc, {1, 2, 1, 1});
     auto mult = ov::test::utils::make_eltwise(split->output(1), in2mult, ov::test::utils::EltwiseTypes::MULTIPLY);
     auto relu2 = std::make_shared<ov::op::v0::Relu>(mult);
 
@@ -62,8 +62,8 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_1, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
-                                ::testing::Values(targetDevice),
-                                ::testing::Values(pluginConfig)),
+                                ::testing::Values(ov::test::utils::target_device),
+                                ::testing::Values(ov::AnyMap({}))),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_2, OVInferRequestDynamicTests,
@@ -72,7 +72,7 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_2, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(targetDevice),
-                                ::testing::Values(pluginConfig)),
+                                ::testing::Values(ov::test::utils::target_device),
+                                ::testing::Values(ov::AnyMap({}))),
                         OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

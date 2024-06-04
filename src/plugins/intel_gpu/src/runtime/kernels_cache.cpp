@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
+#include "openvino/util/pp.hpp"
 
 #ifdef WIN32
 #include <sdkddkver.h>
@@ -89,9 +90,8 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
     GPU_DEBUG_IF(debug_config->max_kernels_per_batch >= 1) {
         return static_cast<size_t>(debug_config->max_kernels_per_batch);
     }
-    return 8;
+    return _config.get_property(ov::intel_gpu::max_kernels_per_batch);
 }
-
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
@@ -131,10 +131,33 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
             }
 
+            // This is a temporary walk-around to avoid severe performance drop.
+            // It will be removed after OpenCL compiler is updated.
+            auto need_separate_batch = [&](std::string& unique_kernel_name) -> bool {
+                const std::vector<std::string> special_kernels = {"gemm_tiled_opt"};
+
+                // check if the current kernel name is in special_kernels
+                for (auto& special_kernel : special_kernels) {
+                    if (entry_point.find(special_kernel) != std::string::npos)
+                        return true;
+                }
+
+                // check if the current_batch has one of special_kernels
+                if (current_bucket.back().kernels_counter == 1) {
+                    auto& kernel_in_current_batch = current_bucket.back().entry_point_to_id.begin()->first;
+                    for (auto& special_kernel : special_kernels) {
+                        if (kernel_in_current_batch.find(special_kernel) != std::string::npos)
+                            return true;
+                    }
+                }
+                return false;
+            };
+
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
             if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
-                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()) {
+                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
+                || need_separate_batch(entry_point)) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
             }
@@ -454,7 +477,7 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_mutex);
         _kernels_code.clear();
         _pending_compilation = false;
-#if defined(__unix__) && !defined(__ANDROID__)
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
@@ -617,7 +640,7 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
     OPENVINO_ASSERT(output_kernels.size() == 1, "Only the kernels of the single primitive should be compiled.");
 
     t_kernels_code.clear();
-#if defined(__unix__) && !defined(__ANDROID__)
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.

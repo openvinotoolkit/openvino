@@ -1,24 +1,25 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/bitwise_and.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 #include "openvino/op/bitwise_and.hpp"
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector bitwise_and(const Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector bitwise_and(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
     OPENVINO_ASSERT(inputs.size() == 2);
     return {std::make_shared<v13::BitwiseAnd>(inputs[0], inputs[1])};
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

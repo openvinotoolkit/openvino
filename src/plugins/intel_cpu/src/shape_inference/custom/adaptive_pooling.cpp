@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ Result AdaptivePoolingShapeInfer::infer(
     VectorDims outputDims(inputRank);
     outputDims[0] = inputDims[0];
     outputDims[1] = inputDims[1];
-    auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData());
+    auto newSpatialDimsPtr = data_dependency.at(1)->getDataAs<int32_t>();
     for (size_t i = 0; i < spatialDimsSize; i++) {
         outputDims[i + 2] = newSpatialDimsPtr[i];
     }

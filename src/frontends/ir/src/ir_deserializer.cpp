@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
@@ -351,11 +352,42 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                 OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
             if (m_weights->size() < offset + size)
                 OPENVINO_THROW("Incorrect weights in bin file!");
-            if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
-                OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
-
             char* data = m_weights->get_ptr<char>() + offset;
-            auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+
+            if (el_type == element::string) {
+                auto buffer =
+                    ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+                a->set(buffer);
+            } else {
+                if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
+                    OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
+
+                auto buffer =
+                    std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+                a->set(buffer);
+            }
+        }
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
+        pugi::xml_node dn = m_node.child("data");
+        const auto& type = pugixml::get_str_attr(m_node, "type");
+        if (name == "value" && type == "Const") {
+            std::vector<int64_t> shape;
+            std::string el_type_str;
+
+            size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+            size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+            if (!getStrAttribute(dn, "element_type", el_type_str))
+                return;
+            if (!getParameters<int64_t>(dn, "shape", shape))
+                return;
+
+            if (!m_weights)
+                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
+            if (m_weights->size() < offset + size)
+                OPENVINO_THROW("Incorrect weights in bin file!");
+            char* data = m_weights->get_ptr<char>() + offset;
+            auto buffer =
+                ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
             a->set(buffer);
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
@@ -425,7 +457,6 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     std::map<size_t /*layer-id*/, NodeParams> params;
 
     std::vector<size_t /*layer-id*/> outputs;
-    std::unordered_set<std::string> opName;
 
     std::vector<size_t> order;
     std::set<size_t> dfs_used_nodes;
@@ -433,9 +464,6 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     // Read all layers and store their parameters in params map
     FOREACH_CHILD (node, root.child("layers"), "layer") {
         auto node_param = parse_generic_params(node);
-        if (opName.find(node_param.name) != opName.end() && node_param.type != "Result")
-            OPENVINO_THROW("Invalid IR! ", node_param.name, " name is not unique!");
-        opName.insert(node_param.name);
         params[node_param.layerId] = {node, node_param};
         if (node_param.type == "Result" || node_param.type == "Assign") {
             outputs.push_back(node_param.layerId);
@@ -729,11 +757,15 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
 
     auto outNode = node.child("output");
     if (!outNode.empty()) {
-        FOREACH_CHILD (_cn, outNode, "port") { params.outputPorts.emplace_back(parsePort(_cn, params, false)); }
+        FOREACH_CHILD (_cn, outNode, "port") {
+            params.outputPorts.emplace_back(parsePort(_cn, params, false));
+        }
     }
     auto inpNode = node.child("input");
     if (!inpNode.empty()) {
-        FOREACH_CHILD (_cn, inpNode, "port") { params.inputPorts.emplace_back(parsePort(_cn, params, true)); }
+        FOREACH_CHILD (_cn, inpNode, "port") {
+            params.inputPorts.emplace_back(parsePort(_cn, params, true));
+        }
     }
     return params;
 }
@@ -925,7 +957,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                 }
             } else {
                 // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
-                // when loading new IR with new attribute in old IE version.
+                // when loading new IR with new attribute in old OV version.
             }
         }
     };

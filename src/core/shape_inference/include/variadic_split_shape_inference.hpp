@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -75,7 +75,7 @@ std::vector<TRShape> shape_infer(const VariadicSplit* op,
                         sum_of_splits += (*split_lengths)[i];
                     }
                 }
-                const auto dimension_at_axis = data_shape[axis];
+                const auto& dimension_at_axis = data_shape[axis];
 
                 if (negative_one_idx >= 0 && dimension_at_axis.is_static()) {
                     (*split_lengths)[negative_one_idx] = dimension_at_axis.get_length() - sum_of_splits;

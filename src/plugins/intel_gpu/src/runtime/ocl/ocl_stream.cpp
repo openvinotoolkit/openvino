@@ -265,7 +265,7 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
     auto& kern = ocl_kernel.get_handle();
 
     try {
-        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kern.get() << ")\n";
+        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << " = " << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
@@ -303,11 +303,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
     } catch (cl::Error const& err) {
-        /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
-        if (err.err() == CL_OUT_OF_RESOURCES) {
-            ov::intel_gpu::ForceExit();
-        }
-        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        ocl::rethrow_or_exit(err, _engine.get_device_info());
     }
 
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);

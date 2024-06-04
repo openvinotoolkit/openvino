@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,7 +137,6 @@ private:
     void handle_quantize_node(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
     void remove_fake_reorders(program& p, reorder_node& reorder_node);
-    void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
     void prepare_scale_shift_opt(program &p, quantize_node& quantize_node);
     bool optimize_quantize(program &p, quantize_node& quantize_node);
 };
@@ -164,6 +163,7 @@ private:
     void conv_eltwise_read_write_opt(program& p, program_node* node);
 };
 
+// TODO: Remove this pass once no unexpected reshapes/reorders are added during ov::Model -> cldnn::topology conversion
 class prepare_primitive_fusing_through : public base_pass {
 public:
     prepare_primitive_fusing_through() : base_pass("prepare_primitive_fusing_through") {}
@@ -200,7 +200,7 @@ class prepare_padding : public base_pass {
 public:
     explicit prepare_padding(bool output_size_handling_enabled_switch)
         : base_pass("prepare_padding"), output_size_handling_enabled(output_size_handling_enabled_switch) {}
-
+    static cldnn::padding get_needed_padding_for_convolution(convolution_node& node);
 private:
     void run(program& p) override;
     bool output_size_handling_enabled;
@@ -328,7 +328,7 @@ public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
     void add_memory_dependency(program_node* node, program_node* dep) {
         if (node->can_be_optimized() || !dep->can_be_optimized()) {
-            node->add_memory_dependency(dep->id());
+            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
             if (node->id() == dep->id()) {
                 return;

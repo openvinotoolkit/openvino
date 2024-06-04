@@ -6,6 +6,7 @@
 
 #include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -48,7 +49,7 @@ DefineBufferClusters::BufferPorts DefineBufferClusters::get_input_buffers(const 
 
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
     const auto in_count = loop_end->get_input_num();
-    const auto connectors = loop_expr->get_input_port_connectors();
+    const auto& connectors = loop_expr->get_input_port_connectors();
 
     // Input Buffers
     for (size_t i = 0; i < in_count; ++i) {
@@ -69,7 +70,7 @@ DefineBufferClusters::BufferPorts DefineBufferClusters::get_output_buffers(const
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
     const auto in_count = loop_end->get_input_num();
     const auto out_count = loop_end->get_output_num();
-    const auto connectors = loop_expr->get_input_port_connectors();
+    const auto& connectors = loop_expr->get_input_port_connectors();
 
     for (size_t i = in_count; i < in_count + out_count; ++i) {
         for (const auto& consumer : connectors[i]->get_consumers()) {
@@ -110,19 +111,30 @@ void DefineBufferClusters::parse_loop(const LinearIR::constExprIt& expr_it) {
                 continue;
 
             const auto input_buffer = ov::as_type_ptr<op::Buffer>(input_buffer_expr->get_node());
+
+            // If allocated sizes of buffers are unkown on compilation stage (dynamic),
+            // we cannot be sure that they're will be the same in runtime.
+            if ((utils::is_dynamic_value(input_buffer->get_byte_size()) || utils::is_dynamic_value(output_buffer->get_byte_size())))
+                continue;
+
+            // Memory can be reused if reading and writing are executed proportionally:
+            //  - the same reading/writing order
+            //  - the same buffer memory sizes
+            if ((input_buffer->get_byte_size() != output_buffer->get_byte_size()) ||
+                (input_buffer_expr->get_output_port_descriptor(0)->get_layout() != output_buffer_expr->get_input_port_descriptor(0)->get_layout()))
+                continue;
+
+            // Also memory can be reused if there are the same ShiftPtrParams (data size, final offsets, ptr increments)
             const auto& input_buffer_ports = in.second;
             for (const auto& input_buffer_port_idx : input_buffer_ports) {
-                // Memory can be reused if reading and writing are executed proportionally:
-                //  - the same ShiftPtrParams (data size, final offsets, ptr increments)
-                //  - the same reading/writing order
-                //  - the same buffer memory sizes
                 const auto input_params =
                     ShiftPtrParams(data_sizes[input_buffer_port_idx], ptr_increments[input_buffer_port_idx], final_offsets[input_buffer_port_idx]);
                 const auto output_params =
                     ShiftPtrParams(data_sizes[output_buffer_port_idx], ptr_increments[output_buffer_port_idx], final_offsets[output_buffer_port_idx]);
-                if (input_buffer->get_byte_size() == output_buffer->get_byte_size() &&
-                    input_buffer_expr->get_output_port_descriptor(0)->get_layout() == output_buffer_expr->get_input_port_descriptor(0)->get_layout() &&
-                    input_params == output_params) {
+
+                // If data pointer shift parameters are unknown on model compilation stage (dynamic),
+                // we cannot be sure that these data pointers will be proportionally shifted in runtime.
+                if (input_params.is_static() && output_params.is_static() && input_params == output_params) {
                     const auto cluster_it = find_cluster_by_expr(input_buffer_expr);
                     OPENVINO_ASSERT(cluster_it != m_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");
                     // Add to the existing cluster
@@ -157,6 +169,10 @@ void DefineBufferClusters::parse_nested_loops(const BufferPorts& input_buffers, 
 
     auto can_be_data_ptr_proportionally_shifted = [](int64_t outer_buffer_ptr_increment, int64_t outer_buffer_data_size,
                                                      int64_t inner_buffer_final_offsets, int64_t inner_buffer_data_size) {
+        // If data pointer shift parameters are unknown on model compilation stage (dynamic),
+        // we cannot be sure that these data pointers will be proportionally shifted in runtime.
+        if (utils::is_dynamic_value(outer_buffer_ptr_increment) || utils::is_dynamic_value(inner_buffer_final_offsets))
+            return false;
         return (outer_buffer_ptr_increment != 0) &&
                ((inner_buffer_data_size * inner_buffer_final_offsets * -1) == outer_buffer_ptr_increment * outer_buffer_data_size);
     };
@@ -213,7 +229,7 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
     };
     int64_t final_offset = 0;
     int64_t last_loop_exec_order = 0;
-    const auto buffer_outs = buffer_expr->get_output_port_connectors();
+    const auto& buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
         const auto consumers = buffer_out->get_consumers();
         for (const auto& consumer : consumers) {
@@ -222,7 +238,7 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
             if (loop_end && consumer_expr->get_loop_ids() == buffer_expr->get_loop_ids()) {
                 const auto loop_order = ov::snippets::pass::GetTopologicalOrder(loop_end);
                 if (loop_order > last_loop_exec_order) {
-                    const auto loop_inputs = consumer_expr->get_input_port_connectors();
+                    const auto& loop_inputs = consumer_expr->get_input_port_connectors();
                     final_offset = loop_end->get_finalization_offsets()[index(loop_inputs, buffer_out)];
                     last_loop_exec_order = loop_order;
                 }
@@ -301,8 +317,8 @@ bool DefineBufferClusters::are_buffer_neighbours(const ExpressionPtr& up, const 
 }
 
 void DefineBufferClusters::parse_memory_access_op(const ExpressionPtr& expr) {
-    const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
-    if (!ma->is_full_memory_access_op())
+    const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(expr->get_node());
+    if (!ma->is_full_memory_access_op(expr->get_node()))
         return;
     // TODO: Some full MemoryAccess ops can have inplace inputs and outputs in general.
     //       Need to add mechanism of inplace ports using MemoryAccess::PortDescriptor::inplace
@@ -320,10 +336,10 @@ void DefineBufferClusters::parse_memory_access_op(const ExpressionPtr& expr) {
     }
 }
 
-bool DefineBufferClusters::run(LinearIR& linear_ir) {
+bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::DefineBufferClusters");
 
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); ++expr_it) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
         const auto op = expr->get_node();
         if (ov::is_type<op::LoopEnd>(op)) {
@@ -331,7 +347,7 @@ bool DefineBufferClusters::run(LinearIR& linear_ir) {
             continue;
         }
 
-        if (ov::is_type<op::MemoryAccess>(op)) {
+        if (std::dynamic_pointer_cast<modifier::MemoryAccess>(op)) {
             parse_memory_access_op(expr);
             continue;
         }

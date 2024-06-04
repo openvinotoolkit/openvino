@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey SoftmaxKernel_bf::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey SoftmaxKernel_bf::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_reduce();
@@ -86,7 +86,7 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 
@@ -101,8 +101,8 @@ void SoftmaxKernel_bf::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params, const optional_params& optionalParams) const {
-    KernelsData kds = GetCommonKernelsData(params, optionalParams);
+KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params) const {
+    KernelsData kds = GetCommonKernelsData(params);
     if (!kds.empty()) {
         GetUpdateDispatchDataFunc(kds[0]);
     }
@@ -115,7 +115,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
-        DimensionAccessHelper dims(input);
+        DimensionAccessHelperJit dims(input);
         auto softmax_dim_y_bfyx = (params.dim == SoftmaxDim::Y && input.GetLayout() == DataLayout::bfyx);
         auto softmax_dim_x_bfyx = (params.dim == SoftmaxDim::X && input.GetLayout() == DataLayout::bfyx);
         const std::string lws_0 = "get_local_size(0)";
@@ -134,8 +134,8 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
         }
 
         // It can be expected that the maximum possible itemsNum will not exceed 32
-        // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
-        constexpr size_t stack_size = 33; // The size of stack for my_chunk
+        // Therefore, in dynamic shape, stack_size including additional buffer is set to 34(32 + 2(aligned offset + leftovers))
+        constexpr size_t stack_size = 34; // The size of stack for my_chunk
         jit.AddConstants({
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
@@ -151,7 +151,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
             MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
-            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1),
+            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 2), // (aligned offset + leftovers)
         });
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));

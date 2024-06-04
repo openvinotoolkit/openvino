@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "snippets/pass/fq_decomposition.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "snippets/op/subgraph.hpp"
 
 
 namespace ov {
@@ -101,6 +102,45 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
     }
 }
 
+void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
+    if (d1 == d2 || d1 == 1 || is_dynamic_value(d2)) {
+        dst = d2;
+    } else if (d2 == 1 || is_dynamic_value(d1)) {
+        dst = d1;
+    } else {
+        OPENVINO_THROW("Failed to broadcast dims: ", d1, " and ", d2);
+    }
+}
+
+VectorDims pshape_to_vdims(const PartialShape& pshape) {
+    VectorDims result;
+    result.reserve(pshape.size());
+    for (const auto& d : pshape)
+        result.push_back(d.is_dynamic() ? get_dynamic_value<VectorDims::value_type>() : d.get_length());
+    // Note: PartialShape could be empty which designates scalar value. However, Scalars are represented as {1} in Snippets
+    return result.empty() ? VectorDims {1} : result;
+}
+
+ov::PartialShape vdims_to_pshape(const VectorDims& vdims) {
+    ov::PartialShape result;
+    result.reserve(vdims.size());
+    for (const auto& v : vdims)
+        result.push_back(!is_dynamic_value(v) ? Dimension(static_cast<Dimension::value_type>(v))
+                                              : Dimension());
+    return result;
+}
+
+size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx) {
+    const auto& layout = port.get_descriptor_ptr()->get_layout();
+    if (port.get_type() == lowered::ExpressionPort::Type::Input)
+        return utils::get_input_dim_idx(layout, dim_idx);
+    else if (port.get_type() == lowered::ExpressionPort::Type::Output)
+        return utils::get_output_dim_idx(layout, dim_idx);
+    else
+        OPENVINO_THROW("Unsupported type of expression port");
+    return 0;
+}
+
 ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order) {
     return get_pshape(shape, order, true);
 }
@@ -137,27 +177,105 @@ VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_po
     return get_preordered_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout());
 }
 
-bool is_dynamic_vdims(const VectorDims& shape) {
-    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return v == IShapeInferSnippets::DYNAMIC_DIMENSION; });
+std::vector<lowered::ExpressionPtr> get_first_child_shape_infer_expr_seq(const lowered::ExpressionPtr& start_expr) {
+    auto get_first_shape_infer_expr = [](const std::set<lowered::ExpressionPort>& consumers) -> lowered::ExpressionPtr {
+        for (auto it = consumers.begin(); it != consumers.end(); ++it) {
+            auto expr = it->get_expr();
+            if (op::Subgraph::is_shape_infer_op(expr->get_node())) {
+                return expr;
+            }
+        }
+        return nullptr;
+    };
+    std::vector<lowered::ExpressionPtr> shape_infer_exprs;
+    if (op::Subgraph::is_shape_infer_op(start_expr->get_node())) {
+        OPENVINO_ASSERT(start_expr->get_input_port_connector(0)->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        shape_infer_exprs.push_back(start_expr);
+    }
+    if (start_expr->get_output_count() == 0)
+        return shape_infer_exprs;
+    auto output_consumers = start_expr->get_output_port_connector(0)->get_consumers();
+    while (auto shape_infer_child = get_first_shape_infer_expr(output_consumers)) {
+        OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        shape_infer_exprs.push_back(shape_infer_child);
+        if (shape_infer_child->get_output_count() == 0)
+            break;
+        output_consumers = shape_infer_child->get_output_port_connector(0)->get_consumers();
+    }
+    return shape_infer_exprs;
 }
 
-VectorDims pshape_to_vdims(const PartialShape& pshape) {
-    VectorDims result;
-    result.reserve(pshape.size());
-    for (const auto& d : pshape)
-        result.push_back(d.is_dynamic() ? IShapeInferSnippets::DYNAMIC_DIMENSION : d.get_length());
-    // Note: PartialShape could be empty which designates scalar value. However, Scalars are represented as {1} in Snippets
-    return result.empty() ? VectorDims {1} : result;
+std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const lowered::ExpressionPtr& start_expr) {
+    std::vector<lowered::ExpressionPtr> shape_infer_exprs;
+    auto current_exp = start_expr;
+    if (op::Subgraph::is_shape_infer_op(current_exp->get_node())) {
+        OPENVINO_ASSERT(current_exp->get_input_port_connector(0)->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        shape_infer_exprs.push_back(current_exp);
+    }
+    if (current_exp->get_input_count() == 0)
+        return shape_infer_exprs;
+    auto input = current_exp->get_input_port_connector(0);
+    auto first_parent = input->get_source().get_expr();
+    while (op::Subgraph::is_shape_infer_op(first_parent->get_node())) {
+        shape_infer_exprs.push_back(first_parent);
+        current_exp = first_parent;
+        if (current_exp->get_input_count() == 0)
+            break;
+        input = current_exp->get_input_port_connector(0);
+        first_parent = input->get_source().get_expr();
+        if (!ov::is_type<snippets::op::Store>(first_parent->get_node())) {
+            // there are maybe some loopEnd consumers of store as well for loop code gen purpose
+            OPENVINO_ASSERT(input->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer if it doesn't consume a store ops.");
+        }
+    }
+    return shape_infer_exprs;
 }
 
-ov::PartialShape vdims_to_pshape(const VectorDims& vdims) {
-    ov::PartialShape result;
-    result.reserve(vdims.size());
-    for (const auto& v : vdims)
-        result.push_back(v != IShapeInferSnippets::DYNAMIC_DIMENSION ?
-                         Dimension(static_cast<Dimension::value_type>(v)) :
-                         Dimension());
-    return result;
+std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node)  {
+    auto get_first_shape_infer_node = [](const std::set<ov::Input<ov::Node>>& consumers) -> std::shared_ptr<ov::Node> {
+        for (auto it = consumers.begin(); it != consumers.end(); ++it) {
+            auto node = it->get_node()->shared_from_this();
+            if (op::Subgraph::is_shape_infer_op(node)) {
+                return node;
+            }
+        }
+        return nullptr;
+    };
+    std::shared_ptr<ov::Node> leaf_node = nullptr;
+    if (op::Subgraph::is_shape_infer_op(start_node)) {
+        OPENVINO_ASSERT(start_node->input(0).get_source_output().get_target_inputs().size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        leaf_node = start_node;
+    }
+    if (start_node->get_output_size() == 0)
+        return leaf_node;
+    auto output_consumers = start_node->get_output_target_inputs(0);
+    while (auto first_child = get_first_shape_infer_node(output_consumers)) {
+        OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        leaf_node = first_child;
+        if (leaf_node->get_output_size() == 0)
+            break;
+        output_consumers = leaf_node->get_output_target_inputs(0);
+    }
+    return leaf_node;
+}
+
+std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node) {
+    std::shared_ptr<ov::Node> leaf_node = nullptr;
+    if (op::Subgraph::is_shape_infer_op(start_node)) {
+        OPENVINO_ASSERT(start_node->input(0).get_source_output().get_target_inputs().size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        leaf_node = start_node;
+    }
+    if (start_node->get_input_size() == 0)
+        return leaf_node;
+    auto first_parent = start_node->get_input_node_shared_ptr(0);
+    while (op::Subgraph::is_shape_infer_op(first_parent)) {
+        OPENVINO_ASSERT(first_parent->input(0).get_source_output().get_target_inputs().size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        leaf_node = first_parent;
+        if (leaf_node->get_input_size() == 0)
+            break;
+        first_parent = leaf_node->get_input_node_shared_ptr(0);
+    }
+    return leaf_node;
 }
 
 } // namespace utils

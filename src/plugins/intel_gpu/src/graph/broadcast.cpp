@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
 
     auto output_type = input0_layout.data_type;
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
 
@@ -124,6 +124,25 @@ std::string broadcast_inst::to_string(broadcast_node const& node) {
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+void broadcast_inst::on_execute() {
+    update_output_memory();
+}
+
+void broadcast_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    if (_node != nullptr)
+        build_deps();
+
+    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+                           << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
+    _outputs[0] = input_memory_ptr();
+    _mem_allocated = false;
 }
 
 broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -9,7 +9,7 @@
 #include "openvino/runtime/infer_request.hpp"
 
 struct TsfnContext {
-    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)), _ir(nullptr){};
 
     std::thread native_thread;
 
@@ -102,11 +102,8 @@ public:
     /** @brief  Checks incoming Napi::Value and calls overloaded infer() method */
     Napi::Value infer_dispatch(const Napi::CallbackInfo& info);
 
-// 128760
-#ifndef _WIN32
     /** @brief  Checks incoming Napi::Value and asynchronously returns the result of inference. */
     Napi::Value infer_async(const Napi::CallbackInfo& info);
-#endif
 
     /** @brief Infers specified inputs in synchronous mode.
      * @param inputs  An object with a collection of pairs key (input_name) and a value (tensor, tensor's data)

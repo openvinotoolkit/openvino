@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -296,7 +296,7 @@ function(ov_set_threading_interface_for TARGET_NAME)
                 if(include_directories)
                     foreach(include_directory IN LISTS include_directories)
                         # cannot include /usr/include headers as SYSTEM
-                        if(NOT "${include_directory}" MATCHES "^/usr.*$")
+                        if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
                             target_include_directories(${TARGET_NAME} SYSTEM
                                 ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
                         else()
@@ -314,12 +314,10 @@ function(ov_set_threading_interface_for TARGET_NAME)
         endif()
     endfunction()
 
-    set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
     set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (TBB_FOUND)
-            set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             set(OV_THREAD_DEFINE "OV_THREAD_TBB")
             _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
             target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
@@ -363,10 +361,9 @@ function(ov_set_threading_interface_for TARGET_NAME)
         endif ()
 
         if (NOT OMP_LIBRARIES_RELEASE)
-            message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${IE_THREAD_DEFINE} is defined")
+            message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${OV_THREAD_DEFINE} is defined")
             set(THREADING "SEQ" PARENT_SCOPE)
         else ()
-            set(IE_THREAD_DEFINE "IE_THREAD_OMP")
             set(OV_THREAD_DEFINE "OV_THREAD_OMP")
 
             if (WIN32)
@@ -396,7 +393,6 @@ function(ov_set_threading_interface_for TARGET_NAME)
         endif ()
     endif ()
 
-    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
     target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
 
     if (NOT THREADING STREQUAL "SEQ")
@@ -404,10 +400,3 @@ function(ov_set_threading_interface_for TARGET_NAME)
         _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
     endif()
 endfunction(ov_set_threading_interface_for)
-
-# deprecated
-
-function(set_ie_threading_interface_for TARGET_NAME)
-    message(WARNING "'set_ie_threading_interface_for' is deprecated. Please use 'ov_set_threading_interface_for' instead.")
-    ov_set_threading_interface_for(${TARGET_NAME})
-endfunction(set_ie_threading_interface_for)

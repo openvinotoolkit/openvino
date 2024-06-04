@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -69,7 +70,7 @@ static OutputVector translate_pad_base_op(const NodeContext& node,
 }
 
 OutputVector translate_pad_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Pad"}, true);
+    default_op_checks(node, 2, {"Pad", "PAD"}, true);
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
 
@@ -82,16 +83,43 @@ OutputVector translate_pad_op(const NodeContext& node) {
 }
 
 OutputVector translate_padv2_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"PadV2"});
+    default_op_checks(node, 3, {"PadV2", "PADV2"}, true);
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
     auto constant_value = node.get_input(2);
+    if (auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr())) {
+        input = complex_type_mark->input_value(0);
+        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
+
+        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        auto x_real = make_shared<v8::Gather>(input, gather_index_real, minus_one)->output(0);
+        auto x_imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
+
+        auto constant_complex_type_mark = as_type_ptr<ComplexTypeMark>(constant_value.get_node_shared_ptr());
+        auto constant_input = constant_complex_type_mark->input_value(0);
+        auto constant_value_real = make_shared<v8::Gather>(constant_input, gather_index_real, minus_one)->output(0);
+        auto constant_value_imag = make_shared<v8::Gather>(constant_input, gather_index_imag, minus_one)->output(0);
+
+        auto y_real = translate_pad_base_op(node, x_real, paddings, constant_value_real)[0];
+        auto y_imag = translate_pad_base_op(node, x_imag, paddings, constant_value_imag)[0];
+
+        auto real_unsqueeze = make_shared<v0::Unsqueeze>(y_real, minus_one);
+        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(y_imag, minus_one);
+
+        auto concat_result = make_shared<v0::Concat>(OutputVector{real_unsqueeze, imag_unsqueeze}, -1);
+
+        set_node_name(node.get_name(), concat_result);
+        auto complex_result = make_shared<ComplexTypeMark>(concat_result->output(0), complex_part_type);
+        return {complex_result};
+    }
 
     return translate_pad_base_op(node, input, paddings, constant_value);
 }
 
 OutputVector translate_mirror_pad_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"MirrorPad"});
+    default_op_checks(node, 2, {"MirrorPad", "MIRROR_PAD"});
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
 

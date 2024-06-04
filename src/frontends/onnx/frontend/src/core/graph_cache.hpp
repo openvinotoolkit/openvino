@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,9 @@
 
 #include "openvino/core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 /// \brief      GraphCache stores and provides access to ONNX graph initializers.
 class GraphCache {
 public:
@@ -49,5 +50,6 @@ public:
 private:
     std::map<std::string, ov::Output<ov::Node>> m_graph_cache_map;
 };
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

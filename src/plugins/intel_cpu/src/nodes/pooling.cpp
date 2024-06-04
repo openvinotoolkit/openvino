@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pooling.h"
 
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "fake_quantize.h"
-#include "conv.h"
-#include "concat.h"
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
@@ -248,8 +248,8 @@ void Pooling::initEffectiveAttributes(const Shape &inShape, const Shape &outShap
         int src = inDims[2 + i];
         int dst = outDims[2 + i];
 
-        int calc_dst = (src - (1 + (krn  - 1) * dil) + poolingAttrs.data_pad_begin[i]) / poolingAttrs.stride[i] + 1;
-        poolingAttrs.effective_pad_end[i] = (dst - calc_dst) * poolingAttrs.stride[i];
+        poolingAttrs.effective_pad_end[i] = (dst - 1) * poolingAttrs.stride[i] -
+                                            (src - (1 + (krn  - 1) * dil) + poolingAttrs.data_pad_begin[i]);
         poolingAttrs.effective_dilation[i] = dil - 1;
     }
 }
@@ -400,8 +400,8 @@ void Pooling::prepareParams() {
         }
     }
     if (useACL) {
-        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        auto dstMemPtr = getDstMemoryAtPort(0);
+        auto srcMemPtr = getSrcMemoryAtPort(0);
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             OPENVINO_THROW("Destination memory didn't allocate.");
         if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -409,11 +409,11 @@ void Pooling::prepareParams() {
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemoryDescs.push_back(getChildEdgeAt(i)->getMemoryPtr()->getDescPtr());
+            dstMemoryDescs.push_back(getDstMemoryAtPort(i)->getDescPtr());
         }
 
         execPtr = selected_pd->getExecutorFactoryAs<PoolingExecutorFactory>()->makeExecutor(poolingAttrs,
@@ -422,8 +422,8 @@ void Pooling::prepareParams() {
                                                                                             *attr);
         selected_pd->setImplementationType(execPtr->getImplType());
     } else {
-        auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
-        auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
+        auto inDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
+        auto outDesc = getChildEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
         if (isDynamicNode()) {
             initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
@@ -477,16 +477,14 @@ void Pooling::prepareParams() {
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
-        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
-        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+        primArgs[DNNL_ARG_SRC] = getSrcMemoryAtPort(0)->getPrimitive();
+        primArgs[DNNL_ARG_DST] = getDstMemoryAtPort(0)->getPrimitive();
 
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
 #ifdef CPU_DEBUG_CAPS
-        if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            auto pd = dnnlExecPtr->getPrimitiveDesc();
-            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-        }
+        auto pd = dnnlExecPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
     }
 }
@@ -497,11 +495,11 @@ void Pooling::execute(dnnl::stream strm) {
     } else if (execPtr) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+            srcMemory.push_back(getSrcMemoryAtPort(i));
         }
         std::vector<MemoryPtr> dstMemory;
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
+            dstMemory.push_back(getDstMemoryAtPort(i));
         }
 
         execPtr->exec(srcMemory, dstMemory, postOpsArgs);
@@ -623,6 +621,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         };
 
         pushDesc(LayoutType::ncsp);
+        pushDesc(LayoutType::nspc);
 
         return;
     }

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "tensor_lite_place.hpp"
 
-#include "quantization_info.hpp"
+#include "openvino/frontend/tensorflow_lite/quantization_info.hpp"
 #include "utils.hpp"
 
 void ov::frontend::tensorflow_lite::TensorLitePlace::translate(ov::Output<ov::Node>& output,

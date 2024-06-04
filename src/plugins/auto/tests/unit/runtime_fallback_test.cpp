@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,7 +162,7 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
                               _))
-            .WillByDefault(Throw(ov::Exception{"compile model error"}));
+            .WillByDefault(ov::Throw("compile model error"));
     }
     for (auto& deviceInfo : targetDevices) {
         std::string deviceName;
@@ -175,7 +175,9 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                                                                                              mockExecutor,
                                                                                              nullptr,
                                                                                              ifThrow);
-            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault(Return(mockInferrequest));
+            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
+                return mockInferrequest;
+            });
         } else if (deviceName == "GPU.0") {
             mockInferrequestGPU_0 =
                 std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalActual,
@@ -193,7 +195,7 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                                                                                   mockExecutorGPU_1,
                                                                                   nullptr,
                                                                                   ifThrow);
-                ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request()).WillByDefault(Throw(ov::Exception{"error"}));
+                ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request()).WillByDefault(ov::Throw("error"));
             } else {
                 mockInferrequestGPU_1 =
                     std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalGPU_1,
@@ -315,7 +317,7 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
                               _))
-            .WillByDefault(Throw(ov::Exception{"compile model error"}));
+            .WillByDefault(ov::Throw("compile model error"));
     }
     for (auto& deviceInfo : targetDevices) {
         std::string deviceName;
@@ -328,7 +330,9 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
                                                                                              mockExecutor,
                                                                                              nullptr,
                                                                                              ifThrow);
-            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault(Return(mockInferrequest));
+            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
+                return mockInferrequest;
+            });
         } else if (deviceName == "GPU.0") {
             mockInferrequestGPU_0 =
                 std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalActual,
@@ -346,7 +350,7 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
                                                                                   mockExecutorGPU_1,
                                                                                   nullptr,
                                                                                   ifThrow);
-                ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request()).WillByDefault(Throw(ov::Exception{"error"}));
+                ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request()).WillByDefault(ov::Throw("error"));
             } else {
                 mockInferrequestGPU_1 =
                     std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalGPU_1,

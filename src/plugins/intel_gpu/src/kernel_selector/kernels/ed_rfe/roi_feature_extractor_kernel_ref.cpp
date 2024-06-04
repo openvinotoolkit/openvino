@@ -95,7 +95,7 @@ JitConstants ExperimentalDetectronROIFeatureExtractorRef::GetJitConstants(const 
     return jit;
 }
 
-KernelsData ExperimentalDetectronROIFeatureExtractorRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ExperimentalDetectronROIFeatureExtractorRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR);
     const experimental_detectron_roi_feature_extractor_params& org_params = static_cast<const experimental_detectron_roi_feature_extractor_params&>(params);
 
@@ -107,7 +107,7 @@ KernelsData ExperimentalDetectronROIFeatureExtractorRef::GetKernelsData(const Pa
     KernelData kd = KernelData::Default<experimental_detectron_roi_feature_extractor_params>(params);
 
     auto cldnn_jit = GetJitConstants(org_params);
-    auto entry_point = GetEntryPoint(kernelName, org_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, org_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -115,7 +115,7 @@ KernelsData ExperimentalDetectronROIFeatureExtractorRef::GetKernelsData(const Pa
     return {kd};
 }
 
-KernelsPriority ExperimentalDetectronROIFeatureExtractorRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ExperimentalDetectronROIFeatureExtractorRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 

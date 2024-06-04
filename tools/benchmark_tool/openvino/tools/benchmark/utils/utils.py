@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
@@ -468,6 +468,8 @@ def get_command_line_arguments(argv):
     arg_value = ''
     for arg in argv[1:]:
         if '=' in arg:
+            if arg_name != '':
+                parameters.append((arg_name, arg_value))
             arg_name, arg_value = arg.split('=')
             parameters.append((arg_name, arg_value))
             arg_name = ''

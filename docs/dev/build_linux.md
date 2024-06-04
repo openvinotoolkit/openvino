@@ -7,7 +7,7 @@ The software was validated on:
 
 > **NOTE**: To build on CentOS 7 (64-bit), refer to [Building OpenVINO on CentOS 7 Guide](https://github.com/openvinotoolkit/openvino/wiki/Building-OpenVINO-on-CentOS-7-Guide)
 
-## Software requirements 
+## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
@@ -37,9 +37,6 @@ The software was validated on:
 2. Install build dependencies using the `install_build_dependencies.sh` script in the
    project root folder.
    ```sh
-   chmod +x install_build_dependencies.sh
-   ```
-   ```sh
    sudo ./install_build_dependencies.sh
    ```
 
@@ -53,7 +50,10 @@ The software was validated on:
      cmake -DCMAKE_BUILD_TYPE=Release ..
      cmake --build . --parallel
    ```
-The process may take some time to finish.
+   The process may take some time to finish. If you are using a system with limited resources, it is recommended to specify a lower number of parallel jobs to avoid overloading your system. This can help maintain system responsiveness and stability during the build process. Use `nproc` to find the number of available processing units. For example, to use 8 parallel jobs, run the following command:
+      ```sh
+      cmake --build . --parallel 8
+      ```
 
 ### Additional Build Options
 
@@ -76,7 +76,7 @@ You can use the following additional build options:
      ```sh
      pip install -r <openvino source tree>/src/bindings/python/wheel/requirements-dev.txt
      ```
-  3. After the build process finishes, export the newly built Python libraries to the user environment variables: 
+  3. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
      export PYTHONPATH=<openvino_repo>/bin/intel64/Release/python:$PYTHONPATH
      export LD_LIBRARY_PATH=<openvino_repo>/bin/intel64/Release:$LD_LIBRARY_PATH

@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pass_manager.h"
 #include "data_inst.h"
-#include "mutable_data_inst.h"
 #include "fully_connected_inst.h"
 #include "gemm_inst.h"
 #include "program_node.h"

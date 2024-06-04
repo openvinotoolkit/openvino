@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cpu_memory.h>
-#include <cpu_shape.h>
-
-#include "openvino/core/coordinate_diff.hpp"
-#include "openvino/core/node.hpp"
+#include <openvino/core/node.hpp>
+#include <openvino/core/coordinate_diff.hpp>
 #include "shape_inference_status.hpp"
 
 namespace ov {

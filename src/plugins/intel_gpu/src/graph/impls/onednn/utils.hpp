@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,8 @@
 #include <intel_gpu/runtime/engine.hpp>
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/primitives/activation.hpp>
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/runtime/format.hpp"
 #include <data_inst.h>
 
 namespace cldnn {
@@ -26,6 +28,7 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims = 2, bool is_grou
 dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed);
 dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims = 2);
 dnnl::memory::dims flatten_tensor(cldnn::tensor t);
+dnnl::memory::dims get_strides(dnnl::memory::dims dims);
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt);
 dnnl::memory::format_tag convert_data_format(cldnn::format fmt);
 cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
@@ -36,12 +39,27 @@ std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc);
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 cldnn::format find_data_format(dnnl::memory::desc desc);
 dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
-
+cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& desc, bool is_weights = false, bool is_grouped = false);
 int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);
+bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc);
 
 // Check if data node is per-tensor
 template <typename T>
 bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val);
+
+struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
+    WeightsReorderParamsOneDNN(const layout& in_layout,
+                               const layout& out_layout,
+                               const dnnl::memory::desc& in_desc,
+                               const dnnl::memory::desc& out_desc,
+                               bool transposed, bool grouped = false)
+        : WeightsReorderParams(in_layout, out_layout, transposed, grouped)
+        , _in_desc(in_desc)
+        , _out_desc(out_desc) {}
+
+    dnnl::memory::desc _in_desc;
+    dnnl::memory::desc _out_desc;
+};
 
 }  // namespace onednn
 }  // namespace cldnn

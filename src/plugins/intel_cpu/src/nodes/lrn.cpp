@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -161,8 +161,8 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc &prim_
 }
 
 void Lrn::prepareParams() {
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW(errorPrefix, " input memory did not allocate");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -214,10 +214,8 @@ void Lrn::prepareParams() {
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        auto pd = execPtr->getPrimitiveDesc();
-        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-    }
+    auto pd = execPtr->getPrimitiveDesc();
+    DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
 

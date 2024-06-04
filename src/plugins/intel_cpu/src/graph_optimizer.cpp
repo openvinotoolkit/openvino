@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -196,6 +196,9 @@ void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph &graph) {
     MergeTransposeAndReorder(graph);
     graph.RemoveDroppedNodes();
 
+    MergeReorderAndTranspose(graph);
+    graph.RemoveDroppedNodes();
+
     graph.RemoveDroppedEdges();
 }
 
@@ -206,8 +209,8 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         if (node->getType() != Type::Eltwise || node->getAlgorithm() != Algorithm::EltwiseMultiply) {
             return false;
         }
-        auto parentNode = node->getParentEdgesAtPort(0)[0]->getParent();
-        auto scaleNode = node->getParentEdgesAtPort(1)[0]->getParent();
+        auto parentNode = node->getParentEdgeAt(0)->getParent();
+        auto scaleNode = node->getParentEdgeAt(1)->getParent();
         if (!(parentNode->getType() == Type::Convolution
                         || parentNode->getType() == Type::MatMul
                         || parentNode->getType() == Type::Deconvolution
@@ -271,14 +274,14 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvMatmulFCDeconvAndDQScales);
 
-        auto node = mul->getParentEdgesAtPort(0)[0]->getParent();
-        auto scales = mul->getParentEdgesAtPort(1)[0]->getParent();
+        auto node = mul->getParentEdgeAt(0)->getParent();
+        auto scales = mul->getParentEdgeAt(1)->getParent();
         if (!scaleDimsCheck(node, scales)) continue;
 
         if (initializeDeQuantizedScales(node, scales)) {
             DEBUG_LOG("GraphOptimizer##FusingDQ: Node ##", mul->getName(), " optimized as DQ scales of Node ##", node->getName());
             node->addOriginalLayer(mul->getOriginalLayers());
-            auto p_edge = mul->getParentEdgesAtPort(1)[0];
+            auto p_edge = mul->getParentEdgeAt(1);
             graph.RemoveEdge(p_edge);
             graph.DropNode(mul);
         }
@@ -286,101 +289,100 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
-    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8, ov::element::nf4, ov::element::u4, ov::element::i4};
+    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8, ov::element::i8, ov::element::nf4, ov::element::u4, ov::element::i4};
     const std::set<ov::element::Type> supportedDataPrecisions{ov::element::f32, ov::element::bf16};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
     };
+
+#define SKIP_FUSION_FOR_NODE(node)                                                   \
+    DEBUG_LOG("FuseFCAndWeightsDecompression can't be applied for node ", node->getName()); \
+    continue
 
     if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2))
         return;
 
     auto& graphNodes = graph.GetNodes();
     for (size_t i = 0; i < graphNodes.size(); i++) {
-        const auto fcNode = dynamic_cast<node::FullyConnected*>(graphNodes[i].get());
+        const auto fcNode = std::dynamic_pointer_cast<node::FullyConnected>(graphNodes[i]);
         if (fcNode == nullptr)
             continue;
 
-        auto parent = fcNode->getParentEdgesAtPort(1)[0]->getParent();
+        auto parent = fcNode->getParentEdgeAt(1)->getParent();
         const bool withTranspose = parent->getType() == Type::Transpose;
         const NodePtr transposeNode = withTranspose ? parent : nullptr;
         if (transposeNode)
-            parent = transposeNode->getParentEdgesAtPort(0)[0]->getParent();
+            parent = transposeNode->getParentEdgeAt(0)->getParent();
+        // Compressed weights can be shared between several FC layers
+        const bool is_shared_decompression = parent->getChildEdges().size() > 1;
 
         const bool withReshape = parent->getType() == Type::Reshape;
         const auto reshapeNode = withReshape ? parent : nullptr;
         if (reshapeNode) {
-            parent = reshapeNode->getParentEdgesAtPort(0)[0]->getParent();
+            parent = reshapeNode->getParentEdgeAt(0)->getParent();
         }
 
         const auto multiplyNode = parent;
-        if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply ||
-            !multiplyNode->isConstant())
-            continue;
+        if (multiplyNode->getType() != Type::Eltwise || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply ||
+            !multiplyNode->isConstant()) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndWeightsDecompression);
-        const auto multiplyConstNode = multiplyNode->getParentEdgesAtPort(1)[0]->getParent();
-        if (!expectedNode(multiplyConstNode, Type::Input))
-            continue;
+        const auto multiplyConstNode = multiplyNode->getParentEdgeAt(1)->getParent();
+        if (multiplyConstNode->getType() != Type::Input) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
 
-        const auto mulParent = multiplyNode->getParentEdgesAtPort(0)[0]->getParent();
+        const auto mulParent = multiplyNode->getParentEdgeAt(0)->getParent();
         const bool withSubtract = mulParent->getAlgorithm() == Algorithm::EltwiseSubtract;
         NodePtr subtractNode, subtractConvertNode, subtractConstNode;
         if (withSubtract) {
             subtractNode = mulParent;
-            if (!expectedNode(subtractNode, Type::Eltwise))
-                continue;
-            auto subtractParent = subtractNode->getParentEdgesAtPort(1)[0]->getParent();
-            if (expectedNode(subtractParent, Type::Convert)) {
+            if (!expectedNode(subtractNode, Type::Eltwise)) {
+                SKIP_FUSION_FOR_NODE(fcNode);
+            }
+            auto subtractParent = subtractNode->getParentEdgeAt(1)->getParent();
+            if (subtractParent->getType() == Type::Convert) {
                 subtractConvertNode = subtractParent;
-                subtractParent = subtractConvertNode->getParentEdgesAtPort(0)[0]->getParent();
+                subtractParent = subtractConvertNode->getParentEdgeAt(0)->getParent();
             }
             subtractConstNode = subtractParent;
-            if (!expectedNode(subtractConstNode, Type::Input))
-                continue;
+            if (subtractConstNode->getType() != Type::Input) {
+                SKIP_FUSION_FOR_NODE(fcNode);
+            }
         }
 
         const bool withSubtractConvert = subtractConvertNode != nullptr;
-        const bool withPowerStatic = mulParent->getAlgorithm() == Algorithm::EltwisePowerStatic;
-        NodePtr powerStaticNode;
-        if (withPowerStatic) {
-            powerStaticNode = mulParent;
-            if (auto *eltwiseNode = dynamic_cast<node::Eltwise *>(powerStaticNode.get())) {
-                if (eltwiseNode->getAlpha() != 1 || eltwiseNode->getBeta() != 1)
-                    continue;
-            } else {
-                continue;
-            }
+        const auto convertNode = withSubtract ? subtractNode->getParentEdgeAt(0)->getParent() : mulParent;
+        if (!expectedNode(convertNode, Type::Convert)) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
+        const auto weightsNode = convertNode->getParentEdgeAt(0)->getParent();
+        if (weightsNode->getType() != Type::Input) {
+            SKIP_FUSION_FOR_NODE(fcNode);
         }
 
-        // Both operations fallbacks on IP zero-point attribute and cannot be combined
-        if (withSubtract && withPowerStatic)
-            continue;
-
-        auto convertNode = mulParent;
-        if (withSubtract)
-            convertNode = subtractNode->getParentEdgesAtPort(0)[0]->getParent();
-        if (withPowerStatic)
-            convertNode = powerStaticNode->getParentEdgesAtPort(0)[0]->getParent();
-
-        if (!expectedNode(convertNode, Type::Convert))
-            continue;
-        const auto weightsNode = convertNode->getParentEdgesAtPort(0)[0]->getParent();
-        if (!expectedNode(weightsNode, Type::Input))
-            continue;
-
         // Precision limitations
-        if (supportedDataPrecisions.find(fcNode->getOriginalInputPrecisionAtPort(0)) == supportedDataPrecisions.end())
-            continue;
-        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
-            continue;
+        if (supportedDataPrecisions.find(fcNode->getOriginalInputPrecisionAtPort(0)) == supportedDataPrecisions.end()) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
+        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end()) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
+        if (withSubtract &&
+            !one_of(subtractConstNode->getOriginalOutputPrecisionAtPort(0), weightsNode->getOriginalOutputPrecisionAtPort(0), ov::element::f32)) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
 
         // Shape limitations
         const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
-        if (weightsShape != multiplyNode->getOutputShapeAtPort(0))
-            continue;
-        if (reshapeNode && (reshapeNode->getInputShapeAtPort(0).getRank() != 3 || reshapeNode->getOutputShapeAtPort(0).getRank() != 2))
-            continue;
+        if (weightsShape != multiplyNode->getOutputShapeAtPort(0)) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
+        if (reshapeNode && (reshapeNode->getInputShapeAtPort(0).getRank() != 3 || reshapeNode->getOutputShapeAtPort(0).getRank() != 2)) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
 
         VectorDims decompressionConstShape;
         const auto fcInputWeightsShape = fcNode->getInputShapeAtPort(1);
@@ -407,92 +409,58 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
             if (shape_to_check.size() > decompressionConstShape.size())
                 return false;
+            if (std::all_of(shape_to_check.begin(), shape_to_check.end(), [](Dim x) { return x == 1; }))
+                return true;
             const auto comparison_start_pos = decompressionConstShape.size() - shape_to_check.size();
             // in case of different ranks shapes are compared taking into account ranks numpy broadcasting
             return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin() + comparison_start_pos);
         };
-        if (!check_decompression_shape(multiplyConstNode->getOutputShapeAtPort(0).getDims()))
-            continue;
-        if (withSubtract && !check_decompression_shape(subtractConstNode->getOutputShapeAtPort(0).getDims()))
-            continue;
+        if (!check_decompression_shape(multiplyConstNode->getOutputShapeAtPort(0).getDims())) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
+        if (withSubtract && !check_decompression_shape(subtractConstNode->getOutputShapeAtPort(0).getDims())) {
+            SKIP_FUSION_FOR_NODE(fcNode);
+        }
 
+        const size_t OC = fcInputWeightsShape.getDims()[0];
+        const size_t IC = fcInputWeightsShape.getDims()[1];
         // HW specific shape limitations
         if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) &&
             fcNode->getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a current solution conditions below are copied
             // from OneDNN to make sure correct IP impl will be used since fallback one doesn't support weights decompression feature.
-            size_t OC = fcInputWeightsShape.getDims()[0];
-            size_t IC = fcInputWeightsShape.getDims()[1];
             size_t simdWidth = 16;
             size_t vnniFactor = 2;
             size_t maxSize = 512;
             auto amxRow = vnniFactor * simdWidth;
 
-            if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0))
-                continue;
+            if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
+                SKIP_FUSION_FOR_NODE(fcNode);
+            }
         }
 
-        size_t IC = fcInputWeightsShape.getDims()[1];
         // OneDNN IP primitive provides limited decompression params support
-        if (IC % groupNum != 0 || IC / groupNum < 4) {
-            continue;
+        if (IC % groupNum != 0 || IC / groupNum < 4 || OC == 1) {
+            SKIP_FUSION_FOR_NODE(fcNode);
         }
 
         // Fusion processing
         auto *multiplyInputNode = dynamic_cast<node::Input *>(multiplyConstNode.get());
-        if (!multiplyInputNode) {
-            OPENVINO_THROW("Cannot cast ", multiplyInputNode->getName(), " to Input node.");
-        }
+        OPENVINO_ASSERT(multiplyInputNode, "Cannot cast ", multiplyConstNode->getName(), " to Input node.");
         fcNode->fuseDecompressionMultiply(multiplyInputNode->getMemoryPtr());
 
         if (withSubtract) {
             auto *subtractInputNode = dynamic_cast<node::Input *>(subtractConstNode.get());
-            if (!subtractInputNode) {
-                OPENVINO_THROW("Cannot cast ", subtractInputNode->getName(), " to Input node.");
-            }
+            OPENVINO_ASSERT(multiplyInputNode, "Cannot cast ", subtractConstNode->getName(), " to Input node.");
             fcNode->fuseDecompressionSubtract(subtractInputNode->getMemoryPtr());
-        }
-        if (withPowerStatic) {
-            auto *eltwiseNode = dynamic_cast<node::Eltwise *>(powerStaticNode.get());
-            if (!eltwiseNode) {
-                OPENVINO_THROW("Cannot cast ", eltwiseNode->getName(), " to Eltwise node.");
-            }
-
-            VectorDims memoryDims(decompressionConstShape.size(), 1);
-            CpuBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(memoryDims));
-            auto memory = std::make_shared<Memory>(graph.getEngine(), memoryDesc, nullptr, false);
-            (static_cast<float *>(memory->getData()))[0] = -1.f * eltwiseNode->getGamma();
-            fcNode->fuseDecompressionSubtract(memory);
         }
 
         fcNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         fcNode->addOriginalLayer(convertNode->getOriginalLayers());
-
-        if (withSubtractConvert) {
-            fcNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
-            auto subtractConvertEdge = subtractConvertNode->getChildEdges()[0].lock();
-            graph.RemoveEdge(subtractConvertEdge);
-        }
-        if (withSubtract) {
-            fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
-            auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
-            graph.RemoveEdge(subtractConstEdge);
-        }
-        if (withPowerStatic) {
-            fcNode->addOriginalLayer(powerStaticNode->getOriginalLayers());
-        }
-
-        auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
-        graph.RemoveEdge(multiplyConstEdge);
-
-        graph.DropNode(convertNode);
-        if (withSubtractConvert)
-            graph.DropNode(subtractConvertNode);
         if (withSubtract)
-            graph.DropNode(subtractNode);
-        if (withPowerStatic)
-            graph.DropNode(powerStaticNode);
-        graph.DropNode(multiplyNode);
+            fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
+        if (withSubtractConvert)
+            fcNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
 
         const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
         if (withTranspose) {
@@ -504,7 +472,54 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             reshapeNode->setOriginalOutputPrecisionAtPort(0, weightsPrecision);
         }
         fcNode->setOriginalInputPrecisionAtPort(1, weightsPrecision);
+
+        // If decompression subgraph is shared with other nodes, it mustn't be removed.
+        // In this case, the current FC is reconnected to the weights
+        if (is_shared_decompression) {
+            const auto weights_out_edge = weightsNode->getChildEdges()[0].lock();
+            const auto fc_weights_path_edge = withTranspose ? transposeNode->getParentEdgeAt(0)
+                                                            : fcNode->getParentEdgeAt(1);
+            const auto inNum = weights_out_edge->getInputNum();
+            const auto outNum = fc_weights_path_edge->getOutputNum();
+            graph.RemoveEdge(fc_weights_path_edge);
+            // In case of shared group decompression, Reshape node has to be copied for the current FC
+            if (withReshape) {
+                const auto& reshapeOutShape = reshapeNode->getOutputShapeAtPort(0).getStaticDims();
+                auto reshapeConst = std::make_shared<ov::opset1::Constant>(ov::element::i32,
+                                                                           ov::Shape{reshapeOutShape.size()},
+                                                                           reshapeOutShape);
+                auto reshapeDummyInput = std::make_shared<ov::opset1::Parameter>(reshapeNode->getOriginalInputPrecisionAtPort(0),
+                                                                                 reshapeNode->getInputShapeAtPort(0).toPartialShape());
+                const auto reshape = std::make_shared<ov::opset1::Reshape>(reshapeDummyInput, reshapeConst, false);
+                reshape->set_friendly_name(reshapeNode->getName() + "_copy");
+                const auto cpuReshape = std::make_shared<ov::intel_cpu::node::Reshape>(reshape, graph.getGraphContext());
+                graph.InsertNode(weightsNode, withTranspose ? transposeNode : fcNode, cpuReshape, inNum, outNum, false);
+                const auto cpuReshapeConst = std::make_shared<node::Input>(reshapeConst, graph.getGraphContext());
+                graph.AddNode(cpuReshapeConst);
+                graph.CreateEdge(cpuReshapeConst, cpuReshape, 0, 1);
+            } else {
+                graph.CreateEdge(weightsNode, withTranspose ? transposeNode : fcNode, inNum, outNum);
+            }
+        } else {
+            // If decompression subgraph is not shared with other nodes, it can be removed
+            if (withSubtract)
+                graph.RemoveEdge(subtractNode->getParentEdgeAt(1));
+            if (withSubtractConvert) {
+                // SubtractConvert is removed only if there are no other consumers (e.g. CompressedGather)
+                const auto& restChilds = subtractConvertNode->getChildEdges();
+                if (restChilds.empty())
+                    graph.RemoveEdge(subtractConvertNode->getParentEdgeAt(0));
+            }
+            graph.RemoveEdge(multiplyNode->getParentEdgeAt(1));
+
+            graph.DropNode(convertNode);
+            if (withSubtract)
+                graph.DropNode(subtractNode);
+            graph.DropNode(multiplyNode);
+        }
+        DEBUG_LOG("FuseFCAndWeightsDecompression finished for node ", fcNode->getName());
     }
+#undef SKIP_FUSION_FOR_NODE
 }
 
 void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
@@ -532,8 +547,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
             || childNode->getParentEdges().size() != 2)
             return false;
 
-        auto biasPort = childNode->getParentEdgesAtPort(0)[0]->getParent() == parentNode ? 1 : 0;
-        const auto biasNode = childNode->getParentEdgesAtPort(biasPort)[0]->getParent();
+        auto biasPort = childNode->getParentEdgeAt(0)->getParent() == parentNode ? 1 : 0;
+        const auto biasNode = childNode->getParentEdgeAt(biasPort)->getParent();
         if (biasNode->getType() != Type::Input || !biasNode->isConstant() || biasNode->getChildEdges().size() != 1)
             return false;
 
@@ -573,7 +588,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
 
         auto childs = childNode->childEdges;
         auto parents = childNode->parentEdges;
-        const auto biasPort = childNode->getParentEdgesAtPort(0)[0]->getParent() == parentNode ? 1 : 0;
+        const auto biasPort = childNode->getParentEdgeAt(0)->getParent() == parentNode ? 1 : 0;
 
         for (size_t i = 0; i < parents.size(); i++) {
             auto p_edge = parents[i].lock();
@@ -755,14 +770,14 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph &graph) {
             node->getParentEdges().size() != 2 || node->getChildEdges().size() != 1)
             return false;
 
-        return isSuitableSecondInput(node->getParentEdgesAtPort(1)[0]->getParent(), node->getInputShapeAtPort(0).getDims());
+        return isSuitableSecondInput(node->getParentEdgeAt(1)->getParent(), node->getInputShapeAtPort(0).getDims());
     };
 
     auto isSuitableChildNode = [&](const NodePtr& parentNode, const NodePtr& childNode) {
         if (childNode->getAlgorithm() != Algorithm::EltwiseAdd || !childNode->getFusedWith().empty() || childNode->getParentEdges().size() != 2)
             return false;
 
-        return isSuitableSecondInput(childNode->getParentEdgesAtPort(1)[0]->getParent(), childNode->getInputShapeAtPort(0).getDims()) &&
+        return isSuitableSecondInput(childNode->getParentEdgeAt(1)->getParent(), childNode->getInputShapeAtPort(0).getDims()) &&
                                      parentNode->canFuse(childNode);
     };
 
@@ -841,36 +856,35 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph &graph) {
 void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto isSuitableParentNode = [](NodePtr parentNode) {
-        return parentNode->getType() == Type::Convert && parentNode->getChildEdges().size() == 1 &&
-               (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::u8 ||
-                parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::i8) &&
-               parentNode->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
-    };
-
-    auto isSuitableChildNode = [](NodePtr childNode) {
-        return childNode->getType() == Type::Eltwise && childNode->getParentEdges().size() != 2;
-    };
-
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift);
         auto parentNode = *parent;
-        if (!isSuitableParentNode(parentNode)) {
+        if (parentNode->getType() != Type::Convert) {
             parent++;
             continue;
         }
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ParentNode);
-
-        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        if (!isSuitableChildNode(childNode)) {
+        const auto& childEdges = parentNode->getChildEdges();
+        if (childEdges.size() != 1) {
             parent++;
             continue;
         }
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ChildNode);
+        const auto edge = childEdges[0].lock();
+        auto childNode = edge->getChild();
+        if (childNode->getType() != Type::Eltwise) {
+            parent++;
+            continue;
+        }
 
-        auto parents = parentNode->parentEdges;
+        const auto eltwise = dynamic_cast<ov::intel_cpu::node::Eltwise*>(childNode.get());
+        if (!eltwise->canFuseParent(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        const auto parents = parentNode->parentEdges;
         for (size_t i = 0; i < parents.size(); i++) {
             auto p_edge = parents[i].lock();
             if (!p_edge) continue;
@@ -908,25 +922,28 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
     // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion handling based on internal logic
     // (e.g. fuse conversion with weights reordering)
     auto& graphNodes = graph.GetNodes();
+    for (const auto& fullyConnected : graphNodes) {
+        if (fullyConnected->getType() != Type::FullyConnected) {
+            continue;
+        }
+        const auto convert = fullyConnected->getParentEdgeAt(1)->getParent();
+        if (convert->getType() != Type::Convert ||
+            !one_of(convert->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) ||
+            !one_of(convert->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16) ||
+            !convert->isConstant()) {
+            continue;
+        }
 
-    auto isSuitablePattern = [](NodePtr parent) {
-        bool res = true && parent->getType() == Type::Convert
-                        && parent->getChildEdges().size() == 1
-                        && parent->getChildEdgeAt(0)->getOutputNum() == 1
-                        && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
-                        && one_of(parent->getOriginalInputPrecisionAtPort(0), ov::element::f16)
-                        && one_of(parent->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16)
-                        && parent->isConstant();
-        return res;
-    };
-
-    for (auto parent : graphNodes) {
-        if (isSuitablePattern(parent)) {
-            CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndConvertOnWeights);
-            auto childNode = parent->getChildEdgeAt(0)->getChild();
-            // set correct weight precision
-            childNode->setOriginalInputPrecisionAtPort(1, parent->getOriginalInputPrecisionAtPort(0));
-            graph.DropNode(parent);
+        const auto weights = convert->getParentEdgeAt(0)->getParent();
+        const auto weights_out_edge = weights->getChildEdges()[0].lock();
+        const auto fc_weights_path_edge = fullyConnected->getParentEdgeAt(1);
+        const auto inNum = weights_out_edge->getInputNum();
+        const auto outNum = fc_weights_path_edge->getOutputNum();
+        fullyConnected->setOriginalInputPrecisionAtPort(1, convert->getOriginalInputPrecisionAtPort(0));
+        graph.RemoveEdge(fc_weights_path_edge);
+        graph.CreateEdge(weights, fullyConnected, inNum, outNum);
+        if (convert->getChildEdges().empty()) {
+            graph.DropNode(convert);
         }
     }
 }
@@ -1001,7 +1018,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (parent0->getParentEdges().size() != 2)
             return false;
 
-        auto subtractArg1 = parent0->getParentEdgesAtPort(1)[0]->getParent();
+        auto subtractArg1 = parent0->getParentEdgeAt(1)->getParent();
         if (subtractArg1->getType() != Type::Input || !subtractArg1->isConstant())
             return false;
 
@@ -1057,7 +1074,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (convNode->legacyOutputCompensation.empty())
             convNode->legacyOutputCompensation.resize(convNode->getOutputShapeAtPort(0).getDims()[1]);
 
-        auto weightsConstant = dynamic_cast<node::Input*>(convNode->getParentEdgesAtPort(1)[0]->getParent().get());
+        auto weightsConstant = dynamic_cast<node::Input*>(convNode->getParentEdgeAt(1)->getParent().get());
         if (!weightsConstant || !weightsConstant->isConstant())
             return;
 
@@ -1116,10 +1133,10 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndZeroPoints_ConvNode);
 
-        auto dataEltwise = conv->getParentEdgesAtPort(0)[0]->getParent();
-        auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
+        auto dataEltwise = conv->getParentEdgeAt(0)->getParent();
+        auto weightsEltwise = conv->getParentEdgeAt(1)->getParent();
         if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
-            auto p_edge = dataEltwise->getParentEdgesAtPort(1)[0];
+            auto p_edge = dataEltwise->getParentEdgeAt(1);
             DEBUG_LOG("[GraphOptimizer##FusingZeorPoint]:Eltwise Subtract Node ##", dataEltwise->getName(),
                         " is optimized as zeropoint of Conv ##", conv->getName());
             graph.RemoveEdge(p_edge);
@@ -1239,14 +1256,18 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         const auto &paddings = conv->getPaddingL();
         const auto &inDims = node->getInputShapeAtPort(0).getDims();
         const auto &outDims = node->getOutputShapeAtPort(0).getDims();
-        bool isSupportedParams = conv->getGroupNum() == 1 &&
-                inDims.size() == 4 &&
-                dimsEqualStrong(inDims[inDims.size() - 1], outDims[outDims.size() - 1]) &&
-                dimsEqualStrong(inDims[inDims.size() - 2], outDims[outDims.size() - 2]) &&
-                is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
-                everyone_is(1u, strides[strides.size() - 1], strides[strides.size() - 2]) &&
-                everyone_is(0u, paddings[paddings.size() - 1], paddings[paddings.size() - 2]) &&
-                !conv->canBeExecutedInInt8();
+        bool isSupportedParams =
+            conv->getGroupNum() == 1 && inDims.size() == 4 &&
+            dimsEqualStrong(inDims[inDims.size() - 1], outDims[outDims.size() - 1]) &&
+            dimsEqualStrong(inDims[inDims.size() - 2], outDims[outDims.size() - 2]) &&
+            is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
+            everyone_is(1u,
+                        static_cast<unsigned int>(strides[strides.size() - 1]),
+                        static_cast<unsigned int>(strides[strides.size() - 2])) &&
+            everyone_is(0u,
+                        static_cast<unsigned int>(paddings[paddings.size() - 1]),
+                        static_cast<unsigned int>(paddings[paddings.size() - 2])) &&
+            !conv->canBeExecutedInInt8();
         if (!isSupportedParams) return false;
 
         return node->getChildEdges().size() == 1 && isConvolutionNode(node->getChildEdgeAt(0)->getChild());
@@ -1289,16 +1310,24 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
 
         const auto weightRank = convChild->getWeightDims().size();
         const auto stridesSize = convChild->getStride().size();
-        bool isSupportedParams = dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
-                                 convChild->outputShapes[0].getDims()[1] != 1 &&
-                                 everyone_is(3u, convChild->getWeightDims()[weightRank - 1], convChild->getWeightDims()[weightRank - 2]) &&
-                                 everyone_is(1u, convChild->getPaddingL()[stridesSize - 1], convChild->getPaddingL()[stridesSize - 2]) &&
-                                 everyone_is(1u, convChild->getPaddingR()[stridesSize - 1], convChild->getPaddingR()[stridesSize - 2]) &&
-                                 everyone_is(1u, convChild->getDilation()[stridesSize - 1] + 1, convChild->getDilation()[stridesSize - 2] + 1) &&
-                                 convChild->getStride()[stridesSize - 1] == convChild->getStride()[stridesSize - 2] &&
-                                 withBias &&
-                                 one_of(convChild->getStride()[stridesSize - 1], 1u, 2u) &&
-                                 childNode->getOutputShapeAtPort(0).getRank() == 4;
+        bool isSupportedParams =
+            dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
+            convChild->outputShapes[0].getDims()[1] != 1 &&
+            everyone_is(3u,
+                        static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 1]),
+                        static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 2])) &&
+            everyone_is(1u,
+                        static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 1]),
+                        static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 2])) &&
+            everyone_is(1u,
+                        static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 1]),
+                        static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 2])) &&
+            everyone_is(1u,
+                        static_cast<unsigned int>(convChild->getDilation()[stridesSize - 1] + 1),
+                        static_cast<unsigned int>(convChild->getDilation()[stridesSize - 2] + 1)) &&
+            convChild->getStride()[stridesSize - 1] == convChild->getStride()[stridesSize - 2] && withBias &&
+            one_of(convChild->getStride()[stridesSize - 1], 1u, 2u) &&
+            childNode->getOutputShapeAtPort(0).getRank() == 4;
 
         return isSupportedParams;
     };
@@ -1312,7 +1341,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         auto outDims = childNode->outputShapes[0].getStaticDims();
         int elemSize = childNode->getOriginalOutputPrecisionAtPort(0).size();
 
-        int L3_cache_size = utils::get_cache_size(3, false);
+        int L3_cache_size = dnnl::utils::get_cache_size(3, false);
         int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
         int dw_conv_output_size = outDims[0] * outDims[1]* outDims[2] * outDims[3] * elemSize;
 
@@ -1382,6 +1411,13 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
             parent++;
             continue;
         }
+
+#if defined(OV_CPU_WITH_ACL)
+        if (!parentNode->getFusedWith().empty()) {
+            parent++;
+            continue;
+        }
+#endif
 
         if (!DnnlExtensionUtils::isUnarySupportedAsPostOp(fuseCandidate->getAlgorithm())) {
             parent++;
@@ -1552,6 +1588,10 @@ static bool is_data_dependency(const std::shared_ptr<Node> &parent,
  */
 
 void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph) {
+#if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
+    return;
+#endif
+
     auto &graphNodes = graph.GetNodes();
 
     auto isFusingSupported = [&](NodePtr conv, NodePtr child) {
@@ -1570,8 +1610,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         if (!isSuitableNode)
             continue;
 
-        auto parent1 = graphNode->getParentEdgesAtPort(0)[0]->getParent();
-        auto parent2 = graphNode->getParentEdgesAtPort(1)[0]->getParent();
+        auto parent1 = graphNode->getParentEdgeAt(0)->getParent();
+        auto parent2 = graphNode->getParentEdgeAt(1)->getParent();
 
         bool isSuitableParent1 = parent1->getType() == Type::Convolution
                                     || parent1->getType() == Type::BinaryConvolution;
@@ -1650,8 +1690,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
                 return (branchPrecision == ov::element::i8) || (branchPrecision == ov::element::u8);
             };
 
-            const auto isBranch1Quantized = isBranchQuantized(graphNode->getParentEdgesAtPort(0)[0]->getParent());
-            const auto isBranch2Quantized = isBranchQuantized(graphNode->getParentEdgesAtPort(1)[0]->getParent());
+            const auto isBranch1Quantized = isBranchQuantized(graphNode->getParentEdgeAt(0)->getParent());
+            const auto isBranch2Quantized = isBranchQuantized(graphNode->getParentEdgeAt(1)->getParent());
             if (isBranch1Quantized || isBranch2Quantized) {
                 // INT8
                 const auto parent1CanBeMerged = parent1->getChildEdges().size() == 1ul;
@@ -1685,26 +1725,31 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
 
         // Disable fusing for Add with broadcasing in case of known data ranges. Add with brodcasting triggers
         // non-optimal code path inside Convolution node, so better to avoid fusing at all.
-        auto shape1 = sum->getInputShapeAtPort(0);
-        auto shape2 = sum->getInputShapeAtPort(1);
+        const auto& shape1 = sum->getInputShapeAtPort(0);
+        const auto& shape2 = sum->getInputShapeAtPort(1);
         if (shape1.getRank() != shape2.getRank())
             continue;
 
-        auto dims1 = shape1.getDims();
-        auto dims2 = shape2.getDims();
+        const auto& dims1 = shape1.getDims();
+        const auto& dims2 = shape2.getDims();
+        bool dynamic_bcast_pattern = false;
         for (size_t d = 2; d < shape1.getRank(); d++) {
             bool cond1 = (dims1[d] == Shape::UNDEFINED_DIM) && (dims2[d] == 1U);
             bool cond2 = (dims2[d] == Shape::UNDEFINED_DIM) && (dims1[d] == 1U);
             if (cond1 || cond2) {
-                continue;
+                dynamic_bcast_pattern = true;
+                break;
             }
+        }
+        if (dynamic_bcast_pattern) {
+            continue;
         }
 
         auto lastNode = sum;
 
         bool fuse_allowed = mergedConv->getChildEdges().size() == 1;
         for (size_t j = 0; fuse_allowed && j < mergedConv->getParentEdges().size(); j++)
-            if (mergedConv->getParentEdgesAtPort(j)[0]->getParent() == peerNode)
+            if (mergedConv->getParentEdgeAt(j)->getParent() == peerNode)
                 fuse_allowed = false;
 
         // Fused Conv+Sum prim will be used inplace. That's mean that input blob will
@@ -2091,6 +2136,69 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
     }
 }
 
+void GraphOptimizer::ShareReorders(Graph& graph) {
+    auto getSuitableReorder = [](NodePtr node) -> Reorder* {
+        if (node->getType() != Type::Reorder)
+            return nullptr;
+        Reorder* reorder = dynamic_cast<Reorder*>(node.get());
+        if (reorder == nullptr)
+            OPENVINO_THROW("Cannot get reorder layer ", node->getName());
+
+        // inplace children cannot be safely shared with each other
+        auto reorderConsumers = reorder->getChildEdgesAtPort(0);
+        if (std::any_of(reorderConsumers.begin(), reorderConsumers.end(), [](EdgePtr e) {
+                return e->inPlace(Edge::LOOK_DOWN);
+            }))
+            return nullptr;
+        return reorder;
+    };
+
+    std::set<NodePtr> dropped;
+    for (const auto& node : graph.GetNodes()) {
+        if (dropped.find(node) != dropped.end())
+            continue;
+
+        Reorder* reorder = getSuitableReorder(node);
+        if (!reorder)
+            continue;
+
+        // find shareable sibling
+        auto dataEdge = reorder->getParentEdgeAt(0);
+        auto parentNode = dataEdge->getParent();
+        auto parentPort = dataEdge->getInputNum();
+        for (auto& edge : parentNode->getChildEdgesAtPort(parentPort)) {
+            auto siblingNode = edge->getChild();
+            if (siblingNode == node)
+                continue;
+            Reorder* siblingReorder = getSuitableReorder(siblingNode);
+            if (!siblingReorder)
+                continue;
+            if (!reorder->getOutput().isCompatible(siblingReorder->getOutput()))
+                continue;
+
+            DEBUG_LOG(node->getName(), " is shared by ", siblingNode->getName());
+
+            // siblingReorder can share output with current reorder
+            for (auto pwEdge : siblingReorder->getParentEdges()) {
+                auto pEdge = pwEdge.lock();
+                if (pEdge)
+                    graph.RemoveEdge(pEdge);
+            }
+
+            for (auto pwEdge : siblingReorder->getChildEdges()) {
+                auto pEdge = pwEdge.lock();
+                if (pEdge) {
+                    graph.RemoveEdge(pEdge);
+                    if (pEdge->getInputNum() == 0)
+                        graph.CreateEdge(node, pEdge->getChild(), 0, pEdge->getOutputNum());
+                }
+            }
+
+            dropped.insert(siblingNode);
+        }
+    }
+}
+
 void GraphOptimizer::DropDoubleReorders(Graph &graph) {
     std::set<NodePtr> processed;
 
@@ -2106,10 +2214,10 @@ void GraphOptimizer::DropDoubleReorders(Graph &graph) {
             if (nn == nullptr)
                 OPENVINO_THROW("Cannot get reorder layer ", nextNode->getName());
 
-            NodePtr p = n->getParentEdgesAtPort(0)[0]->getParent();
-            NodePtr c = nn->getChildEdgesAtPort(0)[0]->getChild();
+            NodePtr p = n->getParentEdgeAt(0)->getParent();
+            NodePtr c = nn->getChildEdgeAt(0)->getChild();
 
-            auto oldEdgeNum = n->getParentEdgesAtPort(0)[0]->getInputNum();
+            auto oldEdgeNum = n->getParentEdgeAt(0)->getInputNum();
 
             graph.DropNode(node);
             graph.DropNode(nextNode);
@@ -2363,13 +2471,192 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
     }
 }
 
-void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
+bool GraphOptimizer::checkAscendingFinalOrder(const VectorDims& transposeOrder,
+                                              const VectorDims& layoutOrder,
+                                              const VectorDims& reorderInOrder,
+                                              const VectorDims& reorderOutOrder) {
+    if (transposeOrder.size() != layoutOrder.size() || layoutOrder.size() != reorderInOrder.size() ||
+        reorderInOrder.size() != reorderOutOrder.size()) {
+        return false;
+    }
+
+    // revLayoutOrder - reverse permutation for layoutOrder
+    auto revLayoutOrder = VectorDims(layoutOrder.size());
+    for (size_t i = 0; i < revLayoutOrder.size(); i++) {
+        revLayoutOrder[layoutOrder[i]] = i;
+    }
+
+    // newTransposeOrder - Transpose layout-aware permutation
+    auto newTransposeOrder = VectorDims(transposeOrder.size());
+    for (size_t i = 0; i < newTransposeOrder.size(); i++) {
+        newTransposeOrder[i] = layoutOrder[transposeOrder[revLayoutOrder[i]]];
+    }
+
+    // reorderOrder - Reorder layout-aware permutation
+    auto reorderOrder = VectorDims(reorderOutOrder.size());
+    for (size_t i = 0; i < reorderOrder.size(); i++) {
+        for (size_t j = 0; j < reorderOrder.size(); j++) {
+            if (reorderOutOrder[i] == reorderInOrder[j]) {
+                reorderOrder[i] = j;
+                continue;
+            }
+        }
+    }
+
+    // summaryOrder - resulting Transpose+Reorder permutation
+    auto summaryOrder = VectorDims(transposeOrder.size());
+    for (size_t i = 0; i < summaryOrder.size(); i++) {
+        summaryOrder[i] = reorderOrder[newTransposeOrder[i]];
+    }
+
+    // check that Transpose+Reorder is the identical permutation
+    for (size_t i = 0; i < summaryOrder.size(); i++) {
+        if (summaryOrder[i] != i) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void GraphOptimizer::mergeTransposeReshapeReorder(Graph& graph,
+                                                  const NodePtr& transposeNode,
+                                                  const NodePtr& reshapeNode,
+                                                  const NodePtr& reorderNode,
+                                                  const bool reverseOrder) {
+    const auto& parentNode = reverseOrder ? reorderNode : transposeNode;
+    const auto& childNode = reverseOrder ? transposeNode : reorderNode;
+    auto nodeBeforeSequence = parentNode->getParentEdgeAt(0)->getParent();
+    auto nodeBeforeSequencePort = parentNode->getParentEdgeAt(0)->getInputNum();
+    auto nodeAfterSequence = childNode->getChildEdgeAt(0)->getChild();
+
+    graph.RemoveEdge(transposeNode->getParentEdgeAt(1));
+    if (reshapeNode)
+        graph.RemoveEdge(reshapeNode->getParentEdgeAt(1));
+
+    // to prevent inPlace conflict we must check that the memory reference is unidirectional or
+    // inPlace memory is not used
+    const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
+    const auto& childEdges = childNode->getChildEdgesAtPort(0);
+
+    const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
+        return edge->inPlace(Edge::LOOK_DOWN);
+    });
+
+    // Note: this value must be computed before detaching nodes
+    bool isOptimized = !(parentInPlace && childInPlace);
+
+    // hold references to all children before dropping reorder_node
+    std::vector<std::pair<NodePtr, int>> reorderChildren;
+    for (auto ccEdge : childEdges)
+        reorderChildren.emplace_back(ccEdge->getChild(), ccEdge->getOutputNum());
+
+    // detach nodes from graph by remove all of their edges
+    // they will be removed in future graph.RemoveDroppedNodes() call
+    auto detachNode = [&](const std::shared_ptr<Node>& node) {
+        std::vector<EdgeWeakPtr> edges;
+        edges = node->getParentEdges();
+        for (auto& edge : edges)
+            graph.RemoveEdge(edge.lock());
+        edges = node->getChildEdges();
+        for (auto& edge : edges)
+            graph.RemoveEdge(edge.lock());
+    };
+    detachNode(transposeNode);
+    detachNode(reorderNode);
+    if (reshapeNode)
+        detachNode(reshapeNode);
+
+    auto reorderInDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
+    auto finalDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
+    auto reorderOutDesc = finalDesc->cloneWithNewPrecision(reorderInDesc->getPrecision());
+
+    std::vector<int> srcPerm;
+    auto* castedTranspose = dynamic_cast<Transpose*>(transposeNode.get());
+    OPENVINO_ASSERT(castedTranspose,
+                    "[CPU] parent node of type:",
+                    transposeNode->getTypeStr(),
+                    " with name: ",
+                    transposeNode->getName(),
+                    " is not a transpose node");
+
+    const auto& inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
+    const auto& outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
+    // Permutation must be set and reorder mustn't be optimized in 2 cases:
+    // 1. Transpose has blocked input & non-blocked output
+    // 2. Transpose and Reorder do opposite permutation to each other as expected,
+    //    but isOptimized is already set to false due to some preliminarily checks.
+    if (!isOptimized || inOrder.size() > outOrder.size()) {
+        isOptimized = false;
+        // inDesc should be permuted before calling reorder
+        auto& ord = castedTranspose->getOrder();
+        srcPerm = std::vector<int>(ord.size());
+        for (size_t i = 0; i < ord.size(); i++) {
+            srcPerm[ord[i]] = i;
+        }
+    }
+
+    std::string reorderName = nodeBeforeSequence->getName() + "_" + Reorder::getReorderArgs(*reorderInDesc, *reorderOutDesc);
+    if (isOptimized)
+         reorderName += "_fake";
+    DEBUG_LOG("mergeTransposeAndReorder ", parentNode->getName(), " and ", childNode->getName(), " -> ", reorderName);
+    auto reorder_layout = std::make_shared<node::Reorder>(*reorderInDesc, *reorderOutDesc, reorderName, graph.getGraphContext());
+    reorder_layout->setOptimized(isOptimized);
+    reorder_layout->setSrcPermutation(srcPerm);
+
+    graph.CreateEdge(nodeBeforeSequence, reorder_layout, nodeBeforeSequencePort, 0);
+
+    // If precisions don't match, another reorder must be inserted to perform conversion
+    auto reorder_last = reorder_layout;
+    if (reorderOutDesc->getPrecision() != finalDesc->getPrecision()) {
+        std::string reorderLayerName2 = reorder_layout->getName() + "_" +
+                                        Reorder::getReorderArgs(*reorderOutDesc, *finalDesc) + "_" +
+                                        nodeAfterSequence->getName();
+
+        reorder_last = std::make_shared<node::Reorder>(*reorderOutDesc,
+                                                        *finalDesc,
+                                                        reorderLayerName2,
+                                                        graph.getGraphContext());
+        reorder_last->setOptimized(false);
+        reorder_last->setSrcPermutation(srcPerm);
+        graph.CreateEdge(reorder_layout, reorder_last, 0, 0);
+    }
+
+    for (auto& cc : reorderChildren)
+        graph.CreateEdge(reorder_last, cc.first, 0, cc.second);
+
+    // initialize and add nodes into graph
+    std::vector<NodePtr> new_nodes;
+    new_nodes.push_back(reorder_layout);
+    if (reorder_last != reorder_layout) {
+        new_nodes.push_back(reorder_last);
+    }
+    for (auto& node : new_nodes)
+        graph.AddNode(node);
+
+    // multiple nodes must be initialized in specific order
+    for (auto& node : new_nodes)
+        node->init();
+    for (auto& node : new_nodes) {
+        node->getSupportedDescriptors();
+        node->initSupportedPrimitiveDescriptors();
+        node->filterSupportedPrimitiveDescriptors();
+    }
+    for (auto& node : new_nodes)
+        node->selectOptimalPrimitiveDescriptor();
+    for (auto& node : new_nodes)
+        node->resolveInPlaceDirection();
+    for (auto& node : new_nodes)
+        node->initOptimalPrimitiveDescriptor();
+}
+
+void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto isSuitableParentNode = [](NodePtr node) {
+    auto isSuitableTranspose = [](NodePtr node) {
         // WA: to avoid broken memory pointer for conv + sum
         auto prevNodeIsConvSum = [](NodePtr node) -> bool {
-            const auto parent = node->getParentEdgesAtPort(0)[0]->getParent();
+            const auto parent = node->getParentEdgeAt(0)->getParent();
             if (parent->getType() == Type::Convolution) {
                 for (const auto& fusedNode : parent->getFusedWith()) {
                     if (fusedNode->getAlgorithm() == Algorithm::EltwiseAdd) {
@@ -2389,23 +2676,105 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
                 && !prevNodeIsConvSum(node);
     };
 
-    auto isSuitableChildNode = [](NodePtr node) {
+    auto isSuitableReshape = [](NodePtr node) {
+        if (node->getChildEdges().size() != 1 || node->getOutputShapeAtPort(0).isDynamic() ||
+            node->getInputShapeAtPort(0).isDynamic())
+            return false;
+        // Reshape supported only in one case: if one of the input dims is split into 2 consecutive dims
+        const auto& inDims = node->getInputShapeAtPort(0).getDims();
+        const auto& outDims = node->getOutputShapeAtPort(0).getDims();
+        if (outDims.size() - inDims.size() != 1)
+            return false;
+
+        size_t mismatchCount = 0;
+        for (size_t i = 0; i < inDims.size(); ++i) {
+            if (i + mismatchCount >= outDims.size())
+                return false;
+            if (inDims[i] != outDims[i + mismatchCount]) {
+                mismatchCount++;
+            }
+        }
+        return mismatchCount == 1;
+    };
+
+    auto isSuitableReorder = [](NodePtr node) {
         return node->getType() == Type::Reorder
-                && node->getChildEdges().size() == 1
                 && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
-    // Method checkAscendingSummaryOrder() checks that after the sequential execution of Transpose and Reorder nodes,
-    // the order of the elements in the memory will not change. In other words, that Transpose+Reorder is identical permutation.
-    auto checkAscendingSummaryOrder = [](std::shared_ptr<Node> &parentNode, std::shared_ptr<Node> &childNode) -> bool {
-        auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
-        auto* reorderNode = dynamic_cast<Reorder*>(childNode.get());
-        if (!transposeNode || !reorderNode) {
-            return false;
+    auto updateOrder = [](const VectorDims& originalOrder, NodePtr reshape) {
+        if (!reshape)
+            return originalOrder;
+
+        // Further logic works with transpose order without Reshape.
+        // If there is a Reshape node, which splits one of the dimensions into 2 consecutive ones,
+        // the order must be updated as if Transpose is done after Reshape
+        // Example. For this sequence:
+        // [1,12,5] -> Transpose(0,2,1) -> Reshape(1,5,3,4) -> [1,5,3,4]
+        // updated order must be (0,3,1,2):
+        // - dim with idx=1 is split into 2 parts: 1 and 2
+        // - dim idxes which was greater then 1, increments by 1
+        const auto& reshapeInShape = reshape->getInputShapeAtPort(0).getDims();
+        const auto& reshapeOutShape = reshape->getOutputShapeAtPort(0).getDims();
+        const size_t splitDimIdx = [&]() {
+            for (size_t i = 0; i < reshapeInShape.size(); ++i) {
+                if (reshapeInShape[i] != reshapeOutShape[i]) {
+                    for (size_t j = 0; j < originalOrder.size(); ++j) {
+                        if (originalOrder[j] == i)
+                            return j;
+                    }
+                }
+            }
+            OPENVINO_THROW("splitDimIdx can not be found");
+        }();
+
+        auto transformedOrder = originalOrder;
+        auto insertIt = transformedOrder.end();
+        for (auto it = transformedOrder.begin(); it != transformedOrder.end(); ++it) {
+            auto& elem = *it;
+            if (elem > splitDimIdx) {
+                elem++;
+            } else if (elem == splitDimIdx) {
+                insertIt = it + 1;
+            }
+        }
+        transformedOrder.insert(insertIt, splitDimIdx + 1);
+        return transformedOrder;
+    };
+
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto parentNode = graphNodes[i];
+        if (!isSuitableTranspose(parentNode)) {
+            continue;
         }
 
-        auto& transposeOrder = transposeNode->getOrder();
-        auto layoutOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeTransposeAndReorder_ParentNode);
+
+        auto childNode = parentNode->getChildEdgesAtPort(0).front()->getChild();
+        NodePtr intermNode;
+        if (childNode->getType() == Type::Reshape) {
+            intermNode = childNode;
+            if (!isSuitableReshape(intermNode)) {
+                continue;
+            }
+            childNode = intermNode->getChildEdgesAtPort(0).front()->getChild();
+        }
+        if (!isSuitableReorder(childNode)) {
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeTransposeAndReorder_ChildNode);
+
+        const auto transposeNode = std::dynamic_pointer_cast<Transpose>(parentNode);
+        const auto reorderNode = std::dynamic_pointer_cast<Reorder>(childNode);
+        std::shared_ptr<Reshape> reshapeNode = intermNode != nullptr ? std::dynamic_pointer_cast<Reshape>(intermNode) : nullptr;
+        if (!transposeNode || !reorderNode || (intermNode && !reshapeNode)) {
+            continue;
+        }
+
+        auto transposeOrder = updateOrder(transposeNode->getOrder(), reshapeNode);
+        auto descBeforeReorder = reorderNode->getParentEdgeAt(0)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
+        auto layoutOrder = descBeforeReorder->as<BlockedMemoryDesc>()->getOrder();
 
         auto inBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
         auto outBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
@@ -2413,166 +2782,125 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         auto& inOrder = inBlockedDesc->getOrder();
         auto& outOrder = outBlockedDesc->getOrder();
 
-        if (transposeOrder.size() != layoutOrder.size() || layoutOrder.size() != inOrder.size() || inOrder.size() != outOrder.size()) {
-            return false;
+        if (checkAscendingFinalOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
+            mergeTransposeReshapeReorder(graph, transposeNode, reshapeNode, reorderNode, false);
         }
+    }
+}
 
-        // revLayoutOrder - reverse permutation for layoutOrder
-        auto revLayoutOrder = VectorDims(layoutOrder.size());
-        for (size_t i = 0; i < revLayoutOrder.size(); i++) {
-            revLayoutOrder[layoutOrder[i]] = i;
-        }
+void GraphOptimizer::MergeReorderAndTranspose(Graph &graph) {
+    auto& graphNodes = graph.GetNodes();
 
-        // newTransposeOrder - Transpose layout-aware permutation
-        auto newTransposeOrder = VectorDims(transposeOrder.size());
-        for (size_t i = 0; i < newTransposeOrder.size(); i++) {
-            newTransposeOrder[i] = layoutOrder[transposeOrder[revLayoutOrder[i]]];
-        }
-
-        // reorderOrder - Reorder layout-aware permutation
-        auto reorderOrder = VectorDims(outOrder.size());
-        for (size_t i = 0; i < reorderOrder.size(); i++) {
-            for (size_t j = 0; j < reorderOrder.size(); j++) {
-                if (outOrder[i] == inOrder[j]) {
-                    reorderOrder[i] = j;
-                    continue;
-                }
-            }
-        }
-
-        // summaryOrder - resulting Transpose+Reorder permutation
-        auto summaryOrder = VectorDims(transposeOrder.size());
-        for (size_t i = 0; i < summaryOrder.size(); i++) {
-            summaryOrder[i] = reorderOrder[newTransposeOrder[i]];
-        }
-
-        // check that Transpose+Reorder is the identical permutation
-        for (size_t i = 0; i < summaryOrder.size(); i++) {
-            if (summaryOrder[i] != i) {
-                return false;
-            }
-        }
-
-        return true;
+    auto isSuitableTranspose = [](NodePtr node) {
+        return node->getType() == Type::Transpose
+                && node->getChildEdges().size() == 1
+                && !node->isDynamicNode();
     };
 
-    // Transpose and Reorder do opposite permutation to each other.
-    // Example:
-    //      chain [physical layout: NCHW, logical layout: NCHW] -> Transpose(order=0312) -> [physical layout: NWCH, logical layout: NCHW] ->
-    //      Reorder(nchw->nhwc) -> [physical layout: NCHW, logical layout: NHWC] can be replaced with Reorder(nchw->nhwc; isOptimized=true)
-    //      which will just reinterprets layout without physical change of the memory.
-    // Two cases are possible:
-    //      1) inPrec = outPrec
-    //          In this case, we replace Transpose+Reorder pattern with a new Reorder that does nothing.
-    //      2) inPrec != outPrec
-    //          As in the first case, we also replace Transpose+Reorder pattern with a new Reorder.
-    //          Additionally, we insert another Reorder that performs the conversion from the input precision (inPrec)
-    //          to the output precision (outPrec)
-    auto mergeTransposeAndReorder = [&](std::shared_ptr<Node>& parentNode, std::shared_ptr<Node>& childNode) {
-        auto parentParentNode = parentNode->getParentEdgesAtPort(0)[0]->getParent();
-        auto parentParentConstNode = parentNode->getParentEdgesAtPort(1)[0]->getParent();
-        auto childChildNode = childNode->getChildEdgeAt(0)->getChild();
+    auto isSuitableReshape = [](NodePtr node) {
+        if (node->getChildEdges().size() != 1 || node->getOutputShapeAtPort(0).isDynamic() ||
+            node->getInputShapeAtPort(0).isDynamic())
+            return false;
+        // Reshape supported only in one case: if two consecutive input dims are merged into 1
+        const auto& inShape = node->getInputShapeAtPort(0).getDims();
+        const auto& outShape = node->getOutputShapeAtPort(0).getDims();
+        if (inShape.size() - outShape.size() != 1)
+            return false;
 
-        auto remEdge = parentNode->getParentEdgesAtPort(1)[0];
-        graph.RemoveEdge(remEdge);
-
-        // to prevent inPlace conflict we must check that the memory reference is unidirectional or
-        // inPlace memory is not used
-        const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
-        const auto& childEdges = childNode->getChildEdgesAtPort(0);
-        const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(),
-            [](const EdgePtr& edge){ return edge->inPlace(Edge::LOOK_DOWN); });
-
-        bool isOptimized = !(parentInPlace && childInPlace);
-
-        graph.DropNode(parentNode);
-        graph.DropNode(childNode);
-
-        auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
-        auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
-
-        auto inPrec = inDesc->getPrecision();
-        auto outPrec = outDesc->getPrecision();
-
-        auto reorderInDesc = inDesc;
-        auto reorderOutDesc = outDesc->cloneWithNewPrecision(inPrec);
-
-        std::string reorderlayerName = parentParentNode->getName() + "_" +
-                Reorder::getReorderArgs(*reorderInDesc, *reorderOutDesc) + "_" + "fake";
-
-        DEBUG_LOG("mergeTransposeAndReorder ", parentNode->getName(), " and ", childNode->getName(), " -> ", reorderlayerName);
-
-        EdgePtr edge;
-        for (auto &childEdge : parentParentNode->getChildEdges()) {
-            if (childEdge.lock()->getChild() == childChildNode) {
-                edge = childEdge.lock();
-                break;
+        size_t mismatchCount = 0;
+        for (size_t i = 0; i < outShape.size(); ++i) {
+            if (i + mismatchCount >= inShape.size())
+                return false;
+            if (outShape[i] != inShape[i + mismatchCount]) {
+                mismatchCount++;
             }
         }
-        if (!edge) {
-            OPENVINO_THROW("Transpose node '", parentNode->getName(), "' has invalid edges.");
-        }
+        return mismatchCount == 1;
+    };
 
-        std::vector<int> srcPerm;
-        auto configReorder = [&]() {
-            // case 1. transposeNode support blocked input & non-blocked output, in the case, the reorder
-            // cannot be optimized
-            // case 2. Transpose and Reorder do opposite permutation to each other as expected, but isOptimized is already set false
-            // due to some preliminarily checks. We need to reinterpret layout Transpose input without physical change of the memory.
-            auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
-            if (transposeNode == nullptr) {
-                OPENVINO_THROW("[CPU] parent node of type:",
-                               parentNode->getTypeStr(),
-                               " with name: ",
-                               parentNode->getName(),
-                               " is not a transpose node");
-            }
-            auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
-            auto outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
-            if (!isOptimized || inOrder.size() > outOrder.size()) {
-                isOptimized = false;
-                // inDesc should be permuted before calling reorder
-                auto & ord = transposeNode->getOrder();
-                srcPerm = std::vector<int>(ord.size());
-                for (size_t i = 0; i < ord.size(); i++) {
-                    srcPerm[ord[i]] = i;
+    auto isSuitableReorder = [](NodePtr node) {
+        return node->getType() == Type::Reorder && node->getChildEdges().size() == 1 && !node->isDynamicNode();
+    };
+
+    auto updateOrder = [](const VectorDims& originalOrder, NodePtr reshape) {
+        if (!reshape)
+            return originalOrder;
+
+        // Further logic works with order without Reshape.
+        // If there is Reshape node which merges 2 consecutive dims into one,
+        // the order must be updated as like Transpose is done before Reshape
+        // Example. For this sequence:
+        // [1,3,4,5] -> Reshape(1,12,5) -> Transpose(0,2,1) -> [1,5,12]
+        // updated order must be (0,3,1,2):
+        // - dim with idx=2 is split into 2 parts: 2 and 3
+        const auto& reshapeInShape = reshape->getInputShapeAtPort(0).getDims();
+        const auto& reshapeOutShape = reshape->getOutputShapeAtPort(0).getDims();
+        const size_t mergedDimIdx = [&]() {
+            for (size_t i = 0; i < reshapeInShape.size(); ++i) {
+                if (reshapeInShape[i] != reshapeOutShape[i]) {
+                    return i;
                 }
             }
-        };
+            OPENVINO_THROW("mergedDimIdx can not be found");
+        }();
 
-        configReorder();
-
-        auto reorderNode = graph.InsertReorder(edge, reorderlayerName, *reorderInDesc, *reorderOutDesc, isOptimized, srcPerm);
-
-        // case 2
-        if (inPrec != outPrec) {
-            auto reorderInDesc2 = reorderOutDesc;
-            auto reorderOutDesc2 = outDesc;
-
-            std::string reorderLayerName2 = reorderNode->getName() + "_" +
-                                    Reorder::getReorderArgs(*reorderInDesc2, *reorderOutDesc2) + "_" + childChildNode->getName();
-
-            graph.InsertReorder(reorderNode->getChildEdgeAt(0), reorderLayerName2, *reorderInDesc2, *reorderOutDesc2, false);
+        auto transformedOrder = originalOrder;
+        auto insertIt = transformedOrder.end();
+        for (auto it = transformedOrder.begin(); it != transformedOrder.end(); ++it) {
+            auto& elem = *it;
+            if (elem > mergedDimIdx) {
+                elem++;
+            } else if (elem == mergedDimIdx) {
+                insertIt = it + 1;
+            }
         }
+
+        transformedOrder.insert(insertIt, mergedDimIdx + 1);
+        return transformedOrder;
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
         auto parentNode = graphNodes[i];
-        if (!isSuitableParentNode(parentNode)) {
+        if (!isSuitableReorder(parentNode)) {
             continue;
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(MergeTransposeAndReorder_ParentNode);
 
-        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        if (!isSuitableChildNode(childNode)) {
+        auto childNode = parentNode->getChildEdgesAtPort(0).front()->getChild();
+        NodePtr intermNode;
+        if (childNode->getType() == Type::Reshape) {
+            intermNode = childNode;
+            if (!isSuitableReshape(intermNode)) {
+                continue;
+            }
+            childNode = intermNode->getChildEdgeAt(0)->getChild();
+        }
+        if (!isSuitableTranspose(childNode)) {
             continue;
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(MergeTransposeAndReorder_ChildNode);
 
-        if (checkAscendingSummaryOrder(parentNode, childNode)) {
-            mergeTransposeAndReorder(parentNode, childNode);
+        auto transposeNode = std::dynamic_pointer_cast<Transpose>(childNode);
+        auto reorderNode = std::dynamic_pointer_cast<Reorder>(parentNode);
+        std::shared_ptr<Reshape> reshapeNode = intermNode != nullptr ? std::dynamic_pointer_cast<Reshape>(intermNode) : nullptr;
+        if (!transposeNode || !reorderNode || (intermNode && !reshapeNode)) {
+            continue;
+        }
+
+        auto transposeOrder = updateOrder(transposeNode->getOrder(), reshapeNode);
+        auto descAfterTranspose = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
+        auto layoutOrder = updateOrder(descAfterTranspose->as<BlockedMemoryDesc>()->getOrder(), reshapeNode);
+
+        auto inBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
+        auto outBlockedDesc = reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
+
+        auto& inOrder = inBlockedDesc->getOrder();
+        auto& outOrder = outBlockedDesc->getOrder();
+
+        if (checkAscendingFinalOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
+            mergeTransposeReshapeReorder(graph, transposeNode, reshapeNode, reorderNode, true);
         }
     }
 }
@@ -2777,6 +3105,9 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             }
         }
 
+        //capture reference to the original mem output before graph transformations
+        auto& memOutput = memInputNode->getOutputNode();
+
         auto memInputSdpa = std::make_shared<MemoryInputSDPA>(
             memInputNode->getId(),
             memInputNode->getName(),
@@ -2804,8 +3135,6 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         }
 
         //create a stub memory output
-        auto& memOutput = memInputNode->getOutputNode();
-
         auto memOutputStub = std::make_shared<MemoryOutputStub>(
             memOutput.getId(),
             memOutput.getName(),
@@ -2818,8 +3147,6 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         const auto inputNum = memOutputEdge->getInputNum();
         graph.RemoveEdge(memOutputEdge);
         graph.CreateEdge(sdpa, memOutputStub, inputNum, 0);
-
-        memInputSdpa->registerOutputNode(memOutputStub.get());
 
         graph.AddNode(memInputSdpa);
         graph.AddNode(memOutputStub);

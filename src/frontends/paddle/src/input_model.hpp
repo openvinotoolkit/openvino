@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,7 @@ public:
     void set_partial_shape(const Place::Ptr& place, const ov::PartialShape&) override;
     ov::PartialShape get_partial_shape(const Place::Ptr& place) const override;
     void set_element_type(const Place::Ptr& place, const ov::element::Type&) override;
+    ov::element::Type get_element_type(const Place::Ptr& place) const override;
     void set_tensor_value(const Place::Ptr& place, const void* value) override;
     int64_t get_version() const;
 

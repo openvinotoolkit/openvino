@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::string layerType;
     std::string expectedKernelType;
+    std::vector<std::string> executionOrder;
 };
 
 typedef std::tuple<

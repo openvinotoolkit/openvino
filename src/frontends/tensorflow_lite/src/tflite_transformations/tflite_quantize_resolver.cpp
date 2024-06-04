@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,9 @@
 
 #include <memory>
 
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "tflite_ops/tflite_quantize.hpp"
@@ -15,19 +17,19 @@
 
 using namespace std;
 using namespace ov::pass;
+using namespace ov::opset10;
 using namespace ov::pass::pattern;
-using namespace ov::opset9;
 using namespace ov::frontend::tensorflow_lite;
 
 pass::TFLQuantizeConvert::TFLQuantizeConvert() {
     auto tfl_quantize_label = wrap_type<tensorflow_lite::TFLQuantize>();
-    auto convert_label = wrap_type<Convert>({tfl_quantize_label});
+    auto convert_label = wrap_type<opset10::Convert>({tfl_quantize_label});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         auto pattern_map = m.get_pattern_map();
         auto tfl_quantize_node = pattern_map.at(tfl_quantize_label);
         auto convert_node = pattern_map.at(convert_label);
-        auto convert = ov::as_type_ptr<opset9::Convert>(convert_node);
+        auto convert = ov::as_type_ptr<opset10::Convert>(convert_node);
         if (!convert)
             return false;
         auto type = convert->get_destination_type();
@@ -81,9 +83,7 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
         if (rank == 0) {
             constant = ov::as_type_ptr<ov::opset10::Constant>(output.get_node_shared_ptr());
         } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            constant = ov::get_constant_from_source(value);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            constant = ov::util::get_constant_from_source(value);
         }
         if (!constant)
             return false;
@@ -99,9 +99,7 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
     auto zp_node = ov::opset10::Constant::create(ov::element::i32, zp_shape, zero_point);
     output = std::make_shared<ov::opset10::Subtract>(output, zp_node);
     output = std::make_shared<ov::opset10::Convert>(output, ov::element::i8);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    output = ov::get_constant_from_source(output);  // TODO: Check Me
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    output = ov::util::get_constant_from_source(output);  // TODO: Check Me
     zero_point = {0};
 }
 
@@ -181,12 +179,10 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             output_low = ov::opset10::Constant::create(element::f32, {}, {low});
             output_high = ov::opset10::Constant::create(element::f32, {}, {high});
         }
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        input_low = get_constant_from_source(input_low);
-        input_high = get_constant_from_source(input_high);
-        output_low = get_constant_from_source(output_low);
-        output_high = get_constant_from_source(output_high);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        input_low = ov::util::get_constant_from_source(input_low);
+        input_high = ov::util::get_constant_from_source(input_high);
+        output_low = ov::util::get_constant_from_source(output_low);
+        output_high = ov::util::get_constant_from_source(output_high);
         output =
             std::make_shared<opset10::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
         if (out_type != element::f32) {

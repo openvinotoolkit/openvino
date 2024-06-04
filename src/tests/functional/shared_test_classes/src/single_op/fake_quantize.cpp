@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ void FakeQuantizeLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> fq;
     if (fq_direct_arg.empty()) {
-        fq = ov::test::utils::make_fake_quantize(param, model_type, levels, const_shape, 1);
+        fq = ov::test::utils::make_fake_quantize(param, model_type, levels, const_shape);
     } else {
         fq = ov::test::utils::make_fake_quantize(
             param,

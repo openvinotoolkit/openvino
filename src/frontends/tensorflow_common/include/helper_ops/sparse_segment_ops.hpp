@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "helper_ops/internal_operation.hpp"
-#include "validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace frontend {

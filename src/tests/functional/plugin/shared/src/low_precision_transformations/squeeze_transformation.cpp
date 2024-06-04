@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
 #include <memory>
 #include <queue>
 #include <string>
@@ -47,7 +46,6 @@ std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<
     return result.str();
 }
 void SqueezeTransformation::SetUp() {
-    abs_threshold = 0.2;
     ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;

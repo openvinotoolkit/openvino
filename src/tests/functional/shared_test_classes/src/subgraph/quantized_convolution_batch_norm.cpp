@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
 
 namespace ov {
 namespace test {
@@ -98,7 +99,8 @@ void QuantizedConvolutionBatchNorm::SetUp() {
     auto low_weights = ov::op::v0::Constant::create(element::f32, weights_intervals_shape, {-0.72519057});
     auto high_weights = ov::op::v0::Constant::create(element::f32, weights_intervals_shape, {0.72519057});
     std::shared_ptr<Node> activations = nullptr;
-    std::shared_ptr<Node> weights = ov::test::utils::deprecated::make_constant(element::f32, weights_shape, {}, true, 0.5f, -0.5f);
+    auto weights_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(element::f32, weights_shape, -0.5f, 0.5f, 1);
+    std::shared_ptr<Node> weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
     if (quantize_type == QuantizeType::FAKE_QUANTIZE) {
         activations = std::make_shared< ov::op::v0::FakeQuantize>(parameter, low_act, high_act, low_act, high_act, 256);
         weights = std::make_shared< ov::op::v0::FakeQuantize>(weights, low_weights, high_weights, low_weights, high_weights, 255);
@@ -140,9 +142,7 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         auto output_high_weights = ov::op::v0::Constant::create(element::f32, Shape{}, {254});
         weights = std::make_shared<ov::op::v0::FakeQuantize>(weights, low_weights, high_weights, output_low_weights, output_high_weights, 255);
         weights = std::make_shared<ov::op::v0::Convert>(weights, element::i8);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        weights = get_constant_from_source(weights);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        weights = ov::util::get_constant_from_source(weights);
         weights = std::make_shared<ov::op::v0::Convert>(weights, element::f32);
         auto scale_weights = ov::op::v0::Constant::create(element::f32, weights_intervals_shape, {2.0 / 255.0});
         weights = std::make_shared<ov::op::v1::Multiply>(weights, scale_weights);
@@ -158,10 +158,15 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(activations, weights, Strides{1, 1},
                 CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
     }
-    auto gamma = ov::test::utils::deprecated::make_constant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto beta = ov::test::utils::deprecated::make_constant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto mean = ov::test::utils::deprecated::make_constant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
-    auto var = ov::test::utils::deprecated::make_constant(element::f32, Shape{output_channels}, {}, true, 1.0f, 0.1f);
+
+    auto gamma_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(element::f32, Shape{output_channels}, 0.1f, 1.f, 1);
+    auto gamma = std::make_shared<ov::op::v0::Constant>(gamma_tensor);
+    auto beta_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(element::f32, Shape{output_channels}, 0.1f, 1.f, 1);
+    auto beta = std::make_shared<ov::op::v0::Constant>(beta_tensor);
+    auto mean_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(element::f32, Shape{output_channels}, 0.1f, 1.f, 1);
+    auto mean = std::make_shared<ov::op::v0::Constant>(mean_tensor);
+    auto var_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(element::f32, Shape{output_channels}, 0.1f, 1.f, 1);
+    auto var = std::make_shared<ov::op::v0::Constant>(var_tensor);
     auto batch_norm = std::make_shared<ov::op::v5::BatchNormInference>(conv, gamma, beta, mean, var, 0.00001);
     function = std::make_shared<ov::Model>(batch_norm, ParameterVector{parameter});
 }

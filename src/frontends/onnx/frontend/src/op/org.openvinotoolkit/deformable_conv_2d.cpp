@@ -16,17 +16,19 @@
 
 #include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 
+#include "openvino/frontend/exception.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 #include "utils/convpool.hpp"
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector deformable_conv_2d(const Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector deformable_conv_2d(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector& inputs = node.get_ov_inputs();
     const auto strides = convpool::get_strides(node);
     const auto dilations = convpool::get_dilations(node);
     const auto paddings = convpool::get_pads(node);
@@ -35,21 +37,35 @@ ov::OutputVector deformable_conv_2d(const Node& node) {
     const auto deformable_groups = node.get_attribute_value<int64_t>("deformable_groups", 1);
     const auto auto_pad_type = convpool::get_auto_pad(node);
 
-    return {std::make_shared<v8::DeformableConvolution>(inputs.at(0),
-                                                        inputs.at(1),
-                                                        inputs.at(2),
-                                                        strides,
-                                                        paddings.first,
-                                                        paddings.second,
-                                                        dilations,
-                                                        auto_pad_type,
-                                                        group,
-                                                        deformable_groups)};
+    if (inputs.size() == 3) {
+        return {std::make_shared<v8::DeformableConvolution>(inputs.at(0),
+                                                            inputs.at(1),
+                                                            inputs.at(2),
+                                                            strides,
+                                                            paddings.first,
+                                                            paddings.second,
+                                                            dilations,
+                                                            auto_pad_type,
+                                                            group,
+                                                            deformable_groups)};
+    } else if (inputs.size() == 4) {
+        return {std::make_shared<v8::DeformableConvolution>(inputs.at(0),
+                                                            inputs.at(1),
+                                                            inputs.at(2),
+                                                            inputs.at(3),
+                                                            strides,
+                                                            paddings.first,
+                                                            paddings.second,
+                                                            dilations,
+                                                            auto_pad_type,
+                                                            group,
+                                                            deformable_groups)};
+    } else {
+        FRONT_END_GENERAL_CHECK(false, "Invalid number of inputs");
+    }
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

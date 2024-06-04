@@ -23,17 +23,17 @@ namespace pass {
  *              The buffer scratchpad has one general data pointer. Each buffer has offset relative to the data pointer of buffer scratchpad.
  * @ingroup snippets
  */
-class AllocateBuffers: public Pass {
+class AllocateBuffers: public RangedPass {
 public:
-    OPENVINO_RTTI("AllocateBuffers", "Pass")
-    AllocateBuffers(size_t& buffer_scratchpad_size, bool is_optimized = true);
+    OPENVINO_RTTI("AllocateBuffers", "RangedPass")
+    AllocateBuffers(bool is_optimized = true);
 
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
     /**
      * @brief Set offset to Buffer op and propagates its to the connected memory access ops
@@ -45,7 +45,6 @@ public:
     using BufferCluster = std::set<ExpressionPtr>;
     using BufferClusters = std::vector<BufferCluster>;
 private:
-    size_t& m_buffer_scratchpad_size;
     bool m_is_optimized_mode = true;
 };
 

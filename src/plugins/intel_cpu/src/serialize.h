@@ -1,11 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include <functional>
-#include <iostream>
 
-#include "cpp/ie_cnn_network.h"
+#include <functional>
+#include <ostream>
+#include <memory>
+#include <string>
+
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace intel_cpu {

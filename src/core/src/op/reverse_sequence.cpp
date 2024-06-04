@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,8 @@
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "reverse_sequence_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 op::v0::ReverseSequence::ReverseSequence(const Output<Node>& arg,
@@ -38,8 +38,8 @@ void op::v0::ReverseSequence::validate_and_infer_types() {
                           "Sequence lengths element type must be numeric type. Got: ",
                           seq_lengths_et);
 
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
-    set_output_type(0, get_input_element_type(0), output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 
     m_normalized_seq_axis = ov::util::normalize_axis(this, m_seq_axis, get_input_partial_shape(0).rank());
 }

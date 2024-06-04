@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@
 
 // Suppress warning "-Wdeprecated-declarations" / C4996
 #if defined(__GNUC__)
-#    define OPENVINO_DO_PRAGMA(x) _Pragma(#    x)
+#    define OPENVINO_DO_PRAGMA(x) _Pragma(#x)
 #elif defined(_MSC_VER)
 #    define OPENVINO_DO_PRAGMA(x) __pragma(x)
 #else

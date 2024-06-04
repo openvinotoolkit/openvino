@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "concat.h"
+
+#include "openvino/op/concat.hpp"
 
 #include <map>
 #include <utility>
@@ -14,11 +16,6 @@
 #include <edge.h>
 #include <cpu_memory.h>
 #include "openvino/core/parallel.hpp"
-#include "conv.h"
-#include "fake_quantize.h"
-#include "pooling.h"
-#include "eltwise.h"
-#include <limits>
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -41,6 +38,9 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         const auto concatOp = ov::as_type_ptr<const ov::op::v0::Concat>(op);
         if (!concatOp) {
             errorMessage = "Node is not an instance of the Concat operation.";
+            return false;
+        }
+        if (concatOp->get_output_element_type(0) == ov::element::string) {
             return false;
         }
     } catch (...) {
@@ -164,6 +164,15 @@ void Concat::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != LayoutType::nspc) {
             pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
+        } else if (canBeInPlace) {
+            // canBeInPlace means all dims before axis are 1, so for nspc layout we only need check sp dimensions in
+            // axis=1 cases here
+            const auto& childDims = outputShapes[0].getDims();
+            if (axis != 1 || std::all_of(childDims.crbegin(), childDims.crend() - 2, [](const Dim dim) {
+                    return 1 == dim;
+                })) {
+                pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
+            }
         }
     }
 
@@ -318,7 +327,7 @@ void Concat::prepareParams() {
     if (canOptimizeNspc || isInPlace())
         return;
 
-    const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory didn't allocate.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
@@ -328,7 +337,7 @@ void Concat::prepareParams() {
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->getDataType());
-    const auto& src0BlkMemDesc = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
+    const auto& src0BlkMemDesc = getSrcMemoryAtPort(0)->getDescPtr()->as<BlockedMemoryDesc>();
     const auto& outputOrder = src0BlkMemDesc->getOrder();
     for (size_t i = 0; i < outputOrder.size(); i++) {
         if (outputOrder[i] == axis) {
@@ -349,7 +358,7 @@ void Concat::prepareParams() {
         // in this case, inputs are also small 1d vector and single thread naive impl is faster
         canOptimize1DCase = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+            const auto& srcMemPtr = getSrcMemoryAtPort(i);
             const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
             const auto& inputShape = srcMemDesc->getBlockDims();
             const auto& strides = srcMemDesc->getStrides();
@@ -363,8 +372,9 @@ void Concat::prepareParams() {
     }
 
     std::vector<memory::desc> srcs_d;
+    nelemTotal = 0;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+        const auto& srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr || !srcMemPtr->isAllocated()) {
             auto parent = getParentEdgeAt(i)->getParent();
             OPENVINO_THROW("Source memory from ", parent->getName(), " didn't allocate for node ", getName(), ".");
@@ -385,6 +395,7 @@ void Concat::prepareParams() {
             nelemToCopy[i] = nElem * elemSize;
             dstOffset[i] = outputStrides[reorderedAxis] * curConcatOffset * elemSize;
             curConcatOffset += inputShape[reorderedAxis];
+            nelemTotal += nelemToCopy[i];
         } else {
             if (srcMemPtr->getShape().hasZeroDims()) {
                 continue;
@@ -489,7 +500,7 @@ void Concat::execute(dnnl::stream strm) {
         std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.getPrimitive()}};
         size_t nonZeroInShapes = 0;
         for (size_t i = 0; i < num_src; i++) {
-            const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
+            const auto& srcMem = getParentEdgeAt(i)->getMemory();
             if (srcMem.getShape().hasZeroDims()) {
                 continue;
             }
@@ -506,11 +517,11 @@ ov::element::Type Concat::getRuntimePrecision() const {
 
 void Concat::exec1DCase() {
     DEBUG_LOG(getName(), " exec1DCase");
-    auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto* dst = getDstDataAtPortAs<uint32_t>(0);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        const auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        const auto& srcMemPtr = getSrcMemoryAtPort(i);
         const auto& srcShape = srcMemPtr->getStaticDims();
-        const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+        const auto* src = srcMemPtr->getDataAs<const uint32_t>();
         for (size_t i = 0; i < srcShape[0]; i++) {
             *dst++ = src[i];
         }
@@ -520,7 +531,7 @@ void Concat::exec1DCase() {
 void Concat::execNspcSpecCase() {
     const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.getData());
+    uint8_t* dst_ptr = dst_memory.getDataAs<uint8_t>();
     const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.getDataType());
 
     std::vector<size_t> channelsDataSize;
@@ -531,14 +542,14 @@ void Concat::execNspcSpecCase() {
     size_t nonZeroInShapes = 0;
     int firstNonZeroEdge = -1;
     for (size_t i = 0; i < num_src; i++) {
-        const auto& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
+        const auto& src_mem = getParentEdgeAt(i)->getMemory();
         if (src_mem.getShape().hasZeroDims()) {
             continue;
         }
         const size_t num_channels = src_mem.getStaticDims()[channelAxis];
 
         channelsDataSize.push_back(num_channels * dataSize);
-        src_ptrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.getData()));
+        src_ptrs.push_back(src_mem.getDataAs<const uint8_t>());
         dst_ptrs.push_back(dst_ptr + channels_size);
         channels_size += num_channels * dataSize;
 
@@ -562,29 +573,21 @@ void Concat::execNspcSpecCase() {
 void Concat::execRef() {
     const size_t numSrc = getParentEdges().size();
     const auto& dstMemory = getChildEdgeAt(0)->getMemory();
-    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
-    const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
-    const auto& outputShape = dstMemBlkDesc->getBlockDims();
-    uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.getData());
+    uint8_t* dstPtr = dstMemory.getDataAs<uint8_t>();
     for (size_t i = 0; i < numSrc; i++) {
-        const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
-        srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.getData());
+        const auto& srcMem = getParentEdgeAt(i)->getMemory();
+        srcPtrs[i] = srcMem.getDataAs<const uint8_t>();
     }
 
-    size_t outputStrides[MAX_RANK_REF] = {0};
-    const auto strides = dstMemBlkDesc->getStrides();
-    std::transform(strides.begin(), strides.end(), outputStrides, [&elemSize](const Dim& i) {
-        return i * elemSize;
-    });
     if (!hasOuterLoop) {
-        int nthr = parallel_get_max_threads();
-        if (nthr == 1) {
+        if (nelemTotal < 64*1024 || parallel_get_max_threads() == 1) {
             for (size_t a = 0; a < srcPtrs.size(); ++a) {
                 const auto inData = srcPtrs[a];
                 auto outputData = &dstPtr[dstOffset[a]];
                 std::memcpy(outputData, inData, nelemToCopy[a]);
             }
         } else {
+            int nthr = parallel_get_max_threads();
             parallel_nt(nthr, [&](int ithr, int nthr) {
                 for (size_t a = 0; a < srcPtrs.size(); ++a) {
                     size_t start = 0, end = 0;
@@ -596,6 +599,14 @@ void Concat::execRef() {
             });
         }
     } else {
+        const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
+        const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
+        const auto& outputShape = dstMemBlkDesc->getBlockDims();
+        size_t outputStrides[MAX_RANK_REF] = {0};
+        const auto strides = dstMemBlkDesc->getStrides();
+        std::transform(strides.begin(), strides.end(), outputStrides, [&elemSize](const Dim& i) {
+            return i * elemSize;
+        });
         size_t physDims[5] = {1, 1, 1, 1, 1};
         for (size_t i = 0; i < reorderedAxis; i++) {
             physDims[i] = outputShape[i];
@@ -679,7 +690,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
                     getName(),
                     " can't use inPlace memory with concatenation on dynamic dimension");
 
-    auto& edges = getChildEdgesAtPort(inplaceOutIndx);
+    auto edges = getChildEdgesAtPort(inplaceOutIndx);
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
     OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: " , getName());
 

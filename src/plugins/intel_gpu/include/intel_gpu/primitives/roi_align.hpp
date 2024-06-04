@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,11 @@ struct roi_align : public primitive_base<roi_align> {
     /// @brief Aligned mode for the @ref roi_align
     enum AlignedMode { asymmetric, half_pixel_for_nn, half_pixel };
 
+    /// @brief Mode of ROIAlign. base - no rotation of roi box. Rotated supports box rotation, but according to the @ref
+    /// roi_align_rotated, rois wiill encoded in different way than in base mode. Please refer to the @ref
+    /// roi_align_rotated and @ref roi_align for more details.
+    enum ROIMode { base, rotated };
+
     /// @brief Constructs roi_align primitive.
     /// @param id This primitive id.
     /// @param inputs Inputs data primitive ids.
@@ -39,6 +44,8 @@ struct roi_align : public primitive_base<roi_align> {
               float spatial_scale,
               PoolingMode pooling_mode,
               AlignedMode aligned_mode,
+              ROIMode roi_mode = ROIMode::base,
+              bool clockwise = false,
               const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}),
           pooled_h{pooled_h},
@@ -46,7 +53,9 @@ struct roi_align : public primitive_base<roi_align> {
           sampling_ratio{sampling_ratio},
           spatial_scale{spatial_scale},
           pooling_mode{pooling_mode},
-          aligned_mode{aligned_mode} {}
+          aligned_mode{aligned_mode},
+          roi_mode{roi_mode},
+          clockwise{clockwise} {}
 
     /// @brief Height of the ROI output feature map.
     int pooled_h = 0;
@@ -61,6 +70,10 @@ struct roi_align : public primitive_base<roi_align> {
     PoolingMode pooling_mode = PoolingMode::max;
     /// @brief Method to coordinate alignment.
     AlignedMode aligned_mode = AlignedMode::asymmetric;
+    /// @brief ROI mode.
+    ROIMode roi_mode = ROIMode::base;
+    /// @brief Clockwise mode(for rotated mode only).
+    bool clockwise = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -68,6 +81,8 @@ struct roi_align : public primitive_base<roi_align> {
         seed = hash_combine(seed, spatial_scale);
         seed = hash_combine(seed, pooling_mode);
         seed = hash_combine(seed, aligned_mode);
+        seed = hash_combine(seed, roi_mode);
+        seed = hash_combine(seed, clockwise);
         return seed;
     }
 
@@ -82,7 +97,9 @@ struct roi_align : public primitive_base<roi_align> {
                sampling_ratio == rhs_casted.sampling_ratio &&
                spatial_scale == rhs_casted.spatial_scale &&
                pooling_mode == rhs_casted.pooling_mode &&
-               aligned_mode == rhs_casted.aligned_mode;
+               aligned_mode == rhs_casted.aligned_mode &&
+               roi_mode == rhs_casted.roi_mode &&
+               clockwise == rhs_casted.clockwise;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -93,6 +110,8 @@ struct roi_align : public primitive_base<roi_align> {
         ob << spatial_scale;
         ob << make_data(&pooling_mode, sizeof(PoolingMode));
         ob << make_data(&aligned_mode, sizeof(AlignedMode));
+        ob << make_data(&roi_mode, sizeof(ROIMode));
+        ob << clockwise;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -103,6 +122,8 @@ struct roi_align : public primitive_base<roi_align> {
         ib >> spatial_scale;
         ib >> make_data(&pooling_mode, sizeof(PoolingMode));
         ib >> make_data(&aligned_mode, sizeof(AlignedMode));
+        ib >> make_data(&roi_mode, sizeof(ROIMode));
+        ib >> clockwise;
     }
 };
 }  // namespace cldnn

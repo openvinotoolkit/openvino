@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,8 @@ public:
     EmbeddingBagPackedSum(const Output<Node>& emb_table, const Output<Node>& indices);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 }  // namespace v3
 }  // namespace op

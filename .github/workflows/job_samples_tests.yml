@@ -31,17 +31,14 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -62,10 +59,6 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
-      - name: Install OpenVINO dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
-
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install coreutils
@@ -83,7 +76,6 @@ jobs:
         with:
           version: '3.11'
           should-setup-pip-paths: 'false'
-          self-hosted-runner: ${{ runner.os == 'Linux' }}
 
       - name: Build cpp samples - GCC
         run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
@@ -93,7 +85,7 @@ jobs:
       - name: Build cpp samples - Clang
         if: runner.os == 'Linux'
         run: |
-          apt-get install -y clang
+          apt-get update && apt-get install -y clang
           $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples_clang
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -117,19 +109,10 @@ jobs:
           export IE_APP_PYTHON_PATH=$INSTALL_DIR/samples/python
           export SHARE=$INSTALL_TEST_DIR/smoke_tests/samples_smoke_tests_data
 
-          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
+          # Install Python benchmark_app by installing openvino-*.whl
+          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $INSTALL_DIR/tools/openvino-*.whl
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest -sv $INSTALL_TEST_DIR/smoke_tests \
-            --env_conf $INSTALL_TEST_DIR/smoke_tests/env_config.yml \
-            --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v3
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-samples
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'warn'
+          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests

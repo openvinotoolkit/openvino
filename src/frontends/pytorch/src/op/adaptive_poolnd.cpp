@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -39,13 +40,37 @@ std::tuple<Output<Node>, Output<Node>> get_tile_input_and_output_shape(const Nod
     return std::make_tuple(tile, output_shape);
 };
 
+Output<Node> get_given_shape(const NodeContext& context) {
+    Output<Node> given_shape;
+    auto shape_type = context.get_input_type(1);
+    if (shape_type.is<type::List>()) {
+        const auto list_elems = get_list_as_outputs(context.get_input(1));
+        if (list_elems.size() == 1) {
+            given_shape = get_input_as_i32(context, 1);
+        } else {
+            OutputVector to_concat;
+            auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+            for (auto elem : list_elems) {
+                if (elem.get_element_type() != element::i32) {
+                    elem = context.mark_node(std::make_shared<v0::Convert>(elem, element::i32));
+                }
+                to_concat.push_back(context.mark_node(std::make_shared<v0::Unsqueeze>(elem, zero)));
+            }
+            given_shape = context.mark_node(std::make_shared<v0::Concat>(to_concat, 0));
+        }
+    } else {
+        given_shape = get_input_as_i32(context, 1);
+    }
+    return given_shape;
+}
+
 OutputVector translate_adaptive_avg_pool_base(const NodeContext& context,
                                               const Output<Node>& tile_shape,
                                               const Output<Node>& slice_end) {
     num_inputs_check(context, 2, 2);
 
     auto input_tensor = context.get_input(0);
-    auto given_shape = context.get_input(1);
+    Output<Node> given_shape = get_given_shape(context);
     Output<Node> tile_input;
     Output<Node> output_shape;
     std::tie(tile_input, output_shape) =
@@ -61,7 +86,7 @@ OutputVector translate_adaptive_max_pool_base(const NodeContext& context,
     num_inputs_check(context, 2, 2);
 
     auto input_tensor = context.get_input(0);
-    auto given_shape = context.get_input(1);
+    Output<Node> given_shape = get_given_shape(context);
     Output<Node> tile_input;
     Output<Node> output_shape;
     std::tie(tile_input, output_shape) =
@@ -71,7 +96,7 @@ OutputVector translate_adaptive_max_pool_base(const NodeContext& context,
         context.mark_node(std::make_shared<v8::AdaptiveMaxPool>(tile_input, given_shape, element::i32));
     auto pooled_tensor = adaptive_max_pool->output(0);
     auto pooled_indices = adaptive_max_pool->output(1);
-    // adaptive max pool in torch return indices in i64, indices_element_type i64 is not implented on ov runtime side
+    // adaptive max pool in torch return indices in i64, indices_element_type i64 is not implemented on ov runtime side
     pooled_indices = context.mark_node(std::make_shared<v0::Convert>(pooled_indices, element::i64));
     pooled_tensor = context.mark_node(std::make_shared<v1::Reshape>(pooled_tensor, output_shape, false));
     pooled_indices = context.mark_node(std::make_shared<v1::Reshape>(pooled_indices, output_shape, false));

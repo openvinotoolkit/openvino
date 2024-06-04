@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSSplitForward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSSplitForward transformation sinks Transpose through Split, VariadicSplit operations
  * in the forward direction.
  */
@@ -32,7 +32,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSSplitBackward transformation sinks Transpose through Split, VariadicSplit operations
  * in the backward direction.
  */

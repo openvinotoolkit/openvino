@@ -47,7 +47,9 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 py::dtype get_dtype(const ov::element::Type& ov_type);
 
-const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
+std::map<int, ov::element::Type> init_num_to_ov_type();
+
+const std::map<int, ov::element::Type>& dtype_num_to_ov_type();
 
 ov::element::Type get_ov_type(const py::array& array);
 
@@ -82,7 +84,60 @@ py::array as_contiguous(py::array& array, ov::element::Type type);
 
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
+template <typename T>
+py::array array_from_constant_cast_bool(ov::op::v0::Constant&& c, py::dtype& dst_dtype) {
+    std::vector<char> result;
+    size_t size = c.get_byte_size() / sizeof(T);
+
+    result.reserve(size);
+
+    for(size_t i = 0; i < size; i++) {
+        result.emplace_back(*(static_cast<const T*>(c.get_data_ptr()) + i) != 0 ? 1 : 0);
+    }
+
+    return py::array(dst_dtype, c.get_shape(), result.data());
+}
+
+template <typename T>
+py::array array_from_constant_cast(ov::op::v0::Constant&& c, py::dtype& dst_dtype) {
+    auto tmp = c.cast_vector<T>();
+    return py::array(dst_dtype, c.get_shape(), tmp.data());
+}
+
+py::array array_from_constant_copy(ov::op::v0::Constant&& c);
+
+py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtype);
+
+py::array array_from_constant_view(ov::op::v0::Constant&& c);
+
 }; // namespace array_helpers
+
+namespace constant_helpers {
+template <typename T>
+std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
+    auto byte_strides = ov::row_major_strides(s);
+    for (auto&& stride : byte_strides) {
+        stride *= sizeof(T);
+     }
+    return byte_strides;
+}
+
+std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
+
+}; // namespace constant_helpers
+
+// Helpers for shapes
+namespace shape_helpers {
+
+template <typename T>
+void get_slice(T& result, const T& shape, size_t start, const size_t step, const size_t slicelength) {
+    for (size_t i = 0; i < slicelength; ++i) {
+        result[i] = shape[start];
+        start += step;
+    }
+}
+
+}; // namespace shape_helpers
 
 template <typename T>
 T create_copied(py::array& array);

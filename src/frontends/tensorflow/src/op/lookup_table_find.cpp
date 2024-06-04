@@ -3,7 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "hash_table.hpp"
+#include "openvino/frontend/tensorflow/hash_table.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/op/concat.hpp"
@@ -36,10 +36,6 @@ OutputVector translate_lookup_table_find_op(const NodeContext& node) {
         node,
         table_handle,
         "[TensorFlow Frontend] internal error: LookupTableFind operation expects table_handle by the first input");
-    TENSORFLOW_OP_VALIDATION(
-        node,
-        table_handle->is_initialized(),
-        "[TensorFlow Frontend] internal error: LookupTableFind operation expects initialized table_handle");
     auto keys = node.get_input(1);
     auto default_value = node.get_input(2);
 

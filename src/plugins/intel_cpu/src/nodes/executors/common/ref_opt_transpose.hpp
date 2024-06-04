@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,8 @@ public:
               const std::vector<MemoryDescPtr> &srcDescs,
               const std::vector<MemoryDescPtr> &dstDescs,
               const dnnl::primitive_attr &attr) override;
-    void exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst, const int MB) override;
-    impl_desc_type getImplType() const override { return implType; }
-private:
-    static const impl_desc_type implType = impl_desc_type::ref;
+    void exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst) override;
+    impl_desc_type implType() const override { return impl_desc_type::ref; }
 };
 
 class RefOptimizedTransposeExecutorBuilder : public TransposeExecutorBuilder {

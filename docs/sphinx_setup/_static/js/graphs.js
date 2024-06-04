@@ -23,7 +23,7 @@ const OVdefaultSelections = {
             'resnet-50',
         ]
     },
-    parameters: {name: 'kpi', data: ['Throughput']},
+    parameters: {name: 'kpi', data: ['Throughput','Latency']},
     pracision: {name: 'precision', data: ['INT8', 'FP32']}
 }
 
@@ -225,7 +225,7 @@ class Modal {
         }
     }
     static getCoreTypesLabels() {
-        return ['CPU', 'iGPU', 'CPU+iGPU'];
+        return ['CPU', 'iGPU\\NPU', 'CPU+iGPU'];
     }
     static getKpisLabels(version) {
         if (version == 'ovms')
@@ -242,7 +242,7 @@ class Modal {
             switch (label) {
                 case 'CPU':
                     return 'core';
-                case 'iGPU':
+                case 'iGPU\\NPU':
                     return 'core-iGPU';
                 case 'CPU+iGPU':
                     return 'core-CPU+iGPU';
@@ -360,14 +360,14 @@ class Graph {
                     chartTitle: 'Value',
                     iconClass: 'value-icon',
                     unit: units.valueUnit,
-                    datasets: [{ data: null, color: '#8BAE46', label: `INT8` }],
+                    datasets: [{ data: null, color: '#8BAE46', label: `Value` }],
                 };
             case 'efficiency':
                 return {
                     chartTitle: 'Efficiency',
                     iconClass: 'efficiency-icon',
                     unit: units.efficiencyUnit,
-                    datasets: [{ data: null, color: '#E96115', label: `INT8` }],
+                    datasets: [{ data: null, color: '#E96115', label: `Efficiency` }],
                 };
             default:
                 return {};
@@ -450,14 +450,14 @@ $(document).ready(function () {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);
         $('.modal-footer').show();
         $('#modal-display-graphs').show();
-        $('.edit-settings-btn').on('click', (event) => {
+        $('.edit-settings-btn').off('click').on('click', (event) => {
             $('#modal-configure-graphs').show();
             $('#modal-display-graphs').hide();
             $('.modal-footer').hide();
             $('.chart-placeholder').empty();
         });
 
-        $('.graph-chart-title-header').on('click', (event) => {
+        $('.graph-chart-title-header').off('click').on('click', (event) => {
             var parent = event.target.parentElement;
 
             if ($(parent).children('.chart-wrap,.empty-chart-container').is(":visible")) {
@@ -481,9 +481,9 @@ $(document).ready(function () {
     function showModal(version) {
         $('body').css('overflow', 'hidden');
 
-        let dataPath = '_static/benchmarks_files/OV-benchmark-data.csv';
+        let dataPath = '../_static/benchmarks_files/OV-benchmark-data.csv';
         if (version == 'ovms')
-            dataPath = '_static/benchmarks_files/OVMS-benchmark-data.csv';
+            dataPath = '../_static/benchmarks_files/OVMS-benchmark-data.csv';
         Papa.parse(dataPath, {
             download: true,
             complete: (result) => renderModal(result, version)
@@ -548,7 +548,7 @@ $(document).ready(function () {
         var networkModels = Graph.getNetworkModels(graph.data);
         var ieTypes = Graph.getIeTypes(graph.data);
 
-        fetch('_static/html/modal.html').then((response) => response.text()).then((text) => {
+        fetch('../_static/html/modal.html').then((response) => response.text()).then((text) => {
 
             // generate and configure modal container
             var modal = $('<div>');
@@ -821,7 +821,7 @@ $(document).ready(function () {
 
           // Text
           const textContainer = document.createElement('p');
-          textContainer.style.color = item.fontColor;
+          textContainer.style.color = '#666';
           textContainer.style.margin = 0;
           textContainer.style.padding = 0;
           textContainer.style.fontSize = '0.6rem';
@@ -838,40 +838,39 @@ $(document).ready(function () {
       }
     };
 
-    // ====================================================
-
     function getChartOptions(title, containerId) {
         return {
             responsive: true,
+            indexAxis: 'y',
             maintainAspectRatio: false,
-            legend: {display: false},
             title: {
                 display: false,
                 text: title
             },
             scales: {
-                xAxes: [{
+                x: {
                     ticks: {
                         beginAtZero: true
                     }
-                }],
-                yAxes: [{
+                },
+                y: {
                     ticks: {
-                        display: false, //this will remove only the label
+                        display: false,
                         beginAtZero: true
                     }
-                }]
+                  }
             },
             plugins: {
+                legend: {
+                    display: false
+                },
                 htmlLegend: {
-                // ID of the container to put the legend in
                     containerID: containerId,
                 }
             }
         }
     }
 
-    // params: string[], Datasets[]
     function getChartDataNew(labels, datasets) {
         return {
             labels: labels,
@@ -948,21 +947,11 @@ $(document).ready(function () {
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
             var groupUnit = model[0];
-            if (kpi === 'throughput') {
-                var throughputData = Graph.getDatabyKPI(model, kpi);
+            if (kpi === 'throughput' || kpi === 'latency') {
+                var kpiData = Graph.getDatabyKPI(model, kpi);
                 var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
                 precisions.forEach((prec, index) => {
-                    config.datasets[index].data = throughputData.map(tData => tData[prec]);
-                });
-                return config;
-                //to fix
-                // return removeEmptyLabel(config);
-            }
-            else if(kpi === 'latency'){
-                var latencyData = Graph.getDatabyKPI(model, kpi);
-                var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
-                precisions.forEach((prec, index) => {
-                    config.datasets[index].data = latencyData.map(tData => tData[prec]); 
+                    config.datasets[index].data = kpiData.map(tData => tData[prec]);
                 });
                 return config;
                 // return removeEmptyLabel(config);
@@ -1040,7 +1029,6 @@ $(document).ready(function () {
         sorted.forEach((index)=>{
             config.datasets.splice(index,1);
         })
-        console.log(config);
         return config;
     }
 
@@ -1062,7 +1050,7 @@ $(document).ready(function () {
         context.canvas.height = heightRatio;
         window.setTimeout(() => {
             new Chart(context, {
-            type: 'horizontalBar',
+            type: 'bar',
             data: getChartDataNew(labels, datasets),
             options: getChartOptions(chartTitle, containerId),
             plugins: [htmlLegendPlugin]

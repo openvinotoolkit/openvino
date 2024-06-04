@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,8 @@
 
 namespace kernel_selector {
 
-bool SelectKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::SELECT || o.GetType() != KernelType::SELECT) {
+bool SelectKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::SELECT) {
         return false;
     }
 
@@ -97,12 +97,26 @@ SelectKernelBase::DispatchData SelectKernelBase::SetDefault(const select_params&
     DispatchData dispatchData;
     const auto& out = params.outputs[0];
     const auto& in = params.inputs[0];
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    dispatchData.gws = { out.X().v, out.Y().v, out.Feature().v * out.Batch().v };
+    switch (out.Dimentions()) {
+    case 4:
+        dispatchData.gws = { out.X().v, out.Y().v, out.Feature().v * out.Batch().v };
 
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
-                                                                     { Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        dims_by_gws = {{ Tensor::DataChannelName::X },
+                       { Tensor::DataChannelName::Y },
+                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        break;
+    case 5:
+        dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
+
+        dims_by_gws = {{ Tensor::DataChannelName::X },
+                       { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
+                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        break;
+    default:
+        throw std::invalid_argument("Unsupported data layout for select primitive");
+    }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in.GetLayout(), out.GetLayout(), dims_by_gws);
 
@@ -120,15 +134,15 @@ void SelectKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelData kd = KernelData::Default<select_params>(params);
     select_params& newParams = *static_cast<select_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -142,7 +156,7 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
                      (uint32_t)newParams.inputs.size(),
                      0,
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }

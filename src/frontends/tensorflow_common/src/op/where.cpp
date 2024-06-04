@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_where_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Where"});
+    default_op_checks(node, 1, {"Where", "WHERE"});
     auto condition = node.get_input(0);
     auto non_zero = make_shared<v3::NonZero>(condition, element::i64);
     auto transpose_order = make_shared<v0::Constant>(element::i32, Shape{2}, vector<int32_t>{1, 0});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,6 @@ ov::CoordinateDiff& ov::CoordinateDiff::operator=(const CoordinateDiff& v) {
 }
 
 ov::CoordinateDiff& ov::CoordinateDiff::operator=(CoordinateDiff&& v) noexcept {
-    static_cast<std::vector<std::ptrdiff_t>*>(this)->operator=(v);
+    static_cast<std::vector<std::ptrdiff_t>*>(this)->operator=(std::move(v));
     return *this;
 }

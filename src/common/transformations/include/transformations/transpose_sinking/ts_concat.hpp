@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSConcatBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSConcatForward transformation sinks Transpose through Concat operation
  * in the forward direction.
  */
@@ -32,7 +32,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSConcatBackward transformation sinks Transpose through Concat operation
  * in the backward direction.
  */

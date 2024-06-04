@@ -18,13 +18,6 @@ struct ctc_loss_params : base_params {
 };
 
 /**
- * CTCLoss reference kernel optional parameters.
- */
-struct ctc_loss_optional_params : optional_params {
-    ctc_loss_optional_params() : optional_params(KernelType::CTC_LOSS) {}
-};
-
-/**
  * Reference kernel for CTCLoss.
  */
 class CTCLossKernelRef : public KernelBaseOpenCL {
@@ -32,9 +25,9 @@ public:
     CTCLossKernelRef() : KernelBaseOpenCL{"ctc_loss_ref"} {}
 
 private:
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const ctc_loss_params& kernel_params) const;
 };
 

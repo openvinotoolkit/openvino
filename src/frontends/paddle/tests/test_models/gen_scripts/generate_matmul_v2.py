@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -23,7 +23,8 @@ def matmul(name, x1, x2, x_transpose=False, y_transpose=False):
         outs = exe.run(
             feed={'x1': x1, 'x2': x2},
             fetch_list=[result])
-        saveModel(name, exe, feedkeys=['x1', 'x2'], fetchlist=[result], inputs=[x1, x2], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x1, node_x2], fetchlist=[result],
+            inputs=[x1, x2], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

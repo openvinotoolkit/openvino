@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/mvn.hpp"
-#include "openvino/op/constant.hpp"
-#include "validation_util.hpp"
-
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/primitives/mvn.hpp"
-
 #include <algorithm>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/mvn.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/mvn.hpp"
 
 namespace ov {
 namespace intel_gpu {

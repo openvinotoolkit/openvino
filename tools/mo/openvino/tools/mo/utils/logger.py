@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib.util
@@ -14,7 +14,7 @@ from copy import copy
 if importlib.util.find_spec('absl') is not None:
     import absl.logging
 
-    log.root.removeHandler(absl.logging._absl_handler)
+    log.root.removeHandler(absl.logging._absl_handler) # pylint: disable=c-extension-no-member
 
 handler_num = 0
 

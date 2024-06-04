@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ layout softmax_inst::calc_output_layout(softmax_node const& node, kernel_impl_pa
     auto output_layout = impl_param.get_input_layout();
 
     if (impl_param.has_fused_primitives())
-        output_layout.data_type = impl_param.get_fused_output_layout().data_type;
+        output_layout.data_type = impl_param.get_output_element_type();
 
     return output_layout;
 }

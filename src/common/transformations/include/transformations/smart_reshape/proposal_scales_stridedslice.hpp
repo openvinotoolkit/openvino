@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API Proposal4Scales;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ProposalScales transformation helps to silently avoid reshape issues on the scale-input of Proposal layer.
  *
  * Expected sub-graph looks like:

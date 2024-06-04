@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,8 +42,6 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
-    abs_threshold = 0.1;
-
     ov::element::Type ngPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params trasformationParams;

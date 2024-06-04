@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ namespace ov {
 namespace pass {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ShapeOfConstFolding constantfolds ShapeOf->Constant subgraph
  */
 class TRANSFORMATIONS_API ShapeOfConstFolding : public MatcherPass {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_depth_to_space_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"DepthToSpace"});
+    default_op_checks(node, 1, {"DepthToSpace", "DEPTH_TO_SPACE"});
     auto input_data = node.get_input(0);
 
     // retrieve attributes

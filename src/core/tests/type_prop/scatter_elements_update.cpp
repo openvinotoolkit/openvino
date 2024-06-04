@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_shape) {
 
 TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_partial_dyn_shape) {
     PartialShape data_shape{2, Dimension::dynamic(), 5};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     PartialShape indices_shape{Dimension::dynamic(), 2, 2};
     PartialShape updates_shape{2, 2, Dimension::dynamic()};
     PartialShape axis_shape = PartialShape::dynamic();
@@ -51,12 +51,12 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_partial_d
 
     EXPECT_EQ(scatter->get_output_element_type(0), element::f64);
     EXPECT_EQ(scatter->get_output_partial_shape(0), data_shape);
-    EXPECT_THAT(get_shape_labels(scatter->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(scatter->get_output_partial_shape(0)), symbols);
 }
 
 TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_data_has_interval_dimensions) {
     PartialShape data_shape{{5, 10}, -1, {-1, 3}, {8, -1}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<op::v0::Parameter>(element::i64, data_shape);
     const auto indices = make_shared<op::v0::Parameter>(element::i16, PartialShape{1, 2, 2, {2, 3}});
@@ -67,7 +67,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_data_has_interva
 
     EXPECT_EQ(scatter->get_output_element_type(0), element::i64);
     EXPECT_EQ(scatter->get_output_partial_shape(0), data_shape);
-    EXPECT_THAT(get_shape_labels(scatter->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(scatter->get_output_partial_shape(0)), symbols);
 }
 
 TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_full_dyn_shape) {
@@ -101,7 +101,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_default_ctor) {
     EXPECT_EQ(scatter->get_output_size(), 1);
     EXPECT_EQ(scatter->get_output_element_type(0), element::f32);
     EXPECT_EQ(scatter->get_output_partial_shape(0), PartialShape({2, 5, 5, 6}));
-    EXPECT_THAT(get_shape_labels(scatter->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(scatter->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(ScatterElementsUpdateTest,
@@ -109,7 +109,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest,
     const auto data = op::v0::Constant::create(element::i64, Shape{4}, {2, 3, 15, 4});
     const auto indices = op::v0::Constant::create(element::i64, Shape{2}, {3, 0});
     auto updates_shape = PartialShape{{10, 20}, {3, 4}};
-    set_shape_labels(updates_shape, 20);
+    auto symbols = set_shape_symbols(updates_shape);
     const auto axis = make_shared<op::v0::Constant>(element::i16, Shape{}, 0);
 
     const auto shape_of_u =
@@ -120,7 +120,8 @@ TYPED_TEST_P(ScatterElementsUpdateTest,
     auto bc = std::make_shared<op::v3::Broadcast>(param, scatter, op::BroadcastType::BIDIRECTIONAL);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({{3, 4}, 3, 15, {10, 20}}));
-    EXPECT_THAT(get_shape_labels(bc->get_output_partial_shape(0)), ElementsAre(21, ov::no_label, ov::no_label, 20));
+    EXPECT_THAT(get_shape_symbols(bc->get_output_partial_shape(0)),
+                ElementsAre(symbols[1], nullptr, nullptr, symbols[0]));
 }
 
 TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_axis_validation) {

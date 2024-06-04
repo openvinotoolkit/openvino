@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,6 @@ protected:
     uint64_t m_global_seed;
     uint64_t m_op_seed;
 
-    mutable std::mutex m_state_mutex;
     mutable std::pair<uint64_t, uint64_t> m_state;
 };
 }  // namespace v8

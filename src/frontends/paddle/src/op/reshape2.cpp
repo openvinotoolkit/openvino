@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,11 @@ NamedOutputs reshape2(const NodeContext& node) {
         auto nodes = node.get_ng_inputs(name);
         ov::NodeVector node_vec;
         for (auto& input_node : nodes) {
+            if (input_node.get_shape().size() == 0) {
+                input_node =
+                    std::make_shared<ov::opset6::Unsqueeze>(input_node,
+                                                            ov::opset6::Constant::create(ov::element::i64, {1}, {0}));
+            }
             auto cast = std::make_shared<ov::opset6::Convert>(input_node, element::i64);
             node_vec.push_back(cast);
         }

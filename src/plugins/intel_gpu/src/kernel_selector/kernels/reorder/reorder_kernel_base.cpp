@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 namespace kernel_selector {
 inline uint32_t SubGroupSize(WeightsLayout l) {
     switch (l) {
-        case WeightsLayout::o_is_yx_isv16:
-        case WeightsLayout::o_is_zyx_isv16:
         case WeightsLayout::os_iyx_osv16:
         case WeightsLayout::os_iyx_osv32:
         case WeightsLayout::os_iyx_osv64:
@@ -34,7 +32,6 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::gs_oiyx_gsv16:
         case WeightsLayout::gs_oizyx_gsv16:
         case WeightsLayout::gs_oiyx_gsv32:
-        case WeightsLayout::gs_oizyx_gsv32:
         case WeightsLayout::g_os_iyx_osv16_rotate_180:
         case WeightsLayout::gi_yxs_os_yxsv2_osv16:
         case WeightsLayout::g_is_os_zyx_isv16_osv16:
@@ -44,15 +41,12 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::g_os_is_zyx_isv16_osv16:
         case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:
         case WeightsLayout::g_os_is_yx_isv16_osv16:
-        case WeightsLayout::os_is_yx_osv16_isv2:
         case WeightsLayout::os_is_yx_osv16_isv16:
             return 16;
         case WeightsLayout::os_i_osv8__ai8:
         case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
         case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:
         case WeightsLayout::g_os_iyx_osv8:
-        case WeightsLayout::gs_oiyx_gsv8:
-        case WeightsLayout::gs_oizyx_gsv8:
             return 8;
         default:
             return 1;
@@ -197,9 +191,9 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     return dispatchData;
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options) const {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params) const {
     assert(params.GetType() == KernelType::REORDER);
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
@@ -209,7 +203,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -233,8 +227,8 @@ void ReorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params) const {
+    if (!Validate(params)) {
         return {};
     }
     assert(params.GetType() == KernelType::REORDER);
@@ -244,7 +238,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     DispatchData dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -259,9 +253,9 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
-    kernel.params.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params), 1, newParams.outputs[0].is_dynamic());
+    kernel.params.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }

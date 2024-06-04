@@ -1,15 +1,20 @@
-# Overview of the Runners used in the OpenVINO GitHub Actions CI
+# OpenVINO Runners used by GitHub Actions CI
 
-The machines that execute the commands from the workflows are referred to as _runners_ in GitHub Actions.
+The machines that execute workflow commands are referred to as _runners_ in GitHub Actions.
 
 Two types of runners are available in this repository:
-   
+
 * [GitHub Actions Runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners) - runners provided and managed by GitHub
-* [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories 
+* [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories
 
-The runners are specified for each job using the `runs-on` key. 
+Generally, it is advised to use the GitHub Actions runners for light jobs, like labelers, code style checks, etc, whereas
+longer workflows (such as builds or functional tests) should use the self-hosted runners.
 
-An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
+The runners are specified for each job using the `runs-on` key.
+
+An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml)
+workflow, using the `aks-linux-16-cores-32gb` runner group:
+
 ```yaml
 Build:
   ...
@@ -17,27 +22,36 @@ Build:
   ...
 ```
 
-The `aks-linux-16-cores-32gb` runners group is used for this job.
 
 ## Available GitHub Actions Runners
 
-GitHub provides runners with different combinations of available resources and software. 
+GitHub provides runners with different combinations of available resources and software.
+OpenVINO repositories make use of the following runners:
 
-The OpenVINO repositories make use of the following runners:
+* [default runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources),
+  used for not-so-intensive memory and CPU tasks: `ubuntu-22/20.04`, `windows-2019/2022`,
+  `macos-12/13`, etc.
 
-* [The default runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources): `ubuntu-22/20.04`, `windows-2019/2022`, `macos-12/13`, etc.
-  * Used for not-so-intensive memory and CPU tasks
-* [The larger runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-larger-runners/about-larger-runners#machine-sizes-for-larger-runners): you can find the list of the available larger runners [here](https://github.com/openvinotoolkit/openvino/actions/runners)
-  * Used for memory and CPU heavy tasks
+* [larger runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-larger-runners/about-larger-runners#machine-sizes-for-larger-runners),
+  used for memory and CPU-intensive tasks, listed in [the runners page](https://github.com/openvinotoolkit/openvino/actions/runners).
+
 
 ## Available Self-hosted Runners
 
-The self-hosted runners are dynamically spawned for each requested pipeline. 
-Several configurations of the self-hosted runners are available, they are identified by different group names.
+Two groups of self-hosted runners are available:
 
-The group names generally follow the pattern: `aks-{OS}-{CORES_N}-cores-|{RAM_SIZE}gb|-|{ARCH}|`, where:
-* `{OS}` - the operating system: `win`/`linux`
-  * **Note**: Currently, only Windows and Linux self-hosted runners are available.
+* Dynamically-spawned Linux and Windows runners with CPU-only capabilities
+* Dedicated Linux runners with GPU capabilities
+
+### Dynamically-spawned Linux and Windows Runners
+
+These self-hosted runners are dynamically spawned for each requested pipeline.
+Several configurations are available, which are identified by different group names.
+The group names generally follow the pattern:
+`aks-{OS}-{CORES_N}-cores-|{RAM_SIZE}gb|-|{ARCH}|`, where:
+
+* `{OS}` - the operating system: `win`/`linux` (currently, only the Windows and Linux
+  self-hosted runners are available).
 * `{CORES_N}` - the number of cores available to the runners in the group: `4`/`8`/etc.
 * `|{RAM_SIZE}gb|` - **_optional_**, the RAM size in GB available to the runners in the group: `8`/`16`/etc.
   * **Note**: The groups with unspecified `{RAM_SIZE}` consist of the runners with 32 GB of RAM
@@ -58,12 +72,57 @@ The available configurations are:
 
 * `*` - Not specified in the group name
 
-## How to choose a Runner
+### Dedicated GPU Runners
 
-The configuration of a runner required for a job (building, testing, etc.) stems from the nature of the job: the more memory and/or CPU-intensive it is, 
-the more robust configuration is required.
+Eighteen runners with GPU capabilities (both integrated and discrete, iGPU and dGPU) 
+are available to all repositories in the OpenVINO organisation's GitHub Actions. 
 
-The `Build` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
+These runners are virtual machines with Ubuntu 22.04 and have the following specifications:
+
+* CPU: i9-12900k
+* All of them have iGPU (UHD 770 Graphics)
+* Twelve of them have iGPU (UHD 770 Graphics) and dGPU (Arc A770)
+
+These runners may be selected using labels provided in the `runs-on` field in a job configuration.
+The available labels are:
+* `gpu` - encapsulates all the 18 runners
+* `igpu` - encapsulates all the 18 runners as all of them have iGPU
+* `dgpu` - encapsulates 12 runners that have dGPU
+
+Here is an example, a `GPU Tests` job that uses the `gpu` label and runs on any available GPU runner:
+```yaml
+  GPU:
+    name: GPU Tests
+    needs: [ Build, Smart_CI ]
+    runs-on: [ self-hosted, gpu ]
+    container:
+      image: ubuntu:20.04
+      options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
+      volumes:
+        - /dev/dri:/dev/dri
+  ...
+```
+
+If, for example, a job requires a dGPU, it should use the `dgpu` label, instead:
+```yaml
+  GPU:
+    name: GPU Tests
+    needs: [ Build, Smart_CI ]
+    runs-on: [ self-hosted, dgpu ]
+  ...
+```
+
+**NOTE**: as these are persistent runners, Docker should be used for the jobs that utilise the GPU runners.
+Learn more about the
+available images and how to choose one in the [OpenVINO Docker Image Overview](./docker_images.md).  
+
+## How to Choose a Runner
+
+The configuration of a runner required for a job (building, testing, other tasks) depends on the
+nature of the job. Jobs that are more memory and/or CPU-intensive require a more robust configuration.
+
+The `Build` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses
+the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
 ```yaml
 Build:
   ...
@@ -71,7 +130,8 @@ Build:
   ...
 ```
 
-This group has machines with 16 core CPU and 32 GB of RAM, which could be utilized in parallel by the build tools used in the `Build` job. 
+The `aks-linux-16-cores-32gb` group has machines with 16-core CPU and 32 GB of RAM.
+These resources are suitable for using in parallel by the build tools in the `Build` job.
 
 The `C++ unit tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-4-cores-16gb` group:
 ```yaml
@@ -83,11 +143,12 @@ CXX_Unit_Tests:
     ...
 ```
 
-As the C++ tests could not utilize the large number of cores for parallel execution as the build tools in the `Build` job could, 
-it would be pointless to use the `aks-linux-16-cores-32gb` group for them.
+As the C++ tests can not use a large number of cores for parallel execution like
+the build tools in the `Build` job, it is not beneficial to use the `aks-linux-16-cores-32gb` group for them.
 
-The advice is to use runners with more cores/RAM size for the tasks that **could load them**.
+Instead, it is advisable to use runners with more cores/RAM for tasks that can load them.
 
-It is possible to experiment with different configurations before deciding, i.e.,
-run a job on runners from different groups and observe the gains; if they are significant, e.g., 60 minutes on a 4-core runner vs. 15 minutes on a 16-core runner, 
-it is better to use those with more cores.
+It is possible to experiment with different configurations before making a decision. You can
+run a job on runners from different groups and compare the gains. If they are significant,
+for example, 60 minutes on a 4-core runner compared to 15 minutes on a 16-core runner,
+it is better to use the configuration with more cores.

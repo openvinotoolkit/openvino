@@ -139,7 +139,7 @@ class Scrollbox(Directive):
 
 def visit_showcase(self, node):
     attrs = {}
-    notebook_file = ("notebooks/" + node["title"] + "-with-output.html") if 'title' in node is not None else ""
+    notebook_file = ("../../notebooks/" + node["title"] + "-with-output.html") if 'title' in node is not None else ""
     link_title = (node["title"]) if 'title' in node is not None else "OpenVINO Interactive Tutorial"
 
     if "height" or "width" in node:
@@ -181,7 +181,7 @@ def depart_showcase(self, node):
         matched_notebook = [match for match in ipynb_list if notebook_with_ext in match]
 
 
-    notebook_file = ("notebooks/" + node["title"] + "-with-output.html") if 'title' in node is not None else ""
+    notebook_file = ("../../notebooks/" + node["title"] + "-with-output.html") if 'title' in node is not None else ""
     link_title = (node["title"]) if 'title' in node is not None else "OpenVINO Interactive Tutorial"
 
     self.body.append("<a href='" + notebook_file + "' title='" + link_title + "'>")

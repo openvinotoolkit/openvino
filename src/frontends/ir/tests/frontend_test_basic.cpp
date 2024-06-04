@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11) {
 
     std::shared_ptr<ov::Model> model;
     ov::RTMap rtInfo;
-    uint64_t version;
+    uint64_t version = 0;
 
     ASSERT_NO_THROW(model = getWithIRFrontend(testModelV11));
     ASSERT_TRUE(!!model);
@@ -120,7 +120,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v10) {
 
     std::shared_ptr<ov::Model> modelv10;
     ov::RTMap rtInfoV10;
-    uint64_t version;
+    uint64_t version = 0;
 
     ASSERT_NO_THROW(modelv10 = getWithIRFrontend(testModelV10));
     ASSERT_TRUE(!!modelv10);
@@ -783,7 +783,7 @@ TEST_F(IRFrontendTests, name_is_not_unique) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
+    EXPECT_NO_THROW(core.read_model(xmlFileName, binFileName));
 }
 
 TEST_F(IRFrontendTests, edge_has_wrong_port_id) {

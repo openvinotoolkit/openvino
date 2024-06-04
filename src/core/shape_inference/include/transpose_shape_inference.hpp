@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -74,7 +74,7 @@ std::vector<TRShape> shape_infer(const Transpose* op,
             "Input order must have shape [n], where n is the rank of arg.");
     }
 
-    const auto axes = get_input_const_data_as<TShape, int64_t>(op, Transpose::ORDER, tensor_accessor);
+    auto axes = get_input_const_data_as<TShape, int64_t>(op, Transpose::ORDER, tensor_accessor);
 
     auto output_shapes = std::vector<TRShape>();
     if (axes && input_rank.is_static()) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
+
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
 #    if __GLIBC_MINOR__ < 34

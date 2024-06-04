@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,5 +11,10 @@ namespace test {
 TEST_P(ConcatLayerTest, Inference) {
     run();
 };
+
+TEST_P(ConcatStringLayerTest, Inference) {
+    run();
+};
+
 }  // namespace test
 }  // namespace ov

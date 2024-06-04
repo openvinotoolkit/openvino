@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "serialize.h"
@@ -6,6 +6,7 @@
 #include <pugixml.hpp>
 
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -24,7 +25,8 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     }
 }
 
-ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
+ModelSerializer::ModelSerializer(std::ostream& ostream)
+    : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serializeInfo = [&](std::ostream& stream) {
@@ -40,7 +42,7 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    ov::pass::StreamSerialize serializer(_ostream, serializeInfo);
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo, ov::util::codec_xor);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
@@ -55,9 +57,24 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     std::string xmlString;
     ov::Tensor dataBlob;
 
+    // get file size before seek content
+    // blob from cache may have other header, skip it
+    const size_t _pos = _istream.tellg();
+    _istream.seekg(0, _istream.end);
+    const size_t file_size = _istream.tellg();
+    _istream.seekg(_pos, _istream.beg);
+
     StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
+    // check if model header contains valid data
+    bool isValidModel = (hdr.custom_data_offset == sizeof(hdr) + _pos) &&
+                        (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
+                        (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
+                        (hdr.model_size = file_size - hdr.model_offset);
+    if (!isValidModel) {
+        OPENVINO_THROW("Failed to read CPU device xml header");
+    }
     // read model input/output precisions
     _istream.seekg(hdr.custom_data_offset);
 
@@ -83,6 +100,7 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     _istream.seekg(hdr.model_offset);
     xmlString.resize(hdr.model_size);
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+    xmlString = ov::util::codec_xor(xmlString);
 
     model = _model_builder(xmlString, std::move(dataBlob));
 

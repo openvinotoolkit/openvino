@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ public:
 
 protected:
     void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 }  // namespace test
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,10 @@ void Mvn1LayerTest::SetUp() {
         mvn->set_reduction_axes(axes);
     } else {
         mvn = std::make_shared<ov::op::v0::MVN>(param, axes, normalize_variance, eps);
+    }
+
+    if (model_type == ov::element::f32) {
+        abs_threshold = 5e-7;
     }
 
     auto result = std::make_shared<ov::op::v0::Result>(mvn);

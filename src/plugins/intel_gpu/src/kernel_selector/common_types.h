@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace kernel_selector {
 enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
+    BEAM_TABLE_UPDATE,
     CONVOLUTION,
     DECONVOLUTION,
     DFT,
@@ -58,6 +59,7 @@ enum class KernelType {
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHAPE_OF,
+    SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
     STRIDED_SLICE,
@@ -94,6 +96,8 @@ enum class KernelType {
     UNIQUE_COUNT,
     UNIQUE_GATHER,
     RMS,
+    SWIGLU,
+    ROPE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -5,7 +5,8 @@
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -13,13 +14,11 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool OptimizeLoopSingleEvaluation::run(LinearIR& linear_ir) {
+bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeLoopSingleEvaluation")
-    if (linear_ir.empty())
-        return false;
-
     bool is_modified = false;
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         if (auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             // *1* solo vector/tail loop + empty outer loop
             //      => skip increments (both counter & ptr) : set evaluate_once flag
@@ -28,7 +27,7 @@ bool OptimizeLoopSingleEvaluation::run(LinearIR& linear_ir) {
             //         and perform pointer increments through finalization offsets
             // *3* vector loop(s) + one tail loop
             //      => vector as usual, tail depends on outer loop, see *1* and *2*
-            if (loop_end->get_work_amount() >= 2 * loop_end->get_increment())
+            if (loop_end->has_dynamic_params() || loop_end->get_work_amount() >= 2 * loop_end->get_increment())
                 continue;
 
             auto new_finalization_offsets = loop_end->get_finalization_offsets();

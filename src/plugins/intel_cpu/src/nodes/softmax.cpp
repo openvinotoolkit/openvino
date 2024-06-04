@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -217,13 +217,11 @@ void SoftMax::prepareParams() {
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
-    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
-    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+    primArgs[DNNL_ARG_SRC] = getSrcMemoryAtPort(0)->getPrimitive();
+    primArgs[DNNL_ARG_DST] = getDstMemoryAtPort(0)->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        auto pd = execPtr->getPrimitiveDesc();
-        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-    }
+    auto pd = execPtr->getPrimitiveDesc();
+    DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
 

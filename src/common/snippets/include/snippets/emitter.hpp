@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,13 @@ namespace snippets {
  * @interface RegType
  * @brief Register type of input and output operations
  */
-enum class RegType { gpr, vec };
+enum class RegType { gpr, vec, undefined };
 /**
  * @interface Reg
  * @brief Register representation: type of register and index
  */
 struct Reg {
+    Reg() = default;
     Reg(RegType type_, size_t idx_) : type(type_), idx(idx_) {}
 
     RegType type = RegType::gpr;

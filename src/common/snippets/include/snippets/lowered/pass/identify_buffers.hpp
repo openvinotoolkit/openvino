@@ -6,6 +6,8 @@
 
 #include "pass.hpp"
 
+#include "snippets/utils.hpp"
+
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -27,9 +29,9 @@ namespace pass {
  *        Note: should be called before ResetBuffer() pass to have correct offsets
  * @ingroup snippets
  */
-class IdentifyBuffers: public Pass {
+class IdentifyBuffers: public RangedPass {
 public:
-    OPENVINO_RTTI("IdentifyBuffers", "Pass")
+    OPENVINO_RTTI("IdentifyBuffers", "RangedPass")
     IdentifyBuffers() = default;
 
     /**
@@ -37,7 +39,7 @@ public:
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
     struct ShiftPtrParams {
         ShiftPtrParams() = default;
@@ -45,6 +47,10 @@ public:
         int64_t data_size = 0;
         int64_t ptr_increment = 0;
         int64_t finalization_offset = 0;
+
+        inline bool is_static() const {
+            return !utils::is_dynamic_value(ptr_increment) && !utils::is_dynamic_value(finalization_offset);
+        }
 
         friend bool operator==(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);
         friend bool operator!=(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);
@@ -75,7 +81,7 @@ private:
      * @param pool set of Buffers from the Linear IR
      * @return adjacency matrix where True value means that Buffers are adjacent and cannot have the same ID
      */
-    static std::vector<bool> create_adjacency_matrix(const LinearIR& linear_ir, const BufferPool& pool);
+    static std::vector<bool> create_adjacency_matrix(lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end, const BufferPool& pool);
     /**
      * @brief Algorithm of Graph coloring where vertices are Buffers
      * @param buffers set of Buffers from the Linear IR

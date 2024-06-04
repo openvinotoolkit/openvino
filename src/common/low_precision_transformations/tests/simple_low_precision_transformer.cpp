@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,6 @@
 using namespace testing;
 using namespace ov::pass;
 using namespace ov::pass::low_precision;
-
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions,

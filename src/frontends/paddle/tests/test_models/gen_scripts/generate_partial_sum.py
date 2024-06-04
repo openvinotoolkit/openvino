@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -37,7 +37,7 @@ def partial_sum(name: str, x, y, start_index=0, length=-1):
         saveModel(
             name,
             exe,
-            feedkeys=["x", "y"],
+            feed_vars=[x_data, y_data],
             fetchlist=[out],
             inputs=[x, y],
             outputs=[outs[0]],

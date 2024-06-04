@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "conv.h"
 
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "common/c_types_map.hpp"
 #include "common/cpu_convert.h"
 #include "common/primitive_desc.hpp"
@@ -296,6 +298,11 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         paddingR = groupConvolutionOp->get_pads_end();
         autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
+    // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
+    const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+                                dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                    !context->isGraphQuantized();
+    useJitPlanar = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -330,60 +337,61 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static std::vector<impl_desc_type> priorities = {
-        impl_desc_type::unknown,
-        impl_desc_type::dw_acl,
-        impl_desc_type::winograd_acl,
-        impl_desc_type::gemm_acl,
-        impl_desc_type::acl,
-        impl_desc_type::brgconv_avx512_amx_1x1,
-        impl_desc_type::brgconv_avx512_amx,
-        impl_desc_type::jit_avx512_amx_dw,
-        impl_desc_type::jit_avx512_amx_1x1,
-        impl_desc_type::jit_avx512_amx,
-        impl_desc_type::brgconv_avx512_1x1,
-        impl_desc_type::brgconv_avx512,
-        impl_desc_type::jit_uni_dw,
-        impl_desc_type::jit_uni_1x1,
-        impl_desc_type::jit_uni,
-        impl_desc_type::jit_avx512_dw,
-        impl_desc_type::jit_avx512_1x1,
-        impl_desc_type::jit_avx512,
-        impl_desc_type::brgconv_avx2_1x1,
-        impl_desc_type::brgconv_avx2,
-        impl_desc_type::jit_avx2_dw,
-        impl_desc_type::jit_avx2_1x1,
-        impl_desc_type::jit_avx2,
-        impl_desc_type::jit_avx_dw,
-        impl_desc_type::jit_avx_1x1,
-        impl_desc_type::jit_avx,
-        impl_desc_type::jit_sse42_dw,
-        impl_desc_type::jit_sse42_1x1,
-        impl_desc_type::jit_sse42,
-        impl_desc_type::gemm_any,
-        impl_desc_type::gemm_blas,
-        impl_desc_type::gemm_avx512,
-        impl_desc_type::gemm_avx2,
-        impl_desc_type::gemm_avx,
-        impl_desc_type::gemm_sse42,
-        impl_desc_type::jit_gemm,
-        impl_desc_type::ref_any,
-        impl_desc_type::ref,
-    };
+    static const std::vector<impl_desc_type> priorities = {
+            impl_desc_type::unknown,
+            impl_desc_type::dw_acl,
+            impl_desc_type::winograd_acl,
+            impl_desc_type::gemm_acl,
+            impl_desc_type::acl,
+            impl_desc_type::brgconv_avx512_amx_1x1,
+            impl_desc_type::brgconv_avx512_amx,
+            impl_desc_type::jit_avx512_amx_dw,
+            impl_desc_type::jit_avx512_amx_1x1,
+            impl_desc_type::jit_avx512_amx,
+            impl_desc_type::brgconv_avx512_1x1,
+            impl_desc_type::brgconv_avx512,
+            impl_desc_type::jit_avx512_dw,
+            impl_desc_type::jit_avx512_1x1,
+            impl_desc_type::jit_avx512,
+            impl_desc_type::brgconv_avx2_1x1,
+            impl_desc_type::brgconv_avx2,
+            impl_desc_type::jit_uni_dw,
+            impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni,
+            impl_desc_type::jit_avx2_dw,
+            impl_desc_type::jit_avx2_1x1,
+            impl_desc_type::jit_avx2,
+            impl_desc_type::jit_avx_dw,
+            impl_desc_type::jit_avx_1x1,
+            impl_desc_type::jit_avx,
+            impl_desc_type::jit_sse42_dw,
+            impl_desc_type::jit_sse42_1x1,
+            impl_desc_type::jit_sse42,
+            impl_desc_type::gemm_any,
+            impl_desc_type::gemm_blas,
+            impl_desc_type::gemm_avx512,
+            impl_desc_type::gemm_avx2,
+            impl_desc_type::gemm_avx,
+            impl_desc_type::gemm_sse42,
+            impl_desc_type::jit_gemm,
+            impl_desc_type::ref_any,
+            impl_desc_type::ref,
+        };
+        if (isBrgConvAvailable())
+            return priorities;
 
-    priorities.erase(std::remove_if(priorities.begin(),
-                                    priorities.end(),
-                                    [](impl_desc_type type) {
-                                        return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
-                                    }),
-                     priorities.end());
-
-    return priorities;
+        static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
+            std::vector<impl_desc_type>result;
+            std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result),
+                [](impl_desc_type type) { return !(type & impl_desc_type::brgconv); });
+            return result;}();
+        return priorities_wo_brgemm;
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
+    //When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
+    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                           !useJitPlanar;
     return isBrgConvAvailable;
 }
 
@@ -504,12 +512,13 @@ void Convolution::getSupportedDescriptors() {
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
 
-        SetPostOpsAndZeroPoints(attrs);
-
         // so far oneDNN INT8 convolution only support s8,u8,s32,f32,bf16 output types
         if (outputDataType == memory::data_type::f16) {
             outputDataType = memory::data_type::f32;
+            eltwisePrecision = ov::element::f32;
         }
+
+        SetPostOpsAndZeroPoints(attrs);
 
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, nspc);
@@ -559,7 +568,6 @@ void Convolution::getSupportedDescriptors() {
         outputDataType = memory::data_type::f32;
         eltwisePrecision = ov::element::f32;
     }
-
     SetPostOpsAndZeroPoints(attrs);
 
     if (!one_of(ndims, 3, 4, 5))
@@ -627,7 +635,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     bool isINT8 = canBeExecutedInInt8();
     // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM, weiScaleMaskPerChannel =  1 << 0
     // Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
+    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
@@ -706,8 +714,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
         auto* convolutionNode = dynamic_cast<Convolution*>(node.get());
         if (convolutionNode) {
             if (initWeights) {
-                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr();
-                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr();
+                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = getSrcMemoryAtPort(getOriginalInputsNumber() + 0);
+                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = getSrcMemoryAtPort(getOriginalInputsNumber() + 1);
 
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as DW convolution");
                 // todo: rewrite onto append_dw_k3s2p1
@@ -1104,6 +1112,10 @@ std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(const dnnl::primitive_des
 }
 
 bool Convolution::canFuse(const NodePtr& node) const {
+#if defined(OV_CPU_WITH_ACL)
+    if (!fusedWith.empty())
+        return false;
+#endif
     return canFuseSimpleOperation(node);
 }
 
@@ -1141,12 +1153,13 @@ bool Convolution::isNspcAvailable() const {
             return false;
         }
     }
-
+    // AVX2 heuristic
+    if (useJitPlanar)
+        return false;
     // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
     auto inpDims = getInputShapeAtPort(0).getDims();
     auto outDims = getOutputShapeAtPort(0).getDims();
     auto ndims = inpDims.size();
-
     if (isDepthWise()) {
         // 1d equivalent cases are painfully slow
         if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
@@ -1205,8 +1218,8 @@ bool Convolution::isNspcAvailable() const {
 }
 
 void Convolution::prepareParams() {
-    auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getOutputMemory();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory was not allocated.");
@@ -1216,7 +1229,7 @@ void Convolution::prepareParams() {
         OPENVINO_THROW("Weight memory was not allocated.");
     MemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
-        biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
+        biasMemPtr = getSrcMemoryAtPort(2);
         if (!biasMemPtr || !biasMemPtr->isAllocated())
             OPENVINO_THROW("Input memory didn't allocate.");
     }
@@ -1420,10 +1433,8 @@ void Convolution::prepareParams() {
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 
 #ifdef CPU_DEBUG_CAPS
-    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        auto pd = execPtr->getPrimitiveDesc();
-        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-    }
+    auto pd = execPtr->getPrimitiveDesc();
+    DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
 
@@ -1505,16 +1516,16 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
                            getName());
         }
         const size_t sumPortNum = getParentEdges().size() - 1;
-        const auto& sumInpMem = getParentEdgesAtPort(sumPortNum).front()->getMemory();
+        const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
         auto inp1 = subgraph->getInput(1);
-        auto inp1Mem = inp1->getChildEdgesAtPort(0).front()->getMemoryPtr();
+        auto inp1Mem = inp1->getDstMemoryAtPort(0);
         inp1Mem->getMemoryMngr()->setExtBuff(sumInpMem.getData(), sumInpMem.getSize());
 
         subgraph->infer();
 
         auto out = subgraph->getOutput(0);
-        const auto& outMem = out->getParentEdgesAtPort(0).front()->getMemory();
-        auto convOutMem = getChildEdgesAtPort(0).front()->getMemoryPtr();
+        const auto& outMem = out->getParentEdgeAt(0)->getMemory();
+        auto convOutMem = getDstMemoryAtPort(0);
         Node::redefineOutputMemory({outMem.getStaticDims()});
         convOutMem->load(outMem);
     }
@@ -1531,7 +1542,7 @@ void Convolution::updatePadding() {
 void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
     if (withSum) {
         const size_t sumPortNum = getParentEdges().size() - 1;
-        const auto& sumInpMem = getParentEdgesAtPort(sumPortNum).front()->getMemory();
+        const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
         if (newOutputShapes.front() != sumInpMem.getStaticDims()) {
             withSumBroadcast = true;
             if (!subgraph) {
@@ -1588,9 +1599,9 @@ MemoryPtr Convolution::getOutputMemory() const {
                            getName());
         }
         auto inp0 = subgraph->getInput(0);
-        return inp0->getChildEdgesAtPort(0).front()->getMemoryPtr();
+        return inp0->getDstMemoryAtPort(0);
     } else {
-        return getChildEdgesAtPort(0).front()->getMemoryPtr();
+        return getDstMemoryAtPort(0);
     }
 }
 
@@ -1604,7 +1615,7 @@ void Convolution::addFusedNode(const NodePtr &fusingNode) {
         }
         if (withSum && isDynamicNode()) {
             for (size_t i = 0; i < fusingNode->getParentEdges().size(); ++i) {
-                auto edge = fusingNode->getParentEdgesAtPort(i).front();
+                auto edge = fusingNode->getParentEdgeAt(i);
                 auto parent = edge->getParent();
                 if ("Constant" == parent->getTypeStr()) {
                     fusedConstNodes[fusingNode].push_back(parent);
@@ -1645,6 +1656,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
             inputZeroPointType = zpType::PerChannel;
     }
     // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni, avx2_vnni_2.
+    // avx2_vnni is not enabled per-tensor z because of perf regression brgconv with per-tensor zpcompared with jit per-channel zp
     // If zero point is pertensor, both legacy zp and stock zp
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.

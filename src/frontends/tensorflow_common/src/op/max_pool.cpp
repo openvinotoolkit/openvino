@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
                                      int64_t axis = 0,
                                      bool set_friendly_name = true,
                                      bool with_indices = false) {
-    default_op_checks(node, 1, {"MaxPool", "MaxPoolV2", "MaxPool3D", "MaxPoolWithArgmax"});
+    default_op_checks(node, 1, {"MaxPool", "MaxPoolV2", "MaxPool3D", "MaxPoolWithArgmax", "MAX_POOL_2D"});
     TENSORFLOW_OP_VALIDATION(node,
                              spatial_dims_num == 2 || spatial_dims_num == 3,
                              "Only MaxPool, MaxPoolV2, MaxPool3D and MaxPoolWithArgmax are supported.");
@@ -115,12 +115,10 @@ OutputVector translate_max_pool_v2(const NodeContext& node) {
     auto ksize = node.get_input(1);
     auto strides = node.get_input(2);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto ksize_constant = get_constant_from_source(ksize);
+    auto ksize_constant = ov::util::get_constant_from_source(ksize);
     TENSORFLOW_OP_VALIDATION(node, ksize_constant, "MaxPoolV2 is supported only with constant ksize.");
-    auto strides_constant = get_constant_from_source(strides);
+    auto strides_constant = ov::util::get_constant_from_source(strides);
     TENSORFLOW_OP_VALIDATION(node, ksize_constant, "MaxPoolV2 is supported only with constant strides.");
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto ksize_vector = ksize_constant->cast_vector<int64_t>();
     auto strides_vector = strides_constant->cast_vector<int64_t>();
@@ -205,7 +203,7 @@ NamedOutputVector translate_max_pool_with_argmax(const NodeContext& node) {
 }
 
 OutputVector translate_max_pool_op(const NodeContext& node) {
-    if (node.get_op_type() == "MaxPool") {
+    if (node.get_op_type() == "MaxPool" || node.get_op_type() == "MAX_POOL_2D") {
         return translate_max_pool(node, 2);
     } else if (node.get_op_type() == "MaxPoolV2") {
         return translate_max_pool_v2(node);

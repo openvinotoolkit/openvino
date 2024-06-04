@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
@@ -72,8 +71,7 @@ void QuantGroupConvLayerTest::SetUp() {
     weightsShapes.insert(weightsShapes.begin(), numGroups);
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
-    std::vector<float> weightsData;
-    auto weightsNode = ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
+    auto weightsNode = ov::test::utils::make_constant(element_type, weightsShapes);
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)

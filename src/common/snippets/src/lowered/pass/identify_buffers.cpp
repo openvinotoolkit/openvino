@@ -4,10 +4,9 @@
 
 #include "snippets/lowered/pass/identify_buffers.hpp"
 
-#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/op/brgemm.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -36,9 +35,13 @@ size_t IdentifyBuffers::get_buffer_idx(const ExpressionPtr& target, const Buffer
 }
 
 bool IdentifyBuffers::can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs) {
+    // If data pointer shift parameters are unknown on model compilation stage (dynamic),
+    // we cannot be sure that these data pointers will be proportionally shifted.
+    // Then we force `false` value here to set unique registers for these buffers
+    const auto are_static = lhs.is_static() && rhs.is_static();
     const auto equal_ptr_params_shifting = lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset;
     const auto equal_element_type_sizes = lhs.data_size == rhs.data_size;
-    return equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.ptr_increment == 0 && lhs.finalization_offset == 0));
+    return are_static && equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.ptr_increment == 0 && lhs.finalization_offset == 0));
 }
 
 bool IdentifyBuffers::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
@@ -57,7 +60,7 @@ bool IdentifyBuffers::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams
         const auto are_outer_loops_the_same = lhs_ids.size() != rhs_ids.size() &&
             std::equal(rhs_ids.cbegin(), rhs_ids.cbegin() + count_outer_loops, lhs_ids.cbegin());
         const auto outer_buffer_has_zero_shifts = outer_buffer.second.ptr_increment == 0 && outer_buffer.second.finalization_offset == 0;
-        return !are_outer_loops_the_same || !outer_buffer_has_zero_shifts;
+        return !(are_outer_loops_the_same && outer_buffer_has_zero_shifts);
     }
 }
 
@@ -77,7 +80,7 @@ void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrP
     }
 }
 
-std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferPool& pool) {
+std::vector<bool> IdentifyBuffers::create_adjacency_matrix(LinearIR::constExprIt begin, LinearIR::constExprIt end, const BufferPool& pool) {
     // The sync point to check for adjacency is Loop because only in Loop we increment pointers.
     // So if some Buffers in the one Loop have conflict (cannot be inplace: the different ptr increment and data sizes)
     // they are called as adjacent
@@ -86,7 +89,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
     for (size_t i = 0; i < size; ++i)
         adj[index(size, i, i)] = true;
 
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto &expr = *expr_it;
         if (!ov::is_type<op::LoopEnd>(expr->get_node()))
             continue;
@@ -214,19 +217,20 @@ auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> s
     return color_groups;
 }
 
-bool IdentifyBuffers::run(LinearIR& linear_ir) {
+bool IdentifyBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
     // Identify Buffers using Graph coloring algorithm.
     BufferPool buffer_pool;
 
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         if (ov::is_type<op::Buffer>(expr->get_node())) {
             buffer_pool.push_back(expr);
         }
     }
 
     // Creation of Adj matrix
-    auto adj = create_adjacency_matrix(linear_ir, buffer_pool);
+    auto adj = create_adjacency_matrix(begin, end, buffer_pool);
 
     // Graph coloring algorithm
     const auto color_groups = coloring(buffer_pool, adj);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,6 @@ std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing:
 }
 
 void FakeQuantizeAndAvgPoolTransformation::SetUp() {
-    rel_threshold = 0.5f;
-    abs_threshold = 1.0;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
@@ -58,7 +59,7 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -88,13 +89,12 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     return jit;
 }
 
-KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(
             params,
-            options,
             fc_params.inputs[0].GetLayout(),
             WeightsLayout::oiyx,
             static_cast<int>(i));
@@ -106,8 +106,8 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const 
     return res;
 }
 
-bool FullyConnected_bfyx_Ref::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     // int8 validation

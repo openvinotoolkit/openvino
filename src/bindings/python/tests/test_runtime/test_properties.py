@@ -17,6 +17,7 @@ import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
+from openvino.runtime import properties
 
 
 ###
@@ -31,6 +32,7 @@ def test_properties_ro_base():
 def test_properties_rw_base():
     assert ov.properties.cache_dir == "CACHE_DIR"
     assert props.cache_dir("./test_dir") == ("CACHE_DIR", OVAny("./test_dir"))
+    assert properties.cache_dir("./test_dir") == ("CACHE_DIR", OVAny("./test_dir"))
 
     with pytest.raises(TypeError) as e:
         props.cache_dir(6)
@@ -82,6 +84,12 @@ def test_properties_rw_base():
                 (hints.SchedulingCoreType.ANY_CORE, "SchedulingCoreType.ANY_CORE", 0),
                 (hints.SchedulingCoreType.PCORE_ONLY, "SchedulingCoreType.PCORE_ONLY", 1),
                 (hints.SchedulingCoreType.ECORE_ONLY, "SchedulingCoreType.ECORE_ONLY", 2),
+            ),
+        ),
+        (
+            hints.ModelDistributionPolicy,
+            (
+                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
             ),
         ),
         (
@@ -278,6 +286,13 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
         ),
         (
+            hints.model_distribution_policy,
+            "MODEL_DISTRIBUTION_POLICY",
+            (
+                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
+            ),
+        ),
+        (
             hints.enable_hyper_threading,
             "ENABLE_HYPER_THREADING",
             (
@@ -302,6 +317,12 @@ def test_properties_ro(ov_property_ro, expected_value):
             "ALLOW_AUTO_BATCHING",
             ((True, True),),
         ),
+        (
+            hints.dynamic_quantization_group_size,
+            "DYNAMIC_QUANTIZATION_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (hints.kv_cache_precision, "KV_CACHE_PRECISION", ((Type.f32, Type.f32),)),
         (
             intel_cpu.denormals_optimization,
             "CPU_DENORMALS_OPTIMIZATION",
@@ -475,6 +496,7 @@ def test_properties_hint_model():
 
     model = generate_add_model()
 
+    assert properties.hint.model() == "MODEL_PTR"
     assert hints.model == "MODEL_PTR"
 
     property_tuple = hints.model(model)
@@ -535,7 +557,7 @@ def test_single_property_setting(device):
             hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
             hints.num_requests: 12,
             "NUM_STREAMS": streams.Num(5),
-            "ENABLE_MMAP": "NO",
+            "ENABLE_MMAP": False,
         },
     ],
 )

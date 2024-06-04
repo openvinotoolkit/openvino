@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -10,6 +10,7 @@
 
 #include "openvino/openvino.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace util {

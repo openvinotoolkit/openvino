@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,6 +162,16 @@ const std::vector<ReshapeTransformationParam> params = {
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
         "f32"
+    },
+
+    // int16 is not supported: no dequantization after Reshape: Reshape => Output
+    {
+        { 1, 3, 32 },
+        { 1, 3, 4, 8 },
+        { 65536ul, ov::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        "Reshape",
+        "f32",
+        { "Reshape", "Output" }
     },
 };
 

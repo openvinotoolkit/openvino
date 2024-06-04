@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ std::vector<bool> detect_positive = {
     true, false
 };
 
-std::map<std::string, std::string> additional_config = {};
+ov::AnyMap additional_config = {};
 
 const auto is_inf_params = ::testing::Combine(
         ::testing::ValuesIn(input_shapes_static),

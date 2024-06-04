@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ struct range_impl : typed_primitive_impl_ocl<range> {
     using parent = typed_primitive_impl_ocl<range>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::range_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::range_params, kernel_selector::range_optional_params>;
+    using kernel_params_t = kernel_selector::range_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::range_impl)
 
@@ -36,14 +36,18 @@ struct range_impl : typed_primitive_impl_ocl<range> {
         auto params = get_default_params<kernel_selector::range_params>(impl_param, is_shape_agnostic);
         for (int i : {1, 2})
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
-        auto optional_params = get_default_optional_params<kernel_selector::range_optional_params>(impl_param.get_program());
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-       auto kernel_params = get_kernel_params(impl_param, true);
-       (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 
