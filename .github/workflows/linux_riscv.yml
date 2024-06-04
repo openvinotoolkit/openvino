@@ -16,6 +16,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-riscv
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -24,7 +26,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -75,7 +77,7 @@ jobs:
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: 'openvino'
 

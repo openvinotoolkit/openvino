@@ -14,6 +14,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-coverity
   cancel-in-progress: true
 
+permissions: read-all
+
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
@@ -44,14 +46,14 @@ jobs:
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
           ref: ${{ inputs.openvinoRef }}
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -137,7 +139,7 @@ jobs:
         run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
 
       - name: Upload Coverity build log
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
           name: coverity_logs
@@ -145,7 +147,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload Coverity build archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
           name: coverity_archive

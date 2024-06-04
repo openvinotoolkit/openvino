@@ -13,6 +13,8 @@ on:
         required: false
         default: '{"image": null}'
 
+permissions: read-all
+
 jobs:
   ONNX_Models_tests:
     name: ONNX Models tests
@@ -36,13 +38,13 @@ jobs:
     if: ${{ github.event_name != 'merge_group' }}
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -67,7 +69,7 @@ jobs:
           popd
 
       - name: Fetch model_zoo_preprocess script
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: |
             src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh

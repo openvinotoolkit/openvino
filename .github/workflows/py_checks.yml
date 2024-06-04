@@ -20,15 +20,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   linters:
     runs-on: ubuntu-20.04
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: '3.8'
 
@@ -47,7 +49,7 @@ jobs:
           git diff > samples_diff.diff
         working-directory: samples/python
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: failure()
         with:
           name: samples_diff
@@ -65,7 +67,7 @@ jobs:
           git diff > pyopenvino_diff.diff
         working-directory: src/bindings/python/src/openvino
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: failure()
         with:
           name: pyopenvino_diff
@@ -83,7 +85,7 @@ jobs:
           git diff > wheel_diff.diff
         working-directory: src/bindings/python/wheel
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: failure()
         with:
           name: wheel_diff
@@ -111,4 +113,3 @@ jobs:
               fi
             fi
           done            
-

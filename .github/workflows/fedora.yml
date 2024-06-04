@@ -13,6 +13,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-fedora33
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -21,7 +23,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -71,7 +73,7 @@ jobs:
         run: yum update -y && yum install -y git
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
@@ -91,7 +93,7 @@ jobs:
         run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd # v0.0.4
         with:
           version: "v0.7.5"
 
@@ -170,7 +172,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
           name: build_logs
@@ -179,7 +181,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -187,7 +189,7 @@ jobs:
 
       - name: Upload openvino RPM packages
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_rpm_packages
           path: ${{ env.BUILD_DIR }}/*.rpm
@@ -195,7 +197,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -215,7 +217,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO RPM packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_rpm_packages
           path: ${{ env.RPM_PACKAGES_DIR }}

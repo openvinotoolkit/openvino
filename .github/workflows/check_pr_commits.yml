@@ -1,12 +1,14 @@
 name: PR Commits
 on: [pull_request]
 
+permissions: read-all
+
 jobs:
   Checks:
     runs-on: ubuntu-22.04
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
 
       - name: Install dependencies
         run: python3 -m pip install -r ./.github/github_org_control/requirements.txt
