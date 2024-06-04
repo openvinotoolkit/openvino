@@ -99,7 +99,7 @@ ov::Shape ov::PartialShape::get_max_shape() const {
     } else {
         Shape shape;
         shape.reserve(rank().get_length());
-        for (auto dimension : m_dimensions) {
+        for (const auto& dimension : m_dimensions) {
             shape.push_back(dimension.get_interval().get_max_val());
         }
         return shape;
@@ -112,7 +112,7 @@ ov::Shape ov::PartialShape::get_min_shape() const {
     } else {
         Shape shape;
         shape.reserve(rank().get_length());
-        for (auto dimension : m_dimensions) {
+        for (const auto& dimension : m_dimensions) {
             shape.push_back(dimension.get_interval().get_min_val());
         }
         return shape;
@@ -123,7 +123,7 @@ ov::Shape ov::PartialShape::get_shape() const {
     OPENVINO_ASSERT(rank().is_static(), "get_shape() must be called on a static shape");
     Shape shape;
     shape.reserve(rank().get_length());
-    for (auto dimension : m_dimensions) {
+    for (const auto& dimension : m_dimensions) {
         auto min_val = dimension.get_interval().get_min_val();
         auto max_val = dimension.get_interval().get_max_val();
         OPENVINO_ASSERT(min_val == max_val, "get_shape() must be called on a static shape");

@@ -80,10 +80,16 @@ std::ostream& ov::operator<<(std::ostream& str, const Dimension& dimension) {
 }
 
 Dimension::Dimension(value_type dimension)
-    : m_dimension(dimension == -1 ? 0 : dimension, dimension == -1 ? Interval::s_max : dimension) {}
+    : m_dimension(dimension == -1 ? 0 : dimension, dimension == -1 ? Interval::s_max : dimension) {
+    if (is_dynamic())
+        m_symbol = std::make_shared<ov::Symbol>();
+}
 
 Dimension::Dimension(value_type min_dimension, value_type max_dimension)
-    : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {}
+    : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {
+    if (is_dynamic())
+        m_symbol = std::make_shared<ov::Symbol>();
+}
 
 Dimension::Dimension(const std::string& value) {
     auto val = ov::util::trim(value);
@@ -119,6 +125,8 @@ Dimension::Dimension(const std::string& value) {
         max_value = stringToInt64(max_value_str);
     }
     m_dimension = Interval(min_value, max_value);
+    if (is_dynamic())
+        m_symbol = std::make_shared<ov::Symbol>();
 }
 
 std::string Dimension::to_string() const {
