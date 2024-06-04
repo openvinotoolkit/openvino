@@ -36,6 +36,11 @@ class typed_primitive_inst<mutable_data> : public typed_primitive_inst_base<muta
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(mutable_data_node const& node, const kernel_impl_params& impl_param) {
+        return { node.get_attached_memory().get_layout() };
+    }
+
     static layout calc_output_layout(mutable_data_node const& node, kernel_impl_params const& impl_param) {
         return node.get_attached_memory().get_layout();
     }

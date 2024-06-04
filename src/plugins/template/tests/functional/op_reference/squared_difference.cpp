@@ -20,6 +20,7 @@ struct SquaredDifferenceParams {
                             const element::Type& iType,
                             const std::vector<IT>& iValues1,
                             const std::vector<IT>& iValues2,
+                            const Shape& output_shape,
                             const std::vector<IT>& oValues)
         : pshape1(iShape1),
           pshape2(iShape2),
@@ -27,7 +28,7 @@ struct SquaredDifferenceParams {
           outType(iType),
           inputData1(CreateTensor(iType, iValues1)),
           inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(iType, oValues)) {}
+          refData(CreateTensor(output_shape, iType, oValues)) {}
 
     PartialShape pshape1;
     PartialShape pshape2;
@@ -42,14 +43,14 @@ class ReferenceSquaredDifferenceLayerTest : public testing::TestWithParam<Square
                                             public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.pshape1, params.pshape2, params.inType, params.outType);
         inputData = {params.inputData1, params.inputData2};
         refOutData = {params.refData};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<SquaredDifferenceParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "iShape1=" << param.pshape1 << "_";
         result << "iShape2=" << param.pshape2 << "_";
@@ -75,14 +76,14 @@ class ReferenceSquaredDifferenceInPlaceLayerTest : public testing::TestWithParam
                                                    public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.pshape1, params.pshape2, params.inType, params.outType);
         inputData = {params.inputData1, params.inputData2};
         refOutData = {params.refData};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<SquaredDifferenceParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "iShape1=" << param.pshape1 << "_";
         result << "iShape2=" << param.pshape2 << "_";
@@ -123,30 +124,35 @@ std::vector<SquaredDifferenceParams> generateParamsForSquaredDifference() {
                                 IN_ET,
                                 std::vector<T>{256, 56},
                                 std::vector<T>{256, 56},
+                                Shape{1, 2},
                                 std::vector<T>{0, 0}),
         SquaredDifferenceParams(ov::PartialShape{2, 2},
                                 ov::PartialShape{2, 2},
                                 IN_ET,
                                 std::vector<T>{256, 56, -21, -14},
                                 std::vector<T>{-112, 56, 6, -8},
+                                Shape{2, 2},
                                 std::vector<T>{135424, 0, 729, 36}),
         SquaredDifferenceParams(ov::PartialShape{1, 2},
                                 ov::PartialShape{3, 2, 2},
                                 IN_ET,
                                 std::vector<T>{1, 2},
                                 std::vector<T>{5, 6, 7, 8, 2, 3, 1, 5, 6, 7, 1, 3},
+                                Shape{3, 2, 2},
                                 std::vector<T>{16, 16, 36, 36, 1, 1, 0, 9, 25, 25, 0, 1}),
         SquaredDifferenceParams(ov::PartialShape{1},
                                 ov::PartialShape{1},
                                 IN_ET,
                                 std::vector<T>{57},
                                 std::vector<T>{13},
+                                Shape{1},
                                 std::vector<T>{1936}),
         SquaredDifferenceParams(ov::PartialShape{2, 2},
                                 ov::PartialShape{1},
                                 IN_ET,
                                 std::vector<T>{2, 4, 7, 8},
                                 std::vector<T>{8},
+                                Shape{2, 2},
                                 std::vector<T>{36, 16, 1, 0})};
     return params;
 }
@@ -160,6 +166,7 @@ std::vector<SquaredDifferenceParams> generateParamsForSquaredDifferenceInPlace()
                                                                         IN_ET,
                                                                         std::vector<T>{1, 2, 3, 4},
                                                                         std::vector<T>{5, 6, 7, 8},
+                                                                        Shape{2, 2},
                                                                         std::vector<T>{0, 0, 0, 0})};
     return params;
 }

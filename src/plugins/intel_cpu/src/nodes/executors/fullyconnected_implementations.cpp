@@ -58,13 +58,13 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     // int8 inner_product does not support f16 output and bias
-    {{_u8 | _i8, _i8, _any, _f16},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
-    {{_u8 | _i8, _i8, _any, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), use<3>(), bypass())},
+    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _undefined, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
+    {{_u8 | _i8, _i8, _any, _any}, pt(bypass(), bypass(), just<f32>(), just<f32>())},
     // compresses int weights (@todo more strict requrements for output precision?)
-    {{_bf16, _u8 | _nf4 | _u4 | _i4, _any, _any},             pt(bypass(), bypass(), use<0>(), use<0>()),
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>()),
      Require<dnnl::impl::cpu::x64::avx512_core_bf16>()}, // Ticket 122347
-    {{_bf16, _u8 | _nf4 | _u4 | _i4, _any, _any},             pt(just<f32>(), bypass(), just<f32>(), just<f32>())},
-    {{_f32, _u8 | _nf4 | _u4 | _i4, _any, _any},              pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(just<f32>(), bypass(), just<f32>(), just<f32>())},
+    {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -98,8 +98,15 @@ static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
     for (size_t i = 0; i < typeConfig.size(); i++) {
         const auto& type = typeConfig[i];
         const auto& desc = currentDescriptors.at(notation[i]);
-        if ((!one_of(desc->getPrecision(), type, ov::element::undefined)) || !desc->hasLayoutType(layoutConfig[i]))
-            return false;
+
+        if (desc->empty())
+            continue;
+
+        if (desc->getPrecision() != type)
+            return false; // type mismatch
+
+        if (!desc->hasLayoutType(layoutConfig[i]))
+            return false; // layout mismatch
     }
 
     return true;
@@ -118,7 +125,10 @@ static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDesc
         const auto& type = typeConfig[i];
         const auto& layout = layoutConfig[i];
 
-        if (one_of(descType, ov::element::undefined, type)) {
+        if (desc->empty())
+            continue;
+
+        if (descType == type && desc->hasLayoutType(layout)) {
             continue;
         }
 
@@ -145,7 +155,7 @@ ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Con
 }
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noWeightsDecompression(const FCConfig& config) {
-    return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
+    return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
 }
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noSparseDecompression(const FCConfig& config) {

@@ -14,7 +14,7 @@ CPU Device
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs. The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
 For an in-depth description of CPU plugin, see:
 
-- `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__.
+- `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/docs>`__.
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
 .. note::
@@ -39,14 +39,14 @@ the ``ov::Core::compile_model()`` method:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.py
          :language: py
          :fragment: [compile_model_default]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.cpp
          :language: cpp
          :fragment: [compile_model_default]
 
@@ -60,6 +60,7 @@ CPU plugin supports the following data types as inference precision of internal 
 
   - ``f32`` (Intel® x86-64, Arm®)
   - ``bf16`` (Intel® x86-64)
+  - ``f16`` (Intel® x86-64, Arm®)
 - Integer data types:
 
   - ``i32`` (Intel® x86-64, Arm®)
@@ -92,21 +93,29 @@ CPU plugin supports the following floating-point data types as inference precisi
 
 - ``f32`` (Intel® x86-64, Arm®)
 - ``bf16`` (Intel® x86-64)
+- ``f16`` (Intel® x86-64, Arm®)
 
-The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts
-all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
-On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` or ``AMX`` extension), the ``bf16`` type is automatically used instead
+The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR on platforms that do not natively support ``float16``, the plugin internally converts
+all the ``f16`` values to ``f32``, and all calculations are performed using the native precision of ``f32``.
+On platforms that natively support half-precision calculations (``bfloat16`` or ``float16``), the half-precision type (``bf16`` or ``f16``) is automatically used instead
 of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
-Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see
+Thus, no special steps are required to run a model with ``bf16`` or ``f16`` inference precision.
+
+.. important::
+
+   The ``bf16`` floating-point precision appears to have some limitations that impact the
+   inference accuracy in LLM models. For more details, refer to this :ref:`article <limited_inference_precision>`.
+
+Using the half-precision provides the following performance benefits:
+
+- ``bfloat16`` and ``float16`` data types enable Intel® Advanced Matrix Extension (AMX) on 4+ generation Intel® Xeon® Scalable Processors, resulting in significantly faster computations on the corresponding hardware compared to AVX512 or AVX2 instructions in many deep learning operation implementations.
+- ``float16`` data type enables the ``armv8.2-a+fp16`` extension on ARM64 CPUs, which significantly improves performance due to the doubled vector capacity.
+- Memory footprint is reduced since most weight and activation tensors are stored in half-precision.
+
+For more details about the ``bfloat16`` format, see
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
-
-Using the ``bf16`` precision provides the following performance benefits:
-
-- ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in comparison with AVX512 or AVX2 instructions in many DL operation implementations.
-- Reduced memory consumption since ``bfloat16`` data half the size of 32-bit float.
-
-To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <query-device-properties>`
-to query ``ov::device::capabilities`` property, which should contain ``BF16`` in the list of CPU capabilities:
+To check if the CPU device can support the half-precision data type, use the :doc:`query device properties interface <query-device-properties>`
+to query ``ov::device::capabilities`` property, which should contain ``FP16`` or ``BF16`` in the list of CPU capabilities:
 
 
 .. tab-set::
@@ -114,14 +123,14 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference0.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference0.cpp
          :language: cpp
          :fragment: [part0]
 
@@ -129,7 +138,7 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
 Inference Precision Hint
 -----------------------------------------------------------
 
-If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via
+If the model has been converted to half-precision (``bf16`` or ``f16``), the ``ov::hint::inference_precision`` is set to ``ov::element::f16`` or ``ov::element::bf16`` and can be checked via
 the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to get the element type:
 
 .. tab-set::
@@ -137,18 +146,18 @@ the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part1]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference1.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference1.cpp
          :language: cpp
          :fragment: [part1]
 
-To infer the model in ``f32`` precision instead of ``bf16`` on targets with native ``bf16`` support, set the ``ov::hint::inference_precision`` to ``ov::element::f32``.
+To infer the model in ``f32`` precision instead of half-precision (``bf16`` or ``f16``) on targets with native half-precision support, set the ``ov::hint::inference_precision`` to ``ov::element::f32``.
 
 
 .. tab-set::
@@ -156,14 +165,14 @@ To infer the model in ``f32`` precision instead of ``bf16`` on targets with nati
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part2]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference2.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference2.cpp
          :language: cpp
          :fragment: [part2]
 
@@ -178,16 +187,16 @@ To enable the simulation, the ``ov::hint::inference_precision`` has to be explic
 
 .. note::
 
-   Due to the reduced mantissa size of the ``bfloat16`` data type, the resulting ``bf16`` inference accuracy may differ from the ``f32`` inference,
-   especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable,
+   Due to the reduced mantissa size of half-precision data types (``bfloat16`` or ``float16``), the resulting half-precision inference accuracy may differ from the ``f32`` inference,
+   especially for models that were not trained using half-precision data types. If half-precision inference accuracy is not acceptable,
    it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be managed using the ``ov::hint::execution_mode`` hint,
    see the `Execution Mode Hint <#execution-mode-hint>`__.
 
 Execution Mode Hint
 -----------------------------------------------------------
 In case ``ov::hint::inference_precision`` is not explicitly set, one can use ``ov::hint::execution_mode`` hint to direct the run-time optimizations toward either better accuracy or better performance.
-If ``ov::hint::execution_mode`` is set to ``ov::hint::ExecutionMode::PERFORMANCE`` (default behavior) and the platform natively supports ``bfloat16``
-calculations (has the ``AVX512_BF16`` or ``AMX`` extension) then ``bf16`` type is automatically used instead of ``f32`` to achieve better performance.
+If ``ov::hint::execution_mode`` is set to ``ov::hint::ExecutionMode::PERFORMANCE`` (default behavior) and the platform natively supports half-precision
+calculations (``bfloat16`` or ``float16``) then ``bf16`` or ``f16`` type is automatically used instead of ``f32`` to achieve better performance.
 If the accuracy in this mode is not good enough, then set ``ov::hint::execution_mode`` to ``ov::hint::ExecutionMode::ACCURACY`` to enforce the plugin to
 use the ``f32`` precision in floating point calculations.
 
@@ -207,14 +216,14 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.py
          :language: py
          :fragment: [compile_model_multi]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/compile_model.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.cpp
          :language: cpp
          :fragment: [compile_model_multi]
 
@@ -229,7 +238,7 @@ property is set for CPU plugin, then multiple streams are created for the model.
 host thread, which means that incoming infer requests can be processed simultaneously. Each stream is pinned to its own group of
 physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-For more details, see the :doc:`optimization guide <../optimize-inference>`.
+For more details, see the :doc:`optimization guide <../optimize-inference>` and :doc:`threads scheduling introduction <cpu-device/performance-hint-and-threads-scheduling>`.
 
 .. note::
 
@@ -237,10 +246,11 @@ For more details, see the :doc:`optimization guide <../optimize-inference>`.
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint.
    For more details see the :doc:`performance hints <../optimize-inference/high-level-performance-hints>` overview.
 
-.. note::
-
-   Multi-stream execution is not supported on Arm® platforms. Latency and throughput hints have identical behavior and use only one stream for inference.
-
+ .. toctree::
+    :maxdepth: 1
+    :hidden:
+ 
+    cpu-device/performance-hint-and-threads-scheduling
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -261,14 +271,14 @@ with the static input shape to get the best performance.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/dynamic_shape.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/dynamic_shape.py
          :language: py
          :fragment: [static_shape]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/dynamic_shape.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/dynamic_shape.cpp
          :language: cpp
          :fragment: [static_shape]
 
@@ -382,70 +392,8 @@ Multi-Threading Optimization
 
 CPU inference will infer an input or multiple inputs in parallel on multiple logical processors.
 
-User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU.
+For more details, see the :doc:`threads scheduling introduction <cpu-device/performance-hint-and-threads-scheduling>`.
 
-- ``ov::inference_num_threads`` limits number of logical processors used for CPU inference.
-  If the number set by the user is greater than the number of logical processors on the platform, multi-threading scheduler only uses the platform number for CPU inference.
-- ``ov::hint::scheduling_core_type`` limits the type of CPU cores for CPU inference when user runs inference on a hybird platform that includes both Performance-cores (P-cores) with Efficient-cores (E-cores).
-  If user platform only has one type of CPU cores, this property has no effect, and CPU inference always uses this unique core type.
-- ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU core when platform has CPU hyperthreading enabled.
-  If there is only one logical processor per CPU core, such as Efficient-cores, this property has no effect, and CPU inference uses all logical processors.
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
-         :language: python
-         :fragment: [ov:intel_cpu:multi_threading:part0]
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
-         :language: cpp
-         :fragment: [ov:intel_cpu:multi_threading:part0]
-
-
-.. note::
-
-   ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
-
-In some use cases, OpenVINO Runtime will enable CPU threads pinning by default for better performance. User can also turn it on or off using property ``ov::hint::enable_cpu_pinning``. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel. The following table describes the default setting for ``ov::hint::enable_cpu_pinning`` in different use cases.
-
-==================================================== ================================
- Use Case                                             Default Setting of CPU Pinning 
-==================================================== ================================
- All use cases with Windows OS                        False
- Stream contains both Pcore and Ecore with Linux OS   False
- Stream only contains Pcore or Ecore with Linux OS    True
- All use cases with Mac OS                            False
-==================================================== ================================
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
-         :language: python
-         :fragment: [ov:intel_cpu:multi_threading:part1]
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
-         :language: cpp
-         :fragment: [ov:intel_cpu:multi_threading:part1]
-
-
-For details on multi-stream execution check the
-:doc:`optimization guide <../optimize-inference/optimizing-throughput/advanced_throughput_options>`.
-
-.. note::
-
-   ``ov::hint::enable_cpu_pinning`` is not supported on multi-socket platforms with Windows OS.
 
 Denormals Optimization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -480,14 +428,14 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_denormals.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_denormals.py
          :language: python
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_denormals.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_denormals.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
@@ -524,14 +472,14 @@ Code examples of how to use ``sparse_weights_decompression_rate``:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_sparse_weights_decompression.py
          :language: python
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_sparse_weights_decompression.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 

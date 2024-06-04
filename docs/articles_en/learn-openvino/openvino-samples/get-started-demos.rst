@@ -25,7 +25,7 @@ If you install OpenVINO Runtime via archive files, sample applications are creat
 .. note::
    If you install OpenVINO without samples, you can still get them directly from `the OpenVINO repository <https://github.com/openvinotoolkit/openvino/>`__.
 
-Before you build samples, refer to the :doc:`system requirements <../../about-openvino/system-requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
+Before you build samples, refer to the :doc:`system requirements <../../about-openvino/release-notes-openvino/system-requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
 
 1. :ref:`Build Samples <build-samples>`.
 2. :ref:`Select a Sample <select-sample>`.
@@ -264,7 +264,7 @@ You need a model that is specific for your inference task. You can get it from o
 Convert the Model
 --------------------
 
-If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.3/openvino_docs_../../get-started_../../get-started_demos.html>`__ for information how to do it.
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/get-started-demos.html>`__ for information how to do it.
 
 .. _download-media:
 
@@ -472,7 +472,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 When the sample application is complete, you are given the label and confidence for the top 10 categories. The input image and sample output of the inference results is shown below:
 
-.. image:: ../../_static/images/dog.png
+.. image:: ../../assets/images/dog.png
 
 .. code-block:: sh
 

@@ -29,8 +29,8 @@ struct ReadValueAssignParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(ouput_type),
-          m_input_data(CreateTensor(input_type, input_values)),
-          m_expected_data(CreateTensor(ouput_type, output_values)),
+          m_input_data(CreateTensor(input_shape, input_type, input_values)),
+          m_expected_data(CreateTensor(output_shape, ouput_type, output_values)),
           m_variable_id(variable_id) {}
     Shape m_input_shape;
     Shape m_output_shape;
@@ -109,19 +109,23 @@ private:
 
 TEST_P(ReferenceReadValueAssignV3LayerTest, ReadValueAssignWithHardcodedRefs) {
     Exec();
-    const int COUNT_RUNS = 10;
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        Infer();
-        Validate();
+    if (executableNetwork) {
+        const int COUNT_RUNS = 10;
+        for (int i = 0; i < COUNT_RUNS; ++i) {
+            Infer();
+            Validate();
+        }
     }
 }
 
 TEST_P(ReferenceReadValueAssignV6LayerTest, ReadValueAssignWithHardcodedRefs) {
     Exec();
-    const int COUNT_RUNS = 10;
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        Infer();
-        Validate();
+    if (executableNetwork) {
+        const int COUNT_RUNS = 10;
+        for (int i = 0; i < COUNT_RUNS; ++i) {
+            Infer();
+            Validate();
+        }
     }
 }
 
@@ -298,7 +302,7 @@ protected:
                                                                 i,
                                                                 1e-2f,
                                                                 -1.f,
-                                                                0);
+                                                                true);
         }
     }
 

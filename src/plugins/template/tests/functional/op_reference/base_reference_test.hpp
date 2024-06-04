@@ -28,9 +28,10 @@ public:
                               const size_t blob_idx,
                               float threshold,
                               float abs_threshold,
-                              size_t actual_comparision_size = 0);
+                              bool legacy_compare);
 
 protected:
+    bool legacy_compare = false;
     const std::string targetDevice;
     std::shared_ptr<ov::Core> core;
     std::shared_ptr<ov::Model> function;
@@ -40,9 +41,8 @@ protected:
     std::vector<ov::Tensor> inputData;
     std::vector<ov::Tensor> refOutData;
     std::vector<ov::Tensor> actualOutData;
-    float threshold = 1e-2f;             // Relative diff
-    float abs_threshold = -1.f;          // Absolute diff (not used when negative)
-    size_t actual_comparision_size = 0;  // For ref output data is smaller than output blob size
+    float threshold = 1e-2f;     // Relative diff
+    float abs_threshold = -1.f;  // Absolute diff (not used when negative)
 };
 
 template <class T>
@@ -82,7 +82,7 @@ struct Tensor {
 
     template <typename T>
     Tensor(const ov::Shape& shape, ov::element::Type type, const std::vector<T>& data_elements)
-        : Tensor{shape, type, CreateTensor(type, data_elements)} {}
+        : Tensor{shape, type, CreateTensor(shape, type, data_elements)} {}
 
     // Temporary constructor to create blob with passed input shape (not 1-dimensional)
     template <typename T>

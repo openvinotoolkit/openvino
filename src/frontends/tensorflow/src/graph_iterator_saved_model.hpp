@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,6 +167,10 @@ private:
         auto serving_default = validSignatures.find("serving_default");
 
         if (serving_default != validSignatures.end()) {
+            // "serving_default" signature contains map of input/output names.
+            // here we are storing two maps for inputs and outputs.
+            // map looks like {"internal_name:port": "name_set_by_user"}
+            // for example, {"serving_default_input_mask:0": "input_mask"}
             m_inputs_map = std::make_shared<std::map<std::string, std::string>>();
             m_outputs_map = std::make_shared<std::map<std::string, std::string>>();
             for (const auto& input : serving_default->second->inputs()) {
@@ -174,6 +178,19 @@ private:
             }
             for (const auto& output : serving_default->second->outputs()) {
                 (*m_outputs_map)[output.second.name()] = output.first;
+            }
+        } else if (validSignatures.size() > 0) {
+            // no special signature for serving
+            // so use all inputs and outputs for all signatures
+            m_inputs_map = std::make_shared<std::map<std::string, std::string>>();
+            m_outputs_map = std::make_shared<std::map<std::string, std::string>>();
+            for (const auto& signature : validSignatures) {
+                for (const auto& input : signature.second->inputs()) {
+                    (*m_inputs_map)[input.second.name()] = input.first;
+                }
+                for (const auto& output : signature.second->outputs()) {
+                    (*m_outputs_map)[output.second.name()] = output.first;
+                }
             }
         }
 

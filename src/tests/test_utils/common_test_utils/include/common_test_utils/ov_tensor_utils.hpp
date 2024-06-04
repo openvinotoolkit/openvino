@@ -33,12 +33,18 @@ struct InputGenerateData {
     uint32_t range = 10;
     int32_t resolution = 1;
     int32_t seed = 1;
+    bool input_attribute = false;
 
-    InputGenerateData(double _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int32_t _seed = 1)
+    InputGenerateData(double _start_from = 0,
+                      uint32_t _range = 10,
+                      int32_t _resolution = 1,
+                      int32_t _seed = 1,
+                      bool _input_attribute = false)
         : start_from(_start_from),
           range(_range),
           resolution(_resolution),
-          seed(_seed) {
+          seed(_seed),
+          input_attribute(_input_attribute) {
         if (ConstRanges::is_defined) {
             auto min_orig = start_from;
             auto max_orig = start_from + range * resolution;
@@ -50,13 +56,68 @@ struct InputGenerateData {
                 (uint32_t)round((max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - start_from) - start_from);
         }
     };
+
+    bool correct_range(const InputGenerateData new_range) {
+        bool success = true;
+
+        double new_max = new_range.start_from + new_range.range;
+        double current_max = start_from + range;
+
+        if (start_from == new_range.start_from) {
+            // nothing to do - -----start_curr/new+++++++++++++++range*res curr/new-----------------------
+            // nothing to do - -----start_curr/new+++++++++++++++range*res curr----------range*res new----
+            // reduce range  - -----start_curr/new+++++++++++++++range*res new-----------range*res curr---
+            if (current_max > new_max) {
+                range = new_range.range;
+                resolution = new_range.resolution > resolution ? new_range.resolution : resolution;
+            }
+        } else if (start_from > new_range.start_from) {
+            // nothing to do        - -----start_new-----start_curr++++++++++range*res curr/new-------------------
+            // nothing to do        - -----start_new-----start_curr++++++++++range*res curr------range*res new----
+            // reduce range         - -----start_new-----start_curr++++++++++range*res new-------range*res curr---
+            // could not find range - -----start_new---range*res new-----start_curr-----range*res curr---
+            if (start_from > new_max) {
+                success = false;
+#ifndef NDEBUG
+                std::cout << " FAIL TO FIND RANGE: current->start_from > new_range->start_from + new_range->range "
+                          << " current->start_from: " << std::to_string(start_from)
+                          << " new_range->start_from: " << std::to_string(new_range.start_from)
+                          << " new_range max: " << std::to_string(new_max) << std::endl;
+#endif
+            } else if (current_max > new_max) {
+                range = (uint32_t)round(new_max - start_from);
+                resolution = new_range.resolution > resolution ? new_range.resolution : resolution;
+            }
+        } else if (start_from < new_range.start_from) {
+            // reset to new         - -----start_curr-----start_new++++++++++range*res curr/new-------------------
+            // reset to new         - -----start_curr-----start_new++++++++++range*res new-------range*res curr---
+            // recalculate range    - -----start_curr-----start_new++++++++++range*res curr------range*res new----
+            // could not find range - -----start_curr---range*res curr-----start_new-----range*res new---
+            if (current_max < new_range.start_from) {
+                success = false;
+#ifndef NDEBUG
+                std::cout << " FAIL TO FIND RANGE: current->start_from + current->range < new_range->start_from "
+                          << " new_range start_from: " << std::to_string(new_range.start_from)
+                          << " current->start_from: " << std::to_string(start_from)
+                          << " current max: " << std::to_string(current_max) << std::endl;
+#endif
+            } else if (current_max >= new_max) {
+                start_from = new_range.start_from;
+                range = new_range.range;
+                resolution = new_range.resolution > resolution ? new_range.resolution : resolution;
+            } else {
+                range = (uint32_t)round(current_max - new_range.start_from);
+                resolution = new_range.resolution > resolution ? new_range.resolution : resolution;
+                start_from = new_range.start_from;
+            }
+        }
+
+        return success;
+    };
 };
 
 // Pre-defaned eps based on mantissa bit depth
 inline double get_eps_by_ov_type(const ov::element::Type& elem_type) {
-    if (elem_type.is_integral() || elem_type == ov::element::undefined) {
-        return 0.f;
-    }
     switch (elem_type) {
     case ov::element::f64:
         return 1e-8;
@@ -69,7 +130,7 @@ inline double get_eps_by_ov_type(const ov::element::Type& elem_type) {
     case ov::element::nf4:
         return 1e-1;
     default:
-        throw std::runtime_error("Incorrect element type to get epsilon!");
+        return 0.f;
     }
 }
 

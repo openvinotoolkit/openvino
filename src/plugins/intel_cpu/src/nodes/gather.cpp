@@ -171,6 +171,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
         }
         scale_group_size =
             getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_SCALE).getElementsCount();
+        have_scalar_scale = getInputShapeAtPort(GATHER_SCALE).getElementsCount() == 1u;
 
         if (getOriginalInputsNumber() == 5u) {
             ov::element::Type zpPrecision = getOriginalInputPrecisionAtPort(GATHER_ZP);
@@ -179,6 +180,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
             }
 
             have_zp = true;
+            have_scalar_zp = getInputShapeAtPort(GATHER_ZP).getElementsCount() == 1u;
             zp_group_size =
                 getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_ZP).getElementsCount();
             addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
@@ -630,7 +632,6 @@ void Gather::execCompressed4Bit() {
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSize;
-
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
@@ -649,15 +650,46 @@ void Gather::execCompressed4Bit() {
 
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
-                const size_t scale_offset = srcIdx / scale_group_size;
-                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
                 size_t p = srcIdx;
                 size_t dst_idx = 0;
 
-                for (; p < srcIdx + afterAxisSize; p++) {
-                    auto val = srcData[p >> 1];
-                    pdst[dst_idx] = static_cast<OUT_TYPE>((get4Bit(val, p % 2) - cur_zp) * scale[scale_offset]);
-                    dst_idx++;
+                // heuristic:
+                // ((isAxisInputConst && axis == 0) && (cond1 || cond2)) take >99% probability
+                bool processed = false;
+                if (isAxisInputConst && axis == 0) {
+                    bool cond1 = have_zp && zp_group_size == scale_group_size;
+                    bool cond2 = (!have_zp) || have_scalar_zp;
+                    bool cond3 = have_scalar_scale && cond2;
+                    if (cond3) {
+                        processed = true;
+                        for (; p < srcIdx + afterAxisSize; p++) {
+                            auto val = srcData[p >> 1];
+                            pdst[dst_idx] = static_cast<OUT_TYPE>((get4Bit(val, p % 2) - zp[0]) * scale[0]);
+                            dst_idx++;
+                        }
+                    } else if (cond1 || cond2) {
+                        processed = true;
+                        for (; p < srcIdx + afterAxisSize; p += scale_group_size) {
+                            const auto& cur_scale = scale[p / scale_group_size];
+                            const auto& cur_zp = cond2 ? zp[0] : zp[p / zp_group_size];
+                            for (size_t g = p; g < p + scale_group_size; g++) {
+                                auto val = srcData[g >> 1];
+                                pdst[dst_idx] = static_cast<OUT_TYPE>((get4Bit(val, g % 2) - cur_zp) * cur_scale);
+                                dst_idx++;
+                            }
+                        }
+                    }
+                }
+
+                // Reference
+                if (!processed) {
+                    for (; p < srcIdx + afterAxisSize; p++) {
+                        auto val = srcData[p >> 1];
+                        const size_t scale_offset = p / scale_group_size;
+                        auto cur_zp = have_zp ? zp[p / zp_group_size] : 0;
+                        pdst[dst_idx] = static_cast<OUT_TYPE>((get4Bit(val, p % 2) - cur_zp) * scale[scale_offset]);
+                        dst_idx++;
+                    }
                 }
             }
         } else {
@@ -699,13 +731,47 @@ void Gather::execCompressed8Bit() {
                 size_t srcIdx = c1 + axisAndAfterAxisSize * i;
                 size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
 
-                const IN_TYPE* psrc = &srcData[srcIdx];
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
-                const size_t scale_offset = srcIdx / scale_group_size;
-                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
-                for (size_t p = 0; p < afterAxisSize; p++) {
-                    pdst[p] = static_cast<OUT_TYPE>((static_cast<float>(psrc[p]) - cur_zp) * scale[scale_offset]);
+                size_t p = srcIdx;
+                size_t dst_idx = 0;
+
+                // heuristic:
+                // ((isAxisInputConst && axis == 0) && (cond1 || cond2)) take >99% probability
+                bool processed = false;
+                if (isAxisInputConst && axis == 0) {
+                    bool cond1 = have_zp && zp_group_size == scale_group_size;
+                    bool cond2 = (!have_zp) || have_scalar_zp;
+                    bool cond3 = have_scalar_scale && cond2;
+                    if (cond3) {
+                        processed = true;
+                        for (; p < srcIdx + afterAxisSize; p++) {
+                            pdst[dst_idx] = static_cast<OUT_TYPE>((static_cast<float>(srcData[p]) - zp[0]) * scale[0]);
+                            dst_idx++;
+                        }
+                    } else if (cond1 || cond2) {
+                        processed = true;
+                        for (; p < srcIdx + afterAxisSize; p += scale_group_size) {
+                            const auto& cur_scale = scale[p / scale_group_size];
+                            const auto& cur_zp = cond2 ? zp[0] : zp[p / zp_group_size];
+                            for (size_t g = p; g < p + scale_group_size; g++) {
+                                pdst[dst_idx] =
+                                    static_cast<OUT_TYPE>((static_cast<float>(srcData[g]) - cur_zp) * cur_scale);
+                                dst_idx++;
+                            }
+                        }
+                    }
+                }
+
+                // Reference
+                if (!processed) {
+                    for (; p < srcIdx + afterAxisSize; p++) {
+                        const size_t scale_offset = p / scale_group_size;
+                        auto cur_zp = have_zp ? zp[p / zp_group_size] : 0;
+                        pdst[dst_idx] =
+                            static_cast<OUT_TYPE>((static_cast<float>(srcData[p]) - cur_zp) * scale[scale_offset]);
+                        dst_idx++;
+                    }
                 }
             }
         } else {
@@ -721,14 +787,14 @@ void Gather::execCompressed8Bit() {
 int8_t Gather::get_i4(const uint8_t& val, bool high) {
     if (high) {
         if (val & 0x80) {
-            return static_cast<int8_t>(((val >> 4) & 0x7) | 0xf8);
+            return static_cast<int8_t>((val >> 4) | 0xf8);
         } else {
-            return static_cast<int8_t>((val & 0xF) >> 4);
+            return static_cast<int8_t>(val >> 4);
         }
     }
     if (val & 0x8) {
         // Just fill in the high 4 bits with 1
-        return static_cast<int8_t>((val & 0x7) | 0xf8);
+        return static_cast<int8_t>(val | 0xf8);
     } else {
         return static_cast<int8_t>(val & 0xF);
     }
@@ -770,7 +836,7 @@ private:
                   ctx,
                   ctx.inType,
                   OV_CASE(ov::element::u8, uint8_t),
-                  OV_CASE(ov::element::i8, uint8_t));
+                  OV_CASE(ov::element::i8, int8_t));
     }
     void ExecCompressed4Bit_dispatch(ExecCompressedContext& ctx) {
         switch (ctx.inType) {

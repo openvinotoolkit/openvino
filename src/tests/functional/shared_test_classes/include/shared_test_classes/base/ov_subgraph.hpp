@@ -42,8 +42,11 @@ protected:
     virtual void configure_model();
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
 
+    void compare_models_param_res(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref);
+    void compare_nodes(const std::shared_ptr<ov::Node>& node1, const std::shared_ptr<ov::Node>& node2, std::ostream& err_log);
     void update_ref_model();
-    void match_parameters();
+    void match_parameters(const ov::ParameterVector& params, const ov::ParameterVector& ref_params);
+    void init_thresholds();
     void init_input_shapes(const std::vector<InputShape>& shapes);
     void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
 
@@ -62,7 +65,9 @@ protected:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
-    ElementType inType = ov::element::undefined, outType = ov::element::undefined;
+    ElementType inType = ov::element::undefined,
+                outType = ov::element::undefined,
+                inference_precision = ov::element::undefined;
 
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;

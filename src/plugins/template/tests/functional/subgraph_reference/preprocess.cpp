@@ -868,7 +868,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
     auto exp_out = std::vector<float> {255, 0, 0, 255,     // R channel
                                        0, 255, 0, 0,       // G channel
                                        0, 0, 255, 0};      // B channel
-    auto out_shape = Shape{1, 2, 2, 3};
+    auto out_shape = Shape{1, 3, 2, 2};
     // clang-format on
     res.inputs.emplace_back(element::u8, input_shape, input);
     res.expected.emplace_back(out_shape, element::f32, exp_out);
@@ -1174,8 +1174,8 @@ static RefPreprocessParams post_convert_color_rgb_to_bgr() {
         return f;
     };
 
-    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
-    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    res.inputs.emplace_back(Shape{2, 1, 1, 3}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 1, 1, 3}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
     return res;
 }
 
@@ -1190,8 +1190,8 @@ static RefPreprocessParams post_convert_color_bgr_to_rgb() {
         return f;
     };
 
-    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
-    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    res.inputs.emplace_back(Shape{2, 1, 1, 3}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 1, 1, 3}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
     return res;
 }
 
@@ -1229,8 +1229,8 @@ static RefPreprocessParams rgb_to_bgr() {
         return f;
     };
 
-    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
-    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    res.inputs.emplace_back(Shape{2, 1, 1, 3}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 1, 1, 3}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
     return res;
 }
 
@@ -1245,8 +1245,8 @@ static RefPreprocessParams bgr_to_rgb() {
         return f;
     };
 
-    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
-    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    res.inputs.emplace_back(Shape{2, 1, 1, 3}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 1, 1, 3}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
     return res;
 }
 

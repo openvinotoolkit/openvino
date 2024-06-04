@@ -7,9 +7,10 @@
 #include "base_reference_test.hpp"
 #include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 
-using namespace reference_tests;
 using namespace ov;
 
+using reference_tests::CommonReferenceTest;
+using reference_tests::CreateTensor;
 using Attrs = op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
 
 namespace {
@@ -30,7 +31,6 @@ struct ExperimentalPGGParams {
           imageSizeInfoShape(imageSizeInfoShape),
           outRefShape(outRefShape),
           inType(iType),
-          outType(iType),
           priorsData(CreateTensor(iType, priorsValues)),
           refData(CreateTensor(outRefShape, iType, refValues)),
           testcaseName(testcaseName) {
@@ -54,12 +54,11 @@ struct ExperimentalPGGParams {
     PartialShape imageSizeInfoShape;
     Shape outRefShape;
     size_t actualComparisonSize;
-    ov::element::Type inType;
-    ov::element::Type outType;
-    ov::Tensor priorsData;
-    ov::Tensor featureMapData;
-    ov::Tensor imageSizeInfoData;
-    ov::Tensor refData;
+    element::Type inType;
+    Tensor priorsData;
+    Tensor featureMapData;
+    Tensor imageSizeInfoData;
+    Tensor refData;
     std::string testcaseName;
 };
 
@@ -67,22 +66,18 @@ class ReferenceExperimentalPGGLayerTest : public testing::TestWithParam<Experime
                                           public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.priorsData, params.featureMapData, params.imageSizeInfoData};
         refOutData = {params.refData};
-
-        if (params.actualComparisonSize > 0)
-            actual_comparision_size = params.actualComparisonSize;
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalPGGParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "priorsShape=" << param.priorsShape << "_";
         result << "featureMapShape=" << param.featureMapShape << "_";
         result << "imageSizeInfoShape=" << param.imageSizeInfoShape << "_";
         result << "iType=" << param.inType << "_";
-        result << "oType=" << param.outType << "_";
         result << "flatten=" << param.attrs.flatten << "_";
         result << "h=" << param.attrs.h << "_";
         result << "w=" << param.attrs.w << "_";
@@ -91,6 +86,26 @@ public:
         if (param.testcaseName != "")
             result << "_" << param.testcaseName;
         return result.str();
+    }
+
+    virtual void Validate() override {
+        if (const auto comparison_size = GetParam().actualComparisonSize) {
+            ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
+
+            actualOutData.clear();
+            actualOutData.emplace_back(inferRequest.get_tensor(executableNetwork.output(0)));
+
+            // Shape matters: the trick is that hard-coded expected data is "shorter" than runtime inferred data. This
+            // is due to huge size of the tensor and in such case the test provides a part of reference values for
+            // comparison to avoid huge file size.
+            ASSERT_EQ(refOutData[0].get_shape(), actualOutData[0].get_shape());
+            const auto shape = Shape{comparison_size};
+            const auto expected = Tensor{refOutData[0].get_element_type(), shape, refOutData[0].data()};
+            const auto inferred = Tensor{actualOutData[0].get_element_type(), shape, actualOutData[0].data()};
+            ValidateBlobs(expected, inferred, 0, threshold, abs_threshold, false);
+        } else {
+            CommonReferenceTest::Validate();
+        }
     }
 
 private:
@@ -102,7 +117,7 @@ private:
                                                                                                        featureMap,
                                                                                                        im_info,
                                                                                                        params.attrs);
-        return std::make_shared<ov::Model>(NodeVector{ExperimentalPGG}, ParameterVector{priors, featureMap, im_info});
+        return std::make_shared<Model>(NodeVector{ExperimentalPGG}, ParameterVector{priors, featureMap, im_info});
     }
 };
 

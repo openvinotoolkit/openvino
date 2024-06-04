@@ -207,10 +207,11 @@ class TestConvolution(PytorchLayerTest):
     @pytest.mark.parametrize("underscore", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
     def test_convolution1d(self, params, bias, underscore, ie_device, precision, ir_version):
+        if ie_device == "GPU" and params["dilations"] != [1]:
+            pytest.xfail(reason="Unsupported dilations of Convolution on GPU")
         self._test(*self.create_model(**params, bias=bias, underscore=underscore),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
                    kwargs_to_prepare_input={'ndim': 3})
@@ -220,10 +221,11 @@ class TestConvolution(PytorchLayerTest):
     @pytest.mark.parametrize("underscore", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
     def test_convolution2d(self, params, bias, underscore, ie_device, precision, ir_version):
+        if ie_device == "GPU" and params["dilations"] != [1, 1]:
+            pytest.xfail(reason="Unsupported dilations of Convolution on GPU")
         self._test(*self.create_model(**params, bias=bias, underscore=underscore),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
 

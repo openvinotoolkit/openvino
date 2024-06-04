@@ -3,7 +3,7 @@
 > **NOTE**: Since 2023.0 release, you can compile [OpenVINO Intel CPU plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu) on ARM platforms.
 
 ## Hardware Requirements
-* Raspberry Pi 2 or 3 with Raspbian Stretch OS (32 or 64-bit).
+* Raspberry Pi with Raspbian Stretch OS or Raspberry Pi OS (32 or 64-bit).
 
   > **NOTE**: Despite the Raspberry Pi CPU is ARMv8, 32-bit OS detects ARMv7 CPU instruction set. The default `gcc` compiler applies ARMv6 architecture flag for compatibility with lower versions of boards. For more information, run the `gcc -Q --help=target` command and refer to the description of the `-march=` option.
 
@@ -35,6 +35,21 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
         -DARM_COMPUTE_SCONS_JOBS=$(nproc --all) \
   .. && cmake --build . --parallel 
   ```
+
+> **NOTE**: The build command may fail due to insufficient RAM. To fix this issue, you can increase the swap size:
+1. Deactivate the current swap:
+```bash
+sudo dphys-swapfile swapoff
+```
+2. Modify the swap size by setting `CONF_SWAPSIZE=8192` in `/etc/dphys-swapfile`.
+3. Recreate the swap file:
+```bash
+sudo dphys-swapfile setup
+```
+3. Start swap:
+```bash
+sudo dphys-swapfile swapon
+```
 
 ## Additional Build Options
 

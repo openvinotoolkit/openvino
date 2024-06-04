@@ -542,6 +542,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::enable_sdpa_optimization.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
@@ -709,7 +710,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 
         TransformationsPipeline transformations(config, device_info);
         transformations.apply(cloned_model);
-        program = std::make_shared<ProgramBuilder>(cloned_model, engine, config, false, true);
+        program = std::make_shared<ProgramBuilder>(cloned_model, engine, config, true);
         std::pair<int64_t, int64_t> device_memory_usage = program->get_compiled_program()->get_estimated_device_mem_usage();
         if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
             return static_cast<uint32_t>(max_batch_size);

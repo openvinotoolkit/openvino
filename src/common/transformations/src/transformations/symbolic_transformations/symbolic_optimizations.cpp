@@ -7,7 +7,11 @@
 #include "itt.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -196,6 +200,14 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
+
+    // Eliminate Squeeze/Unsqueeze might convert Squeeze/Unsqueeze ops to Reshape
+    // it may break NNCF patterns and lead to unexpected FakeQuantize ops in the model.
+    // So we decided to disable these passes in SymbolicOptimizations.
+    const auto& pass_config = m_manager->get_pass_config();
+    pass_config->disable<EliminateSqueeze>();
+    pass_config->disable<EliminateUnsqueeze>();
+
     m_manager->run_passes(m);
     ov::remove_skip_invalidation_rti(m);
     return true;

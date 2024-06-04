@@ -6,11 +6,16 @@
 #include <snippets/shape_inference/shape_infer_instances.hpp>
 #include "op/brgemm_copy_b.hpp"
 #include "op/brgemm_cpu.hpp"
-#include "op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "op/load_convert.hpp"
 #include "op/store_convert.hpp"
 #include "op/perf_count_rdtsc.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#ifdef SNIPPETS_LIBXSMM_TPP
+#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/x64/op/scalar.hpp"
+#include "transformations/tpp/x64/op/reduce.hpp"
+#endif
 
 namespace ov {
 namespace snippets {
@@ -43,8 +48,13 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::PerfCountRdtscBegin, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::PerfCountRdtscEnd, EmptyShapeInfer),
 #endif
+#ifdef SNIPPETS_LIBXSMM_TPP
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::BrgemmTPP, BrgemmShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::tpp::op::Scalar, SingleElementShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::ReduceMax, ReduceShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::ReduceSum, ReduceShapeInfer),
+#endif
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer),
-        //
         SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyB),
 };
 #undef SHAPE_INFER_OP_SPECIFIC

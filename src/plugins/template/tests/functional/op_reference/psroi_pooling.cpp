@@ -36,7 +36,6 @@ struct PSROIPoolingParams {
           coordsInputType(iType),
           outType(iType),
           coordsData(CreateTensor(iType, coordsValues)),
-          refData(CreateTensor(iType, oValues)),
           testcaseName(test_name) {
         if (mode == "bilinear")
             outputDim = num_channels / (spatial_bins_x * spatial_bins_y);
@@ -50,6 +49,9 @@ struct PSROIPoolingParams {
             return val += 0.1;
         });
         imageData = CreateTensor(iType, imageValues);
+
+        const auto output_shape = Shape{num_boxes, outputDim, group_size, group_size};
+        refData = CreateTensor(output_shape, iType, oValues);
     }
 
     size_t groupSize;
@@ -72,13 +74,13 @@ struct PSROIPoolingParams {
 class ReferencePSROIPoolingLayerTest : public testing::TestWithParam<PSROIPoolingParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.imageData, params.coordsData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<PSROIPoolingParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "imageInputShape=" << param.imageShape << "_";
         result << "coordsInputShape=" << param.coordsShape << "_";

@@ -94,6 +94,12 @@ dnnl::memory::dims flatten_tensor(cldnn::tensor t) {
     return {static_cast<int64_t>(t.count())};
 }
 
+dnnl::memory::dims get_strides(dnnl::memory::dims dims) {
+    dnnl::memory::dims strides(dims.size(), dnnl::memory::dim(1));
+    std::partial_sum(dims.rbegin(), dims.rend() - 1, strides.rbegin() + 1, std::multiplies<dnnl::memory::dim>());
+    return strides;
+}
+
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
         case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
@@ -101,6 +107,8 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
         case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
         case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
+        case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
+        case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
     }
 }
@@ -140,6 +148,9 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::byfx,  dnnl::memory::format_tag::acbd },
         { cldnn::format::bxfy,  dnnl::memory::format_tag::adbc },
         { cldnn::format::fyxb,  dnnl::memory::format_tag::bcda },
+        { cldnn::format::xbfy,  dnnl::memory::format_tag::dabc },
+        { cldnn::format::fybx,  dnnl::memory::format_tag::bcad },
+        { cldnn::format::ybfx,  dnnl::memory::format_tag::cabd },
         { cldnn::format::fbyx,  dnnl::memory::format_tag::bacd },
         { cldnn::format::bfzyx, dnnl::memory::format_tag::ncdhw },
         { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
@@ -219,6 +230,9 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     }
 
     switch (desc.get_data_type()) {
+        case dnnl::memory::data_type::s4:
+        case dnnl::memory::data_type::u4:
+            return offset / 2;
         case dnnl::memory::data_type::s8:
         case dnnl::memory::data_type::u8:
             return offset;

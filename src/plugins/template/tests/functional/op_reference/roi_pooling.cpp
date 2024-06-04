@@ -36,7 +36,7 @@ struct ROIPoolingParams {
           dataType(type),
           featureMap(CreateTensor(type, inputValues)),
           proposal(CreateTensor(type, proposalValues)),
-          refData(CreateTensor(type, outputValues)) {}
+          refData(CreateTensor(Shape{rois, ch, oH, oW}, type, outputValues)) {}
     size_t inputH;
     size_t inputW;
     size_t channelCount;
@@ -73,7 +73,7 @@ public:
 class ReferenceRoiPoolingLayerTest : public testing::TestWithParam<ROIPoolingParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.inputH,
                                   params.inputW,
                                   params.channelCount,
@@ -87,7 +87,7 @@ public:
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ROIPoolingParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "IS=" << param.inputH << "," << param.inputW << "_";
         result << "OS=" << param.outputH << "," << param.outputW << "_";

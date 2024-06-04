@@ -14,13 +14,15 @@ IndirectGemm::IndirectGemm(const ov::Output<Node>& A,
                            const ov::Output<Node>& I,
                            bool indirect_a,
                            bool indirect_b,
+                           int64_t indirect_axis,
                            const std::vector<int64_t>& order_a,
                            const std::vector<int64_t>& order_b,
                            const std::vector<int64_t>& order_c,
                            const ov::element::Type output_type)
     : ov::intel_gpu::op::Gemm(A, B, order_a, order_b, order_c, output_type)
     , m_indirect_a(indirect_a)
-    , m_indirect_b(indirect_b) {
+    , m_indirect_b(indirect_b)
+    , m_indirect_axis(indirect_axis) {
     set_argument(2, I);
     OPENVINO_ASSERT((indirect_a && indirect_b) == false, "[GPU] Gemm supports indirect addressing for one input only");
     validate_and_infer_types();
@@ -34,6 +36,7 @@ std::shared_ptr<ov::Node> IndirectGemm::clone_with_new_inputs(const ov::OutputVe
                                           new_args.at(2),
                                           m_indirect_a,
                                           m_indirect_b,
+                                          m_indirect_axis,
                                           m_order_a,
                                           m_order_b,
                                           m_order_c,
@@ -50,10 +53,6 @@ void IndirectGemm::validate_and_infer_types() {
 
     auto out_shapes = shape_infer(this,
                                   std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)},
-                                  m_target_shape_a,
-                                  m_target_shape_b,
-                                  m_output_pattern_a,
-                                  m_output_pattern_b,
                                   m_order_a,
                                   m_order_b,
                                   m_order_c);
@@ -66,6 +65,7 @@ bool IndirectGemm::visit_attributes(ov::AttributeVisitor &visitor) {
     Gemm::visit_attributes(visitor);
     visitor.on_attribute("indirect_a", m_indirect_a);
     visitor.on_attribute("indirect_b", m_indirect_b);
+    visitor.on_attribute("indirect_axis", m_indirect_axis);
     return true;
 }
 

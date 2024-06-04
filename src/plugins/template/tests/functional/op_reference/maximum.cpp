@@ -25,9 +25,9 @@ struct MaximumParams {
           pshape2(iShape2),
           inType(iType),
           outType(iType),
-          inputData1(CreateTensor(iType, iValues1)),
-          inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData1(CreateTensor(iShape1.get_shape(), iType, iValues1)),
+          inputData2(CreateTensor(iShape2.get_shape(), iType, iValues2)),
+          refData(CreateTensor(iShape1.get_shape(), iType, oValues)) {}
 
     PartialShape pshape1;
     PartialShape pshape2;
@@ -41,14 +41,14 @@ struct MaximumParams {
 class ReferenceMaximumLayerTest : public testing::TestWithParam<MaximumParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.pshape1, params.pshape2, params.inType, params.outType);
         inputData = {params.inputData1, params.inputData2};
         refOutData = {params.refData};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<MaximumParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "iShape1=" << param.pshape1 << "_";
         result << "iShape2=" << param.pshape2 << "_";
@@ -187,12 +187,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Maximum_Int32_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForMaximumInt32()),
                          ReferenceMaximumLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Maximume_Int64_With_Hardcoded_Refs,
+INSTANTIATE_TEST_SUITE_P(smoke_Maximum_Int64_With_Hardcoded_Refs,
                          ReferenceMaximumLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForMaximumInt64()),
                          ReferenceMaximumLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Maximume_UnsignedInt_With_Hardcoded_Refs,
+INSTANTIATE_TEST_SUITE_P(smoke_Maximum_UnsignedInt_With_Hardcoded_Refs,
                          ReferenceMaximumLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForMaximumUnsignedInt()),
                          ReferenceMaximumLayerTest::getTestCaseName);

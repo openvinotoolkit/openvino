@@ -19,7 +19,7 @@ constexpr size_t cSimpleMemCopyOpDivider = 4UL;
 constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
-    std::vector<size_t> v = {/*32,*/ 16, 8, 4, /*2,*/ 1};
+    std::vector<size_t> v = {/*32,*/ 16, 8, 4, 2, 1};
     auto is_divided = [input_size](size_t i) {
         return input_size % i == 0;
     };
@@ -65,7 +65,7 @@ size_t GetTileWidth(const permute_params& params) {
 
     // i64 only supports tile size 4
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
-        min_divisor = min_divisor / 2;
+        min_divisor = min_divisor >= 4 ? min_divisor / 2 : min_divisor;
     }
     if (input_type == Datatype::F16) {
         min_divisor = min_divisor * 2;
@@ -77,7 +77,7 @@ size_t GetTileWidth(const permute_params& params) {
     if (params.inputs[0].X().v == 1) {
         return std::min(params.inputs[0].Y().v, min_divisor);
     }
-    return std::min(params.inputs[0].X().v, min_divisor);
+    return std::min(GetDivisor(params.inputs[0].X().v), min_divisor);
 }
 
 size_t GetTileSize(const permute_params& params) {
@@ -129,9 +129,9 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     }
 
     const size_t tile_width = GetTileWidth(params);
-    const size_t vector_size = std::min(tile_width, static_cast<size_t>(4));
     const size_t tile_size = GetTileSize(params);
-    const size_t j_times = tile_size / vector_size;
+    const size_t vector_size = IsSimpleMemCopyOperation(params) ? std::min(tile_width, static_cast<size_t>(4)): std::min(tile_size, static_cast<size_t>(4));
+    const size_t j_times = IsSimpleMemCopyOperation(params) ? tile_width / vector_size : tile_size / vector_size;
     const size_t feature_block_size = GetFeatureBlockSize(params);
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", tile_width));
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vector_size));
@@ -146,9 +146,12 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     }
 
     if (!params.fused_ops.empty()) {
-        const std::vector<std::string> original_output_order = {"b_idx", "f_idx", "y_idx", "x_idx"};
+        const std::vector<std::string> original_output_order = {"b_idx", "f_out_idx", "y_out_idx", "x_idx"};
         const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
-        const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size};
+        Tensor::DataChannelName channel = (IsSimpleMemCopyOperation(params) || Is3DTranspose(params)) ? Tensor::DataChannelName::X \
+                                          : Tensor::DataChannelName::Y;
+        const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size, LoadType::LT_UNALIGNED, \
+                                                BoundaryCheck::ENABLED, IndexType::TENSOR_COORD, channel};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_vec}));
     }
     return jit;
@@ -197,7 +200,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
 
     const auto is_swapping_f_with_y = [](const std::vector<uint16_t>& order) {
         // Target transform: Swap feature with y
-        // OV order:    0 2 1 3 => bfyx -> byfx
+        // IE order:    0 2 1 3 => bfyx -> byfx
         // cldnn order: 0 3 2 1 => bfxy -> byxf
         if (order.size() != 4) {
             return false;
@@ -241,5 +244,4 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
 KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
-
 }  // namespace kernel_selector

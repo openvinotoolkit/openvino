@@ -34,9 +34,32 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::BaseTest::create_model()
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
-ov::mock_auto_plugin::tests::BaseTest::BaseTest() {
+std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::BaseTest::create_dynamic_output_model() {
+    auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
+    boxes->set_friendly_name("param_1");
+    boxes->get_output_tensor(0).set_names({"input_tensor_1"});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2});
+    scores->set_friendly_name("param_2");
+    scores->get_output_tensor(0).set_names({"input_tensor_2"});
+    auto max_output_boxes_per_class = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {10});
+    auto iou_threshold = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.75});
+    auto score_threshold = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.7});
+    auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold);
+    auto res = std::make_shared<ov::op::v0::Result>(nms);
+    res->set_friendly_name("output_dynamic");
+    return std::make_shared<ov::Model>(ov::NodeVector{nms}, ov::ParameterVector{boxes, scores});
+}
+
+ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
     set_log_level("LOG_NONE");
-    model = create_model();
+    if (modelType == MODELTYPE::DYNAMIC)
+        model = create_dynamic_output_model();
+    else
+        model = create_model();
     // construct mock auto plugin
     NiceMock<MockAutoPlugin>* mock_auto = new NiceMock<MockAutoPlugin>();
     plugin.reset(mock_auto);
@@ -55,13 +78,17 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest() {
     ON_CALL(*mockIExeNetActual.get(), outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
     inferReqInternal = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNet);
 
-    ON_CALL(*mockIExeNet.get(), create_sync_infer_request()).WillByDefault(Return(inferReqInternal));
+    ON_CALL(*mockIExeNet.get(), create_sync_infer_request()).WillByDefault([this]() {
+        return inferReqInternal;
+    });
     optimalNum = (uint32_t)1;
     ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
         .WillByDefault(Return(optimalNum));
     inferReqInternalActual = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
 
-    ON_CALL(*mockIExeNetActual.get(), create_sync_infer_request()).WillByDefault(Return(inferReqInternalActual));
+    ON_CALL(*mockIExeNetActual.get(), create_sync_infer_request()).WillByDefault([this]() {
+        return inferReqInternalActual;
+    });
     ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
         .WillByDefault(Return(optimalNum));
     ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
@@ -115,10 +142,11 @@ ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
     inferReqInternalActual.reset();
     mock_plugin_cpu.reset();
     mock_plugin_gpu.reset();
+    plugin->get_executor_manager()->clear();
     plugin.reset();
 }
 
-ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
+ov::mock_auto_plugin::tests::AutoTest::AutoTest(const MODELTYPE modelType) : BaseTest(modelType) {
     // prepare mockicore and cnnNetwork for loading
     core = std::make_shared<NiceMock<MockICore>>();
     // replace core with mock Icore

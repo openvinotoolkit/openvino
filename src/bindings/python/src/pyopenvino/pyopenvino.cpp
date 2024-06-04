@@ -19,6 +19,7 @@
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"
 #include "pyopenvino/graph/node_output.hpp"
+#include <pyopenvino/graph/op.hpp>
 #if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
@@ -52,6 +53,7 @@
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/loop.hpp"
+#include "pyopenvino/graph/ops/paged_attention_extension.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
 #include "pyopenvino/graph/ops/tensor_iterator.hpp"
@@ -222,6 +224,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_Shape(m);
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
+    regclass_graph_Op(m);
     regclass_graph_Input(m);
     regclass_graph_NodeFactory(m);
     regclass_graph_Strides(m);
@@ -234,6 +237,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);
+    regclass_graph_op_PagedAttentionExtension(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
     regclass_graph_op_If(m_op);

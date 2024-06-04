@@ -39,7 +39,7 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false, false);
+    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false);
     m_config = program_builder->get_config();
 
     build(program_builder->get_compiled_program());
@@ -198,6 +198,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "quantize", "Quantize" },
                 { "region_yolo", "RegionYolo" },
                 { "reorder", "Reorder" },
+                { "rope", "RoPE" },
                 { "reorg_yolo", "ReorgYolo" },
                 { "reshape", "Reshape" },
                 { "reverse_sequence", "ReverseSequence" },

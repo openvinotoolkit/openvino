@@ -28,7 +28,12 @@ class OperatorSupport(OperatorSupport):
 
     def __init__(self, options):
         support_dict = {
+            "_operator.add": None,
+            "_operator.floordiv": None,
             "_operator.getitem": None,
+            "_operator.mul": None,
+            "_operator.sub": None,
+            "torch.ops.aten.sym_size.int": None,
             "torch.ops.aten._adaptive_avg_pool1d.default": None,
             "torch.ops.aten._adaptive_avg_pool2d.default": None,
             "torch.ops.aten._adaptive_avg_pool3d.default": None,
@@ -69,6 +74,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.argmax.default": None,
             "torch.ops.aten.argmin.default": None,
             "torch.ops.aten.as_strided.default": None,
+            "torch.ops.aten.as_strided_.default": None,
             "torch.ops.aten.asin.default": None,
             "torch.ops.aten.asinh.default": None,
             "torch.ops.aten.asinh.default": None,
@@ -76,6 +82,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.avg_pool2d.default": None,
             "torch.ops.aten.avg_pool3d.default": None,
             "torch.ops.aten.baddbmm.default": None,
+            "torch.ops.aten.bitwise_and.Scalar": None,
             "torch.ops.aten.bitwise_and.Tensor": None,
             "torch.ops.aten.bitwise_not.default": None,
             "torch.ops.aten.bitwise_or.Tensor": None,
@@ -174,6 +181,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.mm.default": None,
             "torch.ops.aten.mul.Scalar": None,
             "torch.ops.aten.mul.Tensor": None,
+            "torch.ops.aten.mul_.Tensor": None,
             "torch.ops.aten.native_batch_norm.default": None,
             "torch.ops.aten.native_dropout.default": None,
             "torch.ops.aten.native_group_norm.default": None,
@@ -191,6 +199,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.pow.Tensor_Scalar": None,
             "torch.ops.aten.pow.Tensor_Tensor": None,
             "torch.ops.aten.rand.default": None,
+            "torch.ops.aten.reflection_pad2d.default": None,
             "torch.ops.aten.reciprocal.default": None,
             "torch.ops.aten.relu.default": None,
             "torch.ops.aten.relu_.default": None,
@@ -205,6 +214,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.select.int": None,
             "torch.ops.aten.select_scatter.default": None,
             "torch.ops.aten.sigmoid.default": None,
+            "torch.ops.aten.sigmoid_.default": None,
             "torch.ops.aten.sign.default": None,
             "torch.ops.aten.silu.default": None,
             "torch.ops.aten.silu_.default": None,
@@ -219,6 +229,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.squeeze.dim": None,
             "torch.ops.aten.squeeze.dims": None,
             "torch.ops.aten.stack.default": None,
+            "torch.ops.aten.std.correction": None,
             "torch.ops.aten.sub.default": None,
             "torch.ops.aten.sub.Tensor": None,
             "torch.ops.aten.sum.default": None,
@@ -242,12 +253,22 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.zeros_like.default": None,
             "torch.ops.torchvision.deform_conv2d.default": None,
             "torch.ops.torchvision.roi_align.default": None,
+            "torch.ops.quantized_decomposed.quantize_per_tensor.default": None,
+            "torch.ops.quantized_decomposed.quantize_per_channel.default": None,
+            "torch.ops.quantized_decomposed.dequantize_per_tensor.default": None,
+            "torch.ops.quantized_decomposed.dequantize_per_channel.default": None
+
         }
+            
+        self.enabled_op_names = []
 
         for op in _get_disabled_ops(options):
             del support_dict[op]
 
         super().__init__(support_dict)
+
+    def enable_by_name(self, node: Node):
+        self.enabled_op_names.append(node.name)
 
     def is_node_supported(self, submodules: t.Mapping[str, Module], node: Node) -> bool:
         # OpenVINO FX subgraph should be purely functional
@@ -261,5 +282,8 @@ class OperatorSupport(OperatorSupport):
 
             if target in self._support_dict:
                 return True
+
+        if node.name in self.enabled_op_names:
+            return True
 
         return super().is_node_supported(submodules, node)

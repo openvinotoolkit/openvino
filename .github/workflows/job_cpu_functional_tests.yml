@@ -16,7 +16,7 @@ on:
 jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
-    timeout-minutes: 25
+    timeout-minutes: 30
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
@@ -30,10 +30,6 @@ jobs:
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
     steps:
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
         with:
@@ -63,10 +59,6 @@ jobs:
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
-
-      - name: Install OpenVINO dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
 
       - name: Fetch setup_python action
         uses: actions/checkout@v4
@@ -100,6 +92,8 @@ jobs:
           if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
             source ${INSTALL_DIR}/setupvars.sh
           fi
+          # Needed as ze_loader.so is under INSTALL_TEST_DIR
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 25
