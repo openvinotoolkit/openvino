@@ -696,8 +696,8 @@ void Node::filterSupportedPrimitiveDescriptors() {
 
     // Compare by format tag
     auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
-        auto prc = desc.getPrecision();
-        auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(), DnnlExtensionUtils::ElementTypeToDataType(prc), fmt);
+        auto data_type = DnnlExtensionUtils::ElementTypeToDataType(desc.getPrecision());
+        auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(), data_type, fmt);
 
         return desc.isCompatible(fmt_tdesc);
     };
