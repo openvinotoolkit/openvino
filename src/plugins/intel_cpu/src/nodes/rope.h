@@ -32,7 +32,6 @@ public:
 private:
     struct Executor {
         virtual void execute(dnnl::stream strm,
-                             const op::internal::RoPE::Config& config,
                              const std::vector<MemoryPtr>& inputs,
                              const std::vector<MemoryPtr>& outputs) = 0;
         virtual ~Executor() = default;
