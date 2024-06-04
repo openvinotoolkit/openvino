@@ -662,7 +662,7 @@ jobs:
       matrix:
         TEST_TYPE: ['unit', 'func']
     container:
-      image: ubuntu:20.04
+      image: ubuntu:22.04
       options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
       volumes:
         - /dev/dri:/dev/dri
