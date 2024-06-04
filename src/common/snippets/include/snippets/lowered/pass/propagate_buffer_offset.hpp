@@ -17,9 +17,9 @@ namespace pass {
  *        Should be called after `SolveMemoryBuffer`.
  * @ingroup snippets
  */
-class PropagateBufferOffset: public RangedPass {
+class PropagateBufferOffset: public Pass {
 public:
-    OPENVINO_RTTI("PropagateBufferOffset", "RangedPass")
+    OPENVINO_RTTI("PropagateBufferOffset", "Pass")
     PropagateBufferOffset() = default;
 
     /**
@@ -27,7 +27,7 @@ public:
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
-    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
+    bool run(LinearIR& linear_ir) override;
 
 private:
     /**

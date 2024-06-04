@@ -61,7 +61,7 @@ void PropagateBufferOffset::propagate(const ExpressionPtr& buffer_expr) {
     }
 }
 
-bool PropagateBufferOffset::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool PropagateBufferOffset::run(lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::PropagateBufferOffset");
 
     const auto& buffer_expressions = linear_ir.get_buffers();

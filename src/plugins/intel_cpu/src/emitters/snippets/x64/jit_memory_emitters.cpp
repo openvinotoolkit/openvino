@@ -48,7 +48,7 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const Ex
         is_offset_runtime = true;
         // Compiled byte offset is zero to manually `add` runtime offset before operation and `sub` after to reset pointer in the register
         compiled_byte_offset = 0;
-        OPENVINO_ASSERT(buffer_cluster_id != SIZE_MAX, "Incorrect buffer offset in call_args");
+        OV_CPU_JIT_EMITTER_ASSERT(buffer_cluster_id != SIZE_MAX, "Incorrect buffer offset in call_args");
     }
 }
 
@@ -58,7 +58,7 @@ size_t jit_memory_emitter::aux_gprs_count() const {
 }
 
 size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OPENVINO_ASSERT(expr->get_input_port_connectors().size() == 1, "MemoryAccess must have one parent");
+    OV_CPU_JIT_EMITTER_ASSERT(expr->get_input_port_connectors().size() == 1, "MemoryAccess must have one parent");
     const auto& parent_expr = expr->get_input_port_connector(0)->get_source().get_expr();
     if (const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(parent_expr->get_node())) {
         return buffer->get_cluster_id();
@@ -67,7 +67,7 @@ size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowe
 }
 
 size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OPENVINO_ASSERT(expr->get_output_port_connectors().size() == 1, "MemoryAccess must have one consumer");
+    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_connectors().size() == 1, "MemoryAccess must have one consumer");
     const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
     for (const auto& consumer : consumers)
         if (const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(consumer.get_expr()->get_node()))
@@ -76,7 +76,8 @@ size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lo
 }
 
 std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
-    OPENVINO_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()), "If offset is dynamic, memory emitter need to have one aux gpr at least!");
+    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()),
+                              "If offset is dynamic, memory emitter need to have one aux gpr at least!");
     auto available_aux_gprs = aux_gpr_idxs;
     if (!aux_gpr_idxs.empty())
         available_aux_gprs.pop_back();
@@ -157,7 +158,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t> &in, const s
     Reg64 in_reg(in[0]);
     Vmm vmm_dst = Vmm(out[0]);
 
-    // In doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for `BroadcastLoad`,
+    // It doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for `BroadcastLoad`,
     // key point here is not to add post-increment, it might be fixed by some other approach in future
     switch (src_prc.size()) {
         case 4: h->uni_vbroadcastss(vmm_dst, h->ptr[in_reg + compiled_byte_offset]); break;

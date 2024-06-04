@@ -19,7 +19,7 @@ namespace op {
  *               - All buffers with the same reg_group in a graph have the same memory pointer. So if we have a few buffers,
  *                 each the corresponding MemoryAccess op for Buffer should have offset for common memory pointer of this Buffer
  *               - Buffer should be a single consumer for operation output port
- * @param m_allocation_size - memory size for allocation in u8 data type. Dynamic value means undefined size.
+ * @param m_allocation_size - memory size for allocation in bytes. Dynamic value means undefined size.
  * @param m_offset - offset in common Buffer scratchpad
  * @param m_reg_group - number of register group. The Buffers from the same register group will have the same GPR
  * @param m_cluster_id - number of cluster. The Buffers from the same cluster shares memory between them and will have the same offset.
