@@ -120,8 +120,8 @@ bfloat16 uint32_to_bfloat16(uint32_t x) {
 // uint32 value. Resulting value is in interval [0,1).
 template <typename T>
 T uint32_to_T_type_float(uint32_t x) {
-    constexpr mask = (1U << std::numeric_limits<float>::digits) - 1;
-    constexpr divisor = static_cast<float>(1) / static_cast<float>(1U << std::numeric_limits<float>::digits);
+    constexpr auto mask = (1U << std::numeric_limits<float>::digits) - 1;
+    constexpr auto divisor = static_cast<float>(1) / static_cast<float>(1U << std::numeric_limits<float>::digits);
     PytorchAccumulatorType<T> ret = (x & mask) * divisor;
     return static_cast<T>(ret);
 }
