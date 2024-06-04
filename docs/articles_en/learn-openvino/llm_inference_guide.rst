@@ -13,6 +13,7 @@ Large Language Model Inference Guide
    :maxdepth: 1
    :hidden:
 
+   OpenVINO GenAI Guide <llm_inference_guide/genai-guide>
    LLM Inference with Optimum Intel <llm_inference_guide/llm-inference-hf>
    LLM Inference with OpenVINO API <llm_inference_guide/llm-inference-native-ov>
    OpenVINO Tokenizers <llm_inference_guide/ov-tokenizers>
