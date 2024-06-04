@@ -73,9 +73,9 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         const auto& attention_mask_rank = attention_mask.rank();
         if (attention_mask_rank.is_static() && attention_mask_rank != 0) {
             const auto& attention_mask_rank_len = attention_mask_rank.get_length();
-            bool attention_mask_input_correctness = attention_mask_rank_len >= 2 &&
-                                                    DimType::merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
-                                                    DimType::merge(s_dim, s_dim, *(attention_mask.end() - 1));
+            bool attention_mask_input_correctness =
+                attention_mask_rank_len >= 2 && DimType::broadcast_merge(l_dim, l_dim, *(attention_mask.end() - 2)) &&
+                DimType::broadcast_merge(s_dim, s_dim, *(attention_mask.end() - 1));
             if (attention_mask_rank_len >= 3) {
                 attention_mask_input_correctness =
                     attention_mask_input_correctness &&

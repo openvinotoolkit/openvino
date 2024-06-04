@@ -35,6 +35,8 @@ OP_CONVERTER(translate_addv2_op);
 OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_approximate_equal_op);
 OP_CONVERTER(translate_adjust_contrast_op);
+OP_CONVERTER(translate_adjust_hue_op);
+OP_CONVERTER(translate_adjust_saturation_op);
 OP_CONVERTER(translate_angle_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);

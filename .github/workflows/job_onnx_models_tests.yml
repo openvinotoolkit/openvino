@@ -13,6 +13,8 @@ on:
         required: false
         default: '{"image": null}'
 
+permissions: read-all
+
 jobs:
   ONNX_Models_tests:
     name: ONNX Models tests
@@ -35,18 +37,14 @@ jobs:
       ONNX_MODEL_ZOO_SHA: "5faef4c33eba0395177850e1e31c4a6a9e634c82"
     if: ${{ github.event_name != 'merge_group' }}
     steps:
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -70,26 +68,13 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Fetch setup_python action and model_zoo_preprocess script
-        uses: actions/checkout@v4
+      - name: Fetch model_zoo_preprocess script
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: |
-            .github/actions/setup_python/action.yml
             src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
           sparse-checkout-cone-mode: false
           path: 'openvino'
-
-      - name: Install dependencies
-        run: |
-          # install git (required to build pip deps from the sources)
-          apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates git-lfs
-
-      - name: Setup Python 3.11
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: '3.11'
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
 
       - name: Update Models
         run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"

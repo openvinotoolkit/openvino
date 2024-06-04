@@ -1,5 +1,3 @@
-.. {#openvino_docs_performance_benchmarks}
-
 Performance Benchmarks
 ======================
 
@@ -12,6 +10,7 @@ Performance Benchmarks
    :maxdepth: 1
    :hidden:
 
+   performance-benchmarks/generativeAI-benchmarks
    performance-benchmarks/performance-benchmarks-faq
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
    performance-benchmarks/getting-performance-numbers
@@ -23,6 +22,8 @@ and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a 
 selection of public neural networks and Intel® devices. The results may help you decide which
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
+For more detailed view of performance numbers for generative AI models, check the
+:doc:`Generative AI Benchmark Results <./performance-benchmarks/generativeAI-benchmarks>`
 
 .. grid:: 1 1 2 2
    :gutter: 4
