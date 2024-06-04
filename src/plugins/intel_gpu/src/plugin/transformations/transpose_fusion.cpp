@@ -134,17 +134,19 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         auto input_k = ov::Output<Node>(pattern_map.at(input_k_m).get_node_shared_ptr(), input_k_output_idx);
         auto input_v = ov::Output<Node>(pattern_map.at(input_v_m).get_node_shared_ptr(), input_v_output_idx);
 
-        std::shared_ptr<op::SDPA> sdpa_new;
-        if (pattern_map.find(sdpa_without_attn_mask_m) != pattern_map.end()) {
-            sdpa_new = std::make_shared<op::SDPA>(input_q, input_k, input_v, order_q, order_k, order_v, order_output, sdpa->get_causal());
-        } else if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
-            auto attn_mask = sdpa->get_input_source_output(3);
-            sdpa_new = std::make_shared<op::SDPA>(input_q, input_k, input_v, attn_mask, order_q, order_k, order_v, order_output, sdpa->get_causal());
+        OutputVector inputs;
+        inputs.push_back(ov::Output<Node>(pattern_map.at(input_q_m).get_node_shared_ptr(), input_q_output_idx));
+        inputs.push_back(ov::Output<Node>(pattern_map.at(input_k_m).get_node_shared_ptr(), input_k_output_idx));
+        inputs.push_back(ov::Output<Node>(pattern_map.at(input_v_m).get_node_shared_ptr(), input_v_output_idx));
+
+        if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
+            inputs.push_back(sdpa->get_input_source_output(3));
         } else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
-            auto attn_mask = sdpa->get_input_source_output(3);
-            auto scale = sdpa->get_input_source_output(4);
-            sdpa_new = std::make_shared<op::SDPA>(input_q, input_k, input_v, attn_mask, scale, order_q, order_k, order_v, order_output, sdpa->get_causal());
+            inputs.push_back(sdpa->get_input_source_output(3));
+            inputs.push_back(sdpa->get_input_source_output(4));
         }
+
+        auto sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output);
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
