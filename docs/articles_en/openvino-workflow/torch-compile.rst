@@ -34,10 +34,8 @@ This approach works only for the **package distributed via pip**, as it is now c
    model = torch.compile(model, backend='openvino')
    ...
 
-This approach works only for the package distributed via pip, as it is now configured with
-`torch_dynamo_backends entrypoint <https://pytorch.org/docs/stable/torch.compiler_custom_backends.html#registering-custom-backends>`__.
-For OpenVINO installed via other channels, such as conda, and versions older than 2024.1, 
-an additional import statement is needed:
+For OpenVINO installed via channels other than pip, such as conda, and versions older than
+2024.1, an additional import statement is needed:
 
 .. code-block:: python
 
