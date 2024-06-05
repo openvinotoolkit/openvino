@@ -25,7 +25,8 @@ How to Use
 To use ``torch.compile``, you need to define the ``openvino`` backend in your PyTorch application.
 This way Torch FX subgraphs will be directly converted to OpenVINO representation without
 any additional PyTorch-based tracing/scripting.
-
+This approach works only for the **package distributed via pip**, as it is now configured with
+`torch_dynamo_backends entrypoint <https://pytorch.org/docs/stable/torch.compiler_custom_backends.html#registering-custom-backends>`__.
 
 .. code-block:: python
 
