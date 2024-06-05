@@ -1503,7 +1503,7 @@ bool testYoloV3(const TensorMap& outputs, const TensorMap& references, const Ten
     bool result = checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
                                    static_cast<float>(probTolerance));
     return result;
-};
+}
 
 //
 // Yolo V4 mode

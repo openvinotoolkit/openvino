@@ -146,7 +146,7 @@ struct sortableYoloBBox {
     int cclass;
     std::vector<std::vector<float>> probs;
     sortableYoloBBox(int index, int cclass, std::vector<std::vector<float>>& probs)
-            : index(index), cclass(cclass), probs(probs){};
+            : index(index), cclass(cclass), probs(probs){}
 };
 
 static float overlap(float x1, float w1, float x2, float w2) {
