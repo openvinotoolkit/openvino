@@ -171,7 +171,8 @@ and update the provided sample as explained below.
 
 TorchServe Integration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-TorchServe is a performant, flexible and easy to  use tool for serving PyTorch models in production. For more information on the details of TorchServe,
+
+TorchServe is a performant, flexible, and easy to use tool for serving PyTorch models in production. For more information on the details of TorchServe,
 you can refer to `TorchServe github repository. <https://github.com/pytorch/serve>`__. With OpenVINO ``torch.compile`` integration into TorchServe you can serve
 PyTorch models in production and accelerate them with OpenVINO on various Intel hardware. Detailed instructions on how to use OpenVINO with TorchServe are
 available in `TorchServe examples. <https://github.com/pytorch/serve/tree/master/examples/pt2/torch_compile_openvino>`__
