@@ -19,36 +19,7 @@ public:
 
     IndirectSDPA() = default;
 
-    IndirectSDPA(const ov::Output<Node>& Q,
-                 const ov::Output<Node>& K,
-                 const ov::Output<Node>& V,
-                 const ov::Output<Node>& beam_table,
-                 const bool is_causal,
-                 const int64_t indirect_axis,
-                 const std::vector<int64_t>& order_q,
-                 const std::vector<int64_t>& order_k,
-                 const std::vector<int64_t>& order_v,
-                 const std::vector<int64_t>& order_out,
-                 const ov::element::Type output_type = ov::element::undefined);
-
-    IndirectSDPA(const ov::Output<Node>& Q,
-                 const ov::Output<Node>& K,
-                 const ov::Output<Node>& V,
-                 const ov::Output<Node>& attn_mask,
-                 const ov::Output<Node>& beam_table,
-                 const bool is_causal,
-                 const int64_t indirect_axis,
-                 const std::vector<int64_t>& order_q,
-                 const std::vector<int64_t>& order_k,
-                 const std::vector<int64_t>& order_v,
-                 const std::vector<int64_t>& order_out,
-                 const ov::element::Type output_type = ov::element::undefined);
-
-    IndirectSDPA(const ov::Output<Node>& Q,
-                 const ov::Output<Node>& K,
-                 const ov::Output<Node>& V,
-                 const ov::Output<Node>& attn_mask,
-                 const ov::Output<Node>& scale,
+    IndirectSDPA(const OutputVector& data_inputs,
                  const ov::Output<Node>& beam_table,
                  const bool is_causal,
                  const int64_t indirect_axis,
