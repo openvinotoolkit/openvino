@@ -77,6 +77,10 @@ private:
     uint8_t m_value;
 };
 
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4756)
+#endif
 template <typename T>
 bool float4_e2m1::operator==(const T& other) const {
     return (static_cast<float>(*this) == static_cast<float>(other));
