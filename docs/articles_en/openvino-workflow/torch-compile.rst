@@ -46,7 +46,6 @@ For OpenVINO installed via channels other than pip, such as conda, and versions 
    ...
 
 
-Execution diagram:
 
 .. image:: ../assets/images/torch_compile_backend_openvino.svg
    :width: 992px
