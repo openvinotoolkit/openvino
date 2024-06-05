@@ -109,8 +109,8 @@ Windows support
 
 PyTorch supports ``torch.compile`` officially on Windows from version 2.3.0 onwards.
 
-For PyTorch versions below 2.3.0, ``torch.compile`` feature is not supported on Windows officially. However, it can be accessed by running
-the below instructions:
+For PyTorch versions below 2.3.0, the ``torch.compile`` feature is not supported on Windows
+officially. However, it can be accessed by running the following instructions:
 
 1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/nightly/cpu/torch-2.1.0.dev20230713%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
 2. Update the file at ``<python_env_root>/Lib/site-packages/torch/_dynamo/eval_frames.py``
