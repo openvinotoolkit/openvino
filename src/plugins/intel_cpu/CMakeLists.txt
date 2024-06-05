@@ -248,8 +248,8 @@ cross_compiled_file(${TARGET_NAME}
 
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY
-                    src/nodes/llm_mlp_utils.cpp
-        API         src/nodes/llm_mlp_utils.hpp
+                    src/nodes/kernels/x64/mlp_utils.cpp
+        API         src/nodes/kernels/x64/mlp_utils.hpp
         NAME        llm_mlp_transpose_epi32_16x16
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )

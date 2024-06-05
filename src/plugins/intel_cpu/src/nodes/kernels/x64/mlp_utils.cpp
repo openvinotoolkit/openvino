@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "llm_mlp_utils.hpp"
+#include "mlp_utils.hpp"
 
 
 #include <cstring>
 #if defined(HAVE_AVX512F)
 #include <immintrin.h>
 #endif
-#include "kernels/scaled_attn/transpose_kernel.hpp"
+#include "../scaled_attn/transpose_kernel.hpp"
 
 namespace ov {
 namespace Extensions {
