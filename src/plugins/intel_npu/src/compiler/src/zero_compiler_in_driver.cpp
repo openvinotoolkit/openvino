@@ -244,6 +244,16 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
+static size_t getFileSize(std::istream& strm) {
+    const size_t streamStart = strm.tellg();
+    strm.seekg(0, std::ios_base::end);
+    const size_t streamEnd = strm.tellg();
+    const size_t bytesAvailable = streamEnd - streamStart;
+    strm.seekg(streamStart, std::ios_base::beg);
+
+    return bytesAvailable;
+}
+
 using SerializedIR = std::vector<uint8_t>;
 
 /**
@@ -252,16 +262,20 @@ using SerializedIR = std::vector<uint8_t>;
  */
 template <typename TableExtension>
 SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
-    IR& irModel,
+    const std::shared_ptr<const ov::Model>& model,
     ze_graph_compiler_version_info_t compilerVersion) const {
+    IR irModel(model, getSupportedOpset());
+    std::istream& xml = irModel.getXml();
+    std::istream& weights = irModel.getWeights();
+
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
     const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
     const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
     const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(getFileSize(irModel.xml));
-    const uint64_t weightsSize = static_cast<uint64_t>(getFileSize(irModel.weights));
+    const uint64_t xmlSize = static_cast<uint64_t>(getFileSize(xml));
+    const uint64_t weightsSize = static_cast<uint64_t>(getFileSize(weights));
 
     OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
     if (xmlSize >= maxSizeOfXML) {
@@ -294,11 +308,11 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     offset += sizeof(numberOfInputData);
     checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
     offset += sizeof(xmlSize);
-    irModel.xml.read(reinterpret_cast<char*>(serializedIR.data() + offset), xmlSize);
+    xml.read(reinterpret_cast<char*>(serializedIR.data() + offset), xmlSize);
     offset += xmlSize;
     checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
     offset += sizeof(weightsSize);
-    irModel.weights.read(reinterpret_cast<char*>(serializedIR.data() + offset), weightsSize);
+    weights.read(reinterpret_cast<char*>(serializedIR.data() + offset), weightsSize);
     offset += weightsSize;
 
     OPENVINO_ASSERT(offset == sizeOfSerializedIR);
@@ -500,8 +514,9 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
 // For ext version < 1.3, query is unsupported, return empty result and add debug log here
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportQuery(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& /*irModel*/,
-                                                                                     const Config&) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& /*model*/,
+    const Config&) const {
     _logger.debug("queryImpl - Driver version is less than 1.3, queryNetwork is unsupported.");
     return std::unordered_set<std::string>();
 }
@@ -509,12 +524,13 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 // For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& irModel,
-                                                                                     const Config& config) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.debug("queryImpl - Calling queryNetwork of 1.3 version.");
 
     std::string buildFlags;
-    auto serializedIR = getSerializedIR(buildFlags, irModel, config);
+    auto serializedIR = getSerializedIR(buildFlags, model, config);
 
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
@@ -533,12 +549,13 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 // For ext version >= 1.5
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& irModel,
-                                                                                     const Config& config) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.debug("queryImpl - Calling queryNetwork of 1.5 version.");
 
     std::string buildFlags;
-    auto serializedIR = getSerializedIR(buildFlags, irModel, config);
+    auto serializedIR = getSerializedIR(buildFlags, model, config);
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
@@ -610,9 +627,10 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 }
 
 template <typename TableExtension>
-std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getSerializedIR(std::string& buildFlags,
-                                                                                IR& irModel,
-                                                                                const Config& config) const {
+std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getSerializedIR(
+    std::string& buildFlags,
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     if (ZE_RESULT_SUCCESS != result) {
@@ -627,17 +645,16 @@ std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getSerializedIR(
     buildFlags += serializeConfig(config, compilerVersion);
     _logger.debug("getSerializedIR Build flags : %s", buildFlags.c_str());
 
-    auto serializedIR = serializeIR(irModel, compilerVersion);
-
-    return serializedIR;
+    return serializeIR(model, compilerVersion);
 }
 
 template <typename TableExtension>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQueryResult(IR& irModel,
-                                                                                          const Config& config) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQueryResult(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("getQueryResult");
-    auto queryResult = queryImpl(irModel, config);
+    auto queryResult = queryImpl(model, config);
     _logger.debug("getQueryResult end");
     return queryResult;
 }
@@ -683,7 +700,6 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 
 template <typename TableExtension>
 NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const std::shared_ptr<const ov::Model>& model,
-                                                                        IR& irModel,
                                                                         const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("compileIR");
@@ -700,7 +716,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
     }
     ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
 
-    auto serializedIR = serializeIR(irModel, compilerVersion);
+    auto serializedIR = serializeIR(model, compilerVersion);
 
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 

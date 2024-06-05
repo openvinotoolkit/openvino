@@ -12,7 +12,7 @@
 
 namespace intel_npu::driverCompilerAdapter {
 
-IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset = 11)
+IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset)
     : _logger("LevelZeroCompilerAdapter::IR", Logger::global().level()),
       _isLargeModel(false) {
     // There is no const variant of run_passes so use const_cast here

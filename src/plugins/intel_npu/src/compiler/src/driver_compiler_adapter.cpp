@@ -184,10 +184,7 @@ NetworkDescription LevelZeroCompilerAdapter::compile(const std::shared_ptr<const
                                                      const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("compileIR");
-    uint32_t supportedOpset = apiAdapter->getSupportedOpset();
-
-    IR ir(model, supportedOpset);
-    return apiAdapter->compileIR(model, ir, config);
+    return apiAdapter->compileIR(model, config);
 }
 
 ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -197,9 +194,8 @@ ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const 
     ov::SupportedOpsMap result;
     const std::string deviceName = "NPU";
 
-    IR ir(model);
     try {
-        const auto supportedLayers = apiAdapter->getQueryResult(ir, config);
+        const auto supportedLayers = apiAdapter->getQueryResult(model, config);
         for (auto&& layerName : supportedLayers) {
             result.emplace(layerName, deviceName);
         }
