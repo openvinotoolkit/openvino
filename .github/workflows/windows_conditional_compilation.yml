@@ -176,10 +176,11 @@ jobs:
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
 
+      # if build fails due to out of ram please decrease parallel jobs (--parallel n)
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel 32 --config ${{ env.CMAKE_BUILD_TYPE }} && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel 32 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
