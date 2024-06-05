@@ -11,27 +11,27 @@ Supported Models
    Additional Resources <about-openvino/additional-resources>
 
 .. raw:: html
-
+      
    <link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css">
-   <h4>Here is just sample data.</h4>
+   <label>hide/reveal additional columns:</label><br/>
    <label class="column-container">
-       Hide topology
+       Topology
       <input type="checkbox" id="topology" name="topology" value="topology" data-column="0" class="toggle-vis"/>
       <label for="topology" class="checkmark"></label>
    </label>
    <label class="column-container">
-      Hide source framework
-      <input type="checkbox" id="source" name="source" value="source" data-column="1" class="toggle-vis"/>
+      Source framework
+      <input type="checkbox" checked id="source" name="source" value="source" data-column="1" class="toggle-vis"/>
       <label for="source" class="checkmark"></label>
    </label>
    <label class="column-container">
-      Hide precision
-      <input type="checkbox" id="precision" name="precision" value="precision" data-column="2" class="toggle-vis"/>
+      Precision
+      <input type="checkbox" checked id="precision" name="precision" value="precision" data-column="2" class="toggle-vis"/>
       <label for="precision" class="checkmark"></label>
    </label>
    <label class="column-container">
-      Hide arc
-      <input type="checkbox" id="arc" name="arc" value="arc" data-column="6" class="toggle-vis"/>
+      Arc
+      <input type="checkbox" checked id="arc" name="arc" value="arc" data-column="6" class="toggle-vis"/>
       <label for="arc" class="checkmark"></label>
    </label>
 
