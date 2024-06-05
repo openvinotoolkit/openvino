@@ -101,6 +101,7 @@ struct Work {
     TileConfig m_tcfg[32];
 
     void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
+        thread_local AutoTileConfiger tile_configer;
         auto& mkernel = get_MKernel();
 
         int num_blk_K = (k1 - k0) / blk_K_size;
@@ -111,8 +112,6 @@ struct Work {
         auto C_M = Mbody + (Mtails ? 32 : 0);
         C.resize<float>({static_cast<size_t>(C_M), static_cast<size_t>(BN)});
         auto pC = reinterpret_cast<uint8_t*>(C.ptr_v());
-
-        auto& tile_configer = (Singleton<AutoTileConfiger>::get());
 
         pA += k0 * sizeof(ov::bfloat16);
         bool do_accumulation = false;
@@ -176,17 +175,13 @@ public:
 
         do_splitK = _do_splitK;
         auto K_splits = do_splitK ? 2 : 1;
-        // every thread should do same amount of work, and some cores can be idle
+        // split task on more cores is better on TBB
         auto valid_nthr = nthr / K_splits;
-        auto blkN_per_thread = (num_blk_N + valid_nthr - 1) / valid_nthr;
-        auto blkN_leftover = 0;
+        auto blkN_per_thread = (num_blk_N) / valid_nthr;
+        auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
         auto start_blkN = 0;
         used_nthr = 0;
         auto blkK_per_thread = (num_blk_K + K_splits - 1) / K_splits;
-
-        // split task on more cores is better on TBB
-        blkN_per_thread = (num_blk_N) / valid_nthr;
-        blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
 
         for (int ithr = 0; ithr < nthr; ithr += K_splits) {
             auto blkN = std::min(num_blk_N - start_blkN, blkN_per_thread);
@@ -321,13 +316,10 @@ struct QKVProj : public LLMMLP::Executor {
 
         int cur_work_id = 0;
         auto create_works = [&](ov::bfloat16* pw, int output_id) {
-            auto blkN_per_thread = (num_blk_N + valid_nthr - 1) / valid_nthr;
-            auto blkN_leftover = 0;
-            auto start_blkN = 0;
-
             // split task on more cores is better on TBB
-            blkN_per_thread = (num_blk_N) / valid_nthr;
-            blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
+            auto blkN_per_thread = (num_blk_N) / valid_nthr;
+            auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
+            auto start_blkN = 0;
 
             for (int ithr = 0; ithr < valid_nthr; ithr++) {
                 auto blkN = std::min(num_blk_N - start_blkN, blkN_per_thread);
