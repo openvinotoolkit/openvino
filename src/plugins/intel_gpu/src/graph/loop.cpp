@@ -533,6 +533,8 @@ void loop_inst::preprocess_backedge_memory() {
         OPENVINO_ASSERT(!input_map_ptrs.empty(), id(), " has no input_mapping for backedged input");
         auto& external_id = input_map_ptrs.front()->external_id;
         initial_mem = get_external_memory(external_id.pid, external_id.idx);
+        // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
+        // so memory layout needs to be re-interprete according to original layout.
         auto initial_layout = get_external_output_layout(external_id.pid, external_id.idx);
         if (initial_mem != nullptr && !initial_mem->get_layout().identical(initial_layout)) {
             OPENVINO_ASSERT(initial_layout.bytes_count() <= initial_mem->get_layout().bytes_count(),
@@ -999,6 +1001,8 @@ int64_t loop_inst::get_num_iterations() {
 void loop_inst::set_memory_in_body_network(cldnn::network::ptr body_network,
                 const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) {
     if (inst->is_input()) {
+        // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
+        // so memory layout needs to be re-interprete according to original layout.
         memory::ptr updated_mem = mem;
         layout impl_layout = inst->get_impl_params()->get_output_layout();
         OPENVINO_ASSERT(impl_layout.bytes_count() <= updated_mem->get_layout().bytes_count(),
