@@ -36,9 +36,6 @@ union f32_t {
     uint32_t bits;
 };
 
-constexpr uint8_t byte_shift = 8;
-
-constexpr uint8_t f4e2m1_s_mask = 0x08;  // f4e2m1 sign bit mask
 constexpr uint8_t f4e2m1_e_size = 2;     // f4e2m1 exponent bit size
 constexpr uint8_t f4e2m1_e_mask = 0x06;  // f4e2m1 exponent bit mask
 constexpr uint8_t f4e2m1_e_bias = 1;     // f4e2m1 exponent bias
