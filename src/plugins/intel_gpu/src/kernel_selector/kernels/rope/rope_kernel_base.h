@@ -20,9 +20,11 @@ struct rope_params : public base_params {
     size_t slice_stop;
     size_t axis;
     size_t num_of_inputs;
+    size_t gather_rank;
 
     bool is_qwen;
     bool is_chatglm;
+    bool transposed_input;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

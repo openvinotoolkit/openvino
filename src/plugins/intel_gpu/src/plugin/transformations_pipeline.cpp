@@ -816,11 +816,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
         manager.register_pass<ov::pass::RoPEFusion>();
-        pass_config->disable<ov::pass::RoPEFusionGPTNEOX>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
-        pass_config->disable<ov::pass::RoPEFusionCosSinPreprocess>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
-        pass_config->disable<ov::pass::RoPEFusionPreprocess>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
