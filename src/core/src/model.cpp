@@ -427,7 +427,7 @@ void ov::Model::replace_parameter(size_t parameter_index, const shared_ptr<ov::o
 }
 
 void ov::Model::set_topological_sort(topological_sort_t sorter) {
-    m_topological_sorter = sorter;
+    m_topological_sorter = std::move(sorter);
     // reset topological nodes order cache as new sorter can have different behaviour
     m_shared_rt_info->set_use_topological_cache(false);
 }

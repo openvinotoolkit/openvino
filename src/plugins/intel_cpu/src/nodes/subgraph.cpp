@@ -879,7 +879,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
     segfault_detector();
 #endif
 
-    parallel_nt(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args);
 
@@ -903,7 +903,7 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
     segfault_detector();
 #endif
 
-    parallel_nt(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args);
 
