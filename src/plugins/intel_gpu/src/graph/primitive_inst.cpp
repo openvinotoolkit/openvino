@@ -1326,6 +1326,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         }
 
         // subgraph_input_changed can be available only shape_of is dynamic.
+        // shape_of_subgraph for static shape_of could be run every inference if constant propagation does not work.
         if (_node->is_in_shape_of_subgraph() && dependant_shape_of_insts.front()->is_dynamic()) {
             bool subgraph_input_changed = false;
             for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
