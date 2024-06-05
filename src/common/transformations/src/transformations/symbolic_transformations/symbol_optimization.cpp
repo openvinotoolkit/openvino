@@ -220,10 +220,12 @@ void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_so
 }
 
 std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<ov::Model>& m) {
+    auto order = m->get_ordered_ops();
+
     // step 1: split model into parameter related and parameter non-related ops
     const std::string op_depends_on_parameter = "topological_sort_op_depends_on";
     // values: true - parameter dependent; false otherwise
-    for (const auto& op : m->get_ordered_ops()) {
+    for (const auto& op : order) {
         if (ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             op->get_rt_info()[op_depends_on_parameter] = true;
         } else if (ov::as_type_ptr<ov::op::v0::Constant>(op) || ov::as_type_ptr<ov::op::v0::ShapeOf>(op) ||
@@ -233,9 +235,11 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
         } else {  // deduce op type from inputs
             const auto& inputs = op->input_values();
             op->get_rt_info()[op_depends_on_parameter] =
-                std::any_of(inputs.begin(), inputs.end(), [=](const ov::Output<ov::Node>& input) {
-                    return input.get_node_shared_ptr()->get_rt_info()[op_depends_on_parameter].as<bool>();
-                });
+                std::any_of(inputs.begin(),
+                            inputs.end(),
+                            [&op_depends_on_parameter](const ov::Output<ov::Node>& input) {
+                                return input.get_node_shared_ptr()->get_rt_info()[op_depends_on_parameter].as<bool>();
+                            });
         }
     }
     // step 2: starting from Result -- assign weight to ops:
@@ -243,9 +247,8 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
     //      else weights is maximum of output indices
     // this step doesn't assign weights to all the ops, this is intentional and will be used in the following step
     const std::string weight_rt_info_name = "topological_sort_weight";
-    auto reverse_order = m->get_ordered_ops();
-    std::reverse(reverse_order.begin(), reverse_order.end());
-    for (const auto& op : reverse_order) {
+    for (auto it = order.rbegin(); it != order.rend(); it++) {
+        const auto& op = *it;
         int64_t weight = 0;
         if (ov::as_type_ptr<ov::op::v0::Result>(op)) {
             op->get_rt_info()[weight_rt_info_name] = weight;
@@ -276,40 +279,34 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
     // if all operation inputs have no weights -- this op is isolated and this algorithm doesn't make sense,
     // such cases are extremely rare and rather theoretical, to handle them we return original ov::Model op order
     std::map<int64_t, std::vector<std::shared_ptr<ov::Node>>> level_to_vector;
-    for (const auto& op : m->get_ordered_ops()) {
-        if (op->get_rt_info().count(weight_rt_info_name)) {
-            level_to_vector[op->get_rt_info().at(weight_rt_info_name).as<int64_t>()].push_back(op);
-            continue;
-        } else {
-            int64_t weight = 0;
-            bool inputs_have_weight = false;
+    for (const auto& op : order) {
+        if (!op->get_rt_info().count(weight_rt_info_name)) {
+            int64_t weight = std::numeric_limits<int64_t>::max();
             for (const auto& input : op->input_values()) {
                 const auto& rt_info = input.get_node_shared_ptr()->get_rt_info();
                 if (!rt_info.count(weight_rt_info_name))
                     continue;
                 auto input_weight = rt_info.at(weight_rt_info_name).as<int64_t>();
-                if (!inputs_have_weight)
-                    weight = input_weight;
                 weight = input_weight < weight ? input_weight : weight;
-                inputs_have_weight = true;
             }
-            if (inputs_have_weight)
+            if (weight != std::numeric_limits<int64_t>::max())
                 op->get_rt_info()[weight_rt_info_name] = weight;
             else
                 return m->get_ordered_ops();
-            level_to_vector[weight].push_back(op);
         }
+        level_to_vector[op->get_rt_info().at(weight_rt_info_name).as<int64_t>()].push_back(op);
     }
     // finalization: descending order for levels and ops within level are ordered by get_ordered_ops
     std::vector<std::shared_ptr<ov::Node>> result;
-    result.reserve(reverse_order.size());
-    for (const auto& item : level_to_vector)
-        result.insert(result.end(), item.second.rbegin(), item.second.rend());
-    for (const auto& op : result) {
-        op->get_rt_info().erase(weight_rt_info_name);
-        op->get_rt_info().erase(op_depends_on_parameter);
+    result.reserve(order.size());
+    for (auto it = level_to_vector.rbegin(); it != level_to_vector.rend(); it++) {
+        const auto& item = *it;
+        result.insert(result.end(), item.second.begin(), item.second.end());
+        for (const auto& op : item.second) {
+            op->get_rt_info().erase(weight_rt_info_name);
+            op->get_rt_info().erase(op_depends_on_parameter);
+        }
     }
-    std::reverse(result.begin(), result.end());
     return result;
 }
 }  // namespace
