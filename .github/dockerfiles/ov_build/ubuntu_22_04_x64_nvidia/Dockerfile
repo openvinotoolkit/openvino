@@ -12,11 +12,11 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt-get update && \
-    apt-get install --fix-missing software-properties-common && \
+    apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
-    apt-get install --fix-missing \
+    apt-get install \
         curl \
         wget \
         git \
@@ -57,7 +57,10 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86
 RUN apt-get update && apt-get install cuda-toolkit \
     libcudnn8 \
     libcudnn8-dev \
-    libcudnn8-samples
+    libcudnn8-samples \
+    libcutensor1 \
+    libcutensor-dev \
+    cuda-drivers
 
 # Setup pip
 ENV PIP_VERSION="24.0"
