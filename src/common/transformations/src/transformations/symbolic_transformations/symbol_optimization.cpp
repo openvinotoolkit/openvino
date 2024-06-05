@@ -309,6 +309,22 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
     }
     return result;
 }
+
+void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_shape_source) {
+    if (!ov::is_type<ov::op::v0::ShapeOf>(op) && !ov::is_type<ov::op::v3::ShapeOf>(op))
+        return;
+    const auto& output = op->input_value(0);
+    for (const auto& d : output.get_partial_shape()) {
+        if (d.is_static())
+            continue;
+        auto symbol = d.get_symbol();
+        if (symbol == nullptr)
+            continue;
+        if (symbol_shape_source.count(symbol))
+            continue;
+        symbol_shape_source[symbol] = output;
+    }
+}
 }  // namespace
 
 bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -327,9 +343,9 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
         // LTS maps aren't shared with sub-graphs because inner graph can not access outer graph for label sources
         ov::op::util::process_subgraph(*this, op);
 
-        for (auto& output : op->outputs()) {
+        for (auto& output : op->outputs())
             optimize_value_usage(output, symbol_shape_source, symbol_value_source);
-        }
+        save_shape_sources(op, symbol_shape_source);
     }
     return true;
 }
