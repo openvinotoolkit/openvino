@@ -2145,6 +2145,10 @@ public:
     void test_weights_reorder_shapes_update(bool is_caching_test) {
         auto& engine = get_test_engine();
 
+        // This test is skipped for immad case because shape-agnostic kernel is not used.
+        if (engine.get_device_info().supports_immad)
+            return;
+
         const int32_t input_f = 3, input_b = 1, weight_b = 4;
 
         auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32, format::bfyx };
@@ -2890,74 +2894,6 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
-    auto& engine = get_test_engine();
-
-    if (!engine.get_device_info().supports_immad)
-        return;
-
-    const int32_t input_f = 3, input_b = 1, weight_b = 4;
-
-    auto fake_alignment_size = engine.get_device_info().supports_immad ? 8 : 16;
-    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
-    auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
-    auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
-
-    set_values(input_data, { -0.5f, 2.0f, 0.5f });
-    set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
-
-    cldnn::topology topology{
-        input_layout("input", input_dyn_layout),
-        data("weights", weights_data),
-        fully_connected("fc", input_info("input"), "weights")
-    };
-
-    ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
-    ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} }),
-                         ov::intel_gpu::optimize_data(true),
-                         ov::intel_gpu::allow_new_shape_infer(true) };
-
-    network network(engine, topology, cfg);
-    network.set_input_data("input", input_data);
-
-    // Check if shape agnostic kernel is used as default impl or not
-    auto inst = network.get_primitive("fc");
-    auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-    ASSERT_TRUE(impl->is_dynamic());
-
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "fc");
-
-    auto output_prim_mem = outputs.begin()->second.get_memory();
-
-    auto out_l = network.get_output_layout(outputs.begin()->first);
-    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, fake_alignment_size)); // fake_alignment
-    ASSERT_EQ(out_l.batch(), input_b);
-    ASSERT_EQ(out_l.feature(), weight_b);
-    ASSERT_EQ(out_l.spatial(0), 1);
-    ASSERT_EQ(out_l.spatial(1), 1);
-
-    cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
-
-    ASSERT_EQ(1.5f, output_ptr[0]);
-    ASSERT_EQ(0.75f, output_ptr[1]);
-    ASSERT_EQ(-2.25f, output_ptr[2]);
-    ASSERT_EQ(3.0f, output_ptr[3]);
-
-    // WA: Call wait_all() to wait for all queued kernels compilation finish
-    network.get_program()->get_compilation_context().wait_all();
-
-    // Check if OneDNN's impl is used for the next execute() call
-    network.execute();
-    inst = network.get_primitive("fc");
-    impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-    ASSERT_FALSE(impl->is_dynamic());
-}
-
 TEST(fully_connected_onednn_gpu, no_biases_int8) {
     //  Input  : 3x1
     //  Output : 4x1
@@ -3581,9 +3517,17 @@ public:
         quant_data.output_low  = std::numeric_limits<WeightsT>::lowest();
         quant_data.output_high = std::numeric_limits<WeightsT>::max();
 
+        int min = -10;
+        int max = 10;
+
+        if (!std::numeric_limits<WeightsT>::is_signed) {
+            min = 0;
+            max = 20;
+        }
+
         VVVVF<InputT> input_data = rg.template generate_random_4d<InputT>(b, in_f, in_y, in_x, 0, 127);
-        VVVVF<WeightsT> weights_data = rg.template generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, quant_data.output_low , quant_data.output_high);
-        VF<WeightsT> bias_data = rg.template generate_random_1d<WeightsT>(out_f, quant_data.output_low , quant_data.output_high);
+        VVVVF<WeightsT> weights_data = rg.template generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, min, max);
+        VF<WeightsT> bias_data = rg.template generate_random_1d<WeightsT>(out_f, min, max);
 
         this->set_input(input_data);
         this->set_weights(weights_data);
@@ -3718,4 +3662,3 @@ TEST_F(fully_connected_gpu_tests, weights_reorder_shapes_update) {
 TEST_F(fully_connected_gpu_tests, weights_reorder_shapes_update_cached) {
     this->test_weights_reorder_shapes_update(true);
 }
-

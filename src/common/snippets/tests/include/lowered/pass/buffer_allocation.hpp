@@ -35,7 +35,6 @@ protected:
 
     static void MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor);
 
-    size_t m_buffer_scratchpad = 0;
     ov::snippets::lowered::LinearIR m_linear_ir;
 
     size_t m_expected_size = 0;

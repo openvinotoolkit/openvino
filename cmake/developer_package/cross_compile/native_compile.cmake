@@ -71,7 +71,7 @@ function(ov_native_compile_external_project)
     endif()
 
     if(OV_GENERATOR_MULTI_CONFIG)
-        if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+        if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
             list(APPEND ARG_CMAKE_ARGS "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_DEFAULT_BUILD_TYPE}")
             list(APPEND ARG_CMAKE_ARGS "-DCMAKE_DEFAULT_BUILD_TYPE=${CMAKE_DEFAULT_BUILD_TYPE}")
         endif()

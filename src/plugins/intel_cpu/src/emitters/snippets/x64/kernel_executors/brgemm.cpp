@@ -78,13 +78,13 @@ std::string BrgemmKernelConfig::to_string() const {
 #endif
 
 BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config) :
-        CPUKernelExecutor<BrgemmKernelConfig, brgemm_kernel_t>(std::move(kernel_cache), config) {
+        CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel>(std::move(kernel_cache), config) {
     if (config->is_completed())
         update_kernel();
 }
 
 
-std::shared_ptr<brgemm_kernel_t> BrgemmKernelExecutor::compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& config) const {
+std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& config) const {
     OV_CPU_JIT_EMITTER_ASSERT(config, "Invalid config provided for BrgemmKernelDesc::compile_kernel");
     cpu::x64::brgemm_t desc;
     auto status = brgemm_desc_init(&desc, config->isa, cpu::x64::brgemm_strd,
@@ -94,19 +94,26 @@ std::shared_ptr<brgemm_kernel_t> BrgemmKernelExecutor::compile_kernel(const std:
                                    config->LDA, config->LDB, config->LDC,
                                    config->M, config->N, config->K, nullptr);
 
+    std::shared_ptr<BrgemmCompiledKernel> compiled_kernel = std::make_shared<BrgemmCompiledKernel>();
+
     OV_CPU_JIT_EMITTER_ASSERT(status == dnnl_success, "Cannot initialize brgemm descriptor due to invalid params");
     if (config->is_with_amx) {
-        status = brgemm_init_tiles(desc, config->palette);
+        status = brgemm_init_tiles(desc, compiled_kernel->palette);
         OV_CPU_JIT_EMITTER_ASSERT(status == dnnl_success, "Cannot initialize brgemm tiles due to invalid params");
     }
 
     cpu::x64::brgemm_kernel_t* kernel_ = nullptr;
     status = brgemm_kernel_create(&kernel_, desc);
     OV_CPU_JIT_EMITTER_ASSERT(status == dnnl_success, "Cannot create brgemm kernel due to invalid params");
-    return std::unique_ptr<brgemm_kernel_t>(kernel_);
+    compiled_kernel->compiled_kernel = std::unique_ptr<brgemm_kernel_t>(kernel_);
+
+    return compiled_kernel;
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* args) {
+    const auto& kernel = desc->m_kernel;
+    OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr compiler kernel");
+
     const auto& config = desc->m_config;
     if (config->is_with_amx) {
         const auto& amx_tile_config = args->amx_tile_config;
@@ -114,7 +121,7 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* 
             amx_tile_config->M = config->M;
             amx_tile_config->K = config->K;
             amx_tile_config->N = config->N;
-            cpu::x64::amx_tile_configure(config->palette);
+            cpu::x64::amx_tile_configure(kernel->palette);
         }
     }
 
@@ -131,8 +138,8 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* 
     brgemm_p.do_apply_comp = static_cast<size_t>(config->is_with_comp);
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
-    OV_CPU_JIT_EMITTER_ASSERT(desc->m_kernel, "has nullptr kernel");
-    (*desc->m_kernel)(&brgemm_p);
+    OV_CPU_JIT_EMITTER_ASSERT(kernel->compiled_kernel, "has nullptr kernel");
+    (*kernel->compiled_kernel)(&brgemm_p);
 }
 
 void BrgemmKernelExecutor::update(size_t M, size_t N, size_t K, size_t LDA, size_t LDB, size_t LDC) {

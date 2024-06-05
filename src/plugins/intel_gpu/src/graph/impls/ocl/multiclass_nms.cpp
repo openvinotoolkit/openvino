@@ -12,15 +12,15 @@
 namespace cldnn {
 namespace ocl {
 namespace {
-kernel_selector::SortResultType get_sort_result_type(const cldnn::multiclass_nms::sort_result_type sort_result_type) {
+kernel_selector::SortResultType get_sort_result_type(const ov::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
     switch (sort_result_type) {
-        case cldnn::multiclass_nms::sort_result_type::classid:
+        case ov::op::util::MulticlassNmsBase::SortResultType::CLASSID:
             return kernel_selector::SortResultType::CLASSID;
             break;
-        case cldnn::multiclass_nms::sort_result_type::score:
+        case ov::op::util::MulticlassNmsBase::SortResultType::SCORE:
             return kernel_selector::SortResultType::SCORE;
             break;
-        case cldnn::multiclass_nms::sort_result_type::none:
+        case ov::op::util::MulticlassNmsBase::SortResultType::NONE:
             return kernel_selector::SortResultType::NONE;
             break;
         default:
@@ -29,21 +29,6 @@ kernel_selector::SortResultType get_sort_result_type(const cldnn::multiclass_nms
     return kernel_selector::SortResultType::NONE;
 }
 
-kernel_selector::Datatype get_indices_output_type(const data_types indices_output_type) {
-    switch (indices_output_type) {
-        case cldnn::data_types::i32: {
-            return kernel_selector::Datatype::INT32;
-            break;
-        }
-        case cldnn::data_types::i64: {
-            return kernel_selector::Datatype::INT64;
-            break;
-        }
-        default:
-            throw std::runtime_error{"Not supported index element type"};
-    }
-    return kernel_selector::Datatype::INT32;
-}
 }  // namespace
 
 struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
@@ -76,9 +61,8 @@ public:
 
         const auto& attrs = primitive->attrs;
 
-        params.sort_result_type = get_sort_result_type(attrs.sort_result);
+        params.sort_result_type = get_sort_result_type(attrs.sort_result_type);
         params.sort_result_across_batch = attrs.sort_result_across_batch;
-        params.indices_output_type = get_indices_output_type(attrs.indices_output_type);
         params.iou_threshold = attrs.iou_threshold;
         params.score_threshold = attrs.score_threshold;
         params.nms_top_k = attrs.nms_top_k;

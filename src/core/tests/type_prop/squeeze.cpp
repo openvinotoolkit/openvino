@@ -20,10 +20,10 @@ using namespace testing;
 TEST(type_prop, squeeze_axes_invalid_value) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{2}, vector<int64_t>{0, 2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
 
-    OV_EXPECT_THROW(auto s = make_shared<op::v0::Squeeze>(param, axes_node),
-                    NodeValidationFailure,
-                    HasSubstr("provided axis value is invalid. Only axes of size 1 may be removed."));
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{2, 3, 4}));
 }
 
 TEST(type_prop, squeeze_single_input) {
@@ -53,10 +53,10 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
 TEST(type_prop, squeeze_data_static_param_axes_1D_single_elem_static_shape_no_squeezable_dims) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{2, 2, 4});
     const auto axes_node = std::make_shared<ov::op::v0::Parameter>(element::u64, PartialShape{1});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
 
-    OV_EXPECT_THROW(auto s = make_shared<op::v0::Squeeze>(param, axes_node),
-                    NodeValidationFailure,
-                    HasSubstr("doesn't contain squeezable dimension"));
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), (PartialShape{2, 2, 4}));
 }
 
 TEST(type_prop, squeeze_data_static_param_axes_1D_two_elem_static_shape_squeezable_dims_two) {

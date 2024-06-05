@@ -16,6 +16,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     : _initStructs(initStructs),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
+    log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
@@ -70,6 +71,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(), &command_queue_group_count, nullptr));
 
+    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
     command_group_properties.resize(command_queue_group_count);
 
     for (auto& prop : command_group_properties) {
@@ -83,7 +85,9 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
                                                                   command_group_properties.data()));
 
     // Find the corresponding command queue group.
+    log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
+    log.debug("ZeroDevice::ZeroDevice - init completed");
 }
 
 std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
@@ -162,6 +166,14 @@ ov::device::PCIInfo ZeroDevice::getPciInfo() const {
 
 std::map<ov::element::Type, float> ZeroDevice::getGops() const {
     return device_gops;
+}
+
+ov::device::Type ZeroDevice::getDeviceType() const {
+    if (device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
+        return ov::device::Type::INTEGRATED;
+    } else {
+        return ov::device::Type::DISCRETE;
+    }
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(

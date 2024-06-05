@@ -70,7 +70,7 @@ public:
             : SamplingSpaceBase<T>(start_x_, start_y_, size_x_, size_y_) {}
     };
 
-    ROIAlignOpDefPolicy() : aligned(false), offset_src(0), offset_dst(0) {}
+    ROIAlignOpDefPolicy() : rois(nullptr), spatial_scale(0.0f), aligned(false), offset_src(0), offset_dst(0) {}
 
     void init(const T* rois_, const Shape& shape_, float spatial_scale_, AlignedMode aligned_mode, bool) {
         rois = rois_;

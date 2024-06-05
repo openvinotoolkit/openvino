@@ -10,9 +10,11 @@
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
 #include "proposal_inst.h"
+#include "permute_inst.h"
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
+#include "gemm_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
 #include "program_node.h"
@@ -38,19 +40,36 @@ void compile_graph::run(program& p) {
     auto& proc_order = p.get_processing_order();
     std::vector<ov::threading::Task> tasks;
     std::exception_ptr exception;
+    bool disable_permute_fuse_onednn_gemm = false;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_onednn_permute_fusion == 1)
+        disable_permute_fuse_onednn_gemm = true;
+
+
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
         const bool use_shape_agnostic_impl = !p.get_config().get_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape);
         const impl_types original_impl_type = node->get_preferred_impl_type();
         bool change_initial_impl = node->is_dynamic() && original_impl_type == impl_types::onednn;
 
-        if (node->is_type<fully_connected>() && change_initial_impl) {
-            const auto fc_prim = node->as<fully_connected>().get_primitive();
-
-            // Do not change impl (i.e. do not use ocl shape-agnostic kernels) in case of compressed weights,
-            // since oneDNN primitives/kernels caching mechanism will be used instead.
-            if (fc_prim->compressed_weights)
+        if (change_initial_impl) {
+            if (node->is_type<fully_connected>()) {
+                // Do not change impl (i.e. do not use ocl shape-agnostic kernels)
+                // since oneDNN primitives/kernels caching mechanism will be used instead.
                 change_initial_impl = false;
+            } else if (node->is_type<gemm>() && !disable_permute_fuse_onednn_gemm) {
+                // permute is fused to onednn gemm. The updated memory formats are not supported by ocl this keep onednn impl
+                for (const auto& dep : node->get_dependencies()) {
+                    if (dep.first->is_type<permute>() && dep.first->can_be_optimized() && !dep.first->is_runtime_skippable() &&
+                        node->get_preferred_input_fmt() != format::any)
+                        change_initial_impl = false;
+                }
+                for (const auto& user : node->get_users()) {
+                    if (user->is_type<permute>() && user->can_be_optimized() && !user->is_runtime_skippable() &&
+                        node->get_preferred_output_fmt() != format::any)
+                        change_initial_impl = false;
+                }
+            }
         }
 
         if (change_initial_impl)

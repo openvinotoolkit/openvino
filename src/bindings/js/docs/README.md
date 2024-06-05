@@ -36,7 +36,7 @@
     -DENABLE_WHEEL=OFF \
     -DENABLE_PYTHON=OFF \
     -DENABLE_INTEL_GPU=OFF \
-    -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \
+    -DCMAKE_INSTALL_PREFIX="../src/bindings/js/node/bin" \
     ..
   ```
 - Build the bindings:
@@ -58,11 +58,11 @@
 - Run tests to make sure that **openvino-node** has been built successfully:
   ```bash
   npm run test
-  ``` 
+  ```
 
 ## Usage
 
-- Add the **openvino-node** package to your project by specifying it in **package.json**: 
+- Add the **openvino-node** package to your project by specifying it in **package.json**:
   ```json
   "openvino-node": "file:*path-to-current-directory*"
   ```
