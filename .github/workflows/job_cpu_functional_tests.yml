@@ -13,6 +13,8 @@ on:
         required: false
         default: null
 
+permissions: read-all
+
 jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
@@ -31,13 +33,13 @@ jobs:
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -61,7 +63,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -79,7 +81,7 @@ jobs:
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -99,14 +101,14 @@ jobs:
         timeout-minutes: 25
 
       - name: Save tests execution time
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
           name: test-results-functional-cpu
