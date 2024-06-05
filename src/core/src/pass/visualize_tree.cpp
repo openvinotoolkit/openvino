@@ -261,7 +261,7 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 
     size_t fake_node_ctr = 0;
 
-    traverse_nodes(f, [&](std::shared_ptr<Node> node) {
+    traverse_nodes(f, [&](const std::shared_ptr<Node>& node) {
         add_node_arguments(node, height_maps, fake_node_ctr);
     });
 
@@ -281,8 +281,8 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 
 ov::pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifiers_t nm, bool dot_only)
     : m_name{file_name},
-      m_node_modifiers{nm},
-      m_dot_only(dot_only) {}
+      m_node_modifiers{std::move(nm)},
+      m_dot_only{dot_only} {}
 
 void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                                                  std::unordered_map<Node*, HeightMap>& height_maps,
@@ -297,7 +297,7 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                 std::string("color=\"") + (arg->description() == "Parameter" ? "blue" : "black") + std::string("\"");
             std::vector<std::string> attributes{"shape=\"box\"",
                                                 "style=\"dashed\"",
-                                                color,
+                                                std::move(color),
                                                 std::string("label=\"") + get_node_name(arg) + std::string("\n") +
                                                     get_constant_value(arg) + std::string("\"")};
 
@@ -344,8 +344,8 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
 std::string ov::pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) {
     std::string rc;
     if (m_nodes_with_attributes.find(node) == m_nodes_with_attributes.end()) {
-        m_nodes_with_attributes.insert(node);
         rc = get_attributes(node);
+        m_nodes_with_attributes.insert(std::move(node));
     }
     return rc;
 }
