@@ -30,28 +30,22 @@ namespace {
 #if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 
-class AutoTileConfiger : public TileConfiger {
+class AutoTileConfiger {
 public:
-    AutoTileConfiger() : TileConfiger() {}
+    AutoTileConfiger() {}
     ~AutoTileConfiger() {
         do_config(nullptr);
     }
-    void* last_cfg = nullptr;
     void do_config(void* cfg) {
+        static TileConfiger configer;
         if (cfg != last_cfg) {
-            (*this)(cfg);
+            configer(cfg);
             last_cfg = cfg;
         }
     }
-};
 
-template <typename T>
-class Singleton {
-public:
-    static T& get() {
-        static T instance;
-        return instance;
-    }
+private:
+    void* last_cfg = nullptr;
 };
 
 static PlainTensor& getC(int ithr) {
@@ -99,9 +93,9 @@ struct Work {
     }
 
     TileConfig m_tcfg[32];
+    AutoTileConfiger m_tile_configer;
 
     void run(int M, uint8_t* pA, int strideA, PlainTensor& C) {
-        thread_local AutoTileConfiger tile_configer;
         auto& mkernel = get_MKernel();
 
         int num_blk_K = (k1 - k0) / blk_K_size;
@@ -120,7 +114,7 @@ struct Work {
             PlainTensor& blockB = weights[ki];
             PlainTensor& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
             if (Mbody) {
-                tile_configer.do_config(&m_tcfg[0]);
+                m_tile_configer.do_config(&m_tcfg[0]);
                 mkernel.run(Mbody,
                             pA + ki * blk_K_size * sizeof(ov::bfloat16),
                             strideA,
@@ -132,7 +126,7 @@ struct Work {
             }
 
             if (Mtails) {
-                tile_configer.do_config(&m_tcfg[Mtails]);
+                m_tile_configer.do_config(&m_tcfg[Mtails]);
                 mkernel.run(Mtails,
                             pA + ki * blk_K_size * sizeof(ov::bfloat16) + Mbody * strideA,
                             strideA,
@@ -144,7 +138,7 @@ struct Work {
             }
             do_accumulation = true;
         }
-        tile_configer.do_config(nullptr);
+        m_tile_configer.do_config(nullptr);
     }
 };
 
