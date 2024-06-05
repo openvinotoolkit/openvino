@@ -522,7 +522,7 @@ std::vector<std::vector<float>> parseMeanOrScale(const std::string& mean_scale,
                 throw std::logic_error(std::string("Input with name '") + layer_name + "' doesn't exist.");
             }
         } else {
-            for (int idx = 0; idx < inputs_info.size(); ++idx) {
+            for (size_t idx = 0; idx < inputs_info.size(); ++idx) {
                 result[idx] = mean_or_scale;
             }
         }
@@ -852,7 +852,7 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, s
     }
 
     bool result = true;
-    for (int i = 0; i < probsBatch.size(); i++) {
+    for (size_t i = 0; i < probsBatch.size(); i++) {
         if (batch_size != 1) {
             std::cout << "Check tensor bundle: (" << i << "/" << batch_size << " batch)" << std::endl;
         }

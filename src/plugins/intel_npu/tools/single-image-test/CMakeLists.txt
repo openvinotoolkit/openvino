@@ -14,16 +14,6 @@ endif()
 
 find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
 
-set(LINK_LIBRARIES
-    openvino::runtime
-    TBB::tbb
-    opencv_core
-    opencv_imgproc
-    opencv_imgcodecs
-    npu_tools_utils
-    gflags
-)
-
 #
 # check for missing dependencies
 #
@@ -48,7 +38,15 @@ ov_add_target(ADD_CPPLINT
               TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-              LINK_LIBRARIES PRIVATE ${LINK_LIBRARIES})
+              LINK_LIBRARIES
+                  PRIVATE
+                      openvino::runtime
+                      TBB::tbb
+                      opencv_core
+                      opencv_imgproc
+                      opencv_imgcodecs
+                      npu_tools_utils
+                      gflags)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
@@ -56,6 +54,11 @@ set_target_properties(${TARGET_NAME} PROPERTIES
 
 if (CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall)
+endif()
+
+# TODO: fix warnings and remove this exception
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    ov_add_compiler_flags(-Wno-missing-declarations)
 endif()
 
 #
