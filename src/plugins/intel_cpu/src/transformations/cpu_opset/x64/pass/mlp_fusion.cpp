@@ -19,7 +19,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "transformations/utils/utils.hpp"
-#include "utils/gen_pattern.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov::gen_pattern;
 
@@ -45,7 +45,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
 
     auto result = down_proj;
 
-    matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -131,7 +131,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                                               {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
     auto result = q_proj;
 
-    matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
