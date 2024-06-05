@@ -181,12 +181,26 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         if (past_v_node->get_variable_id() != assign_v_node->get_variable_id())
             return false;
 
+        auto is_optional_one_child = [&pattern_map] (const std::shared_ptr<Node>& node) {
+            if (pattern_map.count(node)) {
+                auto p = pattern_map.at(node).get_node_shared_ptr();
+                if (p->get_output_target_inputs(0).size() != 1)
+                    return false;
+            }
+            return true;
+        };
+        if (!is_optional_one_child(convert_past_k) || !is_optional_one_child(convert_past_v) ||
+            !is_optional_one_child(transpose_q) || !is_optional_one_child(transpose_k) || !is_optional_one_child(transpose_v))
+            return false;
+
         // past_k & past_v must be reordered by same beam_idx
         const auto gather_k_node =
             ov::as_type_ptr<opset8::Gather>(pattern_map.at(gather_input_k).get_node_shared_ptr());
         const auto gather_v_node =
             ov::as_type_ptr<opset8::Gather>(pattern_map.at(gather_input_v).get_node_shared_ptr());
-        if (gather_k_node->input_value(1) != gather_v_node->input_value(1)) {
+        if (gather_k_node->input_value(1) != gather_v_node->input_value(1) ||
+            gather_k_node->get_output_target_inputs(0).size() != 1 ||
+            gather_v_node->get_output_target_inputs(0).size() != 1) {
             return false;
         }
 
