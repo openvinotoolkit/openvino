@@ -274,7 +274,7 @@ You can run jobs in Docker containers.
 Refer to [the documentation for syntax overview](https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container).
 
 Workflows utilize appropriate Docker images based on their jobs' needs. Learn more about the
-available images and how to choose one in the [hOpenVINO Docker Image Overview](./docker_images.md).
+available images and how to choose one in the [OpenVINO Docker Image Overview](./docker_images.md).
 
 ## Caches
 

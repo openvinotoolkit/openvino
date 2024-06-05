@@ -29,7 +29,7 @@ bool UpdateMemoryAccessCounts::run(LinearIR& linear_ir, LinearIR::constExprIt be
         }
 
         const auto& node = expr_it->get()->get_node();
-        if (const auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(node)) {
+        if (const auto memory_access = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(node)) {
             for (const auto p : memory_access->get_memory_access_input_ports()) {
                 const auto port = p.first;
                 if (memory_access->get_input_count(port) > 1) {
@@ -85,25 +85,28 @@ TransformInnerSplitLoop::TransformInnerSplitLoop(size_t tail_size) : RangedPass(
 bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     const auto& expr = *end;
     const auto node = expr->get_node();
-    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(node);
+    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(node);
     OPENVINO_ASSERT(loop_end, "the last operation in range must be LoopEnd");
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loop_info = loop_manager->get_loop_info(loop_end->get_id());
     const auto current_dim_idx = loop_info->get_dim_idx();
-    OPENVINO_ASSERT(current_dim_idx != LinearIR::LoopManager::LoopInfo::UNDEFINED_DIM_IDX,
+    OPENVINO_ASSERT(current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX,
                     "Outer splitted loop unexpectedly iterates by several dimension indices");
 
     bool modified = false;
     for (auto it = begin; it != end; ++it) {
         const auto& expr = *it;
-        const auto inner_loop_end = ov::as_type_ptr<op::LoopEndStatic>(expr->get_node());
+        const auto inner_loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
         if (!inner_loop_end)
             continue;
-        const auto inner_loop_info = loop_manager->get_loop_info(inner_loop_end->get_id());
+        // There is already ExpandedLoopInfo
+        const auto inner_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(inner_loop_end->get_id());
         const auto inner_dim_idx = inner_loop_info->get_dim_idx();
         if (inner_dim_idx != current_dim_idx)
             continue;
+        // TODO [141735] : At the moment Splitted loops are not supported in dynamic case
+        OPENVINO_ASSERT(!inner_loop_end->has_dynamic_params(), "inner loop must be static in TransformInnerSplitLoop");
         const auto inner_loop_begin = inner_loop_end->get_loop_begin();
         const auto inner_loop_work_amount = static_cast<int64_t>(inner_loop_end->get_work_amount());
         const auto inner_loop_increment = inner_loop_end->get_increment();
@@ -119,7 +122,7 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         const auto inner_loop_begin_it = std::find(begin, it, linear_ir.get_expr_by_node(inner_loop_begin));
         const auto inner_loop_end_it = std::next(it);
         OPENVINO_ASSERT(inner_loop_begin_it != it, "LoopBegin has not been found!");
-        const auto& last_iter_handlers = inner_loop_info->get_handlers().get_last_iter_handlers();
+        const auto& last_iter_handlers = inner_loop_info->get_unified_loop_info()->get_handlers().get_passes<SpecificLoopIterType::LAST_ITER>();
         last_iter_handlers.run(linear_ir, std::next(inner_loop_begin_it), inner_loop_end_it);
         modified = true;
     }

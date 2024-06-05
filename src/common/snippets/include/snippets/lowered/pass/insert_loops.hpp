@@ -16,7 +16,7 @@ namespace pass {
 
 /**
  * @interface InsertLoops
- * @brief The pass explicitly insert LoadBegin and LoadEnd in Linear IR using LoopManager::LoopInfo from Loop markup algorithm
+ * @brief The pass explicitly insert LoadBegin and LoadEnd in Linear IR using UnifiedLoopInfo from Loop markup algorithm
  * @ingroup snippets
  */
 class InsertLoops : public RangedPass {
@@ -25,8 +25,7 @@ public:
     InsertLoops() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 private:
-    static void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id);
-    static bool is_loop_dynamic(const LinearIR::LoopManager::LoopInfoPtr& loop_info);
+    static void insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id);
 };
 
 } // namespace pass

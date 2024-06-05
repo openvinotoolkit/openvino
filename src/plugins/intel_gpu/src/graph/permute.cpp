@@ -34,7 +34,7 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     // Adjust output format for optimizing out of transpose related to acdb format.
@@ -47,22 +47,26 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
 }
 
 template<typename ShapeType>
-std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node*/, kernel_impl_params const& impl_param) {
+std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<permute>();
     auto input_layout = impl_param.get_input_layout();
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
+    auto output_fmt = input_layout.format;
+    if (node.get_preferred_output_fmt() != format::any) {
+        output_fmt = node.get_preferred_output_fmt();
+    }
     ShapeType input_shape = input_layout.get<ShapeType>();
     ShapeType output_shape;
     ov::Rank input_rank = input_shape.rank();
 
     if (input_rank.is_dynamic()) {
         output_shape = ShapeType::dynamic(desc->permute_order.size());
-        return { layout{output_shape, output_type, input_layout.format} };
+        return { layout{output_shape, output_type, output_fmt} };
     }
 
     int64_t input_static_rank = input_rank.get_length();
@@ -77,7 +81,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node
         output_shape.push_back(input_shape[permute_order[i]]);
     }
 
-    return { layout{output_shape, output_type, input_layout.format, desc->output_paddings[0]} };
+    return { layout{output_shape, output_type, output_fmt, desc->output_paddings[0]} };
 }
 
 template std::vector<layout> permute_inst::calc_output_layouts<ov::PartialShape>(permute_node const& node, const kernel_impl_params& impl_param);

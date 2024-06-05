@@ -9,6 +9,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/slice.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/utils/utils.hpp"
@@ -366,25 +368,72 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
     return graph_rewritten;
 }
 
+ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
+    MATCHER_SCOPE(SliceSequenceToSingleSlice);
+    using namespace ov::op;
+    using namespace ov::op::util;
+    using namespace ov::pass::pattern;
+
+    auto const_axes_1_pattern = wrap_type<v0::Constant>();
+    auto const_axes_2_pattern = wrap_type<v0::Constant>();
+    auto slice_1_pattern =
+        wrap_type<v8::Slice>({any_input(), any_input(), any_input(), any_input(), const_axes_1_pattern},
+                             consumers_count(1));
+    auto slice_2_pattern =
+        wrap_type<v8::Slice>({slice_1_pattern, any_input(), any_input(), any_input(), const_axes_2_pattern});
+
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_map();
+        auto slice_1 = pattern_to_output.at(slice_1_pattern);
+        auto slice_2 = pattern_to_output.at(slice_2_pattern);
+
+        auto const_axes_1 = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(const_axes_1_pattern));
+        auto const_axes_2 = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(const_axes_2_pattern));
+
+        auto axes_1_values = const_axes_1->cast_vector<int64_t>();
+        auto axes_2_values = const_axes_2->cast_vector<int64_t>();
+
+        // supported a simple scenario when the axes_1 values and axes_2 values don't intersect.
+        for (const auto& axis : axes_1_values) {
+            if (std::find(axes_2_values.begin(), axes_2_values.end(), axis) != axes_2_values.end()) {
+                return false;
+            }
+        }
+
+        auto begin = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(1), slice_2->input_value(1)}, 0);
+        auto end = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(2), slice_2->input_value(2)}, 0);
+        auto step = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(3), slice_2->input_value(3)}, 0);
+        auto axes = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(4), slice_2->input_value(4)}, 0);
+        auto one_slice = std::make_shared<ov::op::v8::Slice>(slice_1->input_value(0),
+                                                             try_fold_unary_output(begin),
+                                                             try_fold_unary_output(end),
+                                                             try_fold_unary_output(step),
+                                                             try_fold_unary_output(axes));
+
+        ov::copy_runtime_info({slice_1, slice_2}, {one_slice, begin, end, step, axes});
+        one_slice->set_friendly_name(slice_2->get_friendly_name());
+        ov::replace_node(slice_2, one_slice);
+        return true;
+    };
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(slice_2_pattern, matcher_name);
+    register_matcher(m, callback);
+}
+
 ov::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
     m_use_shapes = use_shapes;
 }
 
 bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
-
-    ov::pass::Manager manager(get_pass_config());
-    using namespace ov::pass;
-    REGISTER_PASS(manager, SliceToStridedSlice, m_use_shapes)
-    manager.run_passes(f);
-
-    bool rewritten = false;
+    ov::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     if (m_use_shapes) {
-        rewritten = UselessSliceEraser().run_on_model(f);
-        // Execution of other passes is also needed even if 'rewritten' is already 'true'
-        rewritten = SharedOpOptimization().run_on_model(f) || rewritten;
-        rewritten = GroupedStridedSliceOptimizer().run_on_model(f) || rewritten;
-        rewritten = GroupedSliceToVSplitOptimization().run_on_model(f) || rewritten;
+        manager.register_pass<UselessSliceEraser>();
+        manager.register_pass<SharedOpOptimization>();
+        manager.register_pass<GroupedStridedSliceOptimizer>();
+        manager.register_pass<GroupedSliceToVSplitOptimization>();
     }
-    return rewritten;
+
+    manager.register_pass<SliceSequenceToSingleSlice>();
+    return manager.run_passes(f);
 }

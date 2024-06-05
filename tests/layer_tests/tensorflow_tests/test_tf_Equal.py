@@ -157,7 +157,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
-            marks=pytest.mark.xfail(reason="94234")),
+            marks=pytest.mark.special_xfail(args={"ie_device": "GPU"}, reason="94234")),
         dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
         # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
@@ -179,7 +179,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
-            marks=pytest.mark.xfail(reason="94234")),
+            marks=pytest.mark.special_xfail(args={"ie_device": "GPU"}, reason="94234")),
         dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
         # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
@@ -201,7 +201,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
-            marks=pytest.mark.xfail(reason="94234")),
+            marks=pytest.mark.special_xfail(args={"ie_device": "GPU"}, reason="94234")),
         dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
         # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
@@ -223,7 +223,7 @@ class TestEqualStr(CommonTFLayerTest):
         x_shape = inputs_info['x:0']
         y_shape = inputs_info['y:0']
         inputs_data = {}
-        strings_dictionary = ['UPPER<>CASE SENTENCE', 'lower case\n\s sentence', ' UppEr LoweR CAse SENtence \t\n',
+        strings_dictionary = ['UPPER<>CASE SENTENCE', 'lower case\n sentence', ' UppEr LoweR CAse SENtence \t\n',
                               '  some sentence', 'another sentence HERE    ']
         inputs_data['x:0'] = rng.choice(strings_dictionary, x_shape)
         inputs_data['y:0'] = rng.choice(strings_dictionary, y_shape)

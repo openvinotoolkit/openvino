@@ -5,8 +5,8 @@ OpenVINO™ Inference Request
 
 
 .. meta::
-   :description: Infer Request mechanism in OpenVINO™ Runtime allows inferring 
-                 models on different devices in asynchronous or synchronous 
+   :description: Infer Request mechanism in OpenVINO™ Runtime allows inferring
+                 models on different devices in asynchronous or synchronous
                  modes of inference.
 
 
@@ -25,14 +25,14 @@ The ``ov::InferRequest`` can be created from the ``ov::CompiledModel``:
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
            :language: python
            :fragment: create_infer_request
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
             :language: cpp
             :fragment: create_infer_request
 
@@ -53,14 +53,14 @@ You can use ``ov::InferRequest::infer``, which blocks the application execution,
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
            :language: python
            :fragment: sync_infer
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
             :language: cpp
             :fragment: sync_infer
 
@@ -76,14 +76,14 @@ The asynchronous mode can improve application's overall frame-rate, by making it
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
            :language: python
            :fragment: async_infer
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
             :language: cpp
             :fragment: async_infer
 
@@ -97,14 +97,14 @@ Asynchronous mode supports two ways the application waits for inference results:
       .. tab-item:: Python
           :sync: py
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.py
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
              :language: python
              :fragment: wait_for
 
       .. tab-item:: C++
           :sync: cpp
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
               :language: cpp
               :fragment: wait_for
 
@@ -116,14 +116,14 @@ Asynchronous mode supports two ways the application waits for inference results:
       .. tab-item:: Python
           :sync: py
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.py
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
              :language: python
              :fragment: wait
 
       .. tab-item:: C++
           :sync: cpp
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
               :language: cpp
               :fragment: wait
 
@@ -139,14 +139,14 @@ When you are running several inference requests in parallel, a device can proces
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
            :language: python
            :fragment: set_callback
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
             :language: cpp
             :fragment: set_callback
 
@@ -166,14 +166,14 @@ You can use the ``ov::InferRequest::cancel`` method if you want to abort executi
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
            :language: python
            :fragment: cancel
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
             :language: cpp
             :fragment: cancel
 
@@ -193,14 +193,14 @@ Working with Input and Output tensors
       .. tab-item:: Python
           :sync: py
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.py
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
              :language: python
              :fragment: get_set_one_tensor
 
       .. tab-item:: C++
           :sync: cpp
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
               :language: cpp
               :fragment: get_set_one_tensor
 
@@ -213,14 +213,14 @@ Working with Input and Output tensors
       .. tab-item:: Python
           :sync: py
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.py
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
              :language: python
              :fragment: get_set_index_tensor
 
       .. tab-item:: C++
           :sync: cpp
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
               :language: cpp
               :fragment: get_set_index_tensor
 
@@ -233,14 +233,14 @@ Working with Input and Output tensors
       .. tab-item:: Python
           :sync: py
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.py
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
              :language: python
              :fragment: get_set_tensor
 
       .. tab-item:: C++
           :sync: cpp
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
               :language: cpp
               :fragment: get_set_tensor
 
@@ -253,14 +253,14 @@ Working with Input and Output tensors
       .. tab-item:: Python
           :sync: py
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.py
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
              :language: python
              :fragment: get_set_tensor_by_port
 
       .. tab-item:: C++
           :sync: cpp
 
-          .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
               :language: cpp
               :fragment: get_set_tensor_by_port
 
@@ -282,14 +282,14 @@ In this case, you can get the output tensor from the first request, using ``ov::
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
            :language: python
            :fragment: cascade_models
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
             :language: cpp
             :fragment: cascade_models
 
@@ -305,7 +305,7 @@ It is possible to re-use shared input in several models. You do not need to allo
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
            :language: python
            :fragment: roi_tensor
 
@@ -313,7 +313,7 @@ It is possible to re-use shared input in several models. You do not need to allo
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
             :language: cpp
             :fragment: roi_tensor
 
@@ -328,14 +328,14 @@ By using ``ov::RemoteContext`` you can create a remote tensor to work with remot
     .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.py
            :language: python
            :fragment: remote_tensor
 
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_infer_request.cpp
             :language: cpp
             :fragment: remote_tensor
 

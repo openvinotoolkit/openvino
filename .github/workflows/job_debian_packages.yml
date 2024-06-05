@@ -13,6 +13,8 @@ on:
         required: false
         default: null
 
+permissions: read-all
+
 jobs:
   Debian_Packages:
     name: Debian Packages
@@ -31,7 +33,7 @@ jobs:
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO debian packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_debian_packages
           path: ${{ env.DEBIAN_PACKAGES_DIR }}
@@ -49,7 +51,7 @@ jobs:
             apt-get install --no-install-recommends -y gnupg wget ca-certificates
             wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-            echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
+            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2024.list
             apt-get update -y
             apt-get install -y openvino
           fi

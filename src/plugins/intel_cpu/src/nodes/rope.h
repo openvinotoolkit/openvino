@@ -5,7 +5,7 @@
 #pragma once
 
 #include "node.h"
-#include "transformations/cpu_opset/common/op/rope.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -32,9 +32,9 @@ public:
 private:
     struct Executor {
         virtual void execute(dnnl::stream strm,
-                             const RoPENode::Config& config,
                              const std::vector<MemoryPtr>& inputs,
                              const std::vector<MemoryPtr>& outputs) = 0;
+        virtual ~Executor() = default;
     };
     template <typename T>
     struct RoPEExecutorRotateHalf;
@@ -44,7 +44,7 @@ private:
     struct RoPEExecutorChatGLM;
     template <typename T>
     struct RoPEExecutorQwen;
-    RoPENode::Config m_config;
+    op::internal::RoPE::Config m_config;
     std::shared_ptr<Executor> m_executor;
 };
 

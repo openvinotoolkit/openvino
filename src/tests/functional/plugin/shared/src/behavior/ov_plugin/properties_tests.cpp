@@ -81,20 +81,15 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     std::tie(temp_device, properties) = this->GetParam();
 
     std::string::size_type pos = temp_device.find(":", 0);
-    std::string hw_device;
-    if (pos == std::string::npos) {
-        target_device = temp_device;
-        hw_device = temp_device;
-    } else {
+    if (pos != std::string::npos) {
         target_device = temp_device.substr(0, pos);
-        hw_device = temp_device.substr(++pos, std::string::npos);
-    }
-
-    if (target_device == std::string(ov::test::utils::DEVICE_MULTI) ||
-        target_device == std::string(ov::test::utils::DEVICE_AUTO) ||
-        target_device == std::string(ov::test::utils::DEVICE_HETERO) ||
-        target_device == std::string(ov::test::utils::DEVICE_BATCH)) {
-        compileModelProperties = {ov::device::priorities(hw_device)};
+        for (auto& it : compileModelProperties) {
+            OPENVINO_ASSERT(it.first == ov::device::priorities.name(),
+                            "there is already ov::device::priorities() in compileModelProperties");
+        }
+        compileModelProperties.insert(ov::device::priorities(temp_device.substr(++pos, std::string::npos)));
+    } else {
+        target_device = temp_device;
     }
 
     model = ov::test::utils::make_split_concat();
@@ -218,6 +213,11 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROMandatoryPr
         res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}});
+        res.push_back(
+            {{ov::PropertyName(ov::hint::execution_mode.name(), ov::hint::execution_mode.mutability), nullptr}});
+        res.push_back(
+            {{ov::PropertyName(ov::hint::inference_precision.name(), ov::hint::inference_precision.mutability),
+              nullptr}});
     }
 
     return res;
@@ -230,6 +230,11 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROOptionalPro
         res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}});
+        res.push_back(
+            {{ov::PropertyName(ov::hint::execution_mode.name(), ov::hint::execution_mode.mutability), nullptr}});
+        res.push_back(
+            {{ov::PropertyName(ov::hint::inference_precision.name(), ov::hint::inference_precision.mutability),
+              nullptr}});
     }
     res.push_back({{ov::PropertyName(ov::loaded_from_cache.name(), ov::loaded_from_cache.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::uuid.name(), ov::device::uuid.mutability), nullptr}});

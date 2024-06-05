@@ -10,23 +10,25 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref && github.ref || github.run_id }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Build_Doc:
     runs-on: ubuntu-20.04
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           submodules: 'true'
           lfs: 'true'
 
       - name: Install apt-get dependencies
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
+        uses: awalsh128/cache-apt-pkgs-action@a6c3917cc929dd0345bfb2d3feaf9101823370ad # v1.4.2
         with:
           packages: graphviz texlive liblua5.2-0 libclang1-9 libclang-cpp9
           version: 3.0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         id: cp310
         with:
           python-version: '3.10'
@@ -39,6 +41,7 @@ jobs:
         run: |
           python3 -m pip install -r docs/requirements.txt
           (cd docs/openvino_sphinx_theme && python3 setup.py install)
+          python3 -m pip install docs/openvino_custom_sphinx_sitemap
 
       - name: Download and install doxygen
         run: |
@@ -50,12 +53,12 @@ jobs:
       - name: Build docs
         run: |
           rm -rf build && mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -DENABLE_CPP_API=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON
           cmake --build . --target sphinx_docs
 
       - name: Cache documentation
         id: cache_sphinx_docs
-        uses: actions/cache@v4
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: build/docs/_build/.doctrees
           key: sphinx-docs-cache
@@ -68,39 +71,31 @@ jobs:
           PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
-      - name: 'Upload doxygen.log'
-        uses: actions/upload-artifact@v4
-        with:
-          name: doxygen_build_log_${{ env.PR_NUMBER }}.log
-          path: build/docs/doxygen.log
-
       - name: 'Upload sphinx.log'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: build/docs/sphinx.log
 
       - name: 'Upload docs html'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}.zip
           path: build/docs/openvino_docs_html.zip
 
       - name: Run Pytest
         run: |
-          pytest --doxygen="./build/docs/doxygen.log" \
-                 --sphinx="./build/docs/sphinx.log" \
+          pytest --sphinx="./build/docs/sphinx.log" \
                  --suppress-warnings="./docs/scripts/tests/suppress_warnings.txt" \
                  --confcutdir="./docs/scripts/tests/" \
                  --html="./build/docs/_artifacts/doc-generation.html" \
-                 --doxygen-strip="$(pwd)" \
                  --sphinx-strip="$(pwd)/build/docs/sphinx_source" \
                  --xfail="./docs/scripts/tests/xfail.txt" \
                  --self-contained-html ./docs/scripts/tests/test_docs.py
 
       - name: 'Upload test results'
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_docs_pytest
           path: build/docs/_artifacts/

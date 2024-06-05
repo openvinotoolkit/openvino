@@ -49,6 +49,6 @@ OpenVINO Runtime uses a plugin architecture. Its plugins are software components
 The scheme below illustrates the typical workflow for deploying a trained deep learning model:
 
 
-.. image:: ../_static/images/BASIC_FLOW_IE_C.svg
+.. image:: ../assets/images/BASIC_FLOW_IE_C.svg
 
 
