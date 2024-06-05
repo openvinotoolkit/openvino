@@ -21,6 +21,6 @@ protected:
     bool Validate(const Params&) const override;
     DispatchData SetDefault(const rms_params& params) const override;
     JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const override;
-    const size_t vec_size = 8;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 };
 }  // namespace kernel_selector
