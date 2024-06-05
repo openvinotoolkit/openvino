@@ -11,6 +11,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-sanitizers
   cancel-in-progress: true
 
+permissions: read-all
+
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
@@ -62,13 +64,13 @@ jobs:
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -184,7 +186,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_package_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -192,7 +194,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_tests_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -228,13 +230,13 @@ jobs:
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -264,7 +266,7 @@ jobs:
           apt update && apt --assume-yes install clang lld
 
       - name: Fetch Sanitizer Suppression Lists
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: |
             tests/lsan/suppressions.txt
@@ -460,7 +462,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
