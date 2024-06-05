@@ -7,6 +7,7 @@
 #include <string>
 
 namespace kernel_selector {
+static constexpr size_t subgroup_size = 16;
 ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -22,6 +23,15 @@ ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
+    return k;
+}
+
+DeviceFeaturesKey RMSKernelBfyxOpt::get_required_device_features_key(const Params& params) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+    k.requires_reqd_subgroup_size();
+
     return k;
 }
 
@@ -48,31 +58,27 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
 
         const std::string lws_0 = "get_local_size(0)";
+        // It can be expected that the maximum possible itemsNum will not exceed 32
+        // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
+        constexpr size_t stack_size = 33;
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
             MakeJitConstant("LWS", lws_0),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize)
+            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
+            MakeJitConstant("STACK_SIZE", stack_size)
         });
     } else {
         jit.AddConstants({
+            MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
             MakeJitConstant("DATA_SIZE", dispatchData.dataSize),
-            MakeJitConstant("LWS", dispatchData.slmSize),
-            MakeJitConstant("SLM_SIZE", dispatchData.slmSize),
-            MakeJitConstant("LEFTOVERS", dispatchData.leftovers)
+            MakeJitConstant("LWS", dispatchData.lws[0]),
+            MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
+            MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
+            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
-    jit.AddConstants({
-        MakeJitConstant("VEC_SIZE", vec_size),
-        MakeJitConstant("VLOAD", "CAT(vload, VEC_SIZE)"),
-        MakeJitConstant("VSTORE", "CAT(vstore, VEC_SIZE)"),
-        MakeJitConstant("INPUT_VEC_TYPE", "MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)"),
-        MakeJitConstant("ACCUMULATOR_VEC_TYPE", "MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE)"),
-        MakeJitConstant("OUTPUT_VEC_TYPE", "MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)"),
-        MakeJitConstant("AS_INPUT_VEC_TYPE", "CAT(as_, INPUT_VEC_TYPE)"),
-        MakeJitConstant("AS_ACCUMULATOR_VEC_TYPE", "CAT(as_, ACCUMULATOR_VEC_TYPE)"),
-        MakeJitConstant("TO_ACCUMULATOR_VEC_TYPE", "CAT(convert_, ACCUMULATOR_VEC_TYPE)"),
-        MakeJitConstant("TO_OUTPUT_VEC_TYPE", "CAT(convert_, OUTPUT_VEC_TYPE)"),
-    });
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
+    jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
 
     return jit;
 }
@@ -81,10 +87,9 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     DispatchData dispatchData;
     const auto& input = params.inputs[0];
 
-    auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
+    auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
     dispatchData.maxSlmSize = max_lws;
-
     if (!params.has_dynamic_tensors()) {
         // data size to be processed within a LWG
         switch (params.ov_input_rank) {
@@ -105,17 +110,33 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
                 dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
                 break;
         }
-
-        dispatchData.slmSize = dispatchData.dataSize / vec_size;
-        dispatchData.leftovers = dispatchData.dataSize % vec_size;
-
-        dispatchData.gws[0] = dispatchData.slmSize;
+        dispatchData.gws[0] = 1;
         dispatchData.gws[1] = dispatchData.dataCount;
         dispatchData.gws[2] = 1;
 
-        dispatchData.lws[0] = dispatchData.slmSize;
+        dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
+
+        dispatchData.itemsNum = dispatchData.dataSize;
+        // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
+        while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+            dispatchData.lws[0] *= 2;
+            dispatchData.itemsNum /= 2;
+        }
+        dispatchData.gws[0] = dispatchData.lws[0];
+        dispatchData.leftovers = dispatchData.dataSize % dispatchData.lws[0];
+
+        if (dispatchData.itemsNum >> 3)
+            dispatchData.subgroupBlockSize = 8;
+        else if (dispatchData.itemsNum >> 2)
+            dispatchData.subgroupBlockSize = 4;
+        else if (dispatchData.itemsNum >> 1)
+            dispatchData.subgroupBlockSize = 2;
+        else
+            dispatchData.subgroupBlockSize = 1;
+    } else {
+        dispatchData.subgroupBlockSize = 8;
     }
     return dispatchData;
 }
@@ -129,17 +150,10 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
 
     if (!gamma.is_dynamic()) {
         size_t data_size = gamma.LogicalSize();
-        if (data_size < vec_size) {
-            return false;
-        }
-        auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
-        auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
-        auto slm_size = data_size / vec_size;
-        if (slm_size > max_lws) {
+        if (data_size < subgroup_size) {
             return false;
         }
     }
-
     return true;
 }
 
