@@ -6,10 +6,6 @@
 #include "node/include/model_wrap.hpp"
 
 void ReaderWorker::Execute() {
-    // ov::Core core;
-
-    std::cout << "CORE REF: '" << &_core << "' <<" << std::endl;
-
     if (_args->model_str.empty())
         _model = _core.read_model(_args->model_path, _args->bin_path);
     else
