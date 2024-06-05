@@ -17,9 +17,9 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
     std::stringstream xml;
     std::stringstream weights;
     if (mode == SerializeMode::RAW) {
-        xml << origModel.get();
+        xml << reinterpret_cast<uintptr_t>(&origModel);
         weights << "PLACEHOLDER";
-        logger.info("Serailization mode is RAW with pointer: %p", origModel.get());
+        logger.info("Serailization mode is RAW with pointer: %p", &origModel);
     } else {
         // There is no const variant of run_passes so use const_cast here
         // as model serialization does not mutate the model
