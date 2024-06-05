@@ -140,15 +140,16 @@ to access this feature, follow the steps provided in
 `PyTorch 2 Export Post Training Quantization with X86 Backend through Inductor <https://pytorch.org/tutorials/prototype/pt2e_quant_ptq_x86_inductor.html>`__
 and update the provided sample as explained below.
 
-1. If you are using the PyTorch version 2.3.0 or above, disable constant folding in quantization to be able to benefit from the optimization in OpenVINO backend. This can be done by passing ``fold_quantize=False`` parameter into the ``convert_pt2e`` function.
-
-    Update this line below:
+1. If you are using PyTorch version 2.3.0 or later, disable constant folding in quantization to
+   be able to benefit from the optimization in the OpenVINO backend. This can be done by passing
+   ``fold_quantize=False`` parameter into the ``convert_pt2e`` function. To do so, change this
+   line:
 
    .. code-block:: python
 
       converted_model = convert_pt2e(prepared_model)
 
-    As below:
+   to the following:
 
    .. code-block:: python
 
@@ -156,13 +157,13 @@ and update the provided sample as explained below.
 
 2. Set ``torch.compile`` backend as OpenVINO and execute the model.
 
-    Update this line below:
+   Update this line below:
 
    .. code-block:: python
 
       optimized_model = torch.compile(converted_model)
 
-    As below:
+   As below:
 
    .. code-block:: python
 
