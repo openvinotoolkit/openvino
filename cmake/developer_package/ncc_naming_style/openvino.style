@@ -1,6 +1,6 @@
 # custom OpenVINO values
 CppMethod: '^(operator\W+|[a-z_\d]+|signaling_NaN|quiet_NaN|OPENVINO_OP)$'
-ClassName: '^([A-Z][\w]+|b?float16|float8_e4m3|float8_e5m2|numeric_limits|ngraph_error|stopwatch|unsupported_op)$'
+ClassName: '^([A-Z][\w]+|b?float16|float8_e4m3|float8_e5m2|float4_e2m1|numeric_limits|ngraph_error|stopwatch|unsupported_op)$'
 StructName: '^([A-Z][\w]+|element_type_traits|hash|oi_pair|stat)$'
 FunctionName: '^(operator\W+|[a-z_\d]+)|PrintTo$'
 Namespace: '^([a-z\d_]*|InferenceEngine)$'
