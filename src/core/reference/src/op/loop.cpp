@@ -51,7 +51,7 @@ void loop(const std::shared_ptr<Model>& func,
         ov::Tensor in_tensor(func->get_parameters().at(cur_iter_idx)->get_element_type(),
                              func->get_parameters().at(cur_iter_idx)->get_shape());
         std::memset(in_tensor.data(), 0, in_tensor.get_byte_size());
-        inputs_to_body.at(cur_iter_idx) = in_tensor;
+        inputs_to_body.at(cur_iter_idx) = std::move(in_tensor);
     }
 
     // Port map processing: inputs and back edges
