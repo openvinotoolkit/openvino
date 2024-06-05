@@ -16,7 +16,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/file_util.hpp"
 
-using namespace testing;
+// using namespace testing;
 using namespace ov::util;
 
 TEST(CoreTests, Throw_on_register_plugin_twice) {
@@ -405,6 +405,37 @@ TEST(CoreTests_parse_device_config, get_batch_device_name) {
     OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("CPU,GPU"),
                     ov::Exception,
                     ::testing::HasSubstr("BATCH accepts only one device in list but got 'CPU,GPU'"));
+}
+
+TEST(CoreTests_read_model, model_not_exist_at_path) {
+    ov::Core core;
+
+    auto model_file_path = ov::test::utils::generateTestFilePrefix();
+    model_file_path += "not_existing_model.xml";
+
+    OV_EXPECT_THROW(core.read_model(model_file_path),
+                    ov::Exception,
+                    testing::HasSubstr("Model file not exists at: " + model_file_path));
+}
+
+TEST(CoreTests_read_model, model_weights_not_exist_at_path) {
+    ov::Core core;
+
+    const auto name_prefix = ov::test::utils::generateTestFilePrefix();
+    const auto model_file_path = name_prefix + "existing_model.xml";
+    const auto weights_file_path = name_prefix + "not_existing_weights.xml";
+
+    {
+        std::ofstream model_file;
+        model_file.open(model_file_path);
+        model_file.close();
+    }
+
+    OV_EXPECT_THROW(core.read_model(model_file_path, weights_file_path),
+                    ov::Exception,
+                    testing::HasSubstr("Model's weights file not exists at: " + weights_file_path));
+
+    std::remove(model_file_path.c_str());
 }
 
 class ApplyAutoBatchThreading : public testing::Test {

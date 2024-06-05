@@ -111,6 +111,9 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
                                       const std::string& binPath,
                                       const std::vector<ov::Extension::Ptr>& extensions,
                                       bool enable_mmap) {
+    OPENVINO_ASSERT(file_exists(modelPath.c_str()), "Model file not exists at: ", modelPath);
+    OPENVINO_ASSERT(file_exists(binPath.c_str()), "Model's weights file not exists at: ", binPath);
+
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
