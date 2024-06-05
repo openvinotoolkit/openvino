@@ -61,8 +61,8 @@ void generate_gate_pattern(const std::shared_ptr<ov::Node>& x,
 bool check_weights_format(const ov::Output<ov::Node>& w,
                           const ov::Output<ov::Node>& r,
                           const ov::Output<ov::Node>& b,
-                          uint64_t input_size,
-                          uint64_t hidden_size,
+                          size_t input_size,
+                          size_t hidden_size,
                           const ov::pass::pattern::PatternValueMap& pattern_map,
                           const std::shared_ptr<Node>& x_by_w_label,
                           const std::shared_ptr<Node>& h_by_r_label) {
@@ -505,8 +505,8 @@ ov::pass::LSTMCellTfKerasFusion::LSTMCellTfKerasFusion() {
         auto ht = pattern_map.at(ht_label);
 
         // check weights format
-        auto input_size = wi.get_shape()[0];
-        auto hidden_size = wi.get_shape()[1];
+        auto input_size = static_cast<size_t>(wi.get_shape()[0]);
+        auto hidden_size = static_cast<size_t>(wi.get_shape()[1]);
         bool weights_format_ok =
             check_weights_format(wi, ri, bi, input_size, hidden_size, pattern_map, x_by_wi_label, h_by_ri_label);
         weights_format_ok &=
