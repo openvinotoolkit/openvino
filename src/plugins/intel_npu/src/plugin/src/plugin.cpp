@@ -557,17 +557,10 @@ void Plugin::checkForCompilerFallback() {
 
     if (!(driverElfVersion && driverMIVersion)) {
         // The current driver version doesn't have versions API
-
-        // Check if CID fallback is required
-        if (_backends->isCompilerFallbackRequired()) {
-            _logger.info("Driver Version is too old to use MLIR Compiler. "
-                         "Driver Compiler will be set as default compiler type.");
-            setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
-            return;
-        } else {
-            // Driver version is supported, CID fallback is not needed
-            return;
-        }
+        _logger.info("Driver Version is too old to use MLIR Compiler. "
+                     "Driver Compiler will be set as default compiler type.");
+        setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
+        return;
     }
 
     std::stringstream strStream;
@@ -590,11 +583,15 @@ void Plugin::checkForCompilerFallback() {
     std::map<std::string, std::string> platformConfig{{std::string(ov::intel_npu::platform.name()), platform}};
     const Config config = merge_configs(_globalConfig, platformConfig);
 
-    // Compare CIP and Driver versions for ELF and MI
-    const auto compiler = createCompiler(ov::intel_npu::CompilerType::MLIR, _logger);
-
-    if (!compiler->isCompatibleWithDriverVersion(config)) {
-        setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
+    try {
+        // Compare CIP and Driver versions for ELF and MI
+        const auto compiler = createCompiler(ov::intel_npu::CompilerType::MLIR, _logger);
+        if (!compiler->isCompatibleWithDriverVersion(config)) {
+            setDefaultCompilerType(ov::intel_npu::CompilerType::DRIVER);
+        }
+    } catch (const std::exception& error) {
+        _logger.warning("Platform not supported, default compiler type set to driver compiler");
+        return;
     }
 }
 

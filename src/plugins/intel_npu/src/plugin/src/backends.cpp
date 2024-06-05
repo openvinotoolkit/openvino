@@ -163,15 +163,6 @@ bool NPUBackends::isBatchingSupported() const {
     return false;
 }
 
-bool NPUBackends::isCompilerFallbackRequired() const {
-#ifdef _WIN32
-    static const uint32_t lastCompatibleVersion = 2196;
-    return getDriverVersion() < lastCompatibleVersion;
-#else
-    return true;
-#endif
-}
-
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
     _logger.debug("Searching for device %s to use started...", specificName.c_str());
     // TODO iterate over all available backends
