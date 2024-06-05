@@ -30,9 +30,9 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -1192,17 +1192,20 @@ TEST(pattern, pattern_or) {
     auto model_result = std::make_shared<ov::op::v0::Result>(model_relu->output(0));
 
     // Create a red branch
-    auto red_pattern_add = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+    auto red_pattern_add =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
     auto red_pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({red_pattern_add->output(0)});
     auto red_pattern_sigmoid = ov::pass::pattern::wrap_type<ov::op::v0::Sigmoid>({red_pattern_relu->output(0)});
 
     // Create a blue branch
-    auto blue_pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+    auto blue_pattern_mul =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
     auto blue_pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({blue_pattern_mul->output(0)});
     auto blue_pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({blue_pattern_abs->output(0)});
 
     // Create Or node
-    auto pattern_or = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{red_pattern_sigmoid->output(0), blue_pattern_relu->output(0)});
+    auto pattern_or = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{red_pattern_sigmoid->output(0), blue_pattern_relu->output(0)});
 
     // Create a matcher and try to match the nodes
     TestMatcher tm;

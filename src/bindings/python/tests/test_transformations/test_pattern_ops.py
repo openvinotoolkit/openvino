@@ -20,6 +20,7 @@ from openvino.runtime.utils.types import get_element_type
 
 from tests.test_transformations.utils.utils import expect_exception
 
+
 def test_simple_model_and_pattern():
     # Create a sample model
     model_param1 = ops.parameter(PartialShape([2, 2]))
@@ -42,6 +43,7 @@ def test_simple_model_and_pattern():
     # Should perfectly match
     assert matcher.match(model_relu)
 
+
 def test_simple_model_and_pattern_wrap_type():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
@@ -62,6 +64,7 @@ def test_simple_model_and_pattern_wrap_type():
 
     # Should perfectly match
     assert matcher.match(model_relu)
+
 
 def test_wrap_type_list():
     model_param1 = ops.parameter(PartialShape([2, 2]))
@@ -86,6 +89,7 @@ def test_wrap_type_list():
     # The same pattern perfectly matches 2 different nodes
     assert matcher.match(model_relu)
     assert matcher.match(model_sig)
+
 
 def test_pattern_or():
     model_param1 = ops.parameter(PartialShape([2, 2]))
@@ -116,6 +120,7 @@ def test_pattern_or():
     # The same pattern perfectly matches 2 different nodes
     assert matcher.match(model_relu)
 
+
 def test_pattern_optional_middle():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
@@ -138,6 +143,7 @@ def test_pattern_optional_middle():
     # Should perfectly match
     assert matcher.match(model_relu)
 
+
 def test_pattern_optional_top():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
@@ -158,6 +164,7 @@ def test_pattern_optional_top():
 
     # Should perfectly match even though there's no Sigmoid going into MatMul
     assert matcher.match(model_relu)
+
 
 def test_pattern_optional_root():
     model_param1 = ops.parameter(PartialShape([2, 2]))
