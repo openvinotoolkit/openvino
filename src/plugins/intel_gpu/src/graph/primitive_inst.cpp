@@ -457,11 +457,14 @@ void primitive_inst::update_shape() {
             set_shape_change();
     }
 
-// #ifdef ENABLE_ONEDNN_FOR_GPU
-//     if (get_node().is_type<fully_connected>()) {
-//         get_node().init_onednn_primitive_attributes();
-//     }
-// #endif
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::onednn) {
+        cldnn::create_onednn_primitive_attributes(get_node(),
+                                                    _impl_params->fused_desc,
+                                                    _impl_params->attrs_onednn,
+                                                    _impl_params->fused_desc_onednn);
+    }
+#endif
 }
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {

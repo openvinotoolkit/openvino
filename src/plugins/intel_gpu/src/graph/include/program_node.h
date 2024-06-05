@@ -142,7 +142,8 @@ public:
             }
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        params->fused_desc_onednn = get_fused_primitives_onednn();
+        params->fused_desc_onednn   = get_fused_primitives_onednn();
+        params->attrs_onednn        = get_onednn_primitive_attributes();
 #endif // ENABLE_ONEDNN_FOR_GPU
         return params;
     }
