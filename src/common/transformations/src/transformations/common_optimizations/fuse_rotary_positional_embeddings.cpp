@@ -555,7 +555,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         {{"special_zero", true}});
     auto slice_Slice_543 = GenSlice(view_Reshape_424, 0, head_size, 1, 3);  //  tensor_array<f32[?,?,32,128]>
 
-    auto hidden_states = makePattern("f32[?,?,?]");  //
+    auto hidden_states = makePattern();  //
     auto ShapeOf_485735 = makePattern<opset1::ShapeOf>({hidden_states}, {});
     auto Multiply_567524 = makePattern<opset1::Multiply>({ShapeOf_485735, {-1}}, {{"auto_broadcast", "numpy"}});
     auto Gather_377635 = makePattern<opset8::Gather>({Multiply_567524, {1}, 0}, {{"batch_dims", 0}});
