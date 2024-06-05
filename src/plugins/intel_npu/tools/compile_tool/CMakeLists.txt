@@ -12,12 +12,6 @@ if (NOT DEFINED PROJECT_NAME)
     return()
 endif()
 
-set(LINK_LIBRARIES
-    openvino::runtime
-    gflags
-    Threads::Threads
-)
-
 #
 # Define the target
 #
@@ -26,7 +20,11 @@ ov_add_target(ADD_CPPLINT
               TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-              LINK_LIBRARIES PRIVATE ${LINK_LIBRARIES})
+              LINK_LIBRARIES
+                  PRIVATE
+                      openvino::runtime
+                      gflags
+                      Threads::Threads)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}

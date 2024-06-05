@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -14,12 +13,14 @@ endif()
 #
 # OpenVINO package path should be specified via OpenVINO_DIR
 #
+
 find_package(Threads REQUIRED)
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
 #
 # gflags is distributed in sources in OpenVINO packages so we need to build it explicitly
 #
+
 if(EXISTS "${PACKAGE_PREFIX_DIR}/samples/cpp/thirdparty/gflags")
     add_subdirectory("${PACKAGE_PREFIX_DIR}/samples/cpp/thirdparty/gflags" gflags EXCLUDE_FROM_ALL)
 else()

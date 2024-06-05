@@ -15,8 +15,9 @@ endif()
 # TBB is distributed with OpenVINO packages however it is not exported from OpenVINO cmake config
 # Therefore we need to find TBB explicitly. TBB_DIR is not requered as OpenVINO setupvars script sets its location
 #
+
 find_package(Threads REQUIRED)
-find_package(OpenVINO REQUIRED)
+find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 find_package(TBB REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
 
@@ -25,6 +26,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../common" common EXCLUDE_FROM_ALL
 #
 # gflags is distributed in sources in OpenVINO packages so we need to build it explicitly
 #
+
 if(EXISTS "${PACKAGE_PREFIX_DIR}/samples/cpp/thirdparty/gflags")
     add_subdirectory("${PACKAGE_PREFIX_DIR}/samples/cpp/thirdparty/gflags" gflags EXCLUDE_FROM_ALL)
 else()
