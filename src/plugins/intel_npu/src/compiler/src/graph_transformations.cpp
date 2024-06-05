@@ -12,25 +12,60 @@
 
 namespace intel_npu::driverCompilerAdapter {
 
-IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset) {
+IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset = 11)
+    : _logger("LevelZeroCompilerAdapter::IR", Logger::global().level()),
+      _isLargeModel(false) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
-    std::shared_ptr<ov::Model> model = std::const_pointer_cast<ov::Model>(origModel);
+    _model = std::const_pointer_cast<ov::Model>(origModel);
 
+#ifdef _WIN32
+    // Only use fstream for Windows
+    if (_model->get_graph_size() > 1024U * 1024 * 1024 * 2) {
+        // Force model larger than 2G to use FILE mode
+        _logger.warning("Force large model %s to use FILE mode to do serialize", _model->get_friendly_name());
+        _isLargeModel = true;
+    }
+#endif
+
+    serializeToIR(supportedOpset);
+}
+
+IR::~IR() {
+    if (_xmlFile) {
+        _xmlFile.close();
+    }
+    if (_weightsFile) {
+        _weightsFile.close();
+    }
+    for (auto& file : _fileToDelete) {
+        _logger.debug("Delete file: %s", file.c_str());
+        std::remove(file.c_str());
+    }
+}
+
+void IR::serializeToIR(uint32_t supportedOpset) {
+    _logger.debug("serializeToIR");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(passConfig);
 
     if (supportedOpset < 11) {
         // Need to clone to modify the model and remain thread safe
-        model = model->clone();
+        _model = _model->clone();
         // Downgrade to opset10
         manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     }
 
-    std::string modelName = model->get_friendly_name();
+    std::string modelName = _model->get_friendly_name();
     std::string xmlName = modelName + "_serialized.xml";
     std::string weightsName = modelName + "_serialized.bin";
-    manager.register_pass<ov::pass::Serialize>(xmlName, weightsName);
+    if (_isLargeModel) {
+        manager.register_pass<ov::pass::Serialize>(xmlName, weightsName);
+        _logger.info("Serialize to files with xml: %s and weights: %s", xmlName.c_str(), weightsName.c_str());
+    } else {
+        manager.register_pass<ov::pass::Serialize>(_xml, _weights);
+        _logger.info("Serialize to stream");
+    }
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
     // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
@@ -44,15 +79,24 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
     {
         std::lock_guard<std::mutex> lock(rtInfoMutex);
 
-        model->set_rt_info(true, new_api_key);
+        _model->set_rt_info(true, new_api_key);
 
-        manager.run_passes(model);
+        manager.run_passes(_model);
 
-        auto& rtInfo = model->get_rt_info();
+        auto& rtInfo = _model->get_rt_info();
         rtInfo.erase(new_api_key);
     }
 
-    return {xmlName, weightsName};
+    if (_isLargeModel) {
+        _fileToDelete.push_back(xmlName);
+        _fileToDelete.push_back(weightsName);
+        _xmlFile.open(xmlName, std::ios::binary);
+        _weightsFile.open(weightsName, std::ios::binary);
+        if (!_xmlFile || !_weightsFile) {
+            OPENVINO_THROW("Failed to open serialized files");
+        }
+    }
+    _logger.debug("serializeToIR end");
 }
 
 }  // namespace intel_npu::driverCompilerAdapter

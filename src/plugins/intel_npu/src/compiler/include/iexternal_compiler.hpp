@@ -3,15 +3,11 @@
 //
 
 #pragma once
+#include "graph_transformations.hpp"
 #include "intel_npu/al/icompiler.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
-
-struct IR {
-    std::string xmlName;
-    std::string weightsName;
-};
 
 /**
  * @brief Interface for external compiler
