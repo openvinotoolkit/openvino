@@ -431,14 +431,14 @@ struct QKVProj : public LLMMLP::Executor {
         auto input = pnode->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         uint8_t* pA = input->getDataAs<uint8_t>();
-        const auto& config = pnode->getConfig();
-        int strideA = config.hidden_size * 2;
+        auto hidden_size = pnode->get_hidden_size();
+        int strideA = hidden_size * 2;
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
         auto* dst0 = pnode->getDstMemoryAtPort(0)->getDataAs<ov::bfloat16>();
         auto* dst1 = pnode->getDstMemoryAtPort(1)->getDataAs<ov::bfloat16>();
         auto* dst2 = pnode->getDstMemoryAtPort(2)->getDataAs<ov::bfloat16>();
 
-        run(pA, strideA, M, dst0, config.hidden_size * 2, dst1, config.hidden_size * 2, dst2, config.hidden_size * 2);
+        run(pA, strideA, M, dst0, hidden_size * 2, dst1, hidden_size * 2, dst2, hidden_size * 2);
     }
 };
 
@@ -500,13 +500,13 @@ struct MLP : LLMMLP::Executor {
         auto input = pnode->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         uint8_t* pA = input->getDataAs<uint8_t>();
-        const auto& config = pnode->getConfig();
-        int strideA = config.hidden_size * 2;
+        auto hidden_size = pnode->get_hidden_size();
+        int strideA = hidden_size * sizeof(ov::bfloat16);
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
         auto* dst0 = pnode->getDstMemoryAtPort(0)->getDataAs<ov::bfloat16>();
         auto output = pnode->getDstMemoryAtPort(0);
-        int strideC = config.hidden_size * 2;
+        int strideC = hidden_size * sizeof(ov::bfloat16);
 
         run(pA, strideA, M, dst0, strideC);
     }
@@ -522,15 +522,27 @@ LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
+    m_is_mlp = false;
+    m_is_qkv_proj = false;
 
-    const auto node = std::dynamic_pointer_cast<const LLMMLPNode>(op);
-    m_config = node->get_config();
+    if (const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op)) {
+        m_is_mlp = true;
+        m_hidden_size = node_mlp->get_config().hidden_size;
+        m_intermediate_size = node_mlp->get_config().intermediate_size;
+    } else if (const auto node_qkv = std::dynamic_pointer_cast<const LLMQKVProjNode>(op)) {
+        if (node_qkv) {
+            m_is_qkv_proj = true;
+            m_hidden_size = node_qkv->get_config().hidden_size;
+            m_intermediate_size = m_hidden_size;
+        }
+    } else {
+        OPENVINO_THROW("CPU: LLMMLP got unsupported node.");
+    }
 }
 
 void LLMMLP::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    // auto srcPrecision = getOriginalInputPrecisionAtPort(0);
 
     auto rtPrecision = ov::element::bf16;
     auto weightPrecision = ov::element::bf16;
@@ -545,82 +557,35 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
     // initialize output port
     std::vector<PortConfigurator> outPortConfigs;
 
-    if (m_config.is_qkv_proj) {
+    if (m_is_qkv_proj) {
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
-    } else {
+    } else if (m_is_mlp) {
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
     }
 
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-#if 0
-namespace {
-
-struct ExecutorKey {
-    bool is_qkv_proj;
-    int hidden_size;
-    int intermediate_size;
-
-    size_t hash() const;
-    bool operator==(const ExecutorKey& rhs) const;
-};
-
-size_t ExecutorKey::hash() const {
-    using namespace dnnl::impl;
-    size_t seed = 0;
-
-    seed = hash_combine(seed, is_qkv_proj);
-    seed = hash_combine(seed, hidden_size);
-    seed = hash_combine(seed, intermediate_size);
-    return seed;
-}
-
-bool ExecutorKey::operator==(const ExecutorKey &rhs) const {
-    bool retVal = true;
-
-    retVal = retVal && is_qkv_proj == rhs.is_qkv_proj && hidden_size == rhs.hidden_size && intermediate_size == rhs.intermediate_size;
-    return retVal;
-}
-} // namespace
-    ExecutorKey key {m_config.is_qkv_proj, m_config.hidden_size, m_config.intermediate_size};
-    auto builder = [](const ExecutorKey& key) -> std::shared_ptr<Executor> {
-        std::shared_ptr<Executor> exec;
-        if (key.is_qkv_proj) {
-            exec = std::make_shared<QKVProj>();
-        } else {
-            exec = std::make_shared<MLP>();
-        }
-        return exec;
-    };
-
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
-    if (!result.first) {
-        OPENVINO_THROW("LLMMLP Executor was not found for node ", getName(), ".");
-    }
-#endif
-
 void LLMMLP::prepareParams() {
 #if defined(OPENVINO_ARCH_X86_64)
     if (!m_executor) {
-        if (m_config.is_qkv_proj) {
+        if (m_is_qkv_proj) {
             auto exec = std::make_shared<QKVProj>();
             exec->setup(getSrcMemoryAtPort(1)->getDataAs<ov::bfloat16>(),
                         getSrcMemoryAtPort(2)->getDataAs<ov::bfloat16>(),
                         getSrcMemoryAtPort(3)->getDataAs<ov::bfloat16>(),
-                        m_config.hidden_size,
-                        m_config.hidden_size);
+                        m_hidden_size,
+                        m_hidden_size);
             m_executor = exec;
-        } else {
+        } else if (m_is_mlp) {
             auto exec = std::make_shared<MLP>();
             exec->setup(getSrcMemoryAtPort(1),
                         getSrcMemoryAtPort(2),
                         getSrcMemoryAtPort(3),
-                        m_config.hidden_size,
-                        m_config.intermediate_size);
+                        m_hidden_size,
+                        m_intermediate_size);
             m_executor = exec;
         }
     }
@@ -636,9 +601,10 @@ void LLMMLP::execute(dnnl::stream strm) {
 
 bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const LLMMLPNode>(op);
-        if (!node) {
-            errorMessage = "Only LLMMLPNode operation is supported";
+        const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
+        const auto node_qkv = std::dynamic_pointer_cast<const LLMQKVProjNode>(op);
+        if (!node_mlp && !node_qkv) {
+            errorMessage = "Only LLMMLPNode or LLMQKVProjNode operation is supported";
             return false;
         }
     } catch (...) {

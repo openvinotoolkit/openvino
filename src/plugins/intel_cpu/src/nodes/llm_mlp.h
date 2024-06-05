@@ -6,6 +6,7 @@
 
 #include "node.h"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#include "transformations/cpu_opset/x64/op/llm_qkv_proj.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -32,12 +33,16 @@ public:
         virtual ~Executor() {}
     };
 
-    const LLMMLPNode::Config& getConfig() {
-        return m_config;
+    int get_hidden_size() {
+        return m_hidden_size;
     }
 
 private:
-    LLMMLPNode::Config m_config;
+    bool m_is_mlp;
+    bool m_is_qkv_proj;
+    int m_hidden_size;
+    int m_intermediate_size;
+
     std::shared_ptr<Executor> m_executor;
 };
 

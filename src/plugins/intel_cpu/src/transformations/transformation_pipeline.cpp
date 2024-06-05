@@ -117,6 +117,7 @@
 #endif
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
+#include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -782,15 +783,21 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
-    // MLP & QKV fusion optimization is focused on throughput, only enabled on AMX & vLLM use case.
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    // MLP & QKV fusion optimization is focused on throughput, only enabled on AMX-bf16 & vLLM use case.
+    auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (inferencePrecision == element::bf16);
+    if (can_use_amx_bf16) {
         auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
         //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_before_MLP.cpp");
         if ((has_paged_attention || std::getenv("USE_MLP")) && (!std::getenv("NO_MLP"))) {
             CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
         }
-        if ((has_paged_attention || std::getenv("USE_QKV")) && (!std::getenv("NO_QKV"))) {
-            CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+
+        // Limitations: at least 3 workers are required for QKV fusion
+        auto has_enough_workers = (parallel_get_max_threads() >= 3);
+        if (has_enough_workers) {
+            if ((has_paged_attention || std::getenv("USE_QKV")) && (!std::getenv("NO_QKV"))) {
+                CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+            }
         }
         //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_after_MLP.cpp");
     }
