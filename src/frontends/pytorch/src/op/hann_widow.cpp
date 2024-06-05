@@ -8,6 +8,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/subtract.hpp"
@@ -36,6 +37,7 @@ OutputVector translate_hann_window(const NodeContext& context) {
     }
     auto zero_f = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
     auto one_f = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
+    auto two_f = context.mark_node(v0::Constant::create(element::f32, Shape{}, {2}));
     auto window_size_f = context.mark_node(std::make_shared<v0::Convert>(window_size, element::f32));
     auto range = context.mark_node(std::make_shared<v4::Range>(zero_f, window_size_f, one_f, ov::element::f32));
     auto pi = context.mark_node(v0::Constant::create(ov::element::f32, Shape{}, {static_cast<float>(M_PI)}));
@@ -46,7 +48,7 @@ OutputVector translate_hann_window(const NodeContext& context) {
     }
     output = context.mark_node(std::make_shared<v1::Divide>(output, factor));
     auto sin = context.mark_node(std::make_shared<v0::Sin>(output));
-    Output<Node> squared_sin = context.mark_node(std::make_shared<v1::Multiply>(sin, sin));
+    Output<Node> squared_sin = context.mark_node(std::make_shared<v1::Power>(sin, two_f));
     if (num_inputs > 3) {
         size_t dtype_id = num_inputs == 5 ? 1 : 2;
         if (!context.input_is_none(dtype_id)) {
