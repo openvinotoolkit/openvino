@@ -176,7 +176,7 @@ jobs:
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
 
-      # if build fails due to out of ram please decrease parallel jobs (--parallel n)
+      # If the build fails due to running out of RAM, please decrease the number of parallel jobs (--parallel n)
       - name: Cmake build - CC COLLECT
         run: |
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} && `
