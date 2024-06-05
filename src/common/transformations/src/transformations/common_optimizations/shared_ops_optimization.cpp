@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
@@ -135,6 +136,12 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                         if (visited_nodes[j])
                             continue;
                         const auto& child_op = shared_nodes[j];
+
+                        // no functionality is implemented to compare bodies of MultiSubGraphOp operations
+                        if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(root_op)) {
+                            continue;
+                        }
+
                         if (nodes_are_equal(root_op, child_op)) {
                             rewritten =
                                 replace_output_update_name(child_op->output(0), root_op->output(0)) || rewritten;

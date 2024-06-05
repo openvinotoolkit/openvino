@@ -109,6 +109,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddConst,
                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
         AddConst::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_FP16, AddConst,
+        ::testing::Combine(
+                ::testing::ValuesIn(inShapesAddConst),
+                ::testing::ValuesIn(inShapesConstAddConst),
+                ::testing::Values(ov::element::f16),
+                ::testing::Values(1), // Add
+                ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+        AddConst::getTestCaseName);
 // ===================================AddRollConst=========================================================//
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddRollConst,
         ::testing::Combine(

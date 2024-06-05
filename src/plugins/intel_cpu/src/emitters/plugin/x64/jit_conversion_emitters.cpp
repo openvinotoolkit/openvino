@@ -85,6 +85,9 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst  = Vmm(out_vec_idxs[0]);
 
+    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
+    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+
     // For Truncation behavior we can just move data from src to dst if we want convert i8 -> u8 or u8 -> i8
     if ((input_type == output_type) || is_i8_and_u8_case()) {
         if (vmm_src != vmm_dst) {
@@ -99,7 +102,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                 h->uni_vcvttps2dq(vmm_dst, vmm_src);
             break;
         case ov::element::i32:
-            if (one_of(output_type, ov::element::f32, ov::element::bf16))
+            if (one_of(output_type, ov::element::f32, ov::element::bf16, ov::element::f16))
                 h->uni_vcvtdq2ps(vmm_dst, vmm_src);
             break;
         case ov::element::bf16:
@@ -109,7 +112,11 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                 h->uni_vcvttps2dq(vmm_dst, vmm_dst);
             break;
         case ov::element::f16:
-            h->vcvtph2ps(vmm_dst, Ymm(vmm_src.getIdx()));
+            if (isa == dnnl::impl::cpu::x64::avx512_core)
+                h->vcvtph2ps(vmm_dst, Ymm(vmm_src.getIdx()));
+            else
+                h->vcvtph2ps(vmm_dst,
+                             Xmm(vmm_src.getIdx()));  // for avx2_vnni_2?
             if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8))
                 h->uni_vcvttps2dq(vmm_dst, vmm_dst);
             break;
@@ -125,7 +132,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
 
     switch (output_type) {
         case ov::element::f32:
-            if (!one_of(input_type, ov::element::i32, ov::element::bf16)) {
+            if (!one_of(input_type, ov::element::i32, ov::element::bf16, ov::element::f16)) {
                 h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
             }
             break;
@@ -143,13 +150,20 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             break;
         case ov::element::f16:
             if (input_type == ov::element::f32) {
-                h->vcvtps2ph(vmm_dst, vmm_src, 0x4);
+                if (isa == dnnl::impl::cpu::x64::avx512_core)
+                    h->vcvtps2ph(ymm_dst, vmm_src, 0x4);
+                else
+                    h->vcvtps2ph(xmm_dst, vmm_src, 0x4);
             } else {
                 if (one_of(input_type, ov::element::i8, ov::element::u8)) {
                     h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 }
-                h->vcvtps2ph(vmm_dst, vmm_dst, 0x4);
+                if (isa == dnnl::impl::cpu::x64::avx512_core)
+                    h->vcvtps2ph(ymm_dst, vmm_dst, 0x4);
+                else
+                    h->vcvtps2ph(xmm_dst, vmm_dst, 0x4);
             }
+            break;
         case ov::element::i8:
         case ov::element::u8:
             if (input_type == ov::element::i32) {
@@ -214,6 +228,9 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst  = Vmm(out_vec_idxs[0]);
 
+    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
+    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+
     if (input_type == output_type) {
         h->uni_vmovups(vmm_dst, vmm_src);
         return;
@@ -225,7 +242,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                 h->uni_vcvtps2dq(vmm_dst, vmm_src);
             break;
         case ov::element::i32:
-            if (one_of(output_type, ov::element::f32, ov::element::bf16))
+            if (one_of(output_type, ov::element::f32, ov::element::bf16, ov::element::f16))
                 h->uni_vcvtdq2ps(vmm_dst, vmm_src);
             break;
         case ov::element::bf16:
@@ -235,7 +252,11 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                 h->uni_vcvttps2dq(vmm_dst, vmm_dst);
             break;
         case ov::element::f16:
-            h->vcvtph2ps(vmm_dst, Ymm(vmm_src.getIdx()));
+            if (isa == dnnl::impl::cpu::x64::avx512_core)
+                h->vcvtph2ps(vmm_dst, Ymm(vmm_src.getIdx()));
+            else
+                h->vcvtph2ps(vmm_dst,
+                             Xmm(vmm_src.getIdx()));  // for avx2_vnni_2?
             if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8))
                 h->uni_vcvttps2dq(vmm_dst, vmm_dst);
             break;
@@ -269,12 +290,18 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             break;
         case ov::element::f16:
             if (input_type == ov::element::f32) {
-                h->vcvtps2ph(vmm_dst, vmm_src, 0x4);
+                if (isa == dnnl::impl::cpu::x64::avx512_core)
+                    h->vcvtps2ph(ymm_dst, vmm_src, 0x4);
+                else
+                    h->vcvtps2ph(xmm_dst, vmm_src, 0x4);
             } else {
                 if (one_of(input_type, ov::element::i8, ov::element::u8)) {
                     h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 }
-                h->vcvtps2ph(vmm_dst, vmm_dst, 0x4);
+                if (isa == dnnl::impl::cpu::x64::avx512_core)
+                    h->vcvtps2ph(ymm_dst, vmm_dst, 0x4);
+                else
+                    h->vcvtps2ph(xmm_dst, vmm_dst, 0x4);
             }
             break;
         case ov::element::i8:
