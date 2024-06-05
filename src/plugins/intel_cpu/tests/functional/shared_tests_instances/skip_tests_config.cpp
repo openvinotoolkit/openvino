@@ -388,7 +388,6 @@ std::vector<std::string> disabledTestPatterns() {
 	retVector.emplace_back(R"(CausalMaskPreprocessCausalMaskPreprocess.smoke_CompareWithRefs)");
 	retVector.emplace_back(R"(ConvAndFQWithSharedConstants.smoke_ConvAndFQWithSharedConstants_CPU)");
 	retVector.emplace_back(R"(GatherAddAvgpool.smoke_CompareWithRefs)");
-	retVector.emplace_back(R"(.*RoPECPUTest.*smoke_CompareWithRefs.*)");
 	retVector.emplace_back(R"(SubgraphSnippetSerializationTest.smoke_SerializeSubgraph(WithScalarConst)?)");
 	retVector.emplace_back(R"(.*SubgraphWithBlockedFormat.*)");
 	retVector.emplace_back(R"(smoke_StaticAdaPoolAvg(4|5)DLayoutTest/AdaPoolLayerCPUTest.*_outFmts=nd?hwc_1)");
@@ -423,7 +422,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Interaction/IntertactionCPUTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(.*smoke_MergeTransposeReorder_(static|dynamic)/MergeTransposeReorderCPUTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(.*smoke_ReshapeFc/ReshapeFcCPUTest.CompareWithRefs.*)");
-    retVector.emplace_back(R"(.*smoke_RoPECPUTestGPTJ/.*)");
+    retVector.emplace_back(R"(.*smoke_RoPETest.*)");
     retVector.emplace_back(R"(.*smoke_SDPAGroupBeamSearchTest/SDPAGroupBeamSearchTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(^smoke_VirtualPlugin_BehaviorTests/OVHoldersTest.Orders/target_device=HETERO.CPU$)");
     retVector.emplace_back(R"(.*nightly_(static|dynamic)/UniqueLayerTestCPU.*dataPrc=i8.*)");
