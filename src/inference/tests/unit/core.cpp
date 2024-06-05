@@ -414,7 +414,7 @@ TEST(CoreTests_read_model, model_not_exist_at_path) {
 
     OV_EXPECT_THROW(core.read_model(model_file_path),
                     ov::Exception,
-                    testing::HasSubstr("Model file not exists at: " + model_file_path));
+                    testing::HasSubstr("Model file does not exist at: " + model_file_path));
 }
 
 TEST(CoreTests_read_model, model_weights_not_exist_at_path) {
@@ -432,7 +432,7 @@ TEST(CoreTests_read_model, model_weights_not_exist_at_path) {
 
     OV_EXPECT_THROW(core.read_model(model_file_path, weights_file_path),
                     ov::Exception,
-                    testing::HasSubstr("Model's weights file not exists at: " + weights_file_path));
+                    testing::HasSubstr("Model's weights file does not exist at: " + weights_file_path));
 
     std::remove(model_file_path.c_str());
 }
