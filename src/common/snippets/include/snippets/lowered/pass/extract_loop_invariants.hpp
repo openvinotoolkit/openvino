@@ -20,16 +20,17 @@ namespace pass {
 class ExtractLoopInvariants : public RangedPass {
 public:
     OPENVINO_RTTI("ExtractLoopInvariants", "RangedPass")
-    ExtractLoopInvariants();
+    ExtractLoopInvariants() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
-    bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info);
-    void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir,
+    static std::set<ExpressionPtr> get_potential_extractable_exprs(const std::vector<LoopPort>& loop_in_ports);
+    static bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info);
+    static void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir,
                       LinearIR::constExprIt& inner_loop_begin_pos, LinearIR::constExprIt& inner_loop_end_pos);
-    void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id,
+    static void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id,
                            LinearIR::constExprIt& inner_loop_begin_pos, LinearIR::constExprIt& inner_loop_end_pos);
-    bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir);
+    static bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir);
 };
 
 } // namespace pass

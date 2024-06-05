@@ -156,14 +156,16 @@ public:
     const char* get_type_name() const {
         return get_type_info().name;
     }
-
     /**
-     * @brief Find LoopPort in input and output ports
-     * @param loop_port target port
-     * @return iterator of the corresponding collection
+     * @brief Return true if expression port is a loop port
+     * @param expr_port - expression port to check
      */
-    template<typename T>
-    std::vector<LoopPort>::iterator find_loop_port(const T& loop_port);
+    bool is_loop_port(const ExpressionPort& expr_port);
+    /**
+     * @brief Return loop port of an expression port
+     * @param expr_port - expression port.
+     */
+    const LoopPort& get_loop_port(const ExpressionPort& expr_port);
 
 protected:
     /**
@@ -173,6 +175,13 @@ protected:
      * @return vector with new cloned loop ports
      */
     static std::vector<LoopPort> clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& loop_ports);
+    /**
+     * @brief Find LoopPort in input and output ports
+     * @param loop_port target port
+     * @return iterator of the corresponding collection
+     */
+    template<typename T>
+    std::vector<LoopPort>::iterator find_loop_port(const T& loop_port);
 
     size_t m_work_amount = 0;
     size_t m_increment = 0;

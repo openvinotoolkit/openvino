@@ -144,7 +144,7 @@ LIRComparator::Result LIRComparator::compare_loop_managers_without_index(const L
     for (auto map_iter = map.cbegin(), map_ref_iter = map_ref.cbegin(); map_iter != map.cend(); map_iter++, map_ref_iter++) {
         const auto& loop_info = map_iter->second;
         const auto& loop_info_ref = map_ref_iter->second;
-        PROPAGATE_ERROR("Loop with id " + std::to_string(map_iter->first) + "and Ref Loop with id" + std::to_string(map_ref_iter->first),
+        PROPAGATE_ERROR("Loop with id " + std::to_string(map_iter->first) + " and ref Loop with id " + std::to_string(map_ref_iter->first),
                         compare_loop_info(loop_info, loop_info_ref));
     }
     return Result::ok();

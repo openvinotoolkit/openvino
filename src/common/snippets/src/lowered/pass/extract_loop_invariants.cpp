@@ -16,6 +16,7 @@ namespace pass {
 namespace {
 void remove_last_loop_id(const std::shared_ptr<Expression>& expr) {
     auto loop_ids = expr->get_loop_ids();
+    OPENVINO_ASSERT(!loop_ids.empty(), "Expr loop_ids should not be empty when remove last loop id.");
     loop_ids.pop_back();
     expr->set_loop_ids(loop_ids);
 }
@@ -36,8 +37,6 @@ size_t get_stride_after_move_outer(const LoopPort& loop_port) {
 }
 }  // namespace
 
-ExtractLoopInvariants::ExtractLoopInvariants() : RangedPass() {}
-
 bool ExtractLoopInvariants::is_extraction_applicable(const ExpressionPtr& expr,
                                                      const UnifiedLoopInfoPtr& inner_loop_info) {
     const auto& expr_input_ports = expr->get_input_ports();
@@ -45,22 +44,20 @@ bool ExtractLoopInvariants::is_extraction_applicable(const ExpressionPtr& expr,
     if (input_port_size == 0)
         return false;
 
-    const auto& inner_loop_input_ports = inner_loop_info->get_input_ports();
-
     for (size_t i = 0; i < input_port_size; ++i) {  // iter expr ports
         const auto& parent = expr->get_input_port_connector(i)->get_source().get_expr();
         bool parent_scalar_with_single_consumer = ov::is_type<snippets::op::Scalar>(parent->get_node()) &&
                                                   parent->get_output_port_connector(0)->get_consumers().size() == 1;
-
-        const auto& loop_port = inner_loop_info->find_loop_port(expr_input_ports[i]);
+        const auto& is_loop_port = inner_loop_info->is_loop_port(expr_input_ports[i]);
         // expr input port is not a loop input port, then should not extract
         // expr with single scalar parent could be extracted as well, which is common.
-        if (loop_port == inner_loop_input_ports.end() && !parent_scalar_with_single_consumer) {
+        if (!is_loop_port && !parent_scalar_with_single_consumer) {
             return false;
         }
-        if (loop_port != inner_loop_input_ports.end()) {
+        if (is_loop_port) {
             // after move to outside, stride in inner loop is not 1, then should not extract.
-            if (get_stride_after_move_outer(*loop_port) != 1) {
+            const auto& loop_port = inner_loop_info->get_loop_port(expr_input_ports[i]);
+            if (get_stride_after_move_outer(loop_port) != 1) {
                 return false;
             }
         }
@@ -103,11 +100,10 @@ void ExtractLoopInvariants::update_loop_ports(const ExpressionPtr& expr, const L
     inner_loop_info->update_loop_ports(expr_input_ports, new_loop_input_ports, true);
 
     // delete expr out ports from loop out ports directly if it's in loop output ports
-    const auto& loop_out_ports = inner_loop_info->get_output_ports();
     std::vector<ExpressionPort> exp_out_ports;
     for (size_t i = 0; i < expr->get_output_count(); ++i) {
         const auto& out_port = expr->get_output_port(i);
-        if (inner_loop_info->find_loop_port(out_port) != loop_out_ports.end()) {
+        if (inner_loop_info->is_loop_port(out_port)) {
             exp_out_ports.push_back(out_port);
         }
     }
@@ -115,10 +111,19 @@ void ExtractLoopInvariants::update_loop_ports(const ExpressionPtr& expr, const L
         std::vector<ExpressionPort> new_ports;
         inner_loop_info->update_loop_ports(exp_out_ports, new_ports, false);
     }
-    // need sort after update loop ports. There are possibility that all exprs are moved to outer loop.
+    // TODO: 142990.
+    // Need sort after update loop ports. There are possibility that all exprs are moved to outer loop.
     if (!inner_loop_info->get_input_ports().empty() && !inner_loop_info->get_output_ports().empty()) {
         loop_manager->sort_loop_ports(inner_loop_begin_pos, inner_loop_end_pos, inner_loop_id);
     }
+}
+
+std::set<ExpressionPtr> ExtractLoopInvariants::get_potential_extractable_exprs(const std::vector<LoopPort>& loop_in_ports) {
+    std::set<ExpressionPtr> expr_set;
+    for (size_t i = 0; i < loop_in_ports.size(); ++i) {
+        expr_set.insert(loop_in_ports[i].expr_port->get_expr());
+    }
+    return expr_set;
 }
 
 bool ExtractLoopInvariants::extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
@@ -128,9 +133,9 @@ bool ExtractLoopInvariants::extract_from_loop(const size_t& inner_loop_id, Linea
     const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loop_id);
     while (!extraction_completed) {
         const auto& inner_loop_input_ports = inner_loop_info->get_input_ports();
+        const auto& potential_extractable_exprs = get_potential_extractable_exprs(inner_loop_input_ports);
         bool has_been_extraction = false;
-        for (size_t i = 0; i < inner_loop_input_ports.size(); i++) {  // iter loop ports
-            const auto& port_expr = inner_loop_input_ports[i].expr_port->get_expr();
+        for (const auto& port_expr : potential_extractable_exprs) {
             if (is_extraction_applicable(port_expr, inner_loop_info)) {
                 status = true;
                 LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
@@ -146,11 +151,11 @@ bool ExtractLoopInvariants::extract_from_loop(const size_t& inner_loop_id, Linea
                 extract_expr(port_expr, linear_ir, inner_loop_begin_pos, inner_loop_end_pos);
                 update_loop_ports(port_expr, loop_manager, inner_loop_id, inner_loop_begin_pos, inner_loop_end_pos);
                 has_been_extraction = true;
-                break;  // extracted and refreshed loop_input_ports. break for() of iter loop ports and go while() to start again.
+                break;  // extracted and refreshed loop_input_ports. break potential_extractable_exprs loop, and go while() to start again.
             }
         }
         if (inner_loop_input_ports.size() == 0 && inner_loop_info->get_output_ports().size() == 0) {
-            // become a empty loop, let remove it from loop_manager
+            // become a empty(inner_loop_input_ports is ref) loop after extraction, let remove it from loop_manager
             loop_manager->remove_loop_info(inner_loop_id);
             extraction_completed = true;
             break;

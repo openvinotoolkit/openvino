@@ -6,6 +6,12 @@
 
 #include "openvino/opsets/opset10.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/vector_buffer.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/powerstatic.hpp"
 
 namespace ov {
 namespace test {
@@ -17,7 +23,7 @@ using namespace ov::snippets::lowered::pass;
 class ExtractLoopInvariantsTest : public LoweredPassTestsF {
 public:
     ExtractLoopInvariantsTest() : LoweredPassTestsF() {
-        comparator.disable(LIRComparator::LIRCmpValues::LOOP_INDICES); // loop could be removed and index could be different
+        comparator.disable(LIRComparator::LIRCmpValues::LOOP_INDICES); // loop could be removed and loop index could be different
         comparator.enable(LIRComparator::LIRCmpValues::PORT_DESCRIPTORS);
         comparator.enable(LIRComparator::LIRCmpValues::PORT_CONNECTORS);
         comparator.enable(LIRComparator::LIRCmpValues::LOOP_MANAGER);
@@ -28,7 +34,7 @@ public:
     }
 };
 
-TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsWithParams) {
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithParams) {
     size_t vector_size = 16;
     const auto input_precision = ov::element::f32;
     const ov::Shape input_shape0{1};
@@ -84,7 +90,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsWithParams) {
     }
 }
 
-TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsWithScalar) {
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithScalar) {
     size_t vector_size = 16;
     const auto input_precision = ov::element::f32;
     const ov::Shape scalar_shape{1};
@@ -140,7 +146,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsWithScalar) {
     }
 }
 
-TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsOutputLoopUpdateNotNeed) {
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsOutputLoopUpdateNotNeed) {
     size_t vector_size = 16;
     const auto input_precision = ov::element::f32;
     const ov::Shape input_shape_a{3, 1};
@@ -149,8 +155,8 @@ TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsOutputLoopUpdateNotNeed) 
     const std::vector<ov::snippets::VectorDims> subtensor_mul{{3, 1}, {3, 1}, {3, 1}};
     const std::vector<ov::snippets::VectorDims> subtensor_add{{3, 16}, {3, 16}, {3, 16}};
     /*
-     *  Befor: Param0, Param1, Param2, [[Multiply, Broadcast, Add, Sub]], Result0, Result1
-     *  After: Param0, Param1, Param2, [Multiply, Broadcast, [Add, Sub]], Result0, Result1
+     *  Before: Param0, Param1, Param2, [[Multiply, Broadcast, Add, Sub]], Result0, Result1
+     *  After:  Param0, Param1, Param2, [Multiply, Broadcast, [Add, Sub]], Result0, Result1
      *      Param0(3,1)    Param1(3,1)
      *             \       /
      *              Multiply
@@ -228,7 +234,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsOutputLoopUpdateNotNeed) 
 
 // softmax with shape of 1 for innermost dimension.
 // Cover multiple(all) exprs are extracted, and loop is removed.
-TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsAllExprsInLoopExtracted) {
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsAllExprsInLoopExtracted) {
     size_t vector_size = 16;
     const auto input_precision = ov::element::f32;
     const ov::Shape input_shape{10, 1};
@@ -321,6 +327,61 @@ TEST_F(ExtractLoopInvariantsTest, ExtractLoopInvariantsAllExprsInLoopExtracted) 
                                          LoopPort((*max.first)->get_input_port(1), true, 0),
                                          LoopPort((*add.first)->get_input_port(1), true, 0)},
                                         {LoopPort((*multiply.first)->get_output_port(0), true, 1)});
+    }
+}
+
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOutside) {
+    size_t vector_size = 16;
+    const auto input_precision = ov::element::f32;
+    const ov::Shape input_shape_0{3, 512};
+    const ov::Shape input_shape_1{1, 1};
+    ov::snippets::VectorDims layout{0, 1};
+    ov::snippets::VectorDims subtensor{3, 512};
+    /*
+     * before:       Param0, Param1, [[Broadcast, Add]], Result
+     * intermediate: Param0, Param1, [Broadcast, [Add]], Result
+     * after:        Param0, Param1, Broadcast, [[Add]], Result
+     *      Param0(3,512)    Param1(1,1)
+     *              \         /
+     *               \    Broadcast
+     *                \     /
+     *                  Add
+     *                   |
+     *                 Result
+    */
+    {
+        auto param_0 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        auto param_1 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
+        auto broadcastmove = linear_ir->push_node<ov::snippets::op::BroadcastMove>(param_1.second, 512);
+        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
+        auto add = linear_ir->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
+        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
+        auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
+        create_and_add_unified_loop_info(linear_ir, broadcastmove.first, result.first, 3, 1,
+                                        {LoopPort((*broadcastmove.first)->get_input_port(0), true, 1),
+                                         LoopPort((*add.first)->get_input_port(0), true, 1)},
+                                        {LoopPort((*add.first)->get_output_port(0), true, 1)});
+        create_and_add_unified_loop_info(linear_ir, broadcastmove.first, result.first, 512, vector_size,
+                                        {LoopPort((*broadcastmove.first)->get_input_port(0), true, 0),
+                                         LoopPort((*add.first)->get_input_port(0), true, 0)},
+                                        {LoopPort((*add.first)->get_output_port(0), true, 0)});
+    }
+    {
+        auto param_0 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        auto param_1 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
+        auto broadcastmove = linear_ir_ref->push_node<ov::snippets::op::BroadcastMove>(param_1.second, 512);
+        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
+        auto add = linear_ir_ref->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
+        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
+        create_and_add_unified_loop_info(linear_ir_ref, add.first, result.first, 3, 1,
+                                        {LoopPort((*add.first)->get_input_port(0), true, 1),
+                                         LoopPort((*add.first)->get_input_port(1), true, 1)},
+                                        {LoopPort((*add.first)->get_output_port(0), true, 1)});
+        create_and_add_unified_loop_info(linear_ir_ref, add.first, result.first, 512, vector_size,
+                                        {LoopPort((*add.first)->get_input_port(0), true, 0),
+                                         LoopPort((*add.first)->get_input_port(1), true, 0)},
+                                        {LoopPort((*add.first)->get_output_port(0), true, 0)});
     }
 }
 

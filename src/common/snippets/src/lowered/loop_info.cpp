@@ -98,7 +98,7 @@ std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const LoopPort& loop_po
     auto& ports = loop_port.expr_port->get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
     const auto it = std::find_if(ports.begin(), ports.end(),
                                  [&loop_port](const LoopPort& port) { return port == loop_port; });
-    OPENVINO_ASSERT(it != ports.end(), "Failed update_loop_port: existing loop port has not been found");
+    OPENVINO_ASSERT(it != ports.end(), "Failed find_loop_port: existing loop port has not been found");
     return it;
 }
 
@@ -108,6 +108,17 @@ std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const ExpressionPort& e
     const auto it = std::find_if(ports.begin(), ports.end(),
                                 [&expr_port](const LoopPort& port) { return *port.expr_port.get() == expr_port; });
     return it;
+}
+
+bool LoopInfo::is_loop_port(const ExpressionPort& expr_port) {
+    const auto& loop_port_it = find_loop_port(expr_port);
+    const auto& ports = expr_port.get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
+    return loop_port_it != ports.end();
+}
+
+const LoopPort& LoopInfo::get_loop_port(const ExpressionPort& expr_port) {
+    OPENVINO_ASSERT(is_loop_port(expr_port), "Failed get_loop_port: expr_port is not a loop port");
+    return *find_loop_port(expr_port);
 }
 
 void LoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
@@ -344,12 +355,8 @@ void UnifiedLoopInfo::add_loop_ports(const std::vector<ExpressionPort>& ports, b
     for (size_t i = 0; i < ports.size(); i++) {
         // if already in loop ports, skip
         auto loop_port = find_loop_port(ports[i]);
-        if (loop_port != loop_ports.end()) {
-            if (loop_port->dim_idx != loop_dim_idx) {
-                loop_port->dim_idx = loop_dim_idx;
-            }
+        if (loop_port != loop_ports.end())
             continue;
-        }
         loop_ports.push_back(LoopPort(ports[i], true, loop_dim_idx));
         loop_ports_desc.push_back(LoopPortDesc());
     }
