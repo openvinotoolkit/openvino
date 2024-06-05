@@ -14,7 +14,6 @@ Install OpenVINO™ 2024.2
    OpenVINO Runtime on Linux <install-openvino/install-openvino-linux>
    OpenVINO Runtime on Windows <install-openvino/install-openvino-windows>
    OpenVINO Runtime on macOS <install-openvino/install-openvino-macos>
-   OpenVINO GenAI <install-openvino/install-openvino-genai>
 
 
 .. raw:: html
@@ -22,6 +21,13 @@ Install OpenVINO™ 2024.2
    <script type="module" crossorigin src="../_static/selector-tool/assets/index-f34d1fad.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <iframe id="selector" src="../_static/selector-tool/selector-1c16038.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+
+The new OpenVINO GenAI API package provides a set of LLM-specific interfaces to facilitate the integration
+of language models into applications. This API hides the complexity of the generation process
+and significantly minimizes the amount of code needed for the application to work.
+Developers can now provide a model and input context directly to the OpenVINO GenAI, which performs
+tokenization of the input text, executes the generation loop on the selected device, and then returns the generated text.
+For a quickstart guide on how to use the OpenVINO GenAI API, refer to the :doc:`GenAI API Guide <../learn-openvino/llm_inference_guide/genai-guide>` or the GenAI API reference page.
 
 .. warning::
 

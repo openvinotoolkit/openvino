@@ -32,6 +32,9 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        RHEL8 x86_64          V      V     n/a
       ===================  =====  =====  =====
 
+.. tip::
+
+   The new OpenVINO GenAI package is now available for installation via :doc:`Archives <install-openvino-archive-linux>` distribution.
 
 .. tab-set::
 
@@ -90,8 +93,6 @@ Install OpenVINO™ Runtime on Linux from an Archive File
 
                source /opt/rh/devtoolset-8/enable
                gcc -v
-
-
 
 
 

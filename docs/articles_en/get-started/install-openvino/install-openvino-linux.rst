@@ -26,6 +26,9 @@ Install OpenVINO™ Runtime on Linux
    Use Docker <install-openvino-docker-linux>
    Use npm <install-openvino-npm>
 
+.. tip::
+
+   The new OpenVINO GenAI package is now available for installation via :doc:`Archives <install-openvino-archive-linux>` and :doc:`PyPI <install-openvino-pip>` distributions.
 
 If you want to install OpenVINO™ Runtime on Linux, you have the following options:
 

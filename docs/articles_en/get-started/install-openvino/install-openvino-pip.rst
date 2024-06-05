@@ -18,6 +18,10 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
      (all x86_64 / arm64 architectures)
    * macOS offers support only for CPU inference
 
+.. tip::
+
+   The new OpenVINO GenAI package is now available for installation via :doc:`PyPI <install-openvino-pip>` distribution.
+
 .. tab-set::
 
    .. tab-item:: System Requirements
@@ -100,11 +104,22 @@ Use the following command:
 Step 4. Install the Package
 +++++++++++++++++++++++++++
 
-Use the following command:
+Use the following command to install OpenVINO Base or OpenVINO GenAI package:
 
-.. code-block:: sh
 
-   python -m pip install openvino
+.. tab-set::
+
+   .. tab-item:: OpenVINO Base Package
+
+      .. code-block:: python
+
+         python -m pip install openvino
+
+   .. tab-item:: OpenVINO with GenAI
+
+      .. code-block:: python
+
+         python -m pip install openvino-genai
 
 
 Step 5. Verify that the Package Is Installed
