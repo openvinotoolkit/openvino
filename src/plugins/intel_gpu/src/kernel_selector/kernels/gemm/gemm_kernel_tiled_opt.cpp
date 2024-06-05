@@ -135,10 +135,10 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
     jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
     if (params.has_dynamic_tensors()) {
-        DimensionAccessHelper dims0(params.inputs[0]);
-        DimensionAccessHelper dims1(params.inputs[1]);
-        DimensionAccessHelper dims0_padded(params.inputs[0], true);
-        DimensionAccessHelper dims1_padded(params.inputs[1], true);
+        DimensionAccessHelperJit dims0(params.inputs[0]);
+        DimensionAccessHelperJit dims1(params.inputs[1]);
+        DimensionAccessHelperJit dims0_padded(params.inputs[0], true);
+        DimensionAccessHelperJit dims1_padded(params.inputs[1], true);
         // Note: Actually currently this kernel is not being selected if it is shape agnostic impl && transposed inputs
         // Because we cannot get the original rank
         auto input0_dims = ConvTo8dims(params.input0_order);
@@ -155,6 +155,20 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         const std::string not_divisible_n = "(" + leftover_n + "!=0)";
         const std::string not_divisible_k = "(" + leftover_k + "!=0)";
         const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
+        std::string n_aligned_4byte = "0";
+        std::string k_aligned_4byte = "0";
+        if (BytesPerElement(params.inputs[0].GetDType()) == 4 || BytesPerElement(params.inputs[0].GetDType()) == 8) {
+            n_aligned_4byte = "1";
+            k_aligned_4byte = "1";
+        } else {
+            auto bytes_per_element = std::to_string(BytesPerElement(params.inputs[0].GetDType()));
+            if (n_size.find("shape_info") == std::string::npos) {
+                n_aligned_4byte = "(" + n_size + "*" + bytes_per_element + " % 4 == 0)";
+            }
+            if (k_size.find("shape_info") == std::string::npos) {
+                k_aligned_4byte = "(" + k_size + "*" + bytes_per_element + " % 4 == 0)";
+            }
+        }
 
         jit.AddConstants({
             MakeJitConstant("M", m_size),
@@ -162,6 +176,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N", n_size),
             MakeJitConstant("K_PADDED_IN0", k_padded_size_in0),
             MakeJitConstant("N_PADDED", n_padded_size),
+            MakeJitConstant("K_IS_ALIGNED_4BYTE", k_aligned_4byte),
+            MakeJitConstant("N_IS_ALIGNED_4BYTE", n_aligned_4byte),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),

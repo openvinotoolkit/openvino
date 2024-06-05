@@ -17,6 +17,8 @@ on:
         type: string
         required: true
 
+permissions: read-all
+
 jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -32,18 +34,14 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
     steps:
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -62,10 +60,6 @@ jobs:
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
-
-      - name: Install OpenVINO dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
 
       #
       # Tests
@@ -162,6 +156,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Common test utils tests
+        if: ${{ runner.os != 'macOS' }} # Ticket: 134469
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
@@ -216,6 +211,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
       - name: OV utils unit tests
+        if: ${{ runner.os != 'macOS' }} # Ticket: 134469
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
@@ -259,7 +255,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp

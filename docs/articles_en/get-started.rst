@@ -16,7 +16,7 @@ GET STARTED
    Install OpenVINO <get-started/install-openvino>
    Additional Hardware Setup <get-started/configurations>
    Troubleshooting <get-started/troubleshooting-install-config>
-   System Requirements <about-openvino/system-requirements>
+   System Requirements <./about-openvino/release-notes-openvino/system-requirements>
 
 
 .. raw:: html

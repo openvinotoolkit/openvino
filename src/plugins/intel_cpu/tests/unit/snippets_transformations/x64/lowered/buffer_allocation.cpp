@@ -87,7 +87,7 @@ protected:
         pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
         pipeline.register_pass<ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape>();
-        pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, m_is_buffer_optimized);
+        pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_is_buffer_optimized);
         pipeline.run(m_linear_ir);
     }
 
@@ -99,7 +99,7 @@ protected:
             }
         }
         EXPECT_EQ(gprs.size(), m_expected_count);
-        EXPECT_EQ(m_buffer_scratchpad, m_expected_size);
+        EXPECT_EQ(m_linear_ir.get_buffer_scratchpad_size(), m_expected_size);
     }
 
     virtual std::shared_ptr<ov::Model> GetModel() const = 0;
@@ -113,7 +113,6 @@ protected:
                 output, std::make_shared<ov::snippets::lowered::PortDescriptor>(output, subtensor));
     }
 
-    size_t m_buffer_scratchpad = 0;
     ov::snippets::lowered::LinearIR m_linear_ir;
 
     size_t m_expected_size = 0;
@@ -147,7 +146,7 @@ protected:
         const auto convert1 = std::make_shared<ov::snippets::op::ConvertSaturation>(relu0, ov::element::bf16);
 
         const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(
-            convert1, ov::element::bf16, ov::intel_cpu::BrgemmCopyB::OnlyRepacking, 0, 0, 0);
+            convert1, ov::element::bf16, ov::intel_cpu::BrgemmCopyB::Type::OnlyRepacking, 0, 0, 0);
         const auto scratch0 = std::make_shared<ov::snippets::op::NewMemoryBuffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             parameter0, brgemm_copyb0->output(0), scratch0, ov::intel_cpu::BrgemmCPU::Type::AMX);
@@ -173,7 +172,7 @@ protected:
         const auto convert2 = std::make_shared<ov::snippets::op::ConvertSaturation>(multiply, ov::element::bf16);
 
         const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(
-            parameter2, ov::element::bf16, ov::intel_cpu::BrgemmCopyB::OnlyRepacking, 0, 0, 0);
+            parameter2, ov::element::bf16, ov::intel_cpu::BrgemmCopyB::Type::OnlyRepacking, 0, 0, 0);
         const auto scratch1 = std::make_shared<ov::snippets::op::NewMemoryBuffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             convert2, brgemm_copyb1->output(0), scratch1, ov::intel_cpu::BrgemmCPU::Type::AMX);

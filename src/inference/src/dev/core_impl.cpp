@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "check_network_batchable.hpp"
-#include "compilation_context.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -18,6 +17,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -1403,21 +1403,22 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             try {
                 ov::CompiledBlobHeader header;
                 networkStream >> header;
-                if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
+                if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                     // Original file is changed, don't use cache
                     OPENVINO_THROW("Original model file is changed");
                 }
                 if (util::contains(plugin.get_property(ov::internal::supported_properties),
                                    ov::internal::compiled_model_runtime_properties_supported.name())) {
                     ov::AnyMap compiled_model_runtime_properties = {
-                        {ov::internal::compiled_model_runtime_properties.name(), std::string(header.getRuntimeInfo())}};
+                        {ov::internal::compiled_model_runtime_properties.name(),
+                         std::string(header.get_runtime_info())}};
                     auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
                                                    compiled_model_runtime_properties);
                     if (!res.as<bool>()) {
                         OPENVINO_THROW("Original model runtime properties have been changed, not supported anymore!");
                     }
                 } else {
-                    if (header.getIeVersion() != ov::get_openvino_version().buildNumber) {
+                    if (header.get_openvino_version() != ov::get_openvino_version().buildNumber) {
                         // Build number mismatch, don't use this cache
                         OPENVINO_THROW("Version does not match");
                     }
@@ -1554,7 +1555,11 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::cre
     std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
 
     if (!dir.empty()) {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        ov::util::create_directory_recursive(ov::util::string_to_wstring(dir));
+#else
         ov::util::create_directory_recursive(dir);
+#endif
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
 
