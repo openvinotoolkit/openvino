@@ -953,6 +953,8 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Exp>(n) ||
                 ov::is_type<ov::op::v0::Floor>(n) ||
                 ov::is_type<ov::op::v4::HSwish>(n) ||
+                ov::is_type<ov::op::v1::Maximum>(n) ||
+                ov::is_type<ov::op::v1::Minimum>(n) ||
                 ov::is_type<ov::op::v1::Mod>(n) ||
                 ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Relu>(n) ||

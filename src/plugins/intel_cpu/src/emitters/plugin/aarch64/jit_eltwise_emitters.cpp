@@ -936,7 +936,7 @@ void jit_maximum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 }
 
 std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}, {element::f32}};
+    return {{element::f32, element::f32}};
 }
 
 /// MIN ///
@@ -974,7 +974,7 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 }
 
 std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}, {element::f32}};
+    return {{element::f32, element::f32}};
 }
 
 /// MISH ///
