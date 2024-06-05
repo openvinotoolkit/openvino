@@ -520,9 +520,6 @@ private:
     void add_onednn_attrs(std::shared_ptr<dnnl::primitive_attr> attrs) {
         onednn_attrs = attrs;
     }
-
-    dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
-
 #endif // ENABLE_ONEDNN_FOR_GPU
     size_t num_outputs = 1;
 };
@@ -567,5 +564,14 @@ struct typed_program_node : public typed_program_node_base<PType> {
 
     program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
 };
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+void create_onednn_primitive_attributes(
+                            const cldnn::program_node& node,
+                            const std::vector<fused_primitive_desc>& cldnn_post_ops,
+                            std::shared_ptr<dnnl::primitive_attr>& attrs,
+                            std::vector<fused_primitive_desc_onednn>& fused_ops);
+
+#endif
 
 }  // namespace cldnn

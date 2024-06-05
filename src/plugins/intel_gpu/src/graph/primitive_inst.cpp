@@ -456,6 +456,12 @@ void primitive_inst::update_shape() {
         if (var_mem_size < _impl_params->get_output_layout(0).get_buffer_size().count())
             set_shape_change();
     }
+
+// #ifdef ENABLE_ONEDNN_FOR_GPU
+//     if (get_node().is_type<fully_connected>()) {
+//         get_node().init_onednn_primitive_attributes();
+//     }
+// #endif
 }
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
