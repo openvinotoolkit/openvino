@@ -2,57 +2,56 @@
 OpenVINO GenAI API Guide
 ===============================
 
-This guide will walk through the essential steps for integrating the OpenVINO GenAI API into your application.
-The steps below demonstrate how to load a model,
-and illustrate the process of passing the input context to receive generated text.
+This guide shows the essential steps for integrating the OpenVINO GenAI API into your application.
+The steps below demonstrate how to load a model and pass the input context to receive generated text.
 
-The examples below use a CPU as the target device, however, the GPU support is also available.
+The examples use a CPU as the target device, however, the GPU support is also available.
 Note that the GPU is running only LLM inference, while token selection and tokenization/detokenization remain on the CPU for efficiency.
 Tokenizers are represented as a separate model and run on the CPU using the provided inference capabilities.
 
-Install OpenVINO GenAI API using :doc:`PyPI or Archives <../../../install-openvino>`.
+Before proceeding, make sure that you have installed the OpenVINO GenAI API using :doc:`PyPI or Archives <../../get-started/install-openvino>`.
 
-1.	Export an LLM model via Hugging Face Optimum-Intel. A chat-tuned TinyLlama is used for this example:
+1.	Export an LLM model via Hugging Face Optimum-Intel. A chat-tuned TinyLlama model is used for this example:
 
-   .. code-block:: python
+.. code-block:: python
 
-      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format fp16 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+   optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format fp16 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
 
-Optional. Optimize the model:
+*Optional*. Optimize the model:
 
 The model is an optimized OpenVINO IR with fp16 precision. For enhanced LLM performance,
 it is recommended to use lower precision for model weights, such as int4, and to compress weights
 using NNCF during model export directly:
 
-   .. code-block:: python
+.. code-block:: python
 
-      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code
+   optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code
 
 2. Perform generation using the new GenAI API:
 
-   .. tab-set::
+.. tab-set::
 
-      .. tab-item:: Python
-         :sync: py
+   .. tab-item:: Python
+      :sync: py
 
-         .. code-block:: python
+      .. code-block:: python
 
-            import openvino_genai as ov_genai
-            pipe = ov_genai.LLMPipeline(model_path, "CPU")
-            print(pipe.generate("The Sun is yellow because"))
+         import openvino_genai as ov_genai
+         pipe = ov_genai.LLMPipeline(model_path, "CPU")
+         print(pipe.generate("The Sun is yellow because"))
 
-      .. tab-item:: C++
-         :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-         .. code-block:: cpp
+      .. code-block:: cpp
 
-            #include "openvino/genai/llm_pipeline.hpp"
-            #include <iostream>
+         #include "openvino/genai/llm_pipeline.hpp"
+         #include <iostream>
 
-            int main(int argc, char* argv[]) {
-            std::string model_path = argv[1];
-            ov::genai::LLMPipeline pipe(model_path, "CPU");//target device is CPU
-            std::cout << pipe.generate("The Sun is yellow because"); //input context
+         int main(int argc, char* argv[]) {
+         std::string model_path = argv[1];
+         ov::genai::LLMPipeline pipe(model_path, "CPU");//target device is CPU
+         std::cout << pipe.generate("The Sun is yellow because"); //input context
 
 Once the model is exported from Hugging Face Optimum-Intel, it already contains all the necessary
 information for execution, including the tokenizer/detokenizer and the generation config
@@ -73,7 +72,7 @@ For more interactive UIs during generation, streaming of model output tokens is 
       ov::genai::LLMPipeline pipe(model_path, "CPU");
 
       auto streamer = [](std::string word) { std::cout << word << std::flush; };
-      std::cout << pipe.generate("The Sun is yellow bacause", streamer);
+      std::cout << pipe.generate("The Sun is yellow because", streamer);
    }
 
 You can also create your custom streamer for more sophisticated processing:
@@ -104,131 +103,130 @@ For chat scenarios where inputs and outputs represent a conversation, maintainin
 offers optimization benefits. The chat-specific methods **start_chat** and **finish_chat** are used to
 mark a conversation session. Simplified Python and C++ examples are provided below:
 
-   .. tab-set::
+.. tab-set::
 
-      .. tab-item:: Python
-         :sync: py
+   .. tab-item:: Python
+      :sync: py
 
-         .. code-block:: python
+      .. code-block:: python
 
-            import openvino_genai as ov_genai
-            pipe = ov_genai.LLMPipeline(model_path)
+         import openvino_genai as ov_genai
+         pipe = ov_genai.LLMPipeline(model_path)
 
-            config = {'num_groups': 3, 'group_size': 5, 'diversity_penalty': 1.1}
-            pipe.set_generation_cofnig(config)
+         config = {'num_groups': 3, 'group_size': 5, 'diversity_penalty': 1.1}
+         pipe.set_generation_cofnig(config)
 
-            pipe.start_chat()
-            while True:
-                print('question:')
-                prompt = input()
-               if prompt == 'Stop!':
-                    break
-                print(pipe(prompt))
-            pipe.finish_chat()
+         pipe.start_chat()
+         while True:
+             print('question:')
+             prompt = input()
+            if prompt == 'Stop!':
+                 break
+             print(pipe(prompt))
+         pipe.finish_chat()
 
 
-      .. tab-item:: C++
-         :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-         .. code-block:: cpp
+      .. code-block:: cpp
 
-            int main(int argc, char* argv[]) {
-               std::string prompt;
+         int main(int argc, char* argv[]) {
+            std::string prompt;
 
-               std::string model_path = argv[1];
-               ov::LLMPipeline pipe(model_path, "CPU");
+            std::string model_path = argv[1];
+            ov::LLMPipeline pipe(model_path, "CPU");
 
-               pipe.start_chat();
-               for (size_t i = 0; i < questions.size(); i++) {
-                  std::cout << "question:\n";
-                  std::getline(std::cin, prompt);
+            pipe.start_chat();
+            for (size_t i = 0; i < questions.size(); i++) {
+               std::cout << "question:\n";
+               std::getline(std::cin, prompt);
 
-                  std::cout << pipe(prompt) << std::endl>>;
-               }
-               pipe.finish_chat();
-}
+               std::cout << pipe(prompt) << std::endl>>;
+            }
+            pipe.finish_chat();
+         }
 
-Additional Settings
-##############################
+Optimizing Text Generation with Group Beam Search
+#######################################################
 
-C++ Features
-++++++++++++++
+Leverage group beam search decoding and configure generation_config for better text generation quality and efficient batch processing in GenAI applications.
 
-.. dropdown:: Using Group Beam Search Decoding
+Use group beam search decoding:
 
-   .. code-block:: cpp
+.. code-block:: cpp
 
-      int main(int argc, char* argv[]) {
-         std::string model_path = argv[1];
-         ov::LLMPipeline pipe(model_path, "CPU");
-         ov::GenerationConfig config = pipe.get_generation_config();
-         config.max_new_tokens = 256;
-         config.num_groups = 3;
-         config.group_size = 5;
-         config.diversity_penalty = 1.0f;
+   int main(int argc, char* argv[]) {
+      std::string model_path = argv[1];
+      ov::LLMPipeline pipe(model_path, "CPU");
+      ov::GenerationConfig config = pipe.get_generation_config();
+      config.max_new_tokens = 256;
+      config.num_groups = 3;
+      config.group_size = 5;
+      config.diversity_penalty = 1.0f;
 
-         cout << pipe.generate("The Sun is yellow bacause", config);
+      cout << pipe.generate("The Sun is yellow bacause", config);
+   }
+
+Specify generation_config to use grouped beam search:
+
+.. code-block:: cpp
+
+   int main(int argc, char* argv[]) {
+      std::string prompt;
+
+      std::string model_path = argv[1];
+      ov::LLMPipeline pipe(model_path, "CPU");
+
+      ov::GenerationConfig config = pipe.get_generation_config();
+      config.max_new_tokens = 256;
+      config.num_groups = 3;
+      config.group_size = 5;
+      config.diversity_penalty = 1.0f;
+
+      auto streamer = [](std::string word) { std::cout << word << std::flush; };
+
+      pipe.start_chat();
+      for (size_t i = 0; i < questions.size(); i++) {
+
+         std::cout << "question:\n";
+         cout << prompt << endl;
+
+         auto answer = pipe(prompt, config, streamer);
+         // no need to print answer, streamer will do that
       }
+      pipe.finish_chat();
+   }
 
-.. dropdown:: Specifying generation_config to Use Grouped Beam Search
+Comparing with Hugging Face Results
+#######################################
 
-   .. code-block:: cpp
+Compare and analyze results with those generated by Hugging Face models.
 
-      int main(int argc, char* argv[]) {
-          std::string prompt;
+.. code-block:: python
 
-          std::string model_path = argv[1];
-          ov::LLMPipeline pipe(model_path, "CPU");
+   from transformers import AutoTokenizer, AutoModelForCausalLM
 
-          ov::GenerationConfig config = pipe.get_generation_config();
-          config.max_new_tokens = 256;
-          config.num_groups = 3;
-          config.group_size = 5;
-          config.diversity_penalty = 1.0f;
+   tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+   model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
 
-          auto streamer = [](std::string word) { std::cout << word << std::flush; };
+   max_new_tokens = 32
+   prompt = 'table is made of'
 
-          pipe.start_chat();
-          for (size_t i = 0; i < questions.size(); i++) {
+   encoded_prompt = tokenizer.encode(prompt, return_tensors='pt', add_special_tokens=False)
+   hf_encoded_output = model.generate(encoded_prompt, max_new_tokens=max_new_tokens, do_sample=False)
+   hf_output = tokenizer.decode(hf_encoded_output[0, encoded_prompt.shape[1]:])
+   print(f'hf_output: {hf_output}')
 
-             std::cout << "question:\n";
-             cout << prompt << endl;
+   import sys
+   sys.path.append('build-Debug/')
+   import py_generate_pipeline as genai # set more friendly module name
 
-             auto answer = pipe(prompt, config, streamer);
-             // no need to print answer, streamer will do that
-          }
-          pipe.finish_chat();
-      }
+   pipe = genai.LLMPipeline('text_generation/causal_lm/TinyLlama-1.1B-Chat-v1.0/pytorch/dldt/FP16/')
+   ov_output = pipe(prompt, max_new_tokens=max_new_tokens)
+   print(f'ov_output: {ov_output}')
 
-Python Features
-++++++++++++++++++
-
-.. dropdown:: Test to Compare the Results with Hugging Face Outputs
-
-   .. code-block:: python
-
-      from transformers import AutoTokenizer, AutoModelForCausalLM
-
-      tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-      model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-
-      max_new_tokens = 32
-      prompt = 'table is made of'
-
-      encoded_prompt = tokenizer.encode(prompt, return_tensors='pt', add_special_tokens=False)
-      hf_encoded_output = model.generate(encoded_prompt, max_new_tokens=max_new_tokens, do_sample=False)
-      hf_output = tokenizer.decode(hf_encoded_output[0, encoded_prompt.shape[1]:])
-      print(f'hf_output: {hf_output}')
-
-      import sys
-      sys.path.append('build-Debug/')
-      import py_generate_pipeline as genai # set more friendly module name
-
-      pipe = genai.LLMPipeline('text_generation/causal_lm/TinyLlama-1.1B-Chat-v1.0/pytorch/dldt/FP16/')
-      ov_output = pipe(prompt, max_new_tokens=max_new_tokens)
-      print(f'ov_output: {ov_output}')
-
-      assert hf_output == ov_output
+   assert hf_output == ov_output
 
 
 

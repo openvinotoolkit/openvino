@@ -20,7 +20,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
 
 .. tip::
 
-   The new OpenVINO GenAI package is now available for installation via :doc:`PyPI <install-openvino-pip>` distribution.
+   The new OpenVINO GenAI package is now available for installation via PyPI. Learn more in the Installing OpenVINO Runtime section.
 
 .. tab-set::
 
