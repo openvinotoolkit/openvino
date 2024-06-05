@@ -810,10 +810,10 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
     // =====================================================================================================================================
     // Main computation loop
-    uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
+    const uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
     // Each sub-group loads 2 Batch 
-    uint idx_sglid = (sglid * TILE_K) % 32;       // same index for sglid 0~7 : to tile_k direction
-    uint batch_sglid = (sglid * TILE_K) / 32;     // 0 to 1 : to batch direction
+    uint idx_sglid = (sglid * TILE_K) % QUANTIZE_GROUP_SIZE;       // same index for sglid 0~7 : to tile_k direction
+    uint batch_sglid = (sglid * TILE_K) / QUANTIZE_GROUP_SIZE;     // 0 to 1 : to batch direction
 
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {

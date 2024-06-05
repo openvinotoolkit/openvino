@@ -576,7 +576,9 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
 
             // Get index of the added shape-agnostic kernel
-            int kernel_num = kd.kernels.size() - 1;
+            int kernel_offset = 0;
+            if (kd.kernels.size() == 3)
+                kernel_offset = 1;  // quantize kernel exists
 
             // Choose one of the two shape agnostic kernels: N == added kernel number
             // - kd.kernels[N-1] for batches <= 240 (default version)
@@ -584,8 +586,9 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             const auto default_alignment = 16;
             // We can use SLM version if `output_batch + default_alignment > min_slm_size(256)` because memory and batch are aligned (whether 16 or 64 elements)
             const auto execute_type = (output_batch + default_alignment > min_slm_size) ? KernelType::SLM : KernelType::DEFAULT;
-            const auto execute_kernel_idx = (execute_type == KernelType::SLM) ? kernel_num : kernel_num - 1;
-            const auto skip_kernel_idx = (execute_type == KernelType::SLM) ? (kernel_num - 1) : kernel_num;
+            const auto execute_kernel_idx = ((execute_type == KernelType::SLM) ? 1 : 0) + kernel_offset;
+            const auto skip_kernel_idx = ((execute_type == KernelType::SLM) ? 0 : 1) + kernel_offset;
+
 
             // Check default or SLM version FC, and disable remain version
             kd.kernels[skip_kernel_idx].skip_execution = true;
@@ -593,7 +596,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << " shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
 
-            auto dispatchData = SetDefault(prim_params, -1, (int)execute_type);
+            auto dispatchData = SetDefault(prim_params, -1, static_cast<int>(execute_type));
             kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
             kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
             kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
@@ -648,7 +651,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         // Use seperate 2 kernels for dynamic quantizing : quantizing_kernel + fc_kernel
         // 1st kernel : Dynamic quantizing by quantize_grp_size
         // 2nd kernel : fully connected kernel with KernelType::DEFAULT. Quantized inputs and scale values could be used.
-        // 3rd kernel : fully connected kernel with KernelType::SLM. Quantized inputs and scale values would be used.
+        // 3rd kernel : (optional) fully connected shape_agnostic kernel with KernelType::SLM. Quantized inputs and scale values would be used.
         kernels_data = GetMultiKernelsData(params,
                                                 fc_params.inputs[0].GetLayout(),
                                                 weights_layout,
