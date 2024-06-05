@@ -90,6 +90,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
     jitters[op::v1::Divide::get_type_info_static()] = CREATE_CPU_EMITTER(jit_divide_emitter);
     jitters[op::v1::Mod::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mod_emitter);
     jitters[op::v1::Multiply::get_type_info_static()] = CREATE_CPU_EMITTER(jit_multiply_emitter);
+    jitters[op::v1::Subtract::get_type_info_static()] = CREATE_CPU_EMITTER(jit_subtract_emitter);
 
     // unary
     jitters[ov::op::v0::Abs::get_type_info_static()] = CREATE_CPU_EMITTER(jit_abs_emitter);
