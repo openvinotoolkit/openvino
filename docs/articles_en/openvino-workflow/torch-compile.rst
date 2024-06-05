@@ -33,7 +33,11 @@ any additional PyTorch-based tracing/scripting.
    model = torch.compile(model, backend='openvino')
    ...
 
-For OpenVINO versions below 2024.1, an additional import was needed to use ``openvino`` backend. However, OpenVINO package is now configured with `torch_dynamo_backends entrypoint <https://pytorch.org/docs/stable/torch.compiler_custom_backends.html#registering-custom-backends>`__. The additional import is not needed, if OpenVINO is installed as a pip package. For other install channels such as conda, import statement can be used as below.
+This approach works only for the package distributed via pip, as it is now configured with
+`torch_dynamo_backends entrypoint <https://pytorch.org/docs/stable/torch.compiler_custom_backends.html#registering-custom-backends>`__.
+
+For OpenVINO installed via other channels, such as conda, and versions older than 2024.1, 
+an additional import statement is needed:
 
 .. code-block:: python
 
