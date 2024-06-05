@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:12.5.0-runtime-ubuntu22.04
+FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 USER root
 
@@ -54,12 +54,12 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Install CUDA
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb
-RUN apt-get update && apt-get install cuda-toolkit \
-    libcudnn8 \
-    libcudnn8-dev \
-    libcudnn8-samples \
-    libcutensor1 \
-    libcutensor-dev \
+RUN apt-get update && apt-get install -y cuda-runtime-11-8 cuda-11-8 && apt-get install -y \
+    libcudnn8=8.9.4.*-1+cuda11.8 \
+    libcudnn8-dev=8.9.4.*-1+cuda11.8 \
+    libcudnn8-samples=8.9.4.*-1+cuda11.8 \
+    libcutensor1=1.7.0.1-1 \
+    libcutensor-dev=1.7.0.1-1 \
     cuda-drivers
 
 # Setup pip
@@ -72,8 +72,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:/usr/local/cuda-12.5/bin:$PATH"
-ENV CUDNN_PATH="/usr/local/cuda-12.5/lib64:$CUDNN_PATH"
-ENV LD_LIBRARY_PATH="/usr/local/cuda-12.5/lib64:/usr/local/cuda-12.5/bin:$LD_LIBRARY_PATH"
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
