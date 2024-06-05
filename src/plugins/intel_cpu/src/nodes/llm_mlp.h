@@ -33,15 +33,13 @@ public:
         virtual ~Executor() {}
     };
 
-    int get_hidden_size() {
-        return m_hidden_size;
-    }
-
 private:
     bool m_is_mlp;
     bool m_is_qkv_proj;
-    int m_hidden_size;
-    int m_intermediate_size;
+    union _config {
+        LLMQKVProjNode::Config qkv;
+        LLMMLPNode::Config mlp;
+    } m_config;
 
     std::shared_ptr<Executor> m_executor;
 };

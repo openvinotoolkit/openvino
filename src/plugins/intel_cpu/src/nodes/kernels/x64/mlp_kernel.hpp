@@ -85,7 +85,8 @@ class GateUpCombine : public dnnl::impl::cpu::x64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(GateUpCombine)
 
-    GateUpCombine() : jit_generator(jit_name()) {
+    const dnnl_alg_kind_t m_act_alg;
+    GateUpCombine(dnnl_alg_kind_t act_alg) : jit_generator(jit_name()), m_act_alg(act_alg) {
         create_kernel();
     }
 

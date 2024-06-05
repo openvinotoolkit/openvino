@@ -11,6 +11,8 @@ namespace intel_cpu {
 bool LLMMLPNode::visit_attributes(ov::AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(LLMMLPNode_visit_attributes);
     visitor.start_structure("config");
+    visitor.on_attribute("is_act_silu", m_config.is_act_silu);
+    visitor.on_attribute("is_act_gelu", m_config.is_act_gelu);
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("intermediate_size", m_config.intermediate_size);
     visitor.finish_structure();

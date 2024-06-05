@@ -12,6 +12,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -37,9 +38,10 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
     auto mlp_gate_proj = makePattern<opset1::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed},
                                                      {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
     auto mlp_silu_gate = makePattern<opset4::Swish>({mlp_gate_proj});
+    auto mlp_gelu_gate = makePattern<opset7::Gelu>({mlp_gate_proj});
     auto mlp_up_proj = makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed},
                                                    {{"transpose_a", false}, {"transpose_b", true}});
-    auto mlp_gated_up = makePattern<opset1::Multiply>({mlp_silu_gate, mlp_up_proj}, {{"auto_broadcast", "numpy"}});
+    auto mlp_gated_up = makePattern<opset1::Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj}, {{"auto_broadcast", "numpy"}});
     auto down_proj = makePattern<opset1::MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed},
                                                  {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
 
@@ -99,6 +101,8 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
 
         LLMMLPNode::Config config;
         OutputVector new_args;
+        config.is_act_silu = pattern_map.count(mlp_silu_gate) > 0;
+        config.is_act_gelu = pattern_map.count(mlp_gelu_gate) > 0;
         config.hidden_size = down_size;
         config.intermediate_size = up_size;
 

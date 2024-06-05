@@ -17,6 +17,8 @@ public:
     LLMMLPNode() = default;
 
     struct Config {
+        bool is_act_silu;
+        bool is_act_gelu;
         int hidden_size;
         int intermediate_size;
     };

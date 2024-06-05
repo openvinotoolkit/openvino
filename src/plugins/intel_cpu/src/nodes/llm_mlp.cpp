@@ -265,8 +265,18 @@ public:
     }
 
     // gate & up are interleaved: 16 gates + 16 up
-    void runGateUp(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC) {
-        static GateUpCombine jit_gateup;
+    void runGateUp(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC, const LLMMLPNode::Config& config) {
+        static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish);
+        static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh);
+
+        GateUpCombine* jit_gateup;
+        if (config.is_act_gelu)
+            jit_gateup = &jit_gateup_gelu;
+        else if (config.is_act_silu)
+            jit_gateup = &jit_gateup_silu;
+        else
+            OPENVINO_THROW("unsupported act in GateUpCombine");
+
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = getC(ithr);
@@ -280,7 +290,7 @@ public:
                 auto strideD = strideC / sizeof(*dst);
                 for (int m = 0; m < M; m++, src += strideS, dst += strideD) {
                     auto* prefetch_dst = (m + 1 < M) ? (dst + strideD) : (dst);
-                    jit_gateup(src, dst, prefetch_dst, work.BN);
+                    (*jit_gateup)(src, dst, prefetch_dst, work.BN);
                 }
             }
         });
@@ -288,12 +298,14 @@ public:
 };
 
 struct QKVProj : public LLMMLP::Executor {
-    QKVProj() {}
+    const LLMQKVProjNode::Config m_config;
     std::vector<Work> works;
 
     // q k v each have 1/3 or worker-thread
-    void setup(ov::bfloat16* wq, ov::bfloat16* wk, ov::bfloat16* wv, int N, int K) {
+    QKVProj(ov::bfloat16* wq, ov::bfloat16* wk, ov::bfloat16* wv, const LLMQKVProjNode::Config& config) : m_config(config) {
         const int blk_K_size = 256;
+        auto N = m_config.hidden_size;
+        auto K = m_config.hidden_size;
         // prepare weights, split N among threads
         // in unit of 32
         OPENVINO_ASSERT((N % 32) == 0);
@@ -417,7 +429,7 @@ struct QKVProj : public LLMMLP::Executor {
         auto input = pnode->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         uint8_t* pA = input->getDataAs<uint8_t>();
-        auto hidden_size = pnode->get_hidden_size();
+        auto hidden_size = m_config.hidden_size;
         int strideA = hidden_size * 2;
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
         auto* dst0 = pnode->getDstMemoryAtPort(0)->getDataAs<ov::bfloat16>();
@@ -429,12 +441,11 @@ struct QKVProj : public LLMMLP::Executor {
 };
 
 struct MLP : LLMMLP::Executor {
+    const LLMMLPNode::Config m_config;
     Linear gate_up;
     Linear down;
     int m_N;
     int m_M = 0;
-
-    MLP() {}
 
     // MLP is not supposed to run in parallel
     PlainTensor& get_actUp() {
@@ -445,8 +456,10 @@ struct MLP : LLMMLP::Executor {
     // [M, K] x [N, K] => [M, N] x [K, N] => [M, K]
     // w_gate/w_up : [N, K]
     //     w_down  : [K, N]
-    void setup(PlainTensor w_gate, PlainTensor w_up, PlainTensor w_down, int K, int N) {
+    MLP(PlainTensor w_gate, PlainTensor w_up, PlainTensor w_down, const LLMMLPNode::Config& config) : m_config(config) {
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
+        auto K = m_config.hidden_size;
+        auto N = m_config.intermediate_size;
         static PlainTensor w_gate_up;
         w_gate_up.resize<ov::bfloat16>({static_cast<size_t>(2 * N), static_cast<size_t>(K)});
         for (int n = 0; n < N; n += 16) {
@@ -473,7 +486,7 @@ struct MLP : LLMMLP::Executor {
             int BM = std::min(M - m, 512);
             setM(BM);
 
-            gate_up.runGateUp(pA, strideA, BM, actUp.ptr<ov::bfloat16>(), actUp.stride_bytes(0));
+            gate_up.runGateUp(pA, strideA, BM, actUp.ptr<ov::bfloat16>(), actUp.stride_bytes(0), m_config);
             down.run(reinterpret_cast<uint8_t*>(actUp.ptr<ov::bfloat16>()), actUp.stride_bytes(0), BM, dstC, strideC);
 
             m += BM;
@@ -486,7 +499,7 @@ struct MLP : LLMMLP::Executor {
         auto input = pnode->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         uint8_t* pA = input->getDataAs<uint8_t>();
-        auto hidden_size = pnode->get_hidden_size();
+        auto hidden_size = m_config.hidden_size;
         int strideA = hidden_size * sizeof(ov::bfloat16);
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
@@ -513,14 +526,10 @@ LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
     if (const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op)) {
         m_is_mlp = true;
-        m_hidden_size = node_mlp->get_config().hidden_size;
-        m_intermediate_size = node_mlp->get_config().intermediate_size;
+        m_config.mlp = node_mlp->get_config();
     } else if (const auto node_qkv = std::dynamic_pointer_cast<const LLMQKVProjNode>(op)) {
-        if (node_qkv) {
-            m_is_qkv_proj = true;
-            m_hidden_size = node_qkv->get_config().hidden_size;
-            m_intermediate_size = m_hidden_size;
-        }
+        m_is_qkv_proj = true;
+        m_config.qkv = node_qkv->get_config();
     } else {
         OPENVINO_THROW("CPU: LLMMLP got unsupported node.");
     }
@@ -558,20 +567,17 @@ void LLMMLP::prepareParams() {
 #if defined(OPENVINO_ARCH_X86_64)
     if (!m_executor) {
         if (m_is_qkv_proj) {
-            auto exec = std::make_shared<QKVProj>();
-            exec->setup(getSrcMemoryAtPort(1)->getDataAs<ov::bfloat16>(),
+            auto exec = std::make_shared<QKVProj>(
+                        getSrcMemoryAtPort(1)->getDataAs<ov::bfloat16>(),
                         getSrcMemoryAtPort(2)->getDataAs<ov::bfloat16>(),
                         getSrcMemoryAtPort(3)->getDataAs<ov::bfloat16>(),
-                        m_hidden_size,
-                        m_hidden_size);
+                        m_config.qkv);
             m_executor = exec;
         } else if (m_is_mlp) {
-            auto exec = std::make_shared<MLP>();
-            exec->setup(getSrcMemoryAtPort(1),
-                        getSrcMemoryAtPort(2),
-                        getSrcMemoryAtPort(3),
-                        m_hidden_size,
-                        m_intermediate_size);
+            auto exec = std::make_shared<MLP>(getSrcMemoryAtPort(1),
+                                              getSrcMemoryAtPort(2),
+                                              getSrcMemoryAtPort(3),
+                                              m_config.mlp);
             m_executor = exec;
         }
     }
