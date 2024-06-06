@@ -153,7 +153,6 @@ TEST_F(TransformationTestsF, NegativeTest) {
 TEST_F(TransformationTestsF, ZeroDimsInOutputShape) {
     // [A, B]
     auto shape = PartialShape{0, 0};
-    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto b = make_shared<v0::Parameter>(element::f32, PartialShape{-1});
