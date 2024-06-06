@@ -1108,6 +1108,47 @@ INSTANTIATE_TEST_SUITE_P(
     testParamsDynamicFusingFullUndefShapes,
     MatMulLayerCPUTest::getTestCaseName);
 
+
+class FCNotFuseFQCPUTest : public MatMulLayerCPUTest {
+    void SetUp() override {
+        MatMulLayerCPUTest::SetUp();
+        isFused = false;
+    }
+};
+
+TEST_P(FCNotFuseFQCPUTest, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, cpuNodeType);
+}
+
+const std::vector<ShapeRelatedParams>& notFuse_smoke() {
+    static const std::vector<ShapeRelatedParams> NOFused_smoke = {
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
+
+        {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, false}},
+        {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
+
+        {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
+        {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
+    };
+    return NOFused_smoke;
+}
+
+
+const auto notFuseTestParams_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(notFuse_smoke()),
+                                                                ::testing::Values(ElementType::f32),
+                                                                ::testing::Values(ElementType::undefined),
+                                                                ::testing::Values(ElementType::undefined),
+                                                                ::testing::Values(utils::InputLayerType::CONSTANT),
+                                                                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                                ::testing::Values(emptyAdditionalConfig())),
+                                             ::testing::Values(MatMulNodeType::FullyConnected),
+                                             ::testing::Values(notFusingFakeQuantizePerChannelOrPerTensor),
+                                             ::testing::ValuesIn(filterCPUInfo({CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"}})));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC, FCNotFuseFQCPUTest, notFuseTestParams_smoke, FCNotFuseFQCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace MatMul
 }  // namespace test

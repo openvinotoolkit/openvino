@@ -17,6 +17,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include <random>
 
 using namespace ov::test;
 
@@ -93,6 +94,7 @@ protected:
     std::shared_ptr<postOpMgr> postOpMgrPtr;
     std::vector<std::string> fusedOps;
     bool checkFusingPosition = true;
+    bool isFused = true;
 };
 
 static int getChannelAxis(const ov::AxisSet &axes, bool keep_dims) {
@@ -303,6 +305,33 @@ const auto fusingFakeQuantizePerChannel = fusingSpecificParams{std::make_shared<
                 ov::Shape newShape = generatePerChannelShape(cfg.target);
                 return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"}};
+
+const auto notFusingFakeQuantizePerChannelOrPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](postNodeConfig& cfg){
+                auto localPrc = cfg.input->get_element_type();
+                const auto shape = cfg.target->get_output_partial_shape(0);
+                const auto shapeSize = shape.size();
+                const auto channelAxis = getFusingAxis(cfg.target);
+                if (shape.size() < 2) {
+                    OPENVINO_THROW("shape.size() should not less than 2");
+                }
+                ov::Shape newShape(shapeSize, 1);
+                std::random_device rd;
+                std::mt19937 gen(rd());
+                std::uniform_int_distribution<> distrib(0, shapeSize - 1);
+                int axis = distrib(gen);
+                const int max_rand_count = 100;
+                int rand_count = 1;
+                while (axis == channelAxis || shape[axis].is_dynamic()) {
+                    axis = distrib(gen);
+                    rand_count++;
+                    if (rand_count > max_rand_count) {
+                        OPENVINO_THROW("the output shape is not suit for test");
+                    }
+                }
+                newShape[axis] = shape[axis].get_length();
+                return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
+            }, "FakeQuantize(NoPerChannelOrNoPerTensor)"}}), {"FakeQuantize"}};
 
 const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
