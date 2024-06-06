@@ -28,7 +28,7 @@ MakeStateful Transformation
 The MakeStateful transformation changes the structure of the model by replacing the
 user-defined pairs of Parameter and Results with the Assign and ReadValue operations:
 
-.. image:: ../../../_static/images/make_stateful_simple.svg
+.. image:: ../../../assets/images/make_stateful_simple.svg
    :alt: diagram of MakeStateful Transformation
    :scale: 90 %
    :align: center
@@ -44,7 +44,7 @@ Parameter/Result tensor names. If there are no tensor names,
 
 **Examples:**
 
-.. image:: ../../../_static/images/make_stateful_detailed.png
+.. image:: ../../../assets/images/make_stateful_detailed.png
    :alt: detailed diagram of MakeStateful Transformation
    :align: center
 
@@ -91,7 +91,7 @@ and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operati
 and replacing pairs of Parameter and Results with the Assign and ReadValue operations,
 as illustrated by the following example:
 
-.. image:: ../../../_static/images/applying_low_latency_2.svg
+.. image:: ../../../assets/images/applying_low_latency_2.svg
    :alt: diagram of LowLatency Transformation
    :align: center
 
@@ -162,7 +162,7 @@ Applying LowLatency2 Transformation
             :fragment: [ov:low_latency_2_use_parameters]
 
 
-   .. image:: ../../../_static/images/llt2_use_const_initializer.svg
+   .. image:: ../../../assets/images/llt2_use_const_initializer.svg
       :alt: diagram of constant subgraph initialization
       :align: center
 
@@ -184,7 +184,7 @@ Applying LowLatency2 Transformation
 4. Use state API. See sections :doc:`OpenVINO State API <../stateful-models>`,
    :ref:`Stateful Model Inference <ov_ug_stateful_model_inference>`.
 
-   .. image:: ../../../_static/images/low_latency_limitation_2.svg
+   .. image:: ../../../assets/images/low_latency_limitation_2.svg
       :alt: diagram showing low latency limitation
       :scale: 70 %
       :align: center

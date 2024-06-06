@@ -171,6 +171,8 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableDynamicImpl", "Disable dynamic implementation");
     message_list.emplace_back("OV_GPU_DisableRuntimeBufferFusing", "Disable runtime buffer fusing");
     message_list.emplace_back("OV_GPU_DisableMemoryReuse", "Disable memory reuse");
+    message_list.emplace_back("OV_GPU_EnableSDPA", "This allows the enforcement of SDPA decomposition logic: 0 completely disables SDPA kernel usage, "
+                              "and 1 enables it for all the cases.");
     message_list.emplace_back("OV_GPU_DumpMemoryPool", "Dump memory pool contents of each iteration");
     message_list.emplace_back("OV_GPU_DumpMemoryPoolIters", "List of iterations to dump memory pool status, separated by space.");
     message_list.emplace_back("OV_GPU_DumpMemoryPoolPath", "Enable dumping memory pool status to csv file and set the dest path");
@@ -232,6 +234,7 @@ debug_configuration::debug_configuration()
         , serialize_compile(0)
         , max_kernels_per_batch(0)
         , impls_cache_capacity(-1)
+        , enable_sdpa(-1)
         , disable_async_compilation(0)
         , disable_winograd_conv(0)
         , disable_dynamic_impl(0)
@@ -280,6 +283,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("ForceImplTypes", forced_impl_types_str);
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
     get_gpu_debug_env_var("ImplsCacheCapacity", impls_cache_capacity);
+    get_gpu_debug_env_var("EnableSDPA", enable_sdpa);
     get_gpu_debug_env_var("DisableAsyncCompilation", disable_async_compilation);
     get_gpu_debug_env_var("DisableWinogradConv", disable_winograd_conv);
     get_gpu_debug_env_var("DisableDynamicImpl", disable_dynamic_impl);

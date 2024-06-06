@@ -680,8 +680,6 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                     ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
-    // Note: temporary disabled. Re-enable after ticket 132833 is resolved
-    lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
@@ -723,7 +721,7 @@ void Subgraph::optimizeIR() {
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
-    lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
+    control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
 
     subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
 #endif
@@ -881,7 +879,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
     segfault_detector();
 #endif
 
-    parallel_nt(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args);
 
@@ -905,7 +903,7 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
     segfault_detector();
 #endif
 
-    parallel_nt(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args);
 

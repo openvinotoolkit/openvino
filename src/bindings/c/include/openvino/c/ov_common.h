@@ -165,7 +165,8 @@ typedef enum {
 /**
  * @enum ov_element_type_e
  * @ingroup ov_base_c_api
- * @brief This enum contains codes for element type.
+ * @brief This enum contains codes for element type, which is aligned with ov::element::Type_t in
+ * src/core/include/openvino/core/type/element_type.hpp
  */
 typedef enum {
     UNDEFINED = 0U,  //!< Undefined element type
@@ -181,7 +182,10 @@ typedef enum {
     I32,             //!< i32 element type
     I64,             //!< i64 element type
     U1,              //!< binary element type
+    U2,              //!< u2 element type
+    U3,              //!< u3 element type
     U4,              //!< u4 element type
+    U6,              //!< u6 element type
     U8,              //!< u8 element type
     U16,             //!< u16 element type
     U32,             //!< u32 element type
@@ -189,6 +193,7 @@ typedef enum {
     NF4,             //!< nf4 element type
     F8E4M3,          //!< f8e4m3 element type
     F8E5M3,          //!< f8e5m2 element type
+    STRING,          //!< string element type
 } ov_element_type_e;
 
 /**

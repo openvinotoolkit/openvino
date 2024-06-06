@@ -58,13 +58,13 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     // int8 inner_product does not support f16 output and bias
-    {{_u8 | _i8, _i8, _any, _f16},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
-    {{_u8 | _i8, _i8, _any & ~_f16, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(), use<3>())},
+    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _undefined, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
+    {{_u8 | _i8, _i8, _any, _any}, pt(bypass(), bypass(), just<f32>(), just<f32>())},
     // compresses int weights (@todo more strict requrements for output precision?)
-    {{_bf16, _u8 | _nf4 | _u4 | _i4, _any, _any},             pt(bypass(), bypass(), use<0>(), use<0>()),
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>()),
      Require<dnnl::impl::cpu::x64::avx512_core_bf16>()}, // Ticket 122347
-    {{_bf16, _u8 | _nf4 | _u4 | _i4, _any, _any},             pt(just<f32>(), bypass(), just<f32>(), just<f32>())},
-    {{_f32, _u8 | _nf4 | _u4 | _i4, _any, _any},              pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(just<f32>(), bypass(), just<f32>(), just<f32>())},
+    {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
     // @todo explicitly cover configuration limitations for oneDNN on ARM

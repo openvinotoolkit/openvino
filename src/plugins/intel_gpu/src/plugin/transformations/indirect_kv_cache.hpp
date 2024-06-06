@@ -36,11 +36,22 @@ namespace intel_gpu {
 ///              ┌────┴──────┐                                                                   ┌────┴──────┴───┐
 ///              │   Gemm    │                                                                   | IndirectGemm  |
 ///              └───────────┘                                                                   └───────────────┘
-class IndirectKVCache : public ov::pass::MatcherPass {
+class IndirectKVCache : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("IndirectKVCache", "0");
     IndirectKVCache();
 };
 
+class IndirectGemmOpt : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("IndirectGemmOpt", "0");
+    IndirectGemmOpt();
+};
+
+class IndirectSDPAOpt : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("IndirectSDPAOpt", "0");
+    IndirectSDPAOpt();
+};
 }   // namespace intel_gpu
 }   // namespace ov

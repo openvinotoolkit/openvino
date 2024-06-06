@@ -53,7 +53,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endforeach()
 
         if(OV_GENERATOR_MULTI_CONFIG)
-            if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+            if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
                 list(APPEND cmake_extra_args "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_DEFAULT_BUILD_TYPE}")
                 list(APPEND cmake_extra_args "-DCMAKE_DEFAULT_BUILD_TYPE=${CMAKE_DEFAULT_BUILD_TYPE}")
             endif()

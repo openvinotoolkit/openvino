@@ -24,6 +24,10 @@ LoopInfo::LoopInfo(size_t work_amount, size_t increment, const std::vector<Expre
         m_output_ports.emplace_back(port);
 }
 
+bool LoopInfo::is_dynamic() const {
+    return utils::is_dynamic_value(m_work_amount) || utils::is_dynamic_value(m_increment);
+}
+
 size_t LoopInfo::get_dim_idx() const {
     OPENVINO_ASSERT(!m_input_ports.empty(), "Loop info must have at least one input port");
     auto equal_dim_idxes = [&](const LoopPort& p) {
@@ -136,6 +140,10 @@ std::vector<LoopPort> LoopInfo::clone_loop_ports(const ExpressionMap& expr_map, 
     return cloned_port_points;
 }
 
+bool UnifiedLoopInfo::LoopPortDesc::is_dynamic() const {
+    return utils::is_dynamic_value(ptr_increment) || utils::is_dynamic_value(finalization_offset);
+}
+
 UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount, size_t increment,
                                  const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                                  const SpecificIterationHandlers& handlers)
@@ -171,6 +179,12 @@ std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionM
 
     return std::make_shared<UnifiedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
                                              m_input_port_descs, m_output_port_descs, m_handlers);
+}
+
+bool UnifiedLoopInfo::is_dynamic() const {
+    return LoopInfo::is_dynamic() ||
+           std::any_of(m_input_port_descs.cbegin(), m_input_port_descs.cend(), [](const LoopPortDesc& shift) { return shift.is_dynamic(); }) ||
+           std::any_of(m_output_port_descs.cbegin(), m_output_port_descs.cend(), [](const LoopPortDesc& shift) { return shift.is_dynamic(); });
 }
 
 const SpecificIterationHandlers& UnifiedLoopInfo::get_handlers() const {
@@ -307,13 +321,18 @@ void ExpandedLoopInfo::validate() const {
                     "Incompatible data ptr shifts!");
 }
 
-
 std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map) const {
     const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
     const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
     return std::make_shared<ExpandedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
                                               m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type, m_unified_loop_info);
+}
+
+bool ExpandedLoopInfo::is_dynamic() const {
+    return LoopInfo::is_dynamic() ||
+           std::any_of(m_ptr_increments.cbegin(), m_ptr_increments.cend(), [](size_t v) { return utils::is_dynamic_value(v); }) ||
+           std::any_of(m_finalization_offsets.cbegin(), m_finalization_offsets.cend(), [](size_t v) { return utils::is_dynamic_value(v); });
 }
 
 const std::shared_ptr<UnifiedLoopInfo>& ExpandedLoopInfo::get_unified_loop_info() const {

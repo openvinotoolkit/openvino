@@ -1,0 +1,58 @@
+ facebook/opt-125m,https://huggingface.co/facebook/opt-125m
+ hf-tiny-model-private/tiny-random-CodeGenForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-CodeGenForCausalLM
+hf-tiny-model-private/tiny-random-GPT2LMHeadModel,https://huggingface.co/hf-tiny-model-private/tiny-random-GPT2LMHeadModel
+hf-tiny-model-private/tiny-random-OPTForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-OPTForCausalLM
+hf-tiny-model-private/tiny-random-GPTJForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-GPTJForCausalLM
+hf-tiny-model-private/tiny-random-BloomForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-BloomForCausalLM
+hf-tiny-model-private/tiny-random-GPTNeoForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-GPTNeoForCausalLM
+hf-tiny-model-private/tiny-random-GPTNeoXForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-GPTNeoXForCausalLM
+hf-internal-testing/tiny-random-GPTNeoForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoForCausalLM
+hf-internal-testing/tiny-random-MptForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-MptForCausalLM
+hf-internal-testing/tiny-random-BloomForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BloomForCausalLM
+hf-internal-testing/tiny-random-GPTJForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTJForCausalLM
+hf-internal-testing/tiny-random-CohereForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-CohereForCausalLM
+hf-internal-testing/tiny-random-FalconForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-FalconForCausalLM
+hf-tiny-model-private/tiny-random-CodeGenForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-CodeGenForCausalLM
+hf-tiny-model-private/tiny-random-OPTForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-OPTForCausalLM
+hf-internal-testing/tiny-random-MistralForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-OPTForCausalLM
+hf-internal-testing/tiny-random-GPTNeoXForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoXForCausalLM
+hf-internal-testing/tiny-random-LlamaForCausalLM,https://huggingface.co/trl-internal-testing/tiny-random-LlamaForCausalLM
+hf-internal-testing/tiny-random-StableLmForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-StableLmForCausalLM
+hf-internal-testing/tiny-random-PhiForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-PhiForCausalLM
+hf-internal-testing/tiny-random-CodeGenForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-CodeGenForCausalLM
+hf-internal-testing/tiny-random-Starcoder2ForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-Starcoder2ForCausalLM
+hf-internal-testing/tiny-random-OPTForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-OPTForCausalLM
+hf-tiny-model-private/tiny-random-BartForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-BartForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-BigBirdForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-BigBirdForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-BigBirdPegasusForCausalLM,https://huggingface.co/hf-tiny-model-private/tiny-random-BigBirdPegasusForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-BioGptForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BioGptForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-BlenderbotSmallForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BlenderbotSmallForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-BlenderbotForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BlenderbotForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-ErnieForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-ErnieForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-GPTNeoXJapaneseForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoXJapaneseForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-MBartForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-MBartForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-MvpForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-MvpForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-PegasusForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-PegasusForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-PLBartForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-PLBartForCausalLM,xfail,not working
+hf-tiny-model-private/tiny-random-XGLMForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-XGLMForCausalLM,xfail,not working
+# PrunaAI/hf-tiny-model-private-tiny-random-BloomForCausalLM-bnb-4bit-smashed,
+# PrunaAI/hf-tiny-model-private-tiny-random-BloomForCausalLM-bnb-8bit-smashed,
+# PrunaAI/hf-tiny-model-private-tiny-random-BloomForCausalLM-HQQ-2bit-smashed,
+hf-internal-testing/tiny-random-PersimmonForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-PersimmonForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-BartForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BartForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-GPTBigCodeForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTBigCodeForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-XGLMForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-XGLMForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-PegasusForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-PegasusForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-MBartForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-MBartForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-BigBirdPegasusForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BigBirdPegasusForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-BigBirdForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BigBirdForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-MegaForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-MegaForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-RobertaPreLayerNormForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-RobertaPreLayerNormForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-BioGptForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BioGptForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-ProphetNetForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-ProphetNetForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-PLBartForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-PLBartForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-MegatronBertForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-MegatronBertForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-GPTNeoXJapaneseForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoXJapaneseForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-ErnieForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-ErnieForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-BlenderbotForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BlenderbotSmallForCausalLM,xfail,not working
+hf-internal-testing/tiny-random-BlenderbotSmallForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-BlenderbotSmallForCausalLM,xfail,not working

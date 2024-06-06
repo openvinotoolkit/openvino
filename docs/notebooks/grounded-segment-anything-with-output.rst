@@ -48,13 +48,11 @@ Clone repositories and install requirements
 
 .. code:: ipython3
 
-    %pip install -q timm --extra-index-url https://download.pytorch.org/whl/cpu  # is needed for torch
-    %pip install -q "openvino>=2024.0" "torch>=2.1" opencv-python supervision transformers yapf pycocotools addict "gradio>=4.19" tqdm
+    %pip install -q "openvino>=2024.0" "torch>=2.1" opencv-python supervision transformers yapf pycocotools addict "gradio>=4.19" tqdm timm --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -113,17 +111,17 @@ segmentation you can select vanilla ``SAM``.
 
     Cloning into 'GroundingDINO'...
     remote: Enumerating objects: 379, done.[K
-    remote: Counting objects: 100% (176/176), done.[K
-    remote: Compressing objects: 100% (65/65), done.[K
-    remote: Total 379 (delta 136), reused 111 (delta 111), pack-reused 203[K
-    Receiving objects: 100% (379/379), 14.03 MiB | 20.06 MiB/s, done.
-    Resolving deltas: 100% (195/195), done.
+    remote: Counting objects: 100% (175/175), done.[K
+    remote: Compressing objects: 100% (63/63), done.[K
+    remote: Total 379 (delta 135), reused 112 (delta 112), pack-reused 204[K
+    Receiving objects: 100% (379/379), 14.03 MiB | 27.68 MiB/s, done.
+    Resolving deltas: 100% (194/194), done.
     Cloning into 'EfficientSAM'...
     remote: Enumerating objects: 424, done.[K
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
     remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 28.00 MiB/s, done.
+    Receiving objects: 100% (424/424), 262.14 MiB | 24.66 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
 
 
@@ -360,24 +358,6 @@ Convert GroundingDINO to OpenVINO IR format
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-    TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-    TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-
-
-.. parsed-literal::
-
-    output layer_id 0 is nan
-    num_nan 230400, num_inf 0
-    output layer_id 1 is nan
-    num_nan 230400, num_inf 0
-    output layer_id 2 is nan
-    num_nan 230400, num_inf 0
-    output layer_id 3 is nan
-    num_nan 230400, num_inf 0
-    output layer_id 4 is nan
-    num_nan 230400, num_inf 0
-    output layer_id 5 is nan
-    num_nan 230400, num_inf 0
 
 
 Run OpenVINO optimized GroundingDINO
@@ -527,10 +507,10 @@ class, but the inference will be done using OpenVINO optimized model.
 
 .. parsed-literal::
 
-    2024-05-07 00:14:36.448862: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-07 00:14:36.488990: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-05-16 00:24:34.510973: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-16 00:24:34.551326: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-07 00:14:37.051985: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-05-16 00:24:35.297555: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert predicted boxes to supervision box detections format

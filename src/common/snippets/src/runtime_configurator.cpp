@@ -53,46 +53,44 @@ void RuntimeConfigurator::init_tensor_rank(const std::shared_ptr<lowered::Linear
 }
 
 void RuntimeConfigurator::init_data_info(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
-    const auto& io_exprs = linear_ir->get_IO_ops();
-    m_io_num = io_exprs.size();
-    m_io_descs.resize(m_io_num);
-    m_io_data_sizes.resize(m_io_num);
-    m_in_num = 0;
+    const auto& parameters = linear_ir->get_parameters();
+    const auto& results = linear_ir->get_results();
+    m_in_num = parameters.size();
+    m_io_num = m_in_num + results.size();
+    m_io_descs.reserve(m_io_num);
+    m_io_data_sizes.reserve(m_io_num);
 
-    size_t idx = 0;
-    for (const auto& expr : io_exprs) {
-        switch (expr->get_type()) {
-            case ov::snippets::lowered::IOExpression::io_type::INPUT: {
-                // input->shape changing ops->load
-                const auto& shape_infer_seq = ov::snippets::utils::get_first_child_shape_infer_expr_seq(expr);
-                const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
-                auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
-                for (const auto& child_input : consumer_inputs) {
-                    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(child_input.get_expr()->get_node());
-                    if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
-                        m_io_descs[idx] = child_input.get_descriptor_ptr();
-                        break;
-                    }
-                }
-                m_io_data_sizes[idx] = mem_desc_expr->get_node()->get_output_element_type(0).size();
-                m_in_num++;
+    auto update_io_parameters = [&](const snippets::lowered::PortDescriptorPtr& desc, const ov::element::Type& etype) {
+        OPENVINO_ASSERT(desc, "IO Descriptor is missed!");
+        OPENVINO_ASSERT(desc->get_shape().size() == desc->get_layout().size() || desc->get_layout().empty(),
+                        "Incompatible ranks of shape and layout!");
+        m_io_descs.push_back(desc);
+        m_io_data_sizes.push_back(etype.size());
+    };
+
+    for (const auto& param : parameters) {
+        // input->shape changing ops->load
+        snippets::lowered::PortDescriptorPtr desc = nullptr;
+        const auto& shape_infer_seq = ov::snippets::utils::get_first_child_shape_infer_expr_seq(param);
+        const auto& mem_desc_expr = shape_infer_seq.empty() ? param : shape_infer_seq.back();
+        auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
+        for (const auto& child_input : consumer_inputs) {
+            const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(child_input.get_expr()->get_node());
+            if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
+                desc = child_input.get_descriptor_ptr();
                 break;
-            }
-            case ov::snippets::lowered::IOExpression::io_type::OUTPUT: {
-                const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(expr);
-                const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
-                const auto& parent_output = mem_desc_expr->get_input_port_connector(0)->get_source();
-                m_io_descs[idx] = parent_output.get_descriptor_ptr();
-                m_io_data_sizes[idx] = expr->get_node()->get_input_element_type(0).size();
-                break;
-            } default : {
-                OPENVINO_THROW("Detected unsupported io_type");
             }
         }
-        OPENVINO_ASSERT(m_io_descs[idx], "IO Descriptor is missed!");
-        OPENVINO_ASSERT(m_io_descs[idx]->get_shape().size() == m_io_descs[idx]->get_layout().size() || m_io_descs[idx]->get_layout().size() == 0,
-                        "Incompatible ranks of shape and layout!");
-        idx++;
+        const auto& etype = mem_desc_expr->get_node()->get_output_element_type(0);
+        update_io_parameters(desc, etype);
+    }
+    for (const auto& result : results) {
+        // store->shape changing ops->result
+        const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(result);
+        const auto& mem_desc_expr = shape_infer_seq.empty() ? result : shape_infer_seq.back();
+        const auto& desc = mem_desc_expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+        const auto& etype = mem_desc_expr->get_node()->get_input_element_type(0);
+        update_io_parameters(desc, etype);
     }
 }
 

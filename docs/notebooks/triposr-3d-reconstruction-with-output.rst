@@ -69,11 +69,11 @@ Prerequisites
 
     Cloning into 'TripoSR'...
     remote: Enumerating objects: 117, done.[K
-    remote: Counting objects: 100% (113/113), done.[K
-    remote: Compressing objects: 100% (111/111), done.[K
-    remote: Total 117 (delta 36), reused 0 (delta 0), pack-reused 4 (from 1)[K
-    Receiving objects: 100% (117/117), 569.16 KiB | 2.82 MiB/s, done.
-    Resolving deltas: 100% (36/36), done.
+    remote: Counting objects: 100% (117/117), done.[K
+    remote: Compressing objects: 100% (77/77), done.[K
+    remote: Total 117 (delta 38), reused 117 (delta 38), pack-reused 0 (from 0)[K
+    Receiving objects: 100% (117/117), 568.99 KiB | 2.63 MiB/s, done.
+    Resolving deltas: 100% (38/38), done.
 
 
 Get the original model
@@ -280,7 +280,7 @@ models one by one.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:167: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:167: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_channels != self.num_channels:
 
 

@@ -200,9 +200,11 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
         original_data_shape[data_idx] = data_shape[1] / group_size;
         original_data_shape.insert(original_data_shape.begin() + data_idx + 1, group_size);
     }
-    ov::test::utils::InputGenerateData generate_data;
+
+    const auto up_to = data_precision == ov::element::i4 ? 7 : 15;
+    ov::test::utils::InputGenerateData generate_data(0, up_to);
     if (data_precision.is_signed())
-        generate_data.start_from = -5;
+        generate_data.start_from = -1;
     auto weights_tensor = ov::test::utils::create_and_fill_tensor(data_precision, original_data_shape, generate_data);
     auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
     weights->set_friendly_name("Compressed_weights");
@@ -226,7 +228,7 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
                                      scaleshift_const_shape.end());
     if (add_subtract) {
         auto shift_tensor_shape = per_tensor_zp ? ov::Shape{1} : scaleshift_const_shape;
-        auto shift_tensor = ov::test::utils::create_and_fill_tensor(data_precision, shift_tensor_shape);
+        auto shift_tensor = ov::test::utils::create_and_fill_tensor(data_precision, shift_tensor_shape, ov::test::utils::InputGenerateData(0, up_to));
         if (per_tensor_zp && data_precision.bitwidth() == 4) {
             static_cast<uint8_t*>(shift_tensor.data())[0] = 0x88;
         }

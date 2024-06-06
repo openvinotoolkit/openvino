@@ -6,6 +6,8 @@
 
 #include "pass.hpp"
 
+#include "snippets/utils.hpp"
+
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -45,6 +47,10 @@ public:
         int64_t data_size = 0;
         int64_t ptr_increment = 0;
         int64_t finalization_offset = 0;
+
+        inline bool is_static() const {
+            return !utils::is_dynamic_value(ptr_increment) && !utils::is_dynamic_value(finalization_offset);
+        }
 
         friend bool operator==(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);
         friend bool operator!=(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);

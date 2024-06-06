@@ -94,6 +94,12 @@ dnnl::memory::dims flatten_tensor(cldnn::tensor t) {
     return {static_cast<int64_t>(t.count())};
 }
 
+dnnl::memory::dims get_strides(dnnl::memory::dims dims) {
+    dnnl::memory::dims strides(dims.size(), dnnl::memory::dim(1));
+    std::partial_sum(dims.rbegin(), dims.rend() - 1, strides.rbegin() + 1, std::multiplies<dnnl::memory::dim>());
+    return strides;
+}
+
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
         case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
