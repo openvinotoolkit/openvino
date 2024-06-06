@@ -21,7 +21,8 @@ class TRANSFORMATIONS_API ReshapeOptimizations;
  * 1. all in/out dims are static, or we can match them via the symbols.
    2. only one out dim doesn't have the corresponding input static dim,
       and we can't match it using symbols. Besides that the output shape must not contain zero dims,
-      because then value -1 in 2nd input to Reshape op can't guarantee an unambiguous determination of the remaining dim value.
+      because then value -1 in 2nd input to Reshape op can't guarantee an unambiguous determination of the remaining dim
+ value.
 
       for example:
             Before:

@@ -50,7 +50,7 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
         }
 
         int64_t cnt_neg_ones = std::count(output_pattern.begin(), output_pattern.end(), -1);
-        if ( cnt_neg_ones == 0 || (cnt_neg_ones == 1 && cnt_static_zeros == 0)) {
+        if (cnt_neg_ones == 0 || (cnt_neg_ones == 1 && cnt_static_zeros == 0)) {
             auto new_pattern = ov::op::v0::Constant::create(element::i64, Shape{output_pattern.size()}, output_pattern);
             ov::copy_runtime_info(reshape->get_input_node_shared_ptr(1), new_pattern);
             reshape->set_special_zero(true);
