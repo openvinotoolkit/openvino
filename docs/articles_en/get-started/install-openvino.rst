@@ -33,7 +33,7 @@ Install OpenVINO™ 2024.2
 
    Moreover, different OpenVINO distributions may support slightly different sets of features.
    Read installation guides for particular distributions for more details.
-   Refer to the :doc:`OpenVINO Release Policy <../documentation/about-openvino/release-notes-openvino/release-policy>`
+   Refer to the :doc:`OpenVINO Release Policy <../../../about-openvino/release-notes-openvino/release-policy>`
    to learn more about the release types.
 
    .. dropdown:: Distribution Comparison for OpenVINO 2024.2
