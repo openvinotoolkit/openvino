@@ -104,12 +104,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
-    // Check if backend in plugin is available
+    // Check if backend in plugin is available for inference
     if (std::dynamic_pointer_cast<const Plugin>(get_plugin())->is_backend_empty()) {
-        _logger.error("Cannot find backend in inference. Make sure the device is available!");
-        throw "ERROR Cannot find backend before inference";
+        _logger.error("Cannot find backend in inference, will lead to failure. Make sure the device is available!");
     } else {
-        _logger.info("backend is ready for inference.");
+        _logger.info("Backend is ready for inference.");
     }
 
     if (_executorPtr == nullptr && _device != nullptr) {
