@@ -32,7 +32,7 @@ latency hint ``ov::hint::PerformanceMode::LATENCY`` and the throughput hint
 - ``ov::hint::enable_cpu_pinning`` enables CPU pinning during CPU inference.
   If the user enables this property but the inference scenario does not support it, this property will be disabled during model compilation.
 
-For additional details on the above configurations, refer to `Multi-stream Execution <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html#multi-stream-execution>`__
+For additional details on the above configurations, refer to `Multi-stream Execution <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html#multi-stream-execution>`__.
 
 Latency Hint
 ###################################
