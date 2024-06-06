@@ -182,6 +182,7 @@ protected:
     std::vector<LoopPort> m_input_ports = {};
     std::vector<LoopPort> m_output_ports = {};
 
+    // TODO [143394] : All static values in compilation stage should be `is_const=True` (not only `work_amount`)
     // If True, no one pass can rewrite the value of `m_work_amount`
     bool m_is_work_amount_const = false;
 };
