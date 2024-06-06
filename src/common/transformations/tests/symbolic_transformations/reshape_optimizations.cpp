@@ -149,3 +149,28 @@ TEST_F(TransformationTestsF, NegativeTest) {
         manager.register_pass<pass::ReshapeOptimizations>();
     }
 }
+
+TEST_F(TransformationTestsF, ZeroDimsInOutputShape) {
+    // [A, B]
+    auto shape = PartialShape{0, 0};
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B
+    {
+        auto data = make_shared<v0::Parameter>(element::f32, shape);
+        auto b = make_shared<v0::Parameter>(element::f32, PartialShape{-1});
+
+        auto a = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+
+        auto shape_of = make_shared<v3::ShapeOf>(b);
+        auto indices = ov::op::v0::Constant::create(element::i64, {1}, {0});
+        auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+        auto b_dim = make_shared<v1::Gather>(shape_of, indices, axis);
+
+        //auto b = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+        auto pattern = make_shared<v0::Concat>(OutputVector{a, b_dim}, 0);
+
+        auto reshape = make_shared<v1::Reshape>(data, pattern, false);
+
+        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data, b});
+        manager.register_pass<pass::ReshapeOptimizations>();
+    }
+}

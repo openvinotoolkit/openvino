@@ -34,16 +34,23 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
         const auto& out_shape = reshape->get_output_partial_shape(0);
         const auto& out_rank = out_shape.size();
 
+        int64_t cnt_static_zeros = 0;
         std::vector<int64_t> output_pattern(out_rank, -1);
         for (size_t i = 0; i < out_rank; ++i) {
-            if (out_shape[i].is_static())
+            if (out_shape[i].is_static()) {
                 output_pattern[i] = out_shape[i].get_length();
-            else if (i >= in_rank)
+                if (output_pattern[i] == 0) {
+                    ++cnt_static_zeros;
+                }
+            } else if (i >= in_rank) {
                 break;
-            else if (dims_are_equal(in_shape[i], out_shape[i]))
+            } else if (dims_are_equal(in_shape[i], out_shape[i])) {
                 output_pattern[i] = 0;
+            }
         }
-        if (std::count(output_pattern.begin(), output_pattern.end(), -1) <= 1) {
+
+        int64_t cnt_neg_ones = std::count(output_pattern.begin(), output_pattern.end(), -1);
+        if ( cnt_neg_ones == 0 || (cnt_neg_ones == 1 && cnt_static_zeros == 0)) {
             auto new_pattern = ov::op::v0::Constant::create(element::i64, Shape{output_pattern.size()}, output_pattern);
             ov::copy_runtime_info(reshape->get_input_node_shared_ptr(1), new_pattern);
             reshape->set_special_zero(true);
