@@ -1491,18 +1491,18 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             break;
         case Datatype::BF16:
             type = "ushort";
-            max_val = "FLT_MAX";
-            min_val = "-" + macroName + "_VAL_MAX";
+            max_val = "USHRT_MAX";
+            min_val = "0";
             val_one = "1.0f";
             val_zero = "0.0f";
             to_type = "intel_convert_bfloat16_as_destType(v)";
             to_type_sat = "intel_convert_bfloat16_as_destType(v)";
             as_type = "intel_convert_bfloat16_as_destType(v)";
-            max_func = "fmax";
-            min_func = "fmin";
-            abs_func = "fabs";
+            max_func = "max";
+            min_func = "min";
+            abs_func = "abs";
             type_size = "2";
-            is_fp = true;
+            is_fp = false;
             break;
         default:
             type = "float";
