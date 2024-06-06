@@ -79,7 +79,7 @@ std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
     OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()),
                               "If offset is dynamic, memory emitter need to have one aux gpr at least!");
     auto available_aux_gprs = aux_gpr_idxs;
-    if (!aux_gpr_idxs.empty())
+    if (is_offset_runtime)
         available_aux_gprs.pop_back();
     return available_aux_gprs;
 }
@@ -89,7 +89,7 @@ void jit_memory_emitter::emit_code(const std::vector<size_t> &in_idxs, const std
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
-    Reg64 aux_gpr = is_offset_runtime ? Reg64(static_cast<int>(aux_gpr_idxs[0])) : Reg64();
+    Reg64 aux_gpr = is_offset_runtime ? Reg64(static_cast<int>(aux_gpr_idxs.back())) : Reg64();
 
     Reg64 data_reg;
     if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
