@@ -12,7 +12,7 @@ on:
         type: string
         required: true
       runner:
-        description: 'Machine on which the tests would run'
+        description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
         type: string
         required: true
       container:
