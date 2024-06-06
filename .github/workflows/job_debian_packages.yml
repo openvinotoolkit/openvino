@@ -15,6 +15,9 @@ on:
 
 permissions: read-all
 
+env:
+  PYTHON_VERSION: '3.11'
+
 jobs:
   Debian_Packages:
     name: Debian Packages
@@ -42,13 +45,27 @@ jobs:
       - name: Setup Variables
         run: echo "DEBIAN_PACKAGES_DIR=$GITHUB_WORKSPACE/packages" >> "$GITHUB_ENV"
 
+      - name: Fetch setup_python action
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
       - name: Install debian packages & check conflicts
         run: |
           apt-get update -y
 
           if [[ "${{ runner.arch }}" == "X64" ]]; then
-            apt-get install --no-install-recommends -y gnupg wget ca-certificates
             # Install debian packages from previous release
+            apt-get install --no-install-recommends -y gnupg wget ca-certificates
             wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu22 main" | tee /etc/apt/sources.list.d/intel-openvino-2024.list
