@@ -24,9 +24,15 @@ static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();
 
+    size_t gather_rank = 0;
+    if (config.gather_position_arg_id > 0) {
+        gather_rank = op->get_input_partial_shape(config.gather_position_arg_id).size();
+    }
+
     auto rope = cldnn::rope(layer_type_name_ID(op),
                             inputs,
-                            config);
+                            config,
+                            gather_rank);
 
     p.add_primitive(*op, rope);
 }

@@ -18,5 +18,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwen7b,
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestQwen7b::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLlama2,
+                         RoPETestLlama2,
+                         ::testing::Values(ov::test::utils::DEVICE_GPU),
+                         RoPETestLlama2::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov
