@@ -118,8 +118,12 @@ public:
 
         runtimeType = getNetType();
         auto it = configuration.find(ov::hint::inference_precision.name());
-        if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+        ov::element::Type inference_precision = (it != configuration.end()) ?
+                                                it->second.as<ov::element::Type>() : ov::element::undefined;
+        if (inference_precision == ov::element::bf16) {
             runtimeType = ov::element::Type_t::bf16;
+        } else if (inference_precision == ov::element::f16) {
+            runtimeType = ov::element::Type_t::f16;
         }
 
         if (inputParams.front()->get_element_type() == ov::element::i8 || inputParams.front()->get_element_type() == ov::element::u8) {
@@ -138,12 +142,25 @@ public:
 
 protected:
     bool primTypeCheck(std::string primType) const override {
-        auto isaType = getISA(runtimeType == ov::element::Type_t::f32);
+        bool skip_amx = false;
+        switch (runtimeType) {
+            case ov::element::Type_t::f32:
+                skip_amx = true;
+                break;
+            case ov::element::Type_t::f16:
+                skip_amx = ov::with_cpu_x86_avx512_core_amx_fp16() ? false : true;
+                break;
+            case ov::element::Type_t::bf16:
+                skip_amx = false;
+                break;
+            default:
+                skip_amx = false;
+        }
+        auto isaType = getISA(skip_amx);
         const std::regex jit_case_regex(makeSelectedTypeStr(std::string("jit_") + isaType, runtimeType),
                                         std::regex_constants::icase);
         const std::regex brgconv_case_regex(makeSelectedTypeStr(std::string("brgconv_") + isaType, runtimeType),
                                             std::regex_constants::icase);
-
         if (isaType == "")
             return primType == "ref";
         else
@@ -163,22 +180,6 @@ protected:
 TEST_P(ConvSumInPlaceTest, CompareWithRefs) {
     run();
 
-    CheckPluginRelatedResults(compiledModel, "Convolution");
-}
-
-class ConvSumInPlaceTest_FP16 : public ConvSumInPlaceTest {
-public:
-    bool primTypeCheck(std::string primType) const override {
-        auto isaType = getISA(!ov::with_cpu_x86_avx512_core_amx_fp16());
-        if (isaType == "")
-            return primType == "ref";
-        else
-            return  primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, ov::element::f16);
-    }
-};
-
-TEST_P(ConvSumInPlaceTest_FP16, CompareWithRefs) {
-    run();
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
@@ -484,14 +485,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16,
                          ConvSumInPlaceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP16,
-                         ConvSumInPlaceTest_FP16,
+                         ConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSetFP16),
                                  ::testing::Values(cpu_f16_plugin_config)),
-                         ConvSumInPlaceTest_FP16::getTestCaseName);
+                         ConvSumInPlaceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConvSumInPlaceTestInt8,
                          ::testing::Combine(
