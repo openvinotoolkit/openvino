@@ -31,11 +31,6 @@ public:
                                              const TensorMap& external_tensor_map = {},
                                              const std::shared_ptr<jax::InputModel>& input_model = nullptr);
 
-    /// \brief Returns reverseprop operations for direct operation
-    Output<Node> get_reverseprop_op(const std::shared_ptr<JaxDecoder>& node,
-                                    const Output<Node>& direct_op_output,
-                                    const Output<Node>& value);
-
     /// \brief Writes jax tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,
                             size_t tensor_idx,

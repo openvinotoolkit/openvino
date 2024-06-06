@@ -10,10 +10,6 @@ import numpy as np
 from openvino.runtime import op, Type as OVType, Shape, Tensor
 from openvino.runtime import opset11 as ops
 
-
-
-
-
 jax_to_ov_type_map = {
     np.dtypes.Float32DType: OVType.f32,
     np.dtypes.BoolDType: OVType.boolean,

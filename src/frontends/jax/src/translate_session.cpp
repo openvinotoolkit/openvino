@@ -356,28 +356,6 @@ size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
     return static_cast<size_t>(std::stoll(name));
 }
 
-using ReversepropCreatorFunction = std::function<ov::Output<ov::Node>(const Output<Node>&, const Output<Node>&)>;
-
-Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<JaxDecoder>& node,
-                                                  const Output<Node>& direct_op_output,
-                                                  const Output<Node>& value) {
-    std::map<std::string, ReversepropCreatorFunction> backprop_map = {};
-
-    Output<Node> backprop_node;
-    try {
-        auto it = backprop_map.find(node->get_op_type());
-        if (it != backprop_map.end()) {
-            return it->second(direct_op_output, value);
-        }
-
-    } catch (std::exception& e) {
-        OPENVINO_DEBUG << "Exception happened during conversion of backprop op: " << node->get_op_type() << ": "
-                       << e.what();
-    }
-    // Create PtFrameworkNode representing unconverted backprop operation
-    return std::make_shared<JaxFrameworkNode>(node, OutputVector{value}, 1, true);
-}
-
 }  // namespace jax
 }  // namespace frontend
 }  // namespace ov
