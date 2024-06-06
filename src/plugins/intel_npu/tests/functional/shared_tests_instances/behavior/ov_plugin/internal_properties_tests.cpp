@@ -149,26 +149,17 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
 }
 
 const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
-    {{ov::internal::exclusive_async_requests.name(), true},
-     {ov::intel_npu::platform.name(), "NPU"}},
-    {{ov::intel_npu::dpu_groups.name(), 1},
-     {ov::intel_npu::platform.name(), "NPU"}},
-    {{ov::intel_npu::dma_engines.name(), 1},
-     {ov::intel_npu::platform.name(), "NPU"}},
-    {{ov::intel_npu::compilation_mode.name(), "DefaultHW"},
-     {ov::intel_npu::platform.name(), "NPU"}},
-    {{ov::intel_npu::compilation_mode_params.name(), "dump-task-stats=false propagate-quant-dequant=0"},
-     {ov::intel_npu::platform.name(), "NPU"}},
+    {{ov::internal::exclusive_async_requests.name(), true}},
+    {{ov::intel_npu::dpu_groups.name(), 1}},
+    {{ov::intel_npu::dma_engines.name(), 1}},
+    {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
+    {{ov::intel_npu::compilation_mode_params.name(), "dump-task-stats=false propagate-quant-dequant=0"}},
     {{ov::intel_npu::platform.name(),
       removeDeviceNameOnlyID("NPU")}},
-    {{ov::intel_npu::stepping.name(), 0},
-     {ov::intel_npu::platform.name(), "NPU"}},
-    {{ov::intel_npu::max_tiles.name(), 2},
-     {ov::intel_npu::platform.name(), "NPU"}},
-    {{ov::intel_npu::use_elf_compiler_backend.name(), ov::intel_npu::ElfCompilerBackend::NO},
-     {ov::intel_npu::platform.name(), "NPU"}},
-    {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER},
-     {ov::intel_npu::platform.name(), "NPU"}},
+    {{ov::intel_npu::stepping.name(), 0}},
+    {{ov::intel_npu::max_tiles.name(), 2}},
+    {{ov::intel_npu::use_elf_compiler_backend.name(), ov::intel_npu::ElfCompilerBackend::NO}},
+    {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}
 };
 
 const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
