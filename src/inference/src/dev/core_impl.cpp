@@ -490,6 +490,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
 #ifndef __EMSCRIPTEN__
     if (ov::util::is_symlink_or_hardlink(xml_config_file)) {
+        std::cout << xml_config_file << std::endl;
         OPENVINO_THROW("Cannot register plugins " + xml_config_file + ". The path is a symlink or hardlink");
     }
 #endif
@@ -1186,12 +1187,6 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
     }
 
     PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
-#ifndef __EMSCRIPTEN__
-    if (ov::util::is_symlink_or_hardlink(desc.libraryLocation)) {
-        OPENVINO_THROW("Cannot register plugin " + ov::util::from_file_path(desc.libraryLocation) +
-                       ". The path is a symlink or hardlink");
-    }
-#endif
     register_plugin_in_registry_unsafe(device_name, desc);
 }
 
