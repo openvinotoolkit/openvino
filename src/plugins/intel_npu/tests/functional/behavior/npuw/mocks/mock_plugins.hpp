@@ -7,7 +7,6 @@
 #include <gmock/gmock.h>
 
 #include <memory>
-#include <utility>
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
