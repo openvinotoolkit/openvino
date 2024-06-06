@@ -12,6 +12,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -37,9 +38,10 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
     auto mlp_gate_proj = makePattern<opset1::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed},
                                                      {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
     auto mlp_silu_gate = makePattern<opset4::Swish>({mlp_gate_proj});
+    auto mlp_gelu_gate = makePattern<opset7::Gelu>({mlp_gate_proj});
     auto mlp_up_proj = makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed},
                                                    {{"transpose_a", false}, {"transpose_b", true}});
-    auto mlp_gated_up = makePattern<opset1::Multiply>({mlp_silu_gate, mlp_up_proj}, {{"auto_broadcast", "numpy"}});
+    auto mlp_gated_up = makePattern<opset1::Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj}, {{"auto_broadcast", "numpy"}});
     auto down_proj = makePattern<opset1::MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed},
                                                  {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
 
@@ -89,9 +91,18 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         if (down_shape[1] != up_size)
             return false;
 
+        //  Limitation: MLP kernel requires K dimension to be multiple of 256
+        if ((up_size % 256) != 0) {
+            return false;
+        }
+        if ((down_size % 256) != 0) {
+            return false;
+        }
+
         LLMMLPNode::Config config;
         OutputVector new_args;
-        config.is_qkv_proj = false;
+        config.is_act_silu = pattern_map.count(mlp_silu_gate) > 0;
+        config.is_act_gelu = pattern_map.count(mlp_gelu_gate) > 0;
         config.hidden_size = down_size;
         config.intermediate_size = up_size;
 
@@ -112,104 +123,6 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         ov::replace_node(old_node, new_node);
 
         std::cout << "MLPFusion:" << old_node->get_friendly_name() << std::endl;
-        return true;
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
-    MATCHER_SCOPE(QKVProjFusion);
-
-    auto input = makePattern("f32[?,?,?]");
-
-    auto q_proj_weight = makePattern<opset1::Constant>({});
-    auto q_proj_weight_cvt =
-        makePattern<opset1::Convert>({q_proj_weight}, {{"destination_type", "f32"}});  //  [4096,4096]
-    auto q_proj = makePattern<opset1::MatMul>({input, q_proj_weight_cvt | q_proj_weight},
-                                              {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
-    auto result = q_proj;
-
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto root = m.get_match_root();
-
-        auto src = pattern_map.at(input);
-
-        auto&& children = src.get_target_inputs();
-
-        if (children.size() < 3) {
-            return false;
-        }
-
-        OutputVector args = {src};
-        OutputVector outputs;
-        ov::Shape proj_weight_shape;
-        for (auto& child : children) {
-            auto mm = dynamic_cast<opset1::MatMul*>(child.get_node());
-            if (!mm) {
-                // maybe a ShapeOf
-                continue;
-            }
-            if (mm->get_transpose_a() != false || mm->get_transpose_b() != true) {
-                return false;
-            }
-            auto constw = ov::as_type_ptr<opset1::Constant>(mm->input_value(1).get_node_shared_ptr());
-            if (!constw) {
-                auto cvt = ov::as_type_ptr<opset1::Convert>(mm->input_value(1).get_node_shared_ptr());
-                if (!cvt) {
-                    return false;
-                }
-                constw = ov::as_type_ptr<opset1::Constant>(cvt->input_value(0).get_node_shared_ptr());
-            }
-            if (!constw) {
-                return false;
-            }
-
-            // make sure all weights are the same
-            if (proj_weight_shape.empty()) {
-                proj_weight_shape = constw->get_shape();
-            } else if (proj_weight_shape != constw->get_shape()) {
-                return false;
-            }
-
-            args.push_back(constw);
-            outputs.push_back(mm->get_default_output());
-        }
-
-        // make sure just 3 projections are found
-        if (outputs.size() != 3) {
-            return false;
-        }
-
-        if (proj_weight_shape[0] != proj_weight_shape[1]) {
-            return false;
-        }
-
-        LLMMLPNode::Config config;
-        config.is_qkv_proj = true;
-        config.hidden_size = proj_weight_shape[0];
-        config.intermediate_size = proj_weight_shape[0] * 3;
-
-        auto old_node = root;
-        auto new_node = std::make_shared<LLMMLPNode>(args, config);
-        new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({old_node}, new_node);
-
-        for (size_t i = 0; i < outputs.size(); i++) {
-            auto target = outputs[i].get_node_shared_ptr();
-            outputs[i].replace(new_node->output(i));
-            new_node->add_node_control_dependents(target);
-            new_node->add_node_control_dependencies(target);
-            target->clear_control_dependents();
-        }
-        std::cout << "QKVProjFusion:" << old_node->get_friendly_name() << std::endl;
         return true;
     };
 

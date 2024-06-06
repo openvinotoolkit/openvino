@@ -245,6 +245,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"EmbeddingBagPacked", Type::EmbeddingBagPacked},
         {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
         {"LLMMLP", Type::LLMMLP},
+        {"LLMQKVProj", Type::LLMMLP},
     };
     return type_to_name_tbl;
 }

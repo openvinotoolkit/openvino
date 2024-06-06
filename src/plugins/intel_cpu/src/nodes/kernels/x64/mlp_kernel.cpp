@@ -284,7 +284,7 @@ void GateUpCombine::generate() {
     // when save_state is false, push/pop will not be generated.
     auto injector = std::make_shared<jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::avx512_core>>(
         this,
-        dnnl_eltwise_swish,
+        m_act_alg,
         1.f,
         1.0f,
         1.f,

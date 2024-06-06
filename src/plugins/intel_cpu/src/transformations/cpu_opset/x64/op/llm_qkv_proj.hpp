@@ -10,17 +10,19 @@
 namespace ov {
 namespace intel_cpu {
 
-class LLMMLPNode : public ov::op::Op {
+class LLMQKVProjNode : public ov::op::Op {
 public:
-    OPENVINO_OP("LLMMLP", "cpu_plugin_opset");
+    OPENVINO_OP("LLMQKVProj", "cpu_plugin_opset");
 
-    LLMMLPNode() = default;
+    LLMQKVProjNode() = default;
 
     struct Config {
-        bool is_act_silu;
-        bool is_act_gelu;
+        // Fused QKV projection has 3 outputs:
+        //   input   :    [M, L, hidden_size]
+        // output q_proj: [M, L, hidden_size]
+        // output k_proj: [M, L, hidden_size]
+        // output v_proj: [M, L, hidden_size]
         int hidden_size;
-        int intermediate_size;
     };
 
     // args:
@@ -28,7 +30,7 @@ public:
     //      1: gate_proj
     //      2: up_proj
     //      3: down_proj
-    LLMMLPNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
+    LLMQKVProjNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
         validate_and_infer_types();
     }
 
