@@ -67,8 +67,39 @@ inline arm_compute::TensorShape shapeCast(const VectorDims& dims) {
     return tensorShape;
 }
 
-inline std::size_t axisCast(const std::size_t axis, const std::size_t shapeSize) {
-    return shapeSize - axis - 1;
+enum ACLAxisCastMode {
+    NO_LAYOUT_CONVERSION,
+    NHWC_TO_NCHW,
+    NCHW_TO_NHWC
+};
+
+/**
+* @brief Return reverted axis used in ACL. If axis cast mode is  
+* @param axis axis that needs to be converted
+* @param shapeSize size of the shape, which axis needs to be converted
+* @param axisCastMode specifies whether layout conversion is required or not
+* @return reverted axis
+*/
+inline int axisCast(const std::size_t axis, const std::size_t shapeSize, ACLAxisCastMode axisCastMode = NO_LAYOUT_CONVERSION) {
+    size_t revertedAxis = shapeSize - axis - 1;
+    switch (axisCastMode) {
+        // CWHN (reverted NHWC) (0, 1, 2, 3) into WHCN (reverted NCHW) (1, 2, 0, 3)
+        case NHWC_TO_NCHW:
+            if (revertedAxis == 0) return 1;
+            if (revertedAxis == 1) return 2;
+            if (revertedAxis == 2) return 0;
+            if (revertedAxis == 3) return 3;
+            return -1;
+        // WHCN (reverted NCHW) (0, 1, 2, 3) into CWHN (reverted NHWC) (2, 0, 1, 3)
+        case NCHW_TO_NHWC:
+            if (revertedAxis == 0) return 2;
+            if (revertedAxis == 1) return 0;
+            if (revertedAxis == 2) return 1;
+            if (revertedAxis == 3) return 3;
+            return -1;
+        default:
+            return revertedAxis;
+    }
 }
 
 inline Dim vectorProduct(const VectorDims& vec, size_t size) {

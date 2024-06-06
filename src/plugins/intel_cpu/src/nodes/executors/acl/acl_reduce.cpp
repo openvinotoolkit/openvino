@@ -52,25 +52,18 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
 
-    //convert CWHN (reverted NHWC) (0, 1, 2, 3) into WHCN (reverted NCHW) (1, 2, 0, 3)
-    auto getAxeNchwLayout = [](int axis) -> int {
-        if (axis == 0) return 1;
-        if (axis == 1) return 2;
-        if (axis == 2) return 0;
-        if (axis == 3) return 3;
-        return -1;
-    };
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
+    std::vector<int> castedAxes;
+    for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
+        int axis = axisCast(reduceAttrs.axes[i], srcDims.size(), srcDescs[0]->hasLayoutType(LayoutType::nspc) ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
+        if (axis == -1) return false;
+        castedAxes.push_back(axis);
+    }
     switch (reduceAttrs.operation) {
         case Algorithm::ReduceMean: {
             for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-                int axe = axisCast(reduceAttrs.axes[i], srcDims.size());
                 auto pos = axisCast(i, reduceAttrs.axes.size());
-                if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
-                    axe = getAxeNchwLayout(axe);
-                    if (axe == -1) return false;
-                }
-                axesMean.set(pos, axe);
+                axesMean.set(pos, castedAxes[i]);
             }
             Status reduceMeanStatus = NEReduceMean::validate(&srcTensorInfo, axesMean, reduceAttrs.keepDims, &dstTensorInfo);
             if (!reduceMeanStatus) {
@@ -88,20 +81,15 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
         case Algorithm::ReduceMin:
         case Algorithm::ReduceSum:
         case Algorithm::ReduceProd: {
-            int axis = axisCast(reduceAttrs.axes[0], srcDims.size());
-            if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
-                axis = getAxeNchwLayout(axis);
-                if (axis == -1) return false;
-            }
-            Status reductionOperationStatus = NEReductionOperation::validate(&srcTensorInfo, &dstTensorInfo, axis,
+            Status reductionOperationStatus = NEReductionOperation::validate(&srcTensorInfo, &dstTensorInfo, castedAxes[0],
                                                                              getAclReductionOperationByAlgorithm(reduceAttrs.operation), reduceAttrs.keepDims);
             if (!reductionOperationStatus) {
                 DEBUG_LOG("NEReductionOperation validation with indices failed: ", reductionOperationStatus.error_description());
                 return false;
             }
-            exec_func = [this, axis]() -> std::unique_ptr<IFunction> {
+            exec_func = [this, castedAxes]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEReductionOperation>();
-                acl_op->configure(&srcTensor, &dstTensor, axis,
+                acl_op->configure(&srcTensor, &dstTensor, castedAxes[0],
                                     getAclReductionOperationByAlgorithm(this->reduceAttrs.operation), this->reduceAttrs.keepDims);
                 return acl_op;
             };
