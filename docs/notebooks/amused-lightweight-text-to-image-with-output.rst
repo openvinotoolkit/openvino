@@ -65,12 +65,12 @@ Load and run the original pipeline
 
     import torch
     from diffusers import AmusedPipeline
-    
-    
+
+
     pipe = AmusedPipeline.from_pretrained(
         "amused/amused-256",
     )
-    
+
     prompt = "kind smiling ghost"
     image = pipe(prompt, generator=torch.Generator("cpu").manual_seed(8)).images[0]
     image.save("text2image_256.png")
@@ -130,8 +130,8 @@ Define paths for converted models:
 .. code:: ipython3
 
     from pathlib import Path
-    
-    
+
+
     TRANSFORMER_OV_PATH = Path("models/transformer_ir.xml")
     TEXT_ENCODER_OV_PATH = Path("models/text_encoder_ir.xml")
     VQVAE_OV_PATH = Path("models/vqvae_ir.xml")
@@ -144,10 +144,10 @@ file.
 .. code:: ipython3
 
     import torch
-    
+
     import openvino as ov
-    
-    
+
+
     def convert(model: torch.nn.Module, xml_path: str, example_input):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -155,7 +155,7 @@ file.
             with torch.no_grad():
                 converted_model = ov.convert_model(model, example_input=example_input)
             ov.save_model(converted_model, xml_path, compress_to_fp16=False)
-    
+
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -172,17 +172,17 @@ Convert the Text Encoder
         def __init__(self, text_encoder):
             super().__init__()
             self.text_encoder = text_encoder
-    
+
         def forward(self, input_ids=None, return_dict=None, output_hidden_states=None):
             outputs = self.text_encoder(
                 input_ids=input_ids,
                 return_dict=return_dict,
                 output_hidden_states=output_hidden_states,
             )
-    
+
             return outputs.text_embeds, outputs.last_hidden_state, outputs.hidden_states
-    
-    
+
+
     input_ids = pipe.tokenizer(
         prompt,
         return_tensors="pt",
@@ -190,13 +190,13 @@ Convert the Text Encoder
         truncation=True,
         max_length=pipe.tokenizer.model_max_length,
     )
-    
+
     input_example = {
         "input_ids": input_ids.input_ids,
         "return_dict": torch.tensor(True),
         "output_hidden_states": torch.tensor(True),
     }
-    
+
     convert(TextEncoderWrapper(pipe.text_encoder), TEXT_ENCODER_OV_PATH, input_example)
 
 
@@ -239,7 +239,7 @@ Convert the U-ViT transformer
         def __init__(self, transformer):
             super().__init__()
             self.transformer = transformer
-    
+
         def forward(
             self,
             latents=None,
@@ -253,21 +253,21 @@ Convert the U-ViT transformer
                 pooled_text_emb=pooled_text_emb,
                 encoder_hidden_states=encoder_hidden_states,
             )
-    
-    
+
+
     shape = (1, 16, 16)
     latents = torch.full(shape, pipe.scheduler.config.mask_token_id, dtype=torch.long)
     latents = torch.cat([latents] * 2)
-    
-    
+
+
     example_input = {
         "latents": latents,
         "micro_conds": torch.rand([2, 5], dtype=torch.float32),
         "pooled_text_emb": torch.rand([2, 768], dtype=torch.float32),
         "encoder_hidden_states": torch.rand([2, 77, 768], dtype=torch.float32),
     }
-    
-    
+
+
     pipe.transformer.eval()
     w_transformer = TransformerWrapper(pipe.transformer)
     convert(w_transformer, TRANSFORMER_OV_PATH, example_input)
@@ -286,7 +286,7 @@ suitable. This function repeats part of ``AmusedPipeline``.
         shape = (1, 16, 16)
         latents = torch.full(shape, pipe.scheduler.config.mask_token_id, dtype=torch.long)
         model_input = torch.cat([latents] * 2)
-    
+
         model_output = pipe.transformer(
             model_input,
             micro_conds=torch.rand([2, 5], dtype=torch.float32),
@@ -296,38 +296,38 @@ suitable. This function repeats part of ``AmusedPipeline``.
         guidance_scale = 10.0
         uncond_logits, cond_logits = model_output.chunk(2)
         model_output = uncond_logits + guidance_scale * (cond_logits - uncond_logits)
-    
+
         latents = pipe.scheduler.step(
             model_output=model_output,
             timestep=torch.tensor(0),
             sample=latents,
         ).prev_sample
-    
+
         return latents
-    
-    
+
+
     class VQVAEWrapper(torch.nn.Module):
         def __init__(self, vqvae):
             super().__init__()
             self.vqvae = vqvae
-    
+
         def forward(self, latents=None, force_not_quantize=True, shape=None):
             outputs = self.vqvae.decode(
                 latents,
                 force_not_quantize=force_not_quantize,
                 shape=shape.tolist(),
             )
-    
+
             return outputs
-    
-    
+
+
     latents = get_latents()
     example_vqvae_input = {
         "latents": latents,
         "force_not_quantize": torch.tensor(True),
         "shape": torch.tensor((1, 16, 16, 64)),
     }
-    
+
     convert(VQVAEWrapper(pipe.vqvae), VQVAE_OV_PATH, example_vqvae_input)
 
 
@@ -353,8 +353,8 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
-    
+
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -362,7 +362,7 @@ Select device from dropdown list for running inference using OpenVINO.
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -387,29 +387,29 @@ wrapper classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     from collections import namedtuple
-    
-    
+
+
     class ConvTextEncoderWrapper(torch.nn.Module):
         def __init__(self, text_encoder, config):
             super().__init__()
             self.config = config
             self.text_encoder = text_encoder
-    
+
         def forward(self, input_ids=None, return_dict=None, output_hidden_states=None):
             inputs = {
                 "input_ids": input_ids,
                 "return_dict": return_dict,
                 "output_hidden_states": output_hidden_states,
             }
-    
+
             outs = self.text_encoder(inputs)
-    
+
             outputs = namedtuple("CLIPTextModelOutput", ("text_embeds", "last_hidden_state", "hidden_states"))
-    
+
             text_embeds = torch.from_numpy(outs[0])
             last_hidden_state = torch.from_numpy(outs[1])
             hidden_states = list(torch.from_numpy(out) for out in outs.values())[2:]
-    
+
             return outputs(text_embeds, last_hidden_state, hidden_states)
 
 .. code:: ipython3
@@ -419,7 +419,7 @@ wrapper classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
             super().__init__()
             self.config = config
             self.transformer = transformer
-    
+
         def forward(self, latents=None, micro_conds=None, pooled_text_emb=None, encoder_hidden_states=None, **kwargs):
             outputs = self.transformer(
                 {
@@ -430,7 +430,7 @@ wrapper classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 },
                 share_inputs=False,
             )
-    
+
             return torch.from_numpy(outputs[0])
 
 .. code:: ipython3
@@ -441,17 +441,17 @@ wrapper classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
             self.vqvae = vqvae
             self.dtype = dtype
             self.config = config
-    
+
         def decode(self, latents=None, force_not_quantize=True, shape=None):
             inputs = {
                 "latents": latents,
                 "force_not_quantize": force_not_quantize,
                 "shape": torch.tensor(shape),
             }
-    
+
             outs = self.vqvae(inputs)
             outs = namedtuple("VQVAE", "sample")(torch.from_numpy(outs[0]))
-    
+
             return outs
 
 And insert wrappers instances in the pipeline:
@@ -459,18 +459,18 @@ And insert wrappers instances in the pipeline:
 .. code:: ipython3
 
     prompt = "kind smiling ghost"
-    
+
     transformer = pipe.transformer
     vqvae = pipe.vqvae
     text_encoder = pipe.text_encoder
-    
+
     pipe.__dict__["_internal_dict"]["_execution_device"] = pipe._execution_device  # this is to avoid some problem that can occur in the pipeline
     pipe.register_modules(
         text_encoder=ConvTextEncoderWrapper(ov_text_encoder, text_encoder.config),
         transformer=ConvTransformerWrapper(ov_transformer, transformer.config),
         vqvae=ConvVQVAEWrapper(ov_vqvae, vqvae.dtype, vqvae.config),
     )
-    
+
     image = pipe(prompt, generator=torch.Generator("cpu").manual_seed(8)).images[0]
     image.save("text2image_256.png")
 
@@ -540,7 +540,7 @@ improve model inference speed.
 .. code:: ipython3
 
     QUANTIZED_TRANSFORMER_OV_PATH = Path(str(TRANSFORMER_OV_PATH).replace(".xml", "_quantized.xml"))
-    
+
     skip_for_device = "GPU" in device.value
     to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
@@ -557,12 +557,12 @@ improve model inference speed.
 .. code:: ipython3
 
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
@@ -578,42 +578,42 @@ model inputs for calibration we customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
     from tqdm.auto import tqdm
     from typing import Any, Dict, List
     import pickle
     import numpy as np
-    
-    
+
+
     def disable_progress_bar(pipeline, disable=True):
         if not hasattr(pipeline, "_progress_bar_config"):
             pipeline._progress_bar_config = {'disable': disable}
         else:
             pipeline._progress_bar_config['disable'] = disable
-    
-    
+
+
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model: ov.CompiledModel, data_cache: List[Any] = None, keep_prob: float = 0.5):
             super().__init__(compiled_model)
             self.data_cache = data_cache if data_cache is not None else []
             self.keep_prob = keep_prob
-    
+
         def __call__(self, *args, **kwargs):
             if np.random.rand() <= self.keep_prob:
                 self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
-    
-    
+
+
     def collect_calibration_data(ov_transformer_model, calibration_dataset_size: int) -> List[Dict]:
         calibration_dataset_filepath = Path(f"calibration_data/{calibration_dataset_size}.pkl")
         if not calibration_dataset_filepath.exists():
             calibration_data = []
             pipe.transformer.transformer = CompiledModelDecorator(ov_transformer_model, calibration_data, keep_prob=1.0)
             disable_progress_bar(pipe)
-        
+
             dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
-        
+
             # Run inference for data collection
             pbar = tqdm(total=calibration_dataset_size)
             for batch in dataset:
@@ -624,14 +624,14 @@ model inputs for calibration we customize ``CompiledModel``.
                 pbar.update(len(calibration_data) - pbar.n)
                 if pbar.n >= calibration_dataset_size:
                     break
-        
+
             pipe.transformer.transformer = ov_transformer_model
             disable_progress_bar(pipe, disable=False)
-            
+
             calibration_dataset_filepath.parent.mkdir(exist_ok=True, parents=True)
             with open(calibration_dataset_filepath, 'wb') as f:
                 pickle.dump(calibration_data, f)
-                
+
         with open(calibration_dataset_filepath, 'rb') as f:
             calibration_data = pickle.load(f)
         return calibration_data
@@ -647,14 +647,14 @@ model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from nncf.quantization.advanced_parameters import AdvancedSmoothQuantParameters
     from nncf.quantization.range_estimator import RangeEstimatorParameters, StatisticsCollectorParameters, StatisticsType, \
         AggregatorType
     import nncf
-    
+
     CALIBRATION_DATASET_SIZE = 12 * 25
-    
+
     if not QUANTIZED_TRANSFORMER_OV_PATH.exists():
         calibration_data = collect_calibration_data(ov_transformer, CALIBRATION_DATASET_SIZE)
         quantized_model = nncf.quantize(
@@ -808,15 +808,15 @@ Demo generation with quantized pipeline
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     original_ov_transformer_model = pipe.transformer.transformer
     pipe.transformer.transformer = core.compile_model(QUANTIZED_TRANSFORMER_OV_PATH, device.value)
-    
+
     image = pipe(prompt, generator=torch.Generator('cpu').manual_seed(8)).images[0]
     image.save('text2image_256_quantized.png')
-    
+
     pipe.transformer.transformer = original_ov_transformer_model
-    
+
     display(image)
 
 
@@ -853,24 +853,24 @@ a rough estimate of generation quality.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from torchmetrics.image.inception import InceptionScore
     from torchvision import transforms as transforms
     from itertools import islice
     import time
-    
+
     VALIDATION_DATASET_SIZE = 100
-    
+
     def compute_inception_score(ov_transformer_model_path, validation_set_size, batch_size=100):
         original_ov_transformer_model = pipe.transformer.transformer
         pipe.transformer.transformer = core.compile_model(ov_transformer_model_path, device.value)
-        
+
         disable_progress_bar(pipe)
         dataset = datasets.load_dataset("conceptual_captions", "unlabeled", split="validation").shuffle(seed=42)
         dataset = islice(dataset, validation_set_size)
-        
+
         inception_score = InceptionScore(normalize=True, splits=1)
-        
+
         images = []
         infer_times = []
         for batch in tqdm(dataset, total=validation_set_size, desc="Computing Inception Score"):
@@ -882,21 +882,21 @@ a rough estimate of generation quality.
             infer_times.append(time.perf_counter() - start_time)
             image = transforms.ToTensor()(image)
             images.append(image)
-        
+
         mean_perf_time = sum(infer_times) / len(infer_times)
-            
+
         while len(images) > 0:
             images_batch = torch.stack(images[-batch_size:])
             images = images[:-batch_size]
             inception_score.update(images_batch)
         kl_mean, kl_std = inception_score.compute()
-        
+
         pipe.transformer.transformer = original_ov_transformer_model
         disable_progress_bar(pipe, disable=False)
-        
+
         return kl_mean, mean_perf_time
-    
-    
+
+
     original_inception_score, original_time = compute_inception_score(TRANSFORMER_OV_PATH, VALIDATION_DATASET_SIZE)
     print(f"Original pipeline Inception Score: {original_inception_score}")
     quantized_inception_score, quantized_time = compute_inception_score(QUANTIZED_TRANSFORMER_OV_PATH, VALIDATION_DATASET_SIZE)
@@ -911,7 +911,7 @@ a rough estimate of generation quality.
     Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
       warnings.warn(
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: Metric `InceptionScore` will save all extracted features in buffer. For large datasets this may lead to large memory footprint.
-      warnings.warn(*args, **kwargs)  # noqa: B028
+      warnings.warn(\*args, \*\*kwargs)  # noqa: B028
 
 
 
@@ -955,13 +955,13 @@ Below you can select which pipeline to run: original or quantized.
 .. code:: ipython3
 
     quantized_model_present = QUANTIZED_TRANSFORMER_OV_PATH.exists()
-    
+
     use_quantized_model = widgets.Checkbox(
         value=True if quantized_model_present else False,
         description="Use quantized pipeline",
         disabled=not quantized_model_present,
     )
-    
+
     use_quantized_model
 
 
@@ -977,18 +977,18 @@ Below you can select which pipeline to run: original or quantized.
 
     import gradio as gr
     import numpy as np
-    
+
     pipe.transformer.transformer = core.compile_model(
         QUANTIZED_TRANSFORMER_OV_PATH if use_quantized_model.value else TRANSFORMER_OV_PATH,
         device.value,
     )
-    
-    
+
+
     def generate(prompt, seed, _=gr.Progress(track_tqdm=True)):
         image = pipe(prompt, generator=torch.Generator("cpu").manual_seed(seed)).images[0]
         return image
-    
-    
+
+
     demo = gr.Interface(
         generate,
         [
@@ -1015,7 +1015,7 @@ Below you can select which pipeline to run: original or quantized.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
