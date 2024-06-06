@@ -711,35 +711,37 @@ void program::transfer_memory_to_device() {
                 if (user_node->is_type<fully_connected>()) { // bypass static model for now
                     auto& fc_node = user_node->as<fully_connected>();
                     if (fc_node.w_size != 1 && fc_node.is_dynamic()) { // world size > 1, means TP maybe applied further
-                        auto rank = fc_node.w_rank;
-                        auto weights_pshape = data_node_layout.get_partial_shape().to_shape();
-                        auto dims = data_node_layout.get_dims();
-                        auto dim = weights_pshape.size() - 1; // to be finalized
-                        weights_pshape[dim] /= fc_node.w_size;
-                        auto element_size = ov::element::Type(data_node_layout.data_type).size();
-                        rank_weights_layout = layout(ov::PartialShape(weights_pshape),
-                                                                data_node_layout.data_type,
-                                                                data_node_layout.format,
-                                                                data_node_layout.data_padding);
-                        data_node.set_output_layout(rank_weights_layout);   // do we need to update layout here?
-                        rank_weights_memory_host = engine->allocate_memory(rank_weights_layout, allocation_type::usm_host);
-                        auto dst_ptr = static_cast<uint8_t*>(rank_weights_memory_host->buffer_ptr());
-                        auto src_ptr = static_cast<uint8_t*>(mem.buffer_ptr());
-                        auto mem_size = mem.size(); // total bytes
-                        auto channel_size = dims[dim] * element_size;
-                        const int step = (mem_size / channel_size);
-                        const int stride = dims[dim] / fc_node.w_size;
-                        const auto copy_size = stride * element_size;
-                        // update weights in compile time, this will increase compile latency
-                        ov::parallel_for(step, [&](int i) {
-                            int dst_offset = i * copy_size;
-                            int src_offset = i * copy_size* 2 + rank * copy_size;
-                            std::memcpy(dst_ptr + dst_offset, src_ptr + src_offset, copy_size);
-                        });
-                        rank_enabled = true;
-                        GPU_DEBUG_TRACE_DETAIL << node->id() << " [ rank: " << rank << " ]" <<
-                            ": re-rank weights for TP from " << data_node_layout.to_short_string() << " to "
-                            << rank_weights_layout.to_short_string() << std::endl;
+                        if (node->id() != fc_node.get_primitive()->decompression_scale && node->id() != fc_node.get_primitive()->decompression_zero_point) {
+                            auto rank = fc_node.w_rank;
+                            auto weights_pshape = data_node_layout.get_partial_shape().to_shape();
+                            auto dims = data_node_layout.get_dims();
+                            auto dim = weights_pshape.size() - 1; // to be finalized
+                            weights_pshape[dim] /= fc_node.w_size;
+                            auto element_size = ov::element::Type(data_node_layout.data_type).size();
+                            rank_weights_layout = layout(ov::PartialShape(weights_pshape),
+                                                                    data_node_layout.data_type,
+                                                                    data_node_layout.format,
+                                                                    data_node_layout.data_padding);
+                            data_node.set_output_layout(rank_weights_layout);   // do we need to update layout here?
+                            rank_weights_memory_host = engine->allocate_memory(rank_weights_layout, allocation_type::usm_host);
+                            auto dst_ptr = static_cast<uint8_t*>(rank_weights_memory_host->buffer_ptr());
+                            auto src_ptr = static_cast<uint8_t*>(mem.buffer_ptr());
+                            auto mem_size = mem.size(); // total bytes
+                            auto channel_size = dims[dim] * element_size;
+                            const int step = (mem_size / channel_size);
+                            const int stride = dims[dim] / fc_node.w_size;
+                            const auto copy_size = stride * element_size;
+                            // update weights in compile time, this will increase compile latency
+                            ov::parallel_for(step, [&](int i) {
+                                int dst_offset = i * copy_size;
+                                int src_offset = i * copy_size* 2 + rank * copy_size;
+                                std::memcpy(dst_ptr + dst_offset, src_ptr + src_offset, copy_size);
+                            });
+                            rank_enabled = true;
+                            GPU_DEBUG_TRACE_DETAIL << node->id() << " [ rank: " << rank << " ]" <<
+                                ": re-rank weights for TP from " << data_node_layout.to_short_string() << " to "
+                                << rank_weights_layout.to_short_string() << std::endl;
+                        }
                     }
                 }
             }
