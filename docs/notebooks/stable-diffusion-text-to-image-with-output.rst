@@ -41,29 +41,29 @@ Notebook contains the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `login to huggingfacehub to get access to pretrained
    model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
--  `Create PyTorch Models pipeline <#Create-PyTorch-Models-pipeline>`__
+-  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `U-net <#U-net>`__
-   -  `VAE <#VAE>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-net <#u-net>`__
+   -  `VAE <#vae>`__
 
--  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
--  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
+-  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
-   -  `Text-to-Image generation <#Text-to-Image-generation>`__
-   -  `Image-to-Image generation <#Image-to-Image-generation>`__
+   -  `Text-to-Image generation <#text-to-image-generation>`__
+   -  `Image-to-Image generation <#image-to-image-generation>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
@@ -73,7 +73,7 @@ not, you do not have to do anything. Just run the notebook.**
    its weights. Visit the `stable-diffusion-v1-4
    card <https://huggingface.co/CompVis/stable-diffusion-v1-4>`__ to
    read and accept the license before you proceed. To use this diffusion
-   model, you must be a registered user in 🤗 Hugging Face Hub. You will
+   model, you must be a registered user in Hugging Face Hub. You will
    need to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -110,7 +110,7 @@ solutions based on Stable Diffusion.
 Create PyTorch Models pipeline
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -268,7 +268,7 @@ First, load the pre-trained weights of all components of the model.
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Staring from 2023.0 release, OpenVINO supports direct conversion PyTorch
 models to OpenVINO IR format. You need to provide a model object and
@@ -292,7 +292,7 @@ Let us convert each part.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -398,7 +398,7 @@ hidden states.
 U-net
 ~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Unet model has three inputs:
 
@@ -488,7 +488,7 @@ Model predicts the ``sample`` state for the next step.
 VAE
 ~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -624,7 +624,7 @@ of the pipeline, it will be better to convert them to separate models.
 Prepare Inference Pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -1035,7 +1035,7 @@ of the variational auto encoder.
 Configure Inference Pipeline
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -1105,7 +1105,7 @@ Let us define them and put all components together
 Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
@@ -1219,7 +1219,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``
@@ -1347,7 +1347,7 @@ semantically consistent with the input.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1425,7 +1425,7 @@ Interactive demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -73,35 +73,35 @@ and the sequence is passed back into the model.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Model Selection <#Model-Selection>`__
--  `Load Model <#Load-Model>`__
+-  `Model Selection <#model-selection>`__
+-  `Load Model <#load-model>`__
 -  `Convert Pytorch Model to OpenVINO
-   IR <#Convert-Pytorch-Model-to-OpenVINO-IR>`__
+   IR <#convert-pytorch-model-to-openvino-ir>`__
 
-   -  `Load the model <#Load-the-model>`__
+   -  `Load the model <#load-the-model>`__
 
-      -  `Select inference device <#Select-inference-device>`__
+      -  `Select inference device <#select-inference-device>`__
 
--  `Pre-Processing <#Pre-Processing>`__
--  `Define tokenization <#Define-tokenization>`__
+-  `Pre-Processing <#pre-processing>`__
+-  `Define tokenization <#define-tokenization>`__
 
-   -  `Define Softmax layer <#Define-Softmax-layer>`__
+   -  `Define Softmax layer <#define-softmax-layer>`__
    -  `Set the minimum sequence
-      length <#Set-the-minimum-sequence-length>`__
-   -  `Top-K sampling <#Top-K-sampling>`__
-   -  `Main Processing Function <#Main-Processing-Function>`__
+      length <#set-the-minimum-sequence-length>`__
+   -  `Top-K sampling <#top-k-sampling>`__
+   -  `Main Processing Function <#main-processing-function>`__
 
--  `Inference with GPT-Neo/GPT-2 <#Inference-with-GPT-Neo/GPT-2>`__
+-  `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neogpt-2>`__
 -  `Conversation with PersonaGPT using
-   OpenVINO <#Conversation-with-PersonaGPT-using-OpenVINO>`__
--  `Converse Function <#Converse-Function>`__
--  `Conversation Class <#Conversation-Class>`__
--  `Conversation with PersonaGPT <#Conversation-with-PersonaGPT>`__
+   OpenVINO <#conversation-with-personagpt-using-openvino>`__
+-  `Converse Function <#converse-function>`__
+-  `Conversation Class <#conversation-class>`__
+-  `Conversation with PersonaGPT <#conversation-with-personagpt>`__
 
 Model Selection
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select the Model to be used for text generation, GPT-2 and GPT-Neo are
 used for text generation whereas PersonaGPT is used for Conversation.
@@ -149,7 +149,7 @@ used for text generation whereas PersonaGPT is used for Conversation.
 Load Model
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download the Selected Model and Tokenizer from HuggingFace
 
@@ -175,7 +175,7 @@ Download the Selected Model and Tokenizer from HuggingFace
 Convert Pytorch Model to OpenVINO IR
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work with GPT-Neo model using OpenVINO, a model should be
 converted to OpenVINO Intermediate Representation (IR) format.
@@ -247,7 +247,7 @@ consumption.
 Load the model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We start by building an OpenVINO Core object. Then we read the network
 architecture and model weights from the ``.xml`` and ``.bin`` files,
@@ -256,7 +256,7 @@ respectively. Finally, we compile the model for the desired device.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -306,7 +306,7 @@ have ``batch size`` and ``sequence length`` as inputs and
 Pre-Processing
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NLP models often take a list of tokens as a standard input. A token is a
 word or a part of a word mapped to an integer. To provide the proper
@@ -316,7 +316,7 @@ load the vocabulary file.
 Define tokenization
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -359,7 +359,7 @@ at later stage.
 Define Softmax layer
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ A softmax function is used to
+ A softmax function is used to
 convert top-k logits into a probability distribution.
 
 .. code:: ipython3
@@ -375,7 +375,7 @@ convert top-k logits into a probability distribution.
 Set the minimum sequence length
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 If the minimum sequence length is not reached, the following code will
 reduce the probability of the ``eos`` token occurring. This continues
@@ -403,7 +403,7 @@ the process of generating the next words.
 Top-K sampling
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In Top-K sampling, we filter the K most likely next words and
 redistribute the probability mass among only those K next words.
@@ -433,7 +433,7 @@ redistribute the probability mass among only those K next words.
 Main Processing Function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generating the predicted sequence.
 
@@ -488,7 +488,7 @@ Generating the predicted sequence.
 Inference with GPT-Neo/GPT-2
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``text`` variable below is the input used to generate a predicted
 sequence.
@@ -524,7 +524,7 @@ sequence.
 Conversation with PersonaGPT using OpenVINO
 ===========================================
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 User Input is tokenized with ``eos_token`` concatenated in the end.
 Model input is tokenized text, which serves as initial condition for
@@ -542,7 +542,7 @@ model.
 Converse Function
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Wrapper on generate sequence function to support conversation
 
@@ -593,7 +593,7 @@ Wrapper on generate sequence function to support conversation
 Conversation Class
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -619,7 +619,7 @@ Conversation Class
 Conversation with PersonaGPT
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This notebook provides two styles of inference, Plain and Interactive.
 The style of inference can be selected in the next cell.

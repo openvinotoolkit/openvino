@@ -68,34 +68,34 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Install prerequisites <#Install-prerequisites>`__
--  `SDXL Base model <#SDXL-Base-model>`__
+-  `Install prerequisites <#install-prerequisites>`__
+-  `SDXL Base model <#sdxl-base-model>`__
 
    -  `Select inference device SDXL Base
-      model <#Select-inference-device-SDXL-Base-model>`__
+      model <#select-inference-device-sdxl-base-model>`__
    -  `Run Text2Image generation
-      pipeline <#Run-Text2Image-generation-pipeline>`__
+      pipeline <#run-text2image-generation-pipeline>`__
    -  `Text2image Generation Interactive
-      Demo <#Text2image-Generation-Interactive-Demo>`__
+      Demo <#text2image-generation-interactive-demo>`__
    -  `Run Image2Image generation
-      pipeline <#Run-Image2Image-generation-pipeline>`__
+      pipeline <#run-image2image-generation-pipeline>`__
 
       -  `Select inference device SDXL Refiner
-         model <#Select-inference-device-SDXL-Refiner-model>`__
+         model <#select-inference-device-sdxl-refiner-model>`__
 
    -  `Image2Image Generation Interactive
-      Demo <#Image2Image-Generation-Interactive-Demo>`__
+      Demo <#image2image-generation-interactive-demo>`__
 
--  `SDXL Refiner model <#SDXL-Refiner-model>`__
+-  `SDXL Refiner model <#sdxl-refiner-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
    -  `Run Text2Image generation with
-      Refinement <#Run-Text2Image-generation-with-Refinement>`__
+      Refinement <#run-text2image-generation-with-refinement>`__
 
 Install prerequisites
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -106,7 +106,7 @@ Install prerequisites
 SDXL Base model
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will start with the base model part, which is responsible for the
 generation of images of the desired output size.
@@ -136,7 +136,7 @@ You can save the model on disk using the ``save_pretrained`` method.
 Select inference device SDXL Base model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -388,7 +388,7 @@ compression parameters.
 Run Text2Image generation pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we can run the model for the generation of images using text
 prompts. To speed up evaluation and reduce the required memory we
@@ -428,7 +428,7 @@ numpy random state with a specific seed for results reproducibility.
 Text2image Generation Interactive Demo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -502,7 +502,7 @@ Text2image Generation Interactive Demo
 Run Image2Image generation pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We can reuse the already converted model for running the Image2Image
 generation pipeline. For that, we should replace
@@ -512,7 +512,7 @@ generation pipeline. For that, we should replace
 Select inference device SDXL Refiner model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -573,7 +573,7 @@ select device from dropdown list for running inference using OpenVINO
 Image2Image Generation Interactive Demo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -644,7 +644,7 @@ Image2Image Generation Interactive Demo
 SDXL Refiner model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As we discussed above, Stable Diffusion XL can be used in a 2-stages
 approach: first, the base model is used to generate latents of the
@@ -690,7 +690,7 @@ footprint
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -710,7 +710,7 @@ select device from dropdown list for running inference using OpenVINO
 Run Text2Image generation with Refinement
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

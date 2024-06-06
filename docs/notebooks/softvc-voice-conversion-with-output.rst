@@ -21,17 +21,17 @@ In this tutorial we will use the base model flow.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Use the original model to run an
-   inference <#Use-the-original-model-to-run-an-inference>`__
--  `Convert to OpenVINO IR model <#Convert-to-OpenVINO-IR-model>`__
--  `Run the OpenVINO model <#Run-the-OpenVINO-model>`__
--  `Interactive inference <#Interactive-inference>`__
+   inference <#use-the-original-model-to-run-an-inference>`__
+-  `Convert to OpenVINO IR model <#convert-to-openvino-ir-model>`__
+-  `Run the OpenVINO model <#run-the-openvino-model>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -99,7 +99,7 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
 Use the original model to run an inference
 ------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Change directory to ``so-vits-svc`` in purpose not to brake internal
 relative paths.
@@ -149,7 +149,7 @@ And let compare the original audio with the result.
 Convert to OpenVINO IR model
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model components are PyTorch modules, that can be converted with
 ``ov.convert_model`` function directly. We also use ``ov.save_model``
@@ -200,7 +200,7 @@ without need to look inside.
 Run the OpenVINO model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select a device from dropdown list for running inference using OpenVINO.
 
@@ -255,7 +255,7 @@ Check result. Is it identical to that created by the original model.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

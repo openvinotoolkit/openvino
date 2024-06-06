@@ -28,18 +28,18 @@ card <https://huggingface.co/briaai/RMBG-1.4>`__.
 In this tutorial we consider how to convert and run this model using
 OpenVINO. #### Table of contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
--  `Interactive demo <#Interactive-demo>`__
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 install required dependencies
 
@@ -85,7 +85,7 @@ Download model code from HuggingFace hub
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For loading model using PyTorch, we should use
 ``AutoModelForImageSegmentation.from_pretrained`` method. Model weights
@@ -101,7 +101,7 @@ it may take some time.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``preprocess_image`` function is responsible for preparing input data in
 model-specific format. ``postprocess_image`` function is responsible for
@@ -191,7 +191,7 @@ mask can be inserted into original image as alpha-channel.
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -222,7 +222,7 @@ function or directly loading on device using ``core.complie_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 After finishing conversion, we can compile converted model and run it
 using OpenVINO on specified device. For selection inference device,
@@ -282,7 +282,7 @@ original pre- and postprocessing steps, it means that we can reuse them.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -347,7 +347,7 @@ Interactive demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

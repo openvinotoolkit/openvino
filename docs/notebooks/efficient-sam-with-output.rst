@@ -31,43 +31,43 @@ OpenVINO. We also demonstrate how to quantize model using
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 
-   -  `Prepare input data <#Prepare-input-data>`__
+   -  `Prepare input data <#prepare-input-data>`__
    -  `Define helpers for input and output
-      processing <#Define-helpers-for-input-and-output-processing>`__
+      processing <#define-helpers-for-input-and-output-processing>`__
 
 -  `Convert model to OpenVINO IR
-   format <#Convert-model-to-OpenVINO-IR-format>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   format <#convert-model-to-openvino-ir-format>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
    -  `Select inference device from dropdown
-      list <#Select-inference-device-from-dropdown-list>`__
-   -  `Compile OpenVINO model <#Compile-OpenVINO-model>`__
+      list <#select-inference-device-from-dropdown-list>`__
+   -  `Compile OpenVINO model <#compile-openvino-model>`__
    -  `Inference and visualize
-      result <#Inference-and-visualize-result>`__
+      result <#inference-and-visualize-result>`__
 
--  `Quantization <#Quantization>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
-   -  `Run Model Quantization <#Run-Model-Quantization>`__
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run Model Quantization <#run-model-quantization>`__
 
 -  `Verify quantized model
-   inference <#Verify-quantized-model-inference>`__
+   inference <#verify-quantized-model-inference>`__
 
-   -  `Save quantize model on disk <#Save-quantize-model-on-disk>`__
-   -  `Compare quantized model size <#Compare-quantized-model-size>`__
+   -  `Save quantize model on disk <#save-quantize-model-on-disk>`__
+   -  `Compare quantized model size <#compare-quantized-model-size>`__
    -  `Compare inference time of the FP16 and INT8
-      models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
 
--  `Interactive segmentation demo <#Interactive-segmentation-demo>`__
+-  `Interactive segmentation demo <#interactive-segmentation-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -113,7 +113,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are several models available in the repository:
 
@@ -183,13 +183,13 @@ build PyTorch model
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ Now, when we selected and
+ Now, when we selected and
 loaded PyTorch model, we can check its result
 
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First of all, we should prepare input data for model. Model has 3
 inputs: \* image tensor - tensor with normalized input image. \* input
@@ -219,7 +219,7 @@ bounding box, 3 - right-bottom point of bounding box.
 Define helpers for input and output processing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below defines helpers for preparing model input and postprocess
 inference results. The input format is accepted by the model described
@@ -333,7 +333,7 @@ The complete model inference example demonstrated below
 Convert model to OpenVINO IR format
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion in Intermediate
 Representation (IR) format using OpenVINO `Model Conversion
@@ -385,12 +385,12 @@ disk using ``openvino.save_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select inference device from dropdown list
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -415,7 +415,7 @@ Select inference device from dropdown list
 Compile OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -424,7 +424,7 @@ Compile OpenVINO model
 Inference and visualize result
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we can take a look on OpenVINO model prediction
 
@@ -460,7 +460,7 @@ Now, we can take a look on OpenVINO model prediction
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -517,7 +517,7 @@ quantization.
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The first step is to prepare calibration datasets for quantization. We
 will use coco128 dataset for quantization. Usually, this dataset used
@@ -606,7 +606,7 @@ creates DataLoader for preparing inputs for EfficientSAM model.
 Run Model Quantization
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -746,7 +746,7 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 Verify quantized model inference
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -783,7 +783,7 @@ Verify quantized model inference
 Save quantize model on disk
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -795,7 +795,7 @@ Save quantize model on disk
 Compare quantized model size
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -819,7 +819,7 @@ Compare quantized model size
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use ``bencmark_app``.
@@ -1024,7 +1024,7 @@ models, we use ``bencmark_app``.
 Interactive segmentation demo
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1575,7 +1575,7 @@ Interactive segmentation demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

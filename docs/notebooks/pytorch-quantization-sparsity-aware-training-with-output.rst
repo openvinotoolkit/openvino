@@ -25,21 +25,21 @@ dataset must be downloaded separately. To see ResNet models, visit
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports and Settings <#Imports-and-Settings>`__
--  `Pre-train Floating-Point Model <#Pre-train-Floating-Point-Model>`__
+-  `Imports and Settings <#imports-and-settings>`__
+-  `Pre-train Floating-Point Model <#pre-train-floating-point-model>`__
 
-   -  `Train Function <#Train-Function>`__
-   -  `Validate Function <#Validate-Function>`__
-   -  `Helpers <#Helpers>`__
-   -  `Get a Pre-trained FP32 Model <#Get-a-Pre-trained-FP32-Model>`__
+   -  `Train Function <#train-function>`__
+   -  `Validate Function <#validate-function>`__
+   -  `Helpers <#helpers>`__
+   -  `Get a Pre-trained FP32 Model <#get-a-pre-trained-fp32-model>`__
 
 -  `Create and Initialize
-   Quantization <#Create-and-Initialize-Quantization>`__
--  `Fine-tune the Compressed Model <#Fine-tune-the-Compressed-Model>`__
+   Quantization <#create-and-initialize-quantization>`__
+-  `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__
 -  `Export INT8 Sparse Model to OpenVINO
-   IR <#Export-INT8-Model-to-OpenVINO-IR>`__
+   IR <#export-int8-model-to-openvino-ir>`__
 -  `Benchmark Model Performance by Computing Inference
-   Time <#Benchmark-Model-Performance-by-Computing-Inference-Time>`__
+   Time <#benchmark-model-performance-by-computing-inference-time>`__
 
 .. code:: ipython3
 
@@ -58,7 +58,7 @@ Table of contents:
 Imports and Settings
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 On Windows, add the required C++ directories to the system PATH.
 
@@ -185,7 +185,7 @@ models will be stored.
 Train Function
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -235,7 +235,7 @@ Train Function
 Validate Function
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -279,7 +279,7 @@ Validate Function
 Helpers
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -344,7 +344,7 @@ Helpers
 Get a Pre-trained FP32 Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 А pre-trained floating-point model is a prerequisite for quantization.
 It can be obtained by tuning from scratch with the code below.
@@ -434,7 +434,7 @@ benchmark it in comparison with the ``INT8`` model.
 Create and Initialize Quantization and Sparsity Training
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -528,7 +528,7 @@ quantization and sparsity.
 Fine-tune the Compressed Model
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -735,7 +735,7 @@ training pipeline are required. Here is a simple example.
 Export INT8 Sparse Model to OpenVINO IR
 ---------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -756,7 +756,7 @@ Export INT8 Sparse Model to OpenVINO IR
 Benchmark Model Performance by Computing Inference Time
 -------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark

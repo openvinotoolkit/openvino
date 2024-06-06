@@ -33,42 +33,42 @@ library.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Imports <#Imports>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
 
--  `MusicGen in HF Transformers <#MusicGen-in-HF-Transformers>`__
+-  `MusicGen in HF Transformers <#musicgen-in-hf-transformers>`__
 
-   -  `Original Pipeline Inference <#Original-Pipeline-Inference>`__
+   -  `Original Pipeline Inference <#original-pipeline-inference>`__
 
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `0. Set Up Variables <#0.-Set-Up-Variables>`__
-   -  `1. Convert Text Encoder <#1.-Convert-Text-Encoder>`__
+   -  `0. Set Up Variables <#0--set-up-variables>`__
+   -  `1. Convert Text Encoder <#1--convert-text-encoder>`__
    -  `2. Convert MusicGen Language
-      Model <#2.-Convert-MusicGen-Language-Model>`__
-   -  `3. Convert Audio Decoder <#3.-Convert-Audio-Decoder>`__
+      Model <#2--convert-musicgen-language-model>`__
+   -  `3. Convert Audio Decoder <#3--convert-audio-decoder>`__
 
 -  `Embedding the converted models into the original
-   pipeline <#Embedding-the-converted-models-into-the-original-pipeline>`__
+   pipeline <#embedding-the-converted-models-into-the-original-pipeline>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
    -  `Adapt OpenVINO models to the original
-      pipeline <#Adapt-OpenVINO-models-to-the-original-pipeline>`__
+      pipeline <#adapt-openvino-models-to-the-original-pipeline>`__
 
--  `Try out the converted pipeline <#Try-out-the-converted-pipeline>`__
+-  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -85,7 +85,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -126,7 +126,7 @@ Imports
 MusicGen in HF Transformers
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To work with
 `MusicGen <https://huggingface.co/facebook/musicgen-small>`__ by Meta
@@ -190,7 +190,7 @@ length.
 Original Pipeline Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Text Preprocessing prepares the text prompt to be fed into the model,
 the ``processor`` object abstracts this step for us. Text tokenization
@@ -228,7 +228,7 @@ vocabulary. It helps the model understand the context of a sentence.
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model conversion API enables direct conversion of PyTorch models. We
 will utilize the ``openvino.convert_model`` method to acquire OpenVINO
@@ -254,7 +254,7 @@ Let us convert each model step by step.
 0. Set Up Variables
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -267,7 +267,7 @@ Let us convert each model step by step.
 1. Convert Text Encoder
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text encoder is responsible for converting the input prompt, such as
 “90s rock song with loud guitars and heavy drums” into an embedding
@@ -308,7 +308,7 @@ runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>
 2. Convert MusicGen Language Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This model is the central part of the whole pipeline, it takes the
 embedded text representation and generates audio codes that can be then
@@ -377,7 +377,7 @@ second time, with an increased number of inputs.
 3. Convert Audio Decoder
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The audio decoder which is a part of the EnCodec model is used to
 recover the audio waveform from the audio tokens predicted by the
@@ -407,7 +407,7 @@ corresponding `OpenVINO example <../encodec-audio-compression>`__.
 Embedding the converted models into the original pipeline
 ---------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The
@@ -423,7 +423,7 @@ used to compile the model.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device that will be used to do models inference using OpenVINO
 from the dropdown list:
@@ -453,7 +453,7 @@ from the dropdown list:
 Adapt OpenVINO models to the original pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Here we create wrapper classes for all three OpenVINO models that we
 want to embed in the original inference pipeline. Here are some of the
@@ -652,7 +652,7 @@ We can now infer the pipeline backed by OpenVINO models.
 Try out the converted pipeline
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The demo app below is created using `Gradio
 package <https://www.gradio.app/docs/interface>`__
@@ -707,7 +707,7 @@ package <https://www.gradio.app/docs/interface>`__
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

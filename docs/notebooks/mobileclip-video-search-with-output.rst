@@ -24,30 +24,30 @@ In this tutorial, we consider how to use MobileCLIP to implement a
 visual content search engine for finding relevant frames in video. ####
 Table of contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model <#Select-model>`__
--  `Run model inference <#Run-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Select model <#select-model>`__
+-  `Run model inference <#run-model-inference>`__
 
-   -  `Prepare image gallery <#Prepare-image-gallery>`__
-   -  `Prepare model <#Prepare-model>`__
-   -  `Perform search <#Perform-search>`__
+   -  `Prepare image gallery <#prepare-image-gallery>`__
+   -  `Prepare model <#prepare-model>`__
+   -  `Perform search <#perform-search>`__
 
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
    -  `Select device for image
-      encoder <#Select-device-for-image-encoder>`__
+      encoder <#select-device-for-image-encoder>`__
    -  `Select device for text
-      encoder <#Select-device-for-text-encoder>`__
-   -  `Perform search <#Perform-search>`__
+      encoder <#select-device-for-text-encoder>`__
+   -  `Perform search <#perform-search>`__
 
--  `Interactive Demo <#Interactive-Demo>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ ## Prerequisites
+ ## Prerequisites
 
 .. code:: ipython3
 
@@ -91,7 +91,7 @@ Prerequisites
 Select model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, we should select model that will be used in our
 demonstration. By default, we will use the MobileCLIP model, but for
@@ -255,7 +255,7 @@ comparison purposes, you can select different models among:
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, let’s see model in action. We will try to find image, where some
 specific object is represented using embeddings. Embeddings are a
@@ -276,7 +276,7 @@ represent are.
 Prepare image gallery
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -369,7 +369,7 @@ Prepare image gallery
 Prepare model
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code bellow download model weights, create model class instance and
 preprocessing utilities
@@ -405,7 +405,7 @@ preprocessing utilities
 Perform search
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -449,7 +449,7 @@ Perform search
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -524,12 +524,12 @@ be used separately. Let’s convert each part to OpenVINO.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device for image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -563,7 +563,7 @@ Select device for image encoder
 Select device for text encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -586,7 +586,7 @@ Select device for text encoder
 Perform search
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -620,7 +620,7 @@ Perform search
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this part, you can try different supported by tutorial models in
 searching frames in the video by text query or image. Upload video and
@@ -905,7 +905,7 @@ models can require different optimal threshold for search.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

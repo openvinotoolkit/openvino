@@ -10,23 +10,23 @@ sequence classification model using OpenVINO.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Initializing the Model <#Initializing-the-Model>`__
--  `Initializing the Tokenizer <#Initializing-the-Tokenizer>`__
+-  `Imports <#imports>`__
+-  `Initializing the Model <#initializing-the-model>`__
+-  `Initializing the Tokenizer <#initializing-the-tokenizer>`__
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Inference <#Inference>`__
+-  `Inference <#inference>`__
 
-   -  `For a single input sentence <#For-a-single-input-sentence>`__
-   -  `Read from a text file <#Read-from-a-text-file>`__
+   -  `For a single input sentence <#for-a-single-input-sentence>`__
+   -  `Read from a text file <#read-from-a-text-file>`__
 
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -76,7 +76,7 @@ Imports
 Initializing the Model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use the transformer-based `DistilBERT base uncased finetuned
 SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
@@ -90,7 +90,7 @@ model from Hugging Face.
 Initializing the Tokenizer
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model.
@@ -100,7 +100,7 @@ easily assigned meaning. It involves cleaning the data and assigning
 tokens or IDs to the words, so they are represented in a vector space
 where similar words have similar vectors. This helps the model
 understand the context of a sentence. Here, we will use
-```AutoTokenizer`` <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
+`AutoTokenizer <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
 - a pre-trained tokenizer from Hugging Face:
 
 .. code:: ipython3
@@ -110,7 +110,7 @@ understand the context of a sentence. Here, we will use
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `Model conversion
 API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
@@ -166,7 +166,7 @@ documentation. <https://docs.openvino.ai/2024/openvino-workflow/running-inferenc
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -214,7 +214,7 @@ select device from dropdown list for running inference using OpenVINO
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -242,7 +242,7 @@ Inference
 For a single input sentence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -264,7 +264,7 @@ For a single input sentence
 Read from a text file
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

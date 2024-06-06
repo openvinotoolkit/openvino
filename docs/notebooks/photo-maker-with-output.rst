@@ -22,33 +22,33 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `PhotoMaker pipeline
-   introduction <#PhotoMaker-pipeline-introduction>`__
--  `Prerequisites <#Prerequisites>`__
+   introduction <#photomaker-pipeline-introduction>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Load original pipeline and prepare models for
-   conversion <#Load-original-pipeline-and-prepare-models-for-conversion>`__
+   conversion <#load-original-pipeline-and-prepare-models-for-conversion>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `ID Encoder <#ID-Encoder>`__
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `U-Net <#U-Net>`__
-   -  `VAE Decoder <#VAE-Decoder>`__
+   -  `ID Encoder <#id-encoder>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-Net <#u-net>`__
+   -  `VAE Decoder <#vae-decoder>`__
 
--  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
 
    -  `Select inference device for Stable Diffusion
-      pipeline <#Select-inference-device-for-Stable-Diffusion-pipeline>`__
+      pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
    -  `Compile models and create their Wrappers for
-      inference <#Compile-models-and-create-their-Wrappers-for-inference>`__
+      inference <#compile-models-and-create-their-wrappers-for-inference>`__
 
 -  `Running Text-to-Image Generation with
-   OpenVINO <#Running-Text-to-Image-Generation-with-OpenVINO>`__
--  `Interactive Demo <#Interactive-Demo>`__
+   OpenVINO <#running-text-to-image-generation-with-openvino>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 PhotoMaker pipeline introduction
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For the proposed PhotoMaker, we first obtain the text embedding and
 image embeddings from ``text encoder(s)`` and ``image(ID) encoder``,
@@ -65,7 +65,7 @@ new ID during inference.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Clone PhotoMaker repository
 
@@ -117,7 +117,7 @@ Prepare PyTorch models
 Load original pipeline and prepare models for conversion
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For exporting each PyTorch model, we will download the ``ID encoder``
 weight, ``LoRa`` weight from HuggingFace hub, then using the
@@ -190,7 +190,7 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models
 conversion directly. We need to provide a model object, input data for
@@ -304,7 +304,7 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 ID Encoder
 ~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 PhotoMaker merged image encoder and fuse module to create an ID Encoder.
 It will used to generate image embeddings to update text encoder’s
@@ -395,7 +395,7 @@ output(text embeddings) which will be the input for U-Net model.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -510,7 +510,7 @@ sequence of latent text embeddings.
 U-Net
 ~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The process of U-Net model conversion remains the same, like for
 original Stable Diffusion XL model.
@@ -615,7 +615,7 @@ original Stable Diffusion XL model.
 VAE Decoder
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -691,7 +691,7 @@ VAE decoder.
 Prepare Inference pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this example, we will reuse ``PhotoMakerStableDiffusionXLPipeline``
 pipeline to generate the image with OpenVINO, so each model’s object in
@@ -700,7 +700,7 @@ this pipeline should be replaced with new OpenVINO model object.
 Select inference device for Stable Diffusion pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -729,7 +729,7 @@ Select inference device for Stable Diffusion pipeline
 Compile models and create their Wrappers for inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To access original PhotoMaker workflow, we have to create a new wrapper
 for each OpenVINO compiled model. For matching original pipeline, part
@@ -737,7 +737,7 @@ of OpenVINO model wrapper’s attributes should be reused from original
 model objects and inference output must be converted from numpy to
 ``torch.tensor``.
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -848,7 +848,7 @@ models
 Running Text-to-Image Generation with OpenVINO
 ----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -940,7 +940,7 @@ Running Text-to-Image Generation with OpenVINO
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1046,9 +1046,9 @@ Interactive Demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 

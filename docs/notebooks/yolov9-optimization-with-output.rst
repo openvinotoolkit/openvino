@@ -21,31 +21,31 @@ The tutorial consists of the following steps:
 -  Compare performance of the FP32 and quantized models.
 -  Run optimized model inference on video #### Table of contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Get PyTorch model <#Get-PyTorch-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Get PyTorch model <#get-pytorch-model>`__
 -  `Convert PyTorch model to OpenVINO
-   IR <#Convert-PyTorch-model-to-OpenVINO-IR>`__
--  `Verify model inference <#Verify-model-inference>`__
+   IR <#convert-pytorch-model-to-openvino-ir>`__
+-  `Verify model inference <#verify-model-inference>`__
 
-   -  `Preprocessing <#Preprocessing>`__
-   -  `Postprocessing <#Postprocessing>`__
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Preprocessing <#preprocessing>`__
+   -  `Postprocessing <#postprocessing>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
 
-   -  `Prepare dataset <#Prepare-dataset>`__
-   -  `Perform model quantization <#Perform-model-quantization>`__
+   -  `Prepare dataset <#prepare-dataset>`__
+   -  `Perform model quantization <#perform-model-quantization>`__
 
--  `Run quantized model inference <#Run-quantized-model-inference>`__
+-  `Run quantized model inference <#run-quantized-model-inference>`__
 -  `Compare Performance of the Original and Quantized
-   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
--  `Run Live Object Detection <#Run-Live-Object-Detection>`__
+   Models <#compare-performance-of-the-original-and-quantized-models>`__
+-  `Run Live Object Detection <#run-live-object-detection>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ ## Prerequisites
+ ## Prerequisites
 
 .. code:: ipython3
 
@@ -101,10 +101,10 @@ Prerequisites
 Get PyTorch model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generally, PyTorch models represent an instance of the
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the ``gelan-c`` (light-weight version of yolov9) model pre-trained on a
 COCO dataset, which is available in this
@@ -140,7 +140,7 @@ applicable for other models from YOLO V9 family.
 Convert PyTorch model to OpenVINO IR
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch model conversion via Model Conversion API.
 ``ov.convert_model`` function accepts model object and example input for
@@ -197,7 +197,7 @@ using ``ov.save_model``.
 Verify model inference
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To test model work, we create inference pipeline similar to
 ``detect.py``. The pipeline consists of preprocessing step, inference of
@@ -206,7 +206,7 @@ OpenVINO model, and results post-processing to get bounding boxes.
 Preprocessing
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model input is a tensor with the ``[1, 3, 640, 640]`` shape in
 ``N, C, H, W`` format, where
@@ -284,7 +284,7 @@ To keep specific shape, preprocessing automatically enables padding.
 Postprocessing
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model output contains detection boxes candidates. It is a tensor with
 the ``[1,25200,85]`` shape in the ``B, N, 85`` format, where:
@@ -383,7 +383,7 @@ algorithm and rescale boxes coordinates to original image size.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -433,7 +433,7 @@ select device from dropdown list for running inference using OpenVINO
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -448,7 +448,7 @@ YOLOv9. The optimization process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below downloads COCO dataset and prepares a dataloader that is
 used to evaluate the yolov9 model accuracy. We reuse its subset for
@@ -553,7 +553,7 @@ expected format.
 Perform model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -629,7 +629,7 @@ asymmetric quantization of activations.
 Run quantized model inference
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are no changes in model usage after applying quantization. Let’s
 check the model work on the previously used image.
@@ -660,7 +660,7 @@ check the model work on the previously used image.
 Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
@@ -865,7 +865,7 @@ models.
 Run Live Object Detection
 -------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

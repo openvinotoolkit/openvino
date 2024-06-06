@@ -40,22 +40,22 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Prepare pipeline <#Prepare-pipeline>`__
--  `Load test audio file <#Load-test-audio-file>`__
--  `Run inference pipeline <#Run-inference-pipeline>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare pipeline <#prepare-pipeline>`__
+-  `Load test audio file <#load-test-audio-file>`__
+-  `Run inference pipeline <#run-inference-pipeline>`__
 -  `Convert model to OpenVINO Intermediate Representation
-   format <#Convert-model-to-OpenVINO-Intermediate-Representation-format>`__
--  `Select inference device <#Select-inference-device>`__
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
+-  `Select inference device <#select-inference-device>`__
 -  `Replace segmentation model with
-   OpenVINO <#Replace-segmentation-model-with-OpenVINO>`__
+   OpenVINO <#replace-segmentation-model-with-openvino>`__
 -  `Run speaker diarization with
-   OpenVINO <#Run-speaker-diarization-with-OpenVINO>`__
+   OpenVINO <#run-speaker-diarization-with-openvino>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -78,7 +78,7 @@ Prerequisites
 Prepare pipeline
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Traditional Speaker Diarization systems can be generalized into a
 five-step process:
@@ -127,7 +127,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
    license before downloading or using its weights, visit the
    `pyannote/speaker-diarization <https://huggingface.co/pyannote/speaker-diarization>`__
    to read accept the license before you proceed. To use this model, you
-   must be a registered user in 🤗 Hugging Face Hub. You will need to use
+   must be a registered user in Hugging Face Hub. You will need to use
    an access token for the code below to run. For more information on
    access tokens, please refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -167,7 +167,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 Load test audio file
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -230,7 +230,7 @@ Load test audio file
 Run inference pipeline
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For running inference, we should provide a path to input audio to the
 pipeline
@@ -293,7 +293,7 @@ We can also print each time frame and corresponding speaker:
 Convert model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
@@ -341,7 +341,7 @@ with ``ov.save_model``.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -370,7 +370,7 @@ select device from dropdown list for running inference using OpenVINO
 Replace segmentation model with OpenVINO
 ----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -402,7 +402,7 @@ Replace segmentation model with OpenVINO
 Run speaker diarization with OpenVINO
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
