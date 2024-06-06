@@ -33,6 +33,8 @@ done
 
 if [ -e "$INSTALLDIR/runtime" ]; then
     export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
+    # If GenAI is installed, export it as well.
+    [ -f "$OpenVINO_DIR/OpenVINOGenAIConfig.cmake" ] && export OpenVINOGenAI_DIR=$OpenVINO_DIR
 
     system_type=$(/bin/ls "$INSTALLDIR/runtime/lib/")
     OV_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
