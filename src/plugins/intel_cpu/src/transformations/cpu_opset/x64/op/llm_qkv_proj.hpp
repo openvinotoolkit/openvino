@@ -19,10 +19,13 @@ public:
     struct Config {
         // Fused QKV projection has 3 outputs:
         //   input   :    [M, L, hidden_size]
-        // output q_proj: [M, L, hidden_size]
-        // output k_proj: [M, L, hidden_size]
-        // output v_proj: [M, L, hidden_size]
+        // output q_proj: [M, L, proj_size0]
+        // output k_proj: [M, L, proj_size1]
+        // output v_proj: [M, L, proj_size2]
         int hidden_size;
+        int proj_size0;
+        int proj_size1;
+        int proj_size2;
     };
 
     // args:

@@ -54,7 +54,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
 
         OutputVector args = {src};
         OutputVector outputs;
-        ov::Shape proj_weight_shape;
+        size_t hidden_size = 0;
+        std::vector<int> proj_size;
         for (auto& child : children) {
             auto mm = dynamic_cast<opset1::MatMul*>(child.get_node());
             if (!mm) {
@@ -76,33 +77,42 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                 return false;
             }
 
-            // make sure all weights have the same shape
-            if (proj_weight_shape.empty()) {
-                proj_weight_shape = constw->get_shape();
-            } else if (proj_weight_shape != constw->get_shape()) {
+            // input feature size should be the same
+            const auto& wshape = constw->get_shape();
+            if (hidden_size == 0) {
+                hidden_size = wshape[1];
+            } else if (hidden_size != wshape[1]) {
                 return false;
             }
 
+            // AMX tiles limit, tail handling is not supported yet
+            if ((wshape[0] % 32) != 0)
+                return false;
+            proj_size.push_back(wshape[0]);
             args.push_back(constw);
             outputs.push_back(mm->get_default_output());
         }
+
+        LLMQKVProjNode::Config config;
 
         // make sure just 3 projections are found
         if (outputs.size() != 3) {
             return false;
         }
-
-        if (proj_weight_shape[0] != proj_weight_shape[1]) {
+        if (args.size() != 4) {
             return false;
         }
+
+        config.hidden_size = static_cast<int>(hidden_size);
 
         // Limitation: QKV kernels requires K dimension to be multiple of 256
-        if ((proj_weight_shape[0] % 256) != 0) {
+        if ((config.hidden_size % 256) != 0)
             return false;
-        }
 
-        LLMQKVProjNode::Config config;
-        config.hidden_size = proj_weight_shape[0];
+        // proj size of q/k/v can be different (considering multi-query)
+        config.proj_size0 = proj_size[0];
+        config.proj_size1 = proj_size[1];
+        config.proj_size2 = proj_size[2];
 
         auto old_node = root;
         auto new_node = std::make_shared<LLMQKVProjNode>(args, config);
