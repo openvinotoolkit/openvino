@@ -55,16 +55,16 @@ notebook_utils Python module from GitHub.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file
 
 Get PyTorch model
@@ -83,7 +83,7 @@ also applicable to other YOLOv8 models.
 .. code:: ipython3
 
     from ultralytics import YOLO
-    
+
     model = YOLO("yolov8l-obb.pt")
 
 Prepare dataset and dataloader
@@ -116,20 +116,20 @@ instance.
     from ultralytics.cfg import get_cfg
     from ultralytics.data.utils import check_det_dataset
     from ultralytics.utils import DEFAULT_CFG, DATASETS_DIR
-    
-    
+
+
     CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/cfg/datasets/dota8.yaml"
     OUT_DIR = Path("./datasets")
     CFG_PATH = OUT_DIR / "dota8.yaml"
-    
+
     download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-    
+
     args = get_cfg(cfg=DEFAULT_CFG)
     args.data = CFG_PATH
     args.task = model.task
-    
+
     validator = model.task_map[model.task]["validator"](args=args)
-    
+
     validator.stride = 32
     validator.data = check_det_dataset(str(args.data))
     data_loader = validator.get_dataloader(DATASETS_DIR / "dota8", 1)
@@ -144,7 +144,7 @@ instance.
 
 .. parsed-literal::
 
-    
+
     Dataset 'datasets/dota8.yaml' images not found ⚠️, missing path '/home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/images/val'
     Downloading https://github.com/ultralytics/yolov5/releases/download/v1.0/dota8.zip to '/home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8.zip'...
 
@@ -161,7 +161,7 @@ instance.
 
 .. parsed-literal::
 
-    
+
     val: Scanning /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/labels/train... 8 images, 0 backgrounds, 0 corrupt: 100%|██████████| 8/8 [00:00<00:00, 266.41it/s]
 
 .. parsed-literal::
@@ -169,9 +169,6 @@ instance.
     val: New cache created: /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/labels/train.cache
 
 
-.. parsed-literal::
-
-    
 
 
 Run inference
@@ -182,14 +179,14 @@ Run inference
 .. code:: ipython3
 
     from PIL import Image
-    
+
     res = model(example_image_path, device="cpu")
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
 
 .. parsed-literal::
 
-    
+
     image 1/1 /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/images/train/P1053__1024__0___90.jpg: 1024x1024 4915.2ms
     Speed: 18.6ms preprocess, 4915.2ms inference, 50.9ms postprocess per image at shape (1, 3, 1024, 1024)
 
@@ -213,14 +210,14 @@ preserve dynamic shapes in the model.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     models_dir = Path("./models")
     models_dir.mkdir(exist_ok=True)
-    
-    
+
+
     OV_MODEL_NAME = "yolov8l-obb"
-    
-    
+
+
     OV_MODEL_PATH = Path(f"{OV_MODEL_NAME}_openvino_model/{OV_MODEL_NAME}.xml")
     if not OV_MODEL_PATH.exists():
         model.export(format="openvino", dynamic=True, half=True)
@@ -229,16 +226,16 @@ preserve dynamic shapes in the model.
 .. parsed-literal::
 
     Ultralytics YOLOv8.1.24 🚀 Python-3.8.10 torch-2.1.2+cpu CPU (Intel Core(TM) i9-10980XE 3.00GHz)
-    
+
     PyTorch: starting from 'yolov8l-obb.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) (1, 20, 21504) (85.4 MB)
-    
+
     OpenVINO: starting export with openvino 2024.0.0-14509-34caeefd078-releases/2024/0...
     OpenVINO: export success ✅ 5.6s, saved as 'yolov8l-obb_openvino_model/' (85.4 MB)
-    
+
     Export complete (18.7s)
     Results saved to /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization
-    Predict:         yolo predict task=obb model=yolov8l-obb_openvino_model imgsz=1024 half 
-    Validate:        yolo val task=obb model=yolov8l-obb_openvino_model imgsz=1024 data=runs/DOTAv1.0-ms.yaml half 
+    Predict:         yolo predict task=obb model=yolov8l-obb_openvino_model imgsz=1024 half
+    Validate:        yolo val task=obb model=yolov8l-obb_openvino_model imgsz=1024 data=runs/DOTAv1.0-ms.yaml half
     Visualize:       https://netron.app
 
 
@@ -253,16 +250,16 @@ Select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -282,13 +279,13 @@ Compile model
 .. code:: ipython3
 
     ov_model = core.read_model(OV_MODEL_PATH)
-    
+
     ov_config = {}
     if device.value != "CPU":
         ov_model.reshape({0: [1, 3, 1024, 1024]})
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
-    
+
     compiled_ov_model = core.compile_model(ov_model, device.value, ov_config)
 
 Prepare the model for inference
@@ -303,13 +300,13 @@ inference.
 .. code:: ipython3
 
     import torch
-    
-    
+
+
     def infer(*args):
         result = compiled_ov_model(args)[0]
         return torch.from_numpy(result)
-    
-    
+
+
     model.predictor.inference = infer
 
 Run inference
@@ -325,7 +322,7 @@ Run inference
 
 .. parsed-literal::
 
-    
+
     image 1/1 /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/images/train/P1053__1024__0___90.jpg: 1024x1024 338.0ms
     Speed: 4.7ms preprocess, 338.0ms inference, 3.7ms postprocess per image at shape (1, 3, 1024, 1024)
 
@@ -360,15 +357,15 @@ improve model inference speed.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     INT8_OV_PATH = Path("model/int8_model.xml")
-    
+
     to_quantize = widgets.Checkbox(
         value=True,
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -390,23 +387,23 @@ Let’s load ``skip magic`` extension to skip quantization if
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from typing import Dict
-    
+
     import nncf
-    
-    
+
+
     def transform_fn(data_item: Dict):
         input_tensor = validator.preprocess(data_item)["img"].numpy()
         return input_tensor
-    
-    
+
+
     quantization_dataset = nncf.Dataset(data_loader, transform_fn)
 
 
@@ -429,7 +426,7 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if INT8_OV_PATH.exists():
         print("Loading quantized model")
         quantized_model = core.read_model(INT8_OV_PATH)
@@ -441,14 +438,14 @@ Create a quantized model from the pre-trained converted OpenVINO model.
             preset=nncf.QuantizationPreset.MIXED,
         )
         ov.save_model(quantized_model, INT8_OV_PATH)
-    
-    
+
+
     ov_config = {}
     if device.value != "CPU":
         quantized_model.reshape({0: [1, 3, 1024, 1024]})
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
-    
+
     model_optimized = core.compile_model(quantized_model, device.value, ov_config)
 
 
@@ -499,11 +496,11 @@ We can reuse the base model pipeline in the same way as for IR model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     def infer(*args):
         result = model_optimized(args)[0]
         return torch.from_numpy(result)
-    
+
     model.predictor.inference = infer
 
 Run inference
@@ -511,14 +508,14 @@ Run inference
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     res = model(example_image_path, device='cpu')
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
 
 .. parsed-literal::
 
-    
+
     image 1/1 /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/images/train/P1053__1024__0___90.jpg: 1024x1024 240.5ms
     Speed: 3.2ms preprocess, 240.5ms inference, 4.2ms postprocess per image at shape (1, 3, 1024, 1024)
 
@@ -535,10 +532,10 @@ Compare inference time and model sizes
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp16_ir_model_size = OV_MODEL_PATH.with_suffix(".bin").stat().st_size / 1024
     quantized_model_size = INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
-    
+
     print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
     print(f"INT8 model size: {quantized_model_size:.2f} KB")
     print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -565,12 +562,12 @@ Compare inference time and model sizes
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -623,7 +620,7 @@ Compare inference time and model sizes
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 362.70 ms
@@ -653,12 +650,12 @@ Compare inference time and model sizes
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -711,7 +708,7 @@ Compare inference time and model sizes
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 124.20 ms
