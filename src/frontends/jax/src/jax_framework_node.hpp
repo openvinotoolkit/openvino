@@ -14,7 +14,6 @@ class JaxFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("JaxFrameworkNode", "util", ::ov::op::util::FrameworkNode);
     static constexpr const char* op_type_key = "PtTypeName";
-    static constexpr const char* schema_key = "PtSchema";
     static constexpr const char* failed_conversion_key = "PtException";
 
     JaxFrameworkNode(const std::shared_ptr<JaxDecoder>& decoder,
@@ -27,13 +26,11 @@ public:
         attrs.set_type_name("JaxFrameworkNode");
         if (is_reverseprop) {
             attrs[op_type_key] = m_decoder->get_op_type() + "_reverseprop";
-            attrs[schema_key] = "None";
             attrs[failed_conversion_key] =
                 "This is an internal openvino operation representing reverse data propagation. It should not appear in "
                 "graph in normal conversion flow and might be result of other failures.";
         } else {
             attrs[op_type_key] = m_decoder->get_op_type();
-            attrs[schema_key] = m_decoder->get_schema();
         }
         set_attrs(attrs);
 

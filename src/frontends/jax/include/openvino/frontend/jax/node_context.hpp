@@ -108,10 +108,6 @@ public:
     // constant value, naturally for prim::Constant
     OutputVector as_constant() const;
 
-    std::string get_schema() const {
-        return m_decoder->get_schema();
-    }
-
     std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const;
 
     // Call mark_node for each node from the vector

@@ -86,10 +86,6 @@ class JaxprPythonDecoder (Decoder):
             return self.jaxpr.primitive.name
         else:
             return "root"
-        
-    def get_schema(self) -> str:
-        # TODO: this is not really the semantic of schema in jaxpr. Need to check again.
-        return str(self.jaxpr)
     
     def get_subgraph_decoder(self, index: int) -> Decoder:
         raise NotImplementedError("Haven't figured out when it should be used.")

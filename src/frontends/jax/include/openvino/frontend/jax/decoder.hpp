@@ -8,8 +8,6 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
-#include "openvino/frontend/jax/JaxEffect.hpp"
-#include "openvino/frontend/jax/JaxprEqn.hpp"
 
 namespace ov {
 namespace frontend {
@@ -23,13 +21,6 @@ public:
     // Get string from constant. Work for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds
     // that fit
     virtual const std::string& as_string() const = 0;
-
-    // Get the equation expression of jaxpr. Here we use a new class JaxprEqn instead of string for better parsing.
-    // As an alternative, we could use google protobuf here to reduce the gap between python and c++.
-    virtual const std::vector<JaxprEqn> get_eqns() const = 0;
-
-    // Indicate whether this jaxpr is a closed jaxpr
-    virtual const bool is_closed_jaxpr() const = 0;
 
     // Get the const variable.
     virtual Any const_var(size_t index) const = 0;
@@ -70,9 +61,6 @@ public:
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
 
-    // Returns jax node schema as a string
-    virtual const std::string& get_schema() const = 0;
-
     // Get the inputs size. Note that jaxpr flattens the inputs in python. Therefore we do not need to deal with nested
     // inputs here.
     virtual size_t num_inputs() const = 0;
@@ -84,9 +72,6 @@ public:
     virtual const std::vector<size_t>& outputs() const = 0;
 
     virtual size_t output(size_t index) const = 0;
-
-    // Get the side-effect, if any.
-    virtual const JaxEffect effects() const = 0;
 
     // Get the debug information, which may contains some information from python.
     virtual const std::string debug_info() const = 0;

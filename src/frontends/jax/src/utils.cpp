@@ -219,8 +219,7 @@ std::shared_ptr<JaxFrameworkNode> create_fw_node_with_exception(const NodeContex
     auto attrs = fw_node->get_attrs();
     std::string message(exception_message);
     if (!message.empty()) {
-        message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
-                  " with schema " + context.get_schema() + '\n' + message;
+        message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() + '\n' + message;
     }
     attrs[JaxFrameworkNode::failed_conversion_key] = message;
     fw_node->set_attrs(attrs);
@@ -234,24 +233,6 @@ OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const
 }
 
 OutputVector make_framework_node(const NodeContext& context, const std::string& exception) {
-    auto schema = context.get_schema();
-    // TODO: properly process schema to get the actual position of mutable input
-    // Hack. Can indicate mutable inputs, but can it be reliable?
-    if (schema.find('!') != std::string::npos) {
-        // We create additional output for such nodes. It contains new tensor that represents input that was changed.
-        auto fw_node =
-            create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
-        auto outputs = fw_node->outputs();
-        // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
-        // output we created.
-        context.mutate_input(0, outputs.back());
-        OPENVINO_DEBUG << "Created node with mutated 0 input. Schema: " << schema << '\n';
-        // For simplification we do not expect such operations to have extra bodies
-        FRONT_END_OP_CONVERSION_CHECK(context.get_decoder()->get_subgraph_size() == 0,
-                                      "Mutable operation has subgraphs.");
-        return outputs;
-    }
-
     // Pay attention to subgraphs that may appear in the node
     std::map<size_t, ParameterVector> inputs_map;
     std::map<size_t, ResultVector> extra_outputs_map;

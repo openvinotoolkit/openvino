@@ -5,14 +5,13 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+
 #include <cstddef>
 #include <string>
 #include <vector>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/frontend/jax/JaxEffect.hpp"
-#include "openvino/frontend/jax/JaxprEqn.hpp"
 #include "openvino/frontend/jax/decoder.hpp"
 
 namespace py = pybind11;
@@ -27,14 +26,6 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
 
     const std::string& as_string() const override {
         PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, as_string);
-    }
-
-    const std::vector<ov::frontend::jax::JaxprEqn> get_eqns() const override {
-        PYBIND11_OVERRIDE_PURE(std::vector<ov::frontend::jax::JaxprEqn>, JaxDecoder, get_eqns);
-    }
-
-    const bool is_closed_jaxpr() const override {
-        PYBIND11_OVERRIDE_PURE(bool, JaxDecoder, is_closed_jaxpr);
     }
 
     ov::Any const_var(size_t index) const override {
@@ -77,10 +68,6 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
         PYBIND11_OVERRIDE_PURE(ov::Any, JaxDecoder, get_output_type, index);
     }
 
-    const std::string& get_schema() const override {
-        PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, get_schema);
-    }
-
     const std::vector<size_t>& inputs() const override {
         PYBIND11_OVERRIDE_PURE(std::vector<size_t>&, JaxDecoder, inputs);
     }
@@ -111,11 +98,6 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
 
     const std::vector<size_t>& outputs() const override {
         PYBIND11_OVERRIDE_PURE(std::vector<size_t>&, JaxDecoder, outputs);
-    }
-
-    // TODO: maybe not needed
-    const ov::frontend::jax::JaxEffect effects() const override {
-        PYBIND11_OVERRIDE_PURE(ov::frontend::jax::JaxEffect, JaxDecoder, effects);
     }
 
     const std::string debug_info() const override {

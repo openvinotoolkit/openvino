@@ -372,8 +372,8 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<JaxDecod
         }
 
     } catch (std::exception& e) {
-        OPENVINO_DEBUG << "Exception happened during conversion of backprop op: " << node->get_op_type()
-                       << " with schema: " << node->get_schema() << ": " << e.what();
+        OPENVINO_DEBUG << "Exception happened during conversion of backprop op: " << node->get_op_type() << ": "
+                       << e.what();
     }
     // Create PtFrameworkNode representing unconverted backprop operation
     return std::make_shared<JaxFrameworkNode>(node, OutputVector{value}, 1, true);
