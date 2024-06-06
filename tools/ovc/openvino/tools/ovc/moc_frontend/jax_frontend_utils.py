@@ -10,7 +10,7 @@ from openvino.runtime import Tensor, PartialShape
 from openvino.tools.ovc.error import Error
 
 
-def get_jax_decoder(model, example_inputs, args):
+def get_jax_decoder(model, args):
     try:
         from openvino.frontend.jax.jaxpr_decoder import JaxprPythonDecoder
         import jax
@@ -18,15 +18,9 @@ def get_jax_decoder(model, example_inputs, args):
         log.error("Jax frontend loading failed")
         raise e
     
-    inputs = prepare_jax_inputs(example_inputs)
     if not isinstance(model, JaxprPythonDecoder):
-        decoder = JaxprPythonDecoder(model, inputs)
+        decoder = JaxprPythonDecoder(model)
     else:
         decoder = model
     
     args['input_model'] = decoder
-    args['example_input'] = inputs
-
-def prepare_jax_inputs(example_inputs):
-    # TODO: check the corner cases
-    return example_inputs

@@ -18,27 +18,21 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 class JaxprPythonDecoder (Decoder):
-    def __init__(self, jax_module, example_inputs=None, jax_eqn=None, name=None):
+    def __init__(self, jaxpr, name=None):
         Decoder.__init__(self)
         
-        self.jax_module = jax_module
-        self.example_inputs = example_inputs
+        # TODO: the `self.jaxpr` here is possible to be a jaxpr or a jax_eqn. Maybe we need a better design.
+        if isinstance(jaxpr, (jax.core.Jaxpr, jax.core.JaxprEqn)):
+            self.jaxpr = jaxpr
+        elif isinstance(jaxpr, jax.core.ClosedJaxpr):
+            self.jaxpr = jaxpr.jaxpr
+        else:
+            raise ValueError(f"Unexpected type of jaxpr: {type(jaxpr)}")
         self.name = name
         if self.name is None:
             self.name = "jax_module"
-        if self.example_inputs is None:
-            self.example_inputs = []
-        elif isinstance(self.example_inputs, tuple):
-            self.example_inputs = list(self.example_inputs)
-        elif not isinstance(self.example_inputs, list):
-            self.example_inputs = [self.example_inputs]
         
-        # TODO: the `self.jaxpr` here is possible to be a jaxpr or a jax_eqn. Maybe we need a better design.
-        if jax_eqn is None:
-            self.jaxpr = jax.make_jaxpr(self.jax_module)(*self.example_inputs).jaxpr
-        else:
-            self.jaxpr = jax_eqn
-        # TODO: this implementation may lead to huge memory increasing. Any better solution?
+        # TODO: this implementation may lead to memory increasing. Any better solution?
         self.m_decoders = []
         
     def inputs(self) -> List[int]:
@@ -83,7 +77,7 @@ class JaxprPythonDecoder (Decoder):
         if isinstance(self.jaxpr, jax.core.JaxprEqn):
             return
         for node in self.jaxpr.eqns:
-            decoder = JaxprPythonDecoder(self.jax_module, jax_eqn=node, name=self.name + "/" + node.primitive.name)
+            decoder = JaxprPythonDecoder(node, name=self.name + "/" + node.primitive.name)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
             
@@ -135,7 +129,6 @@ class JaxprPythonDecoder (Decoder):
 
     def input_is_none(self, index) -> bool:
         return self.jaxpr.invars[index] is None
-    
      
     @staticmethod
     def get_type_for_value(value):

@@ -232,9 +232,7 @@ def check_model_object(argv):
         
     if 'jax' in sys.modules:
         import jax
-        import types
-        # This a workaround to avoid mistaking a normal function as jax module. Needs to be optimized in the future.
-        if isinstance(model, types.FunctionType) and hasattr(model, '__jax_debug__'):
+        if isinstance(model, (jax.core.Jaxpr, jax.core.ClosedJaxpr)):
             return "jax"
 
     raise Error('Unknown model type: {}'.format(type(model)))
@@ -471,11 +469,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
             if model_framework == "jax":
-                example_inputs = []
-                if 'example_input' in args and args['example_input'] is not None:
-                    example_inputs = args['example_input']
-                
-                get_jax_decoder(args['input_model'], example_inputs, args)
+                get_jax_decoder(args['input_model'], args)
                 
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
