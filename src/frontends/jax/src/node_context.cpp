@@ -64,7 +64,7 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
         std::shared_ptr<JaxDecoder> node;
         Output<Node> node_converted_output;
         std::tie(in_tensor, node, node_converted_output) = m_translate_session->m_may_be_alias.at(back_input_id);
-        auto op_node = std::make_shared<JaxFrameworkNode>(node, OutputVector{back_node_input}, 1, true);
+        auto op_node = std::make_shared<JaxFrameworkNode>(node, OutputVector{back_node_input}, 1);
         if (m_tensor_map->count(in_tensor)) {
             // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
             OPENVINO_DEBUG << "Couldn't find in the current body the initial aliased tensor: " << in_tensor

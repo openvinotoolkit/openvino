@@ -10,18 +10,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/jax/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
-#include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/log.hpp"
-#include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
-#include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
-#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
-#include "transformations/control_flow/unroll_if.hpp"
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
-#include "transformations/op_conversions/convert_convertlike.hpp"
-#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
-#include "transformations/resolve_names_collisions.hpp"
-#include "transforms/placeholder_pass.hpp"
 #include "translate_session.hpp"
 
 namespace ov {

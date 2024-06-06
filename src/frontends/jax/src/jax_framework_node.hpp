@@ -16,22 +16,12 @@ public:
     static constexpr const char* op_type_key = "PtTypeName";
     static constexpr const char* failed_conversion_key = "PtException";
 
-    JaxFrameworkNode(const std::shared_ptr<JaxDecoder>& decoder,
-                     const OutputVector& inputs,
-                     size_t output_size,
-                     bool is_reverseprop = false)
+    JaxFrameworkNode(const std::shared_ptr<JaxDecoder>& decoder, const OutputVector& inputs, size_t output_size)
         : ov::op::util::FrameworkNode(inputs, output_size, 0),
           m_decoder(decoder) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name("JaxFrameworkNode");
-        if (is_reverseprop) {
-            attrs[op_type_key] = m_decoder->get_op_type() + "_reverseprop";
-            attrs[failed_conversion_key] =
-                "This is an internal openvino operation representing reverse data propagation. It should not appear in "
-                "graph in normal conversion flow and might be result of other failures.";
-        } else {
-            attrs[op_type_key] = m_decoder->get_op_type();
-        }
+        attrs[op_type_key] = m_decoder->get_op_type();
         set_attrs(attrs);
 
         // Set output shapes and types if recognized
