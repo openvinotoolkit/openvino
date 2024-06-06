@@ -433,10 +433,14 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
     if (array_helpers::is_contiguous(array)) {
-        auto memory = std::make_shared<ov::SharedBuffer<py::array>>(
+        auto buffer = new ov::SharedBuffer<py::array>(
             static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
+        std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
+            py::gil_scoped_acquire acquire;
+            delete buffer;
+        });
         return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
