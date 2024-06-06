@@ -32,41 +32,41 @@ conditioning by pose, please refer to this
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Instantiating Generation
-   Pipeline <#instantiating-generation-pipeline>`__
+   Pipeline <#Instantiating-Generation-Pipeline>`__
 
    -  `ControlNet in Diffusers
-      library <#controlnet-in-diffusers-library>`__
+      library <#ControlNet-in-Diffusers-library>`__
 
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
 
-   -  `ControlNet conversion <#controlnet-conversion>`__
-   -  `Text Encoder <#text-encoder>`__
-   -  `UNet conversion <#unet-conversion>`__
-   -  `VAE Decoder conversion <#vae-decoder-conversion>`__
+   -  `ControlNet conversion <#ControlNet-conversion>`__
+   -  `Text Encoder <#Text-Encoder>`__
+   -  `UNet conversion <#UNet-conversion>`__
+   -  `VAE Decoder conversion <#VAE-Decoder-conversion>`__
 
 -  `Select inference device for Stable Diffusion
-   pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
--  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
--  `Quantization <#quantization>`__
+   pipeline <#Select-inference-device-for-Stable-Diffusion-pipeline>`__
+-  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
-   -  `Run quantization <#run-quantization>`__
-   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
+   -  `Run quantization <#Run-quantization>`__
+   -  `Compare model file sizes <#Compare-model-file-sizes>`__
    -  `Compare inference time of the FP16 and INT8
-      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+      pipelines <#Compare-inference-time-of-the-FP16-and-INT8-pipelines>`__
 
 -  `Running Text-to-Image Generation with ControlNet Conditioning and
-   OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+   OpenVINO <#Running-Text-to-Image-Generation-with-ControlNet-Conditioning-and-OpenVINO>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/76463150/1a5978c6-e7a0-4824-9318-a3d8f4912c47
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -76,22 +76,22 @@ Prerequisites
 Instantiating Generation Pipeline
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ControlNet in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For working with Stable Diffusion and ControlNet models, we will use
 Hugging Face `Diffusers <https://github.com/huggingface/diffusers>`__
 library. To experiment with ControlNet, Diffusers exposes the
-`StableDiffusionControlNetPipeline <https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/controlnet>`__
+```StableDiffusionControlNetPipeline`` <https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/controlnet>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 Central to the ``StableDiffusionControlNetPipeline`` is the
 ``controlnet`` argument which enables providing a particularly trained
-`ControlNetModel <https://huggingface.co/docs/diffusers/main/en/api/models#diffusers.ControlNetModel>`__
+```ControlNetModel`` <https://huggingface.co/docs/diffusers/main/en/api/models#diffusers.ControlNetModel>`__
 instance while keeping the pre-trained diffusion model weights the same.
 The code below demonstrates how to create
 ``StableDiffusionControlNetPipeline``, using the ``controlnet-openpose``
@@ -114,7 +114,7 @@ controlnet model and ``stable-diffusion-v1-5``:
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We need to provide a model object, input data for model tracing to
 ``ov.convert_model`` function to obtain OpenVINO ``ov.Model`` object
@@ -150,7 +150,7 @@ The pipeline consists of four important parts:
 ControlNet conversion
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ControlNet model accepts the same inputs like UNet in Stable
 Diffusion pipeline and additional condition sample - skeleton key points
@@ -201,7 +201,7 @@ blocks, which serves additional context for the UNet model.
 Text Encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -245,7 +245,7 @@ hidden states.
 UNet conversion
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The process of UNet model conversion remains the same, like for original
 Stable Diffusion model, but with respect to the new inputs generated by
@@ -355,7 +355,7 @@ ControlNet.
 VAE Decoder conversion
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The VAE model has two parts, an encoder, and a decoder. The encoder is
 used to convert the image into a low-dimensional latent representation,
@@ -412,7 +412,7 @@ diffusion
 Select inference device for Stable Diffusion pipeline
 -----------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -443,7 +443,7 @@ select device from dropdown list for running inference using OpenVINO
 Prepare Inference pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The stable diffusion model takes both a latent seed and a text prompt as
 input. The latent seed is then used to generate random latent image
@@ -479,9 +479,9 @@ it is recommended to look into `Elucidating the Design Space of
 Diffusion-Based Generative Models <https://arxiv.org/abs/2206.00364>`__
 
 In this tutorial, instead of using Stable Diffusion’s default
-`PNDMScheduler <https://huggingface.co/docs/diffusers/main/en/api/schedulers/pndm>`__,
+```PNDMScheduler`` <https://huggingface.co/docs/diffusers/main/en/api/schedulers/pndm>`__,
 we use
-`EulerAncestralDiscreteScheduler <https://huggingface.co/docs/diffusers/api/schedulers/euler_ancestral>`__,
+```EulerAncestralDiscreteScheduler`` <https://huggingface.co/docs/diffusers/api/schedulers/euler_ancestral>`__,
 recommended by authors. More information regarding schedulers can be
 found
 `here <https://huggingface.co/docs/diffusers/main/en/using-diffusers/schedulers>`__.
@@ -946,7 +946,7 @@ Now, let’s see model in action
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -974,13 +974,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    is_gpu_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(
-        value=not is_gpu_device,
-        description="Quantization",
-        disabled=is_gpu_device,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -1012,7 +1007,7 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a prompts below as calibration data for ControlNet and UNet. To
 collect intermediate model inputs for calibration we should customize
@@ -1147,7 +1142,7 @@ the last ControlNet input is a preprocessed ``qrcode_image``.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 ``FastBiasCorrection`` algorithm is disabled due to minimal accuracy
@@ -1261,7 +1256,7 @@ pipelines.
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1304,7 +1299,7 @@ Compare model file sizes
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use mean inference time on 3 samples.
@@ -1353,7 +1348,7 @@ pipelines, we use mean inference time on 3 samples.
 Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO
 --------------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we are ready to start generation. For improving the generation
 process, we also introduce an opportunity to provide a

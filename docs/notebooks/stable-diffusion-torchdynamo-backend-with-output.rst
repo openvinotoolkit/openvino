@@ -20,7 +20,7 @@ fantastic world of diffusion models for everyone!
 
 This notebook demonstrates how to run stable diffusion model using
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ library and
-`OpenVINO TorchDynamo
+`OpenVINO ``TorchDynamo``
 backend <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__
 for Text-to-Image and Image-to-Image generation tasks.
 
@@ -33,21 +33,21 @@ Notebook contains the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Stable Diffusion with Diffusers
-   library <#stable-diffusion-with-diffusers-library>`__
--  `OpenVINO TorchDynamo backend <#openvino-torchdynamo-backend>`__
+   library <#Stable-Diffusion-with-Diffusers-library>`__
+-  `OpenVINO TorchDynamo backend <#OpenVINO-TorchDynamo-backend>`__
 
-   -  `Run Image generation <#run-image-generation>`__
+   -  `Run Image generation <#Run-Image-generation>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 -  `Support for Automatic1111 Stable Diffusion
-   WebUI <#support-for-automatic1111-stable-diffusion-webui>`__
+   WebUI <#Support-for-Automatic1111-Stable-Diffusion-WebUI>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -76,16 +76,18 @@ Prerequisites
 
 .. parsed-literal::
 
-    2024-05-16 02:20:53.109524: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 02:20:53.144373: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 03:31:47.318537: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 03:31:47.352773: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 02:20:53.774988: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 03:31:47.873530: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/transformers/transformer_2d.py:34: FutureWarning: `Transformer2DModelOutput` is deprecated and will be removed in version 1.0.0. Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead.
+      deprecate("Transformer2DModelOutput", "1.0.0", deprecation_message)
 
 
 Stable Diffusion with Diffusers library
 ---------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To work with Stable Diffusion v2.1, we will use Hugging Face Diffusers
 library. To experiment with Stable Diffusion models, Diffusers exposes
@@ -106,12 +108,6 @@ The code below demonstrates how to create the
     pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
 
 
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
-
-
 
 .. parsed-literal::
 
@@ -121,7 +117,7 @@ The code below demonstrates how to create the
 OpenVINO TorchDynamo backend
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `OpenVINO TorchDynamo
 backend <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__
@@ -188,7 +184,7 @@ options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#opti
 
 
 
-To use `torch.compile()
+To use ```torch.compile()``
 method <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`__,
 you just need to add an import statement and define the OpenVINO
 backend:
@@ -210,7 +206,7 @@ backend:
 Run Image generation
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -234,7 +230,7 @@ Run Image generation
 Interactive demo
 ================
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now you can start the demo, choose the inference mode, define prompts
 (and input image for Image-to-Image generation) and run inference
@@ -432,15 +428,15 @@ pipeline. Optionally, you can also change some input parameters.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 Support for Automatic1111 Stable Diffusion WebUI
 ------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Automatic1111 Stable Diffusion WebUI is an open-source repository that
 hosts a browser-based interface for the Stable Diffusion based image

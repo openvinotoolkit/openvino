@@ -14,29 +14,29 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `Loading OpenVINO Runtime and Showing
-   Info <#loading-openvino-runtime-and-showing-info>`__
--  `Loading a Model <#loading-a-model>`__
+   Info <#Loading-OpenVINO-Runtime-and-Showing-Info>`__
+-  `Loading a Model <#Loading-a-Model>`__
 
-   -  `OpenVINO IR Model <#openvino-ir-model>`__
-   -  `ONNX Model <#onnx-model>`__
-   -  `PaddlePaddle Model <#paddlepaddle-model>`__
-   -  `TensorFlow Model <#tensorflow-model>`__
-   -  `TensorFlow Lite Model <#tensorflow-lite-model>`__
-   -  `PyTorch Model <#pytorch-model>`__
+   -  `OpenVINO IR Model <#OpenVINO-IR-Model>`__
+   -  `ONNX Model <#ONNX-Model>`__
+   -  `PaddlePaddle Model <#PaddlePaddle-Model>`__
+   -  `TensorFlow Model <#TensorFlow-Model>`__
+   -  `TensorFlow Lite Model <#TensorFlow-Lite-Model>`__
+   -  `PyTorch Model <#PyTorch-Model>`__
 
 -  `Getting Information about a
-   Model <#getting-information-about-a-model>`__
+   Model <#Getting-Information-about-a-Model>`__
 
-   -  `Model Inputs <#model-inputs>`__
-   -  `Model Outputs <#model-outputs>`__
+   -  `Model Inputs <#Model-Inputs>`__
+   -  `Model Outputs <#Model-Outputs>`__
 
--  `Doing Inference on a Model <#doing-inference-on-a-model>`__
--  `Reshaping and Resizing <#reshaping-and-resizing>`__
+-  `Doing Inference on a Model <#Doing-Inference-on-a-Model>`__
+-  `Reshaping and Resizing <#Reshaping-and-Resizing>`__
 
-   -  `Change Image Size <#change-image-size>`__
-   -  `Change Batch Size <#change-batch-size>`__
+   -  `Change Image Size <#Change-Image-Size>`__
+   -  `Change Batch Size <#Change-Batch-Size>`__
 
--  `Caching a Model <#caching-a-model>`__
+-  `Caching a Model <#Caching-a-Model>`__
 
 .. code:: ipython3
 
@@ -65,7 +65,7 @@ Table of contents:
 Loading OpenVINO Runtime and Showing Info
 -----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Initialize OpenVINO Runtime with ``ov.Core()``
 
@@ -126,7 +126,7 @@ inference using this widget
 Loading a Model
 ---------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 After initializing OpenVINO Runtime, first read the model file with
 ``read_model()``, then compile it to the specified device with the
@@ -140,7 +140,7 @@ using a tool dedicated to this task.
 OpenVINO IR Model
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 An OpenVINO IR (Intermediate Representation) model consists of an
 ``.xml`` file, containing information about network topology, and a
@@ -194,7 +194,7 @@ notebooks.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -211,7 +211,7 @@ notebooks.
 ONNX Model
 ~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `ONNX <https://onnx.ai/>`__ is an open format built to represent machine
 learning models. ONNX defines a common set of operators - the building
@@ -243,7 +243,7 @@ points to the filename of an ONNX model.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
 
 
 
@@ -266,7 +266,7 @@ The ONNX model can be exported to OpenVINO IR with ``save_model()``:
 PaddlePaddle Model
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `PaddlePaddle <https://www.paddlepaddle.org.cn/documentation/docs/en/guides/index_en.html>`__
 models saved for inference can also be passed to OpenVINO Runtime
@@ -303,7 +303,7 @@ without any conversion step. Pass the filename with extension to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
 
 
 
@@ -324,7 +324,7 @@ without any conversion step. Pass the filename with extension to
 TensorFlow Model
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 TensorFlow models saved in frozen graph format can also be passed to
 ``read_model``.
@@ -347,7 +347,7 @@ TensorFlow models saved in frozen graph format can also be passed to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
 
 
 
@@ -368,7 +368,7 @@ TensorFlow models saved in frozen graph format can also be passed to
 TensorFlow Lite Model
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `TFLite <https://www.tensorflow.org/lite>`__ models saved for inference
 can also be passed to OpenVINO Runtime. Pass the filename with extension
@@ -403,7 +403,7 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.tflite')
 
 
 
@@ -423,7 +423,7 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 PyTorch Model
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `PyTorch <https://pytorch.org/>`__ models can not be directly passed to
 ``core.read_model``. ``ov.Model`` for model objects from this framework
@@ -455,7 +455,7 @@ model form torchvision library. After conversion model using
 Getting Information about a Model
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The OpenVINO Model instance stores information about the model.
 Information about the inputs and outputs of the model are in
@@ -484,14 +484,14 @@ Information about the inputs and outputs of the model are in
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
 Model Inputs
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Information about all input layers is stored in the ``inputs``
 dictionary.
@@ -566,7 +566,7 @@ point) precision.
 Model Outputs
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -632,7 +632,7 @@ classes (``C``). The output is returned as 32-bit floating point.
 Doing Inference on a Model
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **NOTE** this notebook demonstrates only the basic synchronous
    inference API. For an async inference example, please refer to `Async
@@ -690,7 +690,7 @@ produced data as values.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -838,12 +838,12 @@ notebook <hello-world-with-output.html>`__.
 Reshaping and Resizing
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Change Image Size
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Instead of reshaping the image to fit the model, it is also possible to
 reshape the model to fit the image. Be aware that not all models support
@@ -879,7 +879,7 @@ input shape.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
 
 
 
@@ -930,7 +930,7 @@ dimensions. After reshaping, compile the network once again.
 Change Batch Size
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use the ``.reshape()`` method to set the batch size, by increasing the
 first element of ``new_shape``. For example, to set a batch size of two,
@@ -992,7 +992,7 @@ input image through the network to see the result:
 Caching a Model
 ---------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For some devices, like GPU, loading a model can take some time. Model
 Caching solves this issue by caching the model in a cache directory. If
@@ -1031,7 +1031,7 @@ the cache.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -1061,7 +1061,7 @@ the cache.
 
 .. parsed-literal::
 
-    Loading the network to the CPU device took 0.18 seconds.
+    Loading the network to the CPU device took 0.15 seconds.
 
 
 After running the previous cell, we know the model exists in the cache

@@ -17,31 +17,31 @@ and do inference with a sample image.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Preparation <#preparation>`__
+-  `Preparation <#Preparation>`__
 
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
 
--  `Download TFLite model <#download-tflite-model>`__
+-  `Download TFLite model <#Download-TFLite-model>`__
 -  `Convert a Model to OpenVINO IR
-   Format <#convert-a-model-to-openvino-ir-format>`__
+   Format <#Convert-a-Model-to-OpenVINO-IR-Format>`__
 -  `Load model using OpenVINO TensorFlow Lite
-   Frontend <#load-model-using-openvino-tensorflow-lite-frontend>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   Frontend <#Load-model-using-OpenVINO-TensorFlow-Lite-Frontend>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
 
--  `Estimate Model Performance <#estimate-model-performance>`__
+-  `Estimate Model Performance <#Estimate-Model-Performance>`__
 
 Preparation
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -77,7 +77,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -91,7 +91,7 @@ Imports
 Download TFLite model
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -114,14 +114,14 @@ Download TFLite model
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
 
 
 
 Convert a Model to OpenVINO IR Format
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To convert the TFLite model to OpenVINO IR, model conversion Python API
 can be used. ``ov.convert_model`` function accepts the path to the
@@ -151,7 +151,7 @@ For TensorFlow Lite models support, refer to this
 Load model using OpenVINO TensorFlow Lite Frontend
 --------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
 conversion to IR and read models directly by OpenVINO runtime API. For
@@ -167,7 +167,7 @@ this `tutorial <../openvino-api>`__.
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We can find information about model input preprocessing in its
 `description <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
@@ -184,7 +184,7 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -246,7 +246,7 @@ select device from dropdown list for running inference using OpenVINO
 Estimate Model Performance
 --------------------------
 
- `Benchmark
+`back to top ⬆️ <#Table-of-contents:>`__ `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.
@@ -271,18 +271,18 @@ GPU.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.29 ms
+    [ INFO ] Read model took 9.51 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -296,7 +296,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 160.99 ms
+    [ INFO ] Compile model took 210.51 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -333,15 +333,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.44 ms
+    [ INFO ] First inference took 6.71 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17394 iterations
-    [ INFO ] Duration:         15003.40 ms
+    [ INFO ] Count:            17454 iterations
+    [ INFO ] Duration:         15007.91 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        5.04 ms
-    [ INFO ]    Average:       5.04 ms
-    [ INFO ]    Min:           2.70 ms
-    [ INFO ]    Max:           15.97 ms
-    [ INFO ] Throughput:   1159.34 FPS
+    [ INFO ]    Median:        5.02 ms
+    [ INFO ]    Average:       5.02 ms
+    [ INFO ]    Min:           3.03 ms
+    [ INFO ]    Max:           13.38 ms
+    [ INFO ] Throughput:   1162.99 FPS
 

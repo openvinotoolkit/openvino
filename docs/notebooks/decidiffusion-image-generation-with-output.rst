@@ -42,48 +42,48 @@ The notebook contains the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Prepare DeciDiffusion models for OpenVINO format
-   conversion <#prepare-decidiffusion-models-for-openvino-format-conversion>`__
+   conversion <#Prepare-DeciDiffusion-models-for-OpenVINO-format-conversion>`__
 
-   -  `About model <#about-model>`__
+   -  `About model <#About-model>`__
    -  `DeciDiffusion integration with Diffusers
-      library <#decidiffusion-integration-with-diffusers-library>`__
+      library <#DeciDiffusion-integration-with-Diffusers-library>`__
 
 -  `Convert models to OpenVINO
-   format <#convert-models-to-openvino-format>`__
+   format <#Convert-models-to-OpenVINO-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `U-Net NAS <#u-net-nas>`__
-   -  `VAE <#vae>`__
+   -  `Text Encoder <#Text-Encoder>`__
+   -  `U-Net NAS <#U-Net-NAS>`__
+   -  `VAE <#VAE>`__
 
--  `Prepare inference pipeline <#prepare-inference-pipeline>`__
+-  `Prepare inference pipeline <#Prepare-inference-pipeline>`__
 
    -  `Guidance scale and negative prompt for controlling generation
-      result. <#guidance-scale-and-negative-prompt-for-controlling-generation-result->`__
+      result. <#Guidance-scale-and-negative-prompt-for-controlling-generation-result.>`__
    -  `Strength for controlling Image-to-Image
-      generation <#strength-for-controlling-image-to-image-generation>`__
-   -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+      generation <#Strength-for-controlling-Image-to-Image-generation>`__
+   -  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
 
--  `Text-to-Image generation <#text-to-image-generation>`__
+-  `Text-to-Image generation <#Text-to-Image-generation>`__
 
-   -  `Image-to-Image generation <#image-to-image-generation>`__
+   -  `Image-to-Image generation <#Image-to-Image-generation>`__
 
--  `Quantization <#quantization>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
-   -  `Run quantization <#run-quantization>`__
+   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
+   -  `Run quantization <#Run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
-      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+      pipelines <#Compare-inference-time-of-the-FP16-and-INT8-pipelines>`__
 
-      -  `Compare UNet file size <#compare-unet-file-size>`__
+      -  `Compare UNet file size <#Compare-UNet-file-size>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 install required packages
 
@@ -94,12 +94,12 @@ install required packages
 Prepare DeciDiffusion models for OpenVINO format conversion
 -----------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 About model
 ~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 DeciDiffusion 1.0 is an 820 million parameter text-to-image latent
 diffusion model trained on the LAION-v2 dataset and fine-tuned on the
@@ -152,12 +152,12 @@ computational demands are reduced.
 DeciDiffusion integration with Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To work with DeciDiffusion, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library.
 DeciDiffusion the
-`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 with small customization: overriding default parameters and replacing
 U-Net model. The code, defined in
 ``load_orginal_pytorch_pipeline_componets`` function, demonstrates how
@@ -217,7 +217,7 @@ to create diffusers pipeline for DeciDiffusion.
 Convert models to OpenVINO format
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -238,7 +238,7 @@ Let us convert each part:
 Text Encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -303,7 +303,7 @@ hidden states.
 U-Net NAS
 ~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 U-Net NAS model, similar to Stable Diffusion UNet model, has three
 inputs:
@@ -372,7 +372,7 @@ Model predicts the ``sample`` state for the next step.
 VAE
 ~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -482,7 +482,7 @@ of the pipeline, it will be better to convert them to separate models.
 Prepare inference pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow. |sd-pipeline|
@@ -521,7 +521,7 @@ decoded by the decoder part of the variational auto encoder.
 Guidance scale and negative prompt for controlling generation result.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Guidance scale controls how similar the generated image will be to the
 prompt. A higher guidance scale means the model will try to generate an
@@ -551,7 +551,7 @@ least > 1).
 Strength for controlling Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In the Image-to-Image mode, the strength parameter plays a crucial role.
 It determines the level of noise that is added to the initial image
@@ -938,7 +938,7 @@ between 0.4 and 0.6.
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1008,7 +1008,7 @@ Let us define them and put all components together
 Text-to-Image generation
 ------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, let’s see model in action
 
@@ -1066,7 +1066,7 @@ Now, let’s see model in action
 Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 One of the most amazing features of Stable Diffusion model is the
 ability to condition image generation from an existing image or sketch.
@@ -1147,7 +1147,7 @@ diffusion models can be used to “enhance” an image.
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1174,12 +1174,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -1211,7 +1207,7 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a portion of
 `conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
@@ -1281,7 +1277,7 @@ model inputs for calibration we should customize ``CompiledModel``.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 
@@ -1428,7 +1424,7 @@ Image-to-Image generation
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -1482,7 +1478,7 @@ pipelines, we use median inference time on calibration subset.
 Compare UNet file size
 ^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1506,7 +1502,7 @@ Compare UNet file size
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Please select below whether you would like to use the quantized model to
 launch the interactive demo.

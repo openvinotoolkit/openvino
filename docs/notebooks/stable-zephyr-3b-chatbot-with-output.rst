@@ -41,21 +41,21 @@ opportunity for processing model cache state.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR) and
    compress model weights to INT4 using
-   NNCF <#convert-model-to-openvino-intermediate-representation-ir-and-compress-model-weights-to-int4-using-nncf>`__
+   NNCF <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-and-compress-model-weights-to-INT4-using-NNCF>`__
 -  `Apply stateful transformation for automatic handling model
-   state <#apply-stateful-transformation-for-automatic-handling-model-state>`__
--  `Select device for inference <#select-device-for-inference>`__
--  `Estimate model performance <#estimate-model-performance>`__
--  `Using model with Optimum Intel <#using-model-with-optimum-intel>`__
--  `Interactive chatbot demo <#interactive-chatbot-demo>`__
+   state <#Apply-stateful-transformation-for-automatic-handling-model-state>`__
+-  `Select device for inference <#Select-device-for-inference>`__
+-  `Estimate model performance <#Estimate-model-performance>`__
+-  `Using model with Optimum Intel <#Using-model-with-Optimum-Intel>`__
+-  `Interactive chatbot demo <#Interactive-chatbot-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For starting work, we should install required packages first
 
@@ -76,14 +76,13 @@ For starting work, we should install required packages first
 
     %pip install -q "transformers>=4.38.2"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu -r ./openvino.genai/llm_bench/python/requirements.txt
-    %pip uninstall -q -y openvino openvino-dev openvino-nightly
-    %pip install -q openvino-nightly
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q "gradio>=4.19"
 
 Convert model to OpenVINO Intermediate Representation (IR) and compress model weights to INT4 using NNCF
 --------------------------------------------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 llm_bench provides conversion script for converting LLMS into OpenVINO
 IR format compatible with Optimum-Intel. It also allows to compress
@@ -100,7 +99,7 @@ performance even more but introduces a minor drop in prediction quality.
 Apply stateful transformation for automatic handling model state
 ----------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Stable Zephyr is a decoder-only transformer model and generates text
 token by token in an autoregressive fashion. Since the output side is
@@ -189,7 +188,7 @@ that
 Select device for inference
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -219,7 +218,7 @@ Select device for inference
 Estimate model performance
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 openvino.genai / llm_bench / python / benchmark.py script allow to
 estimate text generation pipeline inference on specific input prompt
@@ -284,7 +283,7 @@ with given number of maximum generated tokens.
 Compare with model without state
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -409,7 +408,7 @@ Compare with model without state
 Using model with Optimum Intel
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Running model with Optimum-Intel API required following steps: 1.
 register normalized config for model 2. create instance of
@@ -434,7 +433,7 @@ sequence of generated token ids that should be decoded using a tokenizer
 Interactive chatbot demo
 ------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 | Now, our model ready to use. Let’s see it in action. We will use
   Gradio interface for interaction with model. Put text message into

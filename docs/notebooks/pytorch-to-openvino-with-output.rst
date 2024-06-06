@@ -32,53 +32,53 @@ regimes.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Load PyTorch Model <#load-pytorch-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load PyTorch Model <#Load-PyTorch-Model>`__
 
-   -  `Prepare Input Data <#prepare-input-data>`__
-   -  `Run PyTorch Model Inference <#run-pytorch-model-inference>`__
+   -  `Prepare Input Data <#Prepare-Input-Data>`__
+   -  `Run PyTorch Model Inference <#Run-PyTorch-Model-Inference>`__
    -  `Benchmark PyTorch Model
-      Inference <#benchmark-pytorch-model-inference>`__
+      Inference <#Benchmark-PyTorch-Model-Inference>`__
 
 -  `Convert PyTorch Model to OpenVINO Intermediate
-   Representation <#convert-pytorch-model-to-openvino-intermediate-representation>`__
+   Representation <#Convert-PyTorch-Model-to-OpenVINO-Intermediate-Representation>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Run OpenVINO Model Inference <#run-openvino-model-inference>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Run OpenVINO Model Inference <#Run-OpenVINO-Model-Inference>`__
    -  `Benchmark OpenVINO Model
-      Inference <#benchmark-openvino-model-inference>`__
+      Inference <#Benchmark-OpenVINO-Model-Inference>`__
 
 -  `Convert PyTorch Model with Static Input
-   Shape <#convert-pytorch-model-with-static-input-shape>`__
+   Shape <#Convert-PyTorch-Model-with-Static-Input-Shape>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
    -  `Run OpenVINO Model Inference with Static Input
-      Shape <#run-openvino-model-inference-with-static-input-shape>`__
+      Shape <#Run-OpenVINO-Model-Inference-with-Static-Input-Shape>`__
    -  `Benchmark OpenVINO Model Inference with Static Input
-      Shape <#benchmark-openvino-model-inference-with-static-input-shape>`__
+      Shape <#Benchmark-OpenVINO-Model-Inference-with-Static-Input-Shape>`__
 
 -  `Convert TorchScript Model to OpenVINO Intermediate
-   Representation <#convert-torchscript-model-to-openvino-intermediate-representation>`__
+   Representation <#Convert-TorchScript-Model-to-OpenVINO-Intermediate-Representation>`__
 
-   -  `Scripted Model <#scripted-model>`__
+   -  `Scripted Model <#Scripted-Model>`__
    -  `Benchmark Scripted Model
-      Inference <#benchmark-scripted-model-inference>`__
+      Inference <#Benchmark-Scripted-Model-Inference>`__
    -  `Convert PyTorch Scripted Model to OpenVINO Intermediate
-      Representation <#convert-pytorch-scripted-model-to-openvino-intermediate-representation>`__
+      Representation <#Convert-PyTorch-Scripted-Model-to-OpenVINO-Intermediate-Representation>`__
    -  `Benchmark OpenVINO Model Inference Converted From Scripted
-      Model <#benchmark-openvino-model-inference-converted-from-scripted-model>`__
-   -  `Traced Model <#traced-model>`__
+      Model <#Benchmark-OpenVINO-Model-Inference-Converted-From-Scripted-Model>`__
+   -  `Traced Model <#Traced-Model>`__
    -  `Benchmark Traced Model
-      Inference <#benchmark-traced-model-inference>`__
+      Inference <#Benchmark-Traced-Model-Inference>`__
    -  `Convert PyTorch Traced Model to OpenVINO Intermediate
-      Representation <#convert-pytorch-traced-model-to-openvino-intermediate-representation>`__
+      Representation <#Convert-PyTorch-Traced-Model-to-OpenVINO-Intermediate-Representation>`__
    -  `Benchmark OpenVINO Model Inference Converted From Traced
-      Model <#benchmark-openvino-model-inference-converted-from-traced-model>`__
+      Model <#Benchmark-OpenVINO-Model-Inference-Converted-From-Traced-Model>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install notebook dependencies
 
@@ -122,7 +122,7 @@ Download input data and label map
 Load PyTorch Model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Generally, PyTorch models represent an instance of the
 ``torch.nn.Module`` class, initialized by a state dictionary with model
@@ -155,7 +155,7 @@ enum ``RegNet_Y_800MF_Weights.DEFAULT``.
 Prepare Input Data
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The code below demonstrates how to preprocess input data using a
 model-specific transforms module from ``torchvision``. After
@@ -179,7 +179,7 @@ the first dimension.
 Run PyTorch Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The model returns a vector of probabilities in raw logits format,
 softmax can be applied to get normalized values in the [0, 1] range. For
@@ -239,7 +239,7 @@ can be reused later.
 Benchmark PyTorch Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -251,13 +251,13 @@ Benchmark PyTorch Model Inference
 
 .. parsed-literal::
 
-    18.6 ms ± 32.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    16.4 ms ± 91.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Model to OpenVINO Intermediate Representation
 -------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Starting from the 2023.0 release OpenVINO supports direct PyTorch models
 conversion to OpenVINO Intermediate Representation (IR) format. OpenVINO
@@ -316,7 +316,7 @@ More details can be found on this
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -366,7 +366,7 @@ select device from dropdown list for running inference using OpenVINO
 Run OpenVINO Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -399,7 +399,7 @@ Run OpenVINO Model Inference
 Benchmark OpenVINO Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -410,13 +410,13 @@ Benchmark OpenVINO Model Inference
 
 .. parsed-literal::
 
-    3.3 ms ± 10 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.3 ms ± 8.21 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Model with Static Input Shape
 ---------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The default conversion path preserves dynamic input shapes, in order if
 you want to convert the model with static shapes, you can explicitly
@@ -451,7 +451,7 @@ reshaping example please check the following
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -496,7 +496,7 @@ model.
 Run OpenVINO Model Inference with Static Input Shape
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -529,7 +529,7 @@ Run OpenVINO Model Inference with Static Input Shape
 Benchmark OpenVINO Model Inference with Static Input Shape
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -540,13 +540,13 @@ Benchmark OpenVINO Model Inference with Static Input Shape
 
 .. parsed-literal::
 
-    3.04 ms ± 21.5 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    2.98 ms ± 23.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert TorchScript Model to OpenVINO Intermediate Representation
 -----------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 TorchScript is a way to create serializable and optimizable models from
 PyTorch code. Any TorchScript program can be saved from a Python process
@@ -569,7 +569,7 @@ Let’s consider both approaches and their conversion into OpenVINO IR.
 Scripted Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``torch.jit.script`` inspects model source code and compiles it to
 ``ScriptModule``. After compilation model can be used for inference or
@@ -624,7 +624,7 @@ Reference <https://pytorch.org/docs/stable/jit_language_reference.html#language-
 Benchmark Scripted Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -635,13 +635,13 @@ Benchmark Scripted Model Inference
 
 .. parsed-literal::
 
-    14.3 ms ± 18.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    14 ms ± 28.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Scripted Model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The conversion step for the scripted model to OpenVINO IR is similar to
 the original PyTorch model.
@@ -683,7 +683,7 @@ the original PyTorch model.
 Benchmark OpenVINO Model Inference Converted From Scripted Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -694,13 +694,13 @@ Benchmark OpenVINO Model Inference Converted From Scripted Model
 
 .. parsed-literal::
 
-    3.23 ms ± 25.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.29 ms ± 21.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Traced Model
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Using ``torch.jit.trace``, you can turn an existing module or Python
 function into a TorchScript ``ScriptFunction`` or ``ScriptModule``. You
@@ -759,7 +759,7 @@ original PyTorch model code definitions.
 Benchmark Traced Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -770,13 +770,13 @@ Benchmark Traced Model Inference
 
 .. parsed-literal::
 
-    14.7 ms ± 635 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    14 ms ± 436 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Traced Model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The conversion step for a traced model to OpenVINO IR is similar to the
 original PyTorch model.
@@ -818,7 +818,7 @@ original PyTorch model.
 Benchmark OpenVINO Model Inference Converted From Traced Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -829,5 +829,5 @@ Benchmark OpenVINO Model Inference Converted From Traced Model
 
 .. parsed-literal::
 
-    3.36 ms ± 32.7 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.34 ms ± 29.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 

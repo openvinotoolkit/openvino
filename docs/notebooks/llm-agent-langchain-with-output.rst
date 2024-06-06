@@ -32,43 +32,48 @@ OpenVINO and LangChain.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Create tools <#create-tools>`__
--  `Create prompt template <#create-prompt-template>`__
--  `Create LLM <#create-llm>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Create tools <#Create-tools>`__
+-  `Create prompt template <#Create-prompt-template>`__
+-  `Create LLM <#Create-LLM>`__
 
-   -  `Download model <#select-model>`__
+   -  `Download model <#Select-model>`__
    -  `Select inference device for
-      LLM <#select-inference-device-for-llm>`__
+      LLM <#Select-inference-device-for-LLM>`__
 
--  `Create agent <#create-agent>`__
--  `Run the agent <#run-agent>`__
--  `Interactive Demo <#interactive-demo>`__
+-  `Create agent <#Create-agent>`__
+-  `Run the agent <#Run-agent>`__
+-  `Interactive Demo <#Interactive-Demo>`__
 
-   -  `Use built-in tool <#use-built-in-tool>`__
+   -  `Use built-in tool <#Use-built-in-tool>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
+    import os
+    
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+    
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "torch>=2.1"\
     "datasets"\
     "accelerate"\
-    "openvino-nightly"\
     "gradio"\
-    "transformers>=4.38.1" "langchain>=0.1.14" "wikipedia"
+    "transformers>=4.38.1" "langchain>=0.2.0" "langchain-community>=0.2.0" "wikipedia"
 
 Create a tools
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, we need to create some tools to call. In this example, we will
 create 3 custom functions to do basic calculation. For `more
@@ -128,7 +133,7 @@ that we will use downstream.
 Create prompt template
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 A prompt for a language model is a set of instructions or input provided
 by a user to guide the model’s response, helping it understand the
@@ -185,7 +190,7 @@ and the corresponding tool outputs.
 Create LLM
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Large Language Models (LLMs) are a core component of LangChain.
 LangChain does not serve its own LLMs, but rather provides a standard
@@ -204,7 +209,7 @@ post <https://medium.com/@NeuralCompressor/the-practice-of-supervised-finetuning
 Download model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To run LLM locally, we have to download the model in the first step. It
 is possible to `export your
@@ -225,7 +230,7 @@ folder.
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -325,7 +330,7 @@ These options can be enabled with ``ov_config`` as follows:
 Create agent
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now that we have defined the tools, prompt template and LLM, we can
 create the agent_executor.
@@ -347,7 +352,7 @@ outputs back to the agent, and repeats.
 Run the agent
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We can now run the agent with a math query. Before getting the final
 answer, a agent executor will also produce intermediate steps of
@@ -412,7 +417,7 @@ prompt template.
 Interactive Demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s create a interactive agent using
 `Gradio <https://www.gradio.app/>`__.
@@ -420,7 +425,7 @@ Let’s create a interactive agent using
 Use built-in tool
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 LangChain has provided a list of all `built-in
 tools <https://python.langchain.com/docs/integrations/tools/>`__. In

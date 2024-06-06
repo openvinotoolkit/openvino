@@ -24,30 +24,30 @@ In this tutorial, we consider how to use MobileCLIP to implement a
 visual content search engine for finding relevant frames in video. ####
 Table of contents:
 
--  `Prerequisites <#prerequisites>`__
--  `Select model <#select-model>`__
--  `Run model inference <#run-model-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model <#Select-model>`__
+-  `Run model inference <#Run-model-inference>`__
 
-   -  `Prepare image gallery <#prepare-image-gallery>`__
-   -  `Prepare model <#prepare-model>`__
-   -  `Perform search <#perform-search>`__
+   -  `Prepare image gallery <#Prepare-image-gallery>`__
+   -  `Prepare model <#Prepare-model>`__
+   -  `Perform search <#Perform-search>`__
 
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#convert-model-to-openvino-intermediate-representation-format>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
    -  `Select device for image
-      encoder <#select-device-for-image-encoder>`__
+      encoder <#Select-device-for-image-encoder>`__
    -  `Select device for text
-      encoder <#select-device-for-text-encoder>`__
-   -  `Perform search <#perform-search>`__
+      encoder <#Select-device-for-text-encoder>`__
+   -  `Perform search <#Perform-search>`__
 
--  `Interactive Demo <#interactive-demo>`__
+-  `Interactive Demo <#Interactive-Demo>`__
 
 Prerequisites
 -------------
 
- ## Prerequisites
+`back to top ⬆️ <#Table-of-contents:>`__ ## Prerequisites
 
 .. code:: ipython3
 
@@ -66,7 +66,7 @@ Prerequisites
     remote: Counting objects: 100% (45/45), done.[K
     remote: Compressing objects: 100% (36/36), done.[K
     remote: Total 45 (delta 9), reused 44 (delta 8), pack-reused 0[K
-    Unpacking objects: 100% (45/45), 428.50 KiB | 3.25 MiB/s, done.
+    Unpacking objects: 100% (45/45), 428.50 KiB | 3.17 MiB/s, done.
 
 
 .. code:: ipython3
@@ -82,8 +82,8 @@ Prerequisites
 
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.0+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.0+cpu which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -91,7 +91,7 @@ Prerequisites
 Select model
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For starting work, we should select model that will be used in our
 demonstration. By default, we will use the MobileCLIP model, but for
@@ -255,7 +255,7 @@ comparison purposes, you can select different models among:
 Run model inference
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, let’s see model in action. We will try to find image, where some
 specific object is represented using embeddings. Embeddings are a
@@ -276,7 +276,7 @@ represent are.
 Prepare image gallery
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -369,7 +369,7 @@ Prepare image gallery
 Prepare model
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The code bellow download model weights, create model class instance and
 preprocessing utilities
@@ -405,7 +405,7 @@ preprocessing utilities
 Perform search
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -438,8 +438,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0983 ms
-    Text encoding took 0.0152 ms
+    Image encoding took 0.1 ms
+    Text encoding took 0.0107 ms
 
 
 
@@ -449,7 +449,7 @@ Perform search
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -517,19 +517,19 @@ be used separately. Let’s convert each part to OpenVINO.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
 
 
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device for image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -563,7 +563,7 @@ Select device for image encoder
 Select device for text encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -586,7 +586,7 @@ Select device for text encoder
 Perform search
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -609,8 +609,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0315 ms
-    Text encoding took 0.0059 ms
+    Image encoding took 0.0309 ms
+    Text encoding took 0.00588 ms
 
 
 
@@ -620,7 +620,7 @@ Perform search
 Interactive Demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this part, you can try different supported by tutorial models in
 searching frames in the video by text query or image. Upload video and
@@ -905,7 +905,7 @@ models can require different optimal threshold for search.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

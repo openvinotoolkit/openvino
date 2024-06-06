@@ -31,18 +31,18 @@ https://latent-consistency-models.github.io/
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Full precision model on the
-   CPU <#using-full-precision-model-in-cpu-with-latentconsistencymodelpipeline>`__
+   CPU <#Using-full-precision-model-in-CPU-with-LatentConsistencyModelPipeline>`__
 -  `Running inference using Optimum Intel
-   OVLatentConsistencyModelPipeline <#running-inference-using-optimum-intel-ovlatentconsistencymodelpipeline>`__
+   ``OVLatentConsistencyModelPipeline`` <#Running-inference-using-Optimum-Intel-OVLatentConsistencyModelPipeline>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
 Prerequisites
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required packages
 
@@ -69,7 +69,7 @@ Install required packages
 Showing Info Available Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -105,7 +105,7 @@ this
 Using full precision model in CPU with ``LatentConsistencyModelPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Standard pipeline for the Latent Consistency Model(LCM) from Diffusers
 library is used here. For more information please refer to
@@ -121,10 +121,10 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 
 .. parsed-literal::
 
-    2024-05-16 00:36:40.510949: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 00:36:40.546299: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 00:42:53.373765: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 00:42:53.408053: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 00:36:41.041474: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:42:53.902704: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -189,7 +189,7 @@ Select inference device for text-to-image generation
 Running inference using Optimum Intel ``OVLatentConsistencyModelPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Accelerating inference of LCM using Intel Optimum with OpenVINO backend.
 For more information please refer to
@@ -235,7 +235,7 @@ and there is no need to do it manually
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.3.0+cpu
+    Using framework PyTorch: 2.3.1+cpu
 
 
 .. parsed-literal::
@@ -246,9 +246,9 @@ and there is no need to do it manually
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    Using framework PyTorch: 2.3.0+cpu
-    Using framework PyTorch: 2.3.0+cpu
-    Using framework PyTorch: 2.3.0+cpu
+    Using framework PyTorch: 2.3.1+cpu
+    Using framework PyTorch: 2.3.1+cpu
+    Using framework PyTorch: 2.3.1+cpu
 
 
 

@@ -35,34 +35,34 @@ The model has been pretrained on the
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#imports>`__
--  `Methods <#methods>`__
+-  `Imports <#Imports>`__
+-  `Methods <#Methods>`__
 
    -  `1. Using the Hugging Face Optimum
-      library <#1--using-the-hugging-face-optimum-library>`__
+      library <#1.-Using-the-Hugging-Face-Optimum-library>`__
 
       -  `2. Converting the model to OpenVINO
-         IR <#2--converting-the-model-to-openvino-ir>`__
+         IR <#2.-Converting-the-model-to-OpenVINO-IR>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
    -  `1. Hugging Face Optimum Intel
-      library <#1--hugging-face-optimum-intel-library>`__
+      library <#1.-Hugging-Face-Optimum-Intel-library>`__
 
-      -  `Load the model <#load-the-model>`__
-      -  `Load the tokenizer <#load-the-tokenizer>`__
+      -  `Load the model <#Load-the-model>`__
+      -  `Load the tokenizer <#Load-the-tokenizer>`__
 
    -  `2. Converting the model to OpenVINO
-      IR <#2--converting-the-model-to-openvino-ir>`__
+      IR <#2.-Converting-the-model-to-OpenVINO-IR>`__
 
-      -  `Load the Pytorch model <#load-the-pytorch-model>`__
-      -  `Converting to OpenVINO IR <#converting-to-openvino-ir>`__
-      -  `Inference <#inference>`__
+      -  `Load the Pytorch model <#Load-the-Pytorch-model>`__
+      -  `Converting to OpenVINO IR <#Converting-to-OpenVINO-IR>`__
+      -  `Inference <#Inference>`__
 
-   -  `Helper Functions <#helper-functions>`__
+   -  `Helper Functions <#Helper-Functions>`__
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.39.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 
@@ -77,7 +77,7 @@ Table of contents:
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -96,16 +96,16 @@ Imports
 
 .. parsed-literal::
 
-    2024-05-16 02:35:01.013388: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 02:35:01.047841: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 03:46:19.563930: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 03:46:19.598566: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 02:35:01.671404: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 03:46:20.196134: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Methods
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The notebook provides two methods to run the inference of typo detector
 with OpenVINO runtime, so that you can experience both calling the API
@@ -116,7 +116,7 @@ with OpenVINO Runtime.
 1. Using the `Hugging Face Optimum <https://huggingface.co/docs/optimum/index>`__ library
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Hugging Face Optimum API is a high-level API that allows us to
 convert models from the Hugging Face Transformers library to the
@@ -127,7 +127,7 @@ hardware.
 2. Converting the model to OpenVINO IR
 ''''''''''''''''''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Pytorch model is converted to `OpenVINO IR
 format <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__.
@@ -159,7 +159,7 @@ methods
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -191,7 +191,7 @@ select device from dropdown list for running inference using OpenVINO
 1. Hugging Face Optimum Intel library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For this method, we need to install the
 ``Hugging Face Optimum Intel library`` accelerated by OpenVINO
@@ -217,10 +217,16 @@ Import required model class
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/transformers/transformer_2d.py:34: FutureWarning: `Transformer2DModelOutput` is deprecated and will be removed in version 1.0.0. Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead.
+      deprecate("Transformer2DModelOutput", "1.0.0", deprecation_message)
+
+
 Load the model
 ''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 From the ``OVModelForTokenCLassification`` class we will import the
 relevant pre-trained model. To load a Transformers model and convert it
@@ -244,7 +250,7 @@ your model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
     Framework not specified. Using pt to export the model.
     Using framework PyTorch: 2.2.2+cpu
@@ -258,17 +264,17 @@ your model.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4481: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:80: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      op1 = operator(\*args, \*\*kwargs)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:81: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+      op1 = operator(*args, **kwargs)
     Compiling the model to AUTO ...
 
 
 Load the tokenizer
 ''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model. Tokenization splits paragraphs and sentences into
@@ -378,18 +384,18 @@ Let’s run a demo using the Hugging Face Optimum API.
     [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.16265201568603516
+    Time elapsed: 0.1713876724243164
 
 
 2. Converting the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the Pytorch model
 ''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use the ``AutoModelForTokenClassification`` class to load the pretrained
 pytorch model.
@@ -412,7 +418,7 @@ pytorch model.
 Converting to OpenVINO IR
 '''''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -425,7 +431,7 @@ Converting to OpenVINO IR
 Inference
 '''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The Core class from the ``openvino`` module is imported first.
@@ -442,7 +448,7 @@ the compiled model as it is needed for inference.
 Helper Functions
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -620,5 +626,5 @@ Let’s run a demo using the converted OpenVINO IR model.
        [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.0988762378692627
+    Time elapsed: 0.10121345520019531
 

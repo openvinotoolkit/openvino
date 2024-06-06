@@ -34,45 +34,47 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Select model for inference <#select-model-for-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model for inference <#Select-model-for-inference>`__
 -  `Instantiate Model using Optimum
-   Intel <#instantiate-model-using-optimum-intel>`__
--  `Compress model weights <#compress-model-weights>`__
+   Intel <#Instantiate-Model-using-Optimum-Intel>`__
+-  `Compress model weights <#Compress-model-weights>`__
 
    -  `Weights Compression using Optimum
-      Intel <#weights-compression-using-optimum-intel>`__
+      Intel <#Weights-Compression-using-Optimum-Intel>`__
    -  `Weights Compression using
-      NNCF <#weights-compression-using-nncf>`__
+      NNCF <#Weights-Compression-using-NNCF>`__
 
 -  `Select device for inference and model
-   variant <#select-device-for-inference-and-model-variant>`__
+   variant <#Select-device-for-inference-and-model-variant>`__
 -  `Create an instruction-following inference
-   pipeline <#create-an-instruction-following-inference-pipeline>`__
+   pipeline <#Create-an-instruction-following-inference-pipeline>`__
 
-   -  `Setup imports <#setup-imports>`__
+   -  `Setup imports <#Setup-imports>`__
    -  `Prepare template for user
-      prompt <#prepare-template-for-user-prompt>`__
-   -  `Main generation function <#main-generation-function>`__
-   -  `Helpers for application <#helpers-for-application>`__
+      prompt <#Prepare-template-for-user-prompt>`__
+   -  `Main generation function <#Main-generation-function>`__
+   -  `Helpers for application <#Helpers-for-application>`__
 
 -  `Run instruction-following
-   pipeline <#run-instruction-following-pipeline>`__
+   pipeline <#Run-instruction-following-pipeline>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino openvino-dev openvino-nightly optimum optimum-intel
-    %pip install -q "torch>=2.1" openvino-nightly "nncf>=2.7" "transformers>=4.36.0" onnx "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "torch>=2.1" "nncf>=2.7" "transformers>=4.36.0" onnx "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Select model for inference
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -140,7 +142,7 @@ The available options are:
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -215,7 +217,7 @@ The available options are:
 Instantiate Model using Optimum Intel
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -264,7 +266,7 @@ previous step and cached key values to get the next token prediction.
 Compress model weights
 ----------------------
 
- The Weights Compression
+`back to top ⬆️ <#Table-of-contents:>`__ The Weights Compression
 algorithm is aimed at compressing the weights of the models and can be
 used to optimize the model footprint and performance of large models
 where the size of weights is relatively larger than the size of
@@ -275,7 +277,7 @@ introduces a minor drop in prediction quality.
 Weights Compression using Optimum Intel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Optimum Intel supports weight compression via NNCF out of the box. For
 8-bit compression we pass ``load_in_8bit=True`` to ``from_pretrained()``
@@ -288,7 +290,7 @@ notebook <../llm-chatbot>`__
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You also can perform weights compression for OpenVINO models using NNCF
 directly. ``nncf.compress_weights`` function accepts the OpenVINO model
@@ -521,7 +523,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 ---------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -618,7 +620,7 @@ Select device for inference and model variant
 Create an instruction-following inference pipeline
 --------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -626,7 +628,7 @@ iterative process, where each next token depends on previously generated
 until a maximum number of tokens or stop generation condition is not
 reached. To obtain intermediate generation results without waiting until
 when generation is finished, we will use
-`TextIteratorStreamer <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
+```TextIteratorStreamer`` <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
 provided as part of HuggingFace `Streaming
 API <https://huggingface.co/docs/transformers/main/en/generation_strategies#streaming>`__.
 
@@ -724,7 +726,7 @@ and then prints them when they are ready.
 Setup imports
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -738,7 +740,7 @@ Setup imports
 Prepare template for user prompt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For effective generation, model expects to have input in specific
 format. The code below prepare template for passing user instruction
@@ -802,7 +804,7 @@ into model with providing additional context.
 Main generation function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -872,7 +874,7 @@ parameter and returns model response.
 Helpers for application
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -930,7 +932,7 @@ elements.
 Run instruction-following pipeline
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text
@@ -1054,7 +1056,7 @@ generation parameters:
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="800" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
