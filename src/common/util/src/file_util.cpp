@@ -694,6 +694,8 @@ const char* ov::util::trim_file_name(const char* const fname) {
 
 #ifndef __EMSCRIPTEN__
 bool ov::util::is_symlink_or_hardlink(const std::string& path) {
+    if (path.empty())
+        return false;
     fs::path p = fs::path(path);
     if (fs::is_symlink(p) || (fs::hard_link_count(p) > 1))
         return true;
@@ -702,6 +704,8 @@ bool ov::util::is_symlink_or_hardlink(const std::string& path) {
 
 #    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 bool ov::util::is_symlink_or_hardlink(const std::wstring& path) {
+    if (path.empty())
+        return false;
     fs::path p = fs::path(path);
     if (fs::is_symlink(p) || (fs::hard_link_count(p) > 1))
         return true;
