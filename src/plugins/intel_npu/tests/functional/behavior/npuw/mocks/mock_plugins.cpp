@@ -6,7 +6,6 @@
 #include <gmock/gmock.h>
 
 #include <memory>
-#include <utility>
 
 #include "mock_plugins.hpp"
 #include "openvino/core/version.hpp"
