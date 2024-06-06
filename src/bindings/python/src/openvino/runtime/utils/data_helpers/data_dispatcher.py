@@ -137,7 +137,8 @@ def _(
 def to_c_style(value: Any, is_shared: bool = False) -> Any:
     if not isinstance(value, np.ndarray):
         if hasattr(value, "__array__"):
-            return to_c_style(np.array(value, copy=False), is_shared) if is_shared else np.array(value, copy=True)
+            # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
+            return to_c_style(np.asarray(value), is_shared) if is_shared else np.asarray(value, copy=True)
         return value
     return value if value.flags["C_CONTIGUOUS"] else np.ascontiguousarray(value)
 
@@ -152,7 +153,8 @@ def normalize_arrays(
 ) -> Any:
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
-        return to_c_style(np.array(inputs, copy=False), is_shared) if is_shared else np.array(inputs, copy=True)
+        # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
+        return to_c_style(np.asarray(inputs), is_shared) if is_shared else np.asarray(inputs, copy=True)
     # Error should be raised if type does not match any dispatchers
     raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 

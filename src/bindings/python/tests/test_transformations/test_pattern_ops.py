@@ -181,7 +181,9 @@ def test_optional_with_multi_input_node():
 
 def test_all_predicates():
     static_param = ops.parameter(PartialShape([1, 3, 22, 22]), np.float32)
-    dynamic_param = ops.parameter(PartialShape([-1, 6]), np.compat.long)
+    # np.compat.long =/= int:
+    # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#windows-default-integer
+    dynamic_param = ops.parameter(PartialShape([-1, 6]), np.intp)
     fully_dynamic_param = ops.parameter(PartialShape.dynamic())
 
     assert Matcher(WrapType("opset13.Parameter", consumers_count(0)), "Test").match(static_param)
@@ -206,7 +208,7 @@ def test_all_predicates():
 
     assert Matcher(WrapType("opset13.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.compat.long)])), "Test").match(static_param)
+                                              get_element_type(np.intp)])), "Test").match(static_param)
     assert Matcher(WrapType("opset13.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.compat.long)])), "Test").match(dynamic_param)
+                                              get_element_type(np.intp)])), "Test").match(dynamic_param)

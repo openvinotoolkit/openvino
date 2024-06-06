@@ -1135,7 +1135,9 @@ def test_proposal(int_dtype, fp_dtype, op_name):
     assert node.get_type_name() == "Proposal"
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 2
-    assert list(node.get_output_shape(0)) == [batch_size * attributes["post_nms_topn"], 5]
+    # Updated dtype promotion rules, need to be adjusted:
+    # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#changes-to-numpy-data-type-promotion
+    assert list(node.get_output_shape(0)) == [np.uint64(batch_size) * attributes["post_nms_topn"], 5]
 
 
 def test_tensor_iterator():
