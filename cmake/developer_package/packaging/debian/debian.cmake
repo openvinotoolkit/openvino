@@ -111,6 +111,8 @@ macro(ov_define_component_include_rules)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # links
+    unset(OV_CPACK_COMP_LINKS_EXCLUDE_ALL)
 endmacro()
 
 ov_define_component_include_rules()
