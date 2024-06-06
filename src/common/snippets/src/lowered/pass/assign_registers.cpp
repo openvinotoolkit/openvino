@@ -88,15 +88,17 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             const auto reg_group = buffer->get_reg_group();
             // All buffers have one common data pointer
             if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
-                manually_assigned_gprs[expr->get_input_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + reg_group);
-                // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
-                // child shape info ops share the same memory as IntermediateMemoryBuffer.
-                const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
-                for (const auto& child_shape_infer_expr : shape_infer_consumers) {
-                    manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
-                        manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + reg_group);
+                const auto assigned_reg = num_results + num_parameters + reg_group;
+                for (const auto& input : expr->get_input_port_connectors()) {
+                    manually_assigned_gprs[input] = static_cast<Reg>(assigned_reg);
+                    // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
+                    // child shape info ops share the same memory as IntermediateMemoryBuffer.
+                    const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
+                    for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+                        manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
+                            manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
+                                static_cast<Reg>(assigned_reg);
+                    }
                 }
             }
             manually_assigned_gprs[expr->get_output_port_connector(0)] =

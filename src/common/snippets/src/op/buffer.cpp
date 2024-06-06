@@ -41,10 +41,13 @@ size_t Buffer::get_byte_size() const {
     return utils::get_dynamic_value<size_t>();
 }
 
-IntermediateMemoryBuffer::IntermediateMemoryBuffer(const ov::Output<ov::Node>& arg, size_t allocation_size, size_t reg_group, size_t cluster_id)
-    : Buffer({arg}, allocation_size, reg_group, cluster_id) {
+IntermediateMemoryBuffer::IntermediateMemoryBuffer(const OutputVector& arguments, size_t allocation_size, size_t reg_group, size_t cluster_id)
+    : Buffer(arguments, allocation_size, reg_group, cluster_id) {
     constructor_validate_and_infer_types();
 }
+
+IntermediateMemoryBuffer::IntermediateMemoryBuffer(const ov::Output<ov::Node>& arg, size_t allocation_size, size_t reg_group, size_t cluster_id)
+    : IntermediateMemoryBuffer(OutputVector{arg}, allocation_size, reg_group, cluster_id) {}
 
 void IntermediateMemoryBuffer::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Buffer_validate_and_infer_types);
@@ -54,8 +57,7 @@ void IntermediateMemoryBuffer::validate_and_infer_types() {
 
 std::shared_ptr<Node> IntermediateMemoryBuffer::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Buffer_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    auto new_buffer = std::make_shared<IntermediateMemoryBuffer>(new_args.at(0), m_allocation_size, m_reg_group, m_cluster_id);
+    auto new_buffer = std::make_shared<IntermediateMemoryBuffer>(new_args, m_allocation_size, m_reg_group, m_cluster_id);
     new_buffer->set_offset(m_offset);
     return new_buffer;
 }

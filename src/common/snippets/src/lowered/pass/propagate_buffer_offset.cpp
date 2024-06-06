@@ -27,17 +27,18 @@ void PropagateBufferOffset::propagate(const ExpressionPtr& buffer_expr) {
 
     // Propagate to up: in Store. Buffer can have only one Store
     if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
-        OPENVINO_ASSERT(buffer_expr->get_input_port_connectors().size() == 1, "Buffer with intermediate memory must have one parent");
-        const auto& parent_output = buffer_expr->get_input_port_connector(0)->get_source();
-        const auto& parent_expr = parent_output.get_expr();
-        const auto port = parent_output.get_index();
-        const auto& parent_node = parent_expr->get_node();
-        auto memory_access = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent_node);
-        if (memory_access && memory_access->is_memory_access_output_port(port)) {
-            memory_access->set_output_offset(offset, port);
-        } else {
-            OPENVINO_THROW(
-                    "PropagateBufferOffset didn't find the connected MemoryAccess op to Buffer for offset propagation");
+        for (const auto& input : buffer_expr->get_input_port_connectors()) {
+            const auto& parent_output = input->get_source();
+            const auto& parent_expr = parent_output.get_expr();
+            const auto port = parent_output.get_index();
+            const auto& parent_node = parent_expr->get_node();
+            auto memory_access = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent_node);
+            if (memory_access && memory_access->is_memory_access_output_port(port)) {
+                memory_access->set_output_offset(offset, port);
+            } else {
+                OPENVINO_THROW(
+                        "PropagateBufferOffset didn't find the connected MemoryAccess op to Buffer for offset propagation");
+            }
         }
     }
     // Propagate to down: in Load. Buffer can have several Load

@@ -64,6 +64,8 @@ class IntermediateMemoryBuffer : public Buffer {
 public:
     OPENVINO_OP("IntermediateMemoryBuffer", "SnippetsOpset", Buffer);
     IntermediateMemoryBuffer() = default;
+    IntermediateMemoryBuffer(const OutputVector& arguments, size_t allocation_size = utils::get_dynamic_value<size_t>(),
+                             size_t reg_group = 0, size_t cluster_id = 0);
     IntermediateMemoryBuffer(const ov::Output<ov::Node>& arg, size_t allocation_size = utils::get_dynamic_value<size_t>(),
                              size_t reg_group = 0, size_t cluster_id = 0);
 

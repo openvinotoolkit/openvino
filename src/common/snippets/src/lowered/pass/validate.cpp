@@ -64,16 +64,17 @@ void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<op::Buffer>(expr->get_node()),
                     "Buffer validation expects Buffer op");
-    const auto& in = expr->get_input_port_connector(0);
-    const auto& source = in->get_source();
-    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
-    OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
+    for (const auto& input : expr->get_input_port_connectors()) {
+        const auto& source = input->get_source();
+        const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
+        OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
                     "Buffer expects MemoryAccess parent");
-    const auto buffer_siblings = in->get_consumers();
-    for (const auto& buffer_sibling : buffer_siblings) {
-        const auto& buffer_sibling_expr = buffer_sibling.get_expr();
-        OPENVINO_ASSERT(buffer_sibling_expr == expr || ov::is_type<op::LoopEnd>(buffer_sibling_expr->get_node()),
-                        "Buffer can have only LoopEnd siblings!");
+        const auto buffer_siblings = input->get_consumers();
+        for (const auto& buffer_sibling : buffer_siblings) {
+            const auto& buffer_sibling_expr = buffer_sibling.get_expr();
+            OPENVINO_ASSERT(buffer_sibling_expr == expr || ov::is_type<op::LoopEnd>(buffer_sibling_expr->get_node()),
+                            "Buffer can have only LoopEnd siblings!");
+        }
     }
 
     const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(expr);
