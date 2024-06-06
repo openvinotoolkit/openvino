@@ -37,7 +37,7 @@ protected:
     ///@}
 private:
     Napi::Promise::Deferred _deferred;
+    ov::Core& _core;
     ReadModelArgs* _args;
     std::shared_ptr<ov::Model> _model;
-    ov::Core& _core;
 };
