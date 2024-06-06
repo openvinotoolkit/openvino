@@ -222,8 +222,6 @@ jobs:
 
       - name: Build Debian packages
         run: |
-          /usr/bin/python3.8 -m pip install -U pip
-          /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
