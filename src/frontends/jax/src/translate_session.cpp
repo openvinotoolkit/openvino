@@ -198,7 +198,6 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
             }
         };
 
-        FRONT_END_GENERAL_CHECK(jax_model->get_subgraph_size() == 1, "Model should have exactly 1 subgraph.");
         jax_model->visit_subgraph(node_visitor);
 
         ResultVector results;

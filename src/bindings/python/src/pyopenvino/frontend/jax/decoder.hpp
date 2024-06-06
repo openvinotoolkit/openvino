@@ -108,16 +108,8 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
         PYBIND11_OVERRIDE_PURE(std::shared_ptr<ov::Node>, JaxDecoder, mark_node, ov_node);
     }
 
-    std::size_t get_subgraph_size() const override {
-        PYBIND11_OVERRIDE_PURE(std::size_t, JaxDecoder, get_subgraph_size);
-    }
-
     void visit_subgraph(std::function<void(std::shared_ptr<JaxDecoder>)> node_visitor) const override {
         PYBIND11_OVERRIDE_PURE(void, JaxDecoder, visit_subgraph, node_visitor);
-    }
-
-    std::shared_ptr<JaxDecoder> get_subgraph_decoder(std::size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(std::shared_ptr<JaxDecoder>, JaxDecoder, get_subgraph_decoder, index);
     }
 
     ov::Any get_attribute(const std::string& name) const override {

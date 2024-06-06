@@ -81,16 +81,10 @@ public:
     // returns the same node as syntactically convenient way to make nested sentences in code
     virtual std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const = 0;
 
-    /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
-    virtual std::size_t get_subgraph_size() const = 0;
-
     /// \brief Returns subgraph converted on demand by the first access
     /// If there is no query for specific sub-graph it shouldn't be converted
     // node_visitor is a function that will be fed by nodes in subgraph for all nodes in graph
     virtual void visit_subgraph(std::function<void(std::shared_ptr<JaxDecoder>)> node_visitor) const = 0;
-
-    /// Probably this together with immediate nodes visitor is a replacement for visit_subgraphs with an index
-    virtual std::shared_ptr<JaxDecoder> get_subgraph_decoder(std::size_t index) const = 0;
 
     /// Returns named attribute as Any.
     virtual ov::Any get_attribute(const std::string& name) const = 0;

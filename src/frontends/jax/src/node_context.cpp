@@ -123,31 +123,6 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
     return input_tensor;
 }
 
-std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
-    auto subgraph_decoder = m_decoder->get_subgraph_decoder(index);
-
-    // Extend external context with internal tensors except Parameter nodes, because internal Parameters are created to
-    // link internal context with external
-    TensorMap ext_map(m_ext_tensor_map);
-    // map::insert does not update elements if their key is already in map; so if we have real tensors in outter scope
-    // we will not add Parameters we created in inner scope.
-    ext_map.insert(m_tensor_map->begin(), m_tensor_map->end());
-
-    auto model = m_translate_session->convert_jax_model(subgraph_decoder, ext_map);
-    // Remove unused parameters, they could be created as inputs to the parts of graph that weren't
-    // used for generating output.
-    for (auto i = subgraph_decoder->inputs().size(); i < model->get_parameters().size(); i++) {
-        auto parameter = model->get_parameters()[i];
-        if (parameter->output(0).get_target_inputs().empty()) {
-            // There is no consumers: safe to remove
-            OPENVINO_DEBUG << "Removing parameter " << parameter
-                           << " in converted Jax model, because it is never used\n";
-            model->remove_parameter(parameter);
-        }
-    }
-    return model;
-}
-
 bool NodeContext::input_is_none(size_t index) const {
     bool res = index >= m_inputs_is_none.size() || m_inputs_is_none.at(index);
     if (!res) {

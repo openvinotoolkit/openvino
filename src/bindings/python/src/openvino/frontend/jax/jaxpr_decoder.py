@@ -87,9 +87,6 @@ class JaxprPythonDecoder (Decoder):
         else:
             return "root"
     
-    def get_subgraph_decoder(self, index: int) -> Decoder:
-        raise NotImplementedError("Haven't figured out when it should be used.")
-    
     def get_subgraph_size(self) -> int:
         if isinstance(self.jaxpr, jax.core.JaxprEqn):
             return 0

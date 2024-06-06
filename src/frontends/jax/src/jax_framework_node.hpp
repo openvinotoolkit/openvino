@@ -20,7 +20,7 @@ public:
                      const OutputVector& inputs,
                      size_t output_size,
                      bool is_reverseprop = false)
-        : ov::op::util::FrameworkNode(inputs, output_size, decoder->get_subgraph_size()),
+        : ov::op::util::FrameworkNode(inputs, output_size, 0),
           m_decoder(decoder) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name("JaxFrameworkNode");

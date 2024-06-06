@@ -149,7 +149,6 @@ public:
 
     Output<Node> get_tensor_from_model_or_create_input(size_t index) const;
     Output<Node> get_input_from_visible_context(size_t index) const;
-    std::shared_ptr<ov::Model> convert_subgraph(size_t index) const;
 
 private:
     std::shared_ptr<JaxDecoder> m_decoder;

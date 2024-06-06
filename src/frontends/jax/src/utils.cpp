@@ -241,34 +241,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
     // We need to remember initial inputs to be able to find extra inputs to body that were created to propagate
     // external context
     size_t num_body_outs = 0;
-    auto session = context.get_session();
-    for (size_t i = 0; i < context.get_decoder()->get_subgraph_size(); ++i) {
-        auto subgraph_decoder = context.get_decoder()->get_subgraph_decoder(i);
-        auto inputs = subgraph_decoder->inputs();
-        input_idxs.insert(inputs.begin(), inputs.end());
-        auto body = context.convert_subgraph(i);
-        bodies.push_back(body);
-        for (const auto& param : body->get_parameters()) {
-            auto input_idx = session->decode_tensor_name(param->output(0));
-            inputs_map[input_idx].push_back(param);
-        }
-        const auto& body_outputs = subgraph_decoder->outputs();
-        if (i == 0) {
-            num_body_outs = body_outputs.size();
-        } else {
-            FRONT_END_OP_CONVERSION_CHECK(
-                num_body_outs == body_outputs.size(),
-                "Number of outputs of this body is different from number of outputs of first body");
-        }
-        // Some bodies may have mutated inputs which we need to propagate to external context
-        auto body_results = body->get_results();
-        for (size_t i = num_body_outs; i < body_results.size(); i++) {
-            auto out_idx = session->decode_tensor_name(body_results[i]->input(0).get_source_output());
-            FRONT_END_OP_CONVERSION_CHECK(extra_outputs_map.count(out_idx) == 0,
-                                          "More then one body output with same tensor name.");
-            extra_outputs_map[out_idx].push_back(body_results[i]);
-        }
-    }
+
     // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
     // condition, we have to skip such outputs.
     auto num_skip_body_outputs =
