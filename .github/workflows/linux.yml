@@ -1,4 +1,4 @@
-name: Linux (Ubuntu 22.04, Python 3.11)
+name: Linux (Ubuntu 22.04, Python 3.10)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
