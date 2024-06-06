@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include <iomanip>
 
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/constant.hpp"
 
 #include "logging.hpp"
 #include "util.hpp"
@@ -23,9 +24,9 @@ ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node> &no
     NPUW_ASSERT(ov::op::util::is_constant(node));
     NPUW_ASSERT(node->outputs().size() == 1);
     const auto port = node->output(0);
-    ov::TensorVector values = { ov::Tensor(port.get_element_type(), port.get_shape()) };
-    node->evaluate(values, {});
-    return values[0];
+    auto cnst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+    return ov::Tensor(port.get_element_type(), port.get_shape(),
+                      const_cast<void*>(cnst_node->get_data_ptr()));
 }
 
 bool ov::npuw::util::starts_with(const std::string &str, const std::string &prefix) {
