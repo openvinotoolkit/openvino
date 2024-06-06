@@ -20,7 +20,7 @@ permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.10'
 
 jobs:
   Smart_CI:
@@ -229,7 +229,7 @@ jobs:
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
+                -DPython3_EXECUTABLE=/usr/bin/python3 \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
