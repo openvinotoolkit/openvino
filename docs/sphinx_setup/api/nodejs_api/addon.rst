@@ -51,7 +51,7 @@ The **openvino-node** package exports ``addon`` which contains the following pro
    }
 
 * **Defined in:**
-  `addon.ts:192 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L192>`__
+  `addon.ts:591 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L192>`__
 
 
 Properties
@@ -71,7 +71,7 @@ Properties
      - CoreConstructor: :doc:`CoreConstructor <./openvino-node/interfaces/CoreConstructor>`
 
    -  **Defined in:**
-      `addon.ts:193 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L193>`__
+      `addon.ts:592 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L592>`__
 
 
 .. rubric:: PartialShape
@@ -87,7 +87,7 @@ Properties
      - PartialShapeConstructor: :doc:`PartialShapeConstructor <./openvino-node/interfaces/PartialShapeConstructor>`
 
    -  **Defined in:**
-      `addon.ts:195 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L195>`__
+      `addon.ts:594 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L594>`__
 
 .. rubric:: Tensor
 
@@ -102,7 +102,7 @@ Properties
      - TensorConstructor: :doc:`TensorConstructor <./openvino-node/interfaces/TensorConstructor>`
 
    -  **Defined in:**
-      `addon.ts:194 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L194>`__
+      `addon.ts:593 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L593>`__
 
 
 .. rubric:: element
@@ -118,7 +118,7 @@ Properties
      - element: typeof :doc:`element <./openvino-node/enums/element>`
 
    -  **Defined in:**
-      `addon.ts:201 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L201>`__
+      `addon.ts:600 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L600>`__
 
 
 .. rubric:: preprocess
@@ -138,5 +138,5 @@ Properties
      - resizeAlgorithm: typeof :doc:`resizeAlgorithm <./openvino-node/enums/resizeAlgorithm>`
 
    -  **Defined in:**
-      `addon.ts:169 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L169>`__
+      `addon.ts:596 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L596>`__
 
