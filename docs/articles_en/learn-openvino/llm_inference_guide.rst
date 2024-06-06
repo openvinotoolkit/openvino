@@ -13,9 +13,9 @@ Large Language Model Inference Guide
    :maxdepth: 1
    :hidden:
 
-   OpenVINO GenAI Guide <llm_inference_guide/genai-guide>
-   LLM Inference with Optimum Intel <llm_inference_guide/llm-inference-hf>
-   LLM Inference with OpenVINO API <llm_inference_guide/llm-inference-native-ov>
+   Run LLMs with OpenVINO GenAI Flavor <llm_inference_guide/genai-guide>
+   Run LLMs with Optimum Intel <llm_inference_guide/llm-inference-hf>
+   Run LLMs with Base OpenVINO <llm_inference_guide/llm-inference-native-ov>
    OpenVINO Tokenizers <llm_inference_guide/ov-tokenizers>
 
 Large Language Models (LLMs) like GPT are transformative deep learning networks capable of a
@@ -40,12 +40,13 @@ The advantages of using OpenVINO for LLM deployment:
 
 *	**Provides stateful model optimization**: models from the Hugging Face Transformers are converted into a stateful form, optimizing inference performance and memory usage in long-running text generation tasks by managing past KV-cache tensors more efficiently internally. This feature is automatically activated for many supported models, while unsupported ones remain stateless. Learn more about the :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
 
-OpenVINO offers two main paths for Generative AI use cases:
+OpenVINO offers three main paths for Generative AI use cases:
 
+* **OpenVINO GenAI Flavor**: use OpenVINO GenAI APIs (Python and C++).
 * **Hugging Face**: use OpenVINO as a backend for Hugging Face frameworks (transformers,
   diffusers) through the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__
   extension.
-* **Native OpenVINO**: use OpenVINO native APIs (Python and C++) with
+* **Base OpenVINO**: use OpenVINO native APIs (Python and C++) with
   `custom pipeline code <https://github.com/openvinotoolkit/openvino.genai>`__.
 
 In both cases, the OpenVINO runtime is used for inference, and OpenVINO tools are used for

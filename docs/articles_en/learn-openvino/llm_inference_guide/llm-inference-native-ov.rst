@@ -1,6 +1,6 @@
 .. {#llm_inference_native_ov}
 
-Inference with Native OpenVINO
+Run LLMs with Base OpenVINO
 ===============================
 
 To run Generative AI models using native OpenVINO APIs you need to follow regular **Convert -> Optimize -> Deploy** path with a few simplifications.
