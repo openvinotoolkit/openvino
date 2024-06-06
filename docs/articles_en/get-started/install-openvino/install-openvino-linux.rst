@@ -28,7 +28,7 @@ Install OpenVINO™ Runtime on Linux
 
 .. tip::
 
-   The new OpenVINO GenAI package is now available for installation via :doc:`Archives <install-openvino-archive-linux>` and :doc:`PyPI <install-openvino-pip>` distributions.
+   The new OpenVINO GenAI package is now available for installation via :doc:`Archive <install-openvino-archive-linux>` and :doc:`PyPI <install-openvino-pip>` distributions.
 
 If you want to install OpenVINO™ Runtime on Linux, you have the following options:
 

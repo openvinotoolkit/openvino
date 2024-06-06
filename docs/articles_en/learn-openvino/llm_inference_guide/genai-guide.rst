@@ -2,14 +2,14 @@
 OpenVINO GenAI API Guide
 ===============================
 
-This guide shows the essential steps for integrating the OpenVINO GenAI API into your application.
+This guide provide the instructions for integrating the OpenVINO GenAI API into your application.
 The steps below demonstrate how to load a model and pass the input context to receive generated text.
 
 The examples use a CPU as the target device, however, the GPU support is also available.
 Note that the GPU is running only LLM inference, while token selection and tokenization/detokenization remain on the CPU for efficiency.
 Tokenizers are represented as a separate model and run on the CPU using the provided inference capabilities.
 
-Before proceeding, make sure that you have installed the OpenVINO GenAI API using :doc:`PyPI or Archives <../../get-started/install-openvino>`.
+Before proceeding, make sure that you have installed the OpenVINO GenAI API using :doc:`PyPI or Archive <../../get-started/install-openvino>` distributions.
 
 1.	Export an LLM model via Hugging Face Optimum-Intel. A chat-tuned TinyLlama model is used for this example:
 
@@ -62,39 +62,43 @@ Streaming Options
 
 For more interactive UIs during generation, streaming of model output tokens is supported. See the example below, where a lambda function outputs words to the console immediately upon generation:
 
-.. code-block:: cpp
+.. tab-set::
 
-   #include "openvino/genai/llm_pipeline.hpp"
-   #include <iostream>
+   .. tab-item:: C++
 
-   int main(int argc, char* argv[]) {
-      std::string model_path = argv[1];
-      ov::genai::LLMPipeline pipe(model_path, "CPU");
+      #include "openvino/genai/llm_pipeline.hpp"
+      #include <iostream>
 
-      auto streamer = [](std::string word) { std::cout << word << std::flush; };
-      std::cout << pipe.generate("The Sun is yellow because", streamer);
-   }
+      int main(int argc, char* argv[]) {
+         std::string model_path = argv[1];
+         ov::genai::LLMPipeline pipe(model_path, "CPU");
+
+         auto streamer = [](std::string word) { std::cout << word << std::flush; };
+         std::cout << pipe.generate("The Sun is yellow because", streamer);
+      }
 
 You can also create your custom streamer for more sophisticated processing:
 
-.. code-block:: cpp
+.. tab-set::
 
-   #include <streamer_base.hpp>
+   .. tab-item:: C++
 
-   class CustomStreamer: publict StreamerBase {
-   public:
-      void put(int64_t token) {/* decode tokens and do process them*/};
+      #include <streamer_base.hpp>
 
-      void end() {/* decode tokens and do process them*/};
-   };
+      class CustomStreamer: publict StreamerBase {
+      public:
+         void put(int64_t token) {/* decode tokens and do process them*/};
 
-   int main(int argc, char* argv[]) {
-      CustomStreamer custom_streamer;
+         void end() {/* decode tokens and do process them*/};
+      };
 
-      std::string model_path = argv[1];
-      ov::LLMPipeline pipe(model_path, "CPU");
-      cout << pipe.generate("The Sun is yellow bacause", custom_streamer);
-   }
+      int main(int argc, char* argv[]) {
+         CustomStreamer custom_streamer;
+
+         std::string model_path = argv[1];
+         ov::LLMPipeline pipe(model_path, "CPU");
+         cout << pipe.generate("The Sun is yellow bacause", custom_streamer);
+      }
 
 Chat Scenarios Optimization
 ##############################
@@ -154,79 +158,85 @@ Leverage group beam search decoding and configure generation_config for better t
 
 Use group beam search decoding:
 
-.. code-block:: cpp
+.. tab-set::
 
-   int main(int argc, char* argv[]) {
-      std::string model_path = argv[1];
-      ov::LLMPipeline pipe(model_path, "CPU");
-      ov::GenerationConfig config = pipe.get_generation_config();
-      config.max_new_tokens = 256;
-      config.num_groups = 3;
-      config.group_size = 5;
-      config.diversity_penalty = 1.0f;
+   .. tab-item:: C++
 
-      cout << pipe.generate("The Sun is yellow bacause", config);
-   }
+      int main(int argc, char* argv[]) {
+         std::string model_path = argv[1];
+         ov::LLMPipeline pipe(model_path, "CPU");
+         ov::GenerationConfig config = pipe.get_generation_config();
+         config.max_new_tokens = 256;
+         config.num_groups = 3;
+         config.group_size = 5;
+         config.diversity_penalty = 1.0f;
+
+         cout << pipe.generate("The Sun is yellow bacause", config);
+      }
 
 Specify generation_config to use grouped beam search:
 
-.. code-block:: cpp
+.. tab-set::
 
-   int main(int argc, char* argv[]) {
-      std::string prompt;
+   .. tab-item:: C++
 
-      std::string model_path = argv[1];
-      ov::LLMPipeline pipe(model_path, "CPU");
+      int main(int argc, char* argv[]) {
+         std::string prompt;
 
-      ov::GenerationConfig config = pipe.get_generation_config();
-      config.max_new_tokens = 256;
-      config.num_groups = 3;
-      config.group_size = 5;
-      config.diversity_penalty = 1.0f;
+         std::string model_path = argv[1];
+         ov::LLMPipeline pipe(model_path, "CPU");
 
-      auto streamer = [](std::string word) { std::cout << word << std::flush; };
+         ov::GenerationConfig config = pipe.get_generation_config();
+         config.max_new_tokens = 256;
+         config.num_groups = 3;
+         config.group_size = 5;
+         config.diversity_penalty = 1.0f;
 
-      pipe.start_chat();
-      for (size_t i = 0; i < questions.size(); i++) {
+         auto streamer = [](std::string word) { std::cout << word << std::flush; };
 
-         std::cout << "question:\n";
-         cout << prompt << endl;
+         pipe.start_chat();
+         for (size_t i = 0; i < questions.size(); i++) {
 
-         auto answer = pipe(prompt, config, streamer);
-         // no need to print answer, streamer will do that
+            std::cout << "question:\n";
+            cout << prompt << endl;
+
+            auto answer = pipe(prompt, config, streamer);
+            // no need to print answer, streamer will do that
+         }
+         pipe.finish_chat();
       }
-      pipe.finish_chat();
-   }
 
 Comparing with Hugging Face Results
 #######################################
 
 Compare and analyze results with those generated by Hugging Face models.
 
-.. code-block:: python
+.. tab-set::
 
-   from transformers import AutoTokenizer, AutoModelForCausalLM
+   .. tab-item:: Python
 
-   tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-   model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+      from transformers import AutoTokenizer, AutoModelForCausalLM
 
-   max_new_tokens = 32
-   prompt = 'table is made of'
+      tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+      model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
 
-   encoded_prompt = tokenizer.encode(prompt, return_tensors='pt', add_special_tokens=False)
-   hf_encoded_output = model.generate(encoded_prompt, max_new_tokens=max_new_tokens, do_sample=False)
-   hf_output = tokenizer.decode(hf_encoded_output[0, encoded_prompt.shape[1]:])
-   print(f'hf_output: {hf_output}')
+      max_new_tokens = 32
+      prompt = 'table is made of'
 
-   import sys
-   sys.path.append('build-Debug/')
-   import py_generate_pipeline as genai # set more friendly module name
+      encoded_prompt = tokenizer.encode(prompt, return_tensors='pt', add_special_tokens=False)
+      hf_encoded_output = model.generate(encoded_prompt, max_new_tokens=max_new_tokens, do_sample=False)
+      hf_output = tokenizer.decode(hf_encoded_output[0, encoded_prompt.shape[1]:])
+      print(f'hf_output: {hf_output}')
 
-   pipe = genai.LLMPipeline('text_generation/causal_lm/TinyLlama-1.1B-Chat-v1.0/pytorch/dldt/FP16/')
-   ov_output = pipe(prompt, max_new_tokens=max_new_tokens)
-   print(f'ov_output: {ov_output}')
+      import sys
+      sys.path.append('build-Debug/')
+      import py_generate_pipeline as genai # set more friendly module name
 
-   assert hf_output == ov_output
+      pipe = genai.LLMPipeline('text_generation/causal_lm/TinyLlama-1.1B-Chat-v1.0/pytorch/dldt/FP16/')
+      ov_output = pipe(prompt, max_new_tokens=max_new_tokens)
+      print(f'ov_output: {ov_output}')
+
+      assert hf_output == ov_output
 
 
 

@@ -34,7 +34,7 @@ Install OpenVINO™ Runtime on Linux from an Archive File
 
 .. tip::
 
-   The new OpenVINO GenAI package is now available for installation via Archives. Learn more in the Installing OpenVINO Runtime section.
+   The new OpenVINO GenAI package is now available for installation via Archive distribution. Learn more in the Installing OpenVINO Runtime section.
 
 .. tab-set::
 
