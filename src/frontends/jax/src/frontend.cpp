@@ -147,29 +147,6 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager;
-
-    // the following 2 transformations are needed for keypoint detectron2 models to work.
-    // AtenIndexToSelect will be called twice
-    manager.register_pass<ov::pass::ConvertConvertLike>();
-
-    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
-    // so that not extra memory is used for intermediate decompressed constants.
-    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
-        element::TypeVector{element::u8, element::i8, element::u4, element::i4});
-    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
-    manager.register_pass<ov::pass::ConstantFolding>();
-
-    manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
-    manager.register_pass<ov::pass::PushConstantToSubgraph>();
-    manager.register_pass<ov::pass::UnrollIf>();
-    // TODO: this is only a fake pass and needs to be removed.
-    manager.register_pass<ov::frontend::jax::pass::PlaceholderInBodyReplacer>();
-    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
-    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
-    manager.run_passes(model);
-
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
     // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model
     // inference if model is completely frozen and all methods are inlined. So we check if it doesn't have any
