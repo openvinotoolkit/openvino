@@ -200,6 +200,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "quantize", "Quantize" },
                 { "region_yolo", "RegionYolo" },
                 { "reorder", "Reorder" },
+                { "rope", "RoPE" },
                 { "reorg_yolo", "ReorgYolo" },
                 { "reshape", "Reshape" },
                 { "reverse_sequence", "ReverseSequence" },

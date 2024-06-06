@@ -125,7 +125,6 @@
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
-#include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 
@@ -350,38 +349,31 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         if (!one_of(inferencePrecision, element::f16, element::undefined)) {
-            map.insert({element::f16, element::f32});
+            map.insert({ov::element::f16, ov::element::f32});
         }
-#else
-        if (inferencePrecision != element::undefined) {
-            map.insert({element::f16, element::f32});
-        }
-#endif
         return map;
     };
 
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
     if (inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
-        //keep fq nodes in f32 prec to avoid performance degradation
-        type_to_fuse_map f16_fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+#else
+        type_to_fuse_map fuse_map = {};
+#endif
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
                                  fp_convert_precision_map,
-                                 f16_fuse_map,
+                                 fuse_map,
                                  keep_precision_sensitive_in_fp32,
                                  false);
     }
-#else
-    const auto precisions = get_convert_precisions();
-#endif
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -394,7 +386,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::RPE_Fusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertSequenceToTensorIterator);
@@ -523,24 +514,26 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 // 2. GroupNormalizationDecomposition produce MVN, and MVN have a conditional pass MVN6Decomposition. If call MVN6Decomposition again after
                 //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not tokenized into subgraph again.
                 // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
-                if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined))
+                if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined) || snippetsMode == Config::SnippetsMode::Disable)
                     return false;
-                const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
-                if (!group_norm || !implication(inferencePrecision == element::undefined, group_norm->get_element_type() == element::f32))
-                    return false;
-                const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
-                const auto shape = group_norm->get_input_partial_shape(0).to_shape();
-                size_t snippets_work_amount = shape[0] * num_groups;
-                size_t concurrency = parallel_get_max_threads();
-                if (concurrency > snippets_work_amount)
-                    return false;
-                size_t spatial_dim = 1;
-                for (size_t i = 2; i < shape.size(); ++i)
-                    spatial_dim = spatial_dim * shape[i];
-                size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
-                size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
-                if (snippets_tensor_size > cache_size_l1) {
-                    return false;
+                if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
+                    const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
+                    if (!group_norm || !implication(inferencePrecision == element::undefined, group_norm->get_element_type() == element::f32))
+                        return false;
+                    const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
+                    const auto shape = group_norm->get_input_partial_shape(0).to_shape();
+                    size_t snippets_work_amount = shape[0] * num_groups;
+                    size_t concurrency = parallel_get_max_threads();
+                    if (concurrency > snippets_work_amount)
+                        return false;
+                    size_t spatial_dim = 1;
+                    for (size_t i = 2; i < shape.size(); ++i)
+                        spatial_dim = spatial_dim * shape[i];
+                    size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
+                    size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
+                    if (snippets_tensor_size > cache_size_l1) {
+                        return false;
+                    }
                 }
 
                 return true;
@@ -605,8 +598,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
-    // CVS-126827: should be disabled until CPU supports this internal op
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::RPE_Fusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -786,8 +777,7 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
@@ -881,6 +871,8 @@ void Transformations::MainSnippets(void) {
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
+        if (in_type0 == ov::element::f16 || in_type1 == ov::element::f16)
+            return false;
         if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && one_of(inferencePrecision, element::f32, element::undefined))
             return true;
         // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
@@ -952,7 +944,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
                 { ov::element::f32 };
 #else
-                { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+                {ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
 #endif
 
             if (!ignoreCallback) {

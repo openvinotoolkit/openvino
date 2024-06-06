@@ -423,11 +423,28 @@ div.highlight {
 .hidden-banner {
     display: none!important;
 }
+/* Header */
 
+.bd-header label.primary-toggle {
+    color: white;
+}
+
+.bd-header label.secondary-toggle {
+    visibility: hidden;
+}
 
 /* Responsiveness */
 /* =================================================== */
 @media (max-width: 720px) {
+
+    .container, 
+    .container-lg,
+    .container-md,
+    .container-sm,
+    .container-xl {
+        max-width: 1850px;
+    }
+    
     .transition-banner {
         margin-top: 2rem;
     }
@@ -439,7 +456,7 @@ div.highlight {
     .container-md,
     .container-sm,
     .container-xl {
-        max-width: 1800px;
+        max-width: 1900px;
     }
 }
 
