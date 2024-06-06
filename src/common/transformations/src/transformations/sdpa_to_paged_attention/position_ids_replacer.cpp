@@ -7,8 +7,8 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
