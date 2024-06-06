@@ -220,10 +220,11 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 // Loop_0 (Upper)                 |
                 //   |               =>           |
                 // Loop_1 (Current)     Loop_0 + Loop_1 => new `Loop_1`
-                const auto& input_ports = current_loop_info->get_input_ports();
+                // Make a copy of `input_ports` (not ref), since current_loop_info might be changed and ref will be invalid
+                const auto input_ports = current_loop_info->get_input_ports();
                 bool was_fusion_up = false;
-                for (size_t in_port = 0; in_port < input_ports.size() && !was_fusion_up; ++in_port) {
-                    const auto input_port = input_ports[in_port];
+                for (size_t in_port = 0; !was_fusion_up && in_port < input_ports.size(); ++in_port) {
+                    const auto& input_port = input_ports[in_port];
                     const auto parent_expr_output = *input_port.expr_port->get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
@@ -265,10 +266,10 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 // Loop_0 (Current)    Loop_0 + Loop_1 => new `Loop_0`
                 //   |               =>           |
                 // Loop_1 (Lower)                 |
-                const auto& output_ports = current_loop_info->get_output_ports();
                 bool was_fusion_down = false;
-                for (size_t out_port = 0; out_port < output_ports.size() && !was_fusion_down; ++out_port) {
-                    const auto output_port = output_ports[out_port];
+                const auto output_port_count = current_loop_info->get_output_count();
+                for (size_t out_port = 0; !was_fusion_down && out_port < output_port_count; ++out_port) {
+                    const auto output_port = current_loop_info->get_output_ports()[out_port];
                     const auto consumer_exprs_inputs = output_port.expr_port->get_connected_ports();
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
