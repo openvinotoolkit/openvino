@@ -247,7 +247,7 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
     //      else weights is maximum of output indices
     // this step doesn't assign weights to all the ops, this is intentional and will be used in the following step
     const std::string weight_rt_info_name = "topological_sort_weight";
-    for (auto it = order.rbegin(); it != order.rend(); it++) {
+    for (auto it = order.rbegin(); it != order.rend(); ++it) {
         const auto& op = *it;
         int64_t weight = 0;
         if (ov::as_type_ptr<ov::op::v0::Result>(op)) {
@@ -299,7 +299,7 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
     // finalization: descending order for levels and ops within level are ordered by get_ordered_ops
     std::vector<std::shared_ptr<ov::Node>> result;
     result.reserve(order.size());
-    for (auto it = level_to_vector.rbegin(); it != level_to_vector.rend(); it++) {
+    for (auto it = level_to_vector.rbegin(); it != level_to_vector.rend(); ++it) {
         const auto& item = *it;
         result.insert(result.end(), item.second.begin(), item.second.end());
         for (const auto& op : item.second) {
