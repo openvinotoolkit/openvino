@@ -125,7 +125,6 @@ OutputVector inplace_op(const NodeContext& context) {
     auto translation_res = T(context);
     FRONT_END_OP_CONVERSION_CHECK(translation_res.size() == 1,
                                   "inplace_op function must be used on single output translators");
-    context.mutate_input(idx, translation_res[0]);
     return translation_res;
 }
 
@@ -135,7 +134,6 @@ OutputVector optional_out(const NodeContext& context) {
     if (!context.input_is_none(idx)) {
         FRONT_END_OP_CONVERSION_CHECK(translation_res.size() == 1,
                                       "inplace_op function must be used on single output translators");
-        context.mutate_input(idx, translation_res[0]);
     }
     return translation_res;
 }
@@ -200,7 +198,6 @@ OutputVector inplace_translate_1to1_match_2_inputs_align_types(const NodeContext
     if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
         rhs = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs));
     OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
-    context.mutate_input(idx, res[0]);
     return res;
 }
 

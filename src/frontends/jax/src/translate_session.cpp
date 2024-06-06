@@ -5,7 +5,6 @@
 #include "translate_session.hpp"
 
 #include "input_model.hpp"
-#include "jax_framework_node.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"

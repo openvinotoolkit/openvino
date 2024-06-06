@@ -127,8 +127,6 @@ public:
         return m_decoder->get_attribute(name);
     }
 
-    void mutate_input(size_t index, Output<Node> ov_output) const;
-
     std::shared_ptr<JaxDecoder> get_decoder() const {
         return m_decoder;
     }

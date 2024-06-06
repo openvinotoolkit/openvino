@@ -46,40 +46,6 @@ std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) cons
     return ov_node;
 }
 
-void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
-    FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input is none with index: ", index);
-    auto input_id = m_decoder_inputs.at(index);
-    FRONT_END_GENERAL_CHECK(m_tensor_map->count(input_id), "No tensor corresponding input: ", input_id, " exist.");
-    m_translate_session->encode_tensor_name(ov_output, input_id, {m_decoder->get_input_debug_name(index)});
-    (*m_tensor_map)[input_id] = ov_output;
-    m_mutated_tensors->insert(input_id);
-
-    // Resolve aliases
-    auto back_input_id = input_id;
-    auto back_node_input = ov_output;
-    while (m_translate_session->m_may_be_alias.count(back_input_id)) {
-        // Create node to reverseprop data. While loop is needed for the cases when alias to tensor point to another
-        // alias to tensor. In that case we need to create a chain of reverseprop ops
-        size_t in_tensor;
-        std::shared_ptr<JaxDecoder> node;
-        Output<Node> node_converted_output;
-        std::tie(in_tensor, node, node_converted_output) = m_translate_session->m_may_be_alias.at(back_input_id);
-        auto op_node = std::make_shared<JaxFrameworkNode>(node, OutputVector{back_node_input}, 1);
-        if (m_tensor_map->count(in_tensor)) {
-            // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
-            OPENVINO_DEBUG << "Couldn't find in the current body the initial aliased tensor: " << in_tensor
-                           << " for operation: " << node->get_op_type() << " creating new body input.";
-            get_tensor_from_model_or_create_input(in_tensor);
-        }
-        m_translate_session->encode_tensor_name(op_node, in_tensor);
-        (*m_tensor_map)[in_tensor] = op_node;
-        m_mutated_tensors->insert(in_tensor);
-        OPENVINO_DEBUG << "Propagated back data from tensor: " << back_input_id << " to tensor: " << in_tensor << ".\n";
-        back_input_id = in_tensor;
-        back_node_input = op_node;
-    }
-}
-
 void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) const {
     if (m_tensor_map->count(index)) {
         OPENVINO_DEBUG << "[ WARNING ] Current context has tensor " << index << ". Assuming mutated output.\n";

@@ -6,7 +6,6 @@
 
 import jax.core
 from openvino.frontend.jax.py_jax_frontend import _FrontEndJaxDecoder as Decoder
-# from openvino.frontend.jax.py_jax_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.jax.utils import jax_to_ov_type_map
 
