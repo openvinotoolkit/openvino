@@ -79,27 +79,29 @@ std::ostream& ov::operator<<(std::ostream& str, const Dimension& dimension) {
     }
 }
 
-Dimension::Dimension(value_type dimension)
-    : m_dimension(dimension == -1 ? 0 : dimension, dimension == -1 ? Interval::s_max : dimension) {
+void Dimension::initialize(const ov::Dimension::value_type& min, const ov::Dimension::value_type& max) {
+    m_dimension = {min == -1 ? 0 : min, max == -1 ? Interval::s_max : max};
     if (is_dynamic())
         m_symbol = std::make_shared<ov::Symbol>();
 }
 
-Dimension::Dimension(value_type min_dimension, value_type max_dimension)
-    : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {
-    if (is_dynamic())
-        m_symbol = std::make_shared<ov::Symbol>();
+Dimension::Dimension(value_type dimension) {
+    initialize(dimension, dimension);
+}
+
+Dimension::Dimension(value_type min_dimension, value_type max_dimension) {
+    initialize(min_dimension, max_dimension);
 }
 
 Dimension::Dimension(const std::string& value) {
     auto val = ov::util::trim(value);
     if (val == "?" || val == "-1") {
-        m_dimension = {0, Interval::s_max};
+        initialize(-1, -1);
         return;
     }
     if (val.find("..") == std::string::npos) {
         OPENVINO_ASSERT(check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
-        m_dimension = {stringToInt64(val)};
+        initialize(stringToInt64(val), stringToInt64(val));
         return;
     }
 
@@ -124,9 +126,15 @@ Dimension::Dimension(const std::string& value) {
         OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
         max_value = stringToInt64(max_value_str);
     }
-    m_dimension = Interval(min_value, max_value);
-    if (is_dynamic())
-        m_symbol = std::make_shared<ov::Symbol>();
+    initialize(min_value, max_value);
+}
+
+Dimension::Dimension() {
+    initialize(-1, -1);
+}
+
+Dimension::Dimension(const Interval& interval) {
+    initialize(interval.get_min_val(), interval.get_max_val());
 }
 
 std::string Dimension::to_string() const {

@@ -89,9 +89,11 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
     }
 }
 
-TEST_F(TransformationTestsF, ChainedMaximumNegativeNoLabels) {
+TEST_F(TransformationTestsF, ChainedMaximumNegativeNoSymbols) {
     {
         auto shape = PartialShape::dynamic(4);
+        for (auto& d : shape)
+            d.set_symbol(nullptr);
         auto input = make_shared<v0::Parameter>(element::f32, shape);
 
         auto A = v0::Constant::create(element::i64, {}, {1});
@@ -109,7 +111,7 @@ TEST_F(TransformationTestsF, ChainedMaximumNegativeNoLabels) {
     }
 }
 
-TEST_F(TransformationTestsF, ChainedMaximumNegativeDifferentLabels) {
+TEST_F(TransformationTestsF, ChainedMaximumNegativeDifferentSymbols) {
     {
         auto input_0 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
         auto input_1 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));

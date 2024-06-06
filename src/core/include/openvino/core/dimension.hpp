@@ -38,7 +38,7 @@ public:
     Dimension(const std::string& str);
 
     /// \brief Construct a dynamic dimension with range [0, ...]
-    Dimension() : m_dimension(), m_symbol{std::make_shared<ov::Symbol>()} {};
+    Dimension();
 
     bool operator==(const Dimension& dimension) const {
         return m_dimension == dimension.m_dimension;
@@ -70,6 +70,8 @@ public:
     }
     Interval& get_interval() {
         if (!m_symbol)
+            // we don't know if the dimension would turn dynamic after this
+            // so we equip it with symbol just in case
             m_symbol = std::make_shared<ov::Symbol>();
         return m_dimension;
     }
@@ -192,10 +194,9 @@ public:
     void set_symbol(const std::shared_ptr<ov::Symbol>& s);
 
 private:
-    Dimension(const Interval& interval) : m_dimension(interval) {
-        if (is_dynamic())
-            m_symbol = std::make_shared<ov::Symbol>();
-    }
+    Dimension(const Interval& interval);
+
+    void initialize(const value_type& min, const value_type& max);
 
     // The actual numerical value of the dimension.
     Interval m_dimension{};

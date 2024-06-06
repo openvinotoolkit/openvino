@@ -174,8 +174,12 @@ std::string ov::PartialShape::to_string() const {
 }
 
 ov::PartialShape ov::PartialShape::dynamic(Rank r) {
-    return PartialShape(r.is_static(),
-                        std::vector<Dimension>(r.is_static() ? r.get_length() : 0, Dimension::dynamic()));
+    size_t num_dims = r.is_static() ? r.get_length() : 0;
+    std::vector<Dimension> dimensions;
+    dimensions.reserve(num_dims);
+    for (size_t i = 0; i < num_dims; ++i)
+        dimensions.push_back(Dimension::dynamic());
+    return PartialShape(r.is_static(), dimensions);
 }
 
 bool ov::PartialShape::compatible(const PartialShape& s) const {
