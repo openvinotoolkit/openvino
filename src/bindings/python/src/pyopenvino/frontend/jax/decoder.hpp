@@ -24,10 +24,6 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
         PYBIND11_OVERRIDE_PURE(ov::OutputVector, JaxDecoder, as_constant);
     }
 
-    const std::string& as_string() const override {
-        PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, as_string);
-    }
-
     ov::Any const_var(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(ov::Any, JaxDecoder, const_var, index);
     }

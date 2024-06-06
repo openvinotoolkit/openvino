@@ -5,6 +5,7 @@
 #include "openvino/frontend/jax/node_context.hpp"
 
 #include "jax_framework_node.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/jax/decoder.hpp"
@@ -23,15 +24,7 @@ using namespace ov::op;
 OutputVector NodeContext::as_constant() const {
     auto dtype = m_decoder->get_output_type(0);
     if (dtype.is<type::Str>()) {
-        // Cannot represent string as Constant, creating FrameworkNode
-        const auto& str = m_decoder->as_string();
-        auto fw_node = std::make_shared<JaxFrameworkNode>(m_decoder, OutputVector{});
-        auto attrs = fw_node->get_attrs();
-        attrs["string_value"] = str;
-        attrs[JaxFrameworkNode::failed_conversion_key] =
-            "String constant cannot be converted to OpenVINO opset and should be removed by consuming operation.";
-        fw_node->set_attrs(attrs);
-        return {fw_node};
+        OPENVINO_THROW("Dtype string is not supported in JAX yet.");
     } else if (dtype.is<type::PyNone>()) {
         // Cannot represent None as Constant, creating FrameworkNode
         auto fw_node = std::make_shared<JaxFrameworkNode>(m_decoder, OutputVector{});
@@ -207,19 +200,6 @@ double NodeContext::const_input<double>(size_t index) const {
 template <>
 float NodeContext::const_input<float>(size_t index) const {
     return get_constant_at_input(*this, index, false)->cast_vector<float>()[0];
-}
-
-template <>
-std::string NodeContext::const_input<std::string>(size_t index) const {
-    FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input with index: ", index, " is none.");
-    auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
-    auto input = std::dynamic_pointer_cast<JaxFrameworkNode>(input_node);
-    FRONT_END_GENERAL_CHECK(input,
-                            "Input node with index ",
-                            index,
-                            " cannot be interpreted as FrameworkNode with string constant: ",
-                            input_node);
-    return input->get_decoder()->as_string();
 }
 
 namespace {

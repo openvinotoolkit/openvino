@@ -18,10 +18,6 @@ public:
     // TODO: is this really needed in jax?
     virtual OutputVector as_constant() const = 0;
 
-    // Get string from constant. Work for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds
-    // that fit
-    virtual const std::string& as_string() const = 0;
-
     // Get the const variable.
     virtual Any const_var(size_t index) const = 0;
 

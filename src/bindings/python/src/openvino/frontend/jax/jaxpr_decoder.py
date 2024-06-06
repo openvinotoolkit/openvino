@@ -116,9 +116,6 @@ class JaxprPythonDecoder (Decoder):
     def as_constant(self):
         # This may not be necessary in jax frontend but needs further check.
         raise NotImplementedError("Not implemented yet.")
-    
-    def as_string(self):
-        return str(self.jaxpr)
 
     def input_is_none(self, index) -> bool:
         return self.jaxpr.invars[index] is None
