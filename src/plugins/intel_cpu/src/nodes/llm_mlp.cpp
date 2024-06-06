@@ -297,32 +297,51 @@ public:
     }
 };
 
+std::vector<int> allocate_workers(const std::vector<int>& grouped_works, int n_workers) {
+    auto n_groups = grouped_works.size();
+    // allocate 1 worker for each group
+    std::vector<int> g_workers(n_groups, 1);
+    auto left_workers = n_workers - n_groups;
+    while (left_workers > 0) {
+        // which group is working hardest?
+        float hardest_works = 0;
+        size_t hardest_group = 0;
+        for (size_t g = 0; g < n_groups; g++) {
+            auto works = static_cast<float>(grouped_works[g]) / g_workers[g];
+            if (hardest_works < works) {
+                hardest_works = works;
+                hardest_group = g;
+            }
+        }
+        g_workers[hardest_group]++;
+        left_workers--;
+    }
+
+    //for (int i = 0; i < n_groups; i++) std::cout << grouped_works[i] << " on " << g_workers[i] << " cores: ";
+    //std::cout << "totally " << n_workers << " cores" << std::endl;
+    return g_workers;
+}
+
 struct QKVProj : public LLMMLP::Executor {
     const LLMQKVProjNode::Config m_config;
     std::vector<Work> works;
 
     // q k v each have 1/3 or worker-thread
-    QKVProj(ov::bfloat16* wq, ov::bfloat16* wk, ov::bfloat16* wv, const LLMQKVProjNode::Config& config) : m_config(config) {
+    QKVProj(ov::bfloat16* w0, ov::bfloat16* w1, ov::bfloat16* w2, const LLMQKVProjNode::Config& config) : m_config(config) {
         const int blk_K_size = 256;
-        auto N = m_config.hidden_size;
         auto K = m_config.hidden_size;
-        // prepare weights, split N among threads
-        // in unit of 32
-        OPENVINO_ASSERT((N % 32) == 0);
         OPENVINO_ASSERT((K % blk_K_size) == 0);
         auto nthr = parallel_get_max_threads();
-        auto num_blk_N = N / 32;
         auto num_blk_K = K / blk_K_size;
+        int stride = K * sizeof(ov::bfloat16);
+
         works.resize(nthr);
 
-        int stride = K * sizeof(*wq);
-
-        // every thread should do same amount of work, and some cores can be idle
-        auto valid_nthr = nthr / 3;
-
         int cur_work_id = 0;
-        auto create_works = [&](ov::bfloat16* pw, int output_id) {
+        auto create_works = [&](ov::bfloat16* pw, int output_id, int N, int valid_nthr) {
             // split task on more cores is better on TBB
+            OPENVINO_ASSERT((N % 32) == 0);
+            auto num_blk_N = N / 32;
             auto blkN_per_thread = (num_blk_N) / valid_nthr;
             auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
             auto start_blkN = 0;
@@ -336,28 +355,27 @@ struct QKVProj : public LLMMLP::Executor {
                 if (blkN) {
                     auto& work = works[cur_work_id++];
                     work.blk_K_size = blk_K_size;
-
                     work.n0 = (start_blkN)*32;
                     work.n1 = (start_blkN + blkN) * 32;
                     work.BN = blkN * 32;
                     work.k0 = 0;
                     work.k1 = blk_K_size * num_blk_K;
-
-                    work.weights.resize(num_blk_K);
-                    for (auto& weight : work.weights)
-                        weight.resize<ov::bfloat16>({static_cast<size_t>(blkN), static_cast<size_t>(blk_K_size * 32)});
-
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
                 }
                 start_blkN += blkN;
             }
         };
-        create_works(wq, 0);
-        create_works(wk, 1);
-        create_works(wv, 2);
 
-        DEBUG_LOG("QKVProj N,K=", N, ",", K, " used_nthr=", cur_work_id);
+        auto n_group_workers = allocate_workers({m_config.proj_size0, m_config.proj_size1, m_config.proj_size2}, nthr);
+
+        create_works(w0, 0, m_config.proj_size0, n_group_workers[0]);
+        create_works(w1, 1, m_config.proj_size1, n_group_workers[1]);
+        create_works(w2, 2, m_config.proj_size2, n_group_workers[2]);
+
+        DEBUG_LOG("QKVProj hidden_size=", K, " proj_sizes=",
+                  m_config.proj_size0, ",", m_config.proj_size1, ",", m_config.proj_size2,
+                  " used_nthr=", cur_work_id);
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
@@ -365,11 +383,11 @@ struct QKVProj : public LLMMLP::Executor {
             }
         });
         DEBUG_LOG("   setup is done. weight @ ",
-                  static_cast<void*>(wq),
+                  static_cast<void*>(w0),
                   ",",
-                  static_cast<void*>(wk),
+                  static_cast<void*>(w1),
                   ",",
-                  static_cast<void*>(wv));
+                  static_cast<void*>(w2));
     }
 
     void run(uint8_t* pA,
@@ -429,14 +447,15 @@ struct QKVProj : public LLMMLP::Executor {
         auto input = pnode->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         uint8_t* pA = input->getDataAs<uint8_t>();
-        auto hidden_size = m_config.hidden_size;
-        int strideA = hidden_size * 2;
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
         auto* dst0 = pnode->getDstMemoryAtPort(0)->getDataAs<ov::bfloat16>();
         auto* dst1 = pnode->getDstMemoryAtPort(1)->getDataAs<ov::bfloat16>();
         auto* dst2 = pnode->getDstMemoryAtPort(2)->getDataAs<ov::bfloat16>();
 
-        run(pA, strideA, M, dst0, hidden_size * 2, dst1, hidden_size * 2, dst2, hidden_size * 2);
+        run(pA, m_config.hidden_size * sizeof(ov::bfloat16), M,
+            dst0, m_config.proj_size0 * sizeof(ov::bfloat16),
+            dst1, m_config.proj_size1 * sizeof(ov::bfloat16),
+            dst2, m_config.proj_size2 * sizeof(ov::bfloat16));
     }
 };
 
@@ -554,8 +573,8 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
 
     if (m_is_qkv_proj) {
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
-        outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
-        outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
+        outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(1), false, -1);
+        outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(2), false, -1);
     } else if (m_is_mlp) {
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
     }

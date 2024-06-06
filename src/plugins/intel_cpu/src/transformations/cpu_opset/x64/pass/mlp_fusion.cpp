@@ -115,7 +115,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         auto new_node = std::make_shared<LLMMLPNode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(mlp_gate_proj).get_node_shared_ptr(),
-                               pattern_map.at(mlp_silu_gate).get_node_shared_ptr(),
+                               pattern_map.at(config.is_act_silu ? mlp_silu_gate : mlp_gelu_gate).get_node_shared_ptr(),
                                pattern_map.at(mlp_up_proj).get_node_shared_ptr(),
                                pattern_map.at(down_proj).get_node_shared_ptr()},
                               new_node);

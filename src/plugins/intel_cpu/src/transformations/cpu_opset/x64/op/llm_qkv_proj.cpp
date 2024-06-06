@@ -30,9 +30,16 @@ void LLMQKVProjNode::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, input_size == 4);
     set_output_size(3);
-    set_output_type(0, itype, ishape);
-    set_output_type(1, itype, ishape);
-    set_output_type(2, itype, ishape);
+
+    auto oshape0 = ishape;
+    auto oshape1 = ishape;
+    auto oshape2 = ishape;
+    oshape0[oshape0.size()-1] = m_config.proj_size0;
+    oshape1[oshape1.size()-1] = m_config.proj_size1;
+    oshape2[oshape2.size()-1] = m_config.proj_size2;
+    set_output_type(0, itype, oshape0);
+    set_output_type(1, itype, oshape1);
+    set_output_type(2, itype, oshape2);
 }
 
 std::shared_ptr<Node> LLMQKVProjNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
