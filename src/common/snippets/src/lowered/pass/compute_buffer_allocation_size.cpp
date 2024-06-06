@@ -85,6 +85,7 @@ bool ComputeBufferAllocationSize::run(LinearIR& linear_ir, lowered::LinearIR::co
         const auto node = buffer_expr->get_node();
         if (const auto buffer = ov::as_type_ptr<op::IntermediateMemoryBuffer>(node)) {
             // If the current size is undefined, update it
+            // TODO [143395] : MemoryManager will return container with only dynamic buffers without any `is_defined()`
             if (!buffer->is_defined())
                 buffer->set_allocation_size(get_allocation_size(loop_manager, buffer_expr, m_buffer_allocation_rank));
         } else {

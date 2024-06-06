@@ -147,6 +147,8 @@ void SolveBufferMemory::set_dynamic_buffer_offset(const LinearIR::container& dyn
 bool SolveBufferMemory::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SolveBufferMemory");
 
+    // TODO [143395] : MemoryManager will be able to return two containers with dynamic and static buffers
+    //                 without additional `extract` functions in all passes
     LinearIR::container static_buffer_exprs, dynamic_buffer_exprs;
     std::tie(static_buffer_exprs, dynamic_buffer_exprs) = extract_static_and_dynamic_buffers(linear_ir.get_buffers());
 

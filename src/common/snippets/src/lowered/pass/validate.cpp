@@ -133,6 +133,7 @@ void validate_buffer_expressions(const LinearIR::container& buffer_expressions) 
         const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
         OPENVINO_ASSERT(buffer, "Expected Buffer ops in Buffer expressions of LinearIR");
 
+        // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without any `is_defined()`
         auto& clusters = buffer->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
         clusters[buffer->get_cluster_id()].insert(buffer_expr);
         cluster_ids.insert(buffer->get_cluster_id());

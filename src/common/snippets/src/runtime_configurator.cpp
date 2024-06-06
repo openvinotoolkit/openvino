@@ -121,6 +121,7 @@ void RuntimeConfigurator::init_buffer_info(const std::shared_ptr<lowered::Linear
         const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
         OPENVINO_ASSERT(buffer, "Expected Buffer ops in Buffer expressions of LinearIR");
 
+        // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without any `is_defined()`
         auto& clusters = buffer->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
         clusters[buffer->get_cluster_id()].insert(buffer_expr);
     }
