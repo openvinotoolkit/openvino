@@ -267,9 +267,9 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 //   |               =>           |
                 // Loop_1 (Lower)                 |
                 bool was_fusion_down = false;
-                const auto output_port_count = current_loop_info->get_output_count();
-                for (size_t out_port = 0; !was_fusion_down && out_port < output_port_count; ++out_port) {
-                    const auto output_port = current_loop_info->get_output_ports()[out_port];
+                const auto& output_ports = current_loop_info->get_output_ports();
+                for (size_t out_port = 0; !was_fusion_down && out_port < output_ports.size(); ++out_port) {
+                    const auto& output_port = output_ports[out_port];
                     const auto consumer_exprs_inputs = output_port.expr_port->get_connected_ports();
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
