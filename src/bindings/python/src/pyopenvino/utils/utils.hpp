@@ -58,5 +58,7 @@ namespace utils {
 
     ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
+    std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback);
+
 }; // namespace utils
 }; // namespace Common
