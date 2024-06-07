@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -57,7 +60,8 @@ OutputVector translate_hann_window(const NodeContext& context) {
     } else {
         size_t out_id = num_inputs == 3 ? 2 : 1;
         if (!context.input_is_none(out_id)) {
-            squared_sin = context.mark_node(std::make_shared<v1::ConvertLike>(squared_sin, context.get_input(out_id)));
+            squared_sin = context.mark_node(
+                std::make_shared<v1::ConvertLike>(squared_sin, context.get_input(static_cast<int>(out_id))));
             context.mutate_input(out_id, squared_sin);
         }
     }
