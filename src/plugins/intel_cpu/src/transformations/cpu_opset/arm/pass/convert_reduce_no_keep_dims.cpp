@@ -11,7 +11,7 @@ template <class T>
 ov::matcher_pass_callback ov::intel_cpu::ConvertReduceNoKeepDimsBase::convert_reduce() {
     return [&](ov::pass::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
-        if (!reduce || reduce->is_dynamic() || reduce->get_keep_dims()) {
+        if (!reduce || reduce->get_keep_dims()) {
             return false;
         }
 

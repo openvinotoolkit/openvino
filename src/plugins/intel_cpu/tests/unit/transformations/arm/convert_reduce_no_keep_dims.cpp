@@ -47,7 +47,7 @@ static ov::PartialShape dynamic_param_shape = ov::PartialShape{2, -1, 2, 9};
 
 TYPED_TEST_SUITE_P(ConvertReduceNoKeepDimsTest);
 
-TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsApplied) {
+TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppliedForStaticShapes) {
     ov::element::Type_t dataType = std::is_base_of<ov::op::util::LogicalReductionKeepDims, TypeParam>::value ?
                                    ov::element::boolean : ov::element::f32;
     auto param = std::make_shared<ov::opset1::Parameter>(dataType, static_param_shape);
@@ -62,12 +62,12 @@ TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppl
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsNotAppliedForDynaimcShapes) {
+TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppliedForDynaimcShapes) {
     ov::element::Type_t dataType = std::is_base_of<ov::op::util::LogicalReductionKeepDims, TypeParam>::value ?
                                    ov::element::boolean : ov::element::f32;
     auto param = std::make_shared<ov::opset1::Parameter>(dataType, dynamic_param_shape);
     auto model = createInitGraph<TypeParam>(param);
-    auto model_ref = createInitGraph<TypeParam>(param);
+    auto model_ref = createRefGraph<TypeParam>(param);
 
     if (!registerAndRunReducePass<TypeParam>(model)) {
         FAIL() << "Reduce pass is not registered.";
@@ -78,8 +78,8 @@ TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsNotA
 }
 
 REGISTER_TYPED_TEST_SUITE_P(ConvertReduceNoKeepDimsTest,
-                            CheckConvertReduceTransformationIsApplied,
-                            CheckConvertReduceTransformationIsNotAppliedForDynaimcShapes);
+                            CheckConvertReduceTransformationIsAppliedForStaticShapes,
+                            CheckConvertReduceTransformationIsAppliedForDynaimcShapes);
 
 using reduceTypes = ::testing::Types<ov::opset1::ReduceMin,
                                      ov::opset1::ReduceMax,
