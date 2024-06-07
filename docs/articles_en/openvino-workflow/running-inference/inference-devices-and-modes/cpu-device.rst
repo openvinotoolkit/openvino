@@ -3,7 +3,11 @@
 CPU Device
 ==========
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
 
+   cpu-device/performance-hint-and-threads-scheduling
 
 .. meta::
    :description: The CPU plugin in the Intel® Distribution of OpenVINO™ toolkit
@@ -245,12 +249,6 @@ For more details, see the :doc:`optimization guide <../optimize-inference>` and 
    When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint.
    For more details see the :doc:`performance hints <../optimize-inference/high-level-performance-hints>` overview.
-
- .. toctree::
-    :maxdepth: 1
-    :hidden:
- 
-    cpu-device/performance-hint-and-threads-scheduling
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
