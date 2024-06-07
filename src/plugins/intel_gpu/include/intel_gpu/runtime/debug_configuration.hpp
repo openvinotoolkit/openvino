@@ -109,6 +109,7 @@ public:
     int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators
     std::string dump_profiling_data;                            // Enables dump of extended performance profiling to specified dir
     int dump_profiling_data_per_iter;                           // Enables dump of extended performance profiling to specified dir for each iteration
+    int host_time_profiling;                                    // Enables measurement of scheduling time spend on the host
     std::string dump_graphs;                                    // Dump optimized graph
     std::string dump_sources;                                   // Dump opencl sources
     std::string dump_layers_path;                               // Enable dumping intermediate buffers and set the dest path
