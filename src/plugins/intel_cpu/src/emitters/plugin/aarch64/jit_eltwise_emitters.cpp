@@ -741,6 +741,70 @@ std::set<std::vector<element::Type>> jit_gelu_tanh_emitter::get_supported_precis
     return {{element::f32}};
 }
 
+/// GELU_V7 ///
+jit_gelu_v7_emitter::jit_gelu_v7_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                         const std::shared_ptr<ov::Node>& node)
+        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    const auto gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(node);
+    if (gelu == nullptr) {
+        OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v7::Gelu");
+    }
+    approximationMode = gelu->get_approximation_mode();
+    if (approximationMode == ov::op::GeluApproximationMode::ERF) {
+        gelu_erf_emitter = std::make_unique<jit_gelu_erf_emitter>(h, host_isa, node);
+    } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {
+        gelu_tanh_emitter = std::make_unique<jit_gelu_tanh_emitter>(h, host_isa, node);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported Gelu approximation mode");
+    }
+}
+
+size_t jit_gelu_v7_emitter::get_inputs_count() const { return 1; }
+
+size_t jit_gelu_v7_emitter::get_aux_vecs_count() const {
+    return approximationMode == ov::op::GeluApproximationMode::ERF ?
+           gelu_erf_emitter->get_aux_vecs_count() :
+           gelu_tanh_emitter->get_aux_vecs_count();
+}
+
+size_t jit_gelu_v7_emitter::get_aux_gprs_count() const {
+    return approximationMode == ov::op::GeluApproximationMode::ERF ?
+           gelu_erf_emitter->get_aux_gprs_count() :
+           gelu_tanh_emitter->get_aux_gprs_count();
+}
+
+void jit_gelu_v7_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_gelu_v7_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    approximationMode == ov::op::GeluApproximationMode::ERF ?
+    gelu_erf_emitter->emit_code(in_vec_idxs, out_vec_idxs, aux_vec_idxs, aux_gpr_idxs) :
+    gelu_tanh_emitter->emit_code(in_vec_idxs, out_vec_idxs, aux_vec_idxs, aux_gpr_idxs);
+}
+
+void jit_gelu_v7_emitter::register_table_entries() {
+    approximationMode == ov::op::GeluApproximationMode::ERF ?
+    gelu_erf_emitter->register_table_entries() :
+    gelu_tanh_emitter->register_table_entries();
+}
+
+void jit_gelu_v7_emitter::emit_data() const {
+    approximationMode == ov::op::GeluApproximationMode::ERF ?
+    gelu_erf_emitter->emit_data() :
+    gelu_tanh_emitter->emit_data();
+}
+
+std::set<std::vector<element::Type>> jit_gelu_v7_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
 /// HARD_SWISH ///
 jit_hswish_emitter::jit_hswish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
