@@ -115,7 +115,7 @@ TEST_P(OVPropertiesIncorrectTestsNPU, SetPropertiesWithIncorrectKey) {
     std::vector<ov::PropertyName> supported_properties;
     supported_properties = core->get_property(target_device, ov::supported_properties);
 
-    for (const std::pair<ov::PropertyName, ov::Any>& property_item : properties) {
+    for (const auto& property_item : properties) {
         auto supported = util::contains(supported_properties, property_item.first);
         ASSERT_FALSE(supported);
     }
@@ -126,7 +126,7 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
 
-    for (const std::pair<ov::PropertyName, ov::Any>& property_item : properties) {
+    for (const auto& property_item : properties) {
         auto supported = util::contains(supported_properties, property_item.first);
         ASSERT_FALSE(supported);
 
