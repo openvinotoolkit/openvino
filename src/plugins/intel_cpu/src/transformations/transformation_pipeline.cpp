@@ -955,6 +955,7 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v4::HSwish>(n) ||
                 ov::is_type<ov::op::v1::Maximum>(n) ||
                 ov::is_type<ov::op::v1::Minimum>(n) ||
+                ov::is_type<ov::op::v4::Mish>(n) ||
                 ov::is_type<ov::op::v1::Mod>(n) ||
                 ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Relu>(n) ||
@@ -968,6 +969,10 @@ void Transformations::MainSnippets(void) {
             return ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
         };
+        // CPU Plugin does not support the following ops for x64
+        auto is_unsupported_by_x64 = [](const std::shared_ptr<const ov::Node> &n) {
+            return ov::is_type<const ov::op::v4::Mish>(n);
+        };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
         auto is_unsupported_by_common_tokenization = [](const std::shared_ptr<const ov::Node> &n) {
@@ -980,7 +985,7 @@ void Transformations::MainSnippets(void) {
                     ov::is_type<const ov::op::v1::ReduceMax>(n) ||
                     ov::is_type<const ov::op::v1::ReduceSum>(n));
         };
-        return !is_unsupported_swish(n) && !is_unsupported_by_common_tokenization(n);
+        return !is_unsupported_swish(n) && !is_unsupported_by_x64(n) && !is_unsupported_by_common_tokenization(n);
 #endif
     };
 

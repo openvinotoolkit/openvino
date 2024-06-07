@@ -241,6 +241,9 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Floor,       {{}}},
         {Relu,        {{}}},
         {HSwish,      {{}}},
+#if defined(OPENVINO_ARCH_ARM64)
+        {Mish,        {{}}},
+#endif
         {Sigmoid,     {{}}},
         {Swish,       {{0.1f}}},
         {Tanh,        {{}}},
