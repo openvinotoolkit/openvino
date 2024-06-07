@@ -134,7 +134,7 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
         OV_ASSERT_NO_THROW(default_property = core->get_property(target_device, property_item.first));
         ASSERT_FALSE(default_property.empty());
 
-        if (property_item.first.is_mutable() && !property_item.second.empty()) {
+        if (ov::PropertyName(property_item.first).is_mutable() && !property_item.second.empty()) {
             OV_ASSERT_NO_THROW(core->set_property(target_device, {property_item}));
             core->compile_model(model, target_device, compileModelProperties);
             ov::Any actual_property_value;
