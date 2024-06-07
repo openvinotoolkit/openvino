@@ -161,7 +161,7 @@ void matmul(const T* arg0,
                           broadcast_axes,
                           sizeof(T));
 
-                arg0_shape_tmp = arg0_br_target_shape;
+                arg0_shape_tmp = std::move(arg0_br_target_shape);
                 arg0_rank = arg0_shape_tmp.size();
                 arg0_new_data.swap(tmp);
                 arg0_data = arg0_new_data.data();
@@ -175,7 +175,7 @@ void matmul(const T* arg0,
                           arg1_br_target_shape,
                           broadcast_axes,
                           sizeof(T));
-                arg1_shape_tmp = arg1_br_target_shape;
+                arg1_shape_tmp = std::move(arg1_br_target_shape);
                 arg1_rank = arg1_shape_tmp.size();
                 arg1_new_data.swap(tmp);
                 arg1_data = arg1_new_data.data();

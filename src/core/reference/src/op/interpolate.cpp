@@ -93,10 +93,10 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
     result.batch_size = batch_size;
     result.num_channels = num_channels;
     result.spatial_rank = static_cast<int64_t>(spatial_rank);
-    result.input_index_multipliers = input_index_multipliers;
-    result.output_index_multipliers = output_index_multipliers;
-    result.input_spatial_shape = input_spatial_shape;
-    result.output_spatial_shape = output_spatial_shape;
+    result.input_index_multipliers = std::move(input_index_multipliers);
+    result.output_index_multipliers = std::move(output_index_multipliers);
+    result.input_spatial_shape = std::move(input_spatial_shape);
+    result.output_spatial_shape = std::move(output_spatial_shape);
 
     return result;
 }
@@ -134,10 +134,10 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     InfoForLinearMode result;
 
     result.antialias = antialias;
-    result.a = a;
-    result.r = r;
+    result.a = std::move(a);
+    result.r = std::move(r);
     result.prod_a = prod_a;
-    result.shape_for_indices = shape_for_indices;
+    result.shape_for_indices = std::move(shape_for_indices);
 
     return result;
 }
@@ -163,8 +163,8 @@ InterpolateEvalHelper::ICoords InterpolateEvalHelper::get_icoords(const Coordina
         icoords_r[axis] = static_cast<int64_t>(std::round(in_coord));
     }
 
-    result.icoords = icoords;
-    result.icoords_r = icoords_r;
+    result.icoords = std::move(icoords);
+    result.icoords_r = std::move(icoords_r);
 
     return result;
 }
@@ -218,7 +218,7 @@ InterpolateEvalHelper::LinearModeInnerIterationResult InterpolateEvalHelper::inn
     Coordinate inner_coord{unsigned_inner_coords_vector};
 
     result.w = w;
-    result.inner_coord = inner_coord;
+    result.inner_coord = std::move(inner_coord);
 
     return result;
 }
