@@ -53,9 +53,12 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto concat_k = makePattern<opset1::Concat>({gather_input_k, cur_k}, {{"axis", axis_seq_len}});
     auto concat_v = makePattern<opset1::Concat>({gather_input_v, cur_v}, {{"axis", axis_seq_len}});
 
-    auto multi_query_bcst = [](std::shared_ptr<Node> kv) {
-        auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
-        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
+    std::shared_ptr<Node> reshape_k, reshape_v, unsqueeze_k, unsqueeze_v;
+    std::shared_ptr<Node> computed_bcst_k, computed_bcst_v, multiply_k, multiply_v;
+    auto multi_query_bcst = [](const std::shared_ptr<Node>& kv, std::shared_ptr<Node>& reshape_kv,
+        std::shared_ptr<Node>& unsqueeze_kv, std::shared_ptr<Node>& computed_bcst, std::shared_ptr<Node>& multiply_kv) {
+        reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
+        unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
 
         auto check_one = [] (Output<Node> output) -> bool {
             auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
@@ -66,15 +69,17 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         };
         auto constant_bcst = wrap_type<opset1::Constant>(check_one);
 
-        auto computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
+        computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
             any_input(), any_input()}, {{"mode", "numpy"}});
 
-        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
+        multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
         return wrap_type<opset6::Reshape>({multiply_kv, any_input()});
     };
 
-    auto present_k = concat_k | multi_query_bcst(concat_k);
-    auto present_v = concat_v | multi_query_bcst(concat_v);
+    auto mq_reshape_k = multi_query_bcst(concat_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k);
+    auto mq_reshape_v = multi_query_bcst(concat_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v);
+    auto present_k = concat_k | mq_reshape_k;
+    auto present_v = concat_v | mq_reshape_v;
 
     // canonical q/k/v shape definition: [B,H,...L,S]
     auto sdp0 = makePattern<opset13::ScaledDotProductAttention>({cur_q, present_k, present_v});
@@ -181,16 +186,20 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         if (past_v_node->get_variable_id() != assign_v_node->get_variable_id())
             return false;
 
-        auto is_optional_one_child = [&pattern_map] (const std::shared_ptr<Node>& node) {
-            if (pattern_map.count(node)) {
-                auto p = pattern_map.at(node).get_node_shared_ptr();
-                if (p->get_output_target_inputs(0).size() != 1)
-                    return false;
+        auto is_optional_one_child = [&pattern_map] (const std::vector<std::shared_ptr<Node>>& nodes) {
+            for (auto&& node : nodes) {
+                if (pattern_map.count(node)) {
+                    auto p = pattern_map.at(node).get_node_shared_ptr();
+                    if (p->get_output_target_inputs(0).size() != 1)
+                        return false;
+                }
             }
             return true;
         };
-        if (!is_optional_one_child(convert_past_k) || !is_optional_one_child(convert_past_v) ||
-            !is_optional_one_child(transpose_q) || !is_optional_one_child(transpose_k) || !is_optional_one_child(transpose_v))
+        if (!is_optional_one_child({convert_past_k, convert_past_v, transpose_q, transpose_k, transpose_v,
+                                    reshape_k, unsqueeze_k, computed_bcst_k, multiply_k,
+                                    reshape_v, unsqueeze_v, computed_bcst_v, multiply_v,
+                                    mq_reshape_k, mq_reshape_v}))
             return false;
 
         // past_k & past_v must be reordered by same beam_idx
