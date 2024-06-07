@@ -8,7 +8,7 @@ Transformation Patterns with OpenVINO API
 
 Pattern matching is an essential component of OpenVINO™ transformations. Before performing any transformation on a subgraph of a graph, it is necessary to find that subgraph in the graph.
 Patterns serve as a searching utility to identify nodes intended for transformations. This article covers the basics of pattern
-creation using OpenVINO™ API and helpful utilities to facilitate working with them. While this guide focuses on creating patterns, if you want to learn more about ``MatcherPass``, refer to the :doc:`OpenVINO Matcher Pass article </matcher-pass>`. Note that some examples may be intentionally simplified for ease of understanding. 
+creation using OpenVINO™ API and helpful utilities to facilitate working with them. While this guide focuses on creating patterns, if you want to learn more about ``MatcherPass``, refer to the :doc:`OpenVINO Matcher Pass article <./matcher-pass>`. Note that some examples may be intentionally simplified for ease of understanding. 
 
 Before proceeding further, it is necessary to add some imports. These imports include the operations to be used and additional utilities described in this guide.
 Add the following lines to your file:
