@@ -867,7 +867,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
         const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-        if (!matmul)
+        if (!matmul || matmul->is_dynamic())
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
