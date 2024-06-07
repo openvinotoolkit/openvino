@@ -206,8 +206,8 @@ struct QKVProjection::Impl {
 };
 #else
 struct QKVProjection::Impl {
-    void Impl(QKVProjection * pnode) {}
-    void execute(QKVProjection * pnode) {}
+    Impl(QKVProjection * pnode, DnnlScratchPadPtr scrachPad) {}
+    void execute() {}
 };
 #endif
 
