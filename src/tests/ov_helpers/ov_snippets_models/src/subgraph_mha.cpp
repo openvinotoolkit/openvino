@@ -69,7 +69,11 @@ std::shared_ptr<ov::Model> MHAFunction::initOriginal() const {
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     std::shared_ptr<ov::Node> matmul_parent1 = transpose1;
     if (with_mul) {
-        const auto mulConst = ov::test::utils::make_constant(precisions[1], ov::Shape{1});
+        ov::Shape shape(rank, 1);
+        if (transpose1->get_output_partial_shape(0).is_static()) {
+            shape[rank - 3] = transpose1->get_output_shape(0)[rank - 3];
+        }
+        const auto mulConst = ov::test::utils::make_constant(precisions[1], shape);
         matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
     }
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, matmul_parent1);
@@ -128,8 +132,20 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     std::shared_ptr<ov::Node> matmul_parent1 = transpose1;
     if (with_mul) {
-        const auto mulConst = ov::test::utils::make_constant(precisions[1], ov::Shape{1});
-        matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
+        ov::Shape shape(rank, 1);
+        if (transpose1->get_output_partial_shape(0).is_static()) {
+            shape[rank - 3] = transpose1->get_output_shape(0)[rank - 3];
+        }
+        const auto mulConst = ov::test::utils::make_constant(precisions[1], shape);
+
+        if (ov::shape_size(shape) > 1) {
+            const auto mulParam = std::make_shared<ov::opset1::Parameter>(precisions[1], mulConst->get_shape());
+            matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulParam);
+            subgraph_params = {transpose0Param, transpose1Param, mulParam, addParam, transpose2Param};
+            subgraph_inputs = {data0, data1, mulConst, data2, data3};
+        } else {
+            matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
+        }
     }
 
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, matmul_parent1);
@@ -180,8 +196,23 @@ std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
 
     std::shared_ptr<ov::Node> matmul_parent1 = transpose1;
     if (with_mul) {
-        const auto mulConst = ov::test::utils::make_constant(precisions[1], ov::Shape{1});
-        matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
+        ov::Shape shape(rank - 1, 1);
+        if (transpose1->get_output_partial_shape(0).is_static()) {
+            shape[rank - 4] = transpose1->get_output_shape(0)[rank - 4];
+        }
+        const auto mulConst = ov::test::utils::make_constant(precisions[1], shape);
+
+        if (ov::shape_size(shape) > 1) {
+            ov::Shape reshape_shape = shape;
+            reshape_shape.insert(reshape_shape.cbegin() + rank - 3, 1);
+            const auto mulReshape = make_reshape(mulConst, reshape_shape);
+            const auto mulParam = std::make_shared<ov::opset1::Parameter>(precisions[1], mulReshape->get_shape());
+            matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulParam);
+            subgraph_params = {transpose0Param, transpose1Param, mulParam, addParam, transpose2Param};
+            subgraph_inputs = {reshape0, reshape1, mulReshape, reshape2, reshape3};
+        } else {
+            matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
+        }
     }
 
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, matmul_parent1);
