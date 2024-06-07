@@ -21,7 +21,6 @@ public:
           _core{core},
           _args{args},
           _model{} {
-        // OPENVINO_ASSERT(_core, "Invalid pointer to Core.");
         OPENVINO_ASSERT(_args, "Invalid pointer to ReadModelArgs.");
     }
 
