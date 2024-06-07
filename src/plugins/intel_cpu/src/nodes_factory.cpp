@@ -44,7 +44,7 @@
 #include "nodes/input.h"
 #include "nodes/interaction.h"
 #include "nodes/llm_mlp.h"
-#include "nodes/llm_qkv_proj.h"
+#include "nodes/qkv_proj.h"
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
 #include "nodes/log_softmax.h"

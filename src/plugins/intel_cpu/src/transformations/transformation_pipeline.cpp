@@ -147,7 +147,7 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/llm_mlp.h"
-#include "nodes/llm_qkv_proj.h"
+#include "nodes/qkv_proj.h"
 #include "dnnl.hpp"
 #if defined(OPENVINO_ARCH_ARM64)
 #include "cpu/aarch64/cpu_isa_traits.hpp"

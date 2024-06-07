@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "llm_qkv_proj.h"
+#include "qkv_proj.h"
 
 #include <string>
 #include <vector>
