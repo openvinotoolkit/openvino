@@ -28,7 +28,7 @@ A pattern is a simplified model comprised of nodes aimed to be matched. It lacks
 
 Consider a straightforward pattern consisting of three nodes to be found in a given model.
 
-.. image:: ./../../assets/images/simple_pattern_example.png
+.. image:: ./../../../assets/images/simple_pattern_example.png
 
 Let's create the model and the pattern:
 
@@ -108,7 +108,7 @@ You can also create ``AnyInput()`` with a predicate, if you want additional chec
 Suppose the goal is to match the model against two different sequences of nodes. The ``Or`` type
 facilitates this by creating two different branches (``Or`` supports more than two branches), looking as follows:
 
-.. image:: ./../../assets/images/or_branches.png
+.. image:: ./../../../assets/images/or_branches.png
 
 The red branch will not match, but it will work perfectly for the blue one.
 Here is how it looks in code:
@@ -129,7 +129,7 @@ Note that matching will succeed for the first matching branch and the remaining 
 the pattern will create two branches using ``Or``: one with the optional node present and another one without it. Here is what it would look like with the ``Optional``
 unfolding into two branches:
 
-.. image:: ./../../assets/images/optional.png
+.. image:: ./../../../assets/images/optional.png
 
 The code for our model looks as follows:
 
