@@ -213,8 +213,9 @@ namespace {
 std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext& context,
                                                                const ov::OutputVector& inputs,
                                                                size_t num_outputs,
-                                                               const std::string& exception_message) {
-    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs);
+                                                               const std::string& exception_message,
+                                                               bool skip_subgraphs = false) {
+    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs, false, skip_subgraphs);
     context.mark_node(fw_node);
     auto attrs = fw_node->get_attrs();
     std::string message(exception_message);
@@ -229,7 +230,7 @@ std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext
 }  // namespace
 
 OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception) {
-    auto fw_node = create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
+    auto fw_node = create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception, true);
     return fw_node->outputs();
 }
 
