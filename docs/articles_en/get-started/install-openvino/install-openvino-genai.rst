@@ -1,7 +1,7 @@
 Install OpenVINO™ GenAI 
 ====================================
 
-OpenVINO GenAI is a new flavor of OpenVINO, aiming to simplify running inference of denerative AI models.
+OpenVINO GenAI is a new flavor of OpenVINO, aiming to simplify running inference of generative AI models.
 It hides the complexity of the generation process and minimizes the amount of code required.
 You can now provide a model and input context directly to OpenVINO, which performs tokenization of the
 input text, executes the generation loop on the selected device, and returns the generated text.
