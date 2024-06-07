@@ -75,7 +75,7 @@ def test_wrap_type_list():
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
     model_result = ops.result(model_relu)
-    model_sig = ops.sigmoid(model_abs) # Note that we've added a Sigmoid node after Abs
+    model_sig = ops.sigmoid(model_abs)  # Note that we've added a Sigmoid node after Abs
     model_result1 = ops.result(model_sig)
 
     # Create a sample pattern
@@ -111,7 +111,7 @@ def test_pattern_or():
     blue_pattern_abs = WrapType("opset13.Abs", blue_pattern_mul)
     blue_pattern_relu = WrapType(["opset13.Relu"], blue_pattern_abs)
 
-    #Create Or node
+    # Create Or node
     pattern_or = Or([red_pattern_sigmoid, blue_pattern_relu])
 
     # Create a matcher and try to match the nodes
@@ -186,6 +186,7 @@ def test_pattern_optional_root():
 
     # Should perfectly match even though there's no Sigmoid as root
     assert matcher.match(model_relu)
+
 
 def test_wrap_type_pattern_type():
     last_opset_number = 15
