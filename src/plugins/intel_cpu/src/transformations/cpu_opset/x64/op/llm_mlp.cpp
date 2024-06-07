@@ -8,9 +8,9 @@
 namespace ov {
 
 template <>
-OPENVINO_API EnumNames<ov::intel_cpu::LLMMLPNode::ACT_FN>& EnumNames<ov::intel_cpu::LLMMLPNode::ACT_FN>::get() {
+EnumNames<ov::intel_cpu::LLMMLPNode::ACT_FN>& EnumNames<ov::intel_cpu::LLMMLPNode::ACT_FN>::get() {
     static auto enum_names = EnumNames<ov::intel_cpu::LLMMLPNode::ACT_FN>(
-        "op::intel_cpu::ov::intel_cpu::LLMMLPNode::ACT_FN",
+        "op::intel_cpu::LLMMLPNode::ACT_FN",
         {{"GELU", ov::intel_cpu::LLMMLPNode::ACT_FN::GELU}, {"SILU", ov::intel_cpu::LLMMLPNode::ACT_FN::SILU}});
     return enum_names;
 }
