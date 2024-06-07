@@ -681,14 +681,6 @@ void prepare_buffer_fusing::run(program& p) {
                 if (gather_prim) {
                     update_dep(gather_prim);
                 }
-
-                // Fallback to ocl impl since oneDNN doesn't support dynamic paddings
-                for (auto user : node.get_users()) {
-                    if (user->get_preferred_impl_type() == impl_types::onednn) {
-                        GPU_DEBUG_TRACE_DETAIL << user->id() << ": change impl to ocl because of dynamic input paddings\n";
-                        user->set_preferred_impl_type(impl_types::ocl);
-                    }
-                }
             }
         });
         program_helpers::do_for_types<read_value>(*node, [](read_value_node& node) {

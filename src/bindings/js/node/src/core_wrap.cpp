@@ -133,10 +133,10 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
         } else if (js::validate<ov::Model, std::string>(info)) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
         } else if (js::validate<std::string, std::string, Napi::Object>(info)) {
-            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
         } else if (js::validate<ov::Model, std::string, Napi::Object>(info)) {
-            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         } else if (info.Length() < 2 || info.Length() > 3) {
             reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
@@ -205,7 +205,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         if (info.Length() == 3) {
             try {
-                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             } catch (std::exception& e) {
                 reportError(env, e.what());
             }
@@ -229,7 +229,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         if (info.Length() == 3) {
             try {
-                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             } catch (std::exception& e) {
                 reportError(env, e.what());
             }

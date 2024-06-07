@@ -26,7 +26,7 @@ namespace pass {
 class AllocateBuffers: public RangedPass {
 public:
     OPENVINO_RTTI("AllocateBuffers", "RangedPass")
-    AllocateBuffers(size_t& buffer_scratchpad_size, bool is_optimized = true);
+    AllocateBuffers(bool is_optimized = true);
 
     /**
      * @brief Apply the pass to the Linear IR
@@ -45,7 +45,6 @@ public:
     using BufferCluster = std::set<ExpressionPtr>;
     using BufferClusters = std::vector<BufferCluster>;
 private:
-    size_t& m_buffer_scratchpad_size;
     bool m_is_optimized_mode = true;
 };
 

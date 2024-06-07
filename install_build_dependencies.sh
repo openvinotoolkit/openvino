@@ -244,6 +244,56 @@ elif [ -f /etc/os-release ] && grep -q "void" /etc/os-release; then
         enchant2-devel \
         `# samples` \
         json-c++
+elif [ -f /etc/os-release ] && grep -q "alpine" /etc/os-release; then
+    #Alpine Linux
+    apk --no-cache add \
+        `# for python3-pip` \
+	ca-certificates \
+        file \
+        `# build tools` \
+        build-base \
+        ninja-is-really-ninja \
+        scons \
+        ccache \
+        cmake \
+        `# to find dependencies` \
+        pkgconf \
+        `# to determine product version via git` \
+        git \
+        `# to check bash scripts for correctness` \
+        shellcheck \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# main openvino dependencies` \
+        onetbb-dev \
+        py3-tbb \
+        pugixml-dev \
+        `# OpenCL for GPU` \
+        opencl-dev `#(includes opencl-headers)`\
+        rapidjson-dev \
+        `# GPU plugin dependency` \
+        libva-dev \
+        `# For TF FE saved models` \
+        snappy-dev \
+        `# For Python API` \
+        py3-pip `#(includes py3-setuptools)`\
+        py3-wheel \
+        py3-virtualenv \
+        python3-dev \
+        py3-pybind11-dev \
+        libffi-dev \
+        `# Spell checking for MO sources` \
+        py3-enchant \
+        `# tools` \
+        wget \
+        git-lfs \
+        `# TF Lite Frontend` \
+        flatbuffers-dev \
+        `# for python3-enchant` \
+        enchant2 \
+        `# samples` \
+        nlohmann-json
 else
     echo "Unknown OS, please install build dependencies manually"
 fi

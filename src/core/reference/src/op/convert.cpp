@@ -481,6 +481,19 @@ void convert<float, float16>(const float* arg, float16* out, size_t count) {
 }
 
 template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            out[i] = std::numeric_limits<ov::float16>::max();
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            out[i] = std::numeric_limits<ov::float16>::lowest();
+        } else {
+            out[i] = static_cast<ov::float16>(arg[i]);
+        }
+    }
+}
+
+template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }

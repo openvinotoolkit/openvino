@@ -7,6 +7,8 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
@@ -27,21 +29,27 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
-    auto max_context_len =
-        setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{}), "max_context_len");  // max_context_len
+    auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
     ParameterVector model_remaining_params = {
-        setName(std::make_shared<v0::Parameter>(element::boolean, PartialShape{}), "is_prompt"),  // is_prompt
-        setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}), "slot_mapping"),
-        max_context_len,
-        setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "context_lens"),      // context_lens
-        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}), "block_tables"),  // block_tables
+        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
+        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
+        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices"),
+        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
-    auto cur_seq_len = std::make_shared<v1::Gather>(std::make_shared<v3::ShapeOf>(model->input("input_ids")),
+    std::shared_ptr<v0::Parameter> input_ids_node =
+        std::dynamic_pointer_cast<v0::Parameter>(model->input("input_ids").get_node_shared_ptr());
+    input_ids_node->set_partial_shape(PartialShape{-1});
+    auto unsqueezed_input_ids =
+        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
+    replace_node(input_ids_node, unsqueezed_input_ids);
+
+    auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(unsqueezed_input_ids),
                                                     v0::Constant::create(element::i64, Shape{}, {1}),
                                                     v0::Constant::create(element::i64, Shape{}, {0}));
-    auto prev_max_seq_len = std::make_shared<v1::Subtract>(max_context_len, cur_seq_len);
+    auto prev_max_seq_len =
+        std::make_shared<v1::Subtract>(max_context_len, std::make_shared<v0::Convert>(cur_seq_len, element::i32));
 
     auto has_parameter = [=](const std::shared_ptr<ov::Model>& model, const std::string& name) -> bool {
         for (auto& t : model->inputs()) {
@@ -55,18 +63,26 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     };
 
     ParameterVector kv_parameters;
-    std::vector<std::shared_ptr<Node>> assignes_to_remove;  // not really used
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
 
+    std::shared_ptr<v0::Parameter> position_ids;
     if (!has_parameter(model, "position_ids")) {
-        auto position_ids =
-            setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}), "position_ids");
+        position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
         model->add_parameters({position_ids});
+    } else {
+        position_ids = std::dynamic_pointer_cast<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
+        position_ids->set_partial_shape(PartialShape{-1});
+        position_ids->validate_and_infer_types();
     }
-    auto position_ids = std::make_shared<Output<Node>>(model->input("position_ids"));
+    auto unsqueezed_position_ids =
+        std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {1}));
+    replace_node(position_ids, unsqueezed_position_ids);
 
     int layer_index = 0;
+
+    auto batch_dim =
+        std::make_shared<v3::ShapeOf>(position_ids);  // it is not always required, so will be disposed if not needed
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
@@ -74,12 +90,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   model_remaining_params,
                                                   sliding_window,
                                                   parameters_to_remove,
-                                                  assignes_to_remove,
-                                                  layer_index);
-    manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len);
+                                                  layer_index,
+                                                  max_context_len->output(0));
+    manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
 
-    manager.register_pass<PositionIDsReplacer>(position_ids);
+    manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
 
     manager.run_passes(model);
 
@@ -117,5 +133,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     model->add_parameters(kv_parameters);
     model->add_parameters(model_remaining_params);
+    model->add_parameters({max_context_len});
+    model->validate_nodes_and_infer_types();
     return true;
 }

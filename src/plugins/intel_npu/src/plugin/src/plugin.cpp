@@ -230,6 +230,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<PERFORMANCE_HINT>();
           }}},
+        {ov::hint::execution_mode.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<EXECUTION_MODE_HINT>();
+          }}},
         {ov::hint::num_requests.name(),
          {true,
           ov::PropertyMutability::RW,
@@ -346,6 +352,28 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetPciInfo(get_specified_device_name(config));
           }}},
+        {ov::device::gops.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetGops(get_specified_device_name(config));
+          }}},
+        {ov::device::type.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetDeviceType(get_specified_device_name(config));
+          }}},
+        {ov::execution_devices.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              if (_metrics->GetAvailableDevicesNames().size() > 1) {
+                  return std::string("NPU." + config.get<DEVICE_ID>());
+              } else {
+                  return std::string("NPU");
+              }
+          }}},
         // OV Internals
         // =========
         {ov::internal::caching_properties.name(),
@@ -454,6 +482,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<USE_ELF_COMPILER_BACKEND>();
           }}},
+        {ov::intel_npu::create_executor.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<CREATE_EXECUTOR>();
+          }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,
           ov::PropertyMutability::RW,
@@ -556,7 +590,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+    if (!localConfig.has<STEPPING>() && device != nullptr &&
+        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -566,7 +601,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+    if (!localConfig.has<MAX_TILES>() && device != nullptr &&
+        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {

@@ -19,11 +19,6 @@ OutputVector translate_matrix_inverse_op(const NodeContext& node) {
 
     // handle optional 'adjoint' attribute (default is false)
     bool adjoint = node.get_attribute<bool>("adjoint", false);
-    TENSORFLOW_OP_VALIDATION(
-        node,
-        !adjoint,
-        "[TensorFlow Frontend] internal error: MatrixInverse is supported only for adjoint equal to false");
-
     auto inverse_op = make_shared<ov::op::v14::Inverse>(input, adjoint);
     set_node_name(node.get_name(), inverse_op);
 

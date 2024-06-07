@@ -51,7 +51,9 @@ SwiGLUFusion::SwiGLUFusion() {
         auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
         if (!mul || transformation_callback(mul))
             return false;
-        if (mul->input_value(1).get_index() != 1)
+
+        size_t split_in_idx = ov::is_type<ov::op::v4::Swish>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
+        if (mul->input_value(split_in_idx).get_index() != 1)
             return false;
 
         auto variadic_split = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());

@@ -529,8 +529,13 @@ Select device for inference and model variant
 .. code:: ipython3
 
     core = ov.Core()
+    
+    support_devices = core.available_devices
+    if "NPU" in support_devices:
+        support_devices.remove("NPU")
+    
     device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,

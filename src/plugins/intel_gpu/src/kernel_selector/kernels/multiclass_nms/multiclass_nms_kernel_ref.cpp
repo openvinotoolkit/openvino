@@ -116,8 +116,6 @@ JitConstants MulticlassNmsKernelRef::GetJitConstants(const multiclass_nms_params
         MakeJitConstant("MAX_OUTPUT_BOXES_PER_BATCH", max_output_boxes_per_batch),
     });
 
-    jit.Merge(MakeTypeJitConstants(params.indices_output_type, "OUTPUT_INDICES"));
-
     if (params.has_roisnum) {
         jit.AddConstant(MakeJitConstant("HAS_ROISNUM", 1));
     }

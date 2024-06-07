@@ -42,7 +42,7 @@ bool get_keep_dims(const std::shared_ptr<Node>& main_node) {
 TSReductionForward::TSReductionForward() {
     MATCHER_SCOPE(TSReductionForward);
 
-    create_pattern<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(true, {0});
+    create_pattern<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>({0});
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
         auto keep_dims = get_keep_dims(main_node);

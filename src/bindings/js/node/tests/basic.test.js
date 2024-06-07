@@ -22,7 +22,7 @@ it('Core.getAvailableDevices()', () => {
 
 describe('Core.getVersions()', () => {
 
-  it('getVersions(validDeviceName: string)', () => {    
+  it('getVersions(validDeviceName: string)', () => {
     const deviceVersion = core.getVersions('CPU');
     assert.strictEqual(typeof deviceVersion, 'object');
     assert.strictEqual(typeof deviceVersion.CPU, 'object');
@@ -124,7 +124,7 @@ describe('Core.compileModel()', () => {
   it('compileModel(model, device, config) throws when config isn\'t an object', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', 'string').then(),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      "Argument #3 must be an Object."
     );
   });
 

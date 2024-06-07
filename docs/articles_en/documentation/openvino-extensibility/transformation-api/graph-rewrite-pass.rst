@@ -12,7 +12,7 @@ OpenVINO Graph Rewrite Pass
 ``ov::pass::GraphRewrite`` serves for running multiple matcher passes on ``ov::Model`` in a single graph traversal.
 Example:
 
-.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/template_pattern_transformation.cpp
    :language: cpp
    :fragment: [matcher_pass:graph_rewrite]
 
@@ -24,12 +24,12 @@ In addition, GraphRewrite handles nodes that were registered by MatcherPasses du
 
 GraphRewrite has two algorithms for MatcherPasses execution. First algorithm is straightforward. It applies each MatcherPass in registration order to current node.
 
-.. image:: ./../../../_static/images/graph_rewrite_execution.png
+.. image:: ../../../assets/images/graph_rewrite_execution.png
 
 But it is not really efficient when you have a lot of registered passes. So first of all GraphRewrite checks that all MatcherPass patterns has type-based root node (it means that type of this node is not hidden into predicate).
 And then creates map from registered MatcherPasses. That helps to avoid additional cost of applying each MatcherPass for each node.
 
-.. image:: ./../../../_static/images/graph_rewrite_efficient_search.png
+.. image:: ../../../assets/images/graph_rewrite_efficient_search.png
 
 .. note::
 
