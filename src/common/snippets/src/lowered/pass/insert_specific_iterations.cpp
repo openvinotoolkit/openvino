@@ -23,9 +23,9 @@ namespace {
 void connect_cloned_body_with_buffers_outside(LinearIR::constExprIt cur_begin, LinearIR::constExprIt cur_end,
                                               LinearIR::constExprIt res_begin, LinearIR::constExprIt res_end,
                                               LinearIR& linear_ir) {
-    for (LinearIR::constExprIt result_it = res_begin, original_it = cur_begin; result_it != res_end; ++result_it, ++original_it) {
-        const auto result_expr = *result_it;
-        const auto original_expr = *original_it;
+    for (auto result_it = res_begin, original_it = cur_begin; result_it != res_end; ++result_it, ++original_it) {
+        const auto& result_expr = *result_it;
+        const auto& original_expr = *original_it;
         // Buffer input can be connected only to outputs of MA ops
         if (std::dynamic_pointer_cast<modifier::MemoryAccess>(original_expr->get_node())) {
             for (size_t i = 0; i < original_expr->get_output_count(); i++) {

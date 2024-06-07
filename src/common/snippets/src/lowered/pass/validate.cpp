@@ -125,6 +125,7 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     validate_loop_ports(output_port_infos, loop_end->get_input_num());
 }
 
+// TODO [143395] : Extract this validation checks to the separate `ValidateBuffers` pass
 void validate_buffer_expressions(const LinearIR::container& buffer_expressions) {
     std::set<size_t> cluster_ids;
     std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
