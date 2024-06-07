@@ -55,13 +55,6 @@ body {
     border-color: rgb(var(--ost-color-primary));
 }
 
-/* Scrollbox Extension */
-
-.scrollbox {
-    overflow-y:scroll;
-    height:300px;
-    margin-bottom: 20px;
-}
 
 /* Syntax Highlighting */
 
