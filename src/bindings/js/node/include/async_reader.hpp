@@ -12,6 +12,7 @@ class ReaderWorker : public Napi::AsyncWorker {
 public:
     /**
      * @brief Constructs ReaderWorker class that is responisible for reading the model asynchronously.
+     * @note In the Execute() method, the Core object might be used concurrently to call read_model().
      * @param info contains passed arguments. Can be empty.
      */
     ReaderWorker(const Napi::Env& env, ov::Core& core, ReadModelArgs* args)
