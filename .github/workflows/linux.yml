@@ -554,7 +554,7 @@ jobs:
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores-32gb' || 'aks-linux-8-cores-16gb' }}
+      runner: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores-64gb' || 'aks-linux-8-cores-16gb' }}
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
       event: ${{ github.event_name }}
 
