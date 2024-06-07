@@ -51,7 +51,10 @@ jobs:
             apt-get install --no-install-recommends -y gnupg wget ca-certificates
             wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu22 main" | tee /etc/apt/sources.list.d/intel-openvino-2024.list
+            
+            [[ "${{ inputs.image }}" == *"ubuntu:22.04"* ]] && ubuntu_version=22 || ubuntu_version=20
+          
+            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu$ubuntu_version main" | tee /etc/apt/sources.list.d/intel-openvino-2024.list
             apt-get update -y
             apt-get install -y openvino
           fi
