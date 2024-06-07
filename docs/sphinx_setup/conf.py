@@ -7,11 +7,14 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 import os
+import sys
 import json
 import shutil
 from sphinx.util import logging
 from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
+import pkg_resources
+
 
 project = 'OpenVINO™'
 copyright = '2024, Intel®'
@@ -19,6 +22,23 @@ author = 'Intel®'
 
 language = 'en'
 version_name = 'nightly'
+
+try:
+    openvino_path = None
+    openvino_path = pkg_resources.get_distribution("openvino").location
+    sys.path.insert(0, os.path.abspath(openvino_path))
+except pkg_resources.DistributionNotFound:
+    pass
+
+try:
+    openvino_nightly_path = None
+    openvino_nightly_path = pkg_resources.get_distribution("openvino_nightly").location
+    sys.path.insert(0, os.path.abspath(openvino_nightly_path))
+except pkg_resources.DistributionNotFound:
+    pass
+
+if openvino_path is None and openvino_nightly_path is None:
+    autodoc_mock_imports = ["openvino"]
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -33,11 +53,6 @@ extensions = [
     'myst_parser',
     'breathe'
     ]
-
-try:
-    import openvino
-except ImportError:
-    autodoc_mock_imports = ["openvino"]
 
 breathe_projects = {
     "openvino": "../xml/"
