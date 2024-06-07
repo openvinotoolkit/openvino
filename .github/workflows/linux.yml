@@ -335,7 +335,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest-16-cores
     strategy:
       max-parallel: 2
       fail-fast: false
