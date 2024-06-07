@@ -222,14 +222,11 @@ jobs:
 
       - name: Build Debian packages
         run: |
-          /usr/bin/python3 -m pip install -U pip
-          /usr/bin/python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=/usr/bin/python3 \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
@@ -335,7 +332,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest-16-cores
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -406,17 +403,6 @@ jobs:
       #
       # Tests
       #
-
-      - name: Create swap
-        run: |
-          swapfile=${{ github.workspace }}/swapfile
-          
-          swapoff -a
-          fallocate -l 15G $swapfile
-          chown root:disk $swapfile
-          mkswap $swapfile
-          swapon $swapfile
-          swapon --show
 
       - name: Conformance Tests
         run: |
