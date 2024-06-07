@@ -560,7 +560,8 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     tune_params tparams = GetAutoTuneParams(fc_params, KernelType::ANY, autoTuneIndex);
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+    // temporarily disable os_is_yx_osv32_isv2 optimized format due to performance reasons
+    if (false && fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         // ioyx => os_is_yx_osv32_isv2 is not supported yet
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
