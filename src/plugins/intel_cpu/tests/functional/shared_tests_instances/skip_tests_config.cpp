@@ -386,15 +386,15 @@ std::vector<std::string> disabledTestPatterns() {
 
 #if defined(OPENVINO_ARCH_RISCV64)
     // unsupported node type 'CausalMaskPreprocess'
-	retVector.emplace_back(R"(CausalMaskPreprocessCausalMaskPreprocess.smoke_CompareWithRefs)");
+    retVector.emplace_back(R"(CausalMaskPreprocessCausalMaskPreprocess.smoke_CompareWithRefs)");
     // fused op FakeQuantize has not been found
-	retVector.emplace_back(R"(ConvAndFQWithSharedConstants.smoke_ConvAndFQWithSharedConstants_CPU)");
+    retVector.emplace_back(R"(ConvAndFQWithSharedConstants.smoke_ConvAndFQWithSharedConstants_CPU)");
     // subgraphs code-generator is not supported on non-x64 platforms
-	retVector.emplace_back(R"(SubgraphSnippetSerializationTest.smoke_SerializeSubgraph(WithScalarConst)?)");
-	retVector.emplace_back(R"(.*SubgraphWithBlockedFormat.*)");
+    retVector.emplace_back(R"(SubgraphSnippetSerializationTest.smoke_SerializeSubgraph(WithScalarConst)?)");
+    retVector.emplace_back(R"(.*SubgraphWithBlockedFormat.*)");
     // unsupported layout
-	retVector.emplace_back(R"(GatherAddAvgpool.smoke_CompareWithRefs)");
-	retVector.emplace_back(R"(smoke_StaticAdaPoolAvg(4|5)DLayoutTest/AdaPoolLayerCPUTest.*_outFmts=nd?hwc_1)");
+    retVector.emplace_back(R"(GatherAddAvgpool.smoke_CompareWithRefs)");
+    retVector.emplace_back(R"(smoke_StaticAdaPoolAvg(4|5)DLayoutTest/AdaPoolLayerCPUTest.*_outFmts=nd?hwc_1)");
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_Mvn(4|5)D(_Static)?/MvnLayerCPUTest.CompareWithRefs.*inFmts=nd?hwc.*)");
     retVector.emplace_back(R"(.*smoke_TopK(_int32|_bubble_BLK_on_channel_horiz)?(_dynamic)?/TopKLayerCPUTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|nChw16c).x.*)");
     retVector.emplace_back(R"(.*smoke_(Group)?Convolution(2|3)D/ConvConcatSubgraphTest.CompareWithRefs.*)");
@@ -417,12 +417,12 @@ std::vector<std::string> disabledTestPatterns() {
     // dimensions of shapes are mismatched
     retVector.emplace_back(R"(.*CPUDetectionOutputDynamic3InLargeTensor/DetectionOutputLayerCPUTest.CompareWithRefs.*varEnc=0.*)");
     // cannot get dims for non static shape
-	retVector.emplace_back(R"(.*nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\]_\[\]\)_TS=\{\(3.11.5\)_\(3.15.11\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10.*ConstIn=\{True,True,True,True,True\}_Device=CPU.*)");
-	retVector.emplace_back(R"(nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\]_\[\]\)_TS=\{\(15.29.5\)_\(15.31.29\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10_IouThr=0.5_ScoreThr=0.4_SortDesc=False_Clockwise=True_ConstIn=\{True,True,True,True,True\}_Device=CPU)");
-	retVector.emplace_back(R"(nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\]_\[\]\)_TS=\{\(21.64.5\)_\(21.32.64\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10_IouThr=0.5_ScoreThr=0.4_SortDesc=False_Clockwise=True_ConstIn=\{True,True,True,True,True\}_Device=CPU)");
-	retVector.emplace_back(R"(nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\?.\?.5\]_\[\?.\?.\?\]\)_TS=\{\(7.35.5\)_\(7.30.35\)\}_\{\(7.35.5\)_\(7.100.35\)\}_\{\(7.35.5\)_\(7.133.35\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10_IouThr=0.5_ScoreThr=0.4_SortDesc=False_Clockwise=True_ConstIn=\{True,True,True,True,True\}_Device=CPU)");
+    retVector.emplace_back(R"(.*nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\]_\[\]\)_TS=\{\(3.11.5\)_\(3.15.11\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10.*ConstIn=\{True,True,True,True,True\}_Device=CPU.*)");
+    retVector.emplace_back(R"(nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\]_\[\]\)_TS=\{\(15.29.5\)_\(15.31.29\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10_IouThr=0.5_ScoreThr=0.4_SortDesc=False_Clockwise=True_ConstIn=\{True,True,True,True,True\}_Device=CPU)");
+    retVector.emplace_back(R"(nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\]_\[\]\)_TS=\{\(21.64.5\)_\(21.32.64\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10_IouThr=0.5_ScoreThr=0.4_SortDesc=False_Clockwise=True_ConstIn=\{True,True,True,True,True\}_Device=CPU)");
+    retVector.emplace_back(R"(nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\?.\?.5\]_\[\?.\?.\?\]\)_TS=\{\(7.35.5\)_\(7.30.35\)\}_\{\(7.35.5\)_\(7.100.35\)\}_\{\(7.35.5\)_\(7.133.35\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10_IouThr=0.5_ScoreThr=0.4_SortDesc=False_Clockwise=True_ConstIn=\{True,True,True,True,True\}_Device=CPU)");
     // Accuracy problem
-	retVector.emplace_back(R"(.*InterpolateCubic_Layout_Test.*)");
+    retVector.emplace_back(R"(.*InterpolateCubic_Layout_Test.*)");
     retVector.emplace_back(R"(.*smoke_EltwiseChain/EltwiseChainTest.CompareWithRefs.*InPRC3=i32_Op0=Div_Op1.*)");
     retVector.emplace_back(R"(.*nightly_(static|dynamic)/UniqueLayerTestCPU.*dataPrc=i8.*)");
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_static.*eltwise_op_type=Div.*model_type=i32.*)");
@@ -434,18 +434,17 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_static/ConvertFqRnnToQuantizedRnn.CompareWithRefs.*)");
     // Fused op Elu has not been found
     retVector.emplace_back(R"(.*smoke_Check/AlignMatMulInputRanksTest.CompareWithRefs/IS_A=\[\d.+\]_IS_B=\[\d.+\]__Fused=Elu.*)");
-    // Unsupported node type 'ScaledDotProductAttention', 'Concatenation',
-    // 'Reorder', 'Transpose' and 'Gather'
+    // Unsupported node type 'ScaledDotProductAttention'
     retVector.emplace_back(R"(.*smoke_Concat(MultiQuery)?SDP(Transpose)?Test(SetState)?/.*)");
     // Unexpected transpose count
     retVector.emplace_back(R"(.*smoke_Basic/FuseTransposeAndReorderTest3.CompareWithRefs.*)");
     // Unsupported node type 'Interaction'
     retVector.emplace_back(R"(.*smoke_Interaction/IntertactionCPUTest.CompareWithRefs.*)");
-    // Unsupported node type 'Reorder'
+    // Unexpected count of the `Reorder` nodes
     retVector.emplace_back(R"(.*smoke_MergeTransposeReorder_(static|dynamic)/MergeTransposeReorderCPUTest.CompareWithRefs.*)");
     // Unexpected value of 'num_ops'
     retVector.emplace_back(R"(.*smoke_RoPETest.*)");
-    // Unsupported node type 'ScaledDotProductAttention', 'Concatenation', 'Gather'
+    // Unsupported node type 'ScaledDotProductAttention'
     retVector.emplace_back(R"(.*smoke_SDPAGroupBeamSearchTest/SDPAGroupBeamSearchTest.CompareWithRefs.*)");
     // Crash with code: 6
     retVector.emplace_back(R"(^smoke_VirtualPlugin_BehaviorTests/OVHoldersTest.Orders/target_device=HETERO.CPU$)");
