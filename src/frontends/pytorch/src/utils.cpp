@@ -230,7 +230,8 @@ std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext
 }  // namespace
 
 OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception) {
-    auto fw_node = create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception, true);
+    auto fw_node =
+        create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception, true);
     return fw_node->outputs();
 }
 
