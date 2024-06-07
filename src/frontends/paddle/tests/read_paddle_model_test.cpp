@@ -62,8 +62,16 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
     const auto relu = std::make_shared<ov::opset1::Relu>(conv2d->output(0));
     relu->set_friendly_name("relu_0.tmp_0");
     relu->output(0).get_tensor().add_names({"relu_0.tmp_0"});
-    const auto result = std::make_shared<ov::opset1::Result>(relu->output(0));
-    result->set_friendly_name("relu_0.tmp_0/Result");
+    const auto bias = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 0.0);
+    const auto scale = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 1.0);
+    const auto mul = std::make_shared<ov::opset1::Multiply>(relu->output(0), scale);
+    const auto add = std::make_shared<ov::opset1::Add>(mul->output(0), bias);
+    add->set_friendly_name("scale_0.tmp_0");
+    add->output(0).get_tensor().add_names({"save_infer_model/scale_0.tmp_0"});
+
+    const auto result = std::make_shared<ov::opset1::Result>(add->output(0));
+    result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
+
     const auto reference = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data}, "Model0");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NONE);
     const FunctionsComparator::Result res = func_comparator(function, reference);
@@ -86,8 +94,16 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     const auto relu = std::make_shared<ov::opset1::Relu>(data->output(0));
     relu->set_friendly_name("relu_0.tmp_0");
     relu->output(0).get_tensor().add_names({"relu_0.tmp_0"});
-    const auto result = std::make_shared<ov::opset1::Result>(relu->output(0));
-    result->set_friendly_name("relu_0.tmp_0/Result");
+    const auto bias = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 0.0);
+    const auto scale = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 1.0);
+    const auto mul = std::make_shared<ov::opset1::Multiply>(relu->output(0), scale);
+    const auto add = std::make_shared<ov::opset1::Add>(mul->output(0), bias);
+    add->set_friendly_name("save_infer_model/scale_0.tmp_0");
+    add->output(0).get_tensor().add_names({"save_infer_model/scale_0.tmp_0"});
+
+    const auto result = std::make_shared<ov::opset1::Result>(add->output(0));
+    result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
+
     const auto reference = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data}, "Model0");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
     const FunctionsComparator::Result res = func_comparator(function, reference);

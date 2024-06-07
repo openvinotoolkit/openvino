@@ -190,18 +190,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
-    auto supported = [&n](descriptor::Tensor& t) -> bool {
+    auto supported = [](descriptor::Tensor& t) -> bool {
         // TODO [122585] Need to add dynamic rank support
-        if (t.get_partial_shape().rank().is_dynamic())
-            return false;
-        // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
-        //  So i32 is exclusively supported for specific set of operations
-        return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
-                (t.get_element_type() == ov::element::i32 &&
-                        (ov::is_type<const opset1::Transpose>(n) ||
-                         ov::is_type<const opset1::Broadcast>(n) ||
-                         ov::is_type<const opset1::ReduceMax>(n) ||
-                         ov::is_type<const opset1::ReduceSum>(n)));
+        return t.get_partial_shape().rank().is_static();
     };
     const auto&  inputs = n->inputs();
     const auto&  outputs = n->outputs();
@@ -238,8 +229,11 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 } // namespace
 
 const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
-    static const std::set<ov::element::Type> supported_element_types =
-        { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+    static const std::set<ov::element::Type> supported_element_types = {ov::element::f32,
+                                                                        ov::element::bf16,
+                                                                        ov::element::f16,
+                                                                        ov::element::i8,
+                                                                        ov::element::u8};
     return supported_element_types;
 }
 
@@ -251,7 +245,7 @@ bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> 
         snippets::op::Subgraph::check_broadcast(node);
 }
 
-TokenizeSnippets::TokenizeSnippets() {
+TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(TokenizeSnippets);
     enum continuation_strategy {
         reset,
@@ -268,7 +262,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     ov::is_type<ov::op::v0::MatMul>(n) || ov::is_type<ov::op::v1::Transpose>(n))
                     && AppropriateForSubgraph(n);
         });
-    ov::graph_rewrite_callback callback = [&, strategy](ov::pass::pattern::Matcher &m) -> bool {
+    ov::graph_rewrite_callback callback = [=](ov::pass::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
         auto node = m.get_match_root();
         if (transformation_callback(node)) {
@@ -611,7 +605,8 @@ TokenizeSnippets::TokenizeSnippets() {
         // This limitation will be resolved once generator supports gprs spills [75622].
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
-        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 11) {
+        const size_t max_data_ptr_count = config.get_data_ptr_gpr_count();
+        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > max_data_ptr_count) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
             std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(unique_buffer_count) + "buffers.";

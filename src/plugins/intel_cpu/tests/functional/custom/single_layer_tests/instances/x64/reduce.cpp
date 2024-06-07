@@ -19,6 +19,10 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_3D_fuse_dyn = {
+    {{{{1, 5}, 19, {1, 10}}, {{1, 19, 2}, {1, 19, 9}, {1, 19, 2}}}},
+};
+
 std::vector<std::vector<ov::test::InputShape>> inputShapes_5D_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2}, {2, 19, 3, 2, 2}}}},
 };
@@ -37,6 +41,10 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel_dyn = {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{1, 19, 2, 2}, {1, 19, 2, 9}}}},
+};
+
+std::vector<CPUSpecificParams> cpuParams_3D = {
+        CPUSpecificParams({ncw}, {ncw}, {}, {}),
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
@@ -480,6 +488,20 @@ const auto params_OneAxis_fusing = testing::Combine(
         testing::ValuesIn(fusingParamsSet),
         testing::ValuesIn(additionalConfig()));
 
+const auto params_MultiAxis_3D_fusing = testing::Combine(
+        testing::Combine(
+                testing::Values(axes()[2]),
+                testing::Values(ov::test::utils::OpType::VECTOR),
+                testing::Values(true),
+                testing::Values(ov::test::utils::ReductionType::Sum),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_3D_fuse_dyn)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D)),
+        testing::Values(fusingFakeQuantizePerChannelRelu),
+        testing::ValuesIn(additionalConfig()));
+
 const auto params_MultiAxis_4D_fusing = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesND()),
@@ -526,6 +548,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_fusing_CPU,
         ReduceCPULayerTest,
         params_OneAxis_fusing,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_MultiAxis_3D_fusing_CPU,
+        ReduceCPULayerTest,
+        params_MultiAxis_3D_fusing,
         ReduceCPULayerTest::getTestCaseName
 );
 

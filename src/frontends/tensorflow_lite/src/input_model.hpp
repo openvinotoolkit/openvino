@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "graph_iterator_flatbuffer.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
+#include "openvino/frontend/tensorflow_lite/graph_iterator.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "tensor_lite_place.hpp"
 
@@ -28,7 +28,7 @@ class InputModel : public ov::frontend::InputModel {
     std::vector<std::shared_ptr<InputModel>> get_subgraphs() const;
 
 public:
-    explicit InputModel(const ov::frontend::tensorflow_lite::GraphIteratorFlatBuffer::Ptr& graph_iterator,
+    explicit InputModel(const ov::frontend::tensorflow_lite::GraphIterator::Ptr& graph_iterator,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});
 
     /////  Searching for places  /////

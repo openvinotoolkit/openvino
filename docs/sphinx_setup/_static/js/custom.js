@@ -12,6 +12,56 @@ catch (err) {
     versions = [];
 }
 
+document.addEventListener('DOMContentLoaded', function () {
+    var toctreeToggles = document.querySelectorAll('.toctree-toggle');
+    toctreeToggles.forEach(function (toggle) {
+        toggle.addEventListener('click', function () {
+            rotateToggle(this);
+        });
+
+        var parentElement = toggle.parentElement;
+        if (!parentElement || !parentElement.parentElement || !parentElement.parentElement.classList.contains('current')) {
+            toggle.classList.add('rotate');
+        }
+    });
+
+    function rotateToggle(element) {
+        element.classList.toggle('rotate');
+    }
+});
+
+document.addEventListener('click', () => {
+    const ddMs = document.querySelectorAll('.dropdown-menu');
+    ddMs.forEach((dm) => {
+        dm.parentElement.classList.remove('show');
+        dm.classList.remove('show');
+    });
+});
+
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    var dropdownButtons = document.querySelectorAll('.sst-btn');
+    dropdownButtons.forEach((ddBtn) => {
+        ddBtn.parentElement.classList.remove('show');
+        ddBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            ddBtn.parentElement.classList.toggle('show');
+            showMenuToggle();
+        });
+    });
+ 
+    function showMenuToggle() {
+        const ddMs = document.querySelectorAll('.dropdown-menu');
+        ddMs.forEach((dm) => {
+            dm.parentElement.classList.contains('show')
+                ? dm.classList.add('show')
+                : dm.classList.remove('show');
+        });
+    }
+});
+
+
 /* Adobe Analytics */
 var wapLocalCode = 'us-en';
 var wapSection = 'openvinotoolkit';
@@ -25,6 +75,14 @@ var wapSection = 'openvinotoolkit';
     s.appendChild(po);
 })();
 
+// legal notice for benchmarks
+function addLegalNotice() {
+    if (window.location.href.indexOf('openvino_docs_performance_') !== -1) {
+        var legalNotice = $('<div class="opt-notice-wrapper"><p class="opt-notice">Results may vary. For workloads visit: <a href="openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models">workloads</a> and for configurations visit: <a href="openvino_docs_performance_benchmarks.html#platforms-configurations-methodology">configurations</a>. See also <a class="el" href="openvino_docs_Legal_Information.html">Legal Information</a>.</p></div>');
+        $('body').append(legalNotice);
+    }
+}
+
 $(document).ready(function () {
     addFooter();
     createVersions();
@@ -34,6 +92,7 @@ $(document).ready(function () {
     init_switchers();
     handleSwitcherParam();
     initViewerJS();
+    addLegalNotice();
     updateSearchForm();
     initBenchmarkPickers();   // included with the new benchmarks page 
     initCollapsibleHeaders(); // included with the new benchmarks page

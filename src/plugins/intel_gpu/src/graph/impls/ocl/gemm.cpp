@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/op/gemm.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "multi_stage_primitive.hpp"
 
@@ -136,7 +138,8 @@ protected:
             return false;
 
         const auto& params = *inst.get_impl_params();
-        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[0].get_length() == 1)
+        const auto indirect_axis = desc->indirect_axis;
+        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1)
             return false;
 
         const auto& deps = inst.dependencies();
@@ -173,16 +176,58 @@ public:
         params.beta = primitive->beta;
         params.transpose_input0 = primitive->transpose_input0;
         params.transpose_input1 = primitive->transpose_input1;
-        params.input0_target_shape = primitive->input0_broadcast_target_shape;
-        params.input1_target_shape = primitive->input1_broadcast_target_shape;
-        params.input0_output_pattern = primitive->input0_reshape_pattern;
-        params.input1_output_pattern = primitive->input0_reshape_pattern;
         params.input0_order = primitive->input0_transpose_order;
         params.input1_order = primitive->input1_transpose_order;
         params.output_order = primitive->output_transpose_order;
 
+        auto input0_pshape = impl_param.input_layouts[0].get_partial_shape();
+        auto input1_pshape = impl_param.input_layouts[1].get_partial_shape();
+        const auto is_broadcastable = input0_pshape.rank().is_static() &&
+                                      input1_pshape.rank().is_static() &&
+                                      input0_pshape.size() > 1 &&
+                                      input1_pshape.size() > 1 &&
+                                      (primitive->input_rank == primitive->weight_rank);
+        if (is_broadcastable) {
+            auto transpose_pshape = [](const ov::PartialShape pshape, const std::vector<int64_t>& order) {
+                if (order.size() < pshape.size()) {
+                    auto transposed_pshape = pshape;
+                    auto rank_diff = pshape.size() - order.size();
+                    for (size_t i = 0; i < order.size(); i++) {
+                        transposed_pshape[i + rank_diff] = pshape[rank_diff + order[i]];
+                    }
+                    return transposed_pshape;
+                } else {
+                    auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+                    for (size_t i = 0; i < order.size(); i++) {
+                        transposed_pshape[i] = pshape[order[i]];
+                    }
+                    return transposed_pshape;
+                }
+            };
+            size_t max_rank = input0_pshape.size();
+            auto default_order = ov::intel_gpu::op::Gemm::default_order(max_rank);
+            auto input0_trans_pshape = (primitive->input0_transpose_order != default_order) ?
+                                       transpose_pshape(input0_pshape, primitive->input0_transpose_order) :
+                                       input0_pshape;
+            auto input1_trans_pshape = (primitive->input1_transpose_order != default_order) ?
+                                       transpose_pshape(input1_pshape, primitive->input1_transpose_order) :
+                                       input1_pshape;
+            for (size_t i = 0; i < max_rank - 2; ++i) {
+                if (input0_trans_pshape[i].is_static() && input1_trans_pshape[i].is_static()) {
+                    if (input1_trans_pshape[i].get_length() > input0_trans_pshape[i].get_length()) {
+                        params.input0_reshape_axes = primitive->input0_transpose_order[i];
+                        params.input0_broadcast_val = input1_trans_pshape[i].get_length() / input0_trans_pshape[i].get_length();
+                    } else if (input0_trans_pshape[i].get_length() > input1_trans_pshape[i].get_length()) {
+                        params.input1_reshape_axes = primitive->input1_transpose_order[i];
+                        params.input1_broadcast_val = input0_trans_pshape[i].get_length() / input1_trans_pshape[i].get_length();
+                    }
+                }
+            }
+        }
+
         params.indirect_input0 = primitive->indirect_a && indirect;
         params.indirect_input1 = primitive->indirect_b && indirect;
+        params.indirect_axis = primitive->indirect_axis;
         if (indirect && (primitive->indirect_a || primitive->indirect_b)) {
             OPENVINO_ASSERT(impl_param.input_layouts.size() >= 3, "[GPU] Actual inputs count: ", impl_param.input_layouts.size());
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_beam_table_id(primitive)]));

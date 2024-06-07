@@ -32,9 +32,9 @@ def top_k_v2(name: str, x, k: int, axis=None, largest=True, sorted=True, k_is_va
             feed=feed_list,
             fetch_list=[value, indices])
 
-        feedkey_list = ['x', 'k'] if k_is_var else ['x']
+        feed_vars = [node_x, input_k] if k_is_var else [node_x]
         input_list = [x, k] if k_is_var else [x]
-        saveModel(name, exe, feedkeys=feedkey_list, fetchlist=[value, indices], inputs=input_list, outputs=outs, target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=feed_vars, fetchlist=[value, indices], inputs=input_list, outputs=outs, target_dir=sys.argv[1])
 
     return outs[0]
 

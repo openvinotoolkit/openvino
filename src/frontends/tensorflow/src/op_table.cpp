@@ -205,6 +205,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Separate translators:
         {"AddN", CreatorFunction(translate_add_n_op)},
         {"AdjustContrastv2", CreatorFunction(translate_adjust_contrast_op)},
+        {"AdjustHue", CreatorFunction(translate_adjust_hue_op)},
+        {"AdjustSaturation", CreatorFunction(translate_adjust_saturation_op)},
         {"Angle", CreatorFunction(translate_angle_op)},
         {"ArgMax", CreatorFunction(translate_arg_max_op)},
         {"ArgMin", CreatorFunction(translate_arg_min_op)},
@@ -353,6 +355,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RFFT", CreatorFunction(translate_rfft_op)},
         {"RFFT2D", CreatorFunction(translate_rfft_op)},
         {"RFFT3D", CreatorFunction(translate_rfft_op)},
+        {"Rint", CreatorFunction(translate_rint_op)},
         {"Roll", CreatorFunction(translate_roll_op)},
         {"Round", CreatorFunction(translate_round_op)},
         {"Rsqrt", CreatorFunction(translate_rsqrt_op)},

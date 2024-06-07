@@ -31,8 +31,8 @@ struct swiglu : public primitive_base<swiglu> {
              split_lengths(split_lengths),
              output_size(output_size) {}
 
-    int64_t axis;
-    int64_t split_lengths;
+    int64_t axis = 0;
+    int64_t split_lengths = 0;
     tensor output_size;
 
     size_t hash() const override {

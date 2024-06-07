@@ -48,8 +48,8 @@ std::pair<bool, ov::AxisSet> ov::op::v3::Broadcast::get_broadcast_axes() const {
         bool axes_known = false;
 
         if (get_input_partial_shape(0).is_static() && get_output_partial_shape(0).is_static()) {
-            const auto arg_shape = get_input_shape(0);
-            const auto result_shape = get_output_shape(0);
+            const auto& arg_shape = get_input_shape(0);
+            const auto& result_shape = get_output_shape(0);
             return get_broadcast_axes_bidirectional(arg_shape, result_shape);
         }
         return std::make_pair(axes_known, broadcast_axes);
@@ -108,7 +108,7 @@ ov::PartialShape get_result_shape_bidirectional(const ov::Node* this_ptr,
 
 bool ov::op::v3::Broadcast::broadcast_evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL) {
-        auto arg_shape = inputs[0].get_shape();
+        const auto& arg_shape = inputs[0].get_shape();
         ov::Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
         ov::PartialShape result_shape =
             get_result_shape_bidirectional(this, ov::PartialShape{arg_shape}, ov::PartialShape{target_shape});

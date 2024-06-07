@@ -8,6 +8,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -41,7 +42,7 @@ TransposeDecomposition::TransposeDecomposition() {
     auto match_order = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto match_transpose = ov::pass::pattern::wrap_type<ov::opset1::Transpose>({match_data, match_order});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TransposeDecomposition")
         auto& pattern_to_output = m.get_pattern_value_map();
         const auto& data_input = pattern_to_output.at(match_data);

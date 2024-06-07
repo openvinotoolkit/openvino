@@ -89,6 +89,8 @@ class TestMinMax(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_min_max(self, op_type, first_input_dtype, second_input_dtype, ie_device, precision, ir_version):
+        if ie_device == "GPU" and first_input_dtype == "uint8" and second_input_dtype == "uint8":
+            pytest.xfail(reason="Cumsum for i8 is unsupported on GPU")
         self._test(*self.create_model(op_type, None, None, single_input=False, dtypes=(first_input_dtype, second_input_dtype)),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
                    {"second_input": True, "input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype}

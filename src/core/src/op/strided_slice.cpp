@@ -48,8 +48,8 @@ StridedSlice::StridedSlice(const Output<Node>& data,
 
 namespace {
 std::shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Output<Node>& end) {
-    const auto begin_pshape = begin.get_partial_shape();
-    const auto end_pshape = end.get_partial_shape();
+    const auto& begin_pshape = begin.get_partial_shape();
+    const auto& end_pshape = end.get_partial_shape();
 
     size_t strides_length = 0;
     if (begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1 && begin_pshape[0].is_static()) {

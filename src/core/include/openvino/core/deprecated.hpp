@@ -38,7 +38,7 @@
 
 // Suppress warning "-Wdeprecated-declarations" / C4996
 #if defined(__GNUC__)
-#    define OPENVINO_DO_PRAGMA(x) _Pragma(#    x)
+#    define OPENVINO_DO_PRAGMA(x) _Pragma(#x)
 #elif defined(_MSC_VER)
 #    define OPENVINO_DO_PRAGMA(x) __pragma(x)
 #else

@@ -10,63 +10,66 @@ Interface PartialShape
        toString(): string;
    }
 
-- Defined in
-  `addon.ts:135 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L135>`__
+* **Defined in:**
+  `addon.ts:561 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L561>`__
+
 
 Methods
 #####################
 
+
 .. rubric:: getDimensions
 
+.. container:: m-4
 
-.. code-block:: ts
+  .. code-block:: ts
 
-   getDimensions(): Dimension
+     getDimensions(): Dimension
 
+  * **Returns:** :doc:`Dimension <../types/Dimension>`\[]
 
-**Returns** :doc:`Dimension <../types/Dimension>` []
+  * **Defined in:**
+    `addon.ts:565 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L565>`__
 
-- Defined in
-  `addon.ts:139 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L139>`__
 
 .. rubric:: isDynamic
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   isDynamic(): boolean
+      isDynamic(): boolean
 
+   * **Returns:** boolean
 
-**Returns** boolean
+   * **Defined in:**
+     `addon.ts:563 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L563>`__
 
-- Defined in
-  `addon.ts:137 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L137>`__
 
 .. rubric:: isStatic
 
+.. container:: m-4
 
+   .. code-block:: ts
 
-.. code-block:: ts
+      isStatic(): boolean
 
-   isStatic(): boolean
+   * **Returns:** boolean
 
+   * **Defined in:**
+     `addon.ts:562 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L562>`__
 
-**Returns** boolean
-
-
-- Defined in
-  `addon.ts:136 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L136>`__
 
 .. rubric:: toString
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   toString(): string
+      toString(): string
 
+   * **Returns:** string
 
-**Returns** string
-
-- Defined in
-  `addon.ts:138 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L138>`__
+   * **Defined in:**
+     `addon.ts:564 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L564>`__
 

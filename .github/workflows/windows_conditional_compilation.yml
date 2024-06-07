@@ -16,6 +16,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-cc
   cancel-in-progress: true
 
+permissions: read-all
+
 env:
   PYTHON_VERSION: '3.11'
 
@@ -27,7 +29,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -46,21 +48,19 @@ jobs:
 
   Build:
     needs: Smart_CI
-    timeout-minutes: 180
+    timeout-minutes: 300 # 5 hours without cache
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-8-cores-64gb
+    runs-on: aks-win-32-cores-128gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_IDLE_TIMEOUT: 0
-      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
-      SCCACHE_LOG: warn
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 3G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
@@ -68,18 +68,17 @@ jobs:
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
       # TODO: specify version of compiler here
-      SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_itt_Release
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -104,10 +103,12 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "v0.7.5"
+      - name: Download and install ccache
+        run: |
+          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
+          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
+          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
 
       - name: Install build dependencies
         run: |
@@ -138,8 +139,21 @@ jobs:
       # Build
       #
 
+      - name: Setup ccache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
       - name: Configure Developer Command Prompt for Microsoft Visual C++
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          toolset: 14.40
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
@@ -159,29 +173,17 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean sccache stats
-        run: '& "$Env:SCCACHE_PATH" --zero-stats'
+      - name: Clean ccache stats
+        run: '& ccache --zero-stats'
 
-        # to get more information on the issue
-        # described in the next step
-      - name: Show which network ports are used
-        run: netstat -ban
-
-        # the case is the following:
-        # sccache: error: An attempt was made to access a socket in a way forbidden by its access permissions. (os error 10013)
-        # This looks like the attempt to use
-        # a port below 1024 or a port
-        # which is occupied by another app
-      - name: Stop sccache server just in case
-        run: '& "$Env:SCCACHE_PATH" --stop-server'
-
+      # If the build fails due to running out of RAM, please decrease the number of parallel jobs (--parallel n)
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+          cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
-      - name: Show sccache stats
-        run: '& "$Env:SCCACHE_PATH" --show-stats'
+      - name: Show ccache stats
+        run: '& ccache --show-stats'
 
       - name: Cmake install - OpenVINO
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
@@ -242,17 +244,10 @@ jobs:
       #
       # Upload build artifacts and logs
       #
-      - name: Upload build logs
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: build_logs
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'ignore'
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
@@ -260,7 +255,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -272,30 +267,24 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-8-cores-64gb
+    runs-on: aks-win-32-cores-128gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_IDLE_TIMEOUT: 0
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
-      SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_cc_Release
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -303,7 +292,7 @@ jobs:
           ref: 'master'
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
@@ -317,11 +306,6 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "v0.5.4"
 
       - name: CMake configure - CC ON
         run: |
@@ -340,14 +324,8 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean sccache stats
-        run: '& "$Env:SCCACHE_PATH" --zero-stats'
-
       - name: Cmake build - CC ON
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app
-
-      - name: Show sccache stats
-        run: '& "$Env:SCCACHE_PATH" --show-stats'
 
       - name: List bin files
         shell: cmd
@@ -376,7 +354,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -385,7 +363,7 @@ jobs:
         run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
 
       - name: Fetch setup_python action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -402,14 +380,13 @@ jobs:
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
 
-      # Windows pipeline is in nightly mode, uncomment once there is a consistent cache creation
-      # - name: Restore tests execution time
-      #   uses: actions/cache/restore@v3
-      #   with:
-      #     path: ${{ env.PARALLEL_TEST_CACHE }}
-      #     key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
-      #     restore-keys: |
-      #      ${{ runner.os }}-tests-functional-cpu-stamp
+      - name: Restore tests execution time
+        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tests-functional-cpu-stamp
 
       - name: Intel CPU plugin func tests (parallel)
         shell: cmd
@@ -419,7 +396,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

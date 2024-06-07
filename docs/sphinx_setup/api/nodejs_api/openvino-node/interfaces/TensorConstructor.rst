@@ -1,38 +1,78 @@
 Interface TensorConstructor
 ===========================
 
-.. rubric:: Interface TensorConstructor
-
-
 .. code-block:: ts
 
    interface TensorConstructor {
-       new Tensor(type, shape, tensorData?): Tensor;
+       new TensorConstructor (type, shape): Tensor;
+       new TensorConstructor (type, shape, tensorData): Tensor;
    }
 
-- Defined in
-  `addon.ts:66 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L66>`__
+This interface contains constructors of the :doc:`Tensor <Tensor>` class.
+
+The tensor memory is shared with the ``TypedArray``. That is,
+the responsibility for maintaining the reference to the ``TypedArray`` lies with
+the user. Any action performed on the ``TypedArray`` will be reflected in this
+tensor memory.
+
+* **Defined in:**
+  `addon.ts:376 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L376>`__
+
+
+Constructors
+#####################
+
 
 .. rubric:: constructor
 
+.. container:: m-4
+
+   .. code-block:: ts
+
+      new TensorConstructor(type, shape): Tensor
+
+   It constructs a tensor using the element type and shape. The new tensor data
+   will be allocated by default.
+
+   * **Parameters:**
+
+     - type: :doc:`elementTypeString <../types/elementTypeString>` | :doc:`element <../enums/element>`
+
+       The element type of the new tensor.
+
+     - shape: number[]
+
+       The shape of the new tensor.
+
+   * **Returns:**  :doc:`Tensor <Tensor>`
+
+   * **Defined in:**
+     `addon.ts:383 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L383>`__
 
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   new Tensor(type, shape, tensorData?): Tensor
+       new TensorConstructor(type, shape, tensorData): Tensor
 
-**Parameters**
+   It constructs a tensor using the element type and shape. The new tensor wraps
+   allocated host memory.
 
-- type: :doc:`elementTypeString <../types/elementTypeString>` | :doc:`element <../enums/element>`
-- shape: number[]
-- ``Optional``
+   * **Parameters:**
 
-  .. code-block:: ts
+     - type: :doc:`elementTypeString <../types/elementTypeString>` | :doc:`element <../enums/element>`
 
-     tensorData: number[]|SupportedTypedArray
+       The element type of the new tensor.
 
+     - shape: number[]
 
-**Returns**  :doc:`Tensor <Tensor>`
+       The shape of the new tensor.
 
-- Defined in
-  `addon.ts:67 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L67>`__
+     - tensorData: SupportedTypedArray
+
+       A subclass of TypedArray that will be wrapped by a :doc:`Tensor <Tensor>`
+
+   * **Returns:**  :doc:`Tensor <Tensor>`
+
+   * **Defined in:**
+     `addon.ts:392 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L392>`__
+

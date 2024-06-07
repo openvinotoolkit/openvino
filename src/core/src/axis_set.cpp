@@ -22,7 +22,7 @@ ov::AxisSet& ov::AxisSet::operator=(const AxisSet& v) {
 }
 
 ov::AxisSet& ov::AxisSet::operator=(AxisSet&& v) noexcept {
-    static_cast<std::set<size_t>*>(this)->operator=(v);
+    static_cast<std::set<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
 

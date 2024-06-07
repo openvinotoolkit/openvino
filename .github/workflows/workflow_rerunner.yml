@@ -16,10 +16,12 @@ on:
       - '.github/workflows/workflow_rerunner.yml'
       - '.github/scripts/workflow_rerun/**'
 
+permissions: read-all
+
 jobs:
   rerun:
     name: Rerun Workflow
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}  # Run only for the completed workflows
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}  # Run only for the failed workflows
     runs-on: aks-linux-2-cores-8gb
     permissions:
       actions: write
@@ -28,7 +30,7 @@ jobs:
       checks: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
@@ -49,13 +51,17 @@ jobs:
           --run-id ${{ github.event.workflow_run.id }} \
           --repository-name ${GITHUB_REPOSITORY}
 
+      - name: Rerun Retriggered (Ticket ${{ env.FOUND_ERROR_TICKET }})
+        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
+        run: echo "Rerun retriggered for ${{ github.event.workflow_run.html_url }} with ticket ${{ env.FOUND_ERROR_TICKET }}"
+
   rerunner_tests:
     name: Rerunner Tests
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: aks-linux-2-cores-8gb
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
           lfs: true
@@ -63,10 +69,23 @@ jobs:
       - name: Install deps
         run: pip3 install PyGithub==2.2.0 requests==2.31.0
 
-      - name: Test Rerunner
+      - name: Test Rerunner (Tests)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
         run: |
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
           python3 -m unittest tests/*_test.py
+
+      - name: Test Rerunner (CLI)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
+        run: |
+          export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
+          
+          # Need to get a run id with successful status for log analyzing
+          # cannot lock a run id as logs get deleted after some time
+          run_id=$(python3 -c "from github import Github, Auth; import os; github=Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN'))); repo = github.get_repo('${GITHUB_REPOSITORY}'); run_id = repo.get_workflow_runs(status='success')[0].id; print(run_id)")
+          
+          python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --dry-run

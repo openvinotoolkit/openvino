@@ -646,7 +646,9 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         auto cand = candidates.top();
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
-        if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
+        // Add cand inst to the chain when cand's output is not allocated yet.
+        if (!p_inst->outputs_allocated()
+            || eng.is_the_same_buffer(mem_orig, mem_cand)) {
             auto nc_cand = const_cast<primitive_inst*>(cand);
             chain.push_back(nc_cand);
             add_mdata_chain(nc_cand);
@@ -656,11 +658,15 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
             if (dep.first->can_be_optimized()) {
                 candidates.push(dep.first);
             } else {
-                const auto& mem_dep = dep.first->output_memory();
-                if (eng.is_the_same_buffer(mem_orig, mem_dep)) {
-                    auto nc_dep = const_cast<primitive_inst*>(dep.first);
-                    chain.push_back(nc_dep);
-                    add_mdata_chain(nc_dep);
+                if (dep.first->outputs_allocated()) {
+                    const auto& mem_dep = dep.first->output_memory();
+                    // Add dep inst to the chain when dep's output is not allocated yet.
+                    if (!p_inst->outputs_allocated()
+                        || eng.is_the_same_buffer(mem_orig, mem_dep)) {
+                        auto nc_dep = const_cast<primitive_inst*>(dep.first);
+                        chain.push_back(nc_dep);
+                        add_mdata_chain(nc_dep);
+                    }
                 }
             }
         }
@@ -864,6 +870,7 @@ void network::build_insts_deps() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_insts_deps");
     for (auto& inst : _primitives) {
         inst.second->build_deps();
+        inst.second->init_users();
         inst.second->configure_shape_of_dependencies();
     }
 }
@@ -918,7 +925,6 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     return result;
 }
 
-
 void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     int64_t curr_iter = -1;
@@ -929,9 +935,12 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
     // Wait for previous execution completion
     reset_execution(false);
-    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        GPU_DEBUG_COUT << "============================================================================" << std::endl;
-        GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+    GPU_DEBUG_IF(debug_config->dump_memory_pool > 0) {
+        auto& iters = debug_config->dump_memory_pool_iters;
+        if (iters.empty() || iters.find(curr_iter) != iters.end()) {
+            GPU_DEBUG_COUT << "============================================================================" << std::endl;
+            GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+        }
     } else {
         GPU_DEBUG_TRACE << "============================================================================" << std::endl;
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
@@ -999,11 +1008,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         return std::to_string(iter) + "_";
     };
 
-    // This extra flush command is needed for dynamic models in case of out_of_order operating mode since
-    // it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
-    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287.
+    // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+    // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
     const bool is_out_of_order_queue = get_stream().get_queue_type() == QueueTypes::out_of_order;
-    const bool needs_flushing = _is_dynamic && is_out_of_order_queue;
+    const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
 
@@ -1240,11 +1249,71 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // Deallocate events from the previos iteration
     _old_events.clear();
 
-    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        get_memory_pool().dump(get_id());
+    GPU_DEBUG_IF(debug_config->dump_memory_pool > 0) {
+        auto& iters = debug_config->dump_memory_pool_iters;
+        if (iters.empty() || iters.find(curr_iter) != iters.end()) {
+            dump_memory_pool(debug_config->dump_memory_pool_path, curr_iter);
+            GPU_DEBUG_COUT << "============================================================================" << std::endl;
+        }
     }
+
 #ifdef GPU_DEBUG_CONFIG
     iteration++;
+#endif
+}
+
+void network::dump_memory_pool(std::string dump_path, int64_t curr_iter) {
+#ifdef GPU_DEBUG_CONFIG
+    get_memory_pool().dump(get_id(), curr_iter, dump_path);
+    auto get_constants_mem_size = [&](allocation_type type) -> size_t {
+        size_t mem_size = 0;
+        for (auto& prim : _primitives) {
+            if (prim.second->get_node().is_constant()) {
+                for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
+                    if (prim.second->output_memory_ptr(i)->get_allocation_type() == type)
+                        mem_size += prim.second->output_memory_ptr(i)->size();
+                }
+            }
+        }
+        return mem_size;
+    };
+    auto get_variables_mem_size = [&](allocation_type type) -> size_t {
+        size_t mem_size = 0;
+        for (auto& var : get_variables()) {
+            if (var.second->get_memory()->get_allocation_type() == type)
+                mem_size += var.second->get_actual_mem_size();
+        }
+        return mem_size;
+    };
+    auto get_mb_size = [&](int64_t size) -> std::string {
+        if (size == 0) return "0 MB";
+        return std::to_string(static_cast<float>(size) / (1024 * 1024)) + " MB";
+    };
+    int64_t usm_host_const_mem_size     = get_constants_mem_size(allocation_type::usm_host);
+    int64_t usm_device_const_mem_size   = get_constants_mem_size(allocation_type::usm_device);
+    int64_t usm_host_var_mem_size       = get_variables_mem_size(allocation_type::usm_host);
+    int64_t usm_device_var_mem_size     = get_variables_mem_size(allocation_type::usm_device);
+    int64_t host_mem_size               = get_engine().get_used_device_memory(allocation_type::usm_host);
+    int64_t device_mem_size             = get_engine().get_used_device_memory(allocation_type::usm_device);
+    int64_t usm_host_mem_pool_size      = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_host);
+    int64_t usm_host_etc_size           = host_mem_size - usm_host_mem_pool_size
+                                            - usm_host_const_mem_size - usm_host_var_mem_size;
+    int64_t usm_device_mem_pool_size    = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_device);
+    int64_t usm_device_etc_size         = device_mem_size - usm_device_mem_pool_size
+                                            - usm_device_const_mem_size - usm_device_var_mem_size;
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_COUT << "Memory statistics for (net_id:" << get_id() << ", iter:" << curr_iter << ")" << std::endl;
+    GPU_DEBUG_COUT << " Total host mem size     : " << get_mb_size(host_mem_size)               << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool           : " << get_mb_size(usm_host_mem_pool_size)      << std::endl;
+    GPU_DEBUG_COUT << " * Constant              : " << get_mb_size(usm_host_const_mem_size)     << std::endl;
+    GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_host_var_mem_size)       << std::endl;
+    GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_host_etc_size)           << std::endl;
+    GPU_DEBUG_COUT << " Total device mem size   : " << get_mb_size(device_mem_size)             << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool           : " << get_mb_size(usm_device_mem_pool_size)    << std::endl;
+    GPU_DEBUG_COUT << " * Constant              : " << get_mb_size(usm_device_const_mem_size)   << std::endl;
+    GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
+    GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_device_etc_size)         << std::endl;
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
 #endif
 }
 
@@ -1439,7 +1508,11 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
-    if (get_engine().get_device_info().dev_type != device_type::discrete_gpu)
+    if (!get_engine().get_device_info().has_separate_cache)
+        return;
+
+
+    if (node.is_shape_infer_dep())
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {

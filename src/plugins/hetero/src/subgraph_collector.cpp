@@ -478,9 +478,22 @@ void ov::hetero::merge_submodels(std::vector<std::shared_ptr<ov::Model>>& submod
     }
     // Finally all subgraphs should be merged into single one
     OPENVINO_ASSERT(input_to_prev_output.size() == 0);
+    std::set<size_t> distinct_submodels_index;
+    for (size_t i = 0; i < submodels.size(); i++) {
+        bool has_same_model = false;
+        for (auto& index : distinct_submodels_index) {
+            if (submodels[i] == submodels[index]) {
+                has_same_model = true;
+                break;
+            }
+        }
+        if (!has_same_model) {
+            distinct_submodels_index.insert(i);
+        }
+    }
     auto& result_model = submodels[0];
     for (size_t i = 1; i < submodels.size(); i++) {
-        if (submodels[i] != result_model) {
+        if (submodels[i] != result_model && distinct_submodels_index.count(i)) {
             result_model->add_parameters(submodels[i]->get_parameters());
             result_model->add_results(submodels[i]->get_results());
             result_model->add_sinks(submodels[i]->get_sinks());

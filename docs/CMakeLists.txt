@@ -31,6 +31,7 @@ function(build_docs)
     set(ARTICLES_HELPER_SCRIPT "${SCRIPTS_DIR}/articles_helper.py")
     set(COPY_IMAGES_SCRIPT "${SCRIPTS_DIR}/copy_images.py")
     set(DOXYGEN_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_mapping.py")
+    set(DOCS_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_doc_mapping.py")
     set(BREATHE_APIDOC_SCRIPT "${SCRIPTS_DIR}/apidoc.py")
 
     # Doxygen/Sphinx setup
@@ -107,6 +108,7 @@ function(build_docs)
                        POST_BUILD
                        COMMAND ${Python3_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${DOXYGEN_XML_OUTPUT} ${SPHINX_SOURCE_DIR}
                        COMMAND ${Python3_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${DOXYGEN_XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
+                       COMMAND ${Python3_EXECUTABLE} ${DOCS_MAPPING_SCRIPT} ${DOCS_BUILD_DIR} ${ARTICLES_EN_DIR}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_SETUP_DIR} ${SPHINX_SOURCE_DIR}
                        ${post_commands}
                        VERBATIM)

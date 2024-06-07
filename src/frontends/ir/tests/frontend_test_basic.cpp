@@ -59,7 +59,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11) {
 
     std::shared_ptr<ov::Model> model;
     ov::RTMap rtInfo;
-    uint64_t version;
+    uint64_t version = 0;
 
     ASSERT_NO_THROW(model = getWithIRFrontend(testModelV11));
     ASSERT_TRUE(!!model);
@@ -120,7 +120,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v10) {
 
     std::shared_ptr<ov::Model> modelv10;
     ov::RTMap rtInfoV10;
-    uint64_t version;
+    uint64_t version = 0;
 
     ASSERT_NO_THROW(modelv10 = getWithIRFrontend(testModelV10));
     ASSERT_TRUE(!!modelv10);

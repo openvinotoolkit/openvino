@@ -141,7 +141,7 @@ bool data_types_are_supported(const ov::Node* node) {
     return true;
 }
 
-void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::stream& stream) {
+void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::stream& stream, const cldnn::layout& src_layout) {
     const bool blocking = true;
     auto src_et = src->get_element_type();
     auto dst_et = dst->get_layout().data_type;
@@ -158,7 +158,7 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
 
     size_t size = ov::shape_size(src->get_shape());
     ov::Tensor tmp_tensor(dst_et, src->get_shape());
-    ::convert_and_copy(src->data(), src_et, tmp_tensor.data(), dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+    ::convert_and_copy(src->data(), src_et, tmp_tensor.data(), dst_et, size, src_layout);
     dst->copy_from(stream, tmp_tensor.data(), blocking);
 }
 

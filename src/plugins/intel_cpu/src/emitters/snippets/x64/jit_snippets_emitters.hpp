@@ -13,7 +13,7 @@ namespace intel_cpu {
 class jit_nop_emitter : public jit_emitter {
 public:
     jit_nop_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                    const ov::snippets::lowered::ExpressionPtr& expr);
+                    const ov::snippets::lowered::ExpressionPtr& expr, emitter_in_out_map emitter_type = gpr_to_gpr);
 
     size_t get_inputs_num() const override {return 0;}
 
@@ -59,18 +59,13 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
-
-protected:
     size_t aux_gprs_count() const override {return 1;}
+    static int32_t read_value(const ov::snippets::lowered::ExpressionPtr& expr);
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
-
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-
-private:
-    int32_t value;
 };
 
 }   // namespace intel_cpu

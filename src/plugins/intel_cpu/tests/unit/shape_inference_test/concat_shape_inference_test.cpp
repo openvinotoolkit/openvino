@@ -71,3 +71,56 @@ TEST_P(ConcatStaticShapeInferenceTest, concat_static) {
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
 }
+
+TEST(ConcatStaticShapeInferenceTest, consecutively_one_input) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto op = std::make_shared<op::v0::Concat>(NodeVector{1, param}, -1);
+
+    auto output_shapes = shape_inference(op.get(), ShapeVector{{4, 2, 1}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({4, 2, 1}));
+
+    output_shapes = shape_inference(op.get(), ShapeVector{{1, 2, 0, 4, 5}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({1, 2, 0, 4, 5}));
+}
+
+TEST(ConcatStaticShapeInferenceTest, consecutively_two_inputs) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto op = std::make_shared<op::v0::Concat>(NodeVector{2, param}, -3);
+
+    auto output_shapes = shape_inference(op.get(), ShapeVector{{4, 2, 1}, {4, 2, 1}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({8, 2, 1}));
+
+    output_shapes = shape_inference(op.get(), ShapeVector{{1, 2, 0, 4, 5}, {1, 2, 9, 4, 5}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({1, 2, 9, 4, 5}));
+}
+
+TEST(ConcatStaticShapeInferenceTest, consecutively_two_inputs_with_wrong_rank_input_shapes) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto op = std::make_shared<op::v0::Concat>(NodeVector{2, param}, -3);
+
+    auto output_shapes = shape_inference(op.get(), ShapeVector{{4, 2, 1}, {4, 2, 1}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({8, 2, 1}));
+
+    auto wrong_rank_input_shapes = ShapeVector{{4}, {0}};
+    EXPECT_THROW(shape_inference(op.get(), wrong_rank_input_shapes), ov::AssertFailure);
+
+    output_shapes = shape_inference(op.get(), ShapeVector{{1, 2, 0, 4, 5}, {1, 2, 9, 4, 5}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({1, 2, 9, 4, 5}));
+}
+
+TEST(ConcatStaticShapeInferenceTest, consecutively_three_inputs) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto op = std::make_shared<op::v0::Concat>(NodeVector{3, param}, -1);
+
+    auto output_shapes = shape_inference(op.get(), ShapeVector{{4}, {0}, {2}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({6}));
+
+    output_shapes = shape_inference(op.get(), ShapeVector{{2, 1}, {2, 1}, {2, 1}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({2, 3}));
+
+    output_shapes = shape_inference(op.get(), ShapeVector{{4, 2, 5}, {4, 2, 1}, {4, 2, 2}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({4, 2, 8}));
+
+    output_shapes = shape_inference(op.get(), ShapeVector{{1, 2, 3, 4, 3}, {1, 2, 3, 4, 1}, {1, 2, 3, 4, 1}});
+    ASSERT_EQ(output_shapes.front(), StaticShape({1, 2, 3, 4, 5}));
+}

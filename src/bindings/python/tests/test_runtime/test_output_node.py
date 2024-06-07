@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 
 import openvino.runtime.opset13 as ops
 from openvino import Type
@@ -20,3 +19,15 @@ def test_output_replace(device):
     relu.output(0).replace(new_relu.output(0))
 
     assert new_relu.output(0).get_tensor().get_names() == {"c", "d", "f"}
+
+
+def test_output_names():
+    param = ops.parameter([1, 64], Type.i64)
+
+    names = {"param1", "data1"}
+    param.output(0).set_names(names)
+    assert param.output(0).get_names() == names
+
+    more_names = {"yet_another_name", "input1"}
+    param.output(0).add_names(more_names)
+    assert param.output(0).get_names() == names.union(more_names)

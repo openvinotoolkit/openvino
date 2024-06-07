@@ -36,5 +36,6 @@ protected:
     JitConstants GetJitConstants(const gemm_params& params) const override;
     GemmTuningData SetTuningParams(const gemm_params& params) const;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

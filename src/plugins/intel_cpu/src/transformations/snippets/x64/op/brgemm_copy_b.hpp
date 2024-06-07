@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "snippets/op/memory_access.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
-#include <snippets/shape_inference/shape_inference.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -18,11 +19,11 @@ namespace intel_cpu {
          OneDNN requiers data repacking for second input of Brgemm with input non-fp32 precisions.
 * @ingroup snippets
 */
-class BrgemmCopyB : public snippets::op::MemoryAccess {
+class BrgemmCopyB : public snippets::modifier::MemoryAccess, public ov::op::Op {
 public:
-    OPENVINO_OP("BrgemmCopyB", "SnippetsOpset", snippets::op::MemoryAccess);
+    OPENVINO_OP("BrgemmCopyB", "SnippetsOpset");
 
-    enum Type {
+    enum class Type {
         OnlyRepacking,     // Just data repacking - one output
         WithCompensations, // Repack data and caclulate compensations - 2 outputs (is needed for BrgemmCPU with compensations)
     };
@@ -30,8 +31,8 @@ public:
     BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type = Type::OnlyRepacking,
                 const size_t offset_in = 0lu, const size_t offset_out0 = 0lu, const size_t offset_out1 = 0lu,
                 std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
-    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type = Type::OnlyRepacking,
-                const PortDescriptor& desc_in0 = {}, const PortDescriptor& desc_out0 = {}, const PortDescriptor& desc_out1 = {},
+    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
+                const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
                 std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCopyB() = default;
 
@@ -41,11 +42,12 @@ public:
 
     size_t get_k_block_size() const { return m_K_blk; }
     size_t get_n_block_size() const { return m_N_blk; }
+    size_t get_n_inner_block_size() const { return m_inner_n_block; }
     void set_k_block_size(size_t block_size) { m_K_blk = block_size; }
     void set_n_block_size(size_t block_size) { m_N_blk = block_size; }
 
-    ov::Shape get_data_repacking_shape(const ov::snippets::VectorDims& planar_dims) const;
-    ov::Shape get_compensation_shape(const ov::snippets::VectorDims& planar_dims) const;
+    ov::Shape get_repacking_buffer_shape() const;
+    ov::Shape get_compensations_buffer_shape() const;
 
     Type get_type() const { return m_type; }
     size_t get_brgemm_vnni_factor() const { return m_brgemmVNNIFactor; }
@@ -75,8 +77,17 @@ private:
 
     size_t m_K_blk = 0;
     size_t m_N_blk = 0;
+    // OneDNN implementation requirement: BrgemmCopyB oneDNN implementation repacks data by m_brgemmVNNIFactor * m_inner_n_block blocks.
+    // Consequently, in snippets emitter, we need to invoke the oneDNN kernel iterating accordingly to this block
+    size_t m_inner_n_block = 0;
     size_t m_brgemmVNNIFactor = 1;
 };
-
 } // namespace intel_cpu
+
+template <>
+class AttributeAdapter<intel_cpu::BrgemmCopyB::Type> : public EnumAttributeAdapterBase<intel_cpu::BrgemmCopyB::Type> {
+public:
+    AttributeAdapter(intel_cpu::BrgemmCopyB::Type& value) : EnumAttributeAdapterBase<intel_cpu::BrgemmCopyB::Type>(value) {}
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::BrgemmCopyB::Type>");
+};
 } // namespace ov

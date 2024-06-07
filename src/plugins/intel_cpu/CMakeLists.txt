@@ -97,6 +97,11 @@ if(ENABLE_CPU_DEBUG_CAPS)
     add_definitions(-DCPU_DEBUG_CAPS)
 endif()
 
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    # Note: LIBXSMM_DEFAULT_CONFIG needed so libxsmm_config can be included without issues
+    add_definitions(-DSNIPPETS_LIBXSMM_TPP -DLIBXSMM_DEFAULT_CONFIG)
+endif()
+
 set(OV_CPU_WITH_DNNL ON)
 if(OV_CPU_WITH_DNNL)
     add_definitions(-DOV_CPU_WITH_DNNL)
@@ -122,9 +127,14 @@ endif()
 if(NOT X86_64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*)
+endif()
+
+if (AARCH64)
+    # this directory is reused on RISCV64
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
 endif()
 
 if(NOT (AARCH64 OR ARM))
@@ -134,10 +144,20 @@ if(NOT (AARCH64 OR ARM))
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
 endif()
 
+if(NOT AARCH64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
+endif()
+
 if (NOT ENABLE_MLAS_FOR_CPU)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/mlas/*)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
 endif()
+
+if (NOT ENABLE_SNIPPETS_LIBXSMM_TPP)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/*)
+endif ()
 
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
@@ -170,7 +190,17 @@ if (ENABLE_MLAS_FOR_CPU)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
     add_definitions(-DOV_CPU_WITH_MLAS)
 endif()
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    target_compile_definitions(xsmm PRIVATE __BLAS=0)
+    target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
+endif ()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+
+# Temporal solution to use template reference implementations in cases where optimizied implementation
+# is not (yet) needed.
+target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
+
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
@@ -196,6 +226,13 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/executor_pa.cpp
+        API         src/nodes/kernels/scaled_attn/executor_pa.hpp
+        NAME        make_pa_executor
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
         NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
@@ -205,7 +242,7 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
-        NAME        attn_quantkv attn_quant_u8 attn_dequant_u8
+        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 # system dependencies must go last
@@ -234,11 +271,15 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::snippets,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    if(ENABLE_SNIPPETS_LIBXSMM_TPP)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
+    endif()
 
     if(ENABLE_MLAS_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)

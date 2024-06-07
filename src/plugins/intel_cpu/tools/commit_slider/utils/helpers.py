@@ -286,10 +286,14 @@ def fetchAppOutput(cfg, commit):
 
     output = ""
     if cfg["venvCfg"]["venvEnabled"]:
+        # todo - move to substitution rules
         for item in [
                 {"src": cfg["venvCfg"]["venvName"], "dst": "venvName"},
                 {"src": cfg["appPath"], "dst": "appPath"},
-                {"src": sys.executable, "dst": "py"}
+                {"src": sys.executable, "dst": "py"},
+                # for AC case
+                {"src": cfg["dlbConfig"]["appCmd"], "dst": "appCmd"},
+                {"src": cfg["dlbConfig"]["toolPath"], "dst": "toolPath"}
                 ]:
             appCmd = multistepStrFormat(
                 appCmd,

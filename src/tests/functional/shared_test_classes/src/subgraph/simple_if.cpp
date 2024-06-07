@@ -70,7 +70,7 @@ void SimpleIfTest::SetUp() {
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res2}, ov::ParameterVector{p3});
 
-    auto condOp = ov::test::utils::deprecated::make_constant<bool>(ov::element::Type_t::boolean, {1}, {condition});
+    auto condOp = ov::op::v0::Constant::create(ov::element::Type_t::boolean, {1}, std::vector<bool>{condition});
     auto ifOp = std::make_shared<ov::op::v8::If>(condOp);
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
@@ -108,7 +108,7 @@ void SimpleIf2OutTest::SetUp() {
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1, res2}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res3, res4}, ov::ParameterVector{p3, p4});
 
-    auto condOp = ov::test::utils::deprecated::make_constant<bool>(ov::element::Type_t::boolean, {1}, {condition});
+    auto condOp = ov::op::v0::Constant::create(ov::element::Type_t::boolean, {1}, std::vector<bool>{condition});
     auto ifOp = std::make_shared<ov::op::v8::If>(condOp);
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
