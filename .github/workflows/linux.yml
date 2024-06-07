@@ -413,7 +413,7 @@ jobs:
           
           swapoff -a
           fallocate -l 15G $swapfile
-          chmod 600 $swapfile
+          chown root:disk $swapfile
           mkswap $swapfile
           swapon $swapfile
           swapon --show
