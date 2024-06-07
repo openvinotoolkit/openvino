@@ -16,21 +16,21 @@ will not work with these instructions, make sure to
    detokenization remain on the CPU, for efficiency. Tokenizers are represented as a separate model and also run
    on the CPU.
 
-1.	Export an LLM model via Hugging Face Optimum-Intel. A chat-tuned TinyLlama model is used in this example:
+1. Export an LLM model via Hugging Face Optimum-Intel. A chat-tuned TinyLlama model is used in this example:
 
-  .. code-block:: python
+   .. code-block:: python
 
-     optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format fp16 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format fp16 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
 
-  *Optional*. Optimize the model:
+   *Optional*. Optimize the model:
 
-  The model is an optimized OpenVINO IR with FP16 precision. For enhanced LLM performance,
-  it is recommended to use lower precision for model weights, such as INT4, and to compress weights
-  using NNCF during model export directly:
+   The model is an optimized OpenVINO IR with FP16 precision. For enhanced LLM performance,
+   it is recommended to use lower precision for model weights, such as INT4, and to compress weights
+   using NNCF during model export directly:
 
-  .. code-block:: python
+   .. code-block:: python
 
-     optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code
+      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code
 
 2. Perform generation using the new GenAI API:
 
