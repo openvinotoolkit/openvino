@@ -5,6 +5,8 @@
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 
 /*
  * Description:
@@ -48,24 +50,20 @@ public:
     ov::matcher_pass_callback convert_reduce();
 };
 
-class ConvertArithmeticReduction: public ConvertReduceNoKeepDimsBase {
+template <typename ReductionType>
+class ConvertReduction: public ConvertReduceNoKeepDimsBase {
 public:
-    OPENVINO_RTTI("ConvertArithmeticReduction", "0");
-    ConvertArithmeticReduction();
+    OPENVINO_RTTI("ConvertReduction", "0");
+    ConvertReduction();
 };
 
-class ConvertLogicalReduction: public ConvertReduceNoKeepDimsBase {
-public:
-    OPENVINO_RTTI("ConvertLogicalReduction", "0");
-    ConvertLogicalReduction();
-};
 
 class ConvertReduceNoKeepDims: public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertReduceNoKeepDims", "0");
     ConvertReduceNoKeepDims() {
-        add_matcher<ConvertArithmeticReduction>();
-        add_matcher<ConvertLogicalReduction>();
+        add_matcher<ConvertReduction<ov::op::util::LogicalReductionKeepDims>>();
+        add_matcher<ConvertReduction<ov::op::util::ArithmeticReductionKeepDims>>();
     }
 };
 

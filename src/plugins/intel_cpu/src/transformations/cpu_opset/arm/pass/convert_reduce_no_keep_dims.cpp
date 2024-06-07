@@ -26,16 +26,13 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceNoKeepDimsBase::convert_re
     };
 }
 
-ov::intel_cpu::ConvertArithmeticReduction::ConvertArithmeticReduction() {
+template <typename ReductionType>
+ov::intel_cpu::ConvertReduction<ReductionType>::ConvertReduction() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-            ov::pass::pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims>({ov::pass::pattern::any_input(),
-                                                           ov::pass::pattern::wrap_type<ov::opset8::Constant>()}), "ConvertArithmeticReduction");
-    register_matcher(m, convert_reduce<ov::op::util::ArithmeticReductionKeepDims>());
+        ov::pass::pattern::wrap_type<ReductionType>({ov::pass::pattern::any_input(),
+                                                     ov::pass::pattern::wrap_type<ov::opset8::Constant>()}), "ConvertReduction");
+     register_matcher(m, convert_reduce<ReductionType>());
 }
 
-ov::intel_cpu::ConvertLogicalReduction::ConvertLogicalReduction() {
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(
-            ov::pass::pattern::wrap_type<ov::op::util::LogicalReductionKeepDims>({ov::pass::pattern::any_input(),
-                                                           ov::pass::pattern::wrap_type<ov::opset8::Constant>()}), "ConvertLogicalReduction");
-    register_matcher(m, convert_reduce<ov::op::util::LogicalReductionKeepDims>());
-}
+template class ov::intel_cpu::ConvertReduction<ov::op::util::LogicalReductionKeepDims>;
+template class ov::intel_cpu::ConvertReduction<ov::op::util::ArithmeticReductionKeepDims>;
