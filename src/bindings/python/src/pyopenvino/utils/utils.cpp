@@ -419,5 +419,12 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
 }
+std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
+    auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
+        py::gil_scoped_acquire acquire;
+        delete c;
+    });
+    return callback_sp;
+}
 };  // namespace utils
 };  // namespace Common
