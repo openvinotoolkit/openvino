@@ -3,6 +3,7 @@
 
 import itertools
 from copy import deepcopy
+import os
 
 import numpy as np
 from common.constants import test_device, test_precision
@@ -11,6 +12,14 @@ from openvino.runtime import Core
 
 
 class JaxLayerTest:
+    
+    @staticmethod
+    def use_jaxpr_tracing():
+        torch_compile_env = os.getenv("JAX_TRACE_MODE")
+        if torch_compile_env is not None:
+            return torch_compile_env == "JAXPR"
+        return False
+    
     def _test(self, model, ref_net, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
               **kwargs):
         """
@@ -18,7 +27,10 @@ class JaxLayerTest:
                                                        Example: "transform_1,transform_2"
         """
         inputs = self._prepare_input()
-        converted_model = self.convert_via_tensorflow_function(model, inputs)
+        if self.use_jaxpr_tracing():
+            converted_model = self.convert_via_jaxpr(model, inputs)
+        else:
+            converted_model = self.convert_via_tensorflow_function(model, inputs)
 
         # OV infer:
         core = Core()
@@ -108,6 +120,15 @@ class JaxLayerTest:
         f = tf.function(jax2tf.convert(model), autograph=False,
                         input_signature=function_signature)
         converted_model = convert_model(f)
+        return converted_model
+    
+    def convert_via_jaxpr(self, model, inputs):
+        import jax
+        from openvino.tools.ovc import convert_model
+        
+        jaxpr = jax.make_jaxpr(model)(*inputs)
+        converted_model = convert_model(jaxpr)
+
         return converted_model
 
 
