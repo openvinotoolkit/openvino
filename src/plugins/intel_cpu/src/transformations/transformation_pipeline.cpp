@@ -792,7 +792,7 @@ void Transformations::PostLpt() {
         if (has_paged_attention) {
             CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
             CPU_SET_CALLBACK_X64(postLPTPassManager,
-                [this](const_node_ptr &node) -> bool {
+                [](const_node_ptr &node) -> bool {
                     std::string errorMsg;
                     return node::LLMMLP::isSupportedOperation(node, errorMsg);
                 },
@@ -807,7 +807,7 @@ void Transformations::PostLpt() {
             if (has_paged_attention) {
                 CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
                 CPU_SET_CALLBACK_X64(postLPTPassManager,
-                    [this](const_node_ptr &node) -> bool {
+                    [](const_node_ptr &node) -> bool {
                         std::string errorMsg;
                         return node::QKVProjection::isSupportedOperation(node, errorMsg);
                     },
