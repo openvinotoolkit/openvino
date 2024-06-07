@@ -146,6 +146,8 @@
 #include "nodes/mha.h"
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
+#include "nodes/llm_mlp.h"
+#include "nodes/llm_qkv_proj.h"
 #include "dnnl.hpp"
 #if defined(OPENVINO_ARCH_ARM64)
 #include "cpu/aarch64/cpu_isa_traits.hpp"
@@ -783,23 +785,35 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
-    // MLP & QKV fusion optimization is focused on throughput, only enabled on AMX-bf16 & vLLM use case.
+    // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (inferencePrecision == element::bf16);
     if (can_use_amx_bf16) {
         auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
-        //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_before_MLP.cpp");
-        if ((has_paged_attention || std::getenv("USE_MLP")) && (!std::getenv("NO_MLP"))) {
+        if (has_paged_attention) {
             CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+            CPU_SET_CALLBACK_X64(postLPTPassManager,
+                [this](const_node_ptr &node) -> bool {
+                    std::string errorMsg;
+                    return node::LLMMLP::isSupportedOperation(node, errorMsg);
+                },
+                MLPFusion);
         }
 
         // Limitations: at least 3 workers are required for QKV fusion
-        auto has_enough_workers = (parallel_get_max_threads() >= 3);
-        if (has_enough_workers) {
-            if ((has_paged_attention || std::getenv("USE_QKV")) && (!std::getenv("NO_QKV"))) {
+        size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+        if (concurrency == 0)
+            concurrency = parallel_get_max_threads();
+        if (concurrency >= 3) {
+            if (has_paged_attention) {
                 CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+                CPU_SET_CALLBACK_X64(postLPTPassManager,
+                    [this](const_node_ptr &node) -> bool {
+                        std::string errorMsg;
+                        return node::QKVProjection::isSupportedOperation(node, errorMsg);
+                    },
+                    QKVProjFusion);
             }
         }
-        //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "_after_MLP.cpp");
     }
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);

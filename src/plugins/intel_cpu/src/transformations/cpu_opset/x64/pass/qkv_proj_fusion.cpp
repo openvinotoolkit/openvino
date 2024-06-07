@@ -17,7 +17,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/cpu_opset/x64/op/llm_qkv_proj.hpp"
+#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
@@ -26,7 +26,7 @@ using namespace ov::gen_pattern;
 ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     MATCHER_SCOPE(QKVProjFusion);
 
-    auto input = makePattern("f32[?,?,?]");
+    auto input = makePattern("[?,?,?]");
 
     auto q_proj_weight = makePattern<opset1::Constant>({});
     auto q_proj_weight_cvt =
@@ -85,15 +85,10 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                 return false;
             }
 
-            // AMX tiles limit, tail handling is not supported yet
-            if ((wshape[0] % 32) != 0)
-                return false;
             proj_size.push_back(wshape[0]);
             args.push_back(constw);
             outputs.push_back(mm->get_default_output());
         }
-
-        LLMQKVProjNode::Config config;
 
         // make sure just 3 projections are found
         if (outputs.size() != 3) {
@@ -103,21 +98,15 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             return false;
         }
 
-        config.hidden_size = static_cast<int>(hidden_size);
-
-        // Limitation: QKV kernels requires K dimension to be multiple of 256
-        if ((config.hidden_size % 256) != 0)
-            return false;
-
-        // proj size of q/k/v can be different (considering multi-query)
-        config.proj_size0 = proj_size[0];
-        config.proj_size1 = proj_size[1];
-        config.proj_size2 = proj_size[2];
-
         auto old_node = root;
-        auto new_node = std::make_shared<LLMQKVProjNode>(args, config);
+        auto new_node = std::make_shared<QKVProjectionNode>(args);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({old_node}, new_node);
+
+        // callback is for plugin implementation to check if it can be supported
+        if (!transformation_callback(new_node)) {
+            return false;
+        }
 
         for (size_t i = 0; i < outputs.size(); i++) {
             auto target = outputs[i].get_node_shared_ptr();
@@ -126,7 +115,6 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             new_node->add_node_control_dependencies(target);
             target->clear_control_dependents();
         }
-        std::cout << "QKVProjFusion:" << old_node->get_friendly_name() << std::endl;
         return true;
     };
 

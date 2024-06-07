@@ -27,7 +27,7 @@ using namespace ov::gen_pattern;
 ov::intel_cpu::MLPFusion::MLPFusion() {
     MATCHER_SCOPE(MLPFusion);
 
-    auto input = makePattern("f32[?,?,?]");
+    auto input = makePattern("[?,?,?]");
 
     auto gate_proj_weight_compressed = makePattern<opset1::Constant>({});  // [up_size, down_size]
     auto gate_proj_weight = makePattern<opset1::Convert>({gate_proj_weight_compressed}, {{"destination_type", "f32"}});
@@ -91,20 +91,18 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         if (down_shape[1] != up_size)
             return false;
 
-        //  Limitation: MLP kernel requires K dimension to be multiple of 256
-        if ((up_size % 256) != 0) {
-            return false;
-        }
-        if ((down_size % 256) != 0) {
-            return false;
-        }
-
         LLMMLPNode::Config config;
         OutputVector new_args;
-        config.is_act_silu = pattern_map.count(mlp_silu_gate) > 0;
-        config.is_act_gelu = pattern_map.count(mlp_gelu_gate) > 0;
-        config.hidden_size = down_size;
-        config.intermediate_size = up_size;
+        std::shared_ptr<Node> gate_act;
+        if (pattern_map.count(mlp_silu_gate) > 0) {
+            config.act = LLMMLPNode::ACT_FN::SILU;
+            gate_act = mlp_silu_gate;
+        } else if (pattern_map.count(mlp_gelu_gate) > 0) {
+            config.act = LLMMLPNode::ACT_FN::GELU;
+            gate_act = mlp_gelu_gate;
+        } else {
+            return false;
+        }
 
         new_args.push_back(pattern_map.at(input));
         new_args.push_back(gate_proj_w);
@@ -115,14 +113,17 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         auto new_node = std::make_shared<LLMMLPNode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(mlp_gate_proj).get_node_shared_ptr(),
-                               pattern_map.at(config.is_act_silu ? mlp_silu_gate : mlp_gelu_gate).get_node_shared_ptr(),
+                               pattern_map.at(gate_act).get_node_shared_ptr(),
                                pattern_map.at(mlp_up_proj).get_node_shared_ptr(),
                                pattern_map.at(down_proj).get_node_shared_ptr()},
                               new_node);
 
-        ov::replace_node(old_node, new_node);
+        // callback is for plugin implementation to check if it can be supported
+        if (!transformation_callback(new_node)) {
+            return false;
+        }
 
-        std::cout << "MLPFusion:" << old_node->get_friendly_name() << std::endl;
+        ov::replace_node(old_node, new_node);
         return true;
     };
 

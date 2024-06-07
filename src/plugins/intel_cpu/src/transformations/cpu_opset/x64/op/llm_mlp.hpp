@@ -16,11 +16,10 @@ public:
 
     LLMMLPNode() = default;
 
+    enum class ACT_FN { SILU = 0, GELU = 1};
+
     struct Config {
-        bool is_act_silu;
-        bool is_act_gelu;
-        int hidden_size;
-        int intermediate_size;
+        ACT_FN act;
     };
 
     // args:
@@ -47,4 +46,17 @@ private:
 };
 
 }  // namespace intel_cpu
+
+template <>
+class OPENVINO_API AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>
+    : public EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN> {
+public:
+    AttributeAdapter(ov::intel_cpu::LLMMLPNode::ACT_FN& value)
+        : EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>");
+};
+
+std::ostream& operator<<(std::ostream& s, const ov::intel_cpu::LLMMLPNode::ACT_FN& type);
+
 }  // namespace ov

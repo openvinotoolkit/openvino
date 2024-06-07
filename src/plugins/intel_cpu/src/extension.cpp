@@ -24,6 +24,7 @@
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
@@ -84,6 +85,7 @@ private:
     OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
     OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \
+    OP_EXTENSION_X64(ov::intel_cpu::QKVProjectionNode)                      \
     OP_EXTENSION_X64(ov::intel_cpu::ScaledDotProductAttentionWithKVCache)   \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertSaturation)                  \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertTruncation)                  \

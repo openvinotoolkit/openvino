@@ -245,7 +245,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"EmbeddingBagPacked", Type::EmbeddingBagPacked},
         {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
         {"LLMMLP", Type::LLMMLP},
-        {"LLMQKVProj", Type::LLMMLP},
+        {"QKVProjection", Type::QKVProjection},
     };
     return type_to_name_tbl;
 }
@@ -370,6 +370,7 @@ std::string NameFromType(const Type type) {
         CASE(RoPE);
         CASE(CausalMaskPreprocess);
         CASE(LLMMLP);
+        CASE(QKVProjection);
         CASE(Unknown);
     }
 #undef CASE

@@ -5,20 +5,23 @@
 #pragma once
 
 #include "node.h"
-#include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#include "kernels/x64/mlp_kernel.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class LLMMLP : public Node {
+class QKVProjection : public Node {
 public:
-    LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {}
     bool created() const override {
-        return getType() == Type::LLMMLP;
+        return getType() == Type::QKVProjection;
     }
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override {
@@ -30,7 +33,6 @@ public:
 
 private:
     struct Impl;
-    LLMMLPNode::Config m_mlp_config;
     std::shared_ptr<Impl> m_pimpl;
 };
 

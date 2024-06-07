@@ -125,6 +125,7 @@ enum class Type {
     RoPE,
     CausalMaskPreprocess,
     LLMMLP,
+    QKVProjection,
 };
 
 enum class Algorithm {
