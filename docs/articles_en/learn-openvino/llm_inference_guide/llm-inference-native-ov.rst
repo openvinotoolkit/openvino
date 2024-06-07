@@ -5,8 +5,8 @@ Inference with Native OpenVINO
 
 To run Generative AI models using native OpenVINO APIs you need to follow regular **Convert -> Optimize -> Deploy** path with a few simplifications.
 
-To convert model from Hugging Face you can use Optimum-Intel export feature that allows to export model in OpenVINO format without invoking conversion API and tools directly, as it is shown above.
-In this case, the conversion process is a bit more simplified. You can still use a regular conversion path if model comes from outside of Hugging Face ecosystem, i.e., in source framework format (PyTorch, etc.)
+To convert a model from Hugging Face, you can use Optimum-Intel export feature that allows you to export model in the OpenVINO format without invoking conversion API and tools directly.
+In this case, the conversion process is a bit more simplified. You can still use a regular conversion path if the model comes from outside of Hugging Face ecosystem, i.e., in source framework format (PyTorch, etc.)
 
 Model optimization can be performed within Hugging Face or directly using NNCF as described in :doc:`Weight Compression <../../openvino-workflow/model-optimization-guide/weight-compression>`.
 
@@ -17,7 +17,7 @@ Model optimization can be performed within Hugging Face or directly using NNCF a
 Inference code that uses native API cannot benefit from Hugging Face pipelines. You need to write your custom code or take it from the available examples. Below are some examples of popular Generative AI scenarios:
 
 * In case of LLMs for text generation, you need to handle tokenization, inference and token selection loop, and de-tokenization. If token selection involves beam search, it also needs to be written.
-* For image generation models, you need to make a pipeline that includes several model inferences: inference for source (e.g., text) encoder models, inference loop for diffusion process and inference for decoding part. Scheduler code is also required.
+* For image generation models, you need to make a pipeline that includes several model inferences: inference for source (e.g., text) encoder models, inference loop for diffusion process and inference for the decoding part. Scheduler code is also required.
 
 To write such pipelines, you can follow the examples provided as part of OpenVINO:
 
@@ -47,7 +47,7 @@ Linux operating system (as of the current version).
 
       python -m venv openvino_llm
 
-      ``openvino_llm`` is an example name; you can choose any name for your environment.
+   ``openvino_llm`` is an example name; you can choose any name for your environment.
 
 2. Activate the virtual environment
 
@@ -67,7 +67,7 @@ Convert Hugging Face tokenizer and model to OpenVINO IR format
 
 **Convert Tokenizer**
 
-`OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python#openvino-tokenizers>`__
+`OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 come equipped with a CLI tool that facilitates the conversion of tokenizers
 from either the Hugging Face Hub or those saved locally to the OpenVINO IR format:
 
@@ -176,7 +176,7 @@ Additional Resources
 
 * `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
-* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python#openvino-tokenizers>`__
+* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
 * :doc:`Stateful Models Low-Level Details <../../openvino-workflow/running-inference/stateful-models>`
 * :doc:`Working with Textual Data <../../openvino-workflow/running-inference/string-tensors>`

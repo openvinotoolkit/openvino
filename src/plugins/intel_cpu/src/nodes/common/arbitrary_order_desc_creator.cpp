@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "arbitrary_order_desc_creator.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {

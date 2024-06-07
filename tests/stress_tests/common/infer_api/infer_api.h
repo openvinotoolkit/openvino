@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,8 @@ public:
     virtual void load_network(const std::string &device) = 0;
 
     virtual void create_infer_request() = 0;
+
+    virtual void create_and_infer(const bool &aysnc) = 0;
 
     virtual void infer() = 0;
 
@@ -46,6 +48,8 @@ public:
     void load_network(const std::string &device) override;
 
     void create_infer_request() override;
+
+    void create_and_infer(const bool &aysnc) override;
 
     void prepare_input() override;
 

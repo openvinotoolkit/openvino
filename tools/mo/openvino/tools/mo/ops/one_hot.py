@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -74,7 +74,7 @@ class OneHot(Op):
                     hot_idx = *idx, indices[idx]
 
                 if -depth <= indices[idx] < depth:
-                    onehot_value[hot_idx] = on_value
+                    onehot_value[hot_idx] = on_value  # pylint: disable=possibly-used-before-assignment
 
             node.out_port(0).data.set_value(onehot_value)
 

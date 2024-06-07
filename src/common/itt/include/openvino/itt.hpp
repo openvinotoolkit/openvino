@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ namespace itt {
  * @brief A domain type which enables tagging trace data for different modules or libraries in a program.
  */
 typedef struct domain_ {
-} * domain_t;
+}* domain_t;
 
 /**
  * @typedef handle_t
@@ -35,7 +35,7 @@ typedef struct domain_ {
  * @brief Annotation handle for section of code which would be named at runtime.
  */
 typedef struct handle_ {
-} * handle_t;
+}* handle_t;
 
 /**
  * @cond

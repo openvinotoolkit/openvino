@@ -97,10 +97,7 @@ public:
     void generate() override;
 
 private:
-    const Xbyak_aarch64::XReg X_TMP_0 = x10;
-    const Xbyak_aarch64::XReg X_TMP_1 = x11;
-
-    XReg reg_post_op_ptrs = X_TMP_0;
+    XReg reg_post_op_ptrs = x10;
     XReg start_to_offsets = reg_post_op_ptrs;
 
     XReg reg_oc_off = x12;
@@ -121,15 +118,15 @@ private:
     // X5     | [not used]   | RSI | d_bias
     // X6     | [not used]   | RBP | d_weights
     // X7     | [not used]   | RSP | <stack pointer>
-    // X8     | [not used]   | R8  | src ptr
+    // X8     | temporary    | R8  | src ptr
     // X9     | work amount  | R9  | src ptr
     // X10    | ker temporary| R10 | src ptr
     // X11    | ker temporary| R11 | src ptr
     // X12    | ker temporary (abi_not_param1)   | R12 | src ptr
-    // X13    | [not used]   | R13 | src ptr
-    // X14    | [not used]   | R14 | src ptr
-    // X15    | dst          | R15 | temporary
-    // X16    | [not used: IP1]
+    // X13    | temporary    | R13 | src ptr
+    // X14    | temporary    | R14 | src ptr
+    // X15    | temporary    | R15 | temporary
+    // X16    | dst
     // X17    | [not used: IP0]
     // X18    | [not used: Apple: The platforms reserve register x18. Don't use this register.]
 
@@ -138,32 +135,39 @@ private:
     // X20    | src ptr
     // X21    | src ptr
     // X22    | src ptr
-    // X23    | src ptr
-    // X24    | src ptr
+    // X23    | kernel used (oneDNN: X_TMP_0)
+    // X24    | kernel used (oneDNN: X_TMP_1)
     // X25    | src ptr
-    // X26    | temporary
-    // X27    | temporary
-    // X28    | kernel used (X_DEFAULT_ADDR)
+    // X26    | src ptr
+    // X27    | src ptr
+    // X28    | kernel used (oneDNN: X_DEFAULT_ADDR)
 
     // X29    | [not used: The Frame Pointer (FP)]
     // X30    | [not used: The Link Register (LR)]
     // X31    | [not used: The Stack Pointer (SP)]
 
     const XReg reg_work_amount = x9;
-    const XReg reg_dst = x15;
+    const XReg reg_dst = x16;
 
     inline XReg get_src_reg(uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector ptr register " + std::to_string(idx) + " is not supported");
         }
-        return XReg(19 + idx);
+
+        static const std::vector<uint32_t> src_gprs = { 19, 20, 21, 22, 25, 26, 27 };
+        return XReg(src_gprs[idx]);
     }
 
     inline XReg get_aux_gpr(const uint32_t idx) {
-        if (idx > 2) {
+        if (idx > 3) {
             OPENVINO_THROW("aux gpr register " + std::to_string(idx) + " is not supported");
         }
-        return XReg(26 + idx);
+
+        if (idx == 0) {
+            return XReg(8);
+        }
+
+        return XReg(13 + idx - 1);
     }
 
     // Vector registers mapping
@@ -173,15 +177,20 @@ private:
     // 09      | dst
     // 10      | aux
     // 11      | aux
-    // 12-15   | [not used]
-    // 16      | src
-    // 17      | src
-    // 18      | src
+    // 12      | aux
+    // 13      | aux
+    // 14      | aux
+    // 15      | aux
+    // 16      | aux
+    // 17      | aux
+    // 18      | aux
     // 19      | src
     // 20      | src
     // 21      | src
     // 22      | src
-    // 23-31   | [not used]
+    // 23      | src
+    // 24      | src
+    // 25-31   | [not used]
 
 
     TReg vmm_dst {9};
@@ -190,18 +199,18 @@ private:
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector register " + std::to_string(idx) + " is not supported");
         }
-        return TReg(16 + idx);
+        return TReg(19 + idx);
     }
 
     inline SReg get_scl_reg(const uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source scalar register " + std::to_string(idx) + " is not supported");
         }
-        return SReg(16 + idx);
+        return SReg(19 + idx);
     }
 
     inline TReg get_aux_vmm(const uint32_t idx) {
-        if (idx > 2) {
+        if (idx > 8) {
             OPENVINO_THROW("aux vector register " + std::to_string(idx) + " is not supported");
         }
         return TReg(10 + idx);

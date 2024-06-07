@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ public:
     const PadType& get_auto_pad() const {
         return m_padding;
     }
-    void set_auto_pad(PadType& padding) {
+    void set_auto_pad(const PadType& padding) {
         m_padding = padding;
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,7 @@ protected:
     node_modifiers_t m_node_modifiers = nullptr;
     bool m_dot_only;
     static constexpr int max_jump_distance = 20;
+    std::unordered_map<std::shared_ptr<ov::Symbol>, size_t> m_symbol_to_name;
 };
 }  // namespace pass
 }  // namespace ov

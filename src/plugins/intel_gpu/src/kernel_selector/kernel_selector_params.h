@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -409,7 +409,7 @@ struct Params {
     }
 
 protected:
-    Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false) {}
+    Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false), stage_id(0) {}
     KernelType kType;
 
 public:
@@ -441,6 +441,7 @@ struct base_activation_params {
                                                                                        m(m),
                                                                                        n(n) {}
 
+    virtual ~base_activation_params() = default;
     virtual std::string to_string() const;
 };
 

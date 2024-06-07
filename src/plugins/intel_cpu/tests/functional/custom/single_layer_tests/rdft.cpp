@@ -146,6 +146,10 @@ protected:
             }
         }
         function = std::make_shared<Model>(rdft, inputs);
+
+        if (precision == ov::element::f32) {
+           abs_threshold = 1e-4;
+        }
     }
 
     void generate_inputs(const std::vector<Shape>& targetInputStaticShapes) override {

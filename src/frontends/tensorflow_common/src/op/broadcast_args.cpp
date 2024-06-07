@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_broadcast_args_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"BroadcastArgs"});
+    default_op_checks(node, 2, {"BroadcastArgs", "BROADCAST_ARGS"});
     auto s0 = node.get_input(0);
     auto s1 = node.get_input(1);
 

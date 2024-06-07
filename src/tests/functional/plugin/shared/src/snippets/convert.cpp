@@ -53,6 +53,7 @@ parameters Convert::generate_params_random() const {
         case ov::element::f32:
         case ov::element::i32:
         case ov::element::bf16:
+        case ov::element::f16:
             startFrom = -10;
             range = 20;
             break;
@@ -101,6 +102,10 @@ void ConvertInput::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+
+    if (types.first[0] == ov::element::f32 && types.second[0] == ov::element::bf16) {
+        abs_threshold = 3e-2;
+    }
 }
 
 parameters ConvertInput::generate_params_random() const {
@@ -111,6 +116,7 @@ parameters ConvertInput::generate_params_random() const {
         switch (funcInputs[i].get_element_type()) {
             case ov::element::f32:
             case ov::element::bf16:
+            case ov::element::f16:
                 startFrom = -10;
                 range = 20;
                 resolution = 7;
@@ -144,6 +150,10 @@ void ConvertOutput::SetUp() {
     output_type = types.second.front();
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+
+    if (types.first[0] == ov::element::bf16 && types.second[0] == ov::element::f32) {
+        abs_threshold = 4e-2;
     }
 }
 

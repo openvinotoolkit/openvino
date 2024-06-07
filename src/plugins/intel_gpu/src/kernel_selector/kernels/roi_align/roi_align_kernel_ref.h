@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -16,6 +16,8 @@ struct roi_align_params : public base_params {
     float spatial_scale = 1.f;
     PoolType pooling_mode = PoolType::MAX;
     roi_aligned_mode aligned_mode = roi_aligned_mode::ASYMMETRIC;
+    bool rotated_mode = false;
+    bool clockwise = false;
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();

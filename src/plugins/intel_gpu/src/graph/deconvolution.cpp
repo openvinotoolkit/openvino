@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -31,7 +31,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     }
 
     if (impl_param.has_fused_primitives()) {
-        data_type = impl_param.get_fused_output_layout().data_type;
+        data_type = impl_param.get_output_element_type();
     }
 
     auto pad = desc->pad;
@@ -117,7 +117,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     }
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     auto strides = desc->stride;

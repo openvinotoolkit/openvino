@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gtest/gtest.h>
@@ -152,6 +152,12 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
         auto state = memory_input->makeState();
         memory_input->assignState(state);
 
+        dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+        dnnl::stream strm(eng);
+
+        // run the node to process the state
+        memory_input->execute(strm);
+
         auto second_dummy = find_node_str(graph, "second_dummy");
         ASSERT_NE(second_dummy, nullptr);
 
@@ -183,6 +189,12 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
 
         auto state = memory_input->makeState();
         memory_input->assignState(state);
+
+        dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+        dnnl::stream strm(eng);
+
+        // run the node to process the state
+        memory_input->execute(strm);
 
         auto second_dummy = find_node_str(graph, "second_dummy");
         ASSERT_NE(second_dummy, nullptr);

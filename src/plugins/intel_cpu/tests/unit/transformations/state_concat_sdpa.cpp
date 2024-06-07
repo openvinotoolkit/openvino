@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,11 @@
 #include <transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/utils/gen_pattern.hpp>
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "utils/gen_pattern.hpp"
 #include "utils/print_model.hpp"
 
 using namespace testing;
@@ -68,7 +68,7 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
                 auto gather_ls = makeOP<opset8::Gather>({concat_shape, {2, 3}, 0}, {{"batch_dims", 0}});
                 auto expected_group_shape = makeOP<opset1::Concat>({beam_idx_shape, {inputShape[1] / 4}, {4}, gather_ls}, {{"axis", 0}});
                 auto expand_Abs = makeOP<opset1::Abs>({expected_group_shape});
-                auto axis_mapping = makeConst(element::u8, ov::Shape({}), 0);
+                auto axis_mapping = makeConst(element::u8, ov::Shape({}), {0});
                 auto expand_ones = makeOP<opset1::Broadcast>({{1.0f},
                     expand_Abs,
                     axis_mapping}, {{"mode", "numpy"}});

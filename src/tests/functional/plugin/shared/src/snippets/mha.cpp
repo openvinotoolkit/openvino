@@ -231,6 +231,7 @@ TEST_P(MHAQuantMatMul0, CompareWithRefImpl) {
 
 TEST_P(MHAFQAfterMatMul, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    abs_threshold = 4e-6;
     run();
     validateNumSubgraphs();
 }

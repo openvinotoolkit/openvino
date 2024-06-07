@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -76,6 +76,7 @@ class TestMinMax(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_reduce_min_max(self, axes, keep_dims, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axes, keep_dims,
                                       single_input=True), ie_device, precision, ir_version)
@@ -86,7 +87,10 @@ class TestMinMax(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_min_max(self, op_type, first_input_dtype, second_input_dtype, ie_device, precision, ir_version):
+        if ie_device == "GPU" and first_input_dtype == "uint8" and second_input_dtype == "uint8":
+            pytest.xfail(reason="Cumsum for i8 is unsupported on GPU")
         self._test(*self.create_model(op_type, None, None, single_input=False, dtypes=(first_input_dtype, second_input_dtype)),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
                    {"second_input": True, "input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype}
@@ -266,6 +270,7 @@ class TestMinimumMaximum(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_minimum_maximum(
         self, op_type, first_input_dtype, second_input_dtype, ie_device, precision, ir_version
         ):

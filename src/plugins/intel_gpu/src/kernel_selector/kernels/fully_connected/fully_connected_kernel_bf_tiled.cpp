@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,8 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputWeightsType(WeightsType::UINT4);
     k.EnableInputWeightsType(WeightsType::INT4);
+    k.EnableInputWeightsType(WeightsType::UINT8);
+    k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputLayout(DataLayout::bf);
@@ -178,12 +180,13 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         return false;
 
     if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
+        bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
         const auto required_batch_alignment = 64;
         if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < 256))
             return false;
 
         const auto required_tile_b = 8;
-        if (tparams.tile_b != required_tile_b)
+        if ((tparams.tile_b != required_tile_b) && !is_i4_u4)
             return false;
 
         const auto required_tile_ofm = 2;
@@ -244,10 +247,21 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
-            return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+            size_t ideal_num_threads = params.engineInfo.maxThreadsPerDevice * simd;
+            if (output_f / 2 < ideal_num_threads * 0.8 && params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
+                GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: Set ofm_tile 1. (output_f : " << output_f
+                                       << ", ideal threads : " << ideal_num_threads << ")" << std::endl;
+                return selector.Default(tune_params(1, 1, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+            } else {
+                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+            }
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
+                if (params.is_shape_agnostic) {
+                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                            .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                }
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
@@ -393,6 +407,11 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
+    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+        jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
+    else
+        jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
+
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
@@ -541,10 +560,16 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     tune_params tparams = GetAutoTuneParams(fc_params, KernelType::ANY, autoTuneIndex);
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (tparams.tile_ofm * simd == 32)
+    if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+        // ioyx => os_is_yx_osv32_isv2 is not supported yet
+        && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+        && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
+        weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
+    } else if (tparams.tile_ofm * simd == 32) {
         weights_layout = WeightsLayout::os_iyx_osv32;
-    else if (tparams.tile_ofm * simd == 64)
+    } else if (tparams.tile_ofm * simd == 64) {
         weights_layout = WeightsLayout::os_iyx_osv64;
+    }
 
     auto kernels_data = GetCommonKernelsData(params,
                                              fc_params.inputs[0].GetLayout(),
@@ -604,5 +629,4 @@ KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const 
 
     return res;
 }
-
 }  // namespace kernel_selector

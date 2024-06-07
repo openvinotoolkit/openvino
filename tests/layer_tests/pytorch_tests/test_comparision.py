@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -55,6 +55,7 @@ class TestComp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_comp(self, op, ie_device, precision, ir_version):
         self._test(*self.create_model(op), ie_device, precision, ir_version, use_convert_model=True)
 
@@ -127,6 +128,7 @@ class TestCompMixedTypes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_eq_mixed_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, op):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape

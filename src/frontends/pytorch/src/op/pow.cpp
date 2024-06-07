@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ OutputVector translate_pow(const NodeContext& context) {
     if (inplace) {
         rhs = std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs);
     } else {
-        align_eltwise_input_types(context, lhs, rhs, true);
+        std::tie(lhs, rhs) = get_inputs_with_promoted_types(context, 0, 1);
     }
     auto res = context.mark_node(std::make_shared<ov::op::v1::Power>(lhs, rhs));
     if (inplace) {

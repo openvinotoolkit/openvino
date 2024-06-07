@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -6,7 +6,7 @@
 #include "dimension_util.hpp"
 #include "fft_common_validation.hpp"
 #include "openvino/core/axis_vector.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/util/fft_base.hpp"
 #include "utils.hpp"
 
@@ -25,15 +25,15 @@ void apply_dims_from_sizes(const util::FFTBase* op,
     if (const auto output_bounds = get_input_bounds<TRShape, int64_t>(op, 2, ta)) {
         const auto minus_one_bound = std::make_pair(dim::inf_bound, dim::inf_bound);
         const auto num_of_axes = axes.size();
-        const auto labels =
-            op->get_input_size() > 2 ? op->get_input_source_output(2).get_tensor().get_value_label() : TensorLabel();
-        const bool propagate_labels = num_of_axes <= labels.size();
+        const auto symbols =
+            op->get_input_size() > 2 ? op->get_input_source_output(2).get_tensor().get_value_symbol() : TensorSymbol();
+        const bool propagate_symbols = num_of_axes <= symbols.size();
         for (size_t i = 0; i < num_of_axes; ++i) {
             if ((*output_bounds)[i] != minus_one_bound) {
                 auto& out_dim = output_shape[(axes)[i]];
                 out_dim = DimType((*output_bounds)[i].first, (*output_bounds)[i].second);
-                if (propagate_labels && labels[i] != ov::no_label) {
-                    DimensionTracker::set_label(out_dim, labels[i]);
+                if (propagate_symbols && symbols[i] != nullptr) {
+                    out_dim.set_symbol(symbols[i]);
                 }
             }
         }
@@ -76,7 +76,7 @@ std::vector<TRShape> shape_infer(const util::FFTBase* op,
 
     util::fft_common_validation::shape_validation(op,
                                                   input_shapes,
-                                                  axes.get(),
+                                                  axes,
                                                   util::fft_common_validation::FFTKind::ComplexInput);
 
     output_shape = input_shape;

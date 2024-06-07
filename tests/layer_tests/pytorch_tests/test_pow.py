@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -47,6 +47,7 @@ class TestPow(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_pow(self, inplace, ie_device, precision, ir_version, test_input):
         if inplace and PytorchLayerTest.use_torch_export():
             pytest.skip(reason="export fails for inplace")
@@ -109,11 +110,14 @@ class TestPowMixedTypes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_pow_mixed_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type
         self.rhs_shape = rhs_shape
+        if ie_device == "GPU" and rhs_type not in [torch.float32, torch.float64] and lhs_type not in [torch.float32, torch.float64]:
+            pytest.xfail(reason="pow is not supported on GPU for integer types")
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
                    ie_device, precision, ir_version)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -399,6 +399,60 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
  */
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
+enum class ModelDistributionPolicy {
+    TENSOR_PARALLEL = 0,    // Distribute tensor to multiple sockets/devices during model compilation. At inference
+                            // time, sockets/devices process individual tensor in parallel.
+    PIPELINE_PARALLEL = 1,  // Distribute tensor to multiple sockets/devices during model compilation. At inference
+                            // time, sockets/devices process individual tensor one by one. And each socket/device
+                            // processes a portion of a different tensor in parallel.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ModelDistributionPolicy& stream_mode) {
+    switch (stream_mode) {
+    case ModelDistributionPolicy::TENSOR_PARALLEL:
+        return os << "TENSOR_PARALLEL";
+    case ModelDistributionPolicy::PIPELINE_PARALLEL:
+        return os << "PIPELINE_PARALLEL";
+    default:
+        OPENVINO_THROW("Unsupported model distribution policy!");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& stream_mode) {
+    std::string str;
+    is >> str;
+    if (str == "TENSOR_PARALLEL") {
+        stream_mode = ModelDistributionPolicy::TENSOR_PARALLEL;
+    } else if (str == "PIPELINE_PARALLEL") {
+        stream_mode = ModelDistributionPolicy::PIPELINE_PARALLEL;
+    } else {
+        OPENVINO_THROW("Unsupported model distribution policy: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief This property defines model distribution policy for inference with multiple sockets/devices.
+ * @ingroup ov_runtime_cpp_prop_api
+ * This property can be used to select model distribution policy between execution units (e.g. between CPU sockets/NUMA
+ * nodes or between different GPUs).
+ * -- TENSOR_PARALLEL   : Distribute tensor to multiple sockets/devices during model compilation. At inference time,
+ *                        sockets/devices process individual tensor in parallel.
+ * -- PIPELINE_PARALLEL : Distribute tensor to multiple sockets/devices during model compilation. At inference time,
+ *                        sockets/devices process individual tensor one by one. And each socket/device processes a
+ *                        portion of a different tensor in parallel.
+ *
+ * The following code is an example how TENSOR_PARALLEL or PIPELINE_PARALLEL model distribution policy might be enabled.
+ *
+ * @code
+ * ie.set_property(ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL}));
+ * ie.set_property(ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL}));
+ * @endcode
+ */
+static constexpr Property<std::set<ModelDistributionPolicy>> model_distribution_policy{"MODEL_DISTRIBUTION_POLICY"};
+
 /**
  * @brief This property allows CPU pinning during inference.
  * @ingroup ov_runtime_cpp_prop_api
@@ -673,8 +727,9 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
 
 /**
  * @brief Read-write property to select the cache mode between optimize_size and optimize_speed.
+ * If optimize_speed is selected(default), loading time will decrease but the cache file size will increase.
  * If optimize_size is selected, smaller cache files will be created.
- * And if optimize_speed is selected, loading time will decrease but the cache file size will increase.
+ * This is only supported from GPU.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
@@ -992,6 +1047,51 @@ static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
+
+/**
+ * @brief Structure to store PCI bus information of device (Domain/Bus/Device/Function)
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct PCIInfo {
+    /**
+     * @brief PCI domain ID
+     */
+    uint32_t domain;
+    /**
+     * @brief PCI bus ID
+     */
+    uint32_t bus;
+    /**
+     * @brief PCI device ID
+     */
+    uint32_t device;
+    /**
+     * @brief PCI function ID
+     */
+    uint32_t function;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const PCIInfo& pci_info) {
+    return os << "{domain: " << pci_info.domain << " bus: " << pci_info.bus << " device: 0x" << std::hex
+              << pci_info.device << " function: " << std::dec << pci_info.function << "}";
+}
+
+inline std::istream& operator>>(std::istream& is, PCIInfo& pci_info) {
+    std::string delim;
+    if (!(is >> delim >> pci_info.domain >> delim >> pci_info.bus >> delim >> std::hex >> pci_info.device >> delim >>
+          std::dec >> pci_info.function)) {
+        OPENVINO_THROW("Could not deserialize PCIInfo. Invalid format!");
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only property to get PCI bus information of device. See PCIInfo struct definition for details
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<PCIInfo, PropertyMutability::RO> pci_info{"DEVICE_PCI_INFO"};
 
 /**
  * @brief Read-only property to get a float of device thermal

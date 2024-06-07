@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/resample.hpp"
+#include "intel_gpu/primitives/permute.hpp"
 #include <intel_gpu/primitives/data.hpp>
 
 #include "reorder_inst.h"
@@ -580,6 +581,55 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
     for (int i = 0; i < 16; i++)
     {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(reorder_gpu_f32, fusing_double_activations) {
+    // reorder_data                      reorder_data
+    //      |                                 |
+    //     sqrt                               |
+    //       |               fuse             |
+    //     power data        ---->            | data
+    //       \   /                            |  /
+    //       divide                         divide
+    //         |                              |
+    //       result                         result
+    //
+    // This test case is limited to the case of reorder_data using ReorderKernelRef.
+    // Because other kernels for reorder_data don't support fusing double activations e.g. reorder_data_fast_b1
+    //
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({{1}, data_types::f32, format::bfyx});
+    auto input2 = engine.allocate_memory({{1, 1, 1, 2, 2}, data_types::f32, format::bfzyx});
+
+    topology topology {
+        input_layout("input1", input1->get_layout()),
+        reorder("reorder", input_info("input1"), format::bfyx, data_types::f32),
+        activation("sqrt", input_info("reorder"), activation_func::sqrt),
+        activation("power", input_info("sqrt"), activation_func::pow),
+        input_layout("input2", input2->get_layout()),
+        eltwise("divide", {input_info("power"), input_info("input2")}, eltwise_mode::div),
+        reorder("result", input_info("divide"), format::bfyx, data_types::f32)
+    };
+
+    set_values(input1, {25000});
+    set_values(input2, {0.1f, 0.2f, 0.5f, 1.0f});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc reorder_impl = {format::bfyx, "reorder_data"};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reorder", reorder_impl}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto output = network.execute();
+
+    mem_lock<float> output_mem(output.at("result").get_memory(), network.get_stream());
+    std::vector<int32_t> output_ref = {10, 5, 2, 1};
+    for (size_t i = 0; i < output_mem.size(); ++i) {
+        ASSERT_EQ(output_mem[i], output_ref[i]);
     }
 }
 
@@ -3283,4 +3333,74 @@ TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input_cached) 
     execute(p, true);
 
     ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
+}
+
+TEST(reorder_gpu_fp32, test_needs_completion_events) {
+    // input1  input2
+    //    |      |
+    //    |      |
+    //    \     /
+    //      mul
+    //       |
+    //  permute(skippable)
+    //       |
+    //  reorder1(skippable)
+    //       |
+    //  reorder2(not skippable)
+    //
+
+    auto& engine = get_test_engine();
+
+    auto input_dynamic_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input_static_layout = layout{ { 2, 1, 2, 8 }, data_types::f32, format::bfyx };
+
+    auto input1 = engine.allocate_memory(input_static_layout);
+    auto input2 = engine.allocate_memory(input_static_layout);
+
+    std::vector<float> expected_results = {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f,
+        24.f, 24.f, 24.f, 24.f, 24.f, 24.f, 24.f, 24.f,
+        16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f,
+        42.f, 42.f, 42.f, 42.f, 42.f, 42.f, 42.f, 42.f
+    };
+
+    set_values(input1, expected_results);
+
+    set_values(input2, {
+        1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f
+    });
+
+    topology topology;
+    topology.add(input_layout("input1", input_dynamic_layout));
+    topology.add(input_layout("input2", input_dynamic_layout));
+    topology.add(eltwise("mul", { input_info("input1"), input_info("input2")}, eltwise_mode::prod));
+    topology.add(permute("permute", input_info("mul"), { 0, 1, 2, 3 }));
+    topology.add(reorder("reorder1", input_info("permute"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder2", input_info("reorder1"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    auto force_impl = ov::intel_gpu::ImplementationDesc{ format::bfyx, "", impl_types::cpu };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {primitive_id("reorder2"), force_impl} }));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("reorder2");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder2").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
 }

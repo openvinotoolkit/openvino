@@ -13,14 +13,14 @@
 #include "snippets/lowered/pass/normalize_buffer_ids.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-AllocateBuffers::AllocateBuffers(size_t& buffer_scratchpad_size, bool is_optimized)
-    : m_buffer_scratchpad_size(buffer_scratchpad_size), m_is_optimized_mode(is_optimized) {}
+AllocateBuffers::AllocateBuffers(bool is_optimized) : m_is_optimized_mode(is_optimized) {}
 
 void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
@@ -37,7 +37,7 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
         const auto& parent_expr = parent_output.get_expr();
         const auto port = parent_output.get_index();
         const auto& parent_node = parent_expr->get_node();
-        auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(parent_node);
+        auto memory_access = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent_node);
         if (memory_access && memory_access->is_memory_access_output_port(port)) {
             memory_access->set_output_offset(offset, port);
         } else {
@@ -46,12 +46,14 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
         }
     }
     // Propagate to down: in Load. Buffer can have several Load
-    const auto& buffer_out = buffer_expr->get_output_port_connector(0);
+    const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(buffer_expr);
+    const auto& target_expr = shape_infer_seq.empty() ? buffer_expr : shape_infer_seq.back();
+    const auto& buffer_out = target_expr->get_output_port_connector(0);
     for (const auto& child_expr_input : buffer_out->get_consumers()) {
         const auto& child_expr = child_expr_input.get_expr();
         const auto port = child_expr_input.get_index();
         const auto& child_node = child_expr->get_node();
-        auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(child_node);
+        auto memory_access = std::dynamic_pointer_cast<modifier::MemoryAccess>(child_node);
         if (memory_access && memory_access->is_memory_access_input_port(port)) {
             memory_access->set_input_offset(offset, port);
         } else if (ov::is_type<op::LoopEnd>(child_node)) {
@@ -59,14 +61,14 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
             continue;
         } else {
             OPENVINO_THROW(
-                    "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
+                "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
         }
     }
 }
 
 bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
-    m_buffer_scratchpad_size = 0;
+    size_t buffer_scratchpad_size = 0;
 
     if (m_is_optimized_mode) {
         BufferClusters buffer_clusters;
@@ -74,14 +76,16 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
         pipeline.register_pass<EnumerateExpressions>();
         pipeline.register_pass<IdentifyBuffers>();
         pipeline.register_pass<DefineBufferClusters>(buffer_clusters);
-        pipeline.register_pass<SolveBufferMemory>(m_buffer_scratchpad_size, buffer_clusters);
+        pipeline.register_pass<SolveBufferMemory>(buffer_scratchpad_size, buffer_clusters);
         pipeline.register_pass<NormalizeBufferIDs>();
         pipeline.run(linear_ir);
     } else {
-        InitBuffersDefault(m_buffer_scratchpad_size).run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
+        InitBuffersDefault(buffer_scratchpad_size).run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
     }
 
-    return m_buffer_scratchpad_size > 0;
+    linear_ir.set_buffer_scratchpad_size(buffer_scratchpad_size);
+
+    return buffer_scratchpad_size > 0;
 }
 
 } // namespace pass

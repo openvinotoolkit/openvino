@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,8 +55,8 @@ void SpaceToBatch::validate_and_infer_types() {
                           "pads_end must be an integral number but got (",
                           pads_end_type,
                           ").");
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
-    set_output_type(0, data_type, output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, data_type, output_shapes[0]);
 }
 
 std::shared_ptr<Node> SpaceToBatch::clone_with_new_inputs(const OutputVector& new_args) const {

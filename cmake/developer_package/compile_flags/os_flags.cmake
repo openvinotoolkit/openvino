@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,7 +20,7 @@ macro(ov_disable_deprecated_warnings)
         else()
             set(ov_c_cxx_deprecated "-diag-disable=1478,1786")
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
         set(ov_c_cxx_deprecated "-Wno-deprecated-declarations")
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -48,7 +48,7 @@ macro(ov_deprecated_no_errors)
         else()
             set(ov_c_cxx_deprecated_no_errors "-diag-warning=1478,1786")
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
         set(ov_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
         # Suppress #warning messages
         set(ov_c_cxx_deprecated_no_errors "${ov_c_cxx_deprecated_no_errors} -Wno-cpp")
@@ -68,11 +68,22 @@ endmacro()
 # Exports flags for 3rdparty modules, but without errors
 #
 macro(ov_dev_package_no_errors)
-    if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+    if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
         set(ov_c_cxx_dev_no_errors "-Wno-all")
         if(SUGGEST_OVERRIDE_SUPPORTED)
             set(ov_cxx_dev_no_errors "-Wno-error=suggest-override")
         endif()
+    endif()
+
+    if (CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            if(CMAKE_VERSION VERSION_LESS 3.24)
+                string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+                string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+            endif()
+            string(REPLACE "/WX" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        endif()
+        set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     endif()
 
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
@@ -89,7 +100,7 @@ endmacro()
 macro(ov_sse42_optimization_flags flags)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # No such option for MSVC 2019
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR OV_COMPILER_IS_INTEL_LLVM)
         if(WIN32)
             set(${flags} /QxSSE4.2)
         else()
@@ -119,7 +130,7 @@ macro(ov_avx2_optimization_flags flags)
         else()
             set(${flags} -xCORE-AVX2)
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
         set(${flags} -mavx2 -mfma -mf16c)
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -141,7 +152,7 @@ macro(ov_avx512_optimization_flags flags)
         else()
             set(${flags} -xCOMMON-AVX512)
         endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
         set(${flags} -mavx512f -mavx512bw -mavx512vl -mfma -mf16c)
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -189,7 +200,7 @@ function(ov_disable_all_warnings)
 
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             target_compile_options(${target} PRIVATE /WX-)
-        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
             target_compile_options(${target} PRIVATE -w)
             # required for LTO
             set(link_interface INTERFACE_LINK_OPTIONS)
@@ -228,7 +239,7 @@ endmacro()
 function(ov_force_include target scope header_file)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${target} ${scope} /FI"${header_file}")
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
         target_compile_options(${target} ${scope} -include "${header_file}")
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -244,7 +255,10 @@ function(ov_abi_free_target target)
     # To guarantee OpenVINO can be used with gcc versions 7 through 12.2
     # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
     # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
-    if(CMAKE_COMPILER_IS_GNUCXX AND NOT MINGW64)
+    # Since gcc 13.0 abi=18
+    # Version 18, which first appeard in G++ 13, fixes manglings of lambdas that have additional context.
+    # which means we became not compatible
+    if(CMAKE_COMPILER_IS_GNUCXX AND NOT MINGW64 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wabi=11>)
     endif()
 endfunction()
@@ -303,7 +317,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 if(CMAKE_CL_64)
     # Default char Type Is unsigned
     # ov_add_compiler_flags(/J)
-elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
     ov_add_compiler_flags(-fsigned-char)
 endif()
 
@@ -438,21 +452,11 @@ else()
     # To guarantee OpenVINO can be used with gcc versions 7 through 12
     # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
     # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "8")
-            # Enable __FILE__ trim only for release mode
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
-            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
-        endif()
-        # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wabi=11")
-    endif()
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10")
-            # Enable __FILE__ trim only for release mode
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
-            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
-        endif()
+    if((CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8) OR
+       (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10) OR OV_COMPILER_IS_INTEL_LLVM)
+        # Enable __FILE__ trim only for release mode
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
     endif()
 
     #
@@ -470,6 +474,10 @@ else()
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         # 177: function "XXX" was declared but never referenced
         ov_add_compiler_flags(-diag-disable=remark,177,2196)
+    endif()
+
+    if(OV_COMPILER_IS_INTEL_LLVM)
+        ov_add_compiler_flags(-Wno-tautological-constant-compare)
     endif()
 
     #
@@ -495,6 +503,11 @@ else()
             set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${exclude_libs}")
         endif()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+    endif()
+
+    if(OV_COMPILER_IS_INTEL_LLVM)
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-intel")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
     endif()
 endif()
 

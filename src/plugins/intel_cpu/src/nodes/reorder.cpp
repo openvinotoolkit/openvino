@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,11 +24,9 @@
 #include "nodes/common/reorder_prim.h"
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
-
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#include "utils/precision_support.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/transpose_list.hpp"
-#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -128,7 +126,6 @@ void Reorder::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
 void Reorder::prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc) {
     auto getOrderAndBlockedDims = [](const MemoryDesc& lhs, const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
         const auto& in = lhs.as<BlockedMemoryDesc>()->getBlockDims();
@@ -180,7 +177,6 @@ void Reorder::prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr 
     getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->implType());
     return;
 }
-#endif // OV_CPU_ARM_ENABLE_FP16
 
 void Reorder::prepareParams() {
     if (isOptimized)
@@ -211,7 +207,7 @@ void Reorder::prepareParams() {
     const auto&  parentDesc = srcMemPtr->getDescPtr();
     const auto&  childDesc = dstMemPtr->getDescPtr();
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // @todo current oneDNN v3.2 lacks optimized jit implementation for fp16 reorders.
     // Use transpose executor as a temporary WA.
     if (everyone_is(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
@@ -405,7 +401,7 @@ void Reorder::optimizedNspc2Ncsp() {
 }
 
 void Reorder::execute(dnnl::stream strm) {
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (transposeExecutor) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
@@ -415,8 +411,8 @@ void Reorder::execute(dnnl::stream strm) {
 
     if (isOptimized) {
         DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized.",
-                   " input @", getParentEdgeAt(0)->getMemory().getData(),
-                   " output @", getChildEdgeAt(0)->getMemory().getData());
+                   " input @", getSrcDataAtPort(0),
+                   " output @", getDstDataAtPort(0));
         return;
     }
 

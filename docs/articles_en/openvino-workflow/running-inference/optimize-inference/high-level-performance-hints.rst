@@ -21,9 +21,9 @@ The hints, in contrast, respect the actual model, so the parameters for optimal 
 Performance Hints: Latency and Throughput
 #########################################
 
-As discussed in the :doc:`Optimization Guide <../optimize-inference>` there are a few different metrics associated with inference speed. Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
+As discussed in the :doc:`Optimization Guide <../optimize-inference>` there are a few different metrics associated with inference speed. Latency and throughput are some of the most widely used metrics that measure the overall performance of an application.
 
-Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely ``ov::hint::PerformanceMode::THROUGHPUT`` and ``ov::hint::PerformanceMode::LATENCY``.
+Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely ``ov::hint::PerformanceMode::LATENCY`` **(default)** and ``ov::hint::PerformanceMode::THROUGHPUT``.
 
 For more information on conducting performance measurements with the ``benchmark_app``, refer to the last section in this document.
 
@@ -62,14 +62,14 @@ In the example code snippet below, ``ov::hint::PerformanceMode::THROUGHPUT`` is 
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.py
          :language: python
          :fragment: [compile_model]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [compile_model]
 
@@ -85,14 +85,14 @@ As mentioned earlier, this will limit the batch size for the GPU and the number 
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.py
          :language: python
          :fragment: [hint_num_requests]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [hint_num_requests]
 
@@ -107,14 +107,14 @@ The hints are used on the presumption that the application queries ``ov::optimal
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.py
          :language: python
          :fragment: [query_optimal_num_requests]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [query_optimal_num_requests]
 
@@ -148,14 +148,14 @@ For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general 
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.py
          :language: python
          :fragment: [hint_plus_low_level]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.cpp
          :language: cpp
          :fragment: [hint_plus_low_level]
 

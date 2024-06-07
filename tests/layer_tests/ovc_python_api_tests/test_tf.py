@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
 import tempfile
@@ -14,7 +14,7 @@ from openvino.runtime import PartialShape, Model, Dimension
 from common import constants
 from common.layer_test_class import CommonLayerTest
 from common.mo_convert_test_class import CommonMOConvertTest
-from common.tf_layer_test_class import save_to_pb
+from common.utils.tf_utils import save_to_pb
 
 
 def create_tf_graph_def(tmp_dir):

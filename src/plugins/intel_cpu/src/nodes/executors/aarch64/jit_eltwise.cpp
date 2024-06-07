@@ -18,12 +18,31 @@ bool JitEltwiseExecutor::isSupported(
     const float beta,
     const float gamma) {
     const auto is_supported = one_of(algorithm,
+                                     Algorithm::EltwiseAbs,
                                      Algorithm::EltwiseAdd,
+                                     Algorithm::EltwiseClamp,
+                                     Algorithm::EltwiseDivide,
+                                     Algorithm::EltwiseElu,
+                                     Algorithm::EltwiseEqual,
+                                     Algorithm::EltwiseExp,
+                                     Algorithm::EltwiseFloor,
+                                     Algorithm::EltwiseGeluErf,
+                                     Algorithm::EltwiseGeluTanh,
+                                     Algorithm::EltwiseHswish,
+                                     Algorithm::EltwiseMaximum,
+                                     Algorithm::EltwiseMinimum,
+                                     Algorithm::EltwiseMish,
+                                     Algorithm::EltwiseMod,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
                                      Algorithm::EltwisePowerStatic,
+                                     Algorithm::EltwisePrelu,
                                      Algorithm::EltwiseRelu,
-                                     Algorithm::EltwiseSubtract);
+                                     Algorithm::EltwiseSelect,
+                                     Algorithm::EltwiseSigmoid,
+                                     Algorithm::EltwiseSubtract,
+                                     Algorithm::EltwiseSwish,
+                                     Algorithm::EltwiseTanh);
     if (!is_supported) {
         return false;
     }
@@ -55,11 +74,17 @@ bool JitEltwiseExecutor::isSupported(
         return true;
     };
 
-    static const std::set<ov::element::Type> supported_precisions = {
-        ov::element::f16,
-        ov::element::f32,
-        ov::element::i32
-    };
+    const std::set<ov::element::Type> supported_precisions =
+        // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
+        ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor)) ?
+            std::set<ov::element::Type> { ov::element::f16, ov::element::f32 } :
+            std::set<ov::element::Type> {
+                ov::element::f16,
+                ov::element::f32,
+                ov::element::i32,
+                ov::element::i8,
+                ov::element::u8
+            };
 
     if (!check_precisions(input_precisions, output_precisions, supported_precisions)) {
         return false;

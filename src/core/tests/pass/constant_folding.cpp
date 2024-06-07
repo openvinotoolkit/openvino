@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
-#include "openvino/op/acosh.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/loop.hpp"
-#include "openvino/op/multiply.hpp"
+#include "openvino/op/ops.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
@@ -4026,6 +4021,24 @@ TEST_P(UnsupportedTypesTest, type_relaxed) {
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 3);
     EXPECT_EQ(count_ops_of_type<op::v3::Broadcast>(m), 0);
     EXPECT_EQ(count_ops_of_type<op::v0::Concat>(m), 1);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+TEST_P(UnsupportedTypesTest, random_uniform) {
+    // Make sure that ConstantFolding with RandomUniform doesn't throw
+    const auto& type = GetParam();
+    auto shape = op::v0::Constant::create(element::i32, Shape{2}, {2, 3});
+    auto min_val = op::v0::Constant::create(type, Shape{}, {-1});
+    auto max_val = op::v0::Constant::create(type, Shape{}, {3});
+    auto random = std::make_shared<op::v8::RandomUniform>(shape, min_val, max_val, type);
+    auto m = make_shared<Model>(random, ParameterVector{});
+
+    EXPECT_NO_THROW(run_constant_folding(m));
+
+    EXPECT_EQ(m->get_ops().size(), 5);
+    // RandomUniform is not constantfolded
+    EXPECT_EQ(count_ops_of_type<op::v8::RandomUniform>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 3);
     ASSERT_EQ(m->get_results().size(), 1);
 }
 

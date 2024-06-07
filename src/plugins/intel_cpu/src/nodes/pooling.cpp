@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -248,8 +248,8 @@ void Pooling::initEffectiveAttributes(const Shape &inShape, const Shape &outShap
         int src = inDims[2 + i];
         int dst = outDims[2 + i];
 
-        int calc_dst = (src - (1 + (krn  - 1) * dil) + poolingAttrs.data_pad_begin[i]) / poolingAttrs.stride[i] + 1;
-        poolingAttrs.effective_pad_end[i] = (dst - calc_dst) * poolingAttrs.stride[i];
+        poolingAttrs.effective_pad_end[i] = (dst - 1) * poolingAttrs.stride[i] -
+                                            (src - (1 + (krn  - 1) * dil) + poolingAttrs.data_pad_begin[i]);
         poolingAttrs.effective_dilation[i] = dil - 1;
     }
 }
@@ -483,10 +483,8 @@ void Pooling::prepareParams() {
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
 #ifdef CPU_DEBUG_CAPS
-        if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            auto pd = dnnlExecPtr->getPrimitiveDesc();
-            DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-        }
+        auto pd = dnnlExecPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
     }
 }
@@ -623,6 +621,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         };
 
         pushDesc(LayoutType::ncsp);
+        pushDesc(LayoutType::nspc);
 
         return;
     }

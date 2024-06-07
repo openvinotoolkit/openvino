@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
@@ -52,7 +53,7 @@ private:
     ov::AnyMap m_attributes_map;
 };
 
-bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs) {
+bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
     if (lhs->get_input_size() != rhs->get_input_size())
         return false;
     size_t input_size = lhs->get_input_size();
@@ -74,7 +75,7 @@ bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs
     return true;
 }
 
-bool nodes_are_equal(Node* lhs, Node* rhs) {
+bool nodes_are_equal(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
     // making sure that nodes are of the same type
     if (lhs->get_type_info() != rhs->get_type_info())
         return false;
@@ -109,16 +110,16 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
         if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
-                    rewritten |= shared_node_optimization(sub_graph);
+                    rewritten = shared_node_optimization(sub_graph) || rewritten;
             }
         }
         for (auto& output : op->outputs()) {
             const auto& target_inputs = output.get_target_inputs();
             if (target_inputs.size() <= 1)
                 continue;  // nothing to optimize
-            unordered_map<Node::type_info_t, vector<Node*>> type_to_node;
+            unordered_map<Node::type_info_t, vector<std::shared_ptr<Node>>> type_to_node;
             for (const auto& input : target_inputs)
-                if (auto node = input.get_node())
+                if (auto node = input.get_node()->shared_from_this())
                     type_to_node[node->get_type_info()].push_back(node);
             for (auto& item : type_to_node) {
                 auto& shared_nodes = item.second;
@@ -135,8 +136,15 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                         if (visited_nodes[j])
                             continue;
                         const auto& child_op = shared_nodes[j];
+
+                        // no functionality is implemented to compare bodies of MultiSubGraphOp operations
+                        if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(root_op)) {
+                            continue;
+                        }
+
                         if (nodes_are_equal(root_op, child_op)) {
-                            rewritten |= replace_output_update_name(child_op->output(0), root_op->output(0));
+                            rewritten =
+                                replace_output_update_name(child_op->output(0), root_op->output(0)) || rewritten;
                             visited_nodes[j] = true;
                         }
                     }
@@ -154,7 +162,7 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
         if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
-                    rewritten |= shape_of_upgrade(sub_graph);
+                    rewritten = shape_of_upgrade(sub_graph) || rewritten;
             }
         } else if (auto v1_shape_of = ov::as_type_ptr<v0::ShapeOf>(op)) {
             auto v3_shape_of = std::make_shared<v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
@@ -171,6 +179,6 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedOpOptimization);
 
     bool rewritten = shape_of_upgrade(model);
-    rewritten |= shared_node_optimization(model);
+    rewritten = shared_node_optimization(model) || rewritten;
     return rewritten;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,18 +32,21 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
+#include "utils/precision_support.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
-#if defined(OV_CPU_ARM_ENABLE_FP16)
 #include "common/primitive_desc_iface.hpp"
-#endif
 
 #include "openvino/runtime/memory_solver.hpp"
+
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/core/parallel.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
@@ -91,11 +94,15 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     this->graphNodes = graphNodes;
     this->graphEdges = graphEdges;
 
+    std::size_t parameter_index = 0;
+    std::size_t result_index = 0;
     for (auto node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
-            inputNodesMap[node->getName()] = node;
+            inputNodesMap[parameter_index] = node;
+            parameter_index++;
         } else if ("Result" == node->getTypeStr()) {
-            outputNodesMap[node->getName()] = node;
+            outputNodesMap[result_index] = node;
+            result_index++;
         }
     }
 
@@ -134,16 +141,24 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            const std::string name = get_port_name(ov::Output<ov::Node>(op, 0));
-            inputNodesMap[name] = node;
+            auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
+            OPENVINO_ASSERT(input_index >= 0,
+                            "CPU plugin cannot find op: ",
+                            op->get_friendly_name(),
+                            " in model parameter list!");
+            inputNodesMap[input_index] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            const std::string inputID = get_port_name(op->output(0));
-            outputNodesMap[inputID] = node;
+            auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
+            OPENVINO_ASSERT(output_index >= 0,
+                            "CPU plugin cannot find op: ",
+                            op->get_friendly_name(),
+                            " in model result list!");
+            outputNodesMap[output_index] = node;
         }
 
         op2node[op] = node;
@@ -215,6 +230,95 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     }
 }
 
+void Graph::GroupParallelNodes() {
+    std::map<std::string, std::vector<NodePtr>> pdomain_nodes;
+    for (size_t k = 0; k < graphNodes.size(); k++) {
+        auto& node = graphNodes[k];
+        auto& domain = node->getParallelDomain();
+        if (domain.empty())
+            continue;
+        if (pdomain_nodes.count(domain) == 0)
+            pdomain_nodes[domain] = {};
+        pdomain_nodes[domain].push_back(node);
+    }
+
+    // record valid paralell_nodes
+    for (auto& pn : pdomain_nodes) {
+        auto& node_ptrs = pn.second;
+        if (node_ptrs.size() > 1) {
+            // parallelWith includes pointer to itself
+            for (auto& pnode : node_ptrs) {
+                pnode->parallelWith = node_ptrs;
+            }
+        }
+    }
+}
+
+static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphNodes) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::IdentifySyncPoints");
+    std::vector<size_t> syncNodesInds;
+
+    for (size_t i = 0; i < graphNodes.size(); ++i) {
+        const auto& node = graphNodes[i];
+
+        if (!node->isDynamicNode())
+            continue;
+
+        if (node->outputShapeDataDependency() ||
+            // WA: for convolution plus sum(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
+            // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
+            // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
+            // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
+            // for this node sequentially.
+            (node->getType() == Type::Convolution && node->isInPlace()) ||
+            // Due to the special handling of the internal states and initialization subgraphs, MemoryInput nodes must
+            // be processed as a internal dynamism node, allowing to hide the aforementioned complexity inside the
+            // MemoryInput::executeDynamic implementation
+            (node->getType() == Type::MemoryInput)) {
+            syncNodesInds.push_back(i);
+        }
+    }
+
+    return syncNodesInds;
+}
+
+static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNodesAndSyncPoints(const std::vector<size_t>& syncNodesInds,
+                                                                                                 const std::vector<NodePtr>& graphNodes) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodesAndSyncPoints");
+    std::unordered_map<size_t, size_t> graphIdToExecutableId;
+    std::vector<NodePtr> executableGraphNodes;
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        const auto& graphNode = graphNodes[i];
+        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || graphNode->isDynamicNode()) {
+            /* @todo
+             * Revise implementation.
+             * With current way it is possible that with debug_caps enabled
+             * we execute a node, which is not ready to be executed
+             */
+            graphIdToExecutableId[i] = executableGraphNodes.size();
+            executableGraphNodes.emplace_back(graphNode);
+        }
+    }
+
+    // use set to ensure sorted unique sync entries
+    std::set<size_t> uniqueExecutableSyncNodesInds;
+    for (const auto& syncNodesInd : syncNodesInds) {
+        auto it = graphIdToExecutableId.find(syncNodesInd);
+        if (it != graphIdToExecutableId.end()) {
+            uniqueExecutableSyncNodesInds.insert(it->second);
+            // since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
+            // let's add another sync index after the sync point node
+            uniqueExecutableSyncNodesInds.insert(it->second + 1);
+        }
+    }
+    uniqueExecutableSyncNodesInds.insert(executableGraphNodes.size());
+    // convert to a vector to reduce runtime overhead
+    std::vector<size_t> executableSyncNodesInds(uniqueExecutableSyncNodesInds.begin(), uniqueExecutableSyncNodesInds.end());
+
+    return std::make_tuple(std::move(executableGraphNodes),
+                           std::move(executableSyncNodesInds));
+}
+
 void Graph::InitGraph(bool optimize) {
     DEBUG_LOG("Initializing graph with name: ",  GetName());
 
@@ -224,6 +328,7 @@ void Graph::InitGraph(bool optimize) {
     InitNodes();
 
     optimizer.ApplyCommonGraphOptimizations(*this);
+
     SortTopologically();
 
     InitDescriptors();
@@ -240,11 +345,15 @@ void Graph::InitGraph(bool optimize) {
     ResolveComplexInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
+
+    GroupParallelNodes();
+
     SortTopologically();
 
-    const auto hasDynNodes = ProcessDynNodes();
+    const bool hasDynNodes = ProcessDynNodes();
+    const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
 
-    Allocate();
+    Allocate(syncNodesInds);
 
     CreatePrimitivesAndExecConstants();
 
@@ -254,8 +363,7 @@ void Graph::InitGraph(bool optimize) {
     }
 #endif
 
-    ExtractExecutableNodes();
-    SearchInternalStateNodes();
+    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 
@@ -317,7 +425,6 @@ void Graph::ResolveInplaceDirections() {
     }
 }
 
-
 void Graph::InitOptimalPrimitiveDescriptors() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::InitOptimalPrimitiveDescriptors");
     for (auto &node : graphNodes) {
@@ -326,24 +433,6 @@ void Graph::InitOptimalPrimitiveDescriptors() {
         node->initOptimalPrimitiveDescriptor();
         DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n",
                   *node->getSelectedPrimitiveDescriptor(), "selectedPrimitiveDescriptorIdx = ", node->selectedPrimitiveDescriptorIndex);
-    }
-}
-
-void Graph::ExtractExecutableNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodes");
-    for (const auto& graphNode : graphNodes) {
-        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || graphNode->isDynamicNode()) {
-            /* @todo
-             * Revise implementation.
-             * With current way it is possible that with debug_caps enabled
-             * we execute a node, which is not ready to be executed
-             */
-            auto itr = syncNodesInds.find(graphNode.get());
-            if (itr != syncNodesInds.end()) {
-                itr->second = executableGraphNodes.size();
-            }
-            executableGraphNodes.emplace_back(graphNode);
-        }
     }
 }
 
@@ -413,10 +502,12 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     dnnl_primitive_desc_t result = nullptr;
     auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
                                                      attr.get());
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
     // pretend the reorder is not available to use Convert node instead
-    if (result && parse_impl_name(result->impl()->name()) == ref_any) {
+    if (hasHardwareSupport(ov::element::f16) &&
+        result &&
+        parse_impl_name(result->impl()->name()) == ref_any) {
         dnnl_primitive_desc_destroy(result);
         return false;
     }
@@ -598,7 +689,7 @@ static edge_clusters_t findEdgeClusters(const std::vector<EdgePtr> & graphEdges)
     return edge_clusters;
 }
 
-void Graph::AllocateWithReuse() {
+void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     edge_clusters_t edge_clusters = findEdgeClusters(graphEdges);
 
     size_t remaining_edge_clusters_count = edge_clusters.size();
@@ -778,7 +869,7 @@ void Graph::AllocateWithReuse() {
                         }
                     }
                     // sometimes there are unused output ports.
-                    OPENVINO_ASSERT(count <= 1, "cannot find output node. count ", count);
+                    OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
                 }
             }
         }
@@ -786,19 +877,14 @@ void Graph::AllocateWithReuse() {
         if (!syncNodesInds.empty()) {
             //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             //the intermediate computation results from possible loss due to the tensor resize
-            std::vector<int> vecIntervals = {0};
-            for (const auto& item : syncNodesInds) {
-                vecIntervals.push_back(item.first->execIndex);
-            }
-            std::sort(vecIntervals.begin(), vecIntervals.end());
             for (auto& box : undefinedBoxes) {
                 if (-1 == box.finish) {
                     continue;
                 }
-                auto itr_upper = std::upper_bound(vecIntervals.begin(), vecIntervals.end(), box.finish, [](int y, int x) { return y <= x;});
-                auto itr_lower = std::lower_bound(vecIntervals.begin(), vecIntervals.end(), box.start);
+                auto itr_upper = std::upper_bound(syncNodesInds.begin(), syncNodesInds.end(), box.finish, [](int y, int x) { return y <= x;});
+                auto itr_lower = std::lower_bound(syncNodesInds.begin(), syncNodesInds.end(), box.start);
                 if (itr_lower != itr_upper) { // across sections
-                    if (itr_upper == vecIntervals.end()) {
+                    if (itr_upper == syncNodesInds.end()) {
                         box.finish = -1;
                     } else {
                         box.finish = *itr_upper;
@@ -878,7 +964,7 @@ void Graph::AllocateWithReuse() {
     }
 }
 
-void Graph::Allocate() {
+void Graph::Allocate(const std::vector<size_t>& syncNodesInds) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::Allocate");
 
     //resolve inplace dead end nodes
@@ -902,7 +988,7 @@ void Graph::Allocate() {
     for (auto& edge : graphEdges) edge->init();
 
     // Allocate memory space for all edges marked with NeedAllocation
-    AllocateWithReuse();
+    AllocateWithReuse(syncNodesInds);
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
@@ -911,36 +997,23 @@ void Graph::Allocate() {
 bool Graph::ProcessDynNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ProcessDynNodes");
 
-    bool result = false;
-    for (size_t i = 0; i < graphNodes.size(); ++i) {
-        const auto& node = graphNodes[i];
-        if (node->isDynamicNode()) {
-            result = true;
-            if (node->outputShapeDataDependency() ||
-                // WA: for convolution plus sum(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
-                // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
-                // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
-                // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
-                // for this node sequentially.
-                (node->getType() == Type::Convolution && node->isInPlace())) {
-                syncNodesInds.insert({node.get(), i});
-            }
-        }
-    }
-
+    const bool containsDynamicNodes = std::any_of(graphNodes.begin(), graphNodes.end(), [](const NodePtr& node) {
+        return node->isDynamicNode();
+    });
     // In case of dynamic shapes, tensors may be resized due to the shapes variations.
     // If the input tensor is included to memory reuse, it means that its memory manager is shared with other tensors in the graph, which in turn may cause data
     // loss when one of the tensors down the graph requests mem resize, while the input data have not been yet read by the consumers. To avoid such situations
     // we disable io mem reuse for the case of dynamic shapes.
-    if (result) {
+    if (containsDynamicNodes) {
         this->reuse_io_tensors = false;
     }
-    return result;
+
+    return containsDynamicNodes;
 }
 
-void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input) {
+void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
-    auto input_itr = inputNodesMap.find(name);
+    auto input_itr = inputNodesMap.find(index);
     if (input_itr != inputNodesMap.end()) {
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
@@ -965,31 +1038,30 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
             }
         }
     } else {
-        OPENVINO_THROW("Input blob for infer '", name, "' doesn't correspond to input in network");
+        OPENVINO_THROW("Input tensor with index '", index, "' is not available in the model");
     }
 }
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
-void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output) {
+void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output) {
     if (!IsReady())
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
     for (auto &outputMap : outputNodesMap) {
-        auto name = outputMap.first;
+        auto output_index = outputMap.first;
         auto node = outputMap.second;
         auto parentEdge = node->getParentEdgeAt(0);
         const auto& intr_blob = parentEdge->getMemory();
 
-        const auto ext_blob_map = output.find(name);
+        const auto ext_blob_map = output.find(output_index);
+        OPENVINO_ASSERT(ext_blob_map != output.end(),
+                        "The CPU plugin graph doesn't contain output node with output_index: ",
+                        output_index);
         const auto ext_blob = ext_blob_map->second;
-        if (ext_blob_map == output.end()) {
-            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name.c_str());
-        }
-
         auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
 
-        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
+        DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()));
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
@@ -1005,12 +1077,12 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         if (ext_blob->get_shape() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
-            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
-            " dims ", PartialShape(output[name]->get_shape()), " -> ", PartialShape(outDims),
+            DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()),
+            " dims ", PartialShape(output[output_index]->get_shape()), " -> ", PartialShape(outDims),
             ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             ext_blob->set_shape(outDims);
-            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
-            " dims ", PartialShape(output[name]->get_shape()), ", intr ptr ", intr_blob.getData());
+            DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()),
+            " dims ", PartialShape(output[output_index]->get_shape()), ", intr ptr ", intr_blob.getData());
             expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         }
 
@@ -1030,7 +1102,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
 
         void *ext_blob_ptr = ext_blob->data();
         void *intr_blob_ptr = intr_blob.getData();
-        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
+        DEBUG_LOG(output_index, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
@@ -1042,7 +1114,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
-            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor ", name, " is different from the external one");
+            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor index", output_index, " is different from the external one");
             size_t size_to_copy = intr_blob.getSize();
             cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
@@ -1052,7 +1124,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
 void Graph::InferStatic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-    for (const auto& node : executableGraphNodes) {
+    for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
 
@@ -1271,47 +1343,114 @@ public:
 void Graph::InferDynamic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-    std::set<size_t> syncIndsWorkSet;
-    for (const auto& nodeIndx : syncNodesInds) {
-        syncIndsWorkSet.insert(nodeIndx.second);
-        //since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
-        //let's add another sync index after the sync point node
-        syncIndsWorkSet.insert(nodeIndx.second + 1);
-    }
-    syncIndsWorkSet.insert(executableGraphNodes.size());
-
     std::unique_ptr<IUpdateNodes> updateNodes{};
     if (parallel_get_max_threads() > 1) {
-        updateNodes.reset(new UpdateNodes(executableGraphNodes));
+        updateNodes.reset(new UpdateNodes(m_executableGraphNodes));
     } else {
-        updateNodes.reset(new UpdateNodesSeq(executableGraphNodes));
+        updateNodes.reset(new UpdateNodesSeq(m_executableGraphNodes));
     }
-    size_t inferCounter = 0;
 
-    for (auto stopIndx : syncIndsWorkSet) {
+    size_t inferCounter = 0;
+    for (auto stopIndx : m_executableSyncNodesInds) {
         updateNodes->run(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
-            auto& node = executableGraphNodes[inferCounter];
+            auto& node = m_executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
 
             if (request)
                 request->throw_if_canceled();
-            ExecuteNode(node, stream);
+            try {
+                ExecuteNode(node, stream);
+            } catch (const std::exception& exp) {
+                OPENVINO_THROW(node, exp.what());
+            }
         }
     }
 }
 
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, getConfig().debugCaps, infer_count);
+    if (!node->parallelWith.empty()) {
+        // run nodes in parallel
+        auto& parallelNodes = node->parallelWith;
+        if (node == parallelNodes[0]) {
+            if (const auto& cpuExecutor = context->getCPUStreamExecutor()) {
+                auto num_parallel_nodes = parallelNodes.size();
+                ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
+                    auto& n = parallelNodes[i];
 
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-    DEBUG_LOG(*node);
-    if (node->isDynamicNode()) {
-        node->executeDynamic(stream);
+                    if (n->isDynamicNode()) {
+                        n->executeDynamic(stream, subStreamID);
+                    } else {
+                        n->executeStatic(stream, subStreamID);
+                    }
+                });
+            } else {
+                // fallback to serialize executor
+                for (auto& node : parallelNodes) {
+                    if (node->isDynamicNode()) {
+                        node->executeDynamic(stream);
+                    } else {
+                        node->executeStatic(stream);
+                    }
+                }
+            }
+        }
     } else {
-        node->execute(stream);
+        DUMP(node, getConfig().debugCaps, infer_count);
+        OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
+        DEBUG_LOG(*node);
+        // TODO: 132954 workaround for latency
+        int subStreamID = -1;
+#if defined(__x86_64__) && defined(__linux__)
+        if ((getGraphContext()->getCPUStreamExecutor()) && (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
+            subStreamID = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
+        }
+#endif
+        if (node->isDynamicNode()) {
+            node->executeDynamic(stream, subStreamID);
+        } else {
+            node->executeStatic(stream, subStreamID);
+        }
     }
+}
+
+void Graph::ParalleMtNuma(size_t num_nodes,
+                          ov::threading::CPUStreamsExecutor::Ptr executor,
+                          const std::function<void(size_t, size_t)>& func) const {
+    OPENVINO_ASSERT(num_nodes > 1, "Parallel Nodes must be more than 1. But now got ",
+                                   num_nodes,
+                                   " Nodes, which shouldn't invoke multi nodes parallel.");
+    std::atomic<int> nodes_remain(num_nodes);
+    int cur_numa_id = executor->get_numa_node_id();
+    // enqueue (nsockets-1) sub stream tasks
+    int sub_stream_id = 0;
+    for (size_t socket_id = 0; socket_id < num_nodes; socket_id++) {
+        if (socket_id != static_cast<size_t>(cur_numa_id)) {
+            size_t i0{0}, i1{0};
+            splitter(num_nodes, num_nodes, socket_id, i0, i1);
+            executor->run_sub_stream(
+                [socket_id, i0, i1, &func, &nodes_remain]() {
+                    for (size_t i = i0; i < i1; i++) {
+                        func(socket_id, i);
+                        nodes_remain--;
+                    }
+                },
+                sub_stream_id);
+            sub_stream_id++;
+        }
+    }
+    // run in main stream (current socket)
+    {
+        size_t i0{0}, i1{0};
+        splitter(num_nodes, num_nodes, static_cast<size_t>(cur_numa_id), i0, i1);
+        for (size_t i = i0; i < i1; i++) {
+            func(cur_numa_id, i);
+            nodes_remain--;
+        }
+    }
+    // wait and sync
+    while (nodes_remain.load() > 0) {}
 }
 
 void Graph::Infer(SyncInferRequest* request) {
@@ -1346,11 +1485,26 @@ void Graph::SortTopologically() {
             if (!inserted)
                 return; // already visited
 
-            for (size_t i = 0; i < node->getChildEdges().size(); i++) {
-                visit(node->getChildEdgeAt(i)->getChild());
-            }
+            if (!node->parallelWith.empty()) {
+                for (auto& n : node->parallelWith) {
+                    for (size_t i = 0; i < n->getChildEdges().size(); i++) {
+                        visit(n->getChildEdgeAt(i)->getChild());
+                    }
+                }
 
-            sorted.push_back(node);
+                // make sure parallel nodes are always enqueue together
+                for (auto& n : node->parallelWith) {
+                    if (std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
+                        sorted.push_back(n);
+                    }
+                }
+            } else {
+                for (size_t i = 0; i < node->getChildEdges().size(); i++) {
+                    visit(node->getChildEdgeAt(i)->getChild());
+                }
+
+                sorted.push_back(node);
+            }
         };
 
         for (const auto& node : nodes) {
@@ -1365,8 +1519,20 @@ void Graph::SortTopologically() {
     // reverse to the actual topological order
     std::reverse(graphNodes.begin(), graphNodes.end());
     // number the nodes based on topological order
-    for (size_t i = 0; i < graphNodes.size(); i++)
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        // parallel nodes has same execIndex
+        // so they can provide correct start/end time point for
+        // their input and output memory object
+        if (graphNodes[i]->parallelWith.size()) {
+            if (graphNodes[i]->parallelWith[0] == graphNodes[i]) {
+                for (auto& n : graphNodes[i]->parallelWith) {
+                    n->execIndex = static_cast<int>(i);
+                }
+            }
+            continue;
+        }
         graphNodes[i]->execIndex = static_cast<int>(i);
+    }
 
     // Sort in / out child edges by port index
     // Make first N (N == port_num) edge indexes match with port index
@@ -1594,9 +1760,9 @@ void Graph::EnforceInferencePrecision() {
 
     const auto inferPrec = getConfig().inferencePrecision;
 
-    if (inferPrec == ov::element::f32)
+    if (one_of(inferPrec, element::f32, element::undefined, ov::element::f16))
         return; // nothing to do, only precision reduction is currently allowed
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (inferPrec == ov::element::f16)
         return; // precision of configured by ov::pass::ConvertPrecision
 #endif
@@ -1669,6 +1835,9 @@ void Graph::EnforceInferencePrecision() {
                 if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
+                // kvcache of PagedAttention should be written directly
+                if (node->getType() == Type::PagedAttention && (inPort == 3 || inPort == 4))
+                    return true;
                 const auto &parent = node->getParentEdgeAt(inPort)->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
                  * Element type conversion to bf16 is done automatically, if convolution follows up after Constant Inputs
@@ -1735,16 +1904,8 @@ std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 
-void Graph::SearchInternalStateNodes() {
-    for (auto&& node : graphNodes) {
-        if (node->getType() == Type::MemoryInput) {
-            auto cur_node = std::dynamic_pointer_cast<node::MemoryStateNode>(node);
-            if (!cur_node) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryStateNode");
-            }
-            internalStateNodes.insert({cur_node->getId(), cur_node});
-        }
-    }
+const std::unordered_map<std::string, node::MemoryStateNode*>& Graph::getInternalStateNodes() const {
+    return context->getMemoryStatesRegister()->getMemoryStates();
 }
 
 }   // namespace intel_cpu

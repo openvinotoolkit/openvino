@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,6 +83,9 @@ struct format {
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fbyx,
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
+        fybx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        xbfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        ybfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
         bzyxf,
         byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
         bxfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
@@ -139,26 +142,17 @@ struct format {
         oyix,
         oxiy,
         os_iyx_osv16,                                 ///< format used only for convolution weights
-        o_is_yx_isv2,                                 ///< format used only for convolution weights
         o_is_yx_isv4,                                 ///< format used only for convolution weights
         o_is_yx_isv16,                                ///< format used only for convolution weights
-        o_is_zyx_isv16,                               ///< format used only for convolution weights
-        os_yxi_osv16,                                 ///< format used only for convolution weights
-        os_is_yx_osv16_isv2,                          ///< format used only for convolution weights
         os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
         os_is_zyx_osv32_isv16,
+        os_is_yx_osv32_isv2,                          ///< format used only for fully connected weights compressed for i4
         os_is_zyx_osv64_isv16,
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
         is_os_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D deconvolution
-        is_os_yx_osv8_isv4,                           ///< format used for weights for blocked deconvolution
         is_os_yx_isv16_osv16,                         ///< format used for weights for blocked deconvolution
-        is_os_yx_isv16_osv8,                          ///< format used for weights for blocked deconvolution
-        is_os_yx_isv16_osv4,                          ///< format used for weights for blocked deconvolution
-        is_os_yx_isv16_osv2,                          ///< format used for weights for blocked deconvolution
-        os_is_yx_isa8_osv16_isv2,                     ///< format used for weights for blocked 2D onednn convolution
-        os_is_zyx_isa8_osv16_isv2,                    ///< format used for weights for blocked 3D onednn convolution
         os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
@@ -187,66 +181,24 @@ struct format {
         os_is_zyx_isa8_osv8_isv4,                     ///< format for weights for MMAD convolution
         os_is_yx_isa8_osv16_isv4,                     ///< format for weights for fully connected MMAD
         os_is_zyx_isa8_osv16_isv4,                    ///< format for weights for fully connected MMAD
-        os_is_yx_isa8_osv8_isv4_swizzled_by_4,        ///< format for weights for MMAD convolution
         os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,   ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  ///< format for weights for MMAD fsv32 convolution
-        os_is_yx_osa4_isa8_osv8_isv2,                 ///< format for weights for MMAD fsv32 convolution
-        os_is_zyx_osa4_isa8_osv8_isv2,                ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4,                ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osa4_isa8_osv8_isv4,                 ///< format for weights for MMAD fsv32 convolution
-        os_is_yx_osa2_isa8_osv8_isv2,
-        os_is_zyx_osa2_isa8_osv8_isv2,
-        os_is_yx_osa2_isa8_osv16_isv2,
-        os_is_yx_osa2_isa8_osv16_isv4,
-        os_is_yx_isa8_osv8_isv2,
-        is_os_yx_isa8_osv8_isv2,
-        is_os_yx_isa8_osv8_isv4,
-        is_os_yx_osa8_isv16_osv4,
-        os_is_zyx_isa8_osv8_isv2,
-        is_os_zyx_isa8_osv8_isv2,
-        is_os_zyx_isa8_osv8_isv4,
-        is_os_yx_isa2_osa8_isv8_osv2,
-        is_os_yx_isa4_osa8_isv8_osv4,
-        is_os_yx_osa4_isa8_osv8_isv4,
-        is_o_yx_isv32,                                ///< format for weights for 1x1 MMAD convolutions
-        is_o32_yx_isv32_swizzled_by_4,                ///< format for weights for 1x1 MMAD convolutions
-        os_is_y_x8_osv8_isv4,                         ///< format for weights for 1x1 MMAD convolutions
-        os_is_y_x8_osv8_isv4_swizzled_by_4,           ///< format for weights for 1x1 MMAD convolutions
         os_is_yx_osv16_isv4,                          ///< format for weights for IMAD convolutions
         os_is_yx_osv8_isv4,                           ///< format used for convolution i8 weights
-        os_is_zyx_osv8_isv4,                          ///< format used for convolution i8 weights
-        os_is_yx_osv8_isv2,                           ///< format used for convolution fp16 weights
-        os_is_zyx_osv8_isv2,                          ///< format used for convolution fp16 weights
         os_is_zyx_osv16_isv16,                        ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4_swizzled_by_2,            ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4,                          ///< format for weights for IMAD convolutions
         os_is_zyx_osv32_isv4,                         ///< format for weights for IMAD convolutions
-        os_is_osv32_isv32_swizzled_by_4,              ///< format for weights for 1x1 IMAD convolution
         os_iyx_osv8,
         os_iyx_osv32__ai32,
         iy_xs_os_xsv2_osv8__ao32,
         iy_xs_os_xsv2_osv16__ao32,
         i_yxs_os_yxsv2_osv16,
-        os_i_yxs_osv4_yxsv4,
         os_i_osv16,                                   ///< format used only for fully connected weights
         os_i_osv16__ai8,                              ///< format used only for fully connected weights
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
-        os_y_is_x_osv8_isv2,
-        os_y_is_x_osv8_isv4,
-        os_y_is_x_osv16_isv4,
-        os_yx_is_osv8_isv2,
-        os_yx_is_osv8_isv4,
-        os_yx_is_osv16_isv2,
-        os_zyx_is_osv8_isv2,
-        os_zyx_is_osv8_isv4,
-        os_zy_is_x_osv8_isv2,
-        os_zy_is_x_osv8_isv4,
-        os_is_yx_osv4_isv16,
-        os_is_yx_osv4_isv2,
-        os_is_yx_osv8_isv16,
-        os_is_yx_osv2_isv4,
-        os_is_yx_osv2_isv16,
-        os_is_yx_osv2_isv32,
 
         goiyx,                                        ///< format used for weights for 2D convolution
         gioyx,                                        ///< format used for weights for 2D deconvolution
@@ -256,25 +208,16 @@ struct format {
         g_os_iyx_osv8,                                ///< format used for weights for 2D convolution
         g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
         g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
-        gs_oiyx_gsv8,                                 ///< format used for weights for 2D convolution
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
-        gs_oizyx_gsv8,                                ///< format used for weights for 3D convolution
         gs_oizyx_gsv16,                               ///< format used for weights for 3D convolution
         gs_oiyx_gsv32,                                ///< format used for weights for 2D convolution
-        gs_oizyx_gsv32,                               ///< format used for weights for 3D convolution
         g_is_os_zyx_isv16_osv16,                      ///< format used for grouped weights for blocked 3D deconvolution
         g_os_is_yx_osv16_isv4,
         g_os_is_zyx_osv16_isv16,
         g_is_os_yx_isv16_osv16,
-        g_os_is_yx_isa8_osv8_isv2,
-        g_os_is_yx_isa8_osv8_isv4,
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,
-        g_os_zy_is_x_osv8_isv2,
-        g_os_zy_is_x_osv8_isv4,
-        g_os_zyx_is_osv8_isv2,
-        g_os_zyx_is_osv8_isv4,
         g_os_zyx_is_osv16_isv4,                       ///< format for imad deconvolution
         g_os_zyx_is_osv16_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv16_isv32,                      ///< format for imad deconvolution
@@ -282,28 +225,12 @@ struct format {
         g_os_zyx_is_osv32_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv32_isv32,                      ///< format for imad deconvolution
         g_os_is_yx_isv16_osv16,
-        g_os_is_yx_osv8_isv2,
-        g_os_is_yx_osv8_isv4,
         gs_oi_yxs_gsv4_yxsv4,
         gs_oi_yxs_gsv16_yxsv4,
         gs_oi_yxs_gsv32_yxsv4,
         gi_yxs_os_yxsv2_osv16,
         giy_xs_os_xsv2_osv8__ao32,
         giy_xs_os_xsv2_osv16__ao32,
-        g_os_is_yx_osa2_isa8_osv8_isv2,
-        g_os_is_yx_osa4_isa8_osv8_isv4,
-        g_os_is_yx_osa4_isa8_osv8_isv2,
-        g_os_is_yx_osa2_isa8_osv16_isv2,
-        g_os_is_yx_osa2_isa8_osv16_isv4,
-        g_os_is_zyx_osa4_isa8_osv8_isv2,
-        g_os_is_zyx_osa4_isa8_osv8_isv4,
-        g_os_is_zyx_isa8_osv8_isv2,
-        g_os_is_zyx_isa8_osv8_isv4,
-        g_os_yx_is_osv8_isv2,
-        g_os_yx_is_osv8_isv4,
-        g_os_yx_is_osv16_isv2,
-        g_os_y_is_x_osv8_isv2,
-        g_os_y_is_x_osv8_isv4,
 
         format_num,  ///< number of format types
         custom,      ///< means that this format is created based on custom format traits and may have no corresponding label
@@ -363,11 +290,8 @@ struct format {
     }
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(const format& fmt) {
-        return (fmt == yxfb || fmt == byxf ||
-                fmt == byfx || fmt == bxfy ||
-                fmt == bfyx || fmt == fyxb ||
-                fmt == fbyx || fmt == bfzyx ||
-                fmt == bfwzyx || fmt == bfuwzyx ||
+        return (fmt == yxfb || fmt == byxf || fmt == byfx || fmt == bxfy || fmt == bfyx || fmt == fyxb || fmt == fybx ||
+                fmt == xbfy || fmt == ybfx || fmt == fbyx || fmt == bfzyx || fmt == bfwzyx || fmt == bfuwzyx ||
                 fmt == bfvuwzyx);
     }
 

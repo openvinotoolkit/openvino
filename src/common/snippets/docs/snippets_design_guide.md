@@ -587,7 +587,7 @@ The pipeline is mainly focused on an automatic loop injection and loop optimizat
 The exact set of transformations executed in the pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the pipeline looks like:
 1. `MarkLoops` - performs an analysis of `Expressions'` connectivity and their `PortDescriptors`. 
 Based on this information, the pass divides the `Expression` into groups, so that each of the groups can be executed inside one loop. 
-Every group is described by a `loop_id`, and additional information is saved in `LinearIR::LoopManager::LoopInfo`.
+Every group is described by a `loop_id`, and additional information is saved in `LoopInfo`.
 2. `FuseLoops` - analyzes the assigned `loop_ids` and `LoopInfo`, fuses some loops if possible. 
 This pass can move some `Expressions` up or down the graph, so the `Expressions` with the same `loop_ids` are grouped together.
 3. `InsertBuffers` - analyzes `LoopInfo` and `Expression` semantics, inserts `snippets::op::Buffer`. `Buffer` is an operation that represents a memory buffer needed to save some intermediate results.

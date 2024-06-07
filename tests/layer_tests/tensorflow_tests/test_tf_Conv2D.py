@@ -70,12 +70,12 @@ class TestConv2D(CommonTFLayerTest):
         pytest.param(
             dict(input_shape=[1, 224, 224, 3], input_filter=[4, 4, 3, 2], input_strides=[1, 2, 2, 1],
                  dilations=[1, 2, 2, 1]),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         # with four groups
         pytest.param(
             dict(input_shape=[2, 224, 224, 4], input_filter=[4, 4, 1, 12], input_strides=[1, 2, 2, 1],
                  dilations=[1, 2, 2, 1]),
-            marks=pytest.mark.precommit_tf_fe)
+            marks=pytest.mark.precommit)
     ]
 
     @pytest.mark.parametrize("params", test_data)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,8 +40,12 @@ public:
 
     void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
 
-    const std::vector<size_t>& getKVCacheOrder() const {
-        return m_config.config.permute_axes;
+    const std::vector<size_t> getKVCacheOrder() const {
+        const auto& permute_axes = m_config.config.permute_axes;
+        std::vector<size_t> real_order = m_kvstate_layout;
+        if (!permute_axes.empty())
+            real_order = {permute_axes[2], permute_axes[0], permute_axes[1], permute_axes[3]};
+        return real_order;
     }
 
     ov::element::Type getKVCachePrecision();
@@ -61,6 +65,7 @@ private:
         virtual void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
                              const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
                              const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) = 0;
+        virtual ~Executor() = default;
     };
 
     Config m_config;
@@ -70,6 +75,10 @@ private:
 
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
+    // KV cache layout
+    // (0, 1, 2, 3) for BHLS
+    // (2, 0, 1, 3) for LBHS
+    std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
 };
 
 }  // namespace node

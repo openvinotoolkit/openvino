@@ -13,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/result.hpp"
@@ -20,8 +21,10 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/make_stateful.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 
 namespace tests {
 
@@ -32,9 +35,10 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
                                                             int64_t concat_axis = 2,
                                                             bool stateful = false,
                                                             bool fuse_cache_reorder = false,
-                                                            bool build_state_initializer = false) {
-    ov::PartialShape kv_cache_size = {batch, n_heads, -1, n_features};
-    ov::PartialShape new_token_size = {batch, -1, n_heads, n_features};
+                                                            bool build_state_initializer = false,
+                                                            size_t num_groups = 1) {
+    ov::PartialShape kv_cache_size = {batch, n_heads / num_groups, -1, n_features};
+    ov::PartialShape new_token_size = {batch, -1, n_heads / num_groups, n_features};
     ov::PartialShape matmul_in_size = {batch, n_heads, -1, -1};
 
     auto in_kv_prev = std::make_shared<ov::op::v0::Parameter>(element_type, kv_cache_size);
@@ -78,12 +82,44 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
     auto convert = std::make_shared<ov::op::v0::Convert>(concat, element_type);
     auto kv_present = std::make_shared<ov::op::v0::Result>(convert);
     kv_present->set_friendly_name("present_key_values");
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(in_matmul, concat, false, false);
+
+    std::shared_ptr<ov::Node> kv_input = concat;
+    if (num_groups > 1) {
+        auto unsqueeze_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(2));
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(concat, unsqueeze_axis);
+
+
+        // prepare broadcast shape
+        auto concat_shape_of = std::make_shared<ov::op::v3::ShapeOf>(concat, ov::element::i32);
+
+        auto indices01 = ov::op::v0::Constant::create(ov::element::i32, {2}, {0, 1});
+        auto axis01 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+        auto gather01 = std::make_shared<ov::op::v8::Gather>(concat_shape_of, indices01, axis01, 0);
+
+        auto indices23 = ov::op::v0::Constant::create(ov::element::i32, {2}, {2, 3});
+        auto axis23 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+        auto gather23 = std::make_shared<ov::op::v8::Gather>(concat_shape_of, indices23, axis23, 0);
+
+        auto groups = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(num_groups));
+
+
+        auto shape_concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{gather01, groups, gather23}, 0);
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsqueeze, shape_concat);
+
+        std::vector<int32_t> s = { 0, static_cast<int32_t>(n_heads.get_length()), -1, static_cast<int32_t>(n_features.get_length()) };
+        auto target_shape = ov::op::v0::Constant::create(ov::element::i32, {4}, s);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, target_shape, true);
+
+        kv_input = reshape;
+    }
+
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(in_matmul, kv_input, false, false);
     auto matmul_out = std::make_shared<ov::op::v0::Result>(matmul);
     matmul_out->set_friendly_name("matmul_out");
 
     ov::ResultVector results{kv_present, matmul_out};
     auto model = std::make_shared<ov::Model>(results, params, "LLM-KV-Cache");
+    ov::pass::VisualizeTree("model.svg").run_on_model(model);
     if (stateful) {
         ov::pass::MakeStateful({{in_kv_prev, kv_present}}).run_on_model(model);
     }

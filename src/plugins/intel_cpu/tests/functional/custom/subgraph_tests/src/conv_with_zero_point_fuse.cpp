@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,16 +72,15 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
 
         const ov::Shape weights_const_shape = {numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]};
         const auto weights_const_values = std::vector<int>(ov::shape_size(weights_const_shape), 1);
-        const auto weights_const =
-            ov::test::utils::deprecated::make_constant(ov::element::i8, weights_const_shape, weights_const_values);
+        const auto weights_const = std::make_shared<ov::op::v0::Constant>(ov::element::i8, weights_const_shape, weights_const_values);
 
         const auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
 
         const auto weights_multiply = std::make_shared<ov::opset10::Multiply>(
             weights_convert,
-            ov::test::utils::deprecated::make_constant(ov::element::f32,
-                                          {numOutChannels, 1, 1, 1},
-                                          std::vector<float>(numOutChannels, 1.0)));
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32,
+                                                   ov::Shape{numOutChannels, 1, 1, 1},
+                                                   std::vector<float>(numOutChannels, 1.0)));
 
         switch (type) {
         case nodeType::convolution: {
@@ -102,9 +101,9 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
                 fq_conv_data,
                 std::make_shared<ov::opset10::Reshape>(
                     weights_multiply,
-                    ov::test::utils::deprecated::make_constant(
+                    std::make_shared<ov::op::v0::Constant>(
                         ov::element::i32,
-                        {5},
+                        ov::Shape{5},
                         std::vector<size_t>{1, numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]}),
                     true),
                 ov::element::f32,

@@ -1,20 +1,17 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import tempfile
-from pathlib import Path
-
-from generator import generator
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
 from openvino.tools.ovc import convert_model
-
+from pathlib import Path
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+
 from utils import save_to_onnx
 
 
-@generator
 class MetaDataTest(UnitTestWithMockedTelemetry):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 

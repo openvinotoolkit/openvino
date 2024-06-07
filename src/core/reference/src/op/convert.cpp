@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -478,6 +478,19 @@ void convert<float16, float>(const float16* arg, float* out, size_t count) {
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count) {
     convert_impl(arg, out, count);
+}
+
+template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            out[i] = std::numeric_limits<ov::float16>::max();
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            out[i] = std::numeric_limits<ov::float16>::lowest();
+        } else {
+            out[i] = static_cast<ov::float16>(arg[i]);
+        }
+    }
 }
 
 template <>

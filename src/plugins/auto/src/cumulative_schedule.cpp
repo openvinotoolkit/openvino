@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,11 +125,11 @@ void CumuSchedule::init() {
             }
         }
     };
-    m_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-            ov::threading::IStreamsExecutor::Config{"CTPUTDeviceAsyncLoad",
+    m_executor =
+        m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
+            "CTPUTDeviceAsyncLoad",
             static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-            0 /*default threads per stream, workaround for ticket 62376*/,
-            ov::threading::IStreamsExecutor::ThreadBindingType::NONE});
+            0 /*default threads per stream, workaround for ticket 62376*/});
     std::vector<ov::threading::Task> other_devices_loads;
     std::vector<ov::threading::Task> cpu_loads;
     for (size_t i = 0; i < m_n_ctput_devicenums; i++) {

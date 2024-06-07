@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,11 +16,11 @@
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/utils/gen_pattern.hpp>
 
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "utils/gen_pattern.hpp"
 using namespace ov::gen_pattern;
 
 namespace ov {
@@ -35,8 +35,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto cur_k = any_input();
     auto cur_v = any_input();
 
-    auto axis_seq_len = Symbol("axis_seq_len");
-    auto axis_beam = Symbol("axis_beam");
+    auto axis_seq_len = ov::gen_pattern::Symbol("axis_seq_len");
+    auto axis_beam = ov::gen_pattern::Symbol("axis_beam");
 
     // past_kv can be BHLS/LBHS
     auto past_k = makePattern<opset6::ReadValue>({});
@@ -108,8 +108,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto find_assign = [&](const ov::Output<ov::Node>& out, opset6::Assign*& assign, opset1::Convert*& cvt) {
             auto present_to = out.get_target_inputs();
-            if (present_to.size() < 2)
-                return false;
             for (auto& to : present_to) {
                 auto to_node = to.get_node();
                 if (auto convert = dynamic_cast<opset1::Convert*>(to_node)) {
@@ -148,6 +146,28 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         }
         const auto concat_k_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
+
+        for (auto&& item : {concat_k_node, concat_v_node}) {
+            auto&& children = item->get_output_target_inputs(0);
+            switch (children.size()) {
+                case 2:
+                    // pass, as the existence of Assign will be checked later
+                    break;
+                case 3:
+                    // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
+                    // the second one leads to Assign, and this is checked later
+                    // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
+                    if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
+                            return ov::is_type<ov::op::v3::ShapeOf>(child.get_node()) ||
+                                ov::is_type<ov::op::v0::ShapeOf>(child.get_node());
+                        })) {
+                        return false;
+                    }
+                    break;
+                default:
+                    return false;
+            }
+        }
 
         opset6::Assign *assign_k_node = nullptr, *assign_v_node = nullptr;
         opset1::Convert *assign_cvt_k_node = nullptr, *assign_cvt_v_node = nullptr;

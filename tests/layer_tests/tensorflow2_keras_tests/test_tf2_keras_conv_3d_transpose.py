@@ -1,9 +1,10 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
 
 
@@ -16,6 +17,7 @@ class TestKerasConv3DTranspose(CommonTF2LayerTest):
             "relu": tf.nn.relu,
             "sigmoid": tf.nn.sigmoid
         }
+        conv_params = conv_params.copy()
         if "activation" in conv_params:
             conv_params["activation"] = activation_func_structure[conv_params["activation"]]
 
@@ -33,20 +35,11 @@ class TestKerasConv3DTranspose(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data_float32 = [
-        pytest.param(
-            dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", strides=(1, 1, 2)),
-                 input_names=["x"], input_shapes=[[5, 3, 5, 7, 6]], input_type=tf.float32),
-            marks=pytest.mark.precommit),
-        pytest.param(
-            dict(conv_params=dict(filters=10, kernel_size=5, padding="same", strides=(3, 4, 5),
-                                  activation="relu", use_bias=True, output_padding=2),
-                 input_names=["x"], input_shapes=[[5, 3, 5, 7, 8]], input_type=tf.float32),
-            marks=pytest.mark.precommit),
-
-        pytest.param(dict(conv_params=dict(filters=27, kernel_size=3, data_format="channels_first"),
-                          input_names=["x"], input_shapes=[[5, 3, 5, 7, 6]], input_type=tf.float32),
-                     marks=pytest.mark.xfail(reason="49529")),
-
+        dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", strides=(1, 1, 2)),
+             input_names=["x"], input_shapes=[[5, 3, 5, 7, 6]], input_type=tf.float32),
+        dict(conv_params=dict(filters=10, kernel_size=5, padding="same", strides=(3, 4, 5),
+                              activation="relu", use_bias=True, output_padding=2),
+             input_names=["x"], input_shapes=[[5, 3, 5, 7, 8]], input_type=tf.float32),
         dict(conv_params=dict(filters=10, kernel_size=5, padding="same", strides=(4, 3, 2),
                               output_padding=1),
              input_names=["x"], input_shapes=[[5, 3, 5, 7, 8]], input_type=tf.float32),
@@ -63,9 +56,12 @@ class TestKerasConv3DTranspose(CommonTF2LayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_float32)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_conv_3D_transpose_float32(self, params, ie_device, precision, ir_version,
                                              temp_dir, use_legacy_frontend):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("timeout issue for inference on ARM")
         self._test(*self.create_keras_conv_3d_transpose_net(**params, ir_version=ir_version),
                    ie_device, precision,
                    temp_dir=temp_dir, ir_version=ir_version,

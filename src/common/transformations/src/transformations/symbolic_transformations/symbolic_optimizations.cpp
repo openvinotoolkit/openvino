@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,12 @@
 
 #include "itt.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -21,30 +24,31 @@
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/symbolic_transformations/chained_maximum.hpp"
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
-#include "transformations/symbolic_transformations/label_optimization.hpp"
 #include "transformations/symbolic_transformations/nop_broadcast.hpp"
 #include "transformations/symbolic_transformations/reshape_optimizations.hpp"
+#include "transformations/symbolic_transformations/symbol_optimization.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
 using namespace ov::symbol::util;
 
 namespace {
-void symbolic_set_up_for_shape(ov::DimensionTracker& dt, ov::PartialShape& shape) {
+void symbolic_set_up_for_shape(ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
         return;
     for (auto& d : shape) {
-        bool is_static = d.is_static(), has_label = ov::DimensionTracker::has_label(d);
-        if (is_static && has_label)
-            dt.reset_tracking_info(d);  // remove labels from static dims on shapes to reduce label clutter
-        if (is_static || has_label)
+        bool is_static = d.is_static(), has_symbol = d.has_symbol();
+        if (is_static && has_symbol)
+            d.set_symbol(nullptr);  // remove symbols from static dims on shapes to reduce symbol clutter
+        if (is_static || has_symbol)
             continue;
-        dt.set_up_for_tracking(d);
+        d.set_symbol(std::make_shared<ov::Symbol>());
     }
 }
 
-void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node) {
-    /* Label propagation through specific Range operation
+void special_case_range_symbol_propagation(const std::shared_ptr<ov::Node>& node) {
+    /* Symbol propagation through specific Range operation
           start    shift
             |  \   /
             |   Add   step == 1
@@ -62,62 +66,51 @@ void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node)
     if (!step_value || step_value->cast_vector<int64_t>()[0] != 1)
         return;
 
-    auto start_labels = node->get_input_tensor(0).get_value_label();
-    if (start_labels.size() != 1 || start_labels[0] == ov::no_label)
+    auto start_symbols = node->get_input_tensor(0).get_value_symbol();
+    if (start_symbols.size() != 1 || start_symbols[0] == nullptr)
         return;
-    auto start_label = start_labels[0];
+    auto start_symbol = start_symbols[0];
 
     auto stop_node = node->input_value(1).get_node_shared_ptr();
     if (!ov::is_type<ov::op::v1::Add>(stop_node))
         return;
-    auto add_in0_labels = stop_node->get_input_tensor(0).get_value_label();
-    if (add_in0_labels.size() != 1 || add_in0_labels[0] == ov::no_label)
+    auto add_in0_symbols = stop_node->get_input_tensor(0).get_value_symbol();
+    if (add_in0_symbols.size() != 1 || add_in0_symbols[0] == nullptr)
         return;
-    auto add_in0_label = add_in0_labels[0];
+    auto add_in0_symbol = add_in0_symbols[0];
 
-    auto add_in1_labels = stop_node->get_input_tensor(1).get_value_label();
-    if (add_in1_labels.size() != 1 || add_in1_labels[0] == ov::no_label)
+    auto add_in1_symbols = stop_node->get_input_tensor(1).get_value_symbol();
+    if (add_in1_symbols.size() != 1 || add_in1_symbols[0] == nullptr)
         return;
-    auto add_in1_label = add_in1_labels[0];
+    auto add_in1_symbol = add_in1_symbols[0];
 
-    if (add_in0_label == start_label)
-        ov::DimensionTracker::set_label(output_shape[0], add_in1_label);
-    else if (add_in1_label == start_label)
-        ov::DimensionTracker::set_label(output_shape[0], add_in0_label);
+    if (add_in0_symbol == start_symbol)
+        output_shape[0].set_symbol(add_in1_symbol);
+    else if (add_in1_symbol == start_symbol)
+        output_shape[0].set_symbol(add_in0_symbol);
     node->set_output_type(0, node->get_output_element_type(0), output_shape);
 }
 }  // namespace
 
-ov::pass::SymbolicPropagation::SymbolicPropagation() {
-    m_te = std::make_shared<ov::TableOfEquivalence>();
-}
-
 bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(SymbolicPropagation);
-
-    auto te = m_te;
-    ov::set_up_symbolic_info(m, te);
-    ov::DimensionTracker dt(te);
 
     for (const auto& op : m->get_ordered_ops()) {
         // since we disable invalidation with the following two lines, we have to invalidate manually here
         op->invalidate_values();
         for (auto& output : op->outputs())
-            ov::set_up_symbolic_info(output, te);
+            ov::skip_invalidation(output);
         op->revalidate_and_infer_types();
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op))
-            for (const auto& sub_graph : multi_subgraph_op->get_functions())
-                if (sub_graph)
-                    run_on_model(sub_graph);
+        ov::op::util::process_subgraph(*this, op);
 
-        // additional label propagation rules must be triggered here
-        special_case_range_label_propagation(op);
-        // additional label propagation rules must be triggered here
+        // additional symbol propagation rules must be triggered here
+        special_case_range_symbol_propagation(op);
+        // additional symbol propagation rules must be triggered here
 
         for (auto& output : op->outputs()) {
             auto shape = output.get_partial_shape();
-            symbolic_set_up_for_shape(dt, shape);
+            symbolic_set_up_for_shape(shape);
             ov::descriptor::set_tensor_type(output.get_tensor(), output.get_element_type(), shape);
         }
     }
@@ -138,21 +131,21 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& value_map = m.get_pattern_value_map();
-        ov::TensorLabel reshape_labels, add_0_labels, add_1_labels;
-        if (!get_labels(value_map.at(reshape).get_partial_shape(), reshape_labels))
+        ov::TensorSymbol reshape_symbols, add_0_symbols, add_1_symbols;
+        if (!get_symbols(value_map.at(reshape).get_partial_shape(), reshape_symbols))
             return false;
         auto add_node = value_map.at(add).get_node_shared_ptr();
         auto add_0_pshape = add_node->input_value(0).get_partial_shape();
         auto add_1_pshape = add_node->input_value(1).get_partial_shape();
-        if (!get_labels(add_0_pshape, add_0_labels) && !get_labels(add_1_pshape, add_1_labels))
+        if (!get_symbols(add_0_pshape, add_0_symbols) && !get_symbols(add_1_pshape, add_1_symbols))
             return false;
 
-        if (are_unique_and_equal_labels(reshape_labels, add_0_labels)) {
-            // we detected that no broadcasting was done during binary elementwise and select, propagating labels
+        if (are_unique_and_equal_symbols(reshape_symbols, add_0_symbols)) {
+            // we detected that no broadcasting was done during binary elementwise and select, propagating symbols
             // through
             add_node->set_output_type(0, add_node->get_output_element_type(0), add_0_pshape);
-        } else if (are_unique_and_equal_labels(reshape_labels, add_1_labels)) {
-            // we detected that no broadcasting was done during binary elementwise and select, propagating labels
+        } else if (are_unique_and_equal_symbols(reshape_symbols, add_1_symbols)) {
+            // we detected that no broadcasting was done during binary elementwise and select, propagating symbols
             // through
             add_node->set_output_type(0, add_node->get_output_element_type(0), add_1_pshape);
         } else {
@@ -193,10 +186,10 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
         REGISTER_SYMBOLIC(NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
         REGISTER_SYMBOLIC(SharedOpOptimization)  // Shared GatherElements
     }
-    // transformations which use labels for optimizations
-    REGISTER_SYMBOLIC(ApplyTableOfEquivalence)
+    // transformations which use symbols for optimizations
+    REGISTER_SYMBOLIC(ApplySymbolEquivalence)
     if (full_run) {
-        REGISTER_SYMBOLIC(OptimizeLabelsUsedAsValues)   // reduce shape sub-graphs
+        REGISTER_SYMBOLIC(OptimizeSymbolsUsedAsValues)  // reduce shape sub-graphs
         REGISTER_SYMBOLIC(LabelResolvingThroughSelect)  // figures out that broadcasting didn't happen through Select op
         REGISTER_SYMBOLIC(DeReshapeMatMul)
         REGISTER_SYMBOLIC(DeReshapeFullyConnected)
@@ -207,7 +200,15 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
+
+    // Eliminate Squeeze/Unsqueeze might convert Squeeze/Unsqueeze ops to Reshape
+    // it may break NNCF patterns and lead to unexpected FakeQuantize ops in the model.
+    // So we decided to disable these passes in SymbolicOptimizations.
+    const auto& pass_config = m_manager->get_pass_config();
+    pass_config->disable<EliminateSqueeze>();
+    pass_config->disable<EliminateUnsqueeze>();
+
     m_manager->run_passes(m);
-    ov::remove_symbolic_info(m);
+    ov::remove_skip_invalidation_rti(m);
     return true;
 }

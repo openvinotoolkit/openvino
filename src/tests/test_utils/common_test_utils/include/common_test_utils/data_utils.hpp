@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,9 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace NGraphFunctions {
-namespace Utils {
+namespace ov {
+namespace test {
+namespace utils {
 
 template <ov::element::Type_t dType>
 std::vector<typename ov::element_type_traits<dType>::value_type> inline generateVector(
@@ -104,13 +105,6 @@ std::vector<toType> castVector(const std::vector<fromType>& vec) {
     }
     return resVec;
 }
-
-}  // namespace Utils
-}  // namespace NGraphFunctions
-
-namespace ov {
-namespace test {
-namespace utils {
 
 inline void fill_data(float* data, size_t size, size_t duty_ratio = 10) {
     for (size_t i = 0; i < size; i++) {
@@ -243,7 +237,7 @@ void inline fill_data_random(T* pointer,
         start_from = 0;
     }
     for (std::size_t i = 0; i < size; i++) {
-        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+        pointer[i] = static_cast<T>(start_from + static_cast<double>(random.Generate(k_range)) / k);
     }
 }
 
@@ -254,8 +248,7 @@ void inline fill_data_ptr_real_random_float(T* pointer,
                                             const float max,
                                             const int seed) {
     std::mt19937 gen(seed);
-    std::uniform_real_distribution<float> dist(min, max);
-
+    std::uniform_real_distribution<double> dist(min, max);
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(dist(gen));
     }
@@ -386,6 +379,8 @@ void inline fill_data_ptr_normal_random_float(T* data,
         }
     }
 }
+
+void fill_data_boolean(fundamental_type_for<ov::element::boolean>* dst, const size_t size, const int seed = 1);
 
 void fill_random_string(std::string* dst,
                         const size_t size,

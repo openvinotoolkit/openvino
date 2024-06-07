@@ -11,13 +11,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
-        // Not Implemented
-        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoBeforeExecution.*)",
-        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoAfterExecution.*)",
-        R"(.*(Multi|Auto|Hetero).*Behavior.*OVCompiledModelBaseTest.*checkGetExecGraphInfoIsNotNullptr.*)",
-        R"(.*smoke_(Multi|Auto|Hetero)_BehaviorTests.*OVPropertiesTests.*SetCorrectProperties.*)",
-        R"(.*smoke_(Multi|Auto|Hetero)_BehaviorTests.*OVPropertiesTests.*canSetPropertyAndCheckGetProperty.*)",
-        //
         // unsupported metrics
         R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(RANGE_FOR_STREAMS|MAX_BATCH_SIZE).*)",
 
@@ -57,15 +50,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferencePadTest.*pad_exterior_2d_3x0)",
         // CVS-70975
         R"(.*ReferencePadTestParamsTooLarge.*)",
-        // CVS-64006
-        R"(.*ReferenceBatchToSpaceLayerTest.*dType=i4.*)",
-        R"(.*ReferenceBatchToSpaceLayerTest.*dType=u4.*)",
         // CVS-64113
         R"(.*ReferenceRollLayerTest.*dType=i4.*)",
         R"(.*ReferenceRollLayerTest.*dType=u4.*)",
-        // CVS-64050
-        R"(.*ReferenceSpaceToBatchLayerTest.*dType=i4.*)",
-        R"(.*ReferenceSpaceToBatchLayerTest.*dType=u4.*)",
         // CVS-64066
         R"(.*ReferenceGRUCellTestHardsigmoidActivationFunction.*gru_cell_hardsigmoid_activation_function)",
         // CVS-71381
@@ -82,12 +69,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceConcatTest.*concat_zero_.*)",
         // CVS-64102
         R"(.*ReferenceExperimentalPGGLayerTest.*iType=bf16.*stride_x=(32|64).*)",
-        // CVS-72215
-        R"(.*ReferenceTileTest.*aType=i4.*)",
-        R"(.*ReferenceTileTest.*aType=u4.*)",
-        // CVS-71891
-        R"(.*ReferenceTileTest.*rType=i4.*)",
-        R"(.*ReferenceTileTest.*rType=u4.*)",
 
         // New plugin API doesn't support legacy NV12 I420 preprocessing
         R"(.*ConvertNV12WithLegacyTest.*)",
@@ -109,8 +90,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Why query state should throw an exception
         R"(.*InferRequestQueryStateExceptionTest.*inferreq_smoke_QueryState_ExceptionTest.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*get(Input|Output|Inputs|Outputs)From.*FunctionWith(Single|Several).*type=(u4|u1|i4|boolean).*)",
-        // AUTO does not support import / export
-        R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
         // CVS-110345
         R"(.*ReferenceInterpolate_v11.*data_type=f16.*)",
         R"(.*LSTMSequence_With_Hardcoded_Refs.*ReferenceLSTMSequenceTest.*iType=f16.*)",
@@ -123,7 +102,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceInverse.*bf16.*[4,4].*)",
         R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=\(\[\]_\)_TS=.*(4.4.200|1.10.200|10.200|2.200|1.10.100|4.4.16).*_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=undefined_OutType=undefined.*)",
         R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=\(\(2.17.5.1\)_\(1.17.1.4\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=undefined_OutType=undefined_.*)",
-        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*(2.200|10.200|1.10.100|4.4.16|1.2.4|1.4.4|1.4.4.1).*eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=undefined_OutType=undefined.*)"};
+        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*(2.200|10.200|1.10.100|4.4.16|1.2.4|1.4.4|1.4.4.1).*eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=undefined_OutType=undefined.*)",
+        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*2.*eltwise_op_type=Pow_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=undefined_OutType=undefined.*)",
+    };
 #ifdef _WIN32
     // CVS-63989
     retVector.emplace_back(R"(.*ReferenceSigmoidLayerTest.*u64.*)");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,14 +67,14 @@ public:
 
     AnyMap compileModelProperties;
 
-    static std::vector<ov::AnyMap> getROMandatoryProperties();
-    static std::vector<ov::AnyMap> getROOptionalProperties();
+    static std::vector<ov::AnyMap> getROMandatoryProperties(bool is_sw_device = false);
+    static std::vector<ov::AnyMap> getROOptionalProperties(bool is_sw_device = false);
     static std::vector<ov::AnyMap> configureProperties(std::vector<std::string> props);
 
-    static std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<std::string> props = {});
-    static std::vector<ov::AnyMap> getWrongRWMandatoryPropertiesValues(std::vector<std::string> props = {});
-    static std::vector<ov::AnyMap> getRWOptionalPropertiesValues(std::vector<std::string> props = {});
-    static std::vector<ov::AnyMap> getWrongRWOptionalPropertiesValues(std::vector<std::string> props = {});
+    static std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(const std::vector<std::string>& props = {}, bool is_sw_device = false);
+    static std::vector<ov::AnyMap> getWrongRWMandatoryPropertiesValues(const std::vector<std::string>& props = {}, bool is_sw_device = false);
+    static std::vector<ov::AnyMap> getRWOptionalPropertiesValues(const std::vector<std::string>& props = {}, bool is_sw_device = false);
+    static std::vector<ov::AnyMap> getWrongRWOptionalPropertiesValues(const std::vector<std::string>& props = {}, bool is_sw_device = false);
 
     static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
@@ -105,7 +105,6 @@ using OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest = OVClas
 using OVClassCompileModelReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigPropsTest;
-
 using OVGetConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceSetConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceGetConfigTest = OVClassBaseTestP;

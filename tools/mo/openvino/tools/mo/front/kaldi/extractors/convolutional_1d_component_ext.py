@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.caffe.extractors.utils import embed_input
@@ -69,7 +69,7 @@ class ConvolutionalComponentFrontExtractor(FrontExtractorOp):
             'kernel_spatial_idx': [2, 3],
             'group': 1,
             'reshape_kernel': True,
-            'appended_conv': appended_conv
+            'appended_conv': appended_conv  # pylint: disable=possibly-used-before-assignment
         }
 
         mapping_rule.update(layout_attrs())

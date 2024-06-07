@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,7 +147,7 @@ public:
             return updated_out_layout;
         };
 
-        bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
         auto updated_impl_param = impl_param;
 
         const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts, allow_new_shape_infer);

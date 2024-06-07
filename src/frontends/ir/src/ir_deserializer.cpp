@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -457,7 +457,6 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     std::map<size_t /*layer-id*/, NodeParams> params;
 
     std::vector<size_t /*layer-id*/> outputs;
-    std::unordered_set<std::string> opName;
 
     std::vector<size_t> order;
     std::set<size_t> dfs_used_nodes;
@@ -465,9 +464,6 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     // Read all layers and store their parameters in params map
     FOREACH_CHILD (node, root.child("layers"), "layer") {
         auto node_param = parse_generic_params(node);
-        if (opName.find(node_param.name) != opName.end() && node_param.type != "Result")
-            OPENVINO_THROW("Invalid IR! ", node_param.name, " name is not unique!");
-        opName.insert(node_param.name);
         params[node_param.layerId] = {node, node_param};
         if (node_param.type == "Result" || node_param.type == "Assign") {
             outputs.push_back(node_param.layerId);
@@ -761,11 +757,15 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
 
     auto outNode = node.child("output");
     if (!outNode.empty()) {
-        FOREACH_CHILD (_cn, outNode, "port") { params.outputPorts.emplace_back(parsePort(_cn, params, false)); }
+        FOREACH_CHILD (_cn, outNode, "port") {
+            params.outputPorts.emplace_back(parsePort(_cn, params, false));
+        }
     }
     auto inpNode = node.child("input");
     if (!inpNode.empty()) {
-        FOREACH_CHILD (_cn, inpNode, "port") { params.inputPorts.emplace_back(parsePort(_cn, params, true)); }
+        FOREACH_CHILD (_cn, inpNode, "port") {
+            params.inputPorts.emplace_back(parsePort(_cn, params, true));
+        }
     }
     return params;
 }

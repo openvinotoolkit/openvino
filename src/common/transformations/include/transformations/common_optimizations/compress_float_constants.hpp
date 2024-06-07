@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,9 @@ namespace pass {
 
 class TRANSFORMATIONS_API CompressFloatConstantsImpl;
 class TRANSFORMATIONS_API CompressFloatConstants;
+
+void TRANSFORMATIONS_API compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed = false);
+bool TRANSFORMATIONS_API is_model_optimized(const std::shared_ptr<ov::Model>& model);
 
 }  // namespace pass
 }  // namespace ov

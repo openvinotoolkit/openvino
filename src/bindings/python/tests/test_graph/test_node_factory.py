@@ -78,7 +78,10 @@ def test_node_factory_empty_topk_with_args_and_attrs():
     node.set_attribute("axis", 1)
     node.set_attribute("mode", "max")
     node.set_attribute("sort", "value")
-    node.validate()
+    with pytest.warns(DeprecationWarning, match="validate is deprecated and will be removed in version 2024.4."):
+        node.validate()
+
+    node.constructor_validate_and_infer_types()
 
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
@@ -98,8 +101,8 @@ def test_node_factory_validate_missing_arguments():
         raise AssertionError("Validation of missing arguments has unexpectedly passed.")
 
 
-@pytest.mark.template_extension()
-@pytest.mark.dynamic_library()
+@pytest.mark.template_extension
+@pytest.mark.dynamic_library
 @pytest.mark.xfail(condition=platform == "darwin", reason="Ticket - 132696")
 def test_extension_added_from_library():
     if platform == "win32":

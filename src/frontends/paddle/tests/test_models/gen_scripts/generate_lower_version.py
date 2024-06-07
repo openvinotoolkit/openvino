@@ -1,11 +1,15 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import paddle
 import numpy as np
 import os
 import sys
-from paddle.fluid.proto import framework_pb2
+
+if paddle.__version__ >= '2.6.0':
+    from paddle.base.proto import framework_pb2
+else:
+    from paddle.fluid.proto import framework_pb2
 
 paddle.enable_static()
 

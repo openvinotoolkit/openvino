@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,7 @@ struct clKernelData {
 struct WeightsReorderParams {
     WeightsTensor src;
     WeightsTensor dest;
-    bool rotate;
+    bool rotate = false;
     bool is_initialized = false;
 };
 

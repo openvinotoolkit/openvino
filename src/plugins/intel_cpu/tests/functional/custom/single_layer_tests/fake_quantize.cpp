@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,10 +110,10 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrec, shape));
 
-        auto il = ov::test::utils::deprecated::make_constant(inPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());
-        auto ih = ov::test::utils::deprecated::make_constant(inPrec, ranges[1], rangesBounds[1], rangesBounds[1].empty());
-        auto ol = ov::test::utils::deprecated::make_constant(inPrec, ranges[2], rangesBounds[2], rangesBounds[2].empty());
-        auto oh = ov::test::utils::deprecated::make_constant(inPrec, ranges[3], rangesBounds[3], rangesBounds[3].empty());
+        auto il = ov::test::utils::make_constant(inPrec, ranges[0], rangesBounds[0]);
+        auto ih = ov::test::utils::make_constant(inPrec, ranges[1], rangesBounds[1]);
+        auto ol = ov::test::utils::make_constant(inPrec, ranges[2], rangesBounds[2]);
+        auto oh = ov::test::utils::make_constant(inPrec, ranges[3], rangesBounds[3]);
         auto fq = std::make_shared<ov::op::v0::FakeQuantize>(params[0], il, ih, ol, oh, levels);
 
         layerName = shouldBeDecomposed ? "" : "FakeQuantize";
@@ -123,6 +123,10 @@ protected:
         }
 
         function = makeNgraphFunction(inPrec, params, fq, "FakeQuantizeCPU");
+
+        if (inPrec == ov::element::f32) {
+            abs_threshold = 1e-4;
+        }
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

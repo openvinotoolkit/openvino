@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 ov::Any value = val.as<std::string>();
                 auto streams_value = value.as<ov::streams::Num>();
                 if (streams_value == ov::streams::NUMA) {
-                    latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
+                    modelDistributionPolicy = {};
+                    hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+                    changedHintPerfMode = true;
                 } else if (streams_value == ov::streams::AUTO) {
                     hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
                     changedHintPerfMode = true;
@@ -184,12 +186,26 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::scheduling_core_type.name(),
-                               ". Expected only ",
-                               ov::hint::SchedulingCoreType::ANY_CORE,
-                               '/',
-                               ov::hint::SchedulingCoreType::PCORE_ONLY,
-                               '/',
-                               ov::hint::SchedulingCoreType::ECORE_ONLY);
+                               ". Expected only ov::hint::SchedulingCoreType::ANY_CORE/PCORE_ONLY/ECORE_ONLY");
+            }
+        } else if (key == ov::hint::model_distribution_policy.name()) {
+            auto error_info = [&]() {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::model_distribution_policy.name(),
+                               ". CPU plugin only support {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL}");
+            };
+
+            try {
+                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                    if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
+                        error_info();
+                    }
+                }
+                modelDistributionPolicy = val.as<std::set<ov::hint::ModelDistributionPolicy>>();
+            } catch (ov::Exception&) {
+                error_info();
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {
@@ -270,16 +286,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                         inferencePrecision = ov::element::bf16;
                     }
                 } else if (prec == ov::element::f16) {
-#if defined(OPENVINO_ARCH_X86_64)
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-#elif defined(OV_CPU_ARM_ENABLE_FP16)
-                    // TODO: add runtime FP16 feature support check for ARM
-                    inferencePrecision = ov::element::f16;
-#endif
-                } else if (prec == ov::element::f32) {
-                    inferencePrecision = ov::element::f32;
+                } else if (one_of(prec, element::f32, element::undefined)) {
+                    inferencePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
                 }
@@ -288,7 +299,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::hint::inference_precision.name(),
-                               ". Supported values: bf16, f16, f32");
+                               ". Supported values: bf16, f16, f32, undefined");
             }
         } else if (ov::intel_cpu::cpu_runtime_cache_capacity.name() == key) {
             int val_i = -1;
@@ -368,17 +379,15 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     if (!inferencePrecisionSetExplicitly) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-            // fp16 precision is used as default precision on ARM for non-convolution networks
-            // fp16 ACL convolution is slower than fp32
-            if (modelType != ModelType::CNN)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            if (hasHardwareSupport(ov::element::f16)) {
                 inferencePrecision = ov::element::f16;
-#else
+            }
+#endif
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
-#endif
         } else {
-            inferencePrecision = ov::element::f32;
+            inferencePrecision = ov::element::undefined;
         }
     }
 

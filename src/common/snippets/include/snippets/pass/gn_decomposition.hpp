@@ -1,0 +1,27 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+
+namespace ov {
+namespace snippets {
+namespace pass {
+
+/**
+ * @interface GNDecomposition
+ * @brief Decomposes GroupNormalization to a range of low-level operations
+ * @ingroup snippets
+ */
+class GNDecomposition: public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("GNDecomposition", "0");
+    GNDecomposition();
+};
+
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

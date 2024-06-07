@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,10 @@ public:
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
         }
-        auto end = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{2147483647});
-        auto stride  = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{1});
-        auto indices = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{1});
-        auto axes = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{0});
+        auto end = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{1}, std::vector<int64_t>{2147483647});
+        auto stride  = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto indices = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto axes = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{1}, std::vector<int64_t>{0});
         auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(inputParams[1]);
         auto gather = std::make_shared<ov::op::v8::Gather>(shapeOf, indices, axes);
         auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(inputParams.front(),

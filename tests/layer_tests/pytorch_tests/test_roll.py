@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -18,12 +18,12 @@ class TestRoll(PytorchLayerTest):
             def __init__(self, shifts, dim=None):
                 super(aten_roll, self).__init__()
                 self.dim = dim
-                self.shits = shifts
+                self.shifts = shifts
 
             def forward(self, x):
                 if self.dim is not None:
-                    return torch.roll(x, self.shits, self.dim)
-                return torch.roll(x, self.shits)
+                    return torch.roll(x, self.shifts, self.dim)
+                return torch.roll(x, self.shifts)
 
         ref_net = None
 
@@ -38,5 +38,7 @@ class TestRoll(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_roll(self, shifts, dim, ie_device, precision, ir_version):
-        self._test(*self.create_model(shifts, dim), ie_device, precision, ir_version)
+        self._test(*self.create_model(shifts, dim), ie_device, precision, ir_version,
+                   dynamic_shapes=ie_device != "GPU")

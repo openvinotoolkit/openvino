@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,21 @@
 #include <memory>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 
 namespace ov {
 namespace op {
@@ -150,11 +159,11 @@ bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialSha
 
 std::shared_ptr<ov::Node> activation(const std::string& activation_name, const ov::Output<ov::Node>& apply_to) {
     if (activation_name == "relu") {
-        return std::make_shared<opset4::Relu>(apply_to);
+        return std::make_shared<ov::op::v0::Relu>(apply_to);
     } else if (activation_name == "sigmoid") {
-        return std::make_shared<opset4::Sigmoid>(apply_to);
+        return std::make_shared<ov::op::v0::Sigmoid>(apply_to);
     } else if (activation_name == "tanh") {
-        return std::make_shared<opset4::Tanh>(apply_to);
+        return std::make_shared<ov::op::v0::Tanh>(apply_to);
     } else {
         OPENVINO_THROW("Unsupported activation function");
     }
@@ -240,9 +249,10 @@ std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& nod
 std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_node(
     const std::shared_ptr<ov::Node>& shape_node,
     const std::vector<size_t>& indices,
-    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
-    const auto& indices_op = v0::Constant::create(ov::element::i64, {indices.size()}, indices);
-    const auto& axis_op = v0::Constant::create(ov::element::i64, {}, {0});
+    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from,
+    const ov::element::Type& shape_path_precision) {
+    const auto& indices_op = v0::Constant::create(shape_path_precision, {indices.size()}, indices);
+    const auto& axis_op = v0::Constant::create(shape_path_precision, {}, {0});
     auto op = make_try_fold<v7::Gather>(shape_node, indices_op, axis_op);
     if (!copy_rt_info_from.empty())
         ov::copy_runtime_info(copy_rt_info_from, {op, indices_op, axis_op});
@@ -252,11 +262,15 @@ std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_node(
 std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_source(
     const ov::Output<ov::Node>& shape_source,
     const std::vector<size_t>& indices,
-    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
-    const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source);
+    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from,
+    const ov::element::Type& shape_path_precision) {
+    const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source, shape_path_precision);
     if (!copy_rt_info_from.empty())
         ov::copy_runtime_info(copy_rt_info_from, shape_node);
-    return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices, copy_rt_info_from);
+    return node_to_get_shape_value_of_indices_from_shape_node(shape_node,
+                                                              indices,
+                                                              copy_rt_info_from,
+                                                              shape_path_precision);
 }
 
 bool shapes_equal_except_dynamic_expected_batch(const ov::PartialShape& expected, const ov::PartialShape& actual) {
@@ -271,21 +285,22 @@ bool shapes_equal_except_dynamic_expected_batch(const ov::PartialShape& expected
 
 void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
     auto is_shapeof = [](ov::Node* node) {
-        return ov::is_type<opset1::ShapeOf>(node) || ov::is_type<opset3::ShapeOf>(node);
+        return ov::is_type<ov::op::v0::ShapeOf>(node) || ov::is_type<ov::op::v3::ShapeOf>(node);
     };
     visit_path_impl(node, visited, func, is_shapeof);
 }
 
 void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
     auto check_parameter = [](ov::Node* node) {
-        OPENVINO_ASSERT(!ov::is_type<opset1::Parameter>(node), "visit_constant_path is called for non-constant path.");
+        OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(node),
+                        "visit_constant_path is called for non-constant path.");
         return false;
     };
     visit_path_impl(node, visited, func, check_parameter);
 }
 
 bool is_dequantization_subgraph(const Output<Node>& node) {
-    if (!is_type<opset8::Multiply>(node.get_node())) {
+    if (!is_type<ov::op::v1::Multiply>(node.get_node())) {
         return false;
     }
 
@@ -293,9 +308,9 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
     Node* sub = nullptr;
     Node* convert = nullptr;
 
-    if (is_type<opset8::Subtract>(mul_inputs[0].get_node())) {
+    if (is_type<ov::op::v1::Subtract>(mul_inputs[0].get_node())) {
         sub = mul_inputs[0].get_node();
-    } else if (is_type<opset8::Convert>(mul_inputs[0].get_node())) {
+    } else if (is_type<ov::op::v0::Convert>(mul_inputs[0].get_node())) {
         convert = mul_inputs[0].get_node();
     } else {
         return false;
@@ -303,7 +318,7 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
 
     if (sub) {
         auto sub_inputs = sub->input_values();
-        if (is_type<opset8::Convert>(sub_inputs[0].get_node())) {
+        if (is_type<ov::op::v0::Convert>(sub_inputs[0].get_node())) {
             convert = sub_inputs[0].get_node();
         }
     }
@@ -320,8 +335,8 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
 bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                 const Output<Node>& constant,
                                 const Output<Node>& non_constant_input) {
-    if (!is_type<opset8::Add>(eltwise) && !is_type<opset8::Subtract>(eltwise) && !is_type<opset8::Multiply>(eltwise) &&
-        !is_type<opset8::Divide>(eltwise)) {
+    if (!is_type<ov::op::v1::Add>(eltwise) && !is_type<ov::op::v1::Subtract>(eltwise) &&
+        !is_type<ov::op::v1::Multiply>(eltwise) && !is_type<ov::op::v1::Divide>(eltwise)) {
         return false;
     }
 
@@ -330,7 +345,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
 
     // check if constant has a single value with either 0 (for Add, Subtract) or 1 (for Multiply, Divide)
-    auto constant_ptr = std::dynamic_pointer_cast<opset8::Constant>(constant.get_node_shared_ptr());
+    auto constant_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(constant.get_node_shared_ptr());
     if (!constant_ptr) {
         return false;
     }
@@ -377,7 +392,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
         return false;
     }
     float expected_const = 0;
-    if (is_type<opset8::Multiply>(eltwise) || is_type<opset8::Divide>(eltwise)) {
+    if (is_type<ov::op::v1::Multiply>(eltwise) || is_type<ov::op::v1::Divide>(eltwise)) {
         expected_const = 1;
     }
     if (actual_const != expected_const) {
@@ -454,6 +469,20 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
         }
     }
     return status;
+}
+
+bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node) {
+    bool changed = false;
+
+    if (const auto& multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+        for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+            if (sub_graph) {
+                changed = model_pass.run_on_model(sub_graph) || changed;
+            }
+        }
+    }
+
+    return changed;
 }
 
 }  // namespace util

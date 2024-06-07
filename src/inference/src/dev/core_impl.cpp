@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "check_network_batchable.hpp"
-#include "compilation_context.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -18,6 +17,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -786,8 +786,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    // Skip caching for proxy plugin. HW plugin will load network from the cache
+
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
+        // Skip caching for proxy plugin. HW plugin will load network from the cache
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
@@ -796,13 +797,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                 auto model = read_model(model_path, std::string{});
                 return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
             });
-    } else if (cacheManager) {
-        // this code path is enabled for AUTO / MULTI / BATCH / PROXY devices which don't support
-        // import / export explicitly, but can redirect this functionality to actual HW plugin
-        compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
-        auto model = read_model(model_path, std::string());
-        compiled_model = plugin.compile_model(model, parsed._config);
+        compiled_model = plugin.compile_model(model_path, parsed._config);
     }
     return compiled_model;
 }
@@ -1291,11 +1287,9 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             {
                 OPENVINO_SUPPRESS_DEPRECATED_START
                 if (device_supports_cache_dir(plugin.second)) {
-                    ov::AnyMap empty_map;
-                    auto cacheConfig = coreConfig.get_cache_config_for_device(plugin.second, empty_map);
-                    if (cacheConfig._cacheManager) {
-                        configCopy[ov::cache_dir.name()] = cacheConfig._cacheDir;
-                    }
+                    ov::AnyMap empty_map = {};
+                    configCopy[ov::cache_dir.name()] =
+                        coreConfig.get_cache_config_for_device(plugin.second, empty_map)._cacheDir;
                 } else if (configCopy.count(ov::cache_dir.name()) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     configCopy.erase(ov::cache_dir.name());
@@ -1409,21 +1403,22 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             try {
                 ov::CompiledBlobHeader header;
                 networkStream >> header;
-                if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
+                if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                     // Original file is changed, don't use cache
                     OPENVINO_THROW("Original model file is changed");
                 }
                 if (util::contains(plugin.get_property(ov::internal::supported_properties),
                                    ov::internal::compiled_model_runtime_properties_supported.name())) {
                     ov::AnyMap compiled_model_runtime_properties = {
-                        {ov::internal::compiled_model_runtime_properties.name(), std::string(header.getRuntimeInfo())}};
+                        {ov::internal::compiled_model_runtime_properties.name(),
+                         std::string(header.get_runtime_info())}};
                     auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
                                                    compiled_model_runtime_properties);
                     if (!res.as<bool>()) {
                         OPENVINO_THROW("Original model runtime properties have been changed, not supported anymore!");
                     }
                 } else {
-                    if (header.getIeVersion() != ov::get_openvino_version().buildNumber) {
+                    if (header.get_openvino_version() != ov::get_openvino_version().buildNumber) {
                         // Build number mismatch, don't use this cache
                         OPENVINO_THROW("Version does not match");
                     }
@@ -1560,7 +1555,11 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::cre
     std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
 
     if (!dir.empty()) {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        ov::util::create_directory_recursive(ov::util::string_to_wstring(dir));
+#else
         ov::util::create_directory_recursive(dir);
+#endif
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
 

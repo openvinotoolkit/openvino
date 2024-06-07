@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,6 +165,9 @@ private:
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
+    ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const override {
+        return create_compile_config(get_plugin(device_name), origConfig);
+    }
 
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);

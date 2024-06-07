@@ -7,6 +7,7 @@
 #include <pybind11/stl.h>
 
 #include <map>
+#include <set>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -176,6 +177,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::intel_auto::SchedulePolicy>());
     } else if (any.is<ov::hint::SchedulingCoreType>()) {
         return py::cast(any.as<ov::hint::SchedulingCoreType>());
+    } else if (any.is<std::set<ov::hint::ModelDistributionPolicy>>()) {
+        return py::cast(any.as<std::set<ov::hint::ModelDistributionPolicy>>());
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
@@ -196,6 +199,8 @@ py::object from_ov_any(const ov::Any& any) {
         std::stringstream luid_stream;
         luid_stream << any.as<ov::device::LUID>();
         return py::cast(luid_stream.str());
+    } else if (any.is<ov::device::PCIInfo>()) {
+        return py::cast(any.as<ov::device::PCIInfo>());
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
@@ -205,6 +210,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::Str>());
     } else if (any.is<ov::frontend::type::PyNone>()) {
         return py::cast(any.as<ov::frontend::type::PyNone>());
+    } else if (any.is<ov::frontend::type::PyScalar>()) {
+        return py::cast(any.as<ov::frontend::type::PyScalar>());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
@@ -373,6 +380,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::intel_auto::SchedulePolicy>(py_obj);
     } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
         return py::cast<ov::hint::SchedulingCoreType>(py_obj);
+    } else if (py::isinstance<std::set<ov::hint::ModelDistributionPolicy>>(py_obj)) {
+        return py::cast<std::set<ov::hint::ModelDistributionPolicy>>(py_obj);
     } else if (py::isinstance<ov::hint::ExecutionMode>(py_obj)) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
@@ -402,6 +411,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::frontend::type::Str>(py_obj);
     } else if (py::isinstance<ov::frontend::type::PyNone>(py_obj)) {
         return py::cast<ov::frontend::type::PyNone>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::PyScalar>(py_obj)) {
+        return py::cast<ov::frontend::type::PyScalar>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;

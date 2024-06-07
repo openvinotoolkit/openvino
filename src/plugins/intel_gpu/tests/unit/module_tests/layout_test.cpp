@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,8 +180,6 @@ INSTANTIATE_TEST_SUITE_P(smoke, weights_layout_test,
         {data_types::f32, format::goiyx, {4, 2, 15, 3, 5}, {4, 2, 15, 3, 5}, {0, 1, 2, 3, 4}},
         {data_types::f32, format::goizyx, {4, 2, 15, 3, 5, 6}, {4, 2, 15, 3, 5, 6}, {0, 1, 2, 3, 4, 5}},
         {data_types::f32, format::giozyx, {4, 2, 15, 3, 5, 6}, {4, 2, 15, 3, 5, 6}, {0, 2, 1, 3, 4, 5}},
-        {data_types::f32, format::g_os_is_yx_osa2_isa8_osv16_isv2, {4, 2, 15, 3, 5}, {4, 32, 16, 3, 5}, {0, 1, 2, 3, 4}},
-        {data_types::f32, format::g_os_is_zyx_osa4_isa8_osv8_isv4, {4, 2, 15, 3, 5, 6}, {4, 32, 32, 3, 5, 6}, {0, 1, 2, 3, 4, 5}},
     }));
 
 
@@ -237,12 +235,8 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_cmp_test,
          layout{ov::PartialShape{1, 2, 1, 1}, data_types::f16, format::b_fs_yx_fsv16}, false, false},
         {layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::os_is_zyx_isv16_osv16},
          layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::is_os_zyx_isv16_osv16}, false, false},
-        {layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::g_os_yx_is_osv8_isv2},
-         layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::g_os_y_is_x_osv8_isv2}, false, false},
         {layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::goiyx},
          layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::gioyx}, false, false},
-        {layout{ov::PartialShape{9, 17, 3, 2, 5}, data_types::f16, format::is_os_zyx_isa8_osv8_isv2},
-         layout{ov::PartialShape{9, 17, 3, 2, 5}, data_types::f16, format::os_is_zyx_isa8_osv8_isv2}, false, false},
     }));
 
 struct layouts_transform_test_params {
@@ -272,6 +266,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_transform_test,
         {format::bfyx, format::bfwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 3, 4}},
         {format::bfyx, format::bfuwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 1, 3, 4}},
         {format::bfyx, format::bfvuwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 1, 1, 3, 4}},
+        {format::bfyx, format::bfvuwzyx, ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 1, 1, 1, 1, 3, 1}},
 
         {format::b_fs_yx_fsv16, format::bfyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 3, 4}},
         {format::b_fs_yx_fsv16, format::bfzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 3, 4}},
@@ -346,10 +341,6 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_convert_test,
         {format::ioyx, ov::PartialShape{1, 2, 3, 4}, false},
         {format::os_i_osv16__ai8, ov::PartialShape{1, 2}, false},
         {format::os_iyx_osv16, ov::PartialShape{1, 2, 3, 4}, false},
-        {format::os_i_yxs_osv4_yxsv4, ov::PartialShape{1, 2, 3, 4}, false},
-        {format::os_is_yx_isa8_osv8_isv2, ov::PartialShape{1, 2, 3, 4}, false},
-        {format::is_os_yx_isa2_osa8_isv8_osv2, ov::PartialShape{1, 2, 3, 4}, false},
-        {format::is_o32_yx_isv32_swizzled_by_4, ov::PartialShape{1, 2, 3, 4}, false},
         // 4D formats grouped
         {format::bfzyx, ov::PartialShape{1, 2, 3, 4, 5}, true},
         {format::goiyx, ov::PartialShape{1, 2, 3, 4, 5}, false},
@@ -362,15 +353,12 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_convert_test,
         {format::iozyx, ov::PartialShape{1, 2, 3, 4, 5}, false},
         {format::os_is_zyx_isa8_osv16_isv4, ov::PartialShape{1, 2, 3, 4, 5}, false},
         {format::os_is_zyx_osa4_isa8_osv8_isv4, ov::PartialShape{1, 2, 3, 4, 5}, false},
-        {format::is_os_zyx_isa8_osv8_isv2, ov::PartialShape{1, 2, 3, 4, 5}, false},
         {format::is_os_zyx_isv16_osv16, ov::PartialShape{1, 2, 3, 4, 5}, false},
         // 5D formats grouped
         {format::bfwzyx, ov::PartialShape{1, 2, 3, 4, 5, 6}, true},
         {format::giozyx, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
-        {format::gs_oizyx_gsv32, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
         {format::g_os_zyx_is_osv32_isv32, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
         {format::g_is_os_zyx_isv16_osv16, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
-        {format::g_os_is_zyx_osa4_isa8_osv8_isv2, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
     }));
 
 struct custom_layout_test_params {

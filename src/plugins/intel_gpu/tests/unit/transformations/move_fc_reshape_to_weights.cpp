@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <intel_gpu/op/fully_connected.hpp>
+#include <intel_gpu/op/placeholder.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -71,7 +72,9 @@ public:
             auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {2}, {1, 0});
             weights_path = std::make_shared<ov::opset1::Transpose>(weights_path, transpose_const);
         }
-        auto fully_connected = std::make_shared<op::FullyConnected>(data, weights_path);
+	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+
+        auto fully_connected = std::make_shared<op::FullyConnected>(data, weights_path, no_bias);
         return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
     }
 

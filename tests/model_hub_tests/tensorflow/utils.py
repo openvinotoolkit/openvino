@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -17,6 +17,65 @@ type_map = {
     tf.string: str,
     tf.bool: bool,
 }
+
+
+def unpack_tf_result(tensor):
+    if isinstance(tensor, tf.Tensor):
+        return tensor.numpy()
+    elif isinstance(tensor, (list, tuple)):
+        res = []
+        for elem in tensor:
+            res.append(unpack_tf_result(elem))
+        if isinstance(tensor, list):
+            return res
+        else:
+            return tuple(res)
+    elif isinstance(tensor, dict):
+        res = {}
+        for out_name, out_value in tensor.items():
+            res[out_name] = unpack_tf_result(out_value)
+        return res
+    raise Exception("Unknown output type of original FW inference result: {}".format(type(tensor)))
+
+
+def repack_ov_result_to_tf_format(ov_out, signature, outer_name=None):
+    if signature is None:
+        return ov_out
+
+    from tensorflow.python.framework.tensor import TensorSpec
+    if isinstance(signature, (tf.Tensor, TensorSpec)):
+        out_name = signature.name
+        assert out_name in ov_out or outer_name in ov_out, "Could not match OV output and FW signature."
+        # Case when ov result has inner tensor name
+        if out_name in ov_out:
+            return ov_out[out_name]
+        # Case when ov result has correct outer name
+        if outer_name is not None and outer_name in ov_out:
+            return ov_out[outer_name]
+        raise Exception("Could not match OV output and FW signature.")
+    elif isinstance(signature, (list, tuple)):
+        res = []
+        for idx, elem in enumerate(signature):
+            res.append(repack_ov_result_to_tf_format(ov_out, signature[idx]))
+        if isinstance(signature, list):
+            return res
+        else:
+            return tuple(res)
+    elif isinstance(signature, dict):
+        res = {}
+        for out_name, out_value in signature.items():
+            res[out_name] = repack_ov_result_to_tf_format(ov_out, signature[out_name], out_name)
+        return res
+    raise Exception("Unknown type in FW signature: {}".format(type(signature)))
+
+
+def get_output_signature_from_keras_layer(model):
+    try:
+        from openvino.frontend.tensorflow.utils import trace_tf_model_if_needed
+        traced_model = trace_tf_model_if_needed(model, None, None, None)
+        return traced_model.structured_outputs
+    except:
+        return None
 
 
 def get_input_info(input_tensor, input_name):
@@ -80,3 +139,34 @@ def get_output_signature(graph: tf_v1.Graph):
             if op.type not in unlikely_output_types:
                 outputs.append(op.name + ':0')
     return outputs
+
+
+def retrieve_inputs_info_for_signature(input_signature):
+    inputs_info = []
+    for input_name, input_info in (input_signature.items() if isinstance(input_signature, dict) else input_signature):
+        input_shape = []
+        try:
+            if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
+                # image classification case, let us imitate an image
+                # that helps to avoid compute output size issue
+                input_shape = [1, 200, 200, 3]
+            elif input_info.shape.as_list() == [None, None, None, None, 3] and input_info.dtype == tf.float32:
+                input_shape = [1, 2, 100, 100, 3]
+            else:
+                for dim in input_info.shape.as_list():
+                    if dim is None:
+                        input_shape.append(1)
+                    else:
+                        input_shape.append(dim)
+        except ValueError:
+            # unknown rank case
+            # assume only one dimension
+            input_shape = [3]
+            pass
+        if input_info.dtype == tf.resource:
+            # skip inputs corresponding to variables
+            continue
+        assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
+        inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
+
+    return inputs_info

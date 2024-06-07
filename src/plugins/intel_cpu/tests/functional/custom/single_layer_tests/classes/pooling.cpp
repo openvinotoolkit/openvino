@@ -98,6 +98,7 @@ void PoolingLayerCPUTest::SetUp() {
 
     std::shared_ptr<ov::Node> poolInput = params[0];
     if (isInt8) {
+        abs_threshold = 2e-2;
         ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
         poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
     }
@@ -223,8 +224,22 @@ const std::vector<poolSpecificParams>& paramsMax3D() {
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
             poolSpecificParams{ utils::PoolingTypes::MAX, {2}, {1}, {0}, {0},
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
+            poolSpecificParams{ utils::PoolingTypes::MAX, {7}, {2}, {2}, {2},
+                                ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
     };
     return paramsMax3D;
+}
+
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D() {
+    static const std::vector<maxPoolV8SpecificParams> paramsMaxV83D = {
+            maxPoolV8SpecificParams{ {2}, {2}, {1}, {0}, {0},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {7}, {2}, {1}, {2}, {2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
+    };
+    return paramsMaxV83D;
 }
 
 const std::vector<poolSpecificParams>& paramsAvg3D() {
@@ -254,6 +269,8 @@ const std::vector<poolSpecificParams>& paramsMax4D() {
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
             poolSpecificParams{ utils::PoolingTypes::MAX, {4, 2}, {2, 1}, {0, 0}, {0, 0},
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
+            poolSpecificParams{ utils::PoolingTypes::MAX, {11, 7}, {2, 2}, {2, 2}, {2, 2},
+                                ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
     };
     return paramsMax4D;
 }
@@ -263,6 +280,9 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D() {
             maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {11, 7}, {2, 2}, {1, 1}, {2, 2}, {2, 2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
     };
     return paramsMaxV84D;
 }
@@ -375,6 +395,9 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D() {
             maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {7, 11, 6}, {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
     };
     return paramsMaxV85D;
 }
@@ -455,6 +478,25 @@ const std::vector<InputShape>& inputShapes4D_Large() {
     return inputShapes4D_Large;
 }
 
+const CPUSpecificParams& expectedCpuConfigAnyLayout() {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    static const CPUSpecificParams acl = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
+    return acl;
+#else
+    static const CPUSpecificParams ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
+    return ref;
+#endif
+}
+
+const std::vector<CPUSpecificParams>& vecCpuConfigsFusing_4D() {
+    const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
+    const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
+    const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
+    const auto acl_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"acl"}, "acl"};
+
+    static const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc, acl_nhwc, expectedCpuConfigAnyLayout()};
+    return vecCpuConfigsFusing_4D;
+}
 
 }  // namespace Pooling
 }  // namespace test

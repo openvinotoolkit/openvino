@@ -42,6 +42,27 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::AvgPool> &
     const auto rounding_type = ov::op::RoundingType::FLOOR;
     const auto auto_pad = ov::op::PadType::SAME_LOWER;
     const auto avgPoolNode = std::make_shared<ov::op::v1::AvgPool>(data,
+                                                                strides,
+                                                                pads_begin,
+                                                                pads_end,
+                                                                kernel,
+                                                                exclude_pad,
+                                                                rounding_type,
+                                                                auto_pad);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(avgPoolNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "AvgPoolGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::AvgPool> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 32});
+    const ov::Strides strides{1};
+    const ov::Shape pads_begin{0};
+    const ov::Shape pads_end{0};
+    const ov::Shape kernel{2};
+    const auto exclude_pad = false;
+    const auto rounding_type = ov::op::RoundingType::CEIL_TORCH;
+    const auto auto_pad = ov::op::PadType::SAME_LOWER;
+    const auto avgPoolNode = std::make_shared<ov::op::v14::AvgPool>(data,
                                                                    strides,
                                                                    pads_begin,
                                                                    pads_end,
@@ -940,6 +961,19 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::ROIAlign>&
     return std::make_shared<ov::Model>(results, params, "ROIAlignGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::ROIAlignRotated>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 16, 16}})};
+    const auto coords = std::make_shared<ov::op::v0::Constant>(
+        ov::element::f32,
+        ov::Shape{1, static_cast<size_t>(node->get_rois_input_second_dim_size())},
+        std::vector<float>(node->get_rois_input_second_dim_size(), 0));
+    const auto roisIdx =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+    auto new_node = std::make_shared<ov::op::v15::ROIAlignRotated>(params.at(0), coords, roisIdx, 2, 2, 2, 1, true);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(new_node)};
+    return std::make_shared<ov::Model>(results, params, "ROIAlignRotatedGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::ROIPooling> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 3, 8, 8}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 5}})};
@@ -1372,6 +1406,8 @@ std::shared_ptr<ov::Model> generateMaxPoolBase(const std::shared_ptr<ov::op::Op>
         maxPoolNode = std::make_shared<ov::op::v1::MaxPool>(data, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
     } else if (ov::is_type<ov::op::v8::MaxPool>(node)) {
         maxPoolNode = std::make_shared<ov::op::v8::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel_shape);
+    } else if (ov::is_type<ov::op::v14::MaxPool>(node)) {
+        maxPoolNode = std::make_shared<ov::op::v14::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel_shape);
     } else {
         return nullptr;
     }
@@ -1403,6 +1439,8 @@ std::shared_ptr<ov::Model> generateScatterNDBase(const std::shared_ptr<ov::op::O
     std::shared_ptr<ov::Node> scatterNode;
     if (ov::is_type<ov::op::v3::ScatterNDUpdate>(node)) {
         scatterNode = std::make_shared<ov::op::v3::ScatterNDUpdate>(data, indices, updates);
+    } else if (ov::is_type<ov::op::v15::ScatterNDUpdate>(node)) {
+        scatterNode = std::make_shared<ov::op::v15::ScatterNDUpdate>(data, indices, updates, ov::op::v15::ScatterNDUpdate::Reduction::SUM);
     } else {
         return nullptr;
     }
@@ -1752,14 +1790,17 @@ std::shared_ptr<ov::Model> generateEmbeddingBagOffsetsBase(const std::shared_ptr
     const auto offsets = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::i32, ov::Shape{3}));
     const auto default_index = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape(), std::vector<int32_t>{0});
 
-    std::shared_ptr<ov::Node> EmbeddingBagOffsetsSumNode;
+    std::shared_ptr<ov::Node> EmbeddingBagOffsetsNode;
     if (ov::is_type<ov::op::v3::EmbeddingBagOffsetsSum>(node)) {
-        EmbeddingBagOffsetsSumNode = std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>(params.at(0), indices, offsets, default_index);
+        EmbeddingBagOffsetsNode = std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>(params.at(0), indices, offsets, default_index);
+    } else if (ov::is_type<ov::op::v15::EmbeddingBagOffsets>(node)) {
+        const auto reduction = ov::op::v15::EmbeddingBagOffsets::Reduction::MEAN;
+        EmbeddingBagOffsetsNode = std::make_shared<ov::op::v15::EmbeddingBagOffsets>(params.at(0), indices, offsets, default_index, reduction);
     } else {
         return nullptr;
     }
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(EmbeddingBagOffsetsSumNode)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(EmbeddingBagOffsetsNode)};
     return std::make_shared<ov::Model>(results, params, "EmbeddingBagOffsetsBaseGraph");
 }
 
@@ -1767,14 +1808,17 @@ std::shared_ptr<ov::Model> generateEmbeddingBagPackedBase(const std::shared_ptr<
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 2}})};
     const auto indices = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::i32, ov::Shape{2, 3}));
 
-    std::shared_ptr<ov::Node> EmbeddingBagPackedSumNode;
+    std::shared_ptr<ov::Node> EmbeddingBagPackedNode;
     if (ov::is_type<ov::op::v3::EmbeddingBagPackedSum>(node)) {
-        EmbeddingBagPackedSumNode = std::make_shared<ov::op::v3::EmbeddingBagPackedSum>(params.at(0), indices);
+        EmbeddingBagPackedNode = std::make_shared<ov::op::v3::EmbeddingBagPackedSum>(params.at(0), indices);
+    } else if (ov::is_type<ov::op::v15::EmbeddingBagPacked>(node)) {
+        const auto reduction = ov::op::v15::EmbeddingBagPacked::Reduction::SUM;
+        EmbeddingBagPackedNode = std::make_shared<ov::op::v15::EmbeddingBagPacked>(params.at(0), indices, reduction);
     } else {
         return nullptr;
     }
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(EmbeddingBagPackedSumNode)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(EmbeddingBagPackedNode)};
     return std::make_shared<ov::Model>(results, params, "EmbeddingBagPackedBaseGraph");
 }
 
@@ -1854,6 +1898,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GeneratePr
     } else {
         return nullptr;
     }
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::Col2Im> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{12, 9});
+    const auto output_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {4, 4});
+    const auto kernel_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {2, 2});
+    const auto Col2ImNode = std::make_shared<ov::op::v15::Col2Im>(data, output_size, kernel_size);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Col2ImNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "Col2ImGraph");
 }
 
 std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op> &node) {
@@ -2091,6 +2144,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset12_tbl.hpp"
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
+#include "openvino/opsets/opset15_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;

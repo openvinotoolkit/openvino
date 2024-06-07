@@ -62,7 +62,7 @@ included in the [Linux workflow](../../../../.github/workflows/linux.yml). They 
   * This trigger runs the workflow on a specified interval (e.g., nightly).
   * In the example below: `'0 0 * * 3,6'` - learn more on [cron syntax](https://crontab.guru/)
 * `on: pull_request` - pre-commit trigger
-  * This trigger runs the workflow when a PR is created targeting the `master` or `release`
+  * This trigger runs the workflow when a pull request (PR) is created targeting the `master` or `release`
     branch and every time the PR is updated with new commits.
   * In the example below, it additionally requires that the changed files conform to the path
     globs specified under the `paths` key.
@@ -274,7 +274,7 @@ You can run jobs in Docker containers.
 Refer to [the documentation for syntax overview](https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container).
 
 Workflows utilize appropriate Docker images based on their jobs' needs. Learn more about the
-available images and how to choose one in the [hOpenVINO Docker Image Overview](./docker_images.md).
+available images and how to choose one in the [OpenVINO Docker Image Overview](./docker_images.md).
 
 ## Caches
 

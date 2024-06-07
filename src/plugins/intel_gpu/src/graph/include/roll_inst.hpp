@@ -7,6 +7,16 @@
 #include "primitive_inst.h"
 
 namespace cldnn {
+template <>
+struct typed_program_node<roll> : public typed_program_node_base<roll> {
+    using parent = typed_program_node_base<roll>;
+
+public:
+    using parent::parent;
+
+    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
 
 using roll_node = typed_program_node<roll>;
 

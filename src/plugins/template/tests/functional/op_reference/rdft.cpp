@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,7 @@ struct RDFTParams {
 class ReferenceRDFTLayerTest : public testing::TestWithParam<RDFTParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         if (params.m_signal != NULL) {
             function = CreateFunctionWithSignal(params);

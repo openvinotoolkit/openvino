@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,10 @@
 #        define wstat _wstat
 #    endif
 /// @brief Windows-specific 'mkdir' wrapper
-#    define makedir(dir) _mkdir(dir)
+#    define makedir(dir) _mkdir(dir.c_str())
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        define wmakedir(dir) _wmkdir(dir.c_str())
+#    endif
 // Copied from linux libc sys/stat.h:
 #    if !defined(__MINGW32__) && !defined(__MINGW64__)
 #        define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
@@ -40,6 +43,7 @@
 #    include <dirent.h>
 #    include <dlfcn.h>
 #    include <ftw.h>
+#    include <limits.h>
 #    include <sys/file.h>
 #    include <sys/time.h>
 #    include <unistd.h>
@@ -54,7 +58,10 @@
 /// @brief Get absolute file path, returns NULL in case of error
 #    define get_absolute_path(result, path) realpath(path.c_str(), result)
 /// @brief mkdir wrapper
-#    define makedir(dir)                    mkdir(dir, 0755)
+#    define makedir(dir)                    mkdir(dir.c_str(), 0755)
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        define wmakedir(dir) mkdir(ov::util::wstring_to_string(dir).c_str(), 0755)
+#    endif
 #endif
 
 std::string ov::util::get_file_name(const std::string& s) {
@@ -340,9 +347,9 @@ void ov::util::convert_path_win_style(std::string& path) {
 
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_ACP, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
     std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_ACP, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
     return strTo;
 #    else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
@@ -354,9 +361,9 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
     const char* str = string.c_str();
 #    ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_ACP, 0, str, strSize, NULL, 0);
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
     std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_ACP, 0, str, strSize, &wstrTo[0], size_needed);
+    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
     return wstrTo;
 #    else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
@@ -396,6 +403,27 @@ bool ov::util::is_absolute_file_path(const std::string& path) {
 #endif  // _WIN32
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void ov::util::create_directory_recursive(const std::wstring& path) {
+    if (path.empty() || directory_exists(path)) {
+        return;
+    }
+
+    std::size_t pos = path.rfind(ov::util::FileTraits<wchar_t>::file_separator);
+    if (pos != std::wstring::npos) {
+        create_directory_recursive(path.substr(0, pos));
+    }
+
+    int err = wmakedir(path);
+    if (err != 0 && errno != EEXIST) {
+        std::stringstream ss;
+        // TODO: in case of exception it may be needed to remove all created sub-directories
+        ss << "Couldn't create directory [" << ov::util::wstring_to_string(path) << "], err=" << strerror(errno) << ")";
+        throw std::runtime_error(ss.str());
+    }
+}
+#endif
+
 void ov::util::create_directory_recursive(const std::string& path) {
     if (path.empty() || directory_exists(path)) {
         return;
@@ -406,7 +434,7 @@ void ov::util::create_directory_recursive(const std::string& path) {
         create_directory_recursive(path.substr(0, pos));
     }
 
-    int err = makedir(path.c_str());
+    int err = makedir(path);
     if (err != 0 && errno != EEXIST) {
         std::stringstream ss;
         // TODO: in case of exception it may be needed to remove all created sub-directories

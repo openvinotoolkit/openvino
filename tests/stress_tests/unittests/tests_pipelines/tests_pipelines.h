@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@ void test_create_compiled_model(const std::string &model, const std::string &tar
 void test_create_infer_request(const std::string &model, const std::string &target_device, const int &n);
 
 void test_infer_request_inference(const std::string &model, const std::string &target_device, const int &n);
+void test_recreate_and_infer_in_thread(const std::string &model, const std::string &target_device, const int &n);
 // tests_pipelines/tests_pipelines.cpp
 
 // tests_pipelines/tests_pipelines_full_pipeline.cpp

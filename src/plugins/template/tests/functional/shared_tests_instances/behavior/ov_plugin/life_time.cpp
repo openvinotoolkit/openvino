@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVHoldersTest,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                          OVHoldersTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVHoldersTestOnImportedNetwork,
-                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE, "HETERO:TEMPLATE"),
-                         OVHoldersTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

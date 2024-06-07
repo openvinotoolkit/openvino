@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #    include <random>
 
 #    include "base_reference_test.hpp"
+#    include "functional_test_utils/common_utils.hpp"
 #    include "functional_test_utils/skip_tests_config.hpp"
 #    include "openvino/core/preprocess/pre_post_process.hpp"
 #    include "openvino/op/add.hpp"

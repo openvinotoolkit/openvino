@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -193,11 +193,13 @@ TEST_P(MemLeaksTestSuite, recreate_and_infer_in_thread) {
     std::vector<std::function<void()>> pipeline;
     size_t n_models = test_params.models.size();
 
+    std::vector<std::shared_ptr<InferApiBase>> ie_wrapper_vector;
     for (int i = 0; i < n_models; i++) {
         auto ie_wrapper = create_infer_api_wrapper();
+        ie_wrapper_vector.push_back(ie_wrapper);
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
-        pipeline.push_back(recreate_and_infer_in_thread(ie_wrapper));
+        pipeline.push_back(recreate_and_infer_in_thread(ie_wrapper_vector[i], false));
     }
 
     auto test = [&] {

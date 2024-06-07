@@ -52,9 +52,14 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     uint32_t range = 0;
     int32_t resolution = 0;
 
-    if (activationType == utils::ActivationTypes::Exp && netPrecision == ov::element::bf16) {
-        startFrom = 0;
-        range = 2;
+    if (activationType == utils::ActivationTypes::Exp) {
+        if (netPrecision == ov::element::bf16) {
+            startFrom = 0;
+            range = 2;
+        } else {
+            startFrom = -10;
+            range = 25;
+        }
         resolution = 32768;
     } else if (activationType == utils::ActivationTypes::Acosh) {
         startFrom = 2;
@@ -110,16 +115,19 @@ void ActivationLayerCPUTest::SetUp() {
     inType  = inPrecision;
     outType = outPrecision;
     const auto primitiveType = getPrimitiveType(activationType, inType, inputShapes);
-    selectedType = primitiveType.empty() ? "" : getPrimitiveType(activationType, inType, inputShapes) + "_" + netPrecision.to_string();
+    selectedType = primitiveType.empty() ? "" : primitiveType + "_" + netPrecision.to_string();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    if defined(OPENVINO_ARCH_ARM)
     if (activationType == utils::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
         selectedType = std::string("ref_") + netPrecision.to_string();
 #    endif
-    if (activationType == utils::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with transformation
-        activationType == utils::ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with transformation
-        inputShapes.front().first.rank().get_length() > 5)               // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
+    if ((primitiveType != "jit") &&
+        (activationType == utils::ActivationTypes::SoftSign || // @todo not supported by ACL, can be decomposed with transformation
+#if defined(OPENVINO_ARCH_ARM)
+        activationType == utils::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with transformation
+#endif
+        inputShapes.front().first.rank().get_length() > 5))    // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
         selectedType = std::string("ref_") + netPrecision.to_string();
 #else
     if (activationType == utils::ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
@@ -132,6 +140,14 @@ void ActivationLayerCPUTest::SetUp() {
     auto activation = utils::make_activation(params, netPrecision, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
     function = std::make_shared<ov::Model>(ov::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (netPrecision == ov::element::f32 && outPrecision == ov::element::f32) {
+        abs_threshold = 8e-4;
+    }
+#endif
+    if (netPrecision == ov::element::bf16 && outPrecision == ov::element::f32) {
+        abs_threshold = 6e-2;
+    }
 }
 
 std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationTypes& activation_type,
@@ -139,7 +155,20 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
                                                      const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
 #if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
-    if ((element_type == ov::element::f32) && (activation_type == utils::ActivationTypes::Relu)) {
+    if ((element_type == ov::element::f32) &&
+        ((activation_type == utils::ActivationTypes::Clamp) ||
+        (activation_type == utils::ActivationTypes::Elu) ||
+        (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::Floor) ||
+        (activation_type == utils::ActivationTypes::HSwish) ||
+        (activation_type == utils::ActivationTypes::HardSigmoid) ||
+        (activation_type == utils::ActivationTypes::Mish) ||
+        (activation_type == utils::ActivationTypes::GeluErf) ||
+        (activation_type == utils::ActivationTypes::GeluTanh) ||
+        (activation_type == utils::ActivationTypes::Relu) ||
+        (activation_type == utils::ActivationTypes::Sigmoid) ||
+        (activation_type == utils::ActivationTypes::Swish) ||
+        (activation_type == utils::ActivationTypes::Tanh))) {
         return "jit";
     }
 
@@ -148,6 +177,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "";
     }
 #endif
+    if (activation_type == utils::ActivationTypes::Floor) {
+        return "ref";
+    }
     return "acl";
 #else
     return CPUTestsBase::getPrimitiveType();
@@ -174,6 +206,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Exp,         {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
+        {Floor,       {{}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},

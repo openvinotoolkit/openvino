@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,26 +103,20 @@ using namespace ov::intel_gpu;
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
     int streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
-    auto core_type = ov::threading::IStreamsExecutor::Config::ANY;
+    auto core_type = ov::hint::SchedulingCoreType::ANY_CORE;
     switch (priority) {
-        case ov::hint::Priority::LOW: core_type = ov::threading::IStreamsExecutor::Config::LITTLE; break;
-        case ov::hint::Priority::MEDIUM: core_type = ov::threading::IStreamsExecutor::Config::ANY; break;
-        case ov::hint::Priority::HIGH: core_type = ov::threading::IStreamsExecutor::Config::BIG; break;
+        case ov::hint::Priority::LOW: core_type = ov::hint::SchedulingCoreType::ECORE_ONLY; break;
+        case ov::hint::Priority::MEDIUM: core_type = ov::hint::SchedulingCoreType::ANY_CORE; break;
+        case ov::hint::Priority::HIGH: core_type = ov::hint::SchedulingCoreType::PCORE_ONLY; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
     bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
 
-    ov::threading::IStreamsExecutor::Config task_executor_config(
-        tags,
-        streams,
-        1,
-        ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
-        1,
-        0,
-        0,
-        core_type,
-        {},
-        enable_cpu_pinning);
+    ov::threading::IStreamsExecutor::Config task_executor_config(tags,
+                                                                 streams,
+                                                                 1,
+                                                                 core_type,
+                                                                 enable_cpu_pinning);
 
     return task_executor_config;
 }
@@ -213,6 +207,7 @@ program::program(engine& engine,
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
+    new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
 }
 
 program::~program() {
@@ -223,6 +218,7 @@ void program::init_program() {
     set_options();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+    new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
 
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
@@ -511,7 +507,7 @@ void program::build_program(bool is_internal) {
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
+        if (get_engine().get_device_info().has_separate_cache)
             transfer_memory_to_device();
     }
 }
@@ -1424,9 +1420,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
-
-            if (conv.get_primitive()->deformable_mode)
-                lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
             if (!conv.is_dynamic()) {
                 // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16

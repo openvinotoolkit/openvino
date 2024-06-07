@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,25 @@
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
+
+/**
+ * @brief This class limits the locale env to a special value in sub-scope
+ *
+ */
+class ScopedLocale {
+public:
+    ScopedLocale(int category, std::string newLocale) : m_category(category) {
+        m_oldLocale = setlocale(category, nullptr);
+        setlocale(m_category, newLocale.c_str());
+    }
+    ~ScopedLocale() {
+        setlocale(m_category, m_oldLocale.c_str());
+    }
+
+private:
+    int m_category;
+    std::string m_oldLocale;
+};
 
 /**
  * @brief This class represents private interface for Cache Manager
@@ -79,10 +98,15 @@ public:
  */
 class FileStorageCacheManager final : public ICacheManager {
     std::string m_cachePath;
-
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    std::wstring getBlobFile(const std::string& blobHash) const {
+        return ov::util::string_to_wstring(ov::util::make_path(m_cachePath, blobHash + ".blob"));
+    }
+#else
     std::string getBlobFile(const std::string& blobHash) const {
         return ov::util::make_path(m_cachePath, blobHash + ".blob");
     }
+#endif
 
 public:
     /**
@@ -99,11 +123,15 @@ public:
 
 private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
+        // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
+        ScopedLocale plocal_C(LC_ALL, "C");
         std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
         writer(stream);
     }
 
     void read_cache_entry(const std::string& id, StreamReader reader) override {
+        // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
+        ScopedLocale plocal_C(LC_ALL, "C");
         auto blobFileName = getBlobFile(id);
         if (ov::util::file_exists(blobFileName)) {
             std::ifstream stream(blobFileName, std::ios_base::binary);
@@ -113,8 +141,14 @@ private:
 
     void remove_cache_entry(const std::string& id) override {
         auto blobFileName = getBlobFile(id);
-        if (ov::util::file_exists(blobFileName))
+
+        if (ov::util::file_exists(blobFileName)) {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+            _wremove(blobFileName.c_str());
+#else
             std::remove(blobFileName.c_str());
+#endif
+        }
     }
 };
 

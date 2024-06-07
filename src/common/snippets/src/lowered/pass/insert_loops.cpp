@@ -7,6 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -14,64 +15,29 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopPort = LinearIR::LoopManager::LoopPort;
-
-void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id) {
-    const auto loop_info = loop_manager->get_loop_info(loop_id);
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
+void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
+    const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto work_amount = loop_info->get_work_amount();
     const auto work_amount_increment = loop_info->get_increment();
+    const auto in_num = loop_info->get_input_count();
+    const auto out_num = loop_info->get_output_count();
+
+    std::vector<PortConnectorPtr> loop_end_inputs;
+    loop_end_inputs.reserve(in_num + out_num);
+    loop_info->iterate_through_ports([&loop_end_inputs](const LoopPort& port) {
+        loop_end_inputs.push_back(port.expr_port->get_port_connector_ptr());
+    });
+
+    const auto is_incremented = loop_info->get_is_incremented();
+    const auto ptr_increments = loop_info->get_ptr_increments();
+    const auto finalization_offsets = loop_info->get_finalization_offsets();
+    const auto io_data_sizes = loop_info->get_data_sizes();
+
+    const auto loop_begin = std::make_shared<op::LoopBegin>();
+    const auto loop_end = std::make_shared<op::LoopEnd>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,
+                                                        finalization_offsets, io_data_sizes, in_num, out_num, loop_id);
 
     const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
-
-    const auto in_out_num = loop_entries.size() + loop_exits.size();
-    std::vector<bool> is_incremented;
-    std::vector<int64_t> io_data_sizes;
-    std::vector<PortConnectorPtr> loop_end_inputs;
-    is_incremented.reserve(in_out_num);
-    io_data_sizes.reserve(in_out_num);
-    loop_end_inputs.reserve(in_out_num);
-
-    auto init_common_params = [&](const std::vector<LoopPort>& ports) {
-        for (const auto& port : ports) {
-            is_incremented.push_back(port.is_incremented);
-            io_data_sizes.push_back(port.data_size);
-            loop_end_inputs.push_back(port.expr_port->get_port_connector_ptr());
-        }
-    };
-    init_common_params(loop_entries);
-    init_common_params(loop_exits);
-
-    // Should be inited by LoopInfo
-    const auto is_dynamic_loop = false;
-
-    std::shared_ptr<op::LoopBegin> loop_begin = nullptr;
-    std::shared_ptr<op::LoopEnd> loop_end = nullptr;
-    if (is_dynamic_loop) {
-        loop_begin = std::make_shared<op::LoopBeginDynamic>();
-        loop_end = std::make_shared<op::LoopEndDynamic>(loop_begin, work_amount_increment, is_incremented, io_data_sizes,
-                                                        loop_entries.size(), loop_exits.size(), loop_id);
-
-    } else {
-        std::vector<int64_t> ptr_increments, finalization_offsets;
-        ptr_increments.reserve(in_out_num);
-        finalization_offsets.reserve(in_out_num);
-
-        auto init_data_ptr_shifts = [&](const std::vector<LoopPort>& ports) {
-            for (const auto& port : ports) {
-                ptr_increments.push_back(port.ptr_increment);
-                finalization_offsets.push_back(port.finalization_offset);
-            }
-        };
-        init_data_ptr_shifts(loop_entries);
-        init_data_ptr_shifts(loop_exits);
-
-        loop_begin = std::make_shared<op::LoopBeginStatic>();
-        loop_end = std::make_shared<op::LoopEndStatic>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,
-                                                       finalization_offsets, io_data_sizes, loop_entries.size(), loop_exits.size(), loop_id);
-    }
-
     const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_bounds.first, loop_id);
 
     const auto loop_begin_expr = *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_bounds.first);

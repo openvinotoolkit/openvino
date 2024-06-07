@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,10 +20,11 @@
 
 namespace ov {
 class Node;
-/// \brief Alias for label tensor.
-using TensorLabel = std::vector<label_t>;
-/// \brief Alias for vector of label tensors.
-using TensorLabelVector = std::vector<TensorLabel>;
+/// \brief Alias for symbol tensor.
+using TensorSymbol = std::vector<std::shared_ptr<Symbol>>;
+/// \brief Alias for vector of symbol tensors.
+
+using TensorSymbolVector = std::vector<TensorSymbol>;
 
 namespace pass {
 class ReverseShapeAndTypeInfer;
@@ -52,8 +53,8 @@ public:
     void set_lower_value(const ov::Tensor& value);
     /// \brief sets upper bound value description
     void set_upper_value(const ov::Tensor& value);
-    /// \brief sets value label description
-    void set_value_label(const TensorLabel& value_label);
+    /// \brief sets value symbol description
+    void set_value_symbol(const TensorSymbol& value_symbol);
     /// \brief unsets bound value descriptions
     void invalidate_values();
 
@@ -72,9 +73,9 @@ public:
     const ov::Tensor& get_upper_value() const {
         return m_upper_value;
     }
-    /// \brief gets upper bound value description
-    TensorLabel get_value_label() const {
-        return m_value_label;
+    /// \brief gets symbol value description
+    TensorSymbol get_value_symbol() const {
+        return m_value_symbol;
     }
     /// \brief checks if lower and upper bound are set and point to the same Tensor
     bool has_and_set_bound() const {
@@ -94,36 +95,25 @@ public:
 protected:
     element::Type m_element_type;
 
-    // TODO: remove along with get_shape
-    // Initially there was Shape m_shape only available to keep shape information.
-    // Support for dynamic shapes required transition to ov::PartialShape.
-    // To smoothly transition to ov::PartialShape we introduced m_partial_shape
-    // and kept m_shape in sync with m_partial_shape. Synchronization point was placed
-    // in set_partial_shape which dramatically affected performance of ov::Model
-    // validation. Since we have started the transition to ov::PartialShape and reduced
-    // Shape usage the only user of m_shape was get_shape method with signature:
-    // const PartialShape& descriptor::Tensor::get_shape() const
-    // It was decided to move m_shape and m_partial_shape synchronization point there and
-    // to keep methods signature backward compatible.
-    mutable std::mutex m_mutex;
-    mutable Shape m_shape;
-    // TODO: end
-
     PartialShape m_partial_shape;
     ov::Tensor m_lower_value, m_upper_value;
-    TensorLabel m_value_label;
+    TensorSymbol m_value_symbol;
     std::string m_legacy_name;
 
     std::unordered_set<std::string> m_names;
     std::unordered_set<std::string>::const_iterator m_name_it;
     RTMap m_rt_info;
-    mutable std::atomic_bool m_shape_changed;
 
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
     friend void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
     friend void set_tensor_type(Tensor& tensor, const element::Type& element_type, const PartialShape& pshape);
     friend class pass::ReverseShapeAndTypeInfer;
+
+private:
+    mutable std::atomic<bool> m_shape_changing{false};
+    mutable bool m_shape_changed{true};
+    mutable Shape m_shape;
 };
 
 OPENVINO_API

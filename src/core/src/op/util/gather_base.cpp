@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ bool cf_gather_with_subgraph(OutputVector& output_values,
         return false;
     }
     // only single indices are accepted
-    const auto indices_shape = indices->get_shape();
+    const auto& indices_shape = indices->get_shape();
     if (indices_shape.size() > 1 || (indices_shape.size() == 1 && indices_shape[0] > 1)) {
         return false;
     }
@@ -258,8 +258,8 @@ bool GatherBase::evaluate_upper(TensorVector& output_values) const {
     return gather::have_indices_and_axis_bound_set(this) && default_upper_bound_evaluator(this, output_values);
 }
 
-bool GatherBase::evaluate_label(TensorLabelVector& output_labels) const {
-    return gather::have_indices_and_axis_bound_set(this) && ov::util::default_label_evaluator(this, output_labels);
+bool GatherBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return gather::have_indices_and_axis_bound_set(this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
 bool GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {

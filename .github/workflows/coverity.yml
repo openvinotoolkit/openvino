@@ -14,6 +14,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-coverity
   cancel-in-progress: true
 
+permissions: read-all
+
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
@@ -27,22 +29,14 @@ jobs:
     runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: coverity_ubuntu20_x86_64
       COVERITY_TOOL_DIR: /__w/openvino/openvino/coverity_tool
 
     steps:
@@ -52,14 +46,14 @@ jobs:
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
           ref: ${{ inputs.openvinoRef }}
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -75,11 +69,6 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
           apt install --assume-yes --no-install-recommends default-jdk
-
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "v0.7.5"
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -99,19 +88,10 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_TBB=ON \
-            -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DBUILD_nvidia_plugin=OFF \
-            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -DENABLE_FASTER_BUILD=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
-
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
 
       - name: Install Coverity tool
         run: |
@@ -122,12 +102,7 @@ jobs:
           popd
 
       - name: Cmake build - OpenVINO with Coverity
-        run: |
-           ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int \
-            cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
-
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Pack Artefacts
         run: |
@@ -137,24 +112,44 @@ jobs:
 
       - name: Submit artefacts
         run: |
-          apt-get update && apt-get install -y curl
+          apt-get update && apt-get install -y curl jq
           pushd ${BUILD_DIR}
-            curl --form token=${{ secrets.COVERITY_TOKEN }} \
-              --form email=${{ secrets.COVERITY_USER }} \
-              --form file=@openvino.tgz \
-              --form version="${{ github.sha }}" \
-              --form description="https://github.com/openvinotoolkit/openvino/runs/${{ github.run_number }}" \
-              https://scan.coverity.com/builds?project=openvino
+            curl -X POST -d token=${{ secrets.COVERITY_TOKEN }} \
+              -d email=${{ secrets.COVERITY_USER }} \
+              -d file_name="openvino.tgz" \
+              -d version="${{ github.sha }}" \
+              -d description="https://github.com/openvinotoolkit/openvino/runs/${{ github.run_number }}" \
+              https://scan.coverity.com/projects/21921/builds/init | tee response
+          
+            upload_url=$(jq -r '.url' response)
+            build_id=$(jq -r '.build_id' response)
+          
+            curl -X PUT \
+              --header 'Content-Type: application/json' \
+              --upload-file openvino.tgz \
+              $upload_url
+            
+            curl -X PUT \
+              -d token=${{ secrets.COVERITY_TOKEN }} \
+            https://scan.coverity.com/projects/21921/builds/$build_id/enqueue
           popd
 
       - name: Show Coverity configure logs
         continue-on-error: true
         run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
 
-      - name: Upload Coverity logs
-        uses: actions/upload-artifact@v4
+      - name: Upload Coverity build log
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
           name: coverity_logs
           path: ${{ env.BUILD_DIR }}/cov-int/build-log.txt
+          if-no-files-found: 'error'
+
+      - name: Upload Coverity build archive
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: always()
+        with:
+          name: coverity_archive
+          path: ${{ env.BUILD_DIR }}/openvino.tgz
           if-no-files-found: 'error'

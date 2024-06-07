@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 std::string generate_variable_name(const std::string& op_name, const std::string& param_name, int64_t variable_idx) {
@@ -127,7 +128,7 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> replace_with_memory(const std::
 }
 
 bool need_unroll(const std::shared_ptr<ov::Node>& op) {
-    const auto p_shape = op->get_input_partial_shape(0);
+    const auto& p_shape = op->get_input_partial_shape(0);
     if (p_shape.rank().is_dynamic() || p_shape[1].is_dynamic() || p_shape[1].get_length() != 1) {
         return false;
     }
@@ -259,6 +260,8 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
 
     ov::SinkVector assigns;
     for (const auto& op : f->get_ordered_ops()) {
+        ov::op::util::process_subgraph(*this, op);
+
         if (const auto& sub_graph_op = std::dynamic_pointer_cast<SubGraphOp>(op)) {
             int64_t variable_id = 0;
             const auto& func = sub_graph_op->get_function();

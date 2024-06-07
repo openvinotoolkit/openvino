@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // @file dnnl_utils.hpp
-// Contains utility methods supposed used by oneDNN backend executors
+// Contains utility methods used by oneDNN backend executors
 //
 
 #pragma once
@@ -18,7 +18,8 @@ DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
                                const MemoryCPtr weightsMem,
-                               const ExecutorContext::CPtr context);
+                               const ExecutorContext::CPtr context,
+                               const bool needShiftSignedToUnsigned = false);
 }  // namespace utils
 }  // namespace intel_cpu
 }  // namespace ov

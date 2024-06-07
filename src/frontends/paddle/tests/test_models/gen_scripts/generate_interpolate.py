@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -19,8 +19,8 @@ def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
         program=main_prog)
 
     with paddle.static.program_guard(main_prog, start_prog):
-        saveModel(name, exe, feedkeys=[feed], fetchlist=fetch_list, inputs=[input_x],
-                  outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
+        saveModel(name, exe, feed_vars=[feed], fetchlist=fetch_list, inputs=[input_x],
+                  outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs
 
@@ -131,7 +131,7 @@ def nearest_upsample_tensor_size():
                 feed={'x': data, 'sizes': sizes},
                 fetch_list=out,
                 program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(test['name'], exe, feed_vars=[node_x, node_sizes], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def bilinear_upsample_tensor_size():
@@ -162,7 +162,7 @@ def bilinear_upsample_tensor_size():
                 feed={'x': data, 'sizes': sizes},
                 fetch_list=out,
                 program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(test['name'], exe, feed_vars=[node_x, node_sizes], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def bilinear_upsample_scales():
@@ -252,7 +252,7 @@ def trilinear_upsample_tensor_size():
                 feed={'x': data, 'sizes': sizes},
                 fetch_list=out,
                 program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(test['name'], exe, feed_vars=[node_x, node_sizes], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 def trilinear_upsample_scales():
     data = np.array([[[[
@@ -331,7 +331,7 @@ def bicubic_upsample_tensor_size():
                 feed={'x': data, 'sizes': sizes},
                 fetch_list=out,
                 program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(test['name'], exe, feed_vars=[node_x, node_sizes], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 def bicubic_upsample_scales():
     data = np.array([[[
@@ -402,7 +402,7 @@ def linear_upsample_tensor_size():
                 feed={'x': data, 'sizes': sizes},
                 fetch_list=out,
                 program=main_program)
-            saveModel(test['name'], exe, feedkeys=['x', 'sizes'], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(test['name'], exe, feed_vars=[node_x, node_sizes], fetchlist=out, inputs=[data, sizes], outputs=[outs[0]], target_dir=sys.argv[1])
 
 def linear_upsample_scales():
     data = np.array([[

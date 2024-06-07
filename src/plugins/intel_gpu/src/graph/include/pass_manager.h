@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -163,6 +163,7 @@ private:
     void conv_eltwise_read_write_opt(program& p, program_node* node);
 };
 
+// TODO: Remove this pass once no unexpected reshapes/reorders are added during ov::Model -> cldnn::topology conversion
 class prepare_primitive_fusing_through : public base_pass {
 public:
     prepare_primitive_fusing_through() : base_pass("prepare_primitive_fusing_through") {}
@@ -199,7 +200,7 @@ class prepare_padding : public base_pass {
 public:
     explicit prepare_padding(bool output_size_handling_enabled_switch)
         : base_pass("prepare_padding"), output_size_handling_enabled(output_size_handling_enabled_switch) {}
-
+    static cldnn::padding get_needed_padding_for_convolution(convolution_node& node);
 private:
     void run(program& p) override;
     bool output_size_handling_enabled;

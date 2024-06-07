@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -369,6 +369,26 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             {},
             {},
             {{}, {}, {{ 0.0002f }, ov::element::f32, {}}},
+            op::v0::Constant::create(ov::element::i8, ov::Shape{}, std::vector<float>{ 2.f }),
+            true
+        }
+    },
+    // mixed precision: f16 dequantization constants, f32 dequantization precision
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ov::element::u8,
+            {{ov::element::f16}, {}, { 0.02f }},
+            {{ov::element::f16}, {}, { 0.03f }},
+            op::v0::Constant::create(ov::element::i8, ov::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ov::element::u8,
+            {},
+            {},
+            {{}, {}, {{ 0.0006f }, ov::element::f16, {}, false, 1, ov::element::f32}},
             op::v0::Constant::create(ov::element::i8, ov::Shape{}, std::vector<float>{ 2.f }),
             true
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,13 +114,17 @@ std::vector<std::string> GemmKernelBase::GetTransposedDims(const std::vector<int
             break;
         case 6:
             if (is_tiled_opt) {
-                dim_ids.push_back("(y+write_id)");
+                dim_ids.push_back("(y+y_write_id)");
             } else {
                 dim_ids.push_back("y");
             }
             break;
         case 7:
-            dim_ids.push_back("x");
+            if (is_tiled_opt) {
+                dim_ids.push_back("(x+x_write_id)");
+            } else {
+                dim_ids.push_back("x");
+            }
             break;
         default:
             break;
@@ -180,6 +184,7 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE),
         MakeJitConstant("INDIRECT_INPUT0", params.indirect_input0),
         MakeJitConstant("INDIRECT_INPUT1", params.indirect_input1),
+        MakeJitConstant("INDIRECT_AXIS", params.indirect_axis),
         MakeJitConstant("BEAM_TABLE_TERM", params.indirect_input0 || params.indirect_input1),
     });
 
@@ -209,6 +214,40 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
 
     if (params.inputs.size() == 4 || (!params.indirect_input0 && !params.indirect_input1 && params.inputs.size() == 3)) {
         jit.AddConstant(MakeJitConstant("BIAS_TERM", 1));
+    }
+
+    auto get_broadcast_input_str = [](const size_t input_rank, const int64_t axes, const int64_t val) {
+        std::vector<std::string> dims;
+        if (input_rank == 1) {
+            dims = {"x"};
+        } else if (input_rank == 2) {
+            dims = {"y", "x"};
+        } else if (input_rank == 3) {
+            dims = {"f", "y", "x"};
+        } else if (input_rank == 4) {
+            dims = {"b", "f", "y", "x"};
+        } else if (input_rank == 5) {
+            dims = {"b", "f", "z", "y", "x"};
+        } else if (input_rank == 6) {
+            dims = {"b", "f", "w", "z", "y", "x"};
+        }
+        return dims[axes] + " /= " + std::to_string(val) + ";";
+    };
+    if (params.input0_broadcast_val != 0) {
+        jit.AddConstants({
+            MakeJitConstant("BROADCAST_INPUT0", true),
+            MakeJitConstant("DO_BROADCAST_INPUT0", get_broadcast_input_str(params.inputs[0].GetDims().size(),
+                                                                           params.input0_reshape_axes,
+                                                                           params.input0_broadcast_val)),
+        });
+    }
+    if (params.input1_broadcast_val != 0) {
+        jit.AddConstants({
+            MakeJitConstant("BROADCAST_INPUT1", true),
+            MakeJitConstant("DO_BROADCAST_INPUT1", get_broadcast_input_str(params.inputs[1].GetDims().size(),
+                                                                           params.input1_reshape_axes,
+                                                                           params.input1_broadcast_val)),
+        });
     }
 
     jit.AddConstants({

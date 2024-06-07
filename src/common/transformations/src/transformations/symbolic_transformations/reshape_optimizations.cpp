@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
@@ -22,7 +22,8 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
     auto pattern_label = pattern::any_input([](const Output<Node>& output) {
         return pattern::has_static_shape() && !ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
     });
-    auto reshape_label = ov::pass::pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label});
+    auto reshape_label =
+        ov::pass::pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label}, pattern::has_static_rank());
 
     ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
         const auto& reshape = ov::as_type_ptr<v1::Reshape>(m.get_match_root());

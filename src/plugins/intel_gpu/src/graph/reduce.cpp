@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
         output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     if (format_dim == 6)
         return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3], in_dims[4], in_dims[5]))};
@@ -199,7 +199,7 @@ std::vector<layout> reduce_inst::calc_output_layouts(reduce_node const& /*node*/
     output_type = desc->output_data_types[0].value_or(output_type);
 
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     auto output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 

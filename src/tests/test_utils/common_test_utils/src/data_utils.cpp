@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -467,6 +467,16 @@ void fill_tensor_random(ov::Tensor& tensor,
     }
 #undef CASE
 #undef CASE_FLOAT
+}
+
+void fill_data_boolean(fundamental_type_for<ov::element::boolean>* dst, const size_t size, const int seed) {
+    testing::internal::Random random(seed);
+    const uint32_t range = 2;
+    random.Generate(range);
+
+    for (std::size_t i = 0; i < size; i++) {
+        dst[i] = static_cast<fundamental_type_for<ov::element::boolean>>(random.Generate(range));
+    }
 }
 
 void fill_random_string(std::string* dst,

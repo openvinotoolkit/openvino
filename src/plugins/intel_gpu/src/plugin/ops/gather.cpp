@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
-#include "intel_gpu/op/gather_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
 
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -18,7 +18,7 @@
 namespace ov {
 namespace op {
 namespace internal {
-using GatherCompressed = ov::intel_gpu::op::GatherCompressed;
+using GatherCompressed = ov::op::internal::GatherCompressed;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -154,7 +154,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
                 }
             }
 
-            std::shared_ptr<ov::intel_gpu::op::GatherCompressed> op_compressed = std::dynamic_pointer_cast<ov::intel_gpu::op::GatherCompressed>(op);
+            std::shared_ptr<ov::op::internal::GatherCompressed> op_compressed = std::dynamic_pointer_cast<ov::op::internal::GatherCompressed>(op);
 
             auto gatherPrim = cldnn::gather(layerName,
                                             reordered_inputs[0],
@@ -162,7 +162,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
                                             axis,
                                             reordered_inputs[3],
                                             (has_scalar_zp || op->get_input_size() == 4) ? cldnn::input_info() : reordered_inputs[4],
-                                            op_compressed->get_output_type(),
+                                            op_compressed->get_output_element_type(0),
                                             input_rank,
                                             out_shape,
                                             batch_dim,

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -119,6 +119,32 @@ function(ov_install_with_name file component)
                 ${install_rename})
 
         set("${component}_INSTALLED" ON PARENT_SCOPE)
+    endif()
+endfunction()
+
+#
+# checks that current OpenVINO versions has previous version in RPM / DEB conflicts
+#
+function(ov_check_conflicts_versions var_name)
+    set(ov_major ${OpenVINO_VERSION_MAJOR})
+    set(ov_minor ${OpenVINO_VERSION_MINOR})
+    set(ov_patch ${OpenVINO_VERSION_PATCH})
+
+    if(ov_patch EQUAL 0)
+        if(ov_minor EQUAL 0)
+            math(EXPR ov_major "${ov_major} - 1")
+        else()
+            math(EXPR ov_minor "${ov_minor} - 1")
+        endif()
+    else()
+        math(EXPR ov_patch "${ov_patch} - 1")
+    endif()
+
+    set(ov_prev_version "${ov_major}.${ov_minor}.${ov_patch}")
+
+    # perform check
+    if(NOT ov_prev_version IN_LIST ${var_name})
+        message(FATAL_ERROR "List ${var_name} (${${var_name}}) does not contain verison ${ov_prev_version}")
     endif()
 endfunction()
 

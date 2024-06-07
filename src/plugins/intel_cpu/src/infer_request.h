@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,31 +94,31 @@ private:
 
 private:
     void create_infer_request();
-    void init_tensor(const std::string& name);
+    void init_tensor(const std::size_t& port_index, const ov::ISyncInferRequest::FoundPort::Type& type);
 
     void push_input_data();
     void redefine_memory_for_input_nodes();
     void assign_states();
-    void commit_states();
     void update_external_tensor_ptrs();
     void change_default_ptr();
 
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
 
 private:
-    std::unordered_map<std::string, OutputControlBlock> m_outputControlBlocks;
+    std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks;
 
     Graph* m_graph = nullptr;
-    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_external_ptr;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_input_external_ptr;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_output_external_ptr;
 
     std::shared_ptr<const CompiledModel> m_compiled_model;
     openvino::itt::handle_t m_profiling_task;
     std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
-    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_outputs;
+    std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map;
+    std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_outputs;
 };
 
 }  // namespace intel_cpu

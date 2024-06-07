@@ -15,7 +15,7 @@ from openvino.runtime import Node, Shape, Type, Output
 from openvino.runtime.op import Constant, Result
 from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import apply_affix_on, binary_op, nameable_op, unary_op
+from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
     NumericData,
     NodeInput,
@@ -147,7 +147,7 @@ def fake_convert(
         nodes.append(shift)
     return _get_node_factory_opset13().create(
         "FakeConvert",
-        as_nodes(*nodes),
+        as_nodes(*nodes, name=name),
         {"destination_type": destination_type},
     )
 
@@ -161,6 +161,7 @@ def multinomial(
     log_probs: bool,
     global_seed: int = 0,
     op_seed: int = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which generates a sequence of class indices sampled from the multinomial distribution.
 
@@ -172,10 +173,11 @@ def multinomial(
     :param log_probs: Flag that specifies whether *probs* should be treated as unnormalized log probabilities.
     :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
     :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
+    :param name: The optional new name for output node.
 
     :return: The new node performing Multinomial operation.
     """
-    inputs = as_nodes(probs, num_samples)
+    inputs = as_nodes(probs, num_samples, name=name)
 
     if global_seed < 0:
         raise RuntimeError(
@@ -222,7 +224,7 @@ def nms_rotated(
     :return: The new node which performs NMSRotated
     """
     inputs = as_nodes(boxes, scores, max_output_boxes_per_class,
-                      iou_threshold, score_threshold)
+                      iou_threshold, score_threshold, name=name)
 
     attributes = {
         "sort_result_descending": sort_result_descending,
@@ -257,13 +259,13 @@ def scaled_dot_product_attention(
 
     :return: The new node performing Scaled Dot Product Attention operation.
     """
-    inputs = as_nodes(query, key, value)
+    inputs = as_nodes(query, key, value, name=name)
     if attention_mask is not None:
-        inputs.append(as_node(attention_mask))
+        inputs.append(as_node(attention_mask, name=name))
     elif scale is not None:
-        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0])))
+        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0]), name=name))
     if scale is not None:
-        inputs.append(as_node(scale))
+        inputs.append(as_node(scale, name=name))
 
     attributes = {
         "causal": causal,
@@ -350,7 +352,6 @@ def result(data: Union[Node, Output, NumericData], name: Optional[str] = None) -
 
 
 @nameable_op
-@apply_affix_on("data", "input_low", "input_high", "output_low", "output_high")
 def fake_quantize(
     data: NodeInput,
     input_low: NodeInput,
@@ -360,9 +361,6 @@ def fake_quantize(
     levels: int,
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
-    *,
-    prefix: Optional[str] = None,
-    suffix: Optional[str] = None,
 ) -> Node:
     r"""Perform an element-wise linear quantization on input data.
 
@@ -375,10 +373,6 @@ def fake_quantize(
     :param auto_broadcast: The type of broadcasting specifies rules used for
                            auto-broadcasting of input tensors.
     :param name:           Optional name of the new node.
-    :param prefix:         Optional keyword-only string to apply before original names of
-                           all generated input nodes (for example: passed as numpy arrays).
-    :param suffix:         Optional keyword-only string to apply after original names of
-                           all generated input nodes (for example: passed as numpy arrays).
     :return: New node with quantized value.
 
     Input floating point values are quantized into a discrete set of floating point values.
@@ -400,6 +394,6 @@ def fake_quantize(
     """
     return _get_node_factory_opset13().create(
         "FakeQuantize",
-        as_nodes(data, input_low, input_high, output_low, output_high),
+        as_nodes(data, input_low, input_high, output_low, output_high, name=name),
         {"levels": levels, "auto_broadcast": auto_broadcast.upper()},
     )

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
+#include "utils/precision_support.h"
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
@@ -24,11 +25,6 @@
 #endif
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-
-#if defined(OV_CPU_WITH_ACL)
-#    include "arm_compute/runtime/CPP/CPPScheduler.h"
-#    include "nodes/executors/acl/acl_ie_scheduler.hpp"
-#endif
 
 using namespace ov::threading;
 
@@ -127,46 +123,12 @@ public:
 };
 #endif  // __linux__
 
-#if defined(OV_CPU_WITH_ACL)
-std::mutex Plugin::SchedulerGuard::mutex;
-std::weak_ptr<Plugin::SchedulerGuard> Plugin::SchedulerGuard::ptr;
-
-Plugin::SchedulerGuard::SchedulerGuard() {
-#    if OV_THREAD == OV_THREAD_SEQ
-    // To save state for ACL cores in single-thread mode
-    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
-#    else
-    arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
-#    endif
-}
-
-std::shared_ptr<Plugin::SchedulerGuard> Plugin::SchedulerGuard::instance() {
-    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
-    auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
-    if (scheduler_guard_ptr == nullptr) {
-        SchedulerGuard::ptr = scheduler_guard_ptr = std::make_shared<SchedulerGuard>();
-    }
-    return scheduler_guard_ptr;
-}
-
-Plugin::SchedulerGuard::~SchedulerGuard() {
-    // To save the state of scheduler after ACLScheduler has been executed
-    // TODO: find out the cause of the state
-    std::lock_guard<std::mutex> lock{this->dest_mutex};
-    if (!arm_compute::Scheduler::is_available(arm_compute::Scheduler::Type::CUSTOM))
-        arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
-}
-#endif
-
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
-    get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
+    get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
-#if defined(OV_CPU_WITH_ACL)
-    scheduler_guard = SchedulerGuard::instance();
-#endif
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
 }
@@ -182,13 +144,12 @@ static bool streamsSet(const ov::AnyMap& config) {
 }
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
-    const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
     int streams_set = config.streams;
     int streams;
     if (config.streamsChanged) {
         streams = streams_set;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::LATENCY) {
-        streams = latency_streams;
+        streams = 1;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::THROUGHPUT) {
         streams = 0;
     } else {
@@ -249,10 +210,15 @@ static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
-    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
-                   op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model)
-               ? Config::ModelType::CNN
-               : Config::ModelType::Unknown;
+    if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
+        op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model))
+        return Config::ModelType::CNN;
+    
+    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) &&
+        model->get_variables().size() > 0)
+        return Config::ModelType::LLM;
+
+    return Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -279,7 +245,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // verification of supported input
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
-        static const std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u8,
+        static const std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u4,
+                                                                           ov::element::Type_t::i4,
+                                                                           ov::element::Type_t::u8,
                                                                            ov::element::Type_t::i8,
                                                                            ov::element::Type_t::u16,
                                                                            ov::element::Type_t::i16,
@@ -319,6 +287,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
+
+    if (conf.streamExecutorConfig.get_sub_stream_mode() ==
+        IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET) {
+        int num_sub_streams = conf.streamExecutorConfig.get_sub_streams();
+        transformations.SetSubStreamNum(num_sub_streams);
+    }
 
     transformations.PostLpt();
     transformations.Snippets();
@@ -409,6 +383,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
+    } else if (name == ov::hint::model_distribution_policy) {
+        const auto& distribution_policy = engConfig.modelDistributionPolicy;
+        return distribution_policy;
     } else if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
         return decltype(ov::hint::enable_hyper_threading)::value_type(ht_value);
@@ -472,7 +449,6 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties{
             RW_property(ov::num_streams.name()),
-            RW_property(ov::affinity.name()),
             RW_property(ov::inference_num_threads.name()),
             RW_property(ov::enable_profiling.name()),
             RW_property(ov::hint::inference_precision.name()),
@@ -481,6 +457,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::hint::num_requests.name()),
             RW_property(ov::hint::enable_cpu_pinning.name()),
             RW_property(ov::hint::scheduling_core_type.name()),
+            RW_property(ov::hint::model_distribution_policy.name()),
             RW_property(ov::hint::enable_hyper_threading.name()),
             RW_property(ov::device::id.name()),
             RW_property(ov::intel_cpu::denormals_optimization.name()),
@@ -489,6 +466,10 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
         };
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        rwProperties.insert(rwProperties.end(), RW_property(ov::affinity.name()));
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -510,12 +491,14 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             capabilities.push_back(ov::device::capability::BF16);
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(ov::device::capability::WINOGRAD);
         capabilities.push_back(ov::device::capability::FP32);
-        capabilities.push_back(ov::device::capability::FP16);
+        if (hasHardwareSupport(ov::element::f16))
+            capabilities.push_back(ov::device::capability::FP16);
         capabilities.push_back(ov::device::capability::INT8);
         capabilities.push_back(ov::device::capability::BIN);
         capabilities.push_back(ov::device::capability::EXPORT_IMPORT);

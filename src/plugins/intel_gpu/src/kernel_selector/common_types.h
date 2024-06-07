@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,7 @@ enum class KernelType {
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHAPE_OF,
+    SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
     STRIDED_SLICE,
@@ -96,6 +97,7 @@ enum class KernelType {
     UNIQUE_GATHER,
     RMS,
     SWIGLU,
+    ROPE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

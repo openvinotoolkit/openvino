@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
@@ -13,12 +14,12 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool CleanRepeatedDataPointerShifts::reuse_increments(const ExpressionPtr& loop_end_expr) {
-    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_end_expr->get_node());
+bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr) {
+    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
     if (!loop_end)
         return false;
 
-    const auto loop_connectors = loop_end_expr->get_input_port_connectors();
+    const auto& loop_connectors = loop_end_expr->get_input_port_connectors();
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
 
@@ -78,14 +79,31 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const ExpressionPtr& loop_
     if (resetting_data_indexes.empty())
         return false;
 
+    // TODO [133463]: We have to update LoopEnd and LoopInfo since the both entities must be valid.
+    //                To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.
+    auto new_is_incremented = loop_end->get_is_incremented();
     auto new_ptr_increments = loop_end->get_ptr_increments();
     auto new_finalization_offsets = loop_end->get_finalization_offsets();
     for (auto idx_to_drop : resetting_data_indexes) {
+        new_is_incremented[idx_to_drop] = false;
         new_ptr_increments[idx_to_drop] = 0;
         new_finalization_offsets[idx_to_drop] = 0;
     }
+    loop_end->set_is_incremented(new_is_incremented);
     loop_end->set_ptr_increments(new_ptr_increments);
     loop_end->set_finalization_offsets(new_finalization_offsets);
+
+    const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
+    size_t loop_port_idx = 0;
+    loop_info->iterate_through_infos([&resetting_data_indexes, &loop_port_idx](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& shifts) {
+        if (resetting_data_indexes.count(loop_port_idx)) {
+            shifts.ptr_increment = 0;
+            shifts.finalization_offset = 0;
+            loop_port.is_incremented = false;
+        }
+        ++loop_port_idx;
+    });
+
     return true;
 }
 
@@ -93,11 +111,12 @@ bool CleanRepeatedDataPointerShifts::run(lowered::LinearIR& linear_ir, lowered::
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanRepeatedDataPointerShifts")
     bool modified = false;
 
+    const auto& loop_manager = linear_ir.get_loop_manager();
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<op::LoopEndStatic>(node)) {
-            modified |= reuse_increments(expr);
+        if (ov::is_type<op::LoopEnd>(node)) {
+            modified |= reuse_increments(loop_manager, expr);
         }
     }
 

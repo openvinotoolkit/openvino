@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,11 +50,11 @@ protected:
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
-        // Legacy APIs using mutable inputs for multiple outputs
+        // // Legacy multi-output
         if (instance.has_second_output())
-            args.inputs.push_back(instance.second_output_mem());
+            args.outputs.push_back(instance.second_output_mem());
         if (instance.has_third_output())
-            args.inputs.push_back(instance.third_output_mem());
+            args.outputs.push_back(instance.third_output_mem());
 
         return args;
     }
@@ -122,20 +122,18 @@ public:
             return offset;
         };
 
+        // Legacy multi-output
         if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
-            params.has_second_output = true;
+            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
         }
 
         if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
-            params.has_third_output = true;
+            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
         }
 
         if (arg.use_multiple_outputs()) {
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
-            params.use_multiple_outputs = true;
         }
 
         params.sort_result_descending = primitive->sort_result_descending;

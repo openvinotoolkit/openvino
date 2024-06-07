@@ -76,6 +76,9 @@ TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelHETEROWithDeviceIDNoThrow) {
+    if (sw_plugin_in_target_device(target_device)) {
+        return;
+    }
     ov::Core ie = ov::test::utils::create_core();
 
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);

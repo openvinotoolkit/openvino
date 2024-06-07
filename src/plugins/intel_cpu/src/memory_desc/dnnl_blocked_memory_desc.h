@@ -1,18 +1,19 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "dnnl_memory_desc.h"
-#include "blocked_memory_desc.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "openvino/util/util.hpp"
-#include "cpu_memory.h"
 #include "dnnl_extension_utils.h"
 #include <common/memory_desc_wrapper.hpp>
 
 namespace ov {
 namespace intel_cpu {
+
+class CpuBlockedMemoryDesc;
 
 OPENVINO_DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
                                            // so turn it off

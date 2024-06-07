@@ -1,17 +1,19 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
@@ -233,13 +235,13 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
             auto input_0_pshape = out.get_node_shared_ptr()->get_input_partial_shape(0);
             auto input_1_pshape = out.get_node_shared_ptr()->get_input_partial_shape(1);
             auto output_pshape = out.get_partial_shape();
-            ov::TensorLabel output_labels, input_0_labels, input_1_labels;
-            if (get_labels(input_0_pshape, input_0_labels) && get_labels(input_1_pshape, input_1_labels) &&
-                get_labels(output_pshape, output_labels)) {
+            ov::TensorSymbol output_symbols, input_0_symbols, input_1_symbols;
+            if (get_symbols(input_0_pshape, input_0_symbols) && get_symbols(input_1_pshape, input_1_symbols) &&
+                get_symbols(output_pshape, output_symbols)) {
                 if (input_0_pshape.size() != 3 || input_1_pshape.size() != 3 || output_pshape.size() != 3)
                     return false;
-                return are_unique_and_equal_labels(input_0_labels, output_labels) ||
-                       are_unique_and_equal_labels(input_1_labels, output_labels);
+                return are_unique_and_equal_symbols(input_0_symbols, output_symbols) ||
+                       are_unique_and_equal_symbols(input_1_symbols, output_symbols);
             } else {
                 return false;
             }

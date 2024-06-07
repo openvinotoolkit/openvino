@@ -5,8 +5,8 @@ Obtaining a Stateful OpenVINO Model
 
 If the original framework does not offer a dedicated API for working with states, the
 resulting OpenVINO IR model will not be stateful by default. This means it will not contain
-either a state or the :doc:`Assign <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/assign-6>` and
-:doc:`ReadValue <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/read-value-6>` operations. You can still
+either a state or the :doc:`Assign <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>` and
+:doc:`ReadValue <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>` operations. You can still
 make such models stateful (:doc:`see benefits <../stateful-models>`),
 and you have three ways to do it:
 
@@ -28,7 +28,7 @@ MakeStateful Transformation
 The MakeStateful transformation changes the structure of the model by replacing the
 user-defined pairs of Parameter and Results with the Assign and ReadValue operations:
 
-.. image:: ../../../_static/images/make_stateful_simple.svg
+.. image:: ../../../assets/images/make_stateful_simple.svg
    :alt: diagram of MakeStateful Transformation
    :scale: 90 %
    :align: center
@@ -44,7 +44,7 @@ Parameter/Result tensor names. If there are no tensor names,
 
 **Examples:**
 
-.. image:: ../../../_static/images/make_stateful_detailed.png
+.. image:: ../../../assets/images/make_stateful_detailed.png
    :alt: detailed diagram of MakeStateful Transformation
    :align: center
 
@@ -57,13 +57,13 @@ Parameter/Result tensor names. If there are no tensor names,
 
          .. tab-item:: Using tensor names
 
-            .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
                :language: cpp
                :fragment: [ov:make_stateful_tensor_names]
 
          .. tab-item:: Using Parameter/Result operations
 
-            .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
                :language: cpp
                :fragment: [ov:make_stateful_ov_nodes]
 
@@ -86,12 +86,12 @@ LowLatency2 Transformation
 ##########################
 
 The LowLatency2 transformation changes the structure of a model containing
-:doc:`TensorIterator <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/tensor-iterator-1>`
-and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/loop-5>` by automatically detecting
+:doc:`TensorIterator <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/tensor-iterator-1>`
+and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5>` by automatically detecting
 and replacing pairs of Parameter and Results with the Assign and ReadValue operations,
 as illustrated by the following example:
 
-.. image:: ../../../_static/images/applying_low_latency_2.svg
+.. image:: ../../../assets/images/applying_low_latency_2.svg
    :alt: diagram of LowLatency Transformation
    :align: center
 
@@ -100,7 +100,7 @@ input, as shown in the picture above. These inputs should set the initial value 
 initialization of ReadValue operations. However, such initialization is not supported in
 the current State API implementation. Input values are ignored, and the initial values
 for the ReadValue operations are set to zeros unless the user specifies otherwise via
-:ref:`State API <ov_ug_state_api>`.
+:doc:`State API <../stateful-models>`.
 
 Applying LowLatency2 Transformation
 ++++++++++++++++++++++++++++++++++++
@@ -112,7 +112,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:get_ov_model]
 
@@ -127,7 +127,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:reshape_ov_model]
 
@@ -141,7 +141,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:apply_low_latency_2]
 
@@ -157,12 +157,12 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:low_latency_2_use_parameters]
 
 
-   .. image:: ../../../_static/images/llt2_use_const_initializer.svg
+   .. image:: ../../../assets/images/llt2_use_const_initializer.svg
       :alt: diagram of constant subgraph initialization
       :align: center
 
@@ -176,15 +176,15 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:low_latency_2]
 
 
-4. Use state API. See sections :ref:`OpenVINO State API <ov_ug_state_api>`,
+4. Use state API. See sections :doc:`OpenVINO State API <../stateful-models>`,
    :ref:`Stateful Model Inference <ov_ug_stateful_model_inference>`.
 
-   .. image:: ../../../_static/images/low_latency_limitation_2.svg
+   .. image:: ../../../assets/images/low_latency_limitation_2.svg
       :alt: diagram showing low latency limitation
       :scale: 70 %
       :align: center
@@ -206,7 +206,7 @@ Applying LowLatency2 Transformation
 
       .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:replace_const]
 
@@ -247,7 +247,7 @@ a sink from `ov::Model` after deleting the node from the graph with the `delete_
 
    .. tab-item:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_stateful_models_intro.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
          :language: cpp
          :fragment: [ov:state_network]
 

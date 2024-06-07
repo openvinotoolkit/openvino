@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,7 @@ template <typename BufferType>
 class Serializer<BufferType, cldnn::format, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, cldnn::format& format) {
-        cldnn::format::type fmt_type;
+        cldnn::format::type fmt_type = cldnn::format::type::any;
         buffer >> make_data(&fmt_type, sizeof(cldnn::format::type));
         if (fmt_type == cldnn::format::custom) {
             cldnn::format_traits traits;

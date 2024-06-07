@@ -9,7 +9,7 @@ Custom OpenVINO Operations
                  custom operations to support models with operations
                  not supported by OpenVINO.
 
-OpenVINO™ Extension API allows you to register custom operations to support models with operations which OpenVINO™ does not support out-of-the-box. This capability requires writing code in C++, so if you are using Python to develop your application you need to build a separate shared library implemented in C++ first and load it in Python using ``add_extension`` API. Please refer to :ref:`Create library with extensions <create_library_with_extensions>` for more details on library creation and usage. The remining part of this document describes how to implement an operation class.
+OpenVINO™ Extension API allows you to register custom operations to support models with operations which OpenVINO™ does not support out-of-the-box. This capability requires writing code in C++, so if you are using Python to develop your application you need to build a separate shared library implemented in C++ first and load it in Python using ``add_extension`` API. Please refer to :ref:`Create library with extensions <create_a_library_with_extensions>` for more details on library creation and usage. The remaining part of this document describes how to implement an operation class.
 
 Operation Class
 ###############

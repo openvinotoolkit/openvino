@@ -10,6 +10,7 @@ from openvino._pyopenvino import get_version
 __version__ = get_version()
 
 # Openvino pybind bindings and python extended classes
+from openvino._pyopenvino import Symbol
 from openvino._pyopenvino import Dimension
 from openvino._pyopenvino import Input
 from openvino._pyopenvino import Output

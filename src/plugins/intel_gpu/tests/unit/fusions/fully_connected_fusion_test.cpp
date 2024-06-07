@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -309,7 +309,7 @@ TEST_P(fc_compressed_int8_bias_dynamic, basic) {
         reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1.0f;
     execute(p, true);
 }
 

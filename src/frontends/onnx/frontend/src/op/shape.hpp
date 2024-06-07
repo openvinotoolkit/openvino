@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,12 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace op {
+namespace set_15 {
+
+ov::OutputVector shape(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_15
+
 namespace set_1 {
 
 ov::OutputVector shape(const ov::frontend::onnx::Node& node);

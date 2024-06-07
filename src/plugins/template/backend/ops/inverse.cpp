@@ -17,7 +17,7 @@ inline bool evaluate(const std::shared_ptr<ov::op::v14::Inverse>& op,
     const auto out_shape = ov::op::v14::shape_infer(op.get(), input_shapes).front().to_shape();
     outputs[0].set_shape(out_shape);
 
-    ov::reference::inverse::inverse<T>(inputs[0].data<const T>(), outputs[0].data<T>(), out_shape, op->get_adjoint());
+    ov::reference::inverse<T>(inputs[0].data<const T>(), outputs[0].data<T>(), out_shape, op->get_adjoint());
     return true;
 }
 

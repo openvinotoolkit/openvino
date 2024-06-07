@@ -76,7 +76,7 @@ def interpolate(
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image, output_shape, scales, axes)
+    inputs = as_nodes(image, output_shape, scales, name=name) if axes is None else as_nodes(image, output_shape, scales, axes, name=name)
 
     # This is an update of the operator version, so even though this is opset 10,
     # the operator is taken from opset 4.
@@ -91,7 +91,7 @@ def is_finite(data: NodeInput, name: Optional[str] = None) -> Node:
     :param  name:          Optional name for the output node. The default is None.
     :return: Node representing is_finite operation.
     """
-    return _get_node_factory_opset10().create("IsFinite", as_nodes(data))
+    return _get_node_factory_opset10().create("IsFinite", as_nodes(data, name=name))
 
 
 @nameable_op
@@ -121,7 +121,7 @@ def is_inf(
     """
     if not attributes:
         attributes = {}
-    return _get_node_factory_opset10().create("IsInf", as_nodes(data), attributes)
+    return _get_node_factory_opset10().create("IsInf", as_nodes(data, name=name), attributes)
 
 
 @nameable_op
@@ -132,7 +132,7 @@ def is_nan(data: NodeInput, name: Optional[str] = None) -> Node:
     :param  name:          Optional name for the output node. Default is None.
     :return: Node representing is_nan operation.
     """
-    return _get_node_factory_opset10().create("IsNaN", as_nodes(data))
+    return _get_node_factory_opset10().create("IsNaN", as_nodes(data, name=name))
 
 
 @nameable_op
@@ -161,9 +161,9 @@ def unique(
     :return: Node representing Unique operation.
     """
     if axis is None:
-        inputs = as_nodes(data)
+        inputs = as_nodes(data, name=name)
     else:
-        inputs = as_nodes(data, axis)
+        inputs = as_nodes(data, axis, name=name)
 
     attributes = {
         "sorted": sorted,

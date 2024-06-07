@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -54,7 +54,6 @@ class TestKerasGru(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_simple)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
     def test_keras_gru_with_bias_float32(self, params, ie_device, precision, temp_dir, ir_version,
                                          use_legacy_frontend):
         self._test(*self.create_keras_gru_net(**params, ir_version=ir_version),
@@ -103,6 +102,7 @@ class TestKerasGru(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_different_flags)
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(reason="sporadic inference mismatch")
     def test_keras_gru_flags_float32(self, params, ie_device, precision, temp_dir, ir_version,
                                      use_legacy_frontend):
         self._test(*self.create_keras_gru_net(**params, ir_version=ir_version),

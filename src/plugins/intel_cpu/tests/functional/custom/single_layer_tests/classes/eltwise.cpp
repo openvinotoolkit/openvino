@@ -34,6 +34,10 @@ std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseL
     return result.str();
 }
 
+// If adopt_intervals is true then:
+// 1) the generated tensor value range is limited by operation result value (especially for multiply)
+// which has to be in signed/unsigned int8 type range,
+// 2) start value is defined by type sign: for signed int8 it's zero to have symmetric interval.
 ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals) {
     struct gen_params {
         uint32_t range;
@@ -66,10 +70,18 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
     } else {
         switch (type) {
             case ov::element::i8:
-                params = gen_params(INT8_MAX, INT8_MIN);
+                if (adopt_intervals) {
+                    params = gen_params(11 * 2, -11);
+                } else {
+                    params = gen_params(INT8_MAX, INT8_MIN);
+                }
                 break;
             case ov::element::u8:
-                params = gen_params(UINT8_MAX, 0);
+                if (adopt_intervals) {
+                    params = gen_params(15, 0);
+                } else {
+                    params = gen_params(UINT8_MAX, 0);
+                }
                 break;
             case ov::element::i16:
                 params = gen_params(INT16_MAX, INT16_MIN);
@@ -109,7 +121,8 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
         inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(
             funcInput.get_element_type(),
             targetInputStaticShapes[i],
-            (funcInput.get_element_type() == element::i32) || (funcInput.get_element_type() == element::u32))});
+            (funcInput.get_element_type() == element::i32) || (funcInput.get_element_type() == element::u32) ||
+            (funcInput.get_element_type() == element::i8) || (funcInput.get_element_type() == element::u8))});
     }
 }
 
@@ -199,27 +212,31 @@ void EltwiseLayerCPUTest::SetUp() {
                     }
                 }
 
-                auto data_tensor = generate_eltwise_input(netType, shape, (netType == element::i32) || (netType == element::u32));
+                auto data_tensor = generate_eltwise_input(
+                    netType,
+                    shape,
+                    (netType == element::i32) || (netType == element::u32) ||
+                    (netType == element::i8) || (netType == element::u8));
                 if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
                     auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
                     std::vector<uint8_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
+                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
                 } else if ((netType == ElementType::i16) || (netType == ElementType::u16)) {
                     auto data_ptr = reinterpret_cast<uint16_t*>(data_tensor.data());
                     std::vector<uint16_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
+                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
                 } else if ((netType == ElementType::i32) || (netType == ElementType::u32)) {
                     auto data_ptr = reinterpret_cast<uint32_t*>(data_tensor.data());
                     std::vector<uint32_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
+                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
                 } else if (netType == ElementType::f16) {
                     auto data_ptr = reinterpret_cast<ov::float16*>(data_tensor.data());
                     std::vector<ov::float16> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
+                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
                 } else {
                     auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
                     std::vector<float> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::test::utils::deprecated::make_constant(netType, shape, data);
+                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
                 }
                 break;
             }
@@ -240,11 +257,16 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
     if ((eltwise_type == utils::EltwiseTypes::ADD) ||
        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-       (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+       (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
+       (eltwise_type == utils::EltwiseTypes::MOD)) {
         return "jit";
     }
 #endif
-    return "acl";
+    if (eltwise_type == utils::EltwiseTypes::MOD) {
+        return "ref";
+    } else {
+        return "acl";
+    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
@@ -287,6 +309,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
         utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
         utils::EltwiseTypes::SQUARED_DIFF,
+        utils::EltwiseTypes::MOD,
     };
     return eltwiseOpTypesBinInp;
 }
@@ -319,10 +342,38 @@ const std::vector<CPUSpecificParams>& cpuParams_4D() {
     return cpuParams_4D;
 }
 
+const std::vector<CPUSpecificParams>& cpuParams_4D_Planar() {
+    static const std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
+    };
+    return cpuParams_4D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_4D_PerChannel() {
+    static const std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+    };
+    return cpuParams_4D;
+}
+
 const std::vector<CPUSpecificParams>& cpuParams_5D() {
     static const std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
+    };
+    return cpuParams_5D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_5D_Planar() {
+    static const std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
+    };
+    return cpuParams_5D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_5D_PerChannel() {
+    static const std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
     };
     return cpuParams_5D;
 }

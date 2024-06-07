@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/preprocess/pre_post_process_wrap.hpp"
@@ -9,7 +9,8 @@
 #include "node/include/preprocess/output_info.hpp"
 
 PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
-    : Napi::ObjectWrap<PrePostProcessorWrap>(info) {
+    : Napi::ObjectWrap<PrePostProcessorWrap>(info),
+      _ppp(nullptr) {
     if (info.Length() != 1)
         reportError(info.Env(), "Invalid number of arguments for PrePostProcessor constructor.");
     else {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,8 +116,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ob << make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
             }
             {
-                dnnl::fpmath_mode _fmath_mode = _attrs->get_fpmath_mode();
+                dnnl::fpmath_mode _fmath_mode;
+                bool _apply_to_int;
+                _attrs->get_fpmath_mode(_fmath_mode, _apply_to_int);
                 ob << make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
+                ob << _apply_to_int;
             }
             {
                 const dnnl::post_ops _post_ops = _attrs->get_post_ops();
@@ -218,8 +221,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             }
             {
                 dnnl::fpmath_mode _fmath_mode = dnnl::fpmath_mode::any;
+                bool _apply_to_int = false;
                 ib >> make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
-                _attrs->set_fpmath_mode(_fmath_mode);
+                ib >> _apply_to_int;
+                _attrs->set_fpmath_mode(_fmath_mode, _apply_to_int);
             }
             {
                 const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
@@ -545,11 +550,8 @@ protected:
             try {
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
-                if (err.status == dnnl_status_t::dnnl_out_of_memory) {
-                    ov::intel_gpu::ForceExit();
-                }
-                throw;    // rethrowing dnnl::error if not out_of_memory
+                auto err_code = err.status == dnnl_status_t::dnnl_out_of_memory ? CL_OUT_OF_RESOURCES : CL_INVALID_OPERATION;
+                ocl::rethrow_or_exit(err.what(), err_code, _engine->get_device_info());
             }
 
             if (_enable_profiling) {

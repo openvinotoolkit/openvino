@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,16 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
         // avoiding loop creation
         return false;
 
-    const auto idx = reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
-    const auto C = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(shape_source),
-                                                        ov::op::v0::Constant::create(ov::element::i64, {1}, {idx}),
-                                                        ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+    bool is_1d = ov::pass::pattern::rank_equals(1)(shape_source);
+    int64_t idx = -1;
+    if (!is_1d) {
+        idx = reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
+    }
+
+    const auto in_C_0 = std::make_shared<ov::op::v3::ShapeOf>(shape_source);
+    const auto in_C_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {idx});
+    const auto in_C_2 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    const auto C = std::make_shared<ov::op::v8::Gather>(in_C_0, in_C_1, in_C_2);
     const auto N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
     const auto pattern_vector = reshape_is_A_input
                                     ? (matmul->get_transpose_a() ? ov::OutputVector({C, N}) : ov::OutputVector({N, C}))
@@ -47,9 +53,11 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
     const auto new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(pattern_vector, 0);
 
     auto reshape_pattern = pattern_to_output.at(reshape_pattern_label).get_node_shared_ptr();
-    new_reshape_pattern->set_friendly_name(reshape_pattern->get_friendly_name());
-    copy_runtime_info(reshape_pattern, new_reshape_pattern);
-    replace_node(reshape_pattern, new_reshape_pattern);
+    ov::NodeVector nodes_to_copy_rt_info{new_reshape_pattern, C, N, in_C_0, in_C_1, in_C_2};
+    copy_runtime_info(reshape_pattern, nodes_to_copy_rt_info);
+
+    auto reshape_input = pattern_to_output.at(reshape_label).get_node_shared_ptr()->input(1);
+    reshape_input.replace_source_output(new_reshape_pattern);
     return true;
 }
 
@@ -57,7 +65,7 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
 
 ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
     MATCHER_SCOPE(ReshapeAMatMul);
-    auto other_input_label = pattern::any_input();
+    auto other_input_label = pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
@@ -82,7 +90,7 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
 
 ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
     MATCHER_SCOPE(ReshapeBMatMul);
-    auto other_input_label = pattern::any_input();
+    auto other_input_label = pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {

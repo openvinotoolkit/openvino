@@ -23,14 +23,14 @@ There are two options for using the custom operation configuration file:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/custom_kernels_api.py
         :language: python
         :fragment: [part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/custom_kernels_api.cpp
         :language: cpp
         :fragment: [part0]
 
@@ -350,7 +350,8 @@ Example Kernel
 Debugging Tips
 ##############
 
-**Using ``printf`` in the OpenCL™ Kernels**.
+**Using** ``printf`` **in the OpenCL™ Kernels**.
+
 To debug the specific values, use ``printf`` in your kernels.
 However, be careful not to output excessively, which
 could generate too much data. The ``printf`` output is typical, so

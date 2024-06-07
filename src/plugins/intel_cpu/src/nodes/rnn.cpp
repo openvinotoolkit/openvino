@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,10 @@
 #include "utils/general_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
-#include "utils/bfloat16.hpp"
 #include "input.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "common/primitive_hashing_utils.hpp"
 #include <memory>
 #include "shape_inference/shape_inference_ngraph.hpp"
@@ -18,6 +18,11 @@
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 #include "openvino/core/node.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
@@ -515,6 +520,10 @@ void RNN::configurePortDataTypes() {
     if (one_of(memory::data_type::f16, inDataTypes[xIdx], inDataTypes[hIdx]))
         // onednn doesn't have fp16 instance
         inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = memory::data_type::f32; // required by oneDNN.
+
+    // OneDNN unsupported fp16 precision for this layer
+    if (cell_type == dnnl::algorithm::vanilla_augru && inDataTypes[aIdx] == memory::data_type::f16)
+        inDataTypes[aIdx] = memory::data_type::f32;
 
     if (outDataTypes[yIdx] == memory::data_type::bf16 && one_of(inDataTypes[xIdx], memory::data_type::s8, memory::data_type::u8))
         outDataTypes[yIdx] = memory::data_type::f32; // oneDNN does not support bf16 output precision for quantized rnn primitive yet

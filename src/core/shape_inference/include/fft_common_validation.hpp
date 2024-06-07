@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,7 +101,7 @@ void validate_signal_size(const ov::op::util::FFTBase* op,
 template <class T>
 void shape_validation(const ov::op::util::FFTBase* op,
                       const std::vector<T>& input_shapes,
-                      std::vector<int64_t>* axes,
+                      ov::optional<std::vector<int64_t>>& axes,
                       FFTKind fft_kind) {
     const auto& input_shape = input_shapes[0];
     const auto& axes_shape = input_shapes[1];

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_node.h"
@@ -87,7 +87,7 @@ ov_status_e ov_port_get_element_type(const ov_output_const_port_t* port, ov_elem
 
     try {
         auto type = (ov::element::Type_t)port->object->get_element_type();
-        *tensor_type = (ov_element_type_e)type;
+        *tensor_type = find_ov_element_type_e(type);
     }
     CATCH_OV_EXCEPTIONS
 

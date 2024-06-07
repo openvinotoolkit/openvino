@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ TEST(type_prop, shuffle_channels_basic_4D) {
 
 TEST(type_prop, shuffle_channels_dynamic_4D) {
     auto data_input_shape = PartialShape{Dimension::dynamic(), Dimension(3, 9), 4, Dimension(4, 15)};
-    set_shape_labels(data_input_shape, 10);
+    auto symbols = set_shape_symbols(data_input_shape);
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_input_shape);
     const auto axis = 1;
     const auto group = 3;
@@ -41,7 +41,8 @@ TEST(type_prop, shuffle_channels_dynamic_4D) {
 
     EXPECT_EQ(shuffle_channels->get_element_type(), element::f32);
     EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
-    EXPECT_THAT(get_shape_labels(shuffle_channels->get_output_partial_shape(0)), ElementsAre(10, ov::no_label, 12, 13));
+    EXPECT_THAT(get_shape_symbols(shuffle_channels->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, symbols[2], symbols[3]));
 }
 
 TEST(type_prop, shuffle_channels_dynamic_fully) {

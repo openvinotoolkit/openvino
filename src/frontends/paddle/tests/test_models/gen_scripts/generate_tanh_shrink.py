@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -28,7 +28,7 @@ def tanh_shrink(name: str, x):
         saveModel(
             name,
             exe,
-            feedkeys=['x'],
+            feed_vars=[node_x],
             fetchlist=[out],
             inputs=[x],
             outputs=[outs[0]],

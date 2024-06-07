@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/compiled_model/properties.hpp"
 
+#include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
@@ -15,11 +16,12 @@ const std::vector<ov::AnyMap> inproperties = {
     {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVClassCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI, "AUTO:TEMPLATE"),
-                                            ::testing::ValuesIn(inproperties)),
-                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_BehaviorTests,
+    OVClassCompiledModelPropertiesIncorrectTests,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI, "AUTO:TEMPLATE", ov::test::utils::DEVICE_AUTO),
+                       ::testing::ValuesIn(inproperties)),
+    OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 #if (defined(__APPLE__) || defined(_WIN32))
 auto default_affinity = [] {
@@ -138,4 +140,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
                          ::testing::Combine(::testing::Values("AUTO:TEMPLATE"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
+
+const std::vector<ov::AnyMap> auto_default_properties = {
+    {ov::enable_profiling(false)},
+    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_Default_test,
+                         OVClassCompiledModelPropertiesDefaultTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(auto_default_properties)),
+                         OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> multi_default_properties = {{ov::enable_profiling(false)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_Default_test,
+                         OVClassCompiledModelPropertiesDefaultTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
+                                            ::testing::ValuesIn(multi_default_properties)),
+                         OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
+
 }  // namespace

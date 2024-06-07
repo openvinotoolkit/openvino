@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,14 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
@@ -375,6 +378,64 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeAMatMulSeveralConsumers) {
     manager.register_pass<ov::pass::ReshapeAMatMul>();
 }
 
+TEST_F(TransformationTestsF, SmartReshapeReshapeA_1DOtherInput) {
+    {
+        auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {3, 6});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, reshape_const, false);
+
+        auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, other_input);
+        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+        manager.register_pass<ov::pass::ReshapeAMatMul>();
+    }
+    {
+        auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+        auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6});
+        const auto in_C_0 = std::make_shared<ov::op::v3::ShapeOf>(other_input);
+        const auto in_C_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto in_C_2 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+        const auto C = std::make_shared<ov::op::v8::Gather>(in_C_0, in_C_1, in_C_2);
+
+        const auto N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{N, C}, 0);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, new_reshape_pattern, false);
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, other_input);
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+    }
+}
+
+TEST_F(TransformationTestsF, SmartReshapeReshapeB_1DOtherInput) {
+    {
+        auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {3, 6});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, reshape_const, false);
+
+        auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(other_input, reshape);
+        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+        manager.register_pass<ov::pass::ReshapeBMatMul>();
+    }
+    {
+        auto input_to_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+        auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        const auto in_C_0 = std::make_shared<ov::op::v3::ShapeOf>(other_input);
+        const auto in_C_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto in_C_2 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+        const auto C = std::make_shared<ov::op::v8::Gather>(in_C_0, in_C_1, in_C_2);
+
+        const auto N = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto new_reshape_pattern = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{C, N}, 0);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input_to_reshape, new_reshape_pattern, false);
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(other_input, reshape);
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+    }
+}
+
 TEST_F(TransformationTestsF, SmartReshapeReshapeBMatMulSeveralConsumers) {
     // Reshape has 2 consumers: matmul and reduce.
     // Since reshape movement leads to loop creation (circular dependencies), the transformation can't be applied
@@ -389,4 +450,54 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeBMatMulSeveralConsumers) {
     auto matmul = std::make_shared<ov::op::v0::MatMul>(sum, reshape);
     model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
     manager.register_pass<ov::pass::ReshapeBMatMul>();
+}
+
+TEST_F(TransformationTestsF, SmartReshape_ReshapeAMatMul_ReshapeInputSeveralConsumers) {
+    // Const will be reused as shared input for reshape and add operation
+    // param      param        const
+    //   |          |           | |
+    //   |          +-----------+ |
+    //   |                 |      |
+    //   |              Reshape   |
+    //   |                 |      |
+    //   +-----------------+      |
+    //             |              |
+    //           MatMul           |
+    //             |              |
+    //             +--------------+
+    //            Add
+    //             |
+    //           Result
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {1, 10});
+        auto data_reshape = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 5});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(data_reshape, reshape_const, false);
+        auto data_matmul = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{10, 1});
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, data_matmul);
+        auto add = std::make_shared<ov::op::v1::Add>(matmul, reshape_const);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{data_matmul, data_reshape});
+        ;
+        manager.register_pass<ov::pass::ReshapeAMatMul>();
+    }
+    {
+        auto reshape_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 5});
+        auto shape_of_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{10, 1});
+        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(shape_of_param, ov::element::i64);
+        auto const_gather_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-2});
+        auto const_gather_2 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+        auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, const_gather_1, const_gather_2);
+        auto const_concat_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{const_concat_1, gather}, 0);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(reshape_param, concat, false);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, shape_of_param);
+        auto const_add_1 = ov::op::v0::Constant::create(ov::element::i32, {2}, {1, 10});
+        auto add = std::make_shared<ov::op::v1::Add>(matmul, const_add_1);
+
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{reshape_param, shape_of_param});
+        ov::pass::Manager m;
+        m.run_passes(model_ref);
+    }
 }

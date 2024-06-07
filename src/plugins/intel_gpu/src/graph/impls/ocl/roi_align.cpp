@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,6 +70,8 @@ public:
         params.aligned_mode = from(primitive->aligned_mode);
         params.sampling_ratio = primitive->sampling_ratio;
         params.spatial_scale = primitive->spatial_scale;
+        params.rotated_mode = primitive->roi_mode == roi_align::ROIMode::rotated;
+        params.clockwise = primitive->clockwise;
 
         return params;
     }

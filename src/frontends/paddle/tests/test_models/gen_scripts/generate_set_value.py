@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -10,6 +10,7 @@ import numpy as np
 import paddle
 from save_model import saveModel
 
+maxint32 = np.iinfo(np.int32).max
 
 def concat(data):
     data = [np.expand_dims(d, 0) for d in data]
@@ -43,13 +44,15 @@ def paddle_set_value(name: str, x, value, callback, dtype, starts=None, ends=Non
             out = callback(paddle.clone(node_x), node_v, node_starts, node_ends, node_steps)
 
         outs = exe.run(feed=feed, fetch_list=[out])
-        saveModel(name, exe, feedkeys=list(feed.keys()), fetchlist=[out], inputs=inputs, outputs=[outs[0]], target_dir=sys.argv[1])
+        feed_vars = [node_x, node_v]
+        saveModel(name, exe, feed_vars=feed_vars, fetchlist=[out], inputs=inputs, outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def build_slice(starts, ends, steps) -> list:
     outs = []
     for st, ed, step in zip(starts, ends, steps):
         outs.append(slice(st, ed, step))
+    outs = tuple(outs)
     return outs
 
 
@@ -64,7 +67,10 @@ def main():
     value = np.array([0]).astype(dtype)
 
     def set_value1(x, value):
-        x[1:2, 0:4:2, 2:4] = value
+        if paddle.__version__ < "2.6.0":
+            x[1:2, 0:4:2, 2:4] = value
+        else:
+            x = paddle.static.setitem(x, (1, slice(0, 4, 2), slice(2, 4)), value)
         return x
 
     paddle_set_value("set_value1", data, value, set_value1, dtype)
@@ -75,7 +81,10 @@ def main():
     value = np.random.random((3, 3, 1)).astype(dtype)
 
     def set_value2(x, value):
-        x[2:5] = value
+        if paddle.__version__ < "2.6.0":
+            x[2:5] = value
+        else:
+            x = paddle.static.setitem(x, (slice(2, 5),), value)    
         return x
 
     paddle_set_value("set_value2", data, value, set_value2, dtype)
@@ -86,7 +95,10 @@ def main():
     value = np.random.randint(0, 2, (10, 2, 3)).astype(dtype)
 
     def set_value3(x, value):
-        x[:, :, 1:4] = value
+        if paddle.__version__ < "2.6.0":
+            x[:, :, 1:4] = value
+        else:
+            x = paddle.static.setitem(x, (slice(None), slice(None), slice(1, 4)), value)
         return x
 
     paddle_set_value("set_value3", data, value, set_value3, dtype)
@@ -100,7 +112,10 @@ def main():
     steps = generate_data([1, 1, 1], np.int64)
 
     def set_value4(x, value, *slice):
-        x[build_slice(*slice)] = value
+        if paddle.__version__ < "2.6.0":
+            x[build_slice(*slice)] = value
+        else:
+            x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
     paddle_set_value("set_value4", data, value, set_value4, dtype, starts, ends, steps)
@@ -114,7 +129,10 @@ def main():
     steps = generate_data([1], np.int64)
 
     def set_value5(x, value, *slice):
-        x[build_slice(*slice)] = value
+        if paddle.__version__ < "2.6.0":
+            x[build_slice(*slice)] = value
+        else:
+            x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
     paddle_set_value("set_value5", data, value, set_value5, dtype, starts, ends, steps)
@@ -141,6 +159,24 @@ def main():
 
     # paddle_set_value("set_value7", data, value, set_value_step1, dtype)
 
+    shape = (7, 9)
+    dtype = "int32"
+    data = np.random.randint(0, 5, shape).astype(dtype)
+    value = np.random.randint(-100, -1, (3, 1)).astype(dtype)
+
+    starts = generate_data([4], np.int64)
+    ends = generate_data([maxint32], np.int64)
+    steps = generate_data([1], np.int64)
+
+    def set_value8(x, value, *slice):
+        if paddle.__version__ < "2.6.0":
+            x[build_slice(*slice)] = value
+        else:
+            x = paddle.static.setitem(x, build_slice(*slice), value)
+        return x
+
+    paddle_set_value("set_value8", data, value, set_value8, dtype, starts, ends, steps)
+
     # shape = (10, 5)
     # dtype = "float32"
     # data = np.random.randint(0, 5, shape).astype(dtype)
@@ -161,7 +197,10 @@ def main():
     steps = generate_data([1], np.int64)
 
     def set_value7(x, value, *slice):
-        x[build_slice(*slice)] = value
+        if paddle.__version__ < "2.6.0":
+            x[build_slice(*slice)] = value
+        else:
+            x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
     paddle_set_value("set_value_dynamic2", data, value, set_value7, dtype, starts, ends, steps, is_dynamic=True)

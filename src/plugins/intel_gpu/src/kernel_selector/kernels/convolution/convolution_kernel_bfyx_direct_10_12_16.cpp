@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_Direct_10_10_12::get_required_device_fe
 
 JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convolution_params& cp,
                                                                      const DispatchData& dispatchData) const {
-    JitConstants jit = Parent::GetJitConstants(cp, dispatchData);
+    JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(cp, dispatchData);
 
     jit.AddConstants({
         MakeJitConstant("ALIGNED_OFM", RoundUp(cp.outputs[0].Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN) * cp.groups),

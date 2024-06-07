@@ -6,6 +6,9 @@
 
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
+
 
 using namespace CPUTestUtils;
 
@@ -63,6 +66,8 @@ void ConvertCPULayerTest::SetUp() {
     if (!isInOutPrecisionSupported(inPrc, outPrc))
         primitive = "ref";
 
+    validate_out_prc();
+
     auto exec_type_precision = inPrc != ov::element::u8 ? inPrc : ov::element::Type(ov::element::i8);
     selectedType = makeSelectedTypeStr(primitive, exec_type_precision);
 
@@ -81,41 +86,64 @@ void ConvertCPULayerTest::SetUp() {
     function = makeNgraphFunction(inPrc, params, conversion, "ConversionCPU");
 }
 
-void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    if (outPrc != ov::element::boolean) {
-        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
-        return;
-    }
+void ConvertCPULayerTest::validate_out_prc() const {
+    if (outPrc == ov::element::boolean)
+        FAIL() << "ConvertCPULayerTest supports only non boolean output prc";
+}
 
-    // In the scenario where input precision is floating point and output precision is boolean,
-    // for CPU plugin, the output precision boolean will be converted to u8 during common transformation,
-    // the elements in the output tensor will retain the format of u8 with the range [0, 255].
-    // But the output precision in reference model is literal boolean, the elements are either 0 or 1.
-    // Here input floating points values are set to be in the range of [-1, 1], so no extra precision
-    // converting between actual output and expected output will be needed from the side of single layer tests.
+void ConvertToBooleanCPULayerTest::validate_out_prc() const {
+    if (outPrc != ov::element::boolean)
+        FAIL() << "ConvertToBooleanCPULayerTest supports only boolean output prc";
+}
+
+void ConvertToBooleanCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
 
     auto shape = targetInputStaticShapes.front();
-    size_t size = shape_size(shape);
+    auto size = shape_size(shape);
 
-    ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = 0;
-    in_data.range = 2 * size;
-    ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shape, in_data);
+    ov::Tensor tensor = ov::Tensor(funcInputs[0].get_element_type(), shape);
+    const auto first_part_size = size / 2;
+    const auto second_part_size = size - first_part_size;
 
-    if (inPrc == ov::element::f32) {
-        auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
-        for (size_t i = 0; i < size; ++i) {
-            rawBlobDataPtr[i] = rawBlobDataPtr[i] / size - 1;
+    // 1). Validate the nearest to zero values (Abs + Ceil)
+    {
+        double start_from = -2;
+        uint32_t range = 4;
+        int32_t resolution = size;
+        if (inPrc == ov::element::f32) {
+            auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
+            ov::test::utils::fill_data_random(rawBlobDataPtr, first_part_size, range, start_from, resolution);
+        } else if (inPrc == ov::element::bf16) {
+            auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
+            ov::test::utils::fill_data_random(rawBlobDataPtr, first_part_size, range, start_from, resolution);
+        } else {
+            FAIL() << "Generating inputs with precision " << inPrc.to_string() << " isn't supported, if output precision is boolean.";
         }
-    } else if (inPrc == ov::element::bf16) {
-        auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
-        for (size_t i = 0; i < size; ++i) {
-            rawBlobDataPtr[i] = rawBlobDataPtr[i] / size - 1;
+    }
+
+    // 2). Validate the values that are more than UINT8_MAX in absolute (Abs + Min)
+    {
+        ov::test::utils::InputGenerateData in_data_neg;
+        double neg_start_from = -1.5 * std::numeric_limits<uint8_t>::max();
+        double pos_start_from = 0.5 * std::numeric_limits<uint8_t>::max();
+        uint32_t range = 256;
+        auto neg_size = second_part_size / 2;
+        auto pos_size = second_part_size - neg_size;
+        int32_t resolution = 1;
+
+        if (inPrc == ov::element::f32) {
+            auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
+            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size, neg_size, range, neg_start_from, resolution);
+            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size + neg_size, pos_size, range, pos_start_from, resolution);
+        } else if (inPrc == ov::element::bf16) {
+            auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
+            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size, neg_size, range, neg_start_from, resolution);
+            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size + neg_size, pos_size, range, pos_start_from, resolution);
+        } else {
+            FAIL() << "Generating inputs with precision " << inPrc.to_string() << " isn't supported, if output precision is boolean.";
         }
-    } else {
-        FAIL() << "Generating inputs with precision " << inPrc.to_string() << " isn't supported, if output precision is boolean.";
     }
 
     inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
@@ -124,6 +152,14 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 TEST_P(ConvertCPULayerTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Convert", "Subgraph"});
+}
+
+TEST_P(ConvertToBooleanCPULayerTest, CompareWithRefs) {
+    run();
+    // CPU Plugin decomposes Convert[...->BOOL] into Convert[...->supported] + Abs + Min + Seiling + Convert[supported->u8].
+    // To align output precision of model, Plugin insertes Convert[U8->Boolean] on output.
+    // To avoid conflicts of mapping node types and prim types in CheckPluginRelatedResults, we set empty set of node types
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{});
 }
 
 namespace Conversion {

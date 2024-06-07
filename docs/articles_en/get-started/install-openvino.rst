@@ -1,6 +1,4 @@
-.. {#openvino_docs_install_guides_overview}
-
-Install OpenVINO™ 2024.0
+Install OpenVINO™ 2024.2
 ==========================
 
 
@@ -22,7 +20,7 @@ Install OpenVINO™ 2024.0
 
    <script type="module" crossorigin src="../_static/selector-tool/assets/index-f34d1fad.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="../_static/selector-tool/selector-6ad56e0.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+   <iframe id="selector" src="../_static/selector-tool/selector-1c16038.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
 .. warning::
 
@@ -36,25 +34,28 @@ Install OpenVINO™ 2024.0
 
 .. tip::
 
-   OpenVINO 2024.0, described here, is not a Long-Term-Support version!
+   OpenVINO 2024.2, described here, is not a Long-Term-Support version!
    All currently supported versions are:
 
-   * 2024.0 (development)
+   * 2024.2 (development)
    * 2023.3 (LTS)
    * 2022.3 (LTS)
 
    Moreover, different OpenVINO distributions may support slightly different sets of features.
    Read installation guides for particular distributions for more details.
 
-   .. dropdown:: Distribution Comparison for OpenVINO 2024.0
+   .. dropdown:: Distribution Comparison for OpenVINO 2024.2
 
-      ===============  ==========  ======  =========  ========  ============ ========== ==========
-       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan
-      ===============  ==========  ======  =========  ========  ============ ========== ==========
-       CPU              V           V        V         V          V           V          V
-       GPU              V           V        V         V          V           V          V
-       NPU              V          n/a      n/a       n/a        n/a         n/a        n/a
-      ===============  ==========  ======  =========  ========  ============ ========== ==========
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+       Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+       CPU              V           V       V                V         V            V          V          V
+       GPU              V           V       V                V         V            V          V          V
+       NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+
+      | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
+      |  **For Windows, CPU inference on ARM64 is not supported.**
 
 | **Build OpenVINO from source**
 |    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform,

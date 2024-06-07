@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,6 +10,8 @@ ov_add_test_target(
     DEPENDENCIES
     LINK_LIBRARIES
       common_test_utils
+      func_test_utils
+      sharedTestClasses
     ADD_CPPLINT
     LABELS
       OV UNIT

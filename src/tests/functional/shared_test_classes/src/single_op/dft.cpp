@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,12 +43,8 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
     }
 
     if (it != ov::test::utils::inputRanges.end()) {
-        const auto& ranges = it->second;
-        if (ranges.size() != 2) {
-            throw std::runtime_error("Incorrect size of ranges. It should be 2 (real and int cases)");
-        }
-        const auto& range = ranges.at(elemType.is_real());
-        inGenData = range.size() < inNodeCnt ? range.front() : range.at(0);
+        ov::test::utils::Range ranges = it->second;
+        inGenData = ranges.get_data(0, elemType);
     }
 
     inputs.clear();
@@ -103,6 +99,12 @@ void DFTLayerTest::SetUp() {
 
     auto result = std::make_shared<ov::op::v0::Result>(dft);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "DFT");
+
+    if (model_type == ov::element::f32) {
+        abs_threshold = 8e-5;
+    } else if (model_type == ov::element::bf16) {
+        abs_threshold = 5e-7;
+    }
 }
 }  // namespace test
 }  // namespace ov

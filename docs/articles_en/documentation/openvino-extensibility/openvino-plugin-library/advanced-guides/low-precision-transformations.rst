@@ -43,43 +43,43 @@ Input model requirements
 
 LPT transformations propagate dequantization operations through the following operations:
 
-* :doc:`Add-1 <../../../openvino-ir-format/operation-sets/operations-specifications/arithmetic/add-1>`
-* :doc:`AvgPool-1 <../../../openvino-ir-format/operation-sets/operations-specifications/pooling/avg-pool-1>`
-* :doc:`Clamp-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/clamp-1>`
-* :doc:`Concat-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/concat-1>`
-* :doc:`Convolution-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/convolution-1>`
-* :doc:`ConvolutionBackpropData-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/convolution-backprop-data-1>`
-* :doc:`DepthToSpace-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/depth-to-space-1>`
-* :doc:`FakeQuantize-1 <../../../openvino-ir-format/operation-sets/operations-specifications/quantization/fake-quantize-1>`
-* :doc:`GroupConvolution-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/group-convolution-1>`
-* :doc:`Interpolate-1 <../../../openvino-ir-format/operation-sets/operations-specifications/image/interpolate-1>`
-* :doc:`Interpolate-4 <../../../openvino-ir-format/operation-sets/operations-specifications/image/interpolate-4>`
-* :doc:`MatMul-1 <../../../openvino-ir-format/operation-sets/operations-specifications/matrix/matmul-1>`
-* :doc:`MaxPool-1 <../../../openvino-ir-format/operation-sets/operations-specifications/pooling/max-pool-1>`
-* :doc:`Multiply-1 <../../../openvino-ir-format/operation-sets/operations-specifications/arithmetic/multiply-1>`
-* :doc:`MVN-1 <../../../openvino-ir-format/operation-sets/operations-specifications/normalization/mvn-1>`
-* :doc:`NormalizeL2-1 <../../../openvino-ir-format/operation-sets/operations-specifications/normalization/normalize-l2-1>`
-* :doc:`PRelu-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/prelu-1>`
-* :doc:`ReduceMax-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-max-1>`
-* :doc:`ReduceMean-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-mean-1>`
-* :doc:`ReduceMin-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-min-1>`
-* :doc:`ReduceSum-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-sum-1>`
-* :doc:`Relu-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/relu-1>`
-* :doc:`Reshape-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>`
-* :doc:`Split-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/split-1>`
-* :doc:`Squeeze-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>`
-* :doc:`StridedSlice-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/strided-slice-1>`
-* :doc:`Transpose-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/transpose-1>`
-* :doc:`Gather-7 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/gather-7>`
-* :doc:`Gather-8 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/gather-8>`
-* :doc:`Unsqueeze-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/unsqueeze-1>`
-* :doc:`VariadicSplit-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/variadic-split-1>`
+* :doc:`Add-1 <../../../openvino-ir-format/operation-sets/operation-specs/arithmetic/add-1>`
+* :doc:`AvgPool-1 <../../../openvino-ir-format/operation-sets/operation-specs/pooling/avg-pool-1>`
+* :doc:`Clamp-1 <../../../openvino-ir-format/operation-sets/operation-specs/activation/clamp-1>`
+* :doc:`Concat-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/concat-1>`
+* :doc:`Convolution-1 <../../../openvino-ir-format/operation-sets/operation-specs/convolution/convolution-1>`
+* :doc:`ConvolutionBackpropData-1 <../../../openvino-ir-format/operation-sets/operation-specs/convolution/convolution-backprop-data-1>`
+* :doc:`DepthToSpace-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/depth-to-space-1>`
+* :doc:`FakeQuantize-1 <../../../openvino-ir-format/operation-sets/operation-specs/quantization/fake-quantize-1>`
+* :doc:`GroupConvolution-1 <../../../openvino-ir-format/operation-sets/operation-specs/convolution/group-convolution-1>`
+* :doc:`Interpolate-1 <../../../openvino-ir-format/operation-sets/operation-specs/image/interpolate-1>`
+* :doc:`Interpolate-4 <../../../openvino-ir-format/operation-sets/operation-specs/image/interpolate-4>`
+* :doc:`MatMul-1 <../../../openvino-ir-format/operation-sets/operation-specs/matrix/matmul-1>`
+* :doc:`MaxPool-1 <../../../openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-1>`
+* :doc:`Multiply-1 <../../../openvino-ir-format/operation-sets/operation-specs/arithmetic/multiply-1>`
+* :doc:`MVN-1 <../../../openvino-ir-format/operation-sets/operation-specs/normalization/mvn-1>`
+* :doc:`NormalizeL2-1 <../../../openvino-ir-format/operation-sets/operation-specs/normalization/normalize-l2-1>`
+* :doc:`PRelu-1 <../../../openvino-ir-format/operation-sets/operation-specs/activation/prelu-1>`
+* :doc:`ReduceMax-1 <../../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-max-1>`
+* :doc:`ReduceMean-1 <../../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-mean-1>`
+* :doc:`ReduceMin-1 <../../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-min-1>`
+* :doc:`ReduceSum-1 <../../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-sum-1>`
+* :doc:`Relu-1 <../../../openvino-ir-format/operation-sets/operation-specs/activation/relu-1>`
+* :doc:`Reshape-1 <../../../openvino-ir-format/operation-sets/operation-specs/shape/reshape-1>`
+* :doc:`Split-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/split-1>`
+* :doc:`Squeeze-1 <../../../openvino-ir-format/operation-sets/operation-specs/shape/reshape-1>`
+* :doc:`StridedSlice-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/strided-slice-1>`
+* :doc:`Transpose-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/transpose-1>`
+* :doc:`Gather-7 <../../../openvino-ir-format/operation-sets/operation-specs/movement/gather-7>`
+* :doc:`Gather-8 <../../../openvino-ir-format/operation-sets/operation-specs/movement/gather-8>`
+* :doc:`Unsqueeze-1 <../../../openvino-ir-format/operation-sets/operation-specs/shape/unsqueeze-1>`
+* :doc:`VariadicSplit-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/variadic-split-1>`
 
 If operation is not supported by LPT then dequantization operation will not be propagated, input tensor precisions will not be changed to low precision and operation will be executed in original precision.
 
 For example, if you would like to infer a model with ``Convolution`` operation in low precision then the model can look as on picture below:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.common.svg
    :alt: Quantized Convolution
 
 There are several supported quantization approaches on activations and on weights. All supported approaches are described in `Quantization approaches <#quantization-approaches>`__ section below. In demonstrated model `FakeQuantize operation quantization <#fakequantize-operation>`__ approach is used.
@@ -104,7 +104,7 @@ FakeQuantize operation
 
 In this case ``FakeQuantize`` operation is used on activations and quantized constant on weights. Original input model:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.common.svg
    :alt: Original model with FakeQuantize
 
 
@@ -113,7 +113,7 @@ Quantize and dequantization operations
 
 In this case ``FakeQuantize`` operation and ``Convert`` are used as quantize operation and return quantized low precision tensor. After quantize operation on activations there are ``Convert`` and dequantization operations to compensate decomposition. Original input model:
 
-.. image:: ../../../../_static/images/model_qdq_and_convolution.common.svg
+.. image:: ../../../../assets/images/model_qdq_and_convolution.common.svg
    :alt: Original model with Q/DQ
 
 In both cases result is the same. In LPT result model you can see that:
@@ -129,7 +129,7 @@ In both cases result is the same. In LPT result model you can see that:
 
 LPT result model:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.transformed.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.transformed.svg
    :alt: Result model
 
 Low precision transformations pipeline
@@ -137,7 +137,7 @@ Low precision transformations pipeline
 
 LPT transformation pipeline has several steps. For each transformation inside one step pattern matcher is unique per transformation, but each operation can be assigned to several transformations.
 
-.. image:: ../../../../_static/images/low_precision_transformation_pipeline.svg
+.. image:: ../../../../assets/images/low_precision_transformation_pipeline.svg
    :alt: Low precision transformations pipeline
 
 Inside each step LPT transformations handle input model operation by operation, applying transformation matching pattern for each transformation from the step to an operation, and execute transformation if pattern is matched. Decomposition transformation decomposes ``FakeQuantize`` to quantize and dequantization operations. Dequantization operations from previous transformation result is used for the current one and so on, until the end of the model is achieved.
@@ -227,12 +227,12 @@ Decomposition transformations decompose the ``FakeQuantize`` operation to: quant
 
 Original ``FakeQuantize``:
 
-.. image:: ../../../../_static/images/fq.common.svg
+.. image:: ../../../../assets/images/fq.common.svg
    :alt: FakeQuantize operation before LPT
 
 ``FakeQuantize`` after decomposition to quantization and dequantization operations:
 
-.. image:: ../../../../_static/images/fq.transformed.svg
+.. image:: ../../../../assets/images/fq.transformed.svg
    :alt: FakeQuantize operation after LPT
 
 Dequantization operations handling transformations
@@ -242,12 +242,12 @@ In this step, LPT transformations fuse dequantization operations or move them th
 
 Original ``Convolution`` operation in FP32 with dequantization operations before:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.common.svg
    :alt: Convolution operation before LPT
 
 ``Convolution`` operation in INT8 after decomposition and dequantization operations handling:
 
-.. image:: ../../../../_static/images/model_fq_and_convolution.transformed.svg
+.. image:: ../../../../assets/images/model_fq_and_convolution.transformed.svg
    :alt: Convolution operation after LPT
 
 
@@ -270,12 +270,12 @@ There are more details in developer guide :doc:`Cleanup transformations <low-pre
 
 ``FakeQuantize`` operation with not handled dequantization operations:
 
-.. image:: ../../../../_static/images/fq.transformed.svg
+.. image:: ../../../../assets/images/fq.transformed.svg
    :alt: TODO: FakeQuantize operation with dequantization operations before LPT
 
 ``FakeQuantize`` operation with fused dequantization operations:
 
-.. image:: ../../../../_static/images/fq.common.svg
+.. image:: ../../../../assets/images/fq.common.svg
    :alt: TODO: FakeQuantize operation with fused operations after LPT
 
 
@@ -289,7 +289,7 @@ Step 1. Common optimizations
 
 This step is optional for LPT but typically is presented in OpenVINO™ plugins. The step doesn't use any LPT transformation. Firstly, the step disables dequantization operations constant folding on constant subgraph on weights to prevent the lost of dequantization info on the next plugin transformations. After that, it optimizes the transformation function and converts operations to operation set 1. Typically, usage of this step is the simplest way to meet LPT requirements for the input quantized model. If plugin can guarantee that LPT input requirements are met, then this step can be skipped.
 
-.. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
    :fragment: [lpt_common]
 
@@ -297,7 +297,7 @@ Step 2. Low precision transformations execution
 +++++++++++++++++++++++++++++++++++++++++++++++
 This step is mandatory. It configures and runs LPT transformations.
 
-.. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
    :fragment: [lpt_execution]
 
@@ -306,7 +306,7 @@ Step 3. Plugin-specific transformations
 
 This step is optional. It modifies the transformation function to a device-specific operation set.
 
-.. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
    :fragment: [lpt_device]
 
@@ -440,7 +440,7 @@ Operation precision restrictions
 
 This option defines precisions which allowed for the operation input ports. The option value is passed as input argument for ``LowPrecision`` constructor. For example:
 
-.. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
    :fragment: [lpt_supported_precisions]
 
@@ -451,7 +451,7 @@ Operation per tensor quantization restrictions
 
 This option defines if operation supports per-tensor quantization only. The option value is passed as input argument for ``LowPrecision`` constructor. For example:
 
-.. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
    :fragment: [per_tensor_quantization]
 
@@ -467,7 +467,7 @@ Typical customization use cases
 
 Plugin specific customization can be implemented via transformation callbacks. For example: asymmetric quantization support can be easily customizable via ``LayerTransformation::isAsymmetricQuantization`` and ``WeightableLayerTransformation::isAsymmetricOnWeights`` methods usage in callbacks. For example:
 
-.. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
    :fragment: [asymmetric_quantization]
 

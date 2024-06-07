@@ -1,4 +1,3 @@
-
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -10,15 +9,6 @@ import numpy as np
 
 from openvino.runtime import op, Type as OVType, Shape, Tensor
 from openvino.runtime import opset11 as ops
-
-
-def maybe_convert_max_int(value: int):
-    # FIXME: This is a convertion from 64-bit positive max integer value
-    # to 32-bit positive max integer value. Find a better way to handle this.
-    if value == torch.iinfo(torch.int64).max:
-        return torch.iinfo(torch.int32).max
-    else:
-        return value
 
 
 def make_constant(*args, **kwargs):
@@ -51,9 +41,6 @@ def get_type_from_py_type(value):
     if isinstance(value, bool):
         return OVType.boolean
     if isinstance(value, int):
-        # Python int is 64 bit, but we will convert it to int32 except cases when it can't fit in 32 bits
-        if torch.iinfo(torch.int).min <= value <= torch.iinfo(torch.int).max:
-            return OVType.i32
         return OVType.i64
     return OVType.dynamic
 
@@ -123,7 +110,7 @@ def graph_has_ops(graph, op_types:list) -> bool:
 
 pt_to_ov_type_map = {
     "float": OVType.f32,
-    "int": OVType.i32,
+    "int": OVType.i64,
     "bool": OVType.boolean,
     "torch.bfloat16": OVType.bf16,
     "torch.float16": OVType.f16,

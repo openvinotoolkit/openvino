@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
                           "Axes input must be a scalar or 1D input. Got: ",
                           axes_shape);
 
-    const auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
+    auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
 
     if (data_rank.is_static() && axes_val) {
         ov::util::normalize_axes(op, data_rank.get_length(), *axes_val);

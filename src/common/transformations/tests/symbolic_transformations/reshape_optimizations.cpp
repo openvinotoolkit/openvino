@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
@@ -21,20 +21,13 @@ using namespace ov;
 using namespace ov::op;
 using namespace std;
 
-namespace {
-void label_shape(ov::PartialShape& shape) {
-    auto table = std::make_shared<ov::TableOfEquivalence>(42);
-    auto tracker = ov::DimensionTracker(table);
-    tracker.set_up_for_tracking(shape);
-}
-}  // namespace
-
 TEST_F(TransformationTestsF, FlattenOptimization) {
     // [A, B, C, D] -> [A, B, C*D]
-    {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
 
+    auto shape = PartialShape::dynamic(4);
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
+
+    {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
@@ -55,9 +48,6 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
         manager.register_pass<pass::ReshapeOptimizations>();
     }
     {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
-
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto pattern = ov::op::v0::Constant::create(element::i64, {3}, {0, 0, -1});
 
@@ -69,10 +59,11 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
 
 TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
     // [A, B, C, D] -> [A, B, C, D/8, 8]
-    {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
 
+    auto shape = PartialShape::dynamic(4);
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
+
+    {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
@@ -90,9 +81,6 @@ TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
         manager.register_pass<pass::ReshapeOptimizations>();
     }
     {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
-
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto pattern = ov::op::v0::Constant::create(element::i64, {5}, {0, 0, 0, -1, 8});
 
@@ -104,10 +92,11 @@ TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
 
 TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
     // [A, B, C, D] -> [A, B, C, 8, D/8]
-    {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
 
+    auto shape = PartialShape::dynamic(4);
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
+
+    {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);
@@ -125,9 +114,6 @@ TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
         manager.register_pass<pass::ReshapeOptimizations>();
     }
     {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
-
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto pattern = ov::op::v0::Constant::create(element::i64, {5}, {0, 0, 0, 8, -1});
 
@@ -139,10 +125,10 @@ TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
 
 TEST_F(TransformationTestsF, NegativeTest) {
     // [A, B, C, D] -> [A, B, C, D/2, D/3, 6]
-    {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+    auto shape = PartialShape::dynamic(4);
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
 
+    {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto shape_of = make_shared<v3::ShapeOf>(data);

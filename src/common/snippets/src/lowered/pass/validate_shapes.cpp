@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/validate_shapes.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/itt.hpp"
 
@@ -24,14 +25,12 @@ bool ValidateShapes::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constE
         OPENVINO_ASSERT(port_connectors.size() == num_inputs, "Invalid number of port connectors detected");
         OPENVINO_ASSERT(port_descriptors.size() == num_inputs, "Invalid number of port descriptors detected");
         for (size_t i = 0; i < num_inputs; i++) {
+            if (ov::is_type<ov::snippets::op::LoopBase>(expr->get_node()))
+                continue;
             const auto& descr = port_descriptors[i];
             const auto& layout = descr->get_layout();
             const auto& shape = descr->get_shape();
             const auto& n = expr->get_node();
-            OPENVINO_ASSERT(std::none_of(shape.begin(), shape.end(),
-                            [](size_t d) {return d == IShapeInferSnippets::DYNAMIC_DIMENSION;}),
-                            "Dynamic dimensions are not allowed at this point of pipeline. ",
-                            "Check the expr for node ", n->get_friendly_name());
             OPENVINO_ASSERT(layout.size() == shape.size(), "Layout and shape sizes must match. ",
                             "Check the expr for node ", n->get_friendly_name());
             const auto& parent_desc = port_connectors[i]->get_source().get_descriptor_ptr();

@@ -16,7 +16,7 @@ GET STARTED
    Install OpenVINO <get-started/install-openvino>
    Additional Hardware Setup <get-started/configurations>
    Troubleshooting <get-started/troubleshooting-install-config>
-   System Requirements <about-openvino/system-requirements>
+   System Requirements <./about-openvino/release-notes-openvino/system-requirements>
 
 
 .. raw:: html
@@ -24,11 +24,16 @@ GET STARTED
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
 
    <p id="GSG_introtext">Welcome to OpenVINO! This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit. The guide walks through the following steps:<br />
-     <a href="notebooks/201-vision-monodepth-with-output.html" >Quick Start Example</a>
+     <a href="notebooks/vision-monodepth-with-output.html" >Quick Start Example</a>
      <a href="get-started/install-openvino.html" >Install OpenVINO</a>
      <a href="#learn-openvino" >Learn OpenVINO</a>
    </p>
    <div style="clear:both;"> </div>
+
+
+For a quick reference, check out
+`the Quick Start Guide [pdf] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+
 
 .. _quick-start-example:
 
@@ -38,7 +43,7 @@ GET STARTED
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
 
-Try out OpenVINO's capabilities with this `quick start example <notebooks/201-vision-monodepth-with-output.html>`__ that estimates depth in a scene using an OpenVINO monodepth model to quickly see how to load a model, prepare an image, inference the image, and display the result.
+Try out OpenVINO's capabilities with this `quick start example <notebooks/vision-monodepth-with-output.html>`__ that estimates depth in a scene using an OpenVINO monodepth model to quickly see how to load a model, prepare an image, inference the image, and display the result.
 
 .. _install-openvino-gsg:
 
@@ -70,10 +75,10 @@ Interactive Tutorials - Jupyter Notebooks
 
 Start with :doc:`interactive Python <learn-openvino/interactive-tutorials-python>` that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
 
-* `Hello Image Classification <notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
-* `OpenVINO Runtime API Tutorial <notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
-* `Convert TensorFlow Models to OpenVINO <notebooks/101-tensorflow-classification-to-openvino-with-output.html>`__
-* `Convert PyTorch Models to OpenVINO <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+* `Hello Image Classification <notebooks/hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
+* `OpenVINO Runtime API Tutorial <notebooks/openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
+* `Convert TensorFlow Models to OpenVINO <notebooks/tensorflow-classification-to-openvino-with-output.html>`__
+* `Convert PyTorch Models to OpenVINO <notebooks/pytorch-onnx-to-openvino-with-output.html>`__
 
 .. _code-samples:
 
@@ -101,8 +106,8 @@ Model Compression and Quantization
 
 Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
 
-* Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <notebooks/305-tensorflow-quantization-aware-training-with-output>`__
-* Tutorial - `Quantization-Aware Training in PyTorch with NNCF <notebooks/302-pytorch-quantization-aware-training-with-output>`__
+* Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <notebooks/tensorflow-quantization-aware-training-with-output>`__
+* Tutorial - `Quantization-Aware Training in PyTorch with NNCF <notebooks/pytorch-quantization-aware-training-with-output>`__
 * :doc:`Model Optimization Guide <openvino-workflow/model-optimization>`
 
 Automated Device Configuration
@@ -130,6 +135,5 @@ Additional Resources
 ====================
 
 * `OpenVINO Success Stories <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__ - See how Intel partners have successfully used OpenVINO in production applications to solve real-world problems.
-* :doc:`OpenVINO Supported Models <about-openvino/compatibility-and-support/supported-models>` - Check which models OpenVINO supports on your hardware.
 * :doc:`Performance Benchmarks <about-openvino/performance-benchmarks>` - View results from benchmarking models with OpenVINO on Intel hardware.
 

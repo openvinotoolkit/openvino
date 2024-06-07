@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -242,23 +242,35 @@ void CompileModelCacheTestBase::run() {
         GTEST_FAIL() << "Can't compile network without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     }
     auto originalOutputs = get_plugin_outputs();
-
+    size_t blobCountInitial = -1;
+    size_t blobCountAfterwards = -1;
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
-        compiledModel = {}; // Destroy network object
-        inferRequest = {};
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
-            if (targetDevice.find("AUTO") == std::string::npos)
+            if (targetDevice.find("AUTO") == std::string::npos) {
                 // Apply check only for HW plugins
                 ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            }
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }
-        // cache is created and reused
-        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
         compare(originalOutputs, get_plugin_outputs());
+        // Destroy objects here
+        // AUTO plugin will wait all HW plugins to finish compiling model
+        // No impact for HW plugins
+        compiledModel = {};
+        inferRequest = {};
+        if (i == 0) {
+            // blob count should be greater than 0 initially
+            blobCountInitial = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
+            ASSERT_GT(blobCountInitial, 0);
+        } else {
+            // cache is created and reused. Blob count should be same as it was first time
+            blobCountAfterwards = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
+            ASSERT_EQ(blobCountInitial, blobCountAfterwards);
+        }
     }
     if ((targetDevice.find("GPU") != std::string::npos)) {
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -350,7 +362,7 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
         ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_weightsName);
 
     try {
-        ov::test::utils::createDirectory(cache_path_mb);
+        ov::test::utils::createDirectory(cache_path_w);
 
         // Copy IR files into unicode folder for read_model test
         ov::test::utils::copyFile(m_modelName, model_xml_path_w);

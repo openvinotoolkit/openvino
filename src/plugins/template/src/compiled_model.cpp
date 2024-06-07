@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,11 +153,11 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
-        std::vector<ov::PropertyName> supported_properties;
+        auto supported_properties = decltype(ov::supported_properties)::value_type();
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return supported_properties;
     }
 
     return m_cfg.Get(name);

@@ -9,107 +9,28 @@
 #include <vector>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/reference/convert.hpp"
 
 namespace ov {
 namespace reference {
-namespace inverse {
 namespace internal {
 
-template <typename T>
-void lu_decomposition(const T* input,
-                      std::vector<std::vector<T>>& L,
-                      std::vector<std::vector<T>>& U,
-                      std::vector<T>& P,
-                      bool& sign,
-                      size_t b,
-                      size_t n) {
-    // Make L identity, U a copy of input and P a range(0, n)
-    const auto batch_idx = b * n * n;
-    for (size_t i = 0; i < n; ++i) {
-        P[i] = static_cast<T>(i);
-        L[i][i] = T{1};
+void lu_decomposition(std::vector<float>& input,
+                      std::vector<float>& L,
+                      std::vector<float>& U,
+                      std::vector<size_t>& P,
+                      const bool adjoint,
+                      const size_t b,
+                      const size_t n,
+                      const size_t n_squared);
 
-        auto i_idx = i * n;
-        for (size_t j = 0; j < n; ++j) {
-            U[i][j] = input[batch_idx + i_idx + j];
-        }
-    }
-
-    for (size_t k = 0; k < n; ++k) {
-        // Partial Pivoting
-        auto pivot_row = k;
-        for (auto i = k + 1; i < n; ++i) {
-            if (std::abs(U[i][k]) > std::abs(U[pivot_row][k])) {
-                pivot_row = i;
-            }
-        }
-
-        if (pivot_row != k) {
-            // Swap rows in L, U (A) and P
-            std::swap(U[k], U[pivot_row]);
-            std::swap(L[k], L[pivot_row]);
-            std::swap(P[k], P[pivot_row]);
-            sign = !sign;
-        }
-
-        for (auto i = k + 1; i < n; ++i) {
-            L[i][k] = U[i][k] / U[k][k];
-            for (auto j = k; j < n; ++j) {
-                U[i][j] -= L[i][k] * U[k][j];
-            }
-        }
-    }
-}
-
-template <typename T>
-void lu_solve(T* output,
-              std::vector<std::vector<T>>& L,
-              std::vector<std::vector<T>>& U,
-              std::vector<T>& P,
-              size_t b,
-              size_t n,
-              size_t column) {
-    std::vector<T> B(n, T{0});
-    std::vector<T> X(n, T{0});
-    std::vector<T> Y(n, T{0});
-    B[column] = T{1};
-
-    // Forward substitution: Ly = Pb
-    for (size_t i = 0; i < n; ++i) {
-        Y[i] = B[P[i]];
-        for (size_t j = 0; j < i; ++j) {
-            Y[i] -= L[i][j] * Y[j];
-        }
-    }
-
-    // Backward substitution: Ux = y
-    for (int i = static_cast<int>(n - 1); i >= 0; --i) {
-        X[i] = Y[i];
-        for (size_t j = static_cast<size_t>(i) + 1; j < n; ++j) {
-            X[i] -= U[i][j] * X[j];
-        }
-        X[i] /= U[i][i];
-    }
-
-    size_t batch_idx = b * n * n;
-    for (size_t row = 0; row < n; ++row) {
-        output[batch_idx + row * n + column] = X[row];
-    }
-}
-
-template <typename T>
-void to_adjoint(T* output, std::vector<std::vector<T>>& U, bool sign, size_t b, size_t n) {
-    T determinant = sign ? T{1} : T{-1};
-
-    for (size_t i = 0; i < n; ++i) {
-        determinant *= U[i][i];
-    }
-
-    const auto batch_idx = b * n * n;
-    for (auto idx = batch_idx; idx < batch_idx + n * n; ++idx) {
-        output[idx] *= determinant;
-    }
-}
+void lu_solve(std::vector<float>& output,
+              std::vector<float>& L,
+              std::vector<float>& U,
+              std::vector<size_t>& P,
+              const size_t b,
+              const size_t n,
+              const size_t n_squared);
 }  // namespace internal
 
 /**
@@ -124,26 +45,28 @@ void to_adjoint(T* output, std::vector<std::vector<T>>& U, bool sign, size_t b, 
 template <typename T>
 void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) {
     const size_t n = shape.back();
-    const auto total_elements = shape_size<Shape>(shape);
-    const auto batch_size = total_elements / n / n;
+    const auto n_squared = n * n;
+    size_t batch_size = 1;
+
+    for (size_t i = 0; i < shape.size() - 2; ++i) {
+        batch_size = batch_size * shape[i];
+    }
+
+    auto input_conv = std::vector<float>(batch_size * n_squared);
+    auto output_conv = std::vector<float>(batch_size * n_squared);
+
+    convert<T, float>(input, input_conv.data(), batch_size * n_squared);
+
+    std::vector<float> L(n_squared);
+    std::vector<float> U(n_squared);
+    std::vector<size_t> P(n);
 
     for (size_t b = 0; b < batch_size; ++b) {
-        std::vector<std::vector<T>> L(n, std::vector<T>(n, T{0}));
-        std::vector<std::vector<T>> U(n, std::vector<T>(n, T{0}));
-        std::vector<T> P(n);
-        bool sign = true;
-
-        internal::lu_decomposition(input, L, U, P, sign, b, n);
-
-        for (size_t column = 0; column < n; ++column) {
-            internal::lu_solve(output, L, U, P, b, n, column);
-        }
-
-        if (adjoint) {
-            internal::to_adjoint(output, U, sign, b, n);
-        }
+        internal::lu_decomposition(input_conv, L, U, P, adjoint, b, n, n_squared);
+        internal::lu_solve(output_conv, L, U, P, b, n, n_squared);
     }
+
+    convert<float, T>(output_conv.data(), output, batch_size * n_squared);
 }
-}  // namespace inverse
 }  // namespace reference
 }  // namespace ov

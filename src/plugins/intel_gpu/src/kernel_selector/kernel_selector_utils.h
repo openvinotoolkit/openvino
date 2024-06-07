@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,9 @@ namespace kernel_selector {
 struct weight_bias_params;
 struct WeightsReorderParams;
 
-struct DimensionAccessHelper {
-    explicit DimensionAccessHelper(const DataTensor& t, bool padded = false) {
-        std::vector<Tensor::Dim> dims = {
+struct DimensionAccessHelperBase {
+    explicit DimensionAccessHelperBase(const DataTensor& t) {
+        dims = {
             t.Batch(),
             t.Feature(),
             t.U(),
@@ -23,6 +23,23 @@ struct DimensionAccessHelper {
             t.Y(),
             t.X(),
         };
+    }
+
+    Tensor::Dim& x_dim() { return dims[7]; }
+    Tensor::Dim& y_dim() { return dims[6]; }
+    Tensor::Dim& z_dim() { return dims[5]; }
+    Tensor::Dim& w_dim() { return dims[4]; }
+    Tensor::Dim& v_dim() { return dims[3]; }
+    Tensor::Dim& u_dim() { return dims[2]; }
+    Tensor::Dim& f_dim() { return dims[1]; }
+    Tensor::Dim& b_dim() { return dims[0]; }
+
+    std::vector<Tensor::Dim> dims;
+};
+
+struct DimensionAccessHelperJit : virtual DimensionAccessHelperBase {
+    explicit DimensionAccessHelperJit(const DataTensor& t, bool padded = false)
+    : DimensionAccessHelperBase(t) {
         size_t dyn_shape_offset = t.get_dynamic_shape_offset();
         size_t dyn_pad_offset = dyn_shape_offset + DataTensor::max_rank();
         for (auto d : dims) {

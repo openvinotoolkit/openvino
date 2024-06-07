@@ -46,21 +46,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Blocked, ConvertCPULayerTest,
                                 ::testing::ValuesIn(filterCPUSpecificParams(memForm4D_static_blocked))),
                         ConvertCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Static, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Static, ConvertToBooleanCPULayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(precisions_floating_point),
                                 ::testing::Values(ov::element::boolean),
                                 ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {}))),
-                        ConvertCPULayerTest::getTestCaseName);
+                        ConvertToBooleanCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Dynamic, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Dynamic, ConvertToBooleanCPULayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions_floating_point),
                                 ::testing::Values(ov::element::boolean),
-                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, "ref"))),
-                        ConvertCPULayerTest::getTestCaseName);
+                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {}))),
+                        ConvertToBooleanCPULayerTest::getTestCaseName);
 
 }  // namespace
 }  // namespace Conversion

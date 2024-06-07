@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -33,7 +34,7 @@ MatMulToBrgemm::MatMulToBrgemm() {
     MATCHER_SCOPE(MatMulToBrgemm);
     auto matmul_pattern = ov::pass::pattern::wrap_type<ov::opset1::MatMul>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::MatMulToBrgemm")
         auto& pm = m.get_pattern_value_map();
         const auto matmul = as_type_ptr<ov::opset1::MatMul>(pm.at(matmul_pattern).get_node_shared_ptr());

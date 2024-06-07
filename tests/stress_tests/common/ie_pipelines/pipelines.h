@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,4 +33,4 @@ std::function<void()> recreate_infer_request(std::shared_ptr<InferApiBase> &ie_w
 
 std::function<void()> reinfer_request_inference(std::shared_ptr<InferApiBase> &ie_wrapper);
 
-std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase> &ie_wrapper);
+std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase> &ie_wrapper, const bool async = false);

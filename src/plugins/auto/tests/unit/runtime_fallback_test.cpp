@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -175,7 +175,9 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                                                                                              mockExecutor,
                                                                                              nullptr,
                                                                                              ifThrow);
-            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault(Return(mockInferrequest));
+            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
+                return mockInferrequest;
+            });
         } else if (deviceName == "GPU.0") {
             mockInferrequestGPU_0 =
                 std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalActual,
@@ -328,7 +330,9 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
                                                                                              mockExecutor,
                                                                                              nullptr,
                                                                                              ifThrow);
-            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault(Return(mockInferrequest));
+            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
+                return mockInferrequest;
+            });
         } else if (deviceName == "GPU.0") {
             mockInferrequestGPU_0 =
                 std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalActual,

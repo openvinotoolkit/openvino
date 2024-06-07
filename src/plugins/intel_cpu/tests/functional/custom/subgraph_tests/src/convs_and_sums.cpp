@@ -8,6 +8,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -67,8 +68,7 @@ protected:
                                                       {-2.122633457183838},
                                                       {2.106050491333008});
 
-        auto Const =
-            ov::test::utils::deprecated::make_constant(netPrecision, {128, 512, 1}, std::vector<float>{-0.0512377955019474}, false);
+        auto Const = ov::op::v0::Constant::create(netPrecision, {128, 512, 1}, std::vector<float>{-0.0512377955019474});
         auto FQ_2 = ov::test::utils::make_fake_quantize(Const,
                                                       netPrecision,
                                                       255,
@@ -96,10 +96,9 @@ protected:
                                                        {-3.2050728797912598},
                                                        {3.1800332069396973});
 
-        auto Const_ = ov::test::utils::deprecated::make_constant(netPrecision,
-                                                    {128, 512, 1},
-                                                    std::vector<float>{-0.001183388871140778},
-                                                    false);
+        auto Const_ = ov::op::v0::Constant::create(netPrecision,
+                                                   ov::Shape{128, 512, 1},
+                                                   std::vector<float>{-0.001183388871140778});
         auto FQ_22 = ov::test::utils::make_fake_quantize(Const_,
                                                        netPrecision,
                                                        255,
@@ -120,6 +119,8 @@ protected:
 
         auto result = std::make_shared<ov::op::v0::Result>(relu3);
         function = std::make_shared<ov::Model>(result, params, "SimpleNet");
+
+        abs_threshold = 9e-4;
     }
 };
 

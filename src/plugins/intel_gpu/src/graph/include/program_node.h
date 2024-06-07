@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ public:
     }
 
     bool is_shape_infer_dep(void) const {
-        if (!myprog.get_config().get_property(ov::intel_gpu::allow_new_shape_infer))
+        if (!myprog.is_new_shape_infer())
             return false;
         for (auto u : users) {
             for (auto dep_idx : u->get_shape_infer_dependencies()) {
@@ -174,8 +174,8 @@ public:
     size_t get_outputs_count() const { return desc->output_size(); }
 
     std::vector<layout> const get_input_layouts() const;
-    layout get_input_layout(size_t idx = 0) const;
-    ov::PartialShape get_input_pshape(size_t idx = 0) const;
+    const layout& get_input_layout(size_t idx = 0) const;
+    const ov::PartialShape& get_input_pshape(size_t idx = 0) const;
     ov::PartialShape get_output_pshape(size_t idx = 0) const;
 
     virtual std::vector<layout> get_shape_info_input_layouts() const;
@@ -202,7 +202,7 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    std::set<size_t> get_memory_dependencies() const;
+    std::unordered_set<size_t> get_memory_dependencies() const;
     void add_memory_dependency(size_t);
     void add_memory_dependency(std::vector<size_t>);
 
@@ -243,11 +243,11 @@ public:
 
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true
-    layout get_output_layout(bool invalidate_users_if_changed = true, size_t idx = 0);
+    const layout& get_output_layout(bool invalidate_users_if_changed = true, size_t idx = 0);
     // returns cached output layout if valid, otherwise throws an exception
-    layout get_output_layout(size_t idx = 0) const;
-    std::vector<layout> get_output_layouts(bool invalidate_users_if_changed = true);
-    std::vector<layout> get_output_layouts() const;
+    const layout& get_output_layout(size_t idx = 0) const;
+    const std::vector<layout>& get_output_layouts(bool invalidate_users_if_changed = true);
+    const std::vector<layout>& get_output_layouts() const;
     // returns result of get_output_layout without padding
     layout get_non_padded_output_layout(bool invalidate_users_if_changed = true, size_t idx = 0);
 
@@ -300,6 +300,10 @@ public:
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
+
+    // check/set if the node is runtime skippable
+    bool is_runtime_skippable() const { return runtime_skippable; }
+    void set_runtime_skippable(bool skippable) { runtime_skippable = skippable; }
 
     // check/set if the node's buffer can be shared during the memory pool optimization
     bool can_share_buffer() const { return share_buffer; }
@@ -478,12 +482,13 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::set<size_t> memory_dependencies;
+    std::unordered_set<size_t> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     bool constant = false;
     bool data_flow = false;
     bool in_shape_of_subgraph = false;
+    bool runtime_skippable = false;
 
     std::set<const program_node*> dependant_shape_of_nodes;
 

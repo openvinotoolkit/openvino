@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,9 @@ namespace op {
  * @brief Is generated for broadcasting by least varying dimension for non-blocked cases and the second varying dimension for blocked
  * @ingroup snippets
  */
-class BroadcastLoad : public MemoryAccess {
+class BroadcastLoad : public modifier::MemoryAccess, public ov::op::Op {
 public:
-    OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ov::snippets::op::MemoryAccess);
+    OPENVINO_OP("BroadcastLoad", "SnippetsOpset");
 
     BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset = 0lu);
     BroadcastLoad() = default;

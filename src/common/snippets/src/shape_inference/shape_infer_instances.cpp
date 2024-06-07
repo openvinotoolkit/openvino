@@ -13,9 +13,9 @@ using Result = IShapeInferSnippets::Result;
  */
 bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::AutoBroadcastSpec& autob) {
     auto broadcast_merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
-        if (d1 == d2 || d1 == 1 || d1 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
+        if (d1 == d2 || d1 == 1 || utils::is_dynamic_value(d1)) {
             dst = d2;
-        } else if (d2 == 1 || d2 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
+        } else if (d2 == 1 || utils::is_dynamic_value(d2)) {
             dst = d1;
         } else {
            return false;
@@ -51,8 +51,7 @@ bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::
 
             bool success = true;
             for (int64_t i = 0; i < src_rank; ++i) {
-                if (dst[axis + i] != IShapeInferSnippets::DYNAMIC_DIMENSION &&
-                    src[i] != IShapeInferSnippets::DYNAMIC_DIMENSION) {
+                if (!utils::is_dynamic_value(dst[axis + i]) && !utils::is_dynamic_value(src[i])) {
                     if (src[i] > dst[axis + i])
                         return false;
                 }
@@ -70,9 +69,9 @@ bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::
  */
 bool merge_into(VectorDims& dst, const VectorDims& src) {
     auto merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
-        if (d1 == d2 || d1 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
+        if (d1 == d2 || utils::is_dynamic_value(d1)) {
             dst = d2;
-        } else if (d2 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
+        } else if (utils::is_dynamic_value(d2)) {
             dst = d1;
         } else {
             return false;
@@ -211,9 +210,9 @@ Result BrgemmShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
         if (arg0_shape_tmp[i] == arg1_shape_tmp[i]) {
             output_shape[i] = arg0_shape_tmp[i];
         } else {
-            if (arg0_shape_tmp[i] == 1 || arg0_shape_tmp[i] == DYNAMIC_DIMENSION)
+            if (arg0_shape_tmp[i] == 1 || utils::is_dynamic_value(arg0_shape_tmp[i]))
                 output_shape[i] = arg1_shape_tmp[i];
-            else if (arg1_shape_tmp[i] == 1 || arg1_shape_tmp[i] == DYNAMIC_DIMENSION)
+            else if (arg1_shape_tmp[i] == 1 || utils::is_dynamic_value(arg1_shape_tmp[i]))
                 output_shape[i] = arg0_shape_tmp[i];
             else
                 OPENVINO_THROW("Incompatible Brgemm batch dimension");
@@ -244,6 +243,23 @@ Result ReduceShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     VectorDims result_shape = input_shapes[0].get();
     result_shape[m_axis] = 1;
     return {{result_shape}, ShapeInferStatus::success};
+}
+
+ReshapeShapeInfer::ReshapeShapeInfer(const std::shared_ptr<Node>& n) {
+    const auto& reshape = as_type_ptr<ov::snippets::op::Reshape>(n);
+    OPENVINO_ASSERT(reshape, "Invalid node passed to ReshapeShapeInfer.");
+    const auto& partial_shape = reshape->get_target_shape();
+    OPENVINO_ASSERT(partial_shape.is_static(), "target_shape of reshape op should be static in ReshapeShapeInfer");
+    target_shape = partial_shape.get_shape();
+    target_shape_volume = utils::get_shape_size(target_shape);
+}
+
+Result ReshapeShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes is passed in ReshapeShapeInfer");
+    const auto input_shape_volume = utils::get_shape_size(input_shapes[0].get());
+    OPENVINO_ASSERT(input_shape_volume == target_shape_volume, "Tensor volume should be the same after reshape in ReshapeShapeInfer");
+
+    return {{target_shape}, ShapeInferStatus::success};
 }
 
 } // namespace snippets

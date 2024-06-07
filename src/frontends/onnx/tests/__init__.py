@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -59,11 +59,10 @@ xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
 xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
 xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
 xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
-xfail_issue_99958 = xfail_test(reason="LogSoftmax - Results mismatch")
 xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
 xfail_issue_99961 = xfail_test(reason="Optional has/get element operators are not supported)'")
-xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1/L2 - Unrecognized attribute: axes for operator ReduceL1/L2")
-xfail_issue_99968 = xfail_test(reason="ReduceL1/L2 - Results mismatch or unsupported ReduceSum with "
+xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1 - Unrecognized attribute: axes for operator ReduceL1")
+xfail_issue_99968 = xfail_test(reason="ReduceL1 - Results mismatch or unsupported ReduceSum with "
                                       "dynamic rank by CPU plugin")
 xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
                                       "RuntimeError: While validating ONNX node '<Node(Resize): Y>' / "
@@ -71,7 +70,6 @@ xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
 xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
                                       "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
                                       "src/frontends/onnx/frontend/src/op/scatter_nd")
-xfail_issue_99972 = xfail_test(reason="Softmax - Results mismatch")
 xfail_issue_99973 = xfail_test(reason="Split -  RuntimeError: While validating ONNX node "
                                       "'<Node(Split): output_1, output_2, output_3, output_4>'")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
@@ -133,7 +131,6 @@ xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R,
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
-xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
@@ -172,7 +169,6 @@ skip_issue_124587 = pytest.mark.skip(reason="Fail on new macos machines")
 xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
 xfail_issue_125492 = xfail_test(reason="DFT mismatch")
 xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")
-xfail_issue_125495 = xfail_test(reason="ReduceMin/Max doesn't support boolean")
 xfail_issue_122776 = xfail_test(reason="test_mish_expanded_cpu - "
                                        "Not equal to tolerance")
 xfail_issue_122775 = xfail_test(reason="test_resize_downsample_scales_linear_cpu - "

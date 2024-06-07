@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -124,6 +124,15 @@ bool is_absolute_file_path(const std::string& path);
  * @throw runtime_error if any error occurred
  */
 void create_directory_recursive(const std::string& path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Interface function to create directorty recursively by given path
+ * @param path - path to file wide-string, can be relative to current working directory
+ * @throw runtime_error if any error occurred
+ */
+void create_directory_recursive(const std::wstring& path);
+#endif
 
 /**
  * @brief Interface function to check if directory exists for given path

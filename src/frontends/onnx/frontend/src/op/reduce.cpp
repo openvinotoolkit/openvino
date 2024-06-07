@@ -8,6 +8,7 @@
 #include "identity.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/multiply.hpp"
@@ -90,74 +91,195 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const Node& node) {
     return v0::Constant::create(ov::element::i64, ov::Shape{reduction_axes.size()}, reduction_axes);
 }
 
+const std::set<element::Type> supported_types_v1 =
+    {element::u32, element::u64, element::i32, element::i64, element::f16, element::f32, element::f64};
+const std::set<element::Type> supported_types_v2 =
+    {element::u32, element::u64, element::i32, element::i64, element::f16, element::f32, element::f64, element::bf16};
+const std::set<element::Type> supported_types_v3 = {element::u32,
+                                                    element::u64,
+                                                    element::i32,
+                                                    element::i64,
+                                                    element::f16,
+                                                    element::f32,
+                                                    element::f64,
+                                                    element::bf16,
+                                                    element::i8,
+                                                    element::u8};
+const std::set<element::Type> supported_types_v4 = {element::u32,
+                                                    element::u64,
+                                                    element::i32,
+                                                    element::i64,
+                                                    element::f16,
+                                                    element::f32,
+                                                    element::f64,
+                                                    element::bf16,
+                                                    element::i8,
+                                                    element::u8,
+                                                    element::boolean};
+
 template <typename OpType>
-std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
-                                               const ov::Output<ov::Node>& ng_input,
+std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
+                                               const ov::Output<ov::Node>& ov_input,
+                                               const std::set<element::Type>& supported_types,
                                                bool axes_as_attr = true) {
     const std::int64_t keepdims = node.get_attribute_value<std::int64_t>("keepdims", 1);
 
+    CHECK_VALID_NODE(node,
+                     supported_types.find(ov_input.get_element_type()) != supported_types.end(),
+                     "Unsupported input type ",
+                     ov_input.get_element_type().get_type_name());
+
     const auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node) : get_reduction_axes_from_input(node);
     if (reduction_axes != nullptr) {
-        return std::make_shared<OpType>(ng_input, reduction_axes, static_cast<bool>(keepdims));
+        return std::make_shared<OpType>(ov_input, reduction_axes, static_cast<bool>(keepdims));
     } else {
         return set_1::identity(node).at(0).get_node_shared_ptr();
     }
 }
-}  // namespace
 
-namespace set_13 {
-ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), false)};
+std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node& node,
+                                                 const std::set<element::Type>& supported_types,
+                                                 const bool axes_as_attr = true) {
+    const auto input = ov::Output<ov::Node>{node.get_ov_inputs().at(0)};
+    const auto square_node = std::make_shared<v1::Multiply>(input, input);
+    return make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types, axes_as_attr);
 }
-}  // namespace set_13
+}  // namespace
 
 namespace set_1 {
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
-    const ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0));
+    const ov::Output<ov::Node> sum_node =
+        make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2);
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
 ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
     const auto exp_node = std::make_shared<v0::Exp>(node.get_ov_inputs().at(0));
-    const ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, exp_node);
+    const ov::Output<ov::Node> sum_node = make_ov_reduction_op<v1::ReduceSum>(node, exp_node, supported_types_v1);
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
 ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0))};
+    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v1)};
 }
 
 ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v1)};
 }
 
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0))};
+    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v1)};
 }
 
 ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0))};
+    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v1)};
 }
 
 ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0))};
+    return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v1)};
 }
 
 ov::OutputVector reduce_prod(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceProd>(node, node.get_ov_inputs().at(0))};
+    return {make_ov_reduction_op<v1::ReduceProd>(node, node.get_ov_inputs().at(0), supported_types_v1)};
 }
 
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0))};
+    return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v1)};
 }
 
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
-    const auto input = ov::Output<ov::Node>{node.get_ov_inputs().at(0)};
-    const auto square_node = std::make_shared<v1::Multiply>(input, input);
-    return {make_ng_reduction_op<v1::ReduceSum>(node, square_node)};
+    return {onnx_reduce_sum_square(node, supported_types_v1)};
+}
+}  // namespace set_1
+
+/*
+    Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
+    Found difference is:
+    1. Operations (except ReduceMin and ReduceMax) are lost mention of zero-rank input behavior
+       from their description. We assume it shouldn't be worse than opset 1.
+    2. Opset 11 introduced requirement for axes values to be in a range [-r, r-1] where r = rank(data)
+       Same time Reduce* operations in OpenVINO has same requirement from first version
+*/
+
+namespace set_13 {
+ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
 
-}  // namespace set_1
+ov::OutputVector reduce_l2(const Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
+
+ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
+}
+ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3)};
+}
+
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
+    return {onnx_reduce_sum_square(node, supported_types_v2)};
+}
+}  // namespace set_13
+
+namespace set_18 {
+ov::OutputVector reduce_l2(const Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
+}
+ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
+ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
+    const ov::Output<ov::Node> sum_node =
+        make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false);
+    return {std::make_shared<v0::Log>(sum_node)};
+}
+
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
+    return {onnx_reduce_sum_square(node, supported_types_v2, false)};
+}
+}  // namespace set_18
+
+namespace set_20 {
+ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
+    if (data.get_element_type() != element::boolean) {
+        return {make_ov_reduction_op<v1::ReduceMax>(node, data, supported_types_v3, false)};
+    } else {
+        // Handling boolean as a uint8
+        return {std::make_shared<v0::Convert>(
+            make_ov_reduction_op<v1::ReduceMax>(node,
+                                                std::make_shared<ov::op::v0::Convert>(data, element::u8),
+                                                supported_types_v4,
+                                                false),
+            element::boolean)};
+    }
+}
+
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
+    if (data.get_element_type() != element::boolean) {
+        return {make_ov_reduction_op<v1::ReduceMin>(node, data, supported_types_v3, false)};
+    } else {
+        // Handling boolean as a uint8
+        return {std::make_shared<v0::Convert>(
+            make_ov_reduction_op<v1::ReduceMin>(node,
+                                                std::make_shared<ov::op::v0::Convert>(data, element::u8),
+                                                supported_types_v4,
+                                                false),
+            element::boolean)};
+    }
+}
+}  // namespace set_20
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend

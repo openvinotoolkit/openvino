@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -388,7 +388,8 @@ TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_mo
       m_translator_map(translator_map),
       m_model_name(model_name),
       m_ov_model(nullptr),
-      m_cached_body_models(std::make_shared<CachedBodyModelsType>()) {}
+      m_cached_body_models(std::make_shared<CachedBodyModelsType>()),
+      m_variables_map(std::make_shared<VariableMap>()) {}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -401,7 +402,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
     NameTensorMapPtr ov_tensors_map = std::make_shared<NameTensorMap>();
-    VariableMap::Ptr ov_variables_map = std::make_shared<VariableMap>();
+    VariableMap::Ptr ov_variables_map = get_variable_map();
     ControlDepsMap control_deps_map;
     std::vector<std::shared_ptr<LoopCond>> loop_cond_ops;
     std::vector<std::shared_ptr<Enter>> enter_ops;
@@ -445,11 +446,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             input_type = element::f32;
         }
 
-        auto param = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
-        param->set_friendly_name(input_name);
-        set_out_name(input_name, param);
-        params.push_back(param);
-        (*ov_tensors_map)[input_name] = {NamedOutput(param)};
+        if (const auto& input_var = model_tf->get_variable(input_place)) {
+            (*ov_tensors_map)[input_name] = {NamedOutput(input_var->output(0))};
+        } else {
+            auto param = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
+            param->set_friendly_name(input_name);
+            set_out_name(input_name, param);
+            params.push_back(param);
+            (*ov_tensors_map)[input_name] = {NamedOutput(param)};
+        }
     }
 
     // create the OV ops from TensorFlow ops
@@ -842,6 +847,12 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
                 }
                 if (input_shapes[input_ind].rank().is_static()) {
                     body_input_model->set_partial_shape(body_input_place, input_shapes[input_ind]);
+                }
+                // set variable to the corresponding place
+                // it is needed to propogate variable values inside a body graph like HashTable
+                // without this, conversion of LookupTableFind operations will not be possible
+                if (const auto& input_var = as_type_ptr<Variable>(ov_inputs[input_ind].get_node_shared_ptr())) {
+                    body_input_model->set_variable(body_input_place, input_var);
                 }
             }
         }

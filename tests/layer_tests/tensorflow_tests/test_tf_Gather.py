@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -70,10 +70,12 @@ class TestGather(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("params_type", [np.float32, np.int32, str, np.str_])
     @pytest.mark.parametrize("indices_type", [np.int32, np.int64])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_gather(self, params, params_type, indices_type, ie_device, precision, ir_version, temp_dir,
                     use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("timeout issue on GPU")
         self._test(*self.create_gather_net(**params, params_type=params_type, indices_type=indices_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

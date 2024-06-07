@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ using namespace ov::pass::transpose_sinking::utils;
 TSGatherForward::TSGatherForward() {
     MATCHER_SCOPE(TSGatherForward);
 
-    create_pattern<ov::op::v8::Gather>(true, {0});
+    create_pattern<ov::op::v8::Gather>({0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {

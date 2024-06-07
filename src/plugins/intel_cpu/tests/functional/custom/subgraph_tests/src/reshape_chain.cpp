@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,13 +23,13 @@ class ReshapeChain : public SubgraphBaseTest {
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
         }
-        auto reshapeParam1 = ov::test::utils::deprecated::make_constant<int>(secondInPrc, {3}, {0, 0, -1});
+        auto reshapeParam1 = std::make_shared<ov::op::v0::Constant>(secondInPrc, ov::Shape{3}, std::vector<int>{0, 0, -1});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(inputParams.front(), reshapeParam1, true);
-        auto reshapeParam2 = ov::test::utils::deprecated::make_constant<int>(secondInPrc, {2}, {0, -1});
+        auto reshapeParam2 = std::make_shared<ov::op::v0::Constant>(secondInPrc, ov::Shape{2}, std::vector<int>{0, -1});
         auto reshape2 = std::make_shared<ov::op::v1::Reshape>(reshape1, reshapeParam2, true);
-        auto reshapeParam3 = ov::test::utils::deprecated::make_constant<int>(secondInPrc, {1}, {-1});
+        auto reshapeParam3 = std::make_shared<ov::op::v0::Constant>(secondInPrc, ov::Shape{1}, std::vector<int>{-1});
         auto reshape3 = std::make_shared<ov::op::v1::Reshape>(reshape2, reshapeParam3, true);
-        auto reshapeParam4 = ov::test::utils::deprecated::make_constant<int>(secondInPrc, {2}, {4, -1});
+        auto reshapeParam4 = std::make_shared<ov::op::v0::Constant>(secondInPrc, ov::Shape{2}, std::vector<int>{4, -1});
         auto reshape4 = std::make_shared<ov::op::v1::Reshape>(reshape3, reshapeParam4, true);
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape4)};

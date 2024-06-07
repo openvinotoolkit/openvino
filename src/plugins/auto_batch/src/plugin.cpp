@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "plugin.hpp"
 
 #include "compiled_model.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -19,7 +19,9 @@
 namespace ov {
 namespace autobatch_plugin {
 
-std::vector<std::string> supported_configKeys = {ov::device::priorities.name(), ov::auto_batch_timeout.name()};
+std::vector<std::string> supported_configKeys = {ov::device::priorities.name(),
+                                                 ov::auto_batch_timeout.name(),
+                                                 ov::enable_profiling.name()};
 
 inline ov::AnyMap merge_properties(ov::AnyMap config, const ov::AnyMap& user_config) {
     for (auto&& kvp : user_config) {
@@ -168,7 +170,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             if (shape.is_dynamic())
                 OPENVINO_THROW("Auto-batching does not support dynamic networks!");
             // check the batch dim: either 0th (and the original batch size of 1) or none
-            if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
+            if (shape.size() && shape[0].has_symbol()) {
                 const auto& static_shape = input->get_shape();
                 if (static_shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
@@ -176,7 +178,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
-                    if (ov::DimensionTracker::get_label(shape[s]))
+                    if (shape[s].has_symbol())
                         OPENVINO_THROW(
                             "Auto-batching operates only networks with inputs/outputs batched by 0th dimension");
             }
@@ -188,14 +190,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             if (shape.is_dynamic())
                 OPENVINO_THROW("Auto-batching does not support dynamic networks!");
             // check the batch dim: either 0th (and the original batch size of 1) or none
-            if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
+            if (shape.size() && shape[0].has_symbol()) {
                 if (shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
                 batched_outputs.insert(output_id);
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
-                    if (ov::DimensionTracker::get_label(shape[s]))
+                    if (shape[s].get_symbol())
                         OPENVINO_THROW("Auto-batching operates only networks with outputs batched by 0th dimension");
             }
         }

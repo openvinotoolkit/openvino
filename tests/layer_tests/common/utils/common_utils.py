@@ -1,15 +1,14 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import numpy as np
 import os
 import platform
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -58,17 +57,6 @@ def generate_ir_python_api(coverage=False, **kwargs):
         serialize(ov_model, out_dir)
     else:
         from openvino import convert_model, save_model
-        try:
-            # noinspection PyUnresolvedReferences
-            import openvino_tokenizers  # do not delete, needed for validation of OpenVINO tokenizers extensions
-        except:
-            # TODO 132908: add build OpenVINO Tokenizers in GHA for MacOS and ARM64
-            # TODO 132909: add build OpenVINO Tokenizers in Jenkins for layer_ubuntu20_release tests
-            assert platform.system() in ('Linux', 'Darwin') or platform.machine() in ('arm', 'armv7l',
-                                                                                      'aarch64',
-                                                                                      'arm64', 'ARM64')
-            # CI Jenkins job and ARM64 has no openvino_tokenizers available
-            pass
 
         # cleanup parameters for convert
         if 'output_dir' in kwargs:
@@ -84,6 +72,16 @@ def generate_ir_python_api(coverage=False, **kwargs):
         save_model(ov_model, out_dir, compress_to_fp16)
 
     return 0, ""
+
+
+def generate_ir_ovc(input_model, opts):
+    params = ['ovc', input_model]
+    for key, value in opts.items():
+        # handle optional arguments
+        # both key and values are of string type
+        params.extend(("--{}".format(key), value))
+    exit_code, stdout, stderr = shell(params)
+    return exit_code, stdout, stderr
 
 
 def shell(cmd, env=None, cwd=None, out_format="plain"):
@@ -137,7 +135,12 @@ def allclose(cur_array, ref_array, atol, rtol):
         # so we have to align formats of both string tensors, for example, to unicode
         if cur_array.dtype.type != ref_array.dtype.type:
             cur_array = cur_array.astype('U')
-            ref_array = ref_array.astype('U')
+            try:
+                ref_array = ref_array.astype('U')
+            except:
+                # ref_array of object type and each element must be utf-8 decoded
+                utf8_decoded_elems = [elem.decode('UTF-8') for elem in ref_array.flatten()]
+                ref_array = np.array(utf8_decoded_elems, dtype=str).reshape(ref_array.shape)
         return np.array_equal(cur_array, ref_array)
     elif cur_array.dtype == bool:
         abs_diff = np.absolute(cur_array ^ ref_array)

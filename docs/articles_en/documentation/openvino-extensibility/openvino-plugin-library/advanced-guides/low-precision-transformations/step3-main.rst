@@ -69,7 +69,7 @@ Main transformations are the majority of low precision transformations. Transfor
 * :doc:`MultiplyPartialTransformation <step3-main/arithmetic/multiply-partial>`
 * :doc:`MVNTransformation <step3-main/normalization/mvn>`
 * :doc:`NormalizeL2Transformation <step3-main/normalization/normalize-l2>`
-* :doc:`PadTransformation<step3-main/movement/pad>`
+* :doc:`PadTransformation <step3-main/movement/pad>`
 * :doc:`PReluTransformation <step3-main/activation/prelu>`
 * :doc:`ReduceMaxTransformation <step3-main/reduction/reduce-max>`
 * :doc:`ReduceMeanTransformation <step3-main/reduction/reduce-mean>`
@@ -88,12 +88,12 @@ Main transformations are the majority of low precision transformations. Transfor
 
 Let's explore some main transformations on the example model. Original model:
 
-.. image:: ../../../../../_static/images/step3_original.svg
+.. image:: ../../../../../assets/images/step3_original.svg
    :alt: Original model
 
 Result model after main transformations:
 
-.. image:: ../../../../../_static/images/step3_transformed.svg
+.. image:: ../../../../../assets/images/step3_transformed.svg
    :alt: Transformed model
 
 Changes in the example model after main transformation:

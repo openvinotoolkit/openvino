@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -284,7 +284,7 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         add_ro_properties(ov::supported_properties.name(), supported_properties);
         add_ro_properties(ov::device::properties.name(), supported_properties);
         add_ro_properties(ov::device::priorities.name(), supported_properties);
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return decltype(ov::supported_properties)::value_type(std::move(supported_properties));
     } else if (ov::device::properties == name) {
         ov::AnyMap all_devices = {};
         for (const auto& comp_model_desc : m_compiled_submodels) {
@@ -319,7 +319,7 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
             s.insert(comp_model_desc.device);
             device_names.push_back(comp_model_desc.device);
         }
-        return decltype(ov::execution_devices)::value_type{device_names};
+        return decltype(ov::execution_devices)::value_type{std::move(device_names)};
     } else if (ov::hetero::number_of_submodels == name) {
         return decltype(ov::hetero::number_of_submodels)::value_type{m_compiled_submodels.size()};
     }

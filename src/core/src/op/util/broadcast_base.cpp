@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -218,8 +218,8 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
         // Validate axes_mapping
         if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static() &&
             get_input_partial_shape(2).is_static()) {
-            auto arg_shape = get_input_shape(0);
-            auto axes_shape = get_input_shape(2);
+            const auto& arg_shape = get_input_shape(0);
+            const auto& axes_shape = get_input_shape(2);
             auto input_rank = (arg_shape.size() == 0 && shape_size(axes_shape) > 0) ? 1 : arg_shape.size();
 
             // Rank(arg_shape) == shape_size(axes_mapping)
@@ -297,8 +297,8 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
         }
     } else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PDPD) {
         if (get_input_partial_shape(0).is_static() && get_output_partial_shape(0).is_static()) {
-            auto arg_shape = get_input_shape(0);
-            auto result_shape = get_output_shape(0);
+            const auto& arg_shape = get_input_shape(0);
+            const auto& result_shape = get_output_shape(0);
             return get_broadcast_axes_numpy_pdpd(arg_shape, result_shape, m_mode);
         }
     } else {
@@ -435,7 +435,7 @@ bool ov::op::util::BroadcastBase::evaluate(ov::TensorVector& outputs, const ov::
 
     PartialShape result_shape;
     std::pair<bool, AxisSet> pair_broadcast_axes;
-    auto arg_shape = inputs[0].get_shape();
+    const auto& arg_shape = inputs[0].get_shape();
 
     if (m_mode.m_type == BroadcastType::NONE) {
         AxisVector axes_mapping_val;

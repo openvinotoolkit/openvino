@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ OutputVector translate_rsub_common(const NodeContext& context,
                                    Output<Node> self,
                                    Output<Node> other,
                                    const Output<Node>& alpha) {
-    align_eltwise_input_types(context, self, other);
     if (alpha.get_node()) {
         // reverse aten::sub other - self * alpha
         auto alpha_casted = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, self));
@@ -32,8 +31,9 @@ OutputVector translate_rsub_common(const NodeContext& context,
 
 OutputVector translate_rsub(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
-    auto self = context.get_input(0);
-    auto other = context.get_input(1);
+    Output<Node> self;
+    Output<Node> other;
+    std::tie(self, other) = get_inputs_with_promoted_types(context, 0, 1);
     Output<Node> alpha;
     if (!context.input_is_none(2)) {
         alpha = context.get_input(2);
@@ -43,8 +43,9 @@ OutputVector translate_rsub(const NodeContext& context) {
 
 OutputVector translate_rsub_fx(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
-    auto self = context.get_input(0);
-    auto other = context.get_input(1);
+    Output<Node> self;
+    Output<Node> other;
+    std::tie(self, other) = get_inputs_with_promoted_types(context, 0, 1);
     Output<Node> alpha;
     if (context.has_attribute("alpha")) {
         alpha = context.get_input("alpha");

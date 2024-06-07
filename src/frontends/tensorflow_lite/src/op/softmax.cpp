@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector softmax(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = get_decoder(node);
-    auto beta = decoder->get_attribute(&tflite::SoftmaxOptions::beta);
+    const auto& decoder = node.get_decoder();
+    auto beta = node.get_attribute<float>("beta");
     Output<Node> output = node.get_input(0);
     if (beta != 1.) {
         auto beta_const = opset10::Constant::create(element::f32, Shape{}, vector<float>{beta});

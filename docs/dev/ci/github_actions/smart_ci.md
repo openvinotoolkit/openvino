@@ -1,25 +1,41 @@
 # Smart CI Overview
 
-Smart CI is a feature aiming to optimize pre-commit CI workflow by running only those builds and tests that are 
-actually required to validate changes in a given PR (Pull Request). As an example, if PR changes only CPU plugin, 
-GPU plugin tests in the pre-commit for this PR will be skipped, since they are unrelated. This allows to decrease 
-execution time for isolated changes in product components, and to minimize the load on limited hardware resources.
+Smart CI is a feature designed to optimize pre-commit CI workflow by running only the necessary
+builds and tests required to validate changes in a given pull request (PR).
 
-> **Product component** is a distinct functional unit, responsible for a specific product feature. It is defined by a 
-set of files in repository (e.g. openvino/src/_some_folder_/**) containing the feature implementation.
+For example, if a PR changes only the CPU plugin, GPU plugin tests are skipped in the pre-commit stage
+for this PR, as they are unrelated. This approach reduces execution time for isolated changes
+in product components and minimizes the load on limited hardware resources.
 
-This document describes how Smart CI is implemented in our GitHub Actions pre-commit workflows and how to add or modify 
-rules for it.
+> **Product component** is a distinct functional unit responsible for a specific product feature.
+It is defined by a set of files in the repository (for example, openvino/src/_some_folder_/**)
+containing the feature implementation.
 
+This document describes the Smart CI implementation in OpenVINO GitHub Actions pre-commit
+workflows and provides instructions on how to add or modify its rules.
 
-### Prerequisites
-Basic understanding of [GitHub Actions workflows](https://docs.github.com/en/actions)
+>**NOTE**: Basic understanding of [GitHub Actions workflows](https://docs.github.com/en/actions) is required.
+
+## Table of Contents
+
+* [Implementation](#implementation)
+* [Configuration of Smart CI Rules](#configuration-of-smart-ci-rules)
+  * [Product Components Definition: .github/labeler.yml](#product-components-definition)
+  * [Definition of Dependencies between Components: .github/components.yml](#definition-of-dependencies-between-components)
+  * [Specifics of Pipeline Behavior](#specifics-of-pipeline-behavior)
+* [How to Contribute](#how-to-contribute)
+  * [Adding a New Component](#adding-a-new-component)
+  * [Adding Validation for a Component](#adding-validation-for-a-component)
+  * [Adding Support for Smart CI to a Workflow](#adding-support-for-smart-ci-to-a-workflow)
+  * [Skipping an Entire Workflow for Specific Changes](#skipping-an-entire-workflow-for-specific-changes)
+  * [Adding Smart CI for Components Outside the OpenVINO Repository](#adding-smart-ci-for-components-outside-the-openvino-repository)
+
 
 ## Implementation
 
-Smart CI is implemented as a [custom GitHub Action](https://docs.github.com/en/actions/creating-actions/about-custom-actions) 
-stored in openvino repository: [.github/actions/smart-ci](../../../../.github/actions/smart-ci). In GitHub Actions 
-workflows this action is called as a first step in a separate job:
+Smart CI is implemented as a [custom GitHub Action](https://docs.github.com/en/actions/creating-actions/about-custom-actions)
+stored in the openvino repository at [.github/actions/smart-ci](../../../../.github/actions/smart-ci).
+In GitHub Actions workflows, this action is called as the first step in a separate job:
 ```yaml
 jobs:
   Smart_CI:
@@ -32,26 +48,29 @@ jobs:
         uses: ./.github/actions/smart-ci
         ...
 ```
-It takes PR data as an input and [outputs](https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs) 
-a list of product components affected by this PR and a validation scope for each of these components (either only 
-"build" or both "build" and "test" - by design we assume that testing component requires it to be built). Example of 
-such output for PR that changes only Tensorflow Frontend component (files inside src/frontends/tensorflow):
+It takes PR data as input and [outputs](https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs)
+a list of product components affected by the PR, along with the validation scope for each component.
+The validation scope can be either "build" only or both "build" and "test", assuming that a component
+must be built before testing.
+
+Example of such output for a PR that changes only the TensorFlow Frontend component including
+files inside src/frontends/tensorflow:
 ```
-changed_component_names: {'TF_FE'}  # TF_FE is an alias we chose for Tensorflow Frontend component
+changed_component_names: {'TF_FE'}  # TF_FE is an alias we chose for TensorFlow Frontend component
 affected_components={
-    "TF_FE": {"test": true, "build": true}, 
-    "MO": {"test": true, "build": true}, 
-    "CPU": {"build": true}, 
-    "Python_API": {"build": true}, 
+    "TF_FE": {"test": true, "build": true},
+    "MO": {"test": true, "build": true},
+    "CPU": {"build": true},
+    "Python_API": {"build": true},
     ...
 }
 ```
 
-Once Smart CI job is finished, validation jobs are started. Based on the output from Smart CI, some jobs can be skipped 
-entirely; in other jobs only separate steps can be skipped. This is done via GitHub Actions 
-[conditions](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution). For example,
-the following job called TensorFlow_Hub_Models_Tests will be executed only if PR affects "TF_FE" component and
-requires running "test" scope for it:
+Once the Smart CI job is finished, validation jobs start. Based on the output from Smart CI,
+some jobs can be skipped entirely, while in other jobs only specific steps are skipped.
+This is done via GitHub Actions [conditions](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution).
+For example, the following job, called TensorFlow_Hub_Models_Tests, will be executed only if the PR
+is related to the "TF_FE" component and requires running the "test" scope for it:
 ```yaml
 TensorFlow_Hub_Models_Tests:
   needs: [Build, Smart_CI]
@@ -61,42 +80,47 @@ TensorFlow_Hub_Models_Tests:
     - ...
 ```
 
-The way how we define product components and "smart" rules for them is described further.
+## Configuration of Smart CI Rules
 
-## Configuration of Smart CI rules
+Smart CI operates based on the rules described in two configuration files stored in
+the OpenVINO repository.
 
-Smart CI operates based on the set of rules described in two configuration files, stored in openvino repository.
+### Product Components Definition
 
-### Product components definition: [.github/labeler.yml](../../../../.github/labeler.yml)
-This file contains mapping of source code paths to corresponding component names. Essentially, this a configuration 
-for [actions/labeler](https://github.com/marketplace/actions/labeler?version=v4.3.0) GitHub Action, which we use to
-automatically assign labels to pull requests based on PR changeset. We reuse it for Smart CI purposes, so that each 
-label described in this configuration is considered a component name, and the labeler action automatically determines
-which components were changed in each PR. For example:
+[.github/labeler.yml](../../../../.github/labeler.yml)
+
+This file contains a mapping of source code paths to corresponding component names. It serves
+as a configuration for [actions/labeler](https://github.com/marketplace/actions/labeler?version=v4.3.0)
+GitHub Action used to automatically assign labels to PRs based on the PR changeset. It is reused
+for Smart CI purposes, so that each label described in this configuration is considered a component name.
+The labeler action automatically identifies which components were changed in each PR. For example:
 ```yaml
 'category: CPU':
 - 'src/plugins/intel_cpu/**/*'
 - 'src/common/snippets/**/*'
 - 'thirdparty/xbyak/**/*'
 ```
-If PR changes at least one file matching any of the [minimatch glob patterns](https://github.com/isaacs/minimatch#readme) 
-above, label "category: CPU" will be assigned to this PR, and GitHub Actions workflows that use Smart CI feature will
-consider component named "CPU" changed ("category:" prefix is omitted in component name). 
+If a PR changes at least one file matching any of the [minimatch glob patterns](https://github.com/isaacs/minimatch#readme)
+above, the label "category: CPU" is assigned to this PR. GitHub Actions workflows that use
+Smart CI feature consider the component named "CPU" as changed (the "category:" prefix is omitted the in component name).
 
-### Definition of dependencies between components: [.github/components.yml](../../../../.github/components.yml)
-Some components are not entirely independent, and changes in them may affect other components as well. In this case, 
-in addition to the validation for the changed component itself (build + tests), validation for dependent components 
-is also required (either only build or both build and tests). This file describes these relationships between components,
-for example:
+### Definition of Dependencies between Components
+
+[.github/components.yml](../../../../.github/components.yml)
+
+Some components are not entirely independent, and changing them may impact other components as well. In this case,
+validation for the changed component itself (including both build and tests) is required,
+along with validation for dependent components (either only build or both build and tests).
+This file describes the relationships between components, for example:
 ```yaml
 PyTorch_FE:       # Component name
-  revalidate:     # Defines list of components to revalidate (build + test) if the component above was changed
+  revalidate:     # Defines the list of components to revalidate (build + test) if the component above was changed
     - MO          # This component depends on PyTorch_FE and requires full revalidation
-  build:          # Defines list of components to build if the PyTorch_FE was changed (test runs for them are skipped)
+  build:          # Defines the list of components to build if the PyTorch_FE was changed (test runs for them are skipped)
     - CPU         # This component and the component below must be built if PyTorch_FE was changed
     - Python_API
 ```
-With the example above, the following pipeline will be executed on changes only to PyTorch_FE:
+For the example above, the following pipeline will be executed on changes applied only to PyTorch_FE:
 
 * Build for PyTorch_FE
 * Tests for PyTorch_FE
@@ -105,73 +129,71 @@ With the example above, the following pipeline will be executed on changes only 
 * Build for CPU
 * Build for Python_API
 
->**NOTE**: the dependencies are **not** transitive - if a component "A" depends on component "B", and component "B" 
-depends on component "C", we don't implicitly assume that "A" depends on "C". Each component must specify all his 
-dependents explicitly.
+>**NOTE**: Dependencies are **not** transitive. For example, if a component "A" depends on component "B",
+and component "B" depends on component "C", it is not automatically assumed that "A" depends on
+"C". Each component must specify all its dependents explicitly.
 
-### Specifics of pipeline behavior
-* If the changed component **is not defined** in components.yml, we assume that it affects all other components, 
-and the full validation scope will be executed.
+### Specifics of Pipeline Behavior
+* If the changed component **is not defined** in components.yml, it is assumed that it affects all other components,
+and the full validation scope is executed.
 
-* If **more than one** component is affected by PR, all jobs required to validate all these components will be executed.
+* If **more than one** component is impacted by a PR, all jobs required to validate all these components are executed.
 
-* If PR changes files that **are not related to any known component** - the full validation scope will be executed, 
-since we don't want to skip anything for the unlabeled changes - they are under our control and may potentially 
-introduce regressions. For that we use a [patched](https://github.com/akladiev/labeler/releases/tag/v4.3.1) version of 
-[actions/labeler v4.3.0](https://github.com/marketplace/actions/labeler?version=v4.3.0) with the same functionality, 
-but with an additional feature implemented, allowing us to detect cases when PR changes files that do not match
-any of the patterns in labeler.yml configuration.
+* If a PR changes files that **are not related to any known component**, the full validation scope is executed.
+This is to avoid potential regressions by unlabeled changes. For that, a [patched](https://github.com/akladiev/labeler/releases/tag/v4.3.1) version of [actions/labeler v4.3.0](https://github.com/marketplace/actions/labeler?version=v4.3.0) with the same functionality but with an additional feature is used. This enables developers to detect cases
+where a PR modifies files that do not match any of the patterns in the labeler.yml configuration.
 
-## How to contribute
+## How to Contribute
 
-### Adding a new component
+### Adding a New Component
 
 1. Add a new record to [.github/labeler.yml](../../../../.github/labeler.yml).
-Root-level key is a component (label) name, and value is a set of globs to define which source code paths are related to 
-this component. See [labeler usage](https://github.com/marketplace/actions/labeler?version=v4.3.0) to get familiar with
+The root-level key is the component (label) name, and the value is a set of globs to define which
+source code paths are related to this component.
+See [labeler usage](https://github.com/marketplace/actions/labeler?version=v4.3.0) to learn more about
 globs syntax.
-2. Add a new record to [.github/components.yml](../../../../.github/components.yml). 
-Root-level key is a component name, which is the same as the label name defined in the previous step, but with prefix 
-"category:" omitted (if any). If there were spaces present in label name - replace them with underscores. Example:
-`'category: LP transformations'` in labeler.yml -> `LP_transformations` in components.yml.  To fill the value, review 
-other components in components.yml and choose the ones that can be affected by changes in a new component. 
-Put those that require full revalidation (build and test) under `revalidate` key; and those requiring
-only build - under `build` key. Example record:
+2. Add a new record to [.github/components.yml](../../../../.github/components.yml).
+The root-level key is the component name, which is the same as the label name defined in the previous step,
+but with the prefix "category:" omitted (if any). If there are spaces in the label name, replace them with underscores.
+For example: `'category: LP transformations'` in labeler.yml -> `LP_transformations` in components.yml.
+To fill the value, review other components in components.yml and choose those that can be impacted by changes in the new component.
+Put components requiring full revalidation (build and test) under the `revalidate` key; and those requiring
+only build under the `build` key. Example record:
     ```yaml
     your_component:
-      revalidate: 
+      revalidate:
         - component_1
         - component_2
-      build: 
+      build:
         - component_3
     ```
-    If your component does not affect anything else, specify empty list under both
+    If your component does not impact anything else, specify an empty list under both
 `revalidate` and `build`:
     ```yaml
     your_component:
       revalidate: []
       build: []
     ```
-    If you wish to explicitly show that a component affects all other components, use "all" notation as a value under 
-`revalidate` (this will cause full pipeline to be executed on changes to your component - equivalent to completely 
-omitting the record about it in components.yml) or `build` (this will mean that changes to your component will cause 
-building - but not testing - all other components):
+    If you want to explicitly show that a component impacts all other components, use the "all" notation as a value under
+`revalidate`. This causes the full pipeline to be executed on changes to your component, equivalent to completely
+omitting the record about it in components.yml. Alternatively, use the "all" notation as a value under `build`.
+This means that changes to your component will cause building (but not testing) all other components:
     ```yaml
     your_component_1:
       build: 'all'
-    
+
     your_component_2:
       revalidate: 'all'
     ```
-4. Review other components in components.yml - does your component itself require to be validated when there are changes 
-in any of the listed components? If yes, add your component name under `revalidate` or `build` sections of the 
-respective components.
+4. Review other components listed in components.yml. Check if your component requires to be validated when changes
+occur in any of the listed components. If it does, add your component name under the `revalidate` or `build` sections of the
+corresponding components.
 
-### Adding validation for a component
-You may wish to add a new validation job to test your new component, or choose an existing one. For that, go to the 
-desired workflow in [.github/workflows](../../../../.github/workflows) (the main ones are 
-[linux.yml](../../../../.github/workflows/linux.yml), [windows.yml](../../../../.github/workflows/windows.yml) and 
-[mac.yml](../../../../.github/workflows/mac.yml)). If Smart CI is enabled for the pipeline, you will find Smart_CI job 
+### Adding Validation for a Component
+If you want to add a new validation job to test your new component or choose an existing one, go to the
+desired workflow in [.github/workflows](../../../../.github/workflows). The main ones include
+[linux.yml](../../../../.github/workflows/linux.yml), [windows.yml](../../../../.github/workflows/windows.yml) and
+[mac.yml](../../../../.github/workflows/mac.yml). If Smart CI is enabled for the pipeline, you will find the Smart_CI job
 in the beginning of the workflow:
 ```yaml
 jobs:
@@ -183,25 +205,25 @@ jobs:
       ...
 ```
 
-Alternatively, you can create a separate workflow for testing your component. 
-The following pages will be helpful: 
+Alternatively, you can create a separate workflow for testing your component.
+Refer to the following pages for more information:
 - [Adding support for Smart CI to a workflow](#adding-support-for-smart-ci-to-a-workflow)
-- [using-workflows/about-workflows](https://docs.github.com/en/actions/using-workflows/about-workflows) - 
+- [Using workflows](https://docs.github.com/en/actions/using-workflows/about-workflows) -
 official GitHub documentation
 
 
 Once you have a job that validates your component:
-* Add Smart_CI to "[needs](https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow#defining-prerequisite-jobs)" 
-  block for this job - this will ensure that it will get access to Smart CI outputs:
+* Add Smart_CI to the "[needs](https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow#defining-prerequisite-jobs)"
+  block for this job. This ensures that the job has access to the Smart CI outputs:
   ```yaml
   job_that_validates_your_component:
-    needs: Smart_CI  # if other job was already specified here, add Smart_CI to list like that: [Other_Job_ID, Smart_CI]
+    needs: Smart_CI  # if other job is already specified here, add Smart_CI to the list like that: [Other_Job_ID, Smart_CI]
     ...
   ```
-* Add ["if" condition](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution) to
-  refer to the Smart CI output. To run the whole job conditionally - add it on the same level as "needs" key:
+* Add an ["if" condition](https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution) to
+  refer to the Smart CI output. To run the entire job conditionally, add it on the same level as the "needs" key:
   ```yaml
-  # The job below will be started if YOUR_COMPONENT was affected and "test" scope is required
+  # The job below will start if YOUR_COMPONENT is affected and "test" scope is required
   job_that_validates_your_component:
     needs: [Build, Smart_CI]
     ...
@@ -209,34 +231,33 @@ Once you have a job that validates your component:
     steps:
       - ...
   ```
-  If only a separate step within the job must be executed on changes to your component - add "if" to desired steps
-  (syntax is described [here](https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsstepsif)):
+  If only a specific step within the job must be executed on changes to your component, add "if" to the required steps.
+  The syntax is described in the [GitHub Actions documentation](https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runsstepsif):
   ```yaml
   job_that_validates_your_component:
     needs: [Build, Smart_CI]
     ...
     steps:
-      # The step below will be started if YOUR_COMPONENT was affected and "build" scope is required
+      # The step below will start if YOUR_COMPONENT is affected and the "build" scope is required
       - name: step_name
         if: fromJSON(needs.smart_ci.outputs.affected_components).YOUR_COMPONENT.build # or <...>.test, if needed
   ```
-  >**NOTE**: when adding Smart CI condition to step within a job, make sure that the job itself won't be skipped
-  on changes only to your component. For that, look at the "if" condition on the job level - it either must be 
-  absent (in this case the job will always be executed); or return "True" in all cases you wish your 
-  conditional step to be executed.
-  
+  >**NOTE**: When adding the Smart CI condition to a step within a job, make sure that the job itself
+  is not skipped on changes only to your component. For that, examine the "if" condition on the job level.
+  It should either be absent (in this case, the job will always be executed), or return "True" in all cases
+  you want your conditional step to be executed.
+
   You can also use any boolean operators to write complex conditions, for example:
   ```yaml
     # The below condition will force the job/step to run when either COMPONENT_1 or COMPONENT_2 was changed
     if: fromJSON(needs.smart_ci.outputs.affected_components).COMPONENT_1.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).COMPONENT_2.test
   ```
-  See [learn-github-actions/expressions](https://docs.github.com/en/actions/learn-github-actions/expressions) page
+  See the [expressions](https://docs.github.com/en/actions/learn-github-actions/expressions) page
   to learn more about expressions in conditions.
 
-### Adding support for Smart CI to a workflow
-To use Smart CI in a workflow, add the following code under `jobs` block before all other jobs that will use it, 
-like that:
+### Adding Support for Smart CI to a Workflow
+To use Smart CI in a workflow, add the following code under the `jobs` block before all other jobs that will use it:
 ```yaml
 jobs:
   Smart_CI:
@@ -260,31 +281,31 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
 ```
-If needed, more parameters can be passed to "Get affected components" step, full list is available here:
+If needed, more parameters can be passed to the "Get affected components" step, the full list is available in
 [.github/actions/smart-ci/action.yml](../../../../.github/actions/smart-ci/action.yml).
 
-After that, you can refer to the outputs from Smart_CI in validation jobs, as described in 
+After that, you can refer to the outputs from Smart_CI in validation jobs, as described in
 [Adding validation for a component](#adding-validation-for-a-component) section. To learn more about the syntax of
-GitHub Actions Workflows, see also
-[using-workflows/about-workflows](https://docs.github.com/en/actions/using-workflows/about-workflows).
+GitHub Actions Workflows, see the [workflows](https://docs.github.com/en/actions/using-workflows/about-workflows) page.
 
-### Skipping the whole workflow for specific changes
+### Skipping an Entire Workflow for Specific Changes
 
-For cases, when you want to skip not just a few jobs, but the entire workflow, GitHub by default offers 
+To skip entire workflows based on specific conditions, you can use the
 [paths-ignore](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onpushpull_requestpull_request_targetpathspaths-ignore)
-feature. But it has a limitation - it cannot be used in workflows that have jobs marked as "Required" 
-for merge (see [details](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks#handling-skipped-but-required-checks)).
-Since we want to keep our workflows required, a workaround on Smart CI side was added - it returns an indicator 
-that workflow can be completely skipped, if PR was labeled _only_ by given labels and/or changes only files matching 
-given [fnmatch](https://docs.python.org/3/library/fnmatch.html) patterns. These labels and patterns are passed as inputs 
-to Smart CI action in `with` block, and the indicator is returned as a separate output called `skip_workflow`, 
+feature offered by GitHub by default. However, this feature cannot be used in workflows with jobs
+marked as "Required" for merge. See [skipped but required checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks#handling-skipped-but-required-checks) for details.
+
+As a workaround, Smart CI returns an indicator that enables the workflow to be completely skipped,
+if the PR is labeled _only_ by given labels and/or changes only the files matching
+given [fnmatch](https://docs.python.org/3/library/fnmatch.html) patterns. These labels and patterns are passed as inputs
+to the Smart CI action in the `with` block. The indicator is returned as a separate output called `skip_workflow`,
 for example:
 ```yaml
   Smart_CI:
     runs-on: ubuntu-latest
     outputs:
       ...
-      # The output below is set only if the workflow can be completely skipped, and empty otherwise
+      # The output below is set only if the workflow can be completely skipped, and is empty otherwise
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       ...
@@ -297,9 +318,11 @@ for example:
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
 ```
-The `skip_workflow` output can then be used to conditionally run a **parent** job in a workflow (the job that is 
-required to pass before all other jobs and is specified in "needs" block for all of them, for example, Build).
-The condition looks like that:
+Then the `skip_workflow` output can be used to conditionally run a **parent** job in a workflow.
+A parent job is the job required to pass before all other jobs. It is specified in the "needs" block
+for all of them. For example, the Build job can be considered a parent job.
+
+The `skip_workflow` condition looks as follows:
 ```yaml
 Build:
     needs: Smart_CI
@@ -309,28 +332,29 @@ Build:
 ```
 >**NOTE**: If a workflow has more than one parent job, the condition must be added to each of them.
 
-This approach works because skipped checks are processed as successful by GitHub, so they do not block merge, unlike
-required workflows skipped by paths filtering.
+This approach works because skipped checks are processed as successful by GitHub. They do not block
+the merge, unlike required workflows skipped by path filtering.
 
-### Adding Smart CI for components outside openvino repository
+### Adding Smart CI for Components Outside the OpenVINO Repository
 
-Some components (like NVIDIA plugin or ONNX Runtime) are stored in their own repositories and therefore cannot be 
-defined via pattern matching on source code in openvino repository, while they still need to be validated together with 
-core OpenVINO. To add Smart CI rules for such components, skip the first step with modifying labeler configuration 
-in [Adding a new component](#adding-a-new-component) instruction and go directly to the next step:
-1. Add a new record to [.github/components.yml](../../../../.github/components.yml),
-with empty values for `revalidate` and `build` keys, like that:
+Some components, like the NVIDIA plugin or ONNX Runtime, are stored in their own repositories.
+Therefore they cannot be defined via pattern matching on source code in the OpenVINO repository.
+However, they still need to be validated together with the core OpenVINO.
+To add Smart CI rules for such components, skip the first step with modifying the labeler configuration
+in the [Adding a New Component](#adding-a-new-component) instruction and proceed directly to the next step:
+1. Add a new record to [.github/components.yml](../../../../.github/components.yml)
+with empty values for the `revalidate` and `build` keys:
     ```yaml
     NEW_EXTERNAL_COMPONENT:
       revalidate: []
       build: []
     ```
-2. Review other components in components.yml, find those that have to be validated together with a new component and 
-add a new component's name under `revalidate` or `build` sections of these components.
+2. Review other components in components.yml, find those that need to be validated together with
+the new component. Add the name of the new component under the `revalidate` or `build` sections of these components.
 
-3. Add or find a job that does integration validation of a new external component with OpenVINO and provide it with an 
-"if" condition: `if: fromJSON(needs.smart_ci.outputs.affected_components).NEW_EXTERNAL_COMPONENT` like 
-described in step 3 of [Adding a new component](#adding-a-new-component) instruction.
+3. Add or find a job that performs integration validation of the new external component
+with OpenVINO. Provide it with an "if" condition: `if: fromJSON(needs.smart_ci.outputs.affected_components).NEW_EXTERNAL_COMPONENT`,
+as described in step 3 of [Adding a New component](#adding-a-new-component) instruction.
 
-This will ensure that integration validation for this external component is started only on changes to chosen 
-components in openvino repository.
+This ensures that integration validation for this external component starts only on changes
+made to the selected components in the OpenVINO repository.

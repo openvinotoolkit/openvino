@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ void fuse_primitives_with_layout::run(program& p) {
             auto& input_node = node.get_dependency(0);
             auto in_layout = input_node.get_output_layout();
             if (input_node.get_users().size() != 1 || input_node.get_dependencies().empty() ||
-                in_layout.is_dynamic() || input_node.is_in_shape_of_subgraph())
+                in_layout.is_dynamic() || input_node.is_in_shape_of_subgraph() || in_layout.format != out_layout.format)
                 return;
 
             should_fuse |= input_node.is_type<eltwise>() && eltwise_supports_fusings(input_node.as<eltwise>());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -28,7 +28,8 @@ public:
                  size_t ldb,
                  size_t ldc,
                  bool b_transposed = false,
-                 ov::element::Type inType = ov::element::bf16);
+                 ov::element::Type inType = ov::element::bf16,
+                 bool b_accumulate = false);
     // execute all M
     void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
     // execute by m_blk
@@ -58,6 +59,7 @@ private:
     size_t packedBSize = 0;
     size_t packedASize = 0;
     ov::element::Type inType;
+    bool b_accumulate = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {

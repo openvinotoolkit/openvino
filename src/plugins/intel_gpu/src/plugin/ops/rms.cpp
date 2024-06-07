@@ -2,23 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/rms.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/rms.hpp"
+#include <ov_ops/rms.hpp>
 
-namespace ov {
-namespace op {
-namespace internal {
-using RMS = ov::intel_gpu::op::RMS;
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
+using RMS = ov::op::internal::RMS;
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateRMSOp(ProgramBuilder& p, const std::shared_ptr<op::RMS>& op) {
+static void CreateRMSOp(ProgramBuilder& p, const std::shared_ptr<RMS>& op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);

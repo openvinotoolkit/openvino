@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,6 +108,10 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
     const auto& rtInfo = op->get_rt_info();
     if (rtInfo.count("originalLayersNames")) {
         originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
+    }
+
+    if (rtInfo.count("parallelDomain")) {
+        parallelDomain = getRTInfoValue(rtInfo, "parallelDomain");
     }
 
     if (originalLayers.empty()) {
@@ -544,12 +548,16 @@ void Node::updateShapes() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-    if (needShapeInfer()) {
-        auto result = shapeInfer();
-        if (ShapeInferStatus::success == result.status) {
-            redefineOutputMemory(result.dims);
+        try {
+            if (needShapeInfer()) {
+                auto result = shapeInfer();
+                if (ShapeInferStatus::success == result.status) {
+                    redefineOutputMemory(result.dims);
+                }
+            }
+        } catch (const std::exception& exp) {
+            THROW_CPU_NODE_ERR(exp.what());
         }
-    }
 }
 
 void Node::updateDynamicParams() {
@@ -558,22 +566,31 @@ void Node::updateDynamicParams() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-    if (isExecutable()) {
-        if (needPrepareParams()) {
-            OPENVINO_ASSERT(inputShapesDefined(),
-                            "Can't prepare params for ",
-                            getTypeStr(),
-                            " node with name: ",
-                            getName(),
-                            " since the input shapes are not defined.");
-            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
-                      " ", getName(), " ", getOriginalLayers());
-            prepareParams();
+    try {
+        if (isExecutable()) {
+            if (needPrepareParams()) {
+                OPENVINO_ASSERT(inputShapesDefined(),
+                                "Input shapes are not defined.");
+                DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                        " ", getName(), " ", getOriginalLayers());
+                prepareParams();
+            }
         }
+    } catch (const std::exception& e) {
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
-void Node::executeDynamic(dnnl::stream strm) {
+
+void Node::executeStatic(const dnnl::stream strm, int numaId) {
+    if (numaId >= 0)
+        toNumaNode(numaId);
+    execute(strm);
+}
+
+void Node::executeDynamic(dnnl::stream strm, int numaId) {
     if (isExecutable()) {
+        if (numaId >= 0)
+            toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
@@ -679,9 +696,8 @@ void Node::filterSupportedPrimitiveDescriptors() {
 
     // Compare by format tag
     auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
-        auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
-                                               DnnlExtensionUtils::ElementTypeToDataType(desc.getPrecision()),
-                                               fmt);
+        auto data_type = DnnlExtensionUtils::ElementTypeToDataType(desc.getPrecision());
+        auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(), data_type, fmt);
         return desc.isCompatible(fmt_tdesc);
     };
 
@@ -900,6 +916,29 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     (*privateWeightCache)[format] = ptr;
 
     return ptr;
+}
+
+void Node::toNumaNode(int numaNodeID) {
+    return toNumaNodeImpl(numaNodeID);
+}
+
+void Node::toNumaNodeImpl(int numaNodeID) {
+    if (curNumaNode == numaNodeID)
+        return;
+
+    // create scratch pad from specified numa node
+    if (scratchpadMem) {
+        scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    }
+
+    // mbind constant prim args to numa nodes
+    if (primArgs.count(DNNL_ARG_WEIGHTS))
+        mbind_move(primArgs[DNNL_ARG_WEIGHTS], numaNodeID);
+    if (primArgs.count(DNNL_ARG_BIAS))
+        mbind_move(primArgs[DNNL_ARG_BIAS], numaNodeID);
+
+    curNumaNode = numaNodeID;
 }
 
 bool Node::isInPlace() const {
@@ -1561,34 +1600,29 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
         }
 
         return std::move(result.dims);
-    } catch (const std::runtime_error& exp) {
+    } catch (const std::exception& exp) {
         OPENVINO_THROW("Shape inference of ", getTypeStr(), " node with name ", getName(), " failed: ", exp.what());
     }
 }
 
 IShapeInfer::Result Node::shapeInfer() const {
-    try {
-        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
-        auto input_value_port_mask = shapeInference->get_port_mask();
+    std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+    auto input_value_port_mask = shapeInference->get_port_mask();
 
-        input_shapes.reserve(inputShapes.size());
-        for (size_t port = 0; port < inputShapes.size(); ++port)
-            input_shapes.emplace_back(std::ref(getParentEdgeAt(port)->getMemory().getStaticDims()));
+    input_shapes.reserve(inputShapes.size());
+    for (size_t port = 0; port < inputShapes.size(); ++port)
+        input_shapes.emplace_back(std::ref(getParentEdgeAt(port)->getMemory().getStaticDims()));
 
-        std::unordered_map<size_t, MemoryPtr> input_values;
-        if (input_value_port_mask) {
-            for (size_t port = 0; port < inputShapes.size(); ++port) {
-                if (input_value_port_mask & (1 << port)) {
-                    input_values[port] = getSrcMemoryAtPort(port);
-                }
+    std::unordered_map<size_t, MemoryPtr> input_values;
+    if (input_value_port_mask) {
+        for (size_t port = 0; port < inputShapes.size(); ++port) {
+            if (input_value_port_mask & (1 << port)) {
+                input_values[port] = getSrcMemoryAtPort(port);
             }
         }
+    }
 
-        return shapeInference->infer(input_shapes, input_values);
-    }
-    catch (const std::runtime_error& exp) {
-        OPENVINO_THROW("Shape inference of ", getTypeStr() , " node with name ", getName(), " failed: ", exp.what());
-    }
+    return shapeInference->infer(input_shapes, input_values);
 }
 
 void Node::updateLastInputDims() {
@@ -1677,7 +1711,7 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
              DQScales[i] *= scaleData[i];
          }
      }
-     if (std::all_of(DQScales.begin(), DQScales.end(), [=](float val){ return (val == DQScales[0]);}))
+     if (std::all_of(DQScales.begin(), DQScales.end(), [OV_CAPTURE_CPY_AND_THIS](float val){ return (val == DQScales[0]);}))
         DQScales.resize(1);
 }
 
@@ -1828,7 +1862,7 @@ void Node::resolveInPlaceDirection() {
                     return InplaceDirectionType::NONE;
                 };
                 auto result = searchNonCyclicDirection(this, inPlaceInpPort);
-                if (one_of(result, InplaceDirectionType::UP, InplaceDirectionType::NONE)) {
+                if (InplaceDirectionType::UP == result) {
                     auto config = getSelectedPrimitiveDescriptor()->getConfig();
                     config.inConfs[inpPort].inPlace(-1);
                     initDescriptor(config);
@@ -1836,6 +1870,68 @@ void Node::resolveInPlaceDirection() {
                     auto config = getSelectedPrimitiveDescriptor()->getConfig();
                     config.outConfs[inPlaceInpPort].inPlace(-1);
                     initDescriptor(config);
+                } else if (InplaceDirectionType::NONE == result) {
+                    // resolve cyclic inplace to downstream instead of upstream for the node
+                    // when there is only one output referencing to the edges of it,
+                    // thus benefits zero-copy of outputs.
+                    size_t numConflicts = 0;
+
+                    // the parent node does not use inPlace memory, but it is an Input.
+                    if (Type::Input == pParent->getType() || Type::MemoryInput == pParent->getType()) {
+                        auto config = getSelectedPrimitiveDescriptor()->getConfig();
+                        config.inConfs[inpPort].inPlace(-1);
+                        initDescriptor(config);
+                        continue;
+                    }
+
+                    // search descendants
+                    if (numConflicts <= 1) {
+                        // note: there are only non-inplace or cyclic-inplace descendants at the moment.
+                        std::function<void(const Node* node, int portIdx)> searchReferencingOutput;
+                        searchReferencingOutput = [&](const Node* node, int portIdx) -> void {
+                            if (numConflicts > 1) return;  // early stop
+                            auto childEdges = node->getChildEdgesAtPort(portIdx);
+                            for (auto& edge : childEdges) {
+                                auto pChild = edge->getChild().get();
+                                if (Type::Output == pChild->getType()) {
+                                    numConflicts++;
+                                } else {
+                                    auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
+                                    if (InplaceDirectionType::CYCLIC == result) {
+                                        return searchReferencingOutput(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
+                                    }
+                                }
+                            }
+                        };
+                        searchReferencingOutput(this, inPlaceInpPort);
+                    }
+
+                    // search siblings
+                    if (numConflicts <= 1) {
+                        // note: the parent node does not use inPlace memory at the moment, let's check the siblings
+                        for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
+                            auto peerNode = peerEdge->getChild().get();
+                            if (peerNode == this) continue;
+                            if (Type::Output == peerNode->getType()) {
+                                numConflicts++;
+                            } else {
+                                auto result = inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum());
+                                if (one_of(result, InplaceDirectionType::DOWN, InplaceDirectionType::CYCLIC)) {
+                                    numConflicts++;
+                                }
+                            }
+                        }
+                    }
+
+                    if (numConflicts == 1) { // downstream to make the only output edge be referenced.
+                        auto config = getSelectedPrimitiveDescriptor()->getConfig();
+                        config.outConfs[inPlaceInpPort].inPlace(-1);
+                        initDescriptor(config);
+                    } else { // the default direction of upstream
+                        auto config = getSelectedPrimitiveDescriptor()->getConfig();
+                        config.inConfs[inpPort].inPlace(-1);
+                        initDescriptor(config);
+                    }
                 } else {
                     OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
                 }
@@ -1843,6 +1939,17 @@ void Node::resolveInPlaceDirection() {
         }
     }
 }
+
+#ifndef CPU_DEBUG_CAPS
+std::ostream& operator<<(std::ostream& out, const Node& node) {
+    return out << "Node " << node.getName() <<
+        " of type " << node.getTypeStr() << "\n";
+}
+
+std::ostream& operator<<(std::ostream& out, const Node* node) {
+    return operator<<(out, (*node));
+}
+#endif
 
 }   // namespace intel_cpu
 }   // namespace ov

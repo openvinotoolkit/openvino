@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import mix_array_with_value
+from common.utils.tf_utils import mix_array_with_value, run_in_jenkins
 
 rng = np.random.default_rng()
 
@@ -75,16 +75,23 @@ class TestLookupTableFindOps(CommonTFLayerTest):
              all_keys=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
              all_values=[200, 100, 0, -3, 10, 1],
              default_value=0, invalid_key='AbraCadabra'),
+        dict(keys_type=str, values_type=np.int32,
+             all_keys=['First sentence', 'Second one', '', 'Third', 'Fourth Sentence', 'etc.'],
+             all_values=[-1, 2, 0, -3, 0, 1],
+             default_value=100, invalid_key='AbraCadabra'),
     ]
 
     @pytest.mark.parametrize("hash_table_type", [0, 1])
     @pytest.mark.parametrize("keys_shape", [[], [2], [3, 4], [3, 2, 1, 4]])
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
-        if params['keys_type'] == str and params['values_type'] == np.int64:
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extesion is not supported on GPU or "
+                        "No layout format available for gather:LookupTableFind issue")
+        if params['keys_type'] == str:
             if platform.system() in ('Darwin') or platform.machine() in ['arm', 'armv7l',
                                                                          'aarch64',
                                                                          'arm64',

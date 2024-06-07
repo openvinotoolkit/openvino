@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,6 +16,7 @@ if(ENABLE_LTO)
 endif()
 
 function(ov_add_onednn)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
     set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     if(BUILD_SHARED_LIBS AND ENABLE_PROFILING_ITT)
@@ -59,7 +60,7 @@ function(ov_add_onednn)
     endif()
 
     if(AARCH64 OR ARM)
-        set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Conpute Library kernels in oneDNN" FORCE)
+        set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Compute Library kernels in oneDNN" FORCE)
     endif()
 
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on OV level
@@ -78,7 +79,7 @@ function(ov_add_onednn)
         link_libraries(TBB::tbb)
     endif()
 
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
         ov_add_compiler_flags(-Wno-undef)
         ov_add_compiler_flags(-Wno-missing-declarations)
         if(ARM OR AARCH64)
@@ -87,9 +88,14 @@ function(ov_add_onednn)
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
             ov_add_compiler_flags(-Wno-array-bounds)
             ov_add_compiler_flags(-Wno-stringop-overflow)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-overloaded-virtual")
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
                 ov_add_compiler_flags(-Wno-restrict)
             endif()
+        endif()
+        if(OV_COMPILER_IS_INTEL_LLVM)
+            ov_add_compiler_flags(-Wno-deprecated-this-capture)
+            ov_add_compiler_flags(-Wno-deprecated-enum-enum-conversion)
         endif()
     elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
@@ -103,6 +109,13 @@ function(ov_add_onednn)
         ov_add_compiler_flags(/wd4244)
         # C4334 '<<': result of 32-bit shift implicitly converted to 64 bits
         ov_add_compiler_flags(/wd4334)
+    endif()
+
+    # remove CMAKE_COMPILE_WARNING_AS_ERROR for thirdparty
+    if(CMAKE_CROSSCOMPILING AND CMAKE_COMPILE_WARNING_AS_ERROR)
+        string(REPLACE " -Werror " "  " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        string(REPLACE " -Werror " "  "  CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        set(CMAKE_COMPILE_WARNING_AS_ERROR "OFF")
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -134,6 +147,11 @@ function(ov_add_onednn)
                 ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
     endif()
 endfunction()
+
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    add_subdirectory(libxsmm)
+    ov_install_static_lib(libxsmm ${OV_CPACK_COMP_CORE})
+endif()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)

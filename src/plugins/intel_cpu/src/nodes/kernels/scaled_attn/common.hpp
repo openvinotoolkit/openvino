@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -82,6 +82,11 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         auto vec_f16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a));
         return _mm512_cvtph_ps(vec_f16);
     }
+    inline __m512 mm512_uni_loadu_tail_ps(const ov::float16* a, size_t count) {
+        auto mask = (1 << count) - 1;
+        auto f16_vec = _mm256_maskz_loadu_epi16(mask, a);
+        return _mm512_cvtph_ps(f16_vec);
+    }
     inline void mm512_uni_storeu_ps(ov::float16* addr,  __m512 v) {
         __m256i vec_f16 = _mm512_cvtps_ph(v, 0);
         _mm256_storeu_si256(reinterpret_cast<__m256i *>(addr), vec_f16);
@@ -148,6 +153,11 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         auto vec_f16 = _mm_loadu_si128(reinterpret_cast<__m128i*>(a));
         auto o = _mm256_cvtph_ps(vec_f16);
         return o;
+    }
+    inline __m256 mm256_uni_loadu_tail_ps(const ov::float16* a, const size_t count) {
+        ov::float16 tmp_values[8] = {0};
+        std::memcpy(tmp_values, a, count * sizeof(ov::float16));
+        return mm256_uni_loadu_ps(tmp_values);
     }
     inline void mm256_uni_storeu_ps(ov::float16* a,  __m256 v) {
         __m128i vec_f16 = _mm256_cvtps_ph(v, 0);

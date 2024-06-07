@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            size_t ldb,
                            size_t ldc,
                            bool b_transposed,
-                           ov::element::Type inType)
+                           ov::element::Type inType,
+                           bool b_accumulate)
     : M(M),
       K(K),
       N(N),
@@ -32,7 +33,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
       ldb(ldb),
       ldc(ldc),
       b_transposed(b_transposed),
-      inType(inType) {
+      inType(inType),
+      b_accumulate(b_accumulate) {
     // blocking M
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
@@ -45,8 +47,13 @@ BrgemmKernel::BrgemmKernel(size_t M,
         THROW_ERROR("brgemm bf16 kernel could only be used above avx512_bf16");
 
     bool isAMXSupported = is_bf16 && mayiuse(avx512_core_amx);
+    size_t vlen;
+    if (mayiuse(avx512_core))
+        vlen = cpu_isa_traits<avx512_core>::vlen;
+    else
+        vlen = cpu_isa_traits<cpu_isa_t::avx2>::vlen;
     // blocking N
-    N_blk = is_bf16 ? 32 : N;
+    N_blk = is_bf16 ? 32 : std::max(N, vlen / inType.size());
     N_tail = N % N_blk;
 
     // blocking K
@@ -55,7 +62,6 @@ BrgemmKernel::BrgemmKernel(size_t M,
     if (isAMXSupported && K_tail) {
         K_tail = rnd_up(K_tail, 2);
     }
-    size_t vlen = cpu_isa_traits<avx512_core>::vlen;
     // copied K must be round up by vlen / inType.size(), otherwise copy B kernel may access wrong memory
     packedBSize = rnd_up(K, vlen / inType.size()) * rnd_up(N, N_blk) * inType.size();
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
@@ -67,7 +73,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
                 auto N_ = n ? N_tail : N - N_tail;
                 auto K_ = k ? K_tail : K - K % K_blk;
-                auto beta = k && brgCtxs[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
+                auto beta = (b_accumulate || (k && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0f : 0.0f;
 
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
@@ -134,9 +140,14 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
 
     const bool is_int8 =
         one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-    auto isa = use_amx                                     ? isa_undef
-               : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16
-                                                           : (is_int8 ? avx512_core_vnni : avx512_core);
+    cpu_isa_t isa;
+    if (mayiuse(avx512_core)) {
+        isa = use_amx ? isa_undef
+                : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16
+                                                            : (is_int8 ? avx512_core_vnni : avx512_core);
+    } else {
+        isa = cpu_isa_t::avx2;
+    }
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
                                    brgemm_addr,
@@ -156,6 +167,20 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
                                    nullptr);
     if (status != dnnl_success) {
         THROW_ERROR("cannot be executed due to invalid brgconv params");
+    }
+
+    if (use_amx && b_accumulate) {
+        brgemm_attr_t brgattr;
+        brgattr.max_bs = 1;
+        brgattr.wary_tail_read = false;
+        brgattr.hint_innermost_loop = brgemm_innermost_undef;
+        // if b_accumulate is true, it means we want c+=a*b. jit_brgemm_amx_uker_base_t::load_accumulators can support this using tileload(c) without postops
+        brgattr.use_uker = true;
+        brgattr.use_interleave_stores = true;
+        brgattr.hint_prefetching = brgemm_kernel_prefetching_t::brgemm_prf1;
+        if (brgemm_desc_set_attr(&brgDesc, brgattr) != dnnl_success) {
+            THROW_ERROR("cannot be executed due to brgemm_desc_set_attr failed");
+        }
     }
 
     ctx.is_with_amx = use_amx;
@@ -319,7 +344,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
         for (size_t k = 0; k < 2; k++) {
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
-            if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
+            if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
                 auto local_a_ptr = k > 0 ? ptr_a_tail : ptr_A;
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * inType.size();
                 auto weight_ptr = ptr_scartch_b + B_stride;

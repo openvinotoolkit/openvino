@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/reference/shape_of.hpp"
@@ -91,20 +91,20 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
     }
 }
 
-bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels) {
+bool evaluate_symbol(const Node* shape_of_node, TensorSymbolVector& output_symbols) {
     const auto& shape = shape_of_node->get_input_partial_shape(0);
     OPENVINO_ASSERT(shape.rank().is_static());  // sanity check. at this point value propagation was successful
 
-    auto common_label = ov::no_label;
-    auto& labels = output_labels[0];
-    labels.reserve(shape.size());
+    bool at_least_one_symbol_set = false;
+    auto& symbols = output_symbols[0];
+    symbols.reserve(shape.size());
 
     for (const auto& d : shape) {
-        const auto label = ov::DimensionTracker::get_label(d);
-        labels.emplace_back(label);
-        common_label |= label;
+        const auto symbol = d.get_symbol();
+        symbols.emplace_back(symbol);
+        at_least_one_symbol_set |= (symbol != nullptr);
     }
-    return common_label != ov::no_label;
+    return at_least_one_symbol_set;
 }
 }  // namespace
 }  // namespace shape_of
@@ -120,7 +120,7 @@ void ShapeOf::validate_and_infer_types() {
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
     set_input_is_relevant_to_value(0, false);
-    const auto input_partial_shape = get_input_partial_shape(0);
+    const auto& input_partial_shape = get_input_partial_shape(0);
     set_output_type(0, m_output_type, PartialShape{input_partial_shape.rank()});
 }
 
@@ -165,8 +165,8 @@ bool ShapeOf::evaluate_upper(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound(this, output_values, true);
 }
 
-bool ShapeOf::evaluate_label(TensorLabelVector& output_labels) const {
-    return shape_of::evaluate_label(this, output_labels);
+bool ShapeOf::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return shape_of::evaluate_symbol(this, output_symbols);
 }
 
 bool ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
@@ -239,8 +239,8 @@ bool ShapeOf::evaluate_upper(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound(this, output_values, true);
 }
 
-bool ShapeOf::evaluate_label(TensorLabelVector& output_labels) const {
-    return shape_of::evaluate_label(this, output_labels);
+bool ShapeOf::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return shape_of::evaluate_symbol(this, output_symbols);
 }
 }  // namespace v0
 }  // namespace op

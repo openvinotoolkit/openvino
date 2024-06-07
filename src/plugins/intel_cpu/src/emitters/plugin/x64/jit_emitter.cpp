@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_emitter.hpp"
 #include <vector>
 #include "utils/general_utils.h"
+#include "utils.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
@@ -275,9 +276,17 @@ void jit_emitter::internal_call_rsp_align() const {
     h->mov(h->rbx, h->rsp);
     h->and_(h->rbx, 0xf);
     h->sub(h->rsp, h->rbx);
+#ifdef _WIN32
+    // Allocate shadow space (home space) according to ABI
+    h->sub(h->rsp, 32);
+#endif
 }
 
 void jit_emitter::internal_call_rsp_restore() const {
+#ifdef _WIN32
+    // Release shadow space (home space)
+    h->add(h->rsp, 32);
+#endif
     h->add(h->rsp, h->rbx);
 }
 

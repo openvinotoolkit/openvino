@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,6 +80,7 @@ attach_select_impl::attach_select_impl() {
         format::bfyx,
         format::byxf,
         format::yxfb,
+        format::bfzyx,
     };
 
     implementation_map<select>::add(impl_types::ocl,
@@ -89,7 +90,8 @@ attach_select_impl::attach_select_impl() {
                                     static_formats);
 
     auto dyn_formats = {
-        format::bfyx
+        format::bfyx,
+        format::bfzyx,
     };
 
     implementation_map<select>::add(impl_types::ocl,

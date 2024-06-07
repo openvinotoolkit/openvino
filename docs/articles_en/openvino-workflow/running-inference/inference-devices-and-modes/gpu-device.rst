@@ -59,14 +59,14 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_default_gpu
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_default_gpu
 
@@ -77,14 +77,14 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_gpu_with_id
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_gpu_with_id
 
@@ -95,14 +95,14 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_gpu_with_id_and_tile
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_gpu_with_id_and_tile
 
@@ -152,14 +152,14 @@ It is done by specifying ``MULTI:GPU.1,GPU.0`` as a target device.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/gpu/compile_model.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
          :language: Python
          :fragment: compile_model_multi
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
          :language: cpp
          :fragment: compile_model_multi
 
@@ -183,14 +183,14 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_batch_plugin
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_batch_plugin
 
@@ -201,19 +201,19 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
                :language: Python
                :fragment: compile_model_auto_batch
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_auto_batch
 
 
-For more details, see the :doc:`Automatic batching<automatic-batching>`.
+For more details, see the :doc:`Automatic batching <automatic-batching>`.
 
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++
@@ -230,7 +230,7 @@ which means that the incoming infer requests can be processed simultaneously.
 When multiple inferences of the same model need to be executed in parallel, the multi-stream feature is preferred to multiple instances of the model or application.
 The reason for this is that the implementation of streams in the GPU plugin supports weight memory sharing across streams, thus, memory consumption may be lower, compared to the other approaches.
 
-For more details, see the :doc:`optimization guide<../optimize-inference>`.
+For more details, see the :doc:`optimization guide <../optimize-inference>`.
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++
@@ -275,14 +275,14 @@ The code snippet below demonstrates examples of a bounded dynamic batch:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/dynamic_batch.py
          :language: Python
          :fragment: dynamic_batch
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/dynamic_batch.cpp
          :language: cpp
          :fragment: dynamic_batch
 
@@ -351,23 +351,23 @@ The GPU plugin has the following additional preprocessing options:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.py
          :language: Python
          :fragment: init_preproc
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.cpp
          :language: cpp
          :fragment: init_preproc
 
 
 With such preprocessing, GPU plugin will expect ``ov::intel_gpu::ocl::ClImage2DTensor`` (or derived) to be passed for each NV12 plane via ``ov::InferRequest::set_tensor()`` or ``ov::InferRequest::set_tensors()`` methods.
 
-For usage examples, refer to the :doc:`RemoteTensor API<gpu-device/remote-tensor-api-gpu-plugin>`.
+For usage examples, refer to the :doc:`RemoteTensor API <gpu-device/remote-tensor-api-gpu-plugin>`.
 
-For more details, see the :doc:`preprocessing API<../optimize-inference/optimize-preprocessing>`.
+For more details, see the :doc:`preprocessing API <../optimize-inference/optimize-preprocessing>`.
 
 Model Caching
 +++++++++++++++++++++++++++++++++++++++
@@ -465,7 +465,7 @@ GPU Performance Checklist: Summary
 
 Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many general OpenCL tips apply:
 
--	Prefer ``FP16`` inference precision over ``FP32``, as Model Conversion API can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<../../model-optimization>`.
+-	Prefer ``FP16`` inference precision over ``FP32``, as Model Conversion API can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide <../../model-optimization>`.
 - Try to group individual infer jobs by using :doc:`automatic batching <automatic-batching>`.
 -	Consider :doc:`caching <../optimize-inference/optimizing-latency/model-caching-overview>` to minimize model load time.
 -	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options <cpu-device>` can be used to limit the number of inference threads for the CPU plugin.

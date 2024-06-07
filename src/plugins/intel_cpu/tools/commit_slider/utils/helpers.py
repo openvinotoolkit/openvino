@@ -11,12 +11,14 @@ import re
 import json
 import logging as log
 from argparse import ArgumentParser
+from utils.cfg_manager import CfgManager
+import copy
 
 
 def getMeaningfullCommitTail(commit):
     return commit[:7]
 
-def excludeModelPath(cmdStr):
+def extractModelPath(cmdStr):
     args = cmdStr.split()
     return args[args.index("-m") + 1]
 
@@ -67,6 +69,13 @@ def getParams():
     with open(customCfgPath) as cfgFile:
         customCfgData = json.load(cfgFile)
     cfgFile.close()
+
+    # config manager resolves templates in config,
+    # in the future, all interactions with config will
+    # be incapsulated in config manager
+    cm = CfgManager(customCfgData)
+    customCfgData = cm.applyTemplate()
+
     # customize cfg
     for key in customCfgData:
         newVal = customCfgData[key]
@@ -132,6 +141,7 @@ def absolutizePaths(cfg):
         for env in cfg["envVars"]:
             envKey = env["name"]
             envVal = env["val"]
+            # todo: move to substitute rules
             # format ov-path in envvars for e2e case
             if "{gitPath}" in envVal:
                 envVal = envVal.format(gitPath=cfg["gitPath"])
@@ -141,6 +151,9 @@ def absolutizePaths(cfg):
             else:
                 updatedEnvVars.append(env)
         cfg["envVars"] = updatedEnvVars
+    cfg["venvCfg"]["venvDir"] = cfg["venvCfg"]["venvDir"].format(
+        workPath=cfg["workPath"]
+    )
     return cfg
 
 
@@ -178,6 +191,10 @@ def runCommandList(commit, cfgData):
         commandList = cfgData["commandList"]
     else:
         commandList = cfgData["extendedCommandList"]
+    # apply substitution rules
+    applySubstitutionRules(cfgData, cfgData["substitutionRules"], commit)
+    commitLogger.info("Actual config is: {}".format(cfgData))
+
     gitPath = cfgData["gitPath"]
     buildPath = cfgData["buildPath"]
     defRepo = gitPath
@@ -198,6 +215,7 @@ def runCommandList(commit, cfgData):
                 continue
         makeCmd = cfgData["makeCmd"]
         # {commit}, {makeCmd}, {cashedPath} placeholders
+        # todo - change to substitution rules
         pathExists, cashedPath = getCashedPath(commit, cfgData)
         if pathExists:
             # todo - and {} in cmd
@@ -265,16 +283,86 @@ def fetchAppOutput(cfg, commit):
     shellFlag = True
     if cfg["os"] == "linux":
         shellFlag = False
-    p = subprocess.Popen(
-        appCmd.split(),
-        cwd=appPath,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        env=newEnv,
-        shell=shellFlag
-    )
-    output, err = p.communicate()
-    output = output.decode("utf-8")
+
+    output = ""
+    if cfg["venvCfg"]["venvEnabled"]:
+        # todo - move to substitution rules
+        for item in [
+                {"src": cfg["venvCfg"]["venvName"], "dst": "venvName"},
+                {"src": cfg["appPath"], "dst": "appPath"},
+                {"src": sys.executable, "dst": "py"},
+                # for AC case
+                {"src": cfg["dlbConfig"]["appCmd"], "dst": "appCmd"},
+                {"src": cfg["dlbConfig"]["toolPath"], "dst": "toolPath"}
+                ]:
+            appCmd = multistepStrFormat(
+                appCmd,
+                item["dst"],
+                item["src"]
+            )
+        commitLogger.info("App command: {}".format(appCmd))
+        # initialize venv
+        p = subprocess.Popen('rm -rf {}'.format(
+                cfg["venvCfg"]["venvDir"]
+            ),
+            shell=True,
+            executable="/bin/bash"
+        )
+        p.wait()
+        p.communicate()
+        p = subprocess.Popen('mkdir {}'.format(
+                cfg["venvCfg"]["venvDir"]
+            ),
+            shell=True,
+            executable="/bin/bash"
+        )
+        p.wait()
+        p.communicate()
+        p = subprocess.Popen('{py} -m venv {venvName}'.format(
+                py=sys.executable,
+                venvName=cfg["venvCfg"]["venvName"]
+            ),
+            executable="/bin/bash",
+            cwd=cfg["venvCfg"]["venvDir"],
+            shell=True
+        )
+        p.wait()
+        p.communicate()
+        p = subprocess.Popen(
+            appCmd,
+            executable="/bin/bash",
+            cwd=cfg["venvCfg"]["venvDir"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=newEnv,
+            shell=True,
+            encoding="utf-8", errors="replace"
+        )
+        for line in p.stdout:
+            if cfg["verboseOutput"]:
+                sys.stdout.write(line)
+            commitLogger.info(line)
+            output = "{}\n{}".format(output, line)
+        p.wait()
+        p = subprocess.Popen('rm -rf {}'.format(
+                cfg["venvCfg"]["venvDir"]
+            ),
+            shell=True,
+            executable="/bin/bash"
+        )
+        p.wait()
+        p.communicate()
+    else:
+        p = subprocess.Popen(
+            appCmd.split(),
+            cwd=appPath,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=newEnv,
+            shell=shellFlag
+        )
+        output, err = p.communicate()
+        output = output.decode("utf-8")
     return output
 
 
@@ -290,6 +378,7 @@ def handleCommit(commit, cfgData):
             if cfgData["cachedPathConfig"]["passCmdList"]:
                 return
         else:
+            commitLogger.info("Cfg = {}".format(cfgData))
             if cfgData["cachedPathConfig"]["scheme"] == "mandatory":
                 commitLogger.info("Ignore commit {}".format(commit))
                 raise BuildError(
@@ -344,7 +433,7 @@ def handleCommit(commit, cfgData):
 def getCashedPath(commit, cfgData):
     shortHash = getMeaningfullCommitTail(commit)
     cashMap = cfgData["cachedPathConfig"]["cashMap"]
-    for k in cashMap:
+    for k, v in cashMap.items():
         if shortHash in k:
             return True, cfgData["cachedPathConfig"]["cashMap"][k]
     return False, None
@@ -541,3 +630,90 @@ class DictHolder:
         if dict is not None:
             for k, v in dict.items():
                 setattr(self, k, v)
+
+def formatJSON(content, formatLambda):
+    if isinstance(content, dict):
+        for k, value in content.items():
+            content[k] = formatJSON(value, formatLambda)
+    elif isinstance(content, list):
+        for id, item in enumerate(content):
+            content[id] = formatJSON(item, formatLambda)
+    elif isinstance(content, str):
+        content = formatLambda(content)
+    else:
+        # bool or digit object
+        pass
+    return content
+
+def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
+    # if commit is None, the rule is considered as static,
+    # substitution proceeds as simple string replacing
+
+    serviceCfg = cfg["serviceConfig"]
+    if ("substRulesData" not in serviceCfg)\
+        or ("dataChanged" not in serviceCfg["substRulesData"])\
+        or (not serviceCfg["substRulesData"]["dataChanged"]):
+        # create config copy for the first application of rules
+        savedCfg = copy.deepcopy(cfg)
+        serviceCfg["substRulesData"] = {
+            "dataChanged": True,
+            "savedCfg": savedCfg
+        }
+    else:
+        # apply rules to the saved copy of config
+        savedServiceCfg = copy.deepcopy(serviceCfg)
+        for k in cfg:
+            cfg[k] = copy.deepcopy(serviceCfg["substRulesData"]["savedCfg"][k])
+        cfg["serviceConfig"] = savedServiceCfg
+
+    for rule in rules:
+        if not rule["enabled"]:
+            continue
+        # convert path to list and remove root symbol
+        pathToSrc = rule["from"]
+        pathToDst = rule["to"]
+        pathToSrc = pathToSrc.split(".")
+        pathToDst = pathToDst.split(".")
+        pathToSrc.pop(0)
+        pathToDst.pop(0)
+        # setup positions for substitution
+        srcPos, dstPos = cfg, cfg
+        for item in pathToSrc:
+            srcPos = srcPos[item]
+        for item in pathToDst:
+            dstPos = dstPos[item]
+        dstPos = formatJSON(
+            dstPos,
+            lambda content:
+            multistepStrFormat(
+                content,
+                rule["placeholder"],
+                getMapValueByShortHash(srcPos, commit)\
+                    if commit is not None\
+                    else srcPos
+            )
+        )
+        cfg = deepMapUpdate(cfg, pathToDst, dstPos)
+
+def getMapValueByShortHash(map: dict, commit: str):
+    for k in map:
+        if getMeaningfullCommitTail(k) ==\
+            getMeaningfullCommitTail(commit):
+            return map[k]
+    raise Exception("No {} in {}".format(
+        commit, map.keys()
+    ))
+
+def multistepStrFormat(input: str, placeholder: str, substitution: str):
+    return input.replace(
+        '{}{}{}'.format('{', placeholder, '}'),
+        substitution
+    )
+
+def deepMapUpdate(content: map, path: list, substitution):
+    if not path:
+        return substitution
+    else:
+        root = path.pop(0)
+        content[root] = deepMapUpdate(content[root], path, substitution)
+        return content

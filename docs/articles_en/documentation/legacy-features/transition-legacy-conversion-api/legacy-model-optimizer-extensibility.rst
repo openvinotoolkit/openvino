@@ -17,11 +17,11 @@ Legacy Model Optimizer Extensibility
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../openvino-extensibility/frontend-extensions>` article. 
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../openvino-extensibility/frontend-extensions>` article.
 
 This article describes Model Optimizer internals. Altering them may result in application instability, and in case of future changes to the API, lack of backward compatibility.
 
-.. note:: 
+.. note::
    If you want to add support for ONNX, TensorFlow Lite, PaddlePaddle or TensorFlow operations, or you are not familiar with other extension alternatives in OpenVINO, read :doc:`this guide <../../openvino-extensibility>` instead.
 
 .. _model-optimizer-extensibility:
@@ -32,13 +32,13 @@ This mechanism is a core part of Model Optimizer, as a huge set of examples show
 There are several cases when the customization is needed:
 
 * A model contains operation(s) not known for the Model Optimizer, but these operation(s) could be expressed as a combination of supported operations. In this case, a custom transformation should be implemented to replace unsupported operation(s) with supported ones.
-* A model contains a sub-graph of operations that can be replaced with a smaller number of operations to get better performance. This example corresponds to so-called *fusing transformations* (e.g., replacing a sub-graph performing the calculation :math:`x/(1.0+e^{-(beta*x)})` with a single operation of type :doc:`Swish <../../openvino-ir-format/operation-sets/operations-specifications/activation/swish-4>`.
+* A model contains a sub-graph of operations that can be replaced with a smaller number of operations to get better performance. This example corresponds to so-called *fusing transformations* (e.g., replacing a sub-graph performing the calculation :math:`x/(1.0+e^{-(beta*x)})` with a single operation of type :doc:`Swish <../../openvino-ir-format/operation-sets/operation-specs/activation/swish-4>`.
 * A model contains a custom framework operation (the operation that is not a part of an official operation set of the framework) that was developed using the framework extensibility mechanism. In this case, Model Optimizer should know how to handle the operation and generate a corresponding section in an IR for it.
 
 It is necessary to figure out how Model Optimizer represents a model in a memory and converts it to an IR before
 going into details of the Model Optimizer extensibility mechanism.
 
-.. note:: 
+.. note::
    All paths in this article are provided relatively to the Model Optimizer installation directory if not stated otherwise.
 
 .. _mo_model_representation_in_memory:
@@ -59,7 +59,7 @@ dictionary, and provides many convenient methods to work with the node. For exam
 name ``my_attr`` can be retrieved from the node with the following code ``my_node.my_attr``, which is equivalent to obtaining
 attribute with name ``my_attr`` in the ``graph.node[my_node]`` dictionary. For the class implementation details, refer to the ``mo/graph/graph.py`` file.
 
-An operation may have several inputs and outputs. For example, operation :doc:`Split <../../openvino-ir-format/operation-sets/operations-specifications/movement/split-1>` has
+An operation may have several inputs and outputs. For example, operation :doc:`Split <../../openvino-ir-format/operation-sets/operation-specs/movement/split-1>` has
 two inputs: data to split and axis to split along, and variable number of outputs depending on a value of attribute
 ``num_splits``. Each input data to the operation is passed to a specific operation **input port**. An operation produces
 the output data from an **output port**. Input and output ports are numbered from 0 independently. Model Optimizer uses
@@ -83,7 +83,7 @@ Model Conversion Pipeline
 
 A model conversion pipeline can be represented with the following diagram:
 
-.. image:: ../../../_static/images/MO_conversion_pipeline.svg
+.. image:: ../../../assets/images/MO_conversion_pipeline.svg
 
 Each conversion step is reviewed in details below.
 
@@ -95,17 +95,17 @@ using Python bindings provided with the framework and builds an in-memory repres
 is a separate loader for each supported framework. These loaders are implemented in the
 ``extensions/load/<FRAMEWORK>/loader.py`` files of Model Optimizer.
 
-.. note:: 
+.. note::
    Model Optimizer uses a special parser for Caffe models built on top of the ``caffe.proto`` file. In the case of a model loading failure, Model Optimizer throws an error and requests preparation of the parser that can read the model. For more information on how to prepare the custom Caffe parser, refer to the :ref:`question #1 <question-1>` in the :doc:`Model Optimizer FAQ <legacy-conversion-api/[legacy]-model-optimizer-faq>`.
 
 The result of a model loading step is a ``Graph`` object, which can be depicted like in the following example:
 
-.. image:: ../../../_static/images/MO_graph_after_loader.svg
+.. image:: ../../../assets/images/MO_graph_after_loader.svg
 
 Model Optimizer loader saves an operation instance framework description (usually it is a Protobuf message) into a node
 attribute usually with a name ``pb`` for each operation of an input model. It is important that this is a
-**framework-specific** description of an operation. This means that an operation (e.g. 
-:doc:`Convolution <../../openvino-ir-format/operation-sets/operations-specifications/convolution/convolution-1>` may be represented differently in, for example, Caffe and
+**framework-specific** description of an operation. This means that an operation (e.g.
+:doc:`Convolution <../../openvino-ir-format/operation-sets/operation-specs/convolution/convolution-1>` may be represented differently in, for example, Caffe and
 TensorFlow frameworks but performs the same calculations from a mathematical point of view.
 
 In the image above, the **Operation 2** has one input and two outputs. The tensor produced from the output **port 0** is
@@ -134,7 +134,7 @@ The extractors execution order is the following:
 
 The result of operations attributes extracting step can be depicted like in the following example:
 
-.. image:: ../../../_static/images/MO_graph_after_extractors.svg
+.. image:: ../../../assets/images/MO_graph_after_extractors.svg
 
 The only difference in the graph from the previous step is that nodes contain dictionary with extracted attributes and
 operation-specific attributes needed for Model Optimizer. However, from this step, Model Optimizer does not
@@ -156,7 +156,7 @@ During the front phase, Model Optimizer knows shape of the model inputs and cons
 transformation. For example, the transformation ``extensions/front/TopKNormalize.py`` removes an attribute ``k``  from a
 ``TopK`` node and adds an input constant with the value ``k``. The transformation is needed to convert a ``TopK`` operation.
 It comes from frameworks, where a number of output elements is defined as an attribute of the operation to the
-OpenVINO :doc:`TopK <../../openvino-ir-format/operation-sets/operations-specifications/sort/top-k-3>` operation semantic, which requires this value to be a separate input.
+OpenVINO :doc:`TopK <../../openvino-ir-format/operation-sets/operation-specs/sort/top-k-3>` operation semantic, which requires this value to be a separate input.
 
 It is important to mention that sometimes it seems like transformation cannot be implemented during the front phase
 because the actual values of inputs or shapes are needed. In fact, manipulations of shapes or values can be implemented
@@ -165,9 +165,9 @@ using operations that are added to the graph. Consider the
 `Flatten <https://github.com/onnx/onnx/blob/master/docs/Operators.md#Flatten>`__ operation with a sub-graph of operations performing
 the following (when ``axis`` is not equal to 0 and 1):
 
-1. Calculate a shape of the ``Flatten`` input tensor, using the :doc:`ShapeOf <../../openvino-ir-format/operation-sets/operations-specifications/shape/shape-of-3>` operation.
-2. Get the first ``axis`` elements from the output of ``Shape`` operation and calculate their product, using the :doc:`ReduceProd <../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-prod-1>` operation.
-3. Concatenate output of the ``ReduceProd`` and constant with the value of ``-1`` (for an explanation of this value refer to the :doc:`Reshape <../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>` specification page).
+1. Calculate a shape of the ``Flatten`` input tensor, using the :doc:`ShapeOf <../../openvino-ir-format/operation-sets/operation-specs/shape/shape-of-3>` operation.
+2. Get the first ``axis`` elements from the output of ``Shape`` operation and calculate their product, using the :doc:`ReduceProd <../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-prod-1>` operation.
+3. Concatenate output of the ``ReduceProd`` and constant with the value of ``-1`` (for an explanation of this value refer to the :doc:`Reshape <../../openvino-ir-format/operation-sets/operation-specs/shape/reshape-1>` specification page).
 4. Use the concatenated value as the second input to the ``Reshape`` operation.
 
 It is highly recommended to write shape-agnostic transformations to avoid model reshape-ability issues. For more information related to the reshaping of a model, refer to the :doc:`Using Shape Inference <../../../openvino-workflow/running-inference/changing-input-shape>` guide.
@@ -183,27 +183,27 @@ Partial Inference
 Model Optimizer performs a partial inference of a model during model conversion. This procedure includes output shapes
 calculation of all operations in a model and constant folding (value calculation for constant sub-graphs). The constant
 folding is needed for the shape inference because in some cases evaluation of constant sub-graph is needed to calculate
-output shapes. For example, the output shape for the :doc:`Reshape <../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>` operation may be
-defined as a mathematical expression using the :doc:`ShapeOf <../../openvino-ir-format/operation-sets/operations-specifications/shape/shape-of-3>` operation output.
+output shapes. For example, the output shape for the :doc:`Reshape <../../openvino-ir-format/operation-sets/operation-specs/shape/reshape-1>` operation may be
+defined as a mathematical expression using the :doc:`ShapeOf <../../openvino-ir-format/operation-sets/operation-specs/shape/shape-of-3>` operation output.
 
 .. note::
-   Model Optimizer does not fold sub-graphs starting from the :doc:`ShapeOf <../../openvino-ir-format/operation-sets/operations-specifications/shape/shape-of-3>` operation by default because this leads to a model non-reshape-ability (the command-line parameter ``--static_shape`` can override this behavior). For more information related to reshaping of a model, refer to the :doc:`Using Shape Inference <../../../openvino-workflow/running-inference/changing-input-shape>` guide.
+   Model Optimizer does not fold sub-graphs starting from the :doc:`ShapeOf <../../openvino-ir-format/operation-sets/operation-specs/shape/shape-of-3>` operation by default because this leads to a model non-reshape-ability (the command-line parameter ``--static_shape`` can override this behavior). For more information related to reshaping of a model, refer to the :doc:`Using Shape Inference <../../../openvino-workflow/running-inference/changing-input-shape>` guide.
 
 Model Optimizer calculates output shapes for all operations in a model to write them to Intermediate Representation files.
 
-.. note:: 
-   This is a legacy requirement. Starting with IR version 10, OpenVINO Runtime needs to know shapes of the :doc:`Const <../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/constant-1>` and the :doc:`Parameter <../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/parameter-1>` operations only. The OpenVINO Runtime calculates output shapes for all operations in a model, using shapes of :doc:`Parameter <../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/parameter-1>` and :doc:`Const <../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/constant-1>` operations defined with respective operation attributes.
+.. note::
+   This is a legacy requirement. Starting with IR version 10, OpenVINO Runtime needs to know shapes of the :doc:`Const <../../openvino-ir-format/operation-sets/operation-specs/infrastructure/constant-1>` and the :doc:`Parameter <../../openvino-ir-format/operation-sets/operation-specs/infrastructure/parameter-1>` operations only. The OpenVINO Runtime calculates output shapes for all operations in a model, using shapes of :doc:`Parameter <../../openvino-ir-format/operation-sets/operation-specs/infrastructure/parameter-1>` and :doc:`Const <../../openvino-ir-format/operation-sets/operation-specs/infrastructure/constant-1>` operations defined with respective operation attributes.
 
 Model Optimizer inserts **data** nodes to the computation graph before starting the partial inference phase. The data node
 corresponds to the specific tensor produced with the operation. Each data node contains two attributes: ``shape``,
 containing the shape of the tensor, and ``value``, which may contain the actual value of the tensor. The value for a ``value``
 attribute is equal to ``None`` if this tensor value cannot be calculated. This happens in two cases: when a tensor value
-depends on a values passed to the :doc:`Parameter <../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/parameter-1>` operation of a model or
+depends on a values passed to the :doc:`Parameter <../../openvino-ir-format/operation-sets/operation-specs/infrastructure/parameter-1>` operation of a model or
 Model Optimizer does not have value propagation implementation for the operation.
 
 Before running partial inference, the graph can be depicted like in the following example:
 
-.. image:: ../../../_static/images/MO_graph_before_partial_inference.svg
+.. image:: ../../../assets/images/MO_graph_before_partial_inference.svg
 
 The difference in a graph structure with a graph during the front phase is not only in the data nodes, but also in the
 edge attributes. Note that an ``out`` attribute is specified for edges **from operation** nodes only, while an ``in``
@@ -223,12 +223,12 @@ refer to the :doc:`Model Optimizer Operation <legacy-model-optimizer-extensibili
 
 A shape inference function should calculate an operation (node) output shape(s) based on input shape(s) and operation
 (node) attribute(s) and update ``shape`` and optionally ``value`` attributes of the corresponding data node(s). A simplified
-example of the shape infer function for the :doc:`Reshape <../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>` operation (the full version is
+example of the shape infer function for the :doc:`Reshape <../../openvino-ir-format/operation-sets/operation-specs/shape/reshape-1>` operation (the full version is
 available in the ``mo/ops/reshape.py`` file):
 
 .. code-block:: py
    :force:
-   
+
     @staticmethod
     def infer(node: Node):
         name = node.soft_get('name', node.id)
@@ -272,13 +272,13 @@ There are several middle transformations responsible for changing model layout f
 
 This layout change is disabled automatically if the model does not have operations that OpenVINO™ needs to execute in the NCHW layout, for example, Convolutions in NHWC layout.
 
-For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
+For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process:
 
 1. Model Optimizer changes output shapes of most of operations producing 4D and 5D (four dimensional and five dimensional) tensors as if they were in NHWC layout to NCHW layout: ``nchw_shape = np.array(nhwc_shape)[0, 3, 1, 2]`` for 4D and ``nchw_shape = np.array(nhwc_shape)[0, 4, 1, 2, 3]`` for 5D. This permutation does not happen for some operations with specific conditions identified during a model conversion.
-2. Model Optimizer inserts :doc:`Gather <../../openvino-ir-format/operation-sets/operations-specifications/movement/gather-1>` operations to the sub-graph relates to shapes calculation in order to perform shape calculation in a correct layout.
-3. Model Optimizer inserts :doc:`Transpose <../../openvino-ir-format/operation-sets/operations-specifications/movement/transpose-1>` operations for some operations with specific conditions, identified during a model conversion, to produce correct inference results.
+2. Model Optimizer inserts :doc:`Gather <../../openvino-ir-format/operation-sets/operation-specs/movement/gather-1>` operations to the sub-graph relates to shapes calculation in order to perform shape calculation in a correct layout.
+3. Model Optimizer inserts :doc:`Transpose <../../openvino-ir-format/operation-sets/operation-specs/movement/transpose-1>` operations for some operations with specific conditions, identified during a model conversion, to produce correct inference results.
 
-The main transformations responsible for a layout change are: 
+The main transformations responsible for a layout change are:
 
 * ``extensions/middle/ApplyPermutations.py``
 * ``extensions/middle/InsertLayoutPropagationTransposes.py``

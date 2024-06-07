@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,6 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
                 node = compression;
             } else {
                 OutputVector node_vector;
-                auto zero = v0::Constant::create(element::i32, Shape{}, {0});
                 // Iterate over values in ListConstruct
                 for (const auto& list_input : list_inputs) {
                     auto node = concat_list_construct(list_input);

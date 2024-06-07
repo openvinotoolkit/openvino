@@ -272,6 +272,32 @@ void jit_uni_eltwise_generic<isa>::generate() {
     }
 }
 
+namespace utils {
+template <typename T1, typename T2>
+void load_vector(const T1& data_lane,
+                 const T2& data_lanes,
+                 const Xbyak_aarch64::XReg &ptr_reg,
+                 const int64_t offset,
+                 const bool broadcast,
+                 jit_generator* h) {
+    if (broadcast) {
+        if (offset == 0) {
+            h->ld1r(data_lane, ptr(ptr_reg));
+        } else {
+            h->add_imm(h->X_DEFAULT_ADDR, ptr_reg, offset, h->X_TMP_0);
+            h->ld1r(data_lane, ptr(h->X_DEFAULT_ADDR));
+        }
+    } else {
+        if (offset == 0) {
+            h->ld1(data_lanes, ptr(ptr_reg));
+        } else {
+            h->add_imm(h->X_DEFAULT_ADDR, ptr_reg, offset, h->X_TMP_0);
+            h->ld1(data_lanes, ptr(h->X_DEFAULT_ADDR));
+        }
+    }
+}
+} // namespace utils
+
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                                                const XReg& ptr_reg,
@@ -281,16 +307,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                                                const int32_t ptr_offset) {
     switch (src_prc) {
         case ov::element::f16: {
-            if (broadcast) {
-                if (ptr_offset == 0) {
-                    ld1r(data.h, ptr(ptr_reg));
-                } else {
-                    add_imm(ptr_reg, ptr_reg, ptr_offset, X_DEFAULT_ADDR);
-                    ld1r(data.h, ptr(ptr_reg));
-                }
-            } else {
-                ldr(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr_reg, ptr_offset));
-            }
+            utils::load_vector(data.h, data.h4, ptr_reg, ptr_offset, broadcast, this);
             break;
         }
         case ov::element::f32:
@@ -300,6 +317,18 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
             } else {
                 jit_generator::uni_ldr(data, ptr_reg, ptr_offset);
             }
+            break;
+        }
+        case ov::element::i8: {
+            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            sshll(data.h8, data.b8, 0);
+            sshll(data.s4, data.h4, 0);
+            break;
+        }
+        case ov::element::u8: {
+            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            ushll(data.h8, data.b8, 0);
+            ushll(data.s4, data.h4, 0);
             break;
         }
         default: {
@@ -317,6 +346,14 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                     }
                     case ov::element::i32: {
                         scvtf(data.s, data.s);
+                        break;
+                    }
+                    case ov::element::i8: {
+                        scvtf(data.s, data.s);
+                        break;
+                    }
+                    case ov::element::u8: {
+                        ucvtf(data.s, data.s);
                         break;
                     }
                     default:
@@ -345,6 +382,24 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
             ldr(data, Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
+        case ov::element::i8: {
+            ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+
+            // scalar is loaded, operates with vector
+            TReg vec(data.getIdx());
+            sshll(vec.h8, vec.b8, 0);
+            sshll(vec.s4, vec.h4, 0);
+            break;
+        }
+        case ov::element::u8: {
+            ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+
+            // scalar is loaded, operates with vector
+            TReg vec(data.getIdx());
+            ushll(vec.h8, vec.b8, 0);
+            ushll(vec.s4, vec.h4, 0);
+            break;
+        }
         default: {
             OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
         }
@@ -358,8 +413,13 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
                         fcvt(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
                         break;
                     }
-                    case ov::element::i32: {
+                    case ov::element::i32:
+                    case ov::element::i8: {
                         scvtf(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::SReg(data.getIdx()));
+                        break;
+                    }
+                    case ov::element::u8: {
+                        ucvtf(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::SReg(data.getIdx()));
                         break;
                     }
                     default:
@@ -390,6 +450,18 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                         fcvtns(data.s, data.s);
                         break;
                     }
+                    case ov::element::i8: {
+                        fcvtms(data.s, data.s);
+                        xtn(data.h4, data.s4);
+                        xtn(data.b8, data.h8);
+                        break;
+                    }
+                    case ov::element::u8: {
+                        fcvtmu(data.s, data.s);
+                        xtn(data.h4, data.s4);
+                        xtn(data.b8, data.h8);
+                        break;
+                    }
                     default: {
                         OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
                     }
@@ -410,6 +482,11 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
         case ov::element::f32:
         case ov::element::i32: {
             str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+            break;
+        }
+        case ov::element::i8:
+        case ov::element::u8: {
+            str(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
         default: {
@@ -436,6 +513,20 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                         fcvtns(data, data);
                         break;
                     }
+                    case ov::element::i8: {
+                        TReg vec_data(data.getIdx());
+                        fcvtms(vec_data.s, vec_data.s);
+                        xtn(vec_data.h4, vec_data.s4);
+                        xtn(vec_data.b8, vec_data.h8);
+                        break;
+                    }
+                    case ov::element::u8: {
+                        TReg vec_data(data.getIdx());
+                        fcvtmu(vec_data.s, vec_data.s);
+                        xtn(vec_data.h4, vec_data.s4);
+                        xtn(vec_data.b8, vec_data.h8);
+                        break;
+                    }
                     default: {
                         OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
                     }
@@ -458,6 +549,11 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
             str(data, Xbyak_aarch64::ptr(ptr, ptr_offset));
             break;
         }
+        case ov::element::i8:
+        case ov::element::u8: {
+            str(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+            break;
+        }
         default: {
             OPENVINO_THROW("dst_prc " + src_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
         }
@@ -476,6 +572,37 @@ template<typename T>
 struct EltwiseEmitter {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.exec_prc);
+    }
+};
+
+template<>
+struct EltwiseEmitter<jit_swish_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_swish_emitter>(ctx.host,
+                                                          ctx.host_isa,
+                                                          ctx.opData.alpha,
+                                                          ctx.exec_prc);
+    }
+};
+
+template<>
+struct EltwiseEmitter<jit_elu_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_elu_emitter>(ctx.host,
+                                                          ctx.host_isa,
+                                                          ctx.opData.alpha,
+                                                          ctx.exec_prc);
+    }
+};
+
+template<>
+struct EltwiseEmitter<jit_clamp_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host,
+                                                          ctx.host_isa,
+                                                          ctx.opData.alpha,
+                                                          ctx.opData.beta,
+                                                          ctx.exec_prc);
     }
 };
 
@@ -502,12 +629,31 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     };
 
     OV_SWITCH(intel_cpu, EltwiseEmitter, ctx, data.algo,
+    OV_CASE(Algorithm::EltwiseAbs, ov::intel_cpu::aarch64::jit_abs_emitter),
     OV_CASE(Algorithm::EltwiseAdd, ov::intel_cpu::aarch64::jit_add_emitter),
+    OV_CASE(Algorithm::EltwiseClamp, ov::intel_cpu::aarch64::jit_clamp_emitter),
+    OV_CASE(Algorithm::EltwiseDivide, ov::intel_cpu::aarch64::jit_divide_emitter),
+    OV_CASE(Algorithm::EltwiseElu, ov::intel_cpu::aarch64::jit_elu_emitter),
+    OV_CASE(Algorithm::EltwiseEqual, ov::intel_cpu::aarch64::jit_equal_emitter),
+    OV_CASE(Algorithm::EltwiseExp, ov::intel_cpu::aarch64::jit_exp_emitter),
+    OV_CASE(Algorithm::EltwiseFloor, ov::intel_cpu::aarch64::jit_floor_emitter),
+    OV_CASE(Algorithm::EltwiseHswish, ov::intel_cpu::aarch64::jit_hswish_emitter),
+    OV_CASE(Algorithm::EltwiseMaximum, ov::intel_cpu::aarch64::jit_maximum_emitter),
+    OV_CASE(Algorithm::EltwiseMinimum, ov::intel_cpu::aarch64::jit_minimum_emitter),
+    OV_CASE(Algorithm::EltwiseMish, ov::intel_cpu::aarch64::jit_mish_emitter),
+    OV_CASE(Algorithm::EltwiseGeluErf, ov::intel_cpu::aarch64::jit_gelu_erf_emitter),
+    OV_CASE(Algorithm::EltwiseGeluTanh, ov::intel_cpu::aarch64::jit_gelu_tanh_emitter),
     OV_CASE(Algorithm::EltwiseMulAdd, ov::intel_cpu::aarch64::jit_mul_add_emitter),
+    OV_CASE(Algorithm::EltwiseMod, ov::intel_cpu::aarch64::jit_mod_emitter),
     OV_CASE(Algorithm::EltwiseMultiply, ov::intel_cpu::aarch64::jit_multiply_emitter),
     OV_CASE(Algorithm::EltwisePowerStatic, ov::intel_cpu::aarch64::jit_power_static_emitter),
+    OV_CASE(Algorithm::EltwisePrelu, ov::intel_cpu::aarch64::jit_prelu_emitter),
     OV_CASE(Algorithm::EltwiseRelu, ov::intel_cpu::aarch64::jit_relu_emitter),
-    OV_CASE(Algorithm::EltwiseSubtract, ov::intel_cpu::aarch64::jit_subtract_emitter));
+    OV_CASE(Algorithm::EltwiseSelect, ov::intel_cpu::aarch64::jit_select_emitter),
+    OV_CASE(Algorithm::EltwiseSigmoid, ov::intel_cpu::aarch64::jit_sigmoid_emitter),
+    OV_CASE(Algorithm::EltwiseSubtract, ov::intel_cpu::aarch64::jit_subtract_emitter),
+    OV_CASE(Algorithm::EltwiseSwish, ov::intel_cpu::aarch64::jit_swish_emitter),
+    OV_CASE(Algorithm::EltwiseTanh, ov::intel_cpu::aarch64::jit_tanh_emitter));
 
     if (!ctx.emitter)
         OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
@@ -653,12 +799,30 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
 
     OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
         OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
+        OV_CASE(Algorithm::EltwiseAbs, jit_abs_emitter),
         OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+        OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
+        OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
+        OV_CASE(Algorithm::EltwiseElu, jit_elu_emitter),
+        OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
+        OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
+        OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
+        OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
+        OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
+        OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
+        OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
+        OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
+        OV_CASE(Algorithm::EltwiseMish, jit_mish_emitter),
+        OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
         OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
+        OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
-        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
-
+        OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter),
+        OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
+        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
+        OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
+        OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
     if (precisions.empty())
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
 

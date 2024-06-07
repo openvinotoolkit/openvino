@@ -38,6 +38,8 @@ elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
 elif machine == "aarch64" or machine == "arm64" or machine == "ARM64":
     ARCH = "arm64"
+elif machine == "riscv64":
+    ARCH = "riscv64"
 
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
@@ -277,7 +279,6 @@ class CustomBuild(build):
                 self.spawn(["cmake", "--install", binary_dir,
                                      "--prefix", prefix,
                                      "--config", CONFIG,
-                                     "--strip",
                                      "--component", cpack_comp_name])
 
     def run(self):
@@ -620,6 +621,7 @@ def find_entry_points(install_cfg):
     """Creates a list of entry points for OpenVINO runtime package."""
     entry_points = {
         "console_scripts": [],
+        "torch_dynamo_backends": ["openvino=openvino.frontend.pytorch.torchdynamo.backend:openvino"],
     }
     for comp_info in install_cfg.values():
         empty_point = comp_info.get("entry_point")

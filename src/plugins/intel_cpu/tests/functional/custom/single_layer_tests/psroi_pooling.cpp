@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "common_test_utils/node_builders/constant.hpp"
@@ -89,7 +89,7 @@ protected:
 
         ov::Shape proposalShape = {proposal.size() / 5, 5};
 
-        auto coords = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, proposalShape, proposal);
+        auto coords = std::make_shared<ov::op::v0::Constant>(ov::element::f32, proposalShape, proposal);
         ov::ParameterVector params{
             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(featureMapShape))};
 

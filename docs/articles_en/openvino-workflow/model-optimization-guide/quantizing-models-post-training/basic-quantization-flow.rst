@@ -106,7 +106,7 @@ See the `example section <#examples-of-how-to-apply-nncf-post-training-quantizat
          
 
 After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
-If you have not already installed OpenVINO developer tools, install it with ``pip install openvino-dev``.
+If you have not already installed OpenVINO developer tools, install it with ``pip install openvino``.
 
 .. tab-set::
 
@@ -192,6 +192,15 @@ Tune quantization parameters
 
        regex = '.*layer_.*'
        nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(patterns=regex))
+
+  * Exclude by subgraphs:
+
+    .. code-block:: sh
+
+       subgraph = nncf.Subgraph(inputs=['layer_1', 'layer_2'], outputs=['layer_3'])
+       nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(subgraphs=[subgraph]))
+
+    In this case, all nodes along all simple paths in the graph from input to output nodes will be excluded from the quantization process.
 
 * ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``NPU``.
 

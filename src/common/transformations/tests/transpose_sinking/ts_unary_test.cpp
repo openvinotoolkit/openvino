@@ -637,6 +637,30 @@ INSTANTIATE_TEST_SUITE_P(TSUnaryForwardMultTransposeConsumersTestSuiteFirstNode,
                          transpose_sinking::testing::unary::test_forward_multiple_consumers_first_node(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
+TEST_F(TransformationTestsF, TSUnaryForwardDynamic) {
+    {
+        auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
+        auto transpose = std::make_shared<Transpose>(X, ts_order);
+
+        auto tanh = std::make_shared<Tanh>(transpose);
+
+        model = std::make_shared<Model>(ov::OutputVector{tanh}, ov::ParameterVector{X});
+
+        manager.register_pass<TSUnaryForward>();
+    }
+    {
+        auto X = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+        auto tanh = std::make_shared<Tanh>(X);
+
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{0}, Shape{});
+        auto transpose = std::make_shared<Transpose>(tanh, ts_order);
+
+        model_ref = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+}
+
 }  // namespace unary
 }  // namespace testing
 }  // namespace transpose_sinking

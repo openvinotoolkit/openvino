@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -289,19 +289,7 @@ struct layout {
     }
 
     friend bool operator==(const layout& lhs, const layout& rhs) {
-        auto get_pshape = [&](const layout& l){
-            if (l.format != cldnn::format::any && l.size.size() < l.format.dimension()) {
-                auto dims = l.get_dims();
-                return ov::PartialShape(ov::Shape(dims.begin(), dims.end()));
-            }
-            return l.size;
-        };
-
-        if (lhs.get_partial_shape().rank() != rhs.get_partial_shape().rank())
-            return false;
-
-        auto check_pshape = (lhs.is_dynamic() || rhs.is_dynamic()) ? (lhs.size == rhs.size) : (get_pshape(lhs) == get_pshape(rhs));
-        return lhs.data_type == rhs.data_type && lhs.format == rhs.format && check_pshape && lhs.data_padding == rhs.data_padding;
+        return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size && lhs.data_padding == rhs.data_padding;
     }
 
     friend bool operator!=(const layout& lhs, const layout& rhs) {
@@ -335,6 +323,10 @@ struct layout {
 
     /// Modify padding in layout
     layout with_padding(padding const& padd) const;
+
+    bool has_dynamic_pad() const {
+        return data_padding.get_dynamic_pad_dims() != tensor(0);
+    }
 
     /// Data type stored in @ref memory (see. @ref data_types)
     ov::element::Type_t data_type;
@@ -391,7 +383,7 @@ struct layout {
 
     bool is_static() const;
 
-    ov::PartialShape get_partial_shape() const;
+    const ov::PartialShape& get_partial_shape() const;
 
     ov::Shape get_shape() const;
 
@@ -415,7 +407,7 @@ struct layout {
     bool identical(const layout& other) const;
 
     static size_t max_rank() { return 8; }
-    static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
+    static ov::PartialShape transform(const ov::PartialShape& pshape, const cldnn::format& old_fmt, const cldnn::format& new_fmt);
 
     size_t hash() const {
         size_t seed = 0;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -81,7 +81,8 @@ function(cross_compiled_file TARGET)
             ## that is arch ID
             set(_arch ${_it})
             if(_arch MATCHES ${_CURRENT_ARCH_FILTER})
-                list(APPEND _CUR_ARCH_SET ${_arch})
+                # make non/less-optimized version coming first
+                list(INSERT _CUR_ARCH_SET 0 ${_arch})
                 list(APPEND _FULL_ARCH_SET ${_arch})
             endif()
         else()

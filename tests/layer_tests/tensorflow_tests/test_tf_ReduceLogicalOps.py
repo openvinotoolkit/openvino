@@ -56,7 +56,7 @@ class TestLogicalOps(CommonTFLayerTest):
     test_data = [
         pytest.param(
             dict(input_shape=[2, 3], axis=[1]),     #Simple test
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         dict(input_shape=[2, 3, 3, 4], axis=[2]),   #Simple test with possible nchw/nhwc
     ]
 

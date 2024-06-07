@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/tensor.hpp"
@@ -20,9 +20,11 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
 
     try {
-        const auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
-        const auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
-        const auto& shape = ov::Shape(shape_vec);
+        const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
+
+        OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
+
+        const auto& shape = js_to_cpp<ov::Shape>(info, 1);
 
         if (info.Length() == 2) {
             this->_tensor = ov::Tensor(type, shape);
@@ -45,10 +47,11 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
 Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
-                       {InstanceAccessor<&TensorWrap::get_data>("data"),
+                       {InstanceAccessor<&TensorWrap::get_data, &TensorWrap::set_data>("data"),
                         InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
-                        InstanceMethod("getElementType", &TensorWrap::get_element_type)});
+                        InstanceMethod("getElementType", &TensorWrap::get_element_type),
+                        InstanceMethod("getSize", &TensorWrap::get_size)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -72,6 +75,8 @@ Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
 
 Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     auto type = _tensor.get_element_type();
+
+    OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
 
     switch (type) {
     case ov::element::Type_t::i8: {
@@ -131,10 +136,41 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     }
 }
 
+void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& value) {
+    try {
+        if (!value.IsTypedArray()) {
+            OPENVINO_THROW("Passed argument must be a TypedArray.");
+        }
+        const auto buf = value.As<Napi::TypedArray>();
+
+        if (_tensor.get_byte_size() != buf.ByteLength()) {
+            OPENVINO_THROW("Passed array must have the same size as the Tensor!");
+        }
+        const auto napi_type = buf.TypedArrayType();
+        std::memcpy(_tensor.data(get_ov_type(napi_type)), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+    }
+}
+
 Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
+    if (info.Length() > 0) {
+        reportError(info.Env(), "No parameters are allowed for the getShape() method.");
+        return info.Env().Undefined();
+    }
     return cpp_to_js<ov::Shape, Napi::Array>(info, _tensor.get_shape());
 }
 
 Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
+}
+
+Napi::Value TensorWrap::get_size(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getSize() does not accept any arguments.");
+        return env.Undefined();
+    }
+    const auto size = static_cast<double>(_tensor.get_size());
+    return Napi::Number::New(env, size);
 }

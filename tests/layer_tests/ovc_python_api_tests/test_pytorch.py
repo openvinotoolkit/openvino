@@ -1,18 +1,15 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-
+import unittest
 from typing import Tuple, List
-import numpy
+
 import numpy as np
 import openvino.runtime as ov
 import pytest
 import torch
-import unittest
-from openvino.runtime import PartialShape, Dimension, Model, Type
-from openvino.tools.mo import InputCutInfo
 from common.mo_convert_test_class import CommonMOConvertTest
+from openvino.runtime import PartialShape, Dimension, Model, Type
 
 
 class MyTorchOp(torch.autograd.Function):
@@ -747,12 +744,10 @@ def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
     cast1 = ov.opset10.convert(weights, np.float32)
-    sub1_const = np.float16(0.5).reshape(1, 1, 1, 1)
-    mul1_const = np.float16(0.02).reshape(1, 1, 1, 1)
-    sub1_const_decompress = ov.opset10.convert(sub1_const, np.float32)
-    mul1_const_decompress = ov.opset10.convert(mul1_const, np.float32)
-    sub1 = ov.opset10.subtract(cast1, sub1_const_decompress)
-    mul1 = ov.opset10.multiply(sub1, mul1_const_decompress)
+    sub1_const = np.float32(0.5).reshape(1, 1, 1, 1)
+    mul1_const = np.float32(0.02).reshape(1, 1, 1, 1)
+    sub1 = ov.opset10.subtract(cast1, sub1_const)
+    mul1 = ov.opset10.multiply(sub1, mul1_const)
     conv = ov.opset10.convolution(param1, mul1, strides=[1, 1],
                                   pads_begin=[0, 0], pads_end=[0, 0],
                                   dilations=[1, 1])
@@ -983,13 +978,13 @@ def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
             x0 = x[0]
             x0 = torch.cat([x0, torch.zeros(1, 1)], 1)
             return x0 + torch.ones((1, 1))
-    
+
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1, 1)), dtype=np.float32)
-    const_zero = ov.opset10.constant(0, dtype=np.int32)
+    const_zero = ov.opset10.constant(0, dtype=np.int64)
     constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
 
-    param =  ov.opset10.parameter(PartialShape([-1, -1, -1]), dtype=np.float32)
+    param = ov.opset10.parameter(PartialShape([-1, -1, -1]), dtype=np.float32)
     gather = ov.opset10.gather(param, const_zero, const_zero)
     concat1 = ov.opset10.concat([gather, constant_zeros1], 1)
     add = ov.opset10.add(concat1, constant_one)
@@ -998,19 +993,20 @@ def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
         "example_input": [torch.ones((1, 11))],
         "compress_to_fp16": False}
 
+
 def create_pytorch_module_with_single_input_as_list(tmp_dir):
     class PTModel(torch.nn.Module):
         def forward(self, x):
             x0 = x[0]
             x0 = torch.cat([x0, torch.zeros(1)], 0)
             return x0 + torch.ones(1)
-    
+
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1,)), dtype=np.float32)
-    const_zero = ov.opset10.constant(0, dtype=np.int32)
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, ), dtype=np.float32), dtype=np.float32)
+    const_zero = ov.opset10.constant(0, dtype=np.int64)
+    constant_zeros1 = ov.opset10.constant(np.zeros((1,), dtype=np.float32), dtype=np.float32)
 
-    param =  ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
+    param = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
     gather = ov.opset10.gather(param, const_zero, const_zero)
     concat1 = ov.opset10.concat([gather, constant_zeros1], 0)
     add = ov.opset10.add(concat1, constant_one)
@@ -1018,6 +1014,29 @@ def create_pytorch_module_with_single_input_as_list(tmp_dir):
     return net, ref_model, {
         "example_input": [torch.ones((1, 11))],
         "compress_to_fp16": False}
+
+
+def create_pytorch_module_with_nested_dict_input(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            return a["1"] * a["2"] + b
+
+    net = PTModel()
+    a1 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    a2 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    b = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    mul = ov.opset10.multiply(a1, a2)
+    add = ov.opset10.add(mul, b)
+    ref_model = Model([add], [a1, a2, b], "test")
+    return net, ref_model, {
+        "example_input": (
+            {
+            "1": torch.tensor([1, 2], dtype=torch.float32), 
+            "2": torch.tensor([3, 4], dtype=torch.float32)
+            }, 
+            torch.tensor([5, 6], dtype=torch.float32)
+        )}
+
 
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
@@ -1070,7 +1089,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_module_with_nested_inputs5,
         create_pytorch_module_with_nested_inputs6,
         create_pytorch_module_with_nested_list_and_single_input,
-        create_pytorch_module_with_single_input_as_list
+        create_pytorch_module_with_single_input_as_list,
+        create_pytorch_module_with_nested_dict_input
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
@@ -1182,6 +1202,7 @@ def create_model_three_inputs():
         def forward(self, x, y, z):
             out = self.linear_relu_stack(x + y + z),
             return out
+
     return NeuralNetwork()
 
 
@@ -1208,13 +1229,12 @@ def make_ref_model_three_inputs(shape, dtype=np.float32):
 
 
 class TestPytorchConversionParams(CommonMOConvertTest):
-
     test_data = [
         {'params_test': {'input': [(torch.Size([2, 3, 4]), torch.float32),
                                    (torch.empty(2, 3, 4).size(), torch.float32),
                                    (torch.empty(2, 3, 4).shape, torch.float32)]},
          'fw_model': create_model_three_inputs(),
-         'ref_model': make_ref_model_three_inputs([2,3,4], np.float32)},
+         'ref_model': make_ref_model_three_inputs([2, 3, 4], np.float32)},
         {'params_test': {'input': [(torch.Size([5, 2]), torch.int32),
                                    (torch.empty(5, 2).size(), torch.int32),
                                    (torch.empty(5, 2).shape, torch.int32)]},
@@ -1231,7 +1251,7 @@ class TestPytorchConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_legacy_frontend):
+                               temp_dir, use_legacy_frontend):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']

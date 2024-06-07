@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,11 +93,8 @@ enum WeightsLayout {
     oxiy,
     iyxo,
     yxio,
-    o_is_yx_isv2,
     o_is_yx_isv4,
     o_is_yx_isv16,
-    o_is_zyx_isv16,
-    os_yxi_osv16,
     os_iyx_osv16,
     os_iyx_osv32,
     os_iyx_osv8,
@@ -106,12 +103,7 @@ enum WeightsLayout {
     os_is_zyx_isv16_osv16,
     is_os_zyx_isv16_osv16,
     is_os_yx_isv16_osv16,
-    is_os_yx_isv16_osv8,
-    is_os_yx_isv16_osv4,
-    is_os_yx_isv16_osv2,
-    os_is_zyx_isa8_osv16_isv2,  // aligned
     os_is_zyx_isv8_osv16_isv2,
-    os_is_yx_isa8_osv16_isv2,   // aligned
     os_is_yx_isv8_osv16_isv2,
     os_is_yx_isv16_osv16,
     os_zyxi_osv16,
@@ -119,8 +111,8 @@ enum WeightsLayout {
     os_i_osv8__ai8,  // TODO can we drop the alignment form layout name?
     os_i_osv16__ai8,
     os_i_osv16,
-    os_is_yx_osv16_isv2,
     os_is_yx_osv16_isv16,           // weights for int8 blocked conv
+    os_is_yx_osv32_isv2,            // weights for fully connected kernels with int4 compressed data type
     os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
@@ -141,72 +133,18 @@ enum WeightsLayout {
     os_is_yx_isa8_osv16_isv4,                // for fully connected MMAD
     os_is_zyx_isa8_osv16_isv4,               // for fully connected MMAD
     os_is_yx_osa4_isa8_osv8_isv4,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-    is_os_yx_isa4_osa8_isv8_osv4,            // for onednn deconvolution
-    is_os_yx_osa4_isa8_osv8_isv4,
-    g_os_is_yx_osa2_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-    g_os_is_yx_osa4_isa8_osv8_isv4,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-    g_os_is_zyx_osa4_isa8_osv8_isv4,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-    g_os_is_zyx_isa8_osv8_isv2,
-    g_os_is_zyx_isa8_osv8_isv4,
-    os_is_yx_osa4_isa8_osv8_isv2,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-    os_is_zyx_osa4_isa8_osv8_isv2,           // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     os_is_zyx_osa4_isa8_osv8_isv4,           // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-    g_os_is_yx_osa4_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-    g_os_is_zyx_osa4_isa8_osv8_isv2,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-    os_is_yx_osa2_isa8_osv8_isv2,
-    os_is_zyx_osa2_isa8_osv8_isv2,
-    os_is_yx_osa2_isa8_osv16_isv4,
-    os_is_yx_osa2_isa8_osv16_isv2,
-    os_is_zyx_isa8_osv8_isv2,
-    is_os_zyx_isa8_osv8_isv2,
-    is_os_zyx_isa8_osv8_isv4,
-    os_is_yx_isa8_osv8_isv2,
-    is_os_yx_isa8_osv8_isv2,
-    is_os_yx_isa8_osv8_isv4,
-    is_os_yx_osv8_isv4,
-    is_os_yx_osa8_isv16_osv4,
-    is_os_yx_isa2_osa8_isv8_osv2,
-    g_os_is_yx_osa2_isa8_osv16_isv4,
-    g_os_is_yx_osa2_isa8_osv16_isv2,
     os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                                  // 1,5...
     os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                                   // 1,5...
-    os_is_yx_isa8_osv8_isv4_swizzled_by_4,   // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-                                             // 1,5...
-    is_o_yx_isv32,                           // for MMAD 1x1 convolutions
-    is_o32_yx_isv32_swizzled_by_4,  // for MMAD 1x1 convolutions swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28, 1,5...
-    os_is_y_x8_osv8_isv4,           // for MMAD convolutions
-    os_is_y_x8_osv8_isv4_swizzled_by_4,  // for MMAD 1x1 convolutions swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-                                         // 1,5...
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
     os_is_yx_osv8_isv4,                      // weights for int8 blocked conv
-    os_is_zyx_osv8_isv4,                     // weights for int8 blocked 3d conv
-    os_is_yx_osv8_isv2,                      // weights for int8 blocked conv
-    os_is_zyx_osv8_isv2,                     // weights for int8 blocked 3d conv
     os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzled ofm (0, 2, 4..), (1, 3, 5...)
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
     os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
-    os_is_yx_osv2_isv4,
-    os_is_yx_osv2_isv16,
-    os_is_yx_osv2_isv32,
-    os_is_yx_osv4_isv16,
-    os_is_yx_osv8_isv16,
-    os_is_yx_osv4_isv2,
     oizyx,
     iozyx,
-    os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
-    os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
-    os_y_is_x_osv8_isv2,
-    os_y_is_x_osv8_isv4,
-    os_y_is_x_osv16_isv4,
-    os_yx_is_osv8_isv2,
-    os_yx_is_osv8_isv4,
-    os_yx_is_osv16_isv2,
-    os_zyx_is_osv8_isv2,
-    os_zyx_is_osv8_isv4,
-    os_zy_is_x_osv8_isv2,
-    os_zy_is_x_osv8_isv4,
     goiyx,
     gioyx,
     goizyx,
@@ -215,25 +153,16 @@ enum WeightsLayout {
     g_os_iyx_osv8,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
-    gs_oiyx_gsv8,
-    gs_oizyx_gsv8,
     gs_oiyx_gsv16,
     gs_oizyx_gsv16,
     gs_oiyx_gsv32,
-    gs_oizyx_gsv32,
     g_os_iyx_osv16_rotate_180,
     gi_yxs_os_yxsv2_osv16,
     g_is_os_zyx_isv16_osv16,
     g_is_os_yx_isv16_osv16,
-    g_os_is_yx_isa8_osv8_isv2,
-    g_os_is_yx_isa8_osv8_isv4,
     g_os_is_zyx_isv8_osv16_isv2,
     g_os_is_yx_isv8_osv16_isv2,
     g_os_is_zyx_isv16_osv16,
-    g_os_zy_is_x_osv8_isv2,
-    g_os_zy_is_x_osv8_isv4,
-    g_os_zyx_is_osv8_isv2,
-    g_os_zyx_is_osv8_isv4,
     g_os_is_zyx_osv16_isv16,
     giy_xs_os_xsv2_osv16__ao32,
     giy_xs_os_xsv2_osv8__ao32,
@@ -241,8 +170,6 @@ enum WeightsLayout {
     gs_oi_yxs_gsv4_yxsv4,                // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv4 format)
     gs_oi_yxs_gsv16_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv16 format)
     gs_oi_yxs_gsv32_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv32 format)
-    g_os_is_yx_osv8_isv2,
-    g_os_is_yx_osv8_isv4,
     g_os_is_yx_osv16_isv4,
 
     g_os_zyx_is_osv16_isv4,
@@ -251,12 +178,6 @@ enum WeightsLayout {
     g_os_zyx_is_osv32_isv4,
     g_os_zyx_is_osv32_isv16,
     g_os_zyx_is_osv32_isv32,
-
-    g_os_yx_is_osv8_isv2,
-    g_os_yx_is_osv8_isv4,
-    g_os_yx_is_osv16_isv2,
-    g_os_y_is_x_osv8_isv2,
-    g_os_y_is_x_osv8_isv4,
 
     WeightsLayoutCount                   // NUMBER OF ELEMENTS IN ENUM
 };
@@ -542,6 +463,10 @@ public:
         return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.is_dynamic; });
     }
 
+    bool has_dynamic_pad() const {
+        return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.pad.is_dynamic; });
+    }
+
     virtual ~TensorBase() = default;
 };
 
@@ -551,8 +476,8 @@ public:
 template <typename DType, typename Layout>
 struct TensorBaseT : public TensorBase {
 protected:
-    DType dtype;
-    Layout layout;
+    DType dtype = DType();
+    Layout layout = Layout();
 
     template <typename ArrayT, typename ChannelName>
     static inline int ChannelIndex(const ArrayT& channelArr, Layout l, ChannelName channelName) {

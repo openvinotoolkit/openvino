@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
                                                     ov::device::properties,
                                                     ov::hint::model_priority,
                                                     ov::loaded_from_cache,
-                                                    ov::intel_auto::schedule_policy};
+                                                    ov::intel_auto::schedule_policy,
+                                                    ov::enable_profiling};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -63,6 +64,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return decltype(ov::supported_properties)::value_type(supported_properties);
+    } else if (name == ov::enable_profiling) {
+        return m_context->m_need_perf_counters;
     } else if (name == ov::hint::performance_mode) {
         return m_context->m_performance_hint;
     } else if (name == ov::intel_auto::schedule_policy) {

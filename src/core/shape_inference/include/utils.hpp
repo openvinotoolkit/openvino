@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -204,21 +204,21 @@ template <class TShape,
           class TRes = std::vector<TData>,
           class UnaryOperation = ov::util::Cast<TData>,
           typename std::enable_if<!std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
-std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
-                                              size_t idx,
-                                              const ITensorAccessor& tensor_accessor,
-                                              UnaryOperation&& func = ov::util::Cast<TData>()) {
+ov::optional<TRes> get_input_const_data_as(const ov::Node* op,
+                                           size_t idx,
+                                           const ITensorAccessor& tensor_accessor,
+                                           UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = tensor_accessor(idx)) {
-        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))));
+        return {get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))};
     } else {
         const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
-        return std::unique_ptr<TRes>(new TRes(get_raw_data_as<TData, TRes>(et,
-                                                                           constant->get_data_ptr(),
-                                                                           shape_size(shape),
-                                                                           std::forward<UnaryOperation>(func))));
+        return {get_raw_data_as<TData, TRes>(et,
+                                             constant->get_data_ptr(),
+                                             shape_size(shape),
+                                             std::forward<UnaryOperation>(func))};
     }
 }
 
@@ -245,20 +245,20 @@ template <class TShape,
           class TRes = std::vector<TData>,
           class UnaryOperation = ov::util::Cast<TData>,
           typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
-std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
-                                              size_t idx,
-                                              const ITensorAccessor& tensor_accessor,
-                                              UnaryOperation&& func = ov::util::Cast<TData>()) {
+ov::optional<TRes> get_input_const_data_as(const ov::Node* op,
+                                           size_t idx,
+                                           const ITensorAccessor& tensor_accessor,
+                                           UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = tensor_accessor(idx)) {
-        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))));
+        return {get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))};
     } else if (const auto& constant =
                    (idx < op->get_input_size()) ? ov::util::get_constant_from_source(op->input_value(idx)) : nullptr) {
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
-        return std::unique_ptr<TRes>(new TRes(get_raw_data_as<TData, TRes>(et,
-                                                                           constant->get_data_ptr(),
-                                                                           shape_size(shape),
-                                                                           std::forward<UnaryOperation>(func))));
+        return {get_raw_data_as<TData, TRes>(et,
+                                             constant->get_data_ptr(),
+                                             shape_size(shape),
+                                             std::forward<UnaryOperation>(func))};
     } else {
         return {};
     }

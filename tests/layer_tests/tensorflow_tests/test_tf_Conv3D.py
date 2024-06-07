@@ -67,9 +67,9 @@ class TestConv3D(CommonTFLayerTest):
         dict(input_shape=[1, 10, 10, 20, 3], input_filter=[2, 4, 2, 3, 3], input_strides=[1, 2, 2, 2, 1],
              dilations=[1, 2, 2, 2, 1]),
         pytest.param(
-            dict(input_shape=[1, 224, 224, 224, 3], input_filter=[1, 2, 3, 3, 2], input_strides=[1, 2, 2, 2, 1],
+            dict(input_shape=[1, 24, 24, 24, 3], input_filter=[1, 2, 3, 3, 2], input_strides=[1, 2, 2, 2, 1],
                  dilations=None),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
     ]
 
     @pytest.mark.parametrize("params", test_data)
@@ -77,6 +77,8 @@ class TestConv3D(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_conv3d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("Unable to convert data format b_fs_zyx_fsv16 to weights format issue on GPU")
         self._test(*self.create_conv3d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version,
                                                              use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir,

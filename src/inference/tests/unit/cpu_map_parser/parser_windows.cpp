@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,10 @@ namespace {
 #if defined(_WIN32)
 
 int Hex2Int(char c) {
-    return (c >= '0' && c <= '9')
-               ? (c) - '0'
-               : (c >= 'A' && c <= 'F') ? (c) - 'A' + 10 : (c >= 'a' && c <= 'f') ? (c) - 'a' + 10 : 0;
+    return (c >= '0' && c <= '9')   ? (c) - '0'
+           : (c >= 'A' && c <= 'F') ? (c) - 'A' + 10
+           : (c >= 'a' && c <= 'f') ? (c) - 'a' + 10
+                                    : 0;
 }
 
 void Hex2Bin(const char* hex, std::size_t sz, char* out) {

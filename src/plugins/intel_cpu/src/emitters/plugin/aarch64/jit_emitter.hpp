@@ -66,8 +66,8 @@ protected:
     size_t get_max_vecs_count() const;
     int32_t get_vec_length() const;
 
-    mutable std::vector<uint32_t> aux_vec_idxs;
-    mutable std::vector<uint32_t> aux_gpr_idxs;
+    mutable std::vector<size_t> aux_vec_idxs;
+    mutable std::vector<size_t> aux_gpr_idxs;
 
     dnnl::impl::cpu::aarch64::jit_generator* h;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa_;
@@ -141,10 +141,11 @@ protected:
     }
 
 private:
+    mutable std::vector<size_t> preserved_vec_idxs;
     mutable std::vector<size_t> preserved_gpr_idxs;
 
     // General-purpose Registers
-    static const std::vector<uint32_t> store_gpr_regs;
+    static const std::vector<size_t> store_gpr_regs;
 
     size_t table_off(const std::string& key, const size_t key_off_val_shift = 0) const {
         // assumption: all table entries sharing the same key also
@@ -156,6 +157,8 @@ private:
         return te.off + key_off_val_shift * scale;
     }
 
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+
     static inline size_t get_asimd_vectors_count() {
         return 32;
     }
@@ -163,6 +166,14 @@ private:
     inline int32_t get_gpr_length() const {
         return h->x0.getBit() / 8;
     }
+
+    void store_context(const std::vector<size_t>& gpr_regs,
+                       const std::vector<size_t>& vec_regs,
+                       const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
+
+    void restore_context(const std::vector<size_t>& gpr_regs,
+                         const std::vector<size_t>& vec_regs,
+                         const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
 };
 
 }   // namespace aarch64

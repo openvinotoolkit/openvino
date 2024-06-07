@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -39,7 +39,6 @@ class TestSqueeze(PytorchLayerTest):
             pytest.xfail(reason="export fails if dim is not provided")
         self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=dynamic_shapes)
 
-    @pytest.mark.xfail(reason='OpenVINO squeeze does not support dimension is not equal to 1.')
     @pytest.mark.parametrize("dim", [-1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit

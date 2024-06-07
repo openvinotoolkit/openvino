@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,6 +80,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         auto parameters = std::make_shared<ParameterVector>();
         auto tensor_map = std::make_shared<TensorMap>();  // tensor map of the current context
         auto mutated_tensors = std::make_shared<std::set<size_t>>();
+        std::vector<size_t> inserted_params;
 
         if (input_model) {
             // When we have input model we should use its inputs order to create Parameters
@@ -128,6 +129,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
                 auto input = raw_inputs.at(i);
+                // If inputs are inlined (possible only for fx decoder) we shouldn't add a Parameter for it
+                if (input == 0 && node->is_input_inlined(i)) {
+                    continue;
+                }
                 if (tensor_map->find(input) == tensor_map->end()) {
                     // Input refers value in the outer scope, need to create a new Parameter in the current scope
                     // Linkage to external scope will be performed on the level of the parent operation (if or loop)
@@ -143,6 +148,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     // set name of parameter to the index of node in the model
                     encode_tensor_name(parameter->output(0), input);
                     parameters->push_back(parameter);
+                    inserted_params.push_back(input);
                 }
             }
             auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, mutated_tensors, this);
@@ -150,12 +156,16 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             m_op_statistics[context.get_op_type()]++;
             auto converted_outputs = convert_node(context);
 
-            auto fw_outputs = node->outputs();
+            const auto& fw_outputs = node->outputs();
             // Ops with subgraphs or with mutated inputs may have more outputs after conversion compared to pytorch ones
             FRONT_END_OP_CONVERSION_CHECK(fw_outputs.size() <= converted_outputs.size(),
                                           "Number of ",
                                           context.get_op_type(),
-                                          " outputs greater then number of converted outputs.");
+                                          " outputs greater than number of converted outputs, which are",
+                                          fw_outputs.size(),
+                                          " and ",
+                                          converted_outputs.size(),
+                                          " respectively.");
 
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
@@ -246,7 +256,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                         tensor_id,
                                         " doesn't exist in tensor map.");
                 // model input was mutated we need to make a result for it
-                auto mutated_tensor = tensor_map->at(tensor_id);
                 // empty external_tensor_map means this is main body of the model and we don't want to create
                 // additional outputs in that case.
                 if (!external_tensor_map.empty()) {
@@ -256,6 +265,19 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             } else {
                 OPENVINO_DEBUG << "Mutated tensor with id " << tensor_id << " doesn't exist in inputs, skipping.";
             }
+        }
+        if (!external_tensor_map.empty()) {
+            // for internal bodies we want to remove all extra inputs that were created, but not used
+            parameters->erase(std::remove_if(parameters->begin(),
+                                             parameters->end(),
+                                             [&](std::shared_ptr<v0::Parameter> p) {
+                                                 auto tensor_id = decode_tensor_name(p);
+                                                 return p->output(0).get_target_inputs().empty() &&
+                                                        std::find(inserted_params.begin(),
+                                                                  inserted_params.end(),
+                                                                  tensor_id) != inserted_params.end();
+                                             }),
+                              parameters->end());
         }
         resulting_model = std::make_shared<Model>(results, *parameters);
         // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph

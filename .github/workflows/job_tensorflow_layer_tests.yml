@@ -1,0 +1,168 @@
+name: TensorFlow Layer Tests
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      shell:
+        description: "shell to override the default shell settings in the runner's operating system."
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  TensorFlow_Layer_Tests:
+    name: TensorFlow Layer Tests
+    timeout-minutes: 30
+    runs-on: ${{ inputs.runner }}
+    container: ${{ fromJSON(inputs.container) }}
+    defaults:
+      run:
+        shell: ${{ inputs.shell }}
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Download OpenVINO tokenizers extension
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        if: runner.os != 'Windows'
+        run: |
+          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages (Linux, macOS)
+        if: runner.os != 'Windows'
+        run: |
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+          popd
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+          popd
+
+      - name: Extract OpenVINO packages (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            Expand-Archive openvino_package.zip -DestinationPath ${{ env.INSTALL_DIR }}
+          popd
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
+          popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
+          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
+          self-hosted-runner: ${{ runner.os == 'Linux' }}
+
+      #
+      # Tests
+      #
+
+      - name: Install OpenVINO Python wheels (Linux and macOS)
+        if: runner.os != 'Windows'
+        run: |
+          # Install the core OV wheel
+          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+
+          # Install the core OV Tokenizers wheel
+          python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
+
+      - name: Install OpenVINO Python wheels (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Find and install the core OV wheel
+          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\tools -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+
+          # Find and install the core OV Tokenizers wheel
+          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }} -Filter openvino_tokenizers-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+
+      - name: Install Python Layer tests dependencies
+        run: |
+          # To enable pytest parallel features
+          python3 -m pip install pytest-xdist[psutil]
+          # layer test requirements
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+
+      #
+      # Tests
+      #
+
+      - name: TensorFlow 1 Layer Tests - TF FE
+        if: fromJSON(inputs.affected-components).TF_FE.test
+        run: |
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow 2 Layer Tests - TF FE
+        if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' # Ticket: 123322
+        run: |
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-python-tf-layers
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'

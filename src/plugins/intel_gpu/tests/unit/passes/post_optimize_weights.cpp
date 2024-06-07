@@ -167,3 +167,32 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
         ASSERT_EQ(weights_mem[i], expected[i]);
     }
 }
+
+TEST(post_optimize_weights, fuse_only_with_supported_weights_layout) {
+    // This test case checks that the reorder node is not fused with unsupported weights layout such as b_fs_yx_fsv16.
+    //    - Previous : When the weight layout which is a reorder node, is b_fs_yx_fsv16, fusing was attempted but the program terminates.
+    //    - Current : If the layout format is not supported, do not fuse and the program won't terminate.
+    //
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });
+    auto weights = engine.allocate_memory({{ 2, 32 }, data_types::f32, format::b_fs_yx_fsv16 });
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        input_layout("weights", weights->get_layout()),
+        reorder("reorder", input_info("weights"), format::bfyx, data_types::f16),
+        fully_connected("fc", input_info("input"), { "reorder" }, "", data_types::f16)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+
+    ASSERT_TRUE(has_node(*prog, "reorder"));
+}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,6 +104,9 @@ const auto planar_5D = CPUSpecificParams{{ncdhw}, {ncdhw}, {}, "unknown"};
 
 const auto planarChannels_4D = CPUSpecificParams{{nhwc}, {nhwc}, {}, "ref"};
 const auto planarChannels_5D = CPUSpecificParams{{ndhwc}, {ndhwc}, {}, "ref"};
+
+const auto planarChannels_inplace_4D = CPUSpecificParams{{nhwc}, {nhwc}, {}, "unknown"};
+const auto planarChannels_inplace_5D = CPUSpecificParams{{ndhwc}, {ndhwc}, {}, "unknown"};
 
 const auto blocked8_4D = CPUSpecificParams{{nChw8c}, {nChw8c}, {}, "unknown"};
 const auto blocked8_5D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {}, "unknown"};
@@ -810,6 +813,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_inPlace,
                                             ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                          ConcatLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_CPU_planarChannels_inplace_4D_static,
+                         ConcatLayerCPUTest,
+                         ::testing::Combine(::testing::Values(1),
+                                            ::testing::Values(static_shapes_to_test_representation({{1, 32, 1, 1},
+                                                                                                    {1, 32, 1, 1}})),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(planarChannels_inplace_4D)),
+                         ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_CPU_planarChannels_inplace_4D_sp_w_static,
+                         ConcatLayerCPUTest,
+                         ::testing::Combine(::testing::Values(2),
+                                            ::testing::Values(static_shapes_to_test_representation({{1, 1, 32, 32},
+                                                                                                    {1, 1, 32, 32}})),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(planarChannels_inplace_4D)),
+                         ConcatLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_CPU_planarChannels_inplace_5D_static,
+                         ConcatLayerCPUTest,
+                         ::testing::Combine(::testing::Values(1),
+                                            ::testing::Values(static_shapes_to_test_representation({{1, 32, 1, 1, 1},
+                                                                                                    {1, 32, 1, 1, 1}})),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(planarChannels_inplace_5D)),
+                         ConcatLayerCPUTest::getTestCaseName);
 }  // namespace
 
 }  // namespace test

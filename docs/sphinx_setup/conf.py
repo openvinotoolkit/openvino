@@ -1,25 +1,17 @@
 # Configuration file for the Sphinx documentation builder.
 #
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
+# For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-# -- Path setup --------------------------------------------------------------
+# -- Project information -----------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
 import os
-import sys
 import json
 import shutil
 from sphinx.util import logging
 from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
-
-
-# -- Project information -----------------------------------------------------
 
 project = 'OpenVINO™'
 copyright = '2024, Intel®'
@@ -29,27 +21,34 @@ language = 'en'
 version_name = 'nightly'
 
 # -- General configuration ---------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
 extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
-    'sphinx_panels',
     'sphinx_design',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'openvino_custom_sphinx_sitemap',
     'myst_parser',
     'breathe'
-]
+    ]
+
+try:
+    import openvino
+except ImportError:
+    autodoc_mock_imports = ["openvino"]
 
 breathe_projects = {
     "openvino": "../xml/"
 }
 
 myst_enable_extensions = ["colon_fence"]
+myst_heading_anchors = 4
+suppress_warnings = [
+    'misc.highlighting_failure',
+    'myst.xref_missing'
+    ]
 
 source_suffix = {
     '.rst': 'restructuredtext',
@@ -58,7 +57,7 @@ source_suffix = {
 
 html_baseurl = 'https://docs.openvino.ai/canonical/'
 
-# -- Sitemap configuration ---------------------------
+# -- Sitemap configuration ---------------------------------------------------
 
 sitemap_url_scheme = "{link}"
 site_url = f'https://docs.openvino.ai/{version_name}/'
@@ -76,8 +75,8 @@ ov_sitemap_meta = [
     })
 ]
 
-# ----------------------------------------------------
 
+# ----------------------------------------------------
 
 html_favicon = '_static/favicon.ico'
 autodoc_default_flags = ['members']
@@ -95,34 +94,37 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-
 panels_add_bootstrap_css = False
 
 # -- Options for HTML output -------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
-html_theme = "openvino_sphinx_theme"
+html_theme = 'openvino_sphinx_theme'
 
 html_theme_path = ['_themes']
+
 
 html_theme_options = {
     "navigation_depth": 8,
     "show_nav_level": 2,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
-    "footer_items": ["footer_info"],
+    # "footer_items": ["footer_info"],
     "show_prev_next": False,
 }
 
 snippet_root = os.getenv("SNIPPET_ROOT", "")
 
+html_sidebars = {
+    "**": ["search-field.html", "sidebar-nav-bs.html", "sidebar-ethical-ads.html"]
+}
+
 html_context = {
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
     'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
-    'doxygen_snippet_root': snippet_root
+    'doxygen_snippet_root': snippet_root,
+    'default_mode': 'light'
 }
 
 repositories = {
@@ -159,7 +161,7 @@ repositories = {
 }
 
 try:
-    doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
+    doxygen_mapping_file = os.path.dirname(os.getcwd()) + '/mapping.json'
     with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
         doxygen_mapping_file = json.load(f)
 except JSONDecodeError:
@@ -172,9 +174,36 @@ except FileNotFoundError:
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+html_css_files = [
+    'css/custom.css',
+    'css/openvino_sphinx_theme.css',
+    'css/button.css',
+    'css/input.css',
+    'css/textfield.css',
+    'css/tabs.css',
+    'css/coveo_custom.css',
+    'https://static.cloud.coveo.com/atomic/v2/themes/coveo.css',
+    'https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css',
+]
+
+html_js_files = [
+    'https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js',
+    'js/openvino_sphinx_theme.js',
+    'js/splide.min.js',
+    'js/sortable_tables.js',
+    'js/graphs.js',
+    'js/gsearch.js',
+    'js/hide_banner.js',
+    'js/newsletter.js',
+    'js/open_sidebar.js',
+    'js/papaparse.min.js',
+    'js/viewer.min.js',
+    'js/custom.js',
+    'js/modern.js',
+]
+
 # monkeypatch sphinx api doc to prevent showing inheritance from object and enum.Enum
 add_line = ClassDocumenter.add_line
-
 
 def add_line_no_base_object(self, line, *args, **kwargs):
     if line.strip() in ['Bases: :class:`object`', 'Bases: :class:`enum.Enum`']:
@@ -198,11 +227,6 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
     return name in exclude_pyapi_methods
 
 
-shutil.copy("../../../docs/home.rst",".")
-
-def replace_index_with_redirect(app,exception):
-    shutil.copy("../../../docs/index.html","../_build/index.html")
-
 def replace_design_tabs_script(app, exception):
     shutil.copy("../../../docs/sphinx_setup/_static/design-tabs.js","../_build/_static/design-tabs.js")
 
@@ -213,10 +237,4 @@ def setup(app):
                          doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
     app.connect('autodoc-skip-member', autodoc_skip_member)
-    app.connect('build-finished',replace_index_with_redirect)
-    app.connect('build-finished', replace_design_tabs_script)
-    app.add_js_file('js/custom.js')
-    app.add_js_file('js/graphs.js')
-    app.add_js_file('js/newsletter.js')
-    app.add_js_file('js/graphs_ov_tf.js')
-    app.add_js_file('js/open_sidebar.js')
+    # app.connect('build-finished', replace_design_tabs_script)

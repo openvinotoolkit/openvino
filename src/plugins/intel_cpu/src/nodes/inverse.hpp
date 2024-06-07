@@ -41,31 +41,22 @@ private:
     bool m_const_input = false;
 
     /// General algorithm variables
-    ov::element::Type m_input_precision;
+    ov::element::Type m_input_precision = ov::element::f32;
 
     size_t m_side = 0;
     size_t m_side_squared = 0;
     size_t m_batches_count = 0;
 
     // Helper functions
-    template <typename T>
     void inverse();
 
-    template <typename T>
-    void lu_decomposition(const T* data, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, bool& sign, size_t b);
+    void lu_decomposition(const float* data,
+                          std::vector<float>& L,
+                          std::vector<float>& U,
+                          std::vector<size_t>& P,
+                          size_t b);
 
-    template <typename T>
-    void to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b);
-
-    template <typename T>
-    void lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column);
-
-    template <typename T>
-    struct InverseExecute {
-        void operator()(Inverse* node) {
-            node->inverse<T>();
-        }
-    };
+    void lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b);
 };
 
 }  // namespace node

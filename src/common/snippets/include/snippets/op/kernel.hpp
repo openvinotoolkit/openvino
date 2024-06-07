@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ public:
 
     static std::shared_ptr<Kernel> make_kernel(const lowered::LinearIR& region);
 
-    lowered::LinearIR region;
+    std::shared_ptr<lowered::LinearIR> region;
     const void *compile_params = nullptr;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ Output<Node> pairwise_distance(const NodeContext& context,
     auto p_plus_eps = context.mark_node(std::make_shared<v1::Add>(p, eps));
     auto inv_p = context.mark_node(std::make_shared<v1::Divide>(one, p_plus_eps));
     auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-    align_eltwise_input_types(context, x, y, true);
+    align_eltwise_input_types(context, x, y, is_python_scalar_input(context, 0), is_python_scalar_input(context, 1));
     auto x_y_diff = context.mark_node(std::make_shared<v1::Subtract>(x, y));
     auto x_y_diff_in_p_power = context.mark_node(std::make_shared<v1::Power>(x_y_diff, p));
     auto summation = context.mark_node(std::make_shared<v1::ReduceSum>(x_y_diff_in_p_power, minus_one, keepdim));

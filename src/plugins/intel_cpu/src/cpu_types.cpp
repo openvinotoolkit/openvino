@@ -2,12 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
+#include "cpu_shape.h"
 
 #include <string>
-#include <vector>
+#include <sstream>
 
 namespace ov {
 namespace intel_cpu {
+
+std::string dim2str(Dim dim) {
+    return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
+}
+
+std::string dims2str(const VectorDims& dims) {
+    std::stringstream output;
+    output << "{";
+
+    if (!dims.empty()) {
+        auto itr = dims.begin();
+        do {
+            output << dim2str(*itr);
+        } while (++itr != dims.end() && output << ", ");
+    }
+
+    output << "}";
+    return output.str();
+}
 
 using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;
 
@@ -96,6 +116,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Slice", Type::StridedSlice},
         {"Tile", Type::Tile},
         {"ROIAlign", Type::ROIAlign},
+        {"ROIAlignRotated", Type::ROIAlignRotated},
         {"ROIPooling", Type::ROIPooling},
         {"PSROIPooling", Type::PSROIPooling},
         {"DeformablePSROIPooling", Type::PSROIPooling},
@@ -142,8 +163,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ReduceSumSquare", Type::Reduce},
         {"Broadcast", Type::Broadcast},
         {"EmbeddingSegmentsSum", Type::EmbeddingSegmentsSum},
-        {"EmbeddingBagPackedSum", Type::EmbeddingBagPackedSum},
-        {"EmbeddingBagOffsetsSum", Type::EmbeddingBagOffsetsSum},
+        {"EmbeddingBagPackedSum", Type::EmbeddingBagPacked},
+        {"EmbeddingBagOffsetsSum", Type::EmbeddingBagOffsets},
         {"Gather", Type::Gather},
         {"GatherElements", Type::GatherElements},
         {"GatherND", Type::GatherND},
@@ -166,7 +187,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ceiling", Type::Math},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
-        {"Floor", Type::Math},
+        {"Floor", Type::Eltwise},
         {"HardSigmoid", Type::Math},
         {"If", Type::If},
         {"Neg", Type::Math},
@@ -217,7 +238,12 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ngram", Type::Ngram},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
+        {"PagedAttentionExtension", Type::PagedAttention},
         {"RoPE", Type::RoPE},
+        {"GatherCompressed", Type::Gather},
+        {"CausalMaskPreprocess", Type::CausalMaskPreprocess},
+        {"EmbeddingBagPacked", Type::EmbeddingBagPacked},
+        {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
     };
     return type_to_name_tbl;
 }
@@ -257,6 +283,7 @@ std::string NameFromType(const Type type) {
         CASE(NonZero);
         CASE(Tile);
         CASE(ROIAlign);
+        CASE(ROIAlignRotated);
         CASE(ROIPooling);
         CASE(PSROIPooling);
         CASE(DepthToSpace);
@@ -286,6 +313,8 @@ std::string NameFromType(const Type type) {
         CASE(Reduce);
         CASE(Broadcast);
         CASE(EmbeddingSegmentsSum);
+        CASE(EmbeddingBagPacked);
+        CASE(EmbeddingBagOffsets);
         CASE(EmbeddingBagPackedSum);
         CASE(EmbeddingBagOffsetsSum);
         CASE(Gather);
@@ -335,7 +364,9 @@ std::string NameFromType(const Type type) {
         CASE(Unique);
         CASE(Ngram);
         CASE(ScaledDotProductAttention);
+        CASE(PagedAttention);
         CASE(RoPE);
+        CASE(CausalMaskPreprocess);
         CASE(Unknown);
     }
 #undef CASE
@@ -363,6 +394,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseMultiply);
         CASE(EltwiseSubtract);
         CASE(EltwiseDivide);
+        CASE(EltwiseFloor);
         CASE(EltwiseFloorMod);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);

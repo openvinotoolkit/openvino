@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_NPU}
-
 NPU Device
 ==========
 
@@ -13,27 +11,23 @@ Intel® Core™ Ultra generation of CPUs (formerly known as Meteor Lake). It ena
 you to offload certain neural network computation tasks from other devices,
 for more streamlined resource management.
 
-Note that the NPU plugin is currently available only with the Archive distribution of OpenVINO™
-and you need to :doc:`install a proper NPU driver <../../../get-started/configurations/configurations-intel-npu>`
-to use it successfully.
+NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
 | **Supported Platforms:**
 |   Host: Intel® Core™ Ultra (former Meteor Lake)
 |   NPU device: NPU 3720
-|   OS: Ubuntu* 22.04 (with Linux kernel 6.6+), MS Windows* 11 (both 64-bit)
+|   OS: Ubuntu* 22.04 64-bit (with Linux kernel 6.6+), MS Windows* 11 64-bit (22H2, 23H2)
+
+NPU Plugin needs an NPU Driver to be installed on the system for both compiling and executing a model.
+Follow the instructions below to install the latest NPU drivers:
+* Windows driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
+* Linux driver: https://github.com/intel/linux-npu-driver/releases
 
 
-| **Supported Inference Data Types**
-| The NPU plugin supports the following data types as inference precision of internal primitives:
-|    Floating-point data types: F32, F16O
-|    Quantized data types: U8 (quantized models may be int8 or mixed FP16-INT8)
-|    Computation precision for the HW is FP16.
-|
-| For more details on how to get a quantized model, refer to the
-  :doc:`Model Optimization guide <../../model-optimization>` and
-  :doc:`NNCF tool quantization guide <../../model-optimization-guide/quantizing-models-post-training/basic-quantization-flow>`.
-
-
+The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific representation
+of the model into a proprietary format. The compiler included in the user mode driver (UMD) performs
+platform specific optimizations in order to efficiently schedule the execution of network layers and
+memory transactions on various NPU hardware submodules.
 
 Model Caching
 #############################
@@ -78,6 +72,15 @@ instead of recompiling it.
 For more details about OpenVINO model caching, see the
 :doc:`Model Caching Overview <../optimize-inference/optimizing-latency/model-caching-overview>`.
 
+| **Supported Inference Data Types**
+| The NPU plugin supports the following data types as inference precision of internal primitives:
+|    Floating-point data types: F32, F16
+|    Quantized data types: U8 (quantized models may be INT8 or mixed FP16-INT8)
+|    Computation precision for the HW is FP16.
+|
+| For more details on how to get a quantized model, refer to the
+  :doc:`Model Optimization guide <../../model-optimization>` and
+  :doc:`NNCF tool quantization guide <../../model-optimization-guide/quantizing-models-post-training/basic-quantization-flow>`.
 
 Supported Features and properties
 #######################################
@@ -96,30 +99,35 @@ offer a limited set of supported OpenVINO features.
 
       .. code-block::
 
-         ov::internal::caching_properties
-         ov::enable_profiling
-         ov::hint::performance_mode
-         ov::hint::num_requests
-         ov::hint::model_priority
-         ov::hint::enable_cpu_pinning
-         ov::log::level
          ov::device::id
+         ov::log::level
+         ov::hint::enable_cpu_pinning
+         ov::hint::inference_precision
+         ov::hint::model_priority
+         ov::hint::num_requests
+         ov::hint::performance_mode
          ov::cache_dir
-         ov::internal::exclusive_async_requests
+         ov::compilation_num_threads
+         ov::enable_profiling
 
    .. tab-item:: Read-only properties
 
       .. code-block::
 
          ov::supported_properties
-         ov::streams::num
+         ov::available_devices
          ov::optimal_number_of_infer_requests
          ov::range_for_async_infer_requests
          ov::range_for_streams
-         ov::available_devices
-         ov::device::uuid
+         ov::num_streams
          ov::device::architecture
+         ov::device::capabilities
          ov::device::full_name
+         ov::device::uuid
+         ov::intel_npu::device_alloc_mem_size
+         ov::intel_npu::device_total_mem_size
+         ov::intel_npu::driver_version
+
 
 .. note::
 
@@ -131,23 +139,19 @@ offer a limited set of supported OpenVINO features.
 Limitations
 #############################
 
-* Currently, only the models with static shapes are supported on NPU.
-* If the path to the model file includes non-Unicode symbols, such as in Chinese,
-  the model cannot be used for inference on NPU. It will return an error.
-* Running the Alexnet model with NPU may result in a drop in accuracy.
-  At this moment, the googlenet-v4 model is recommended for classification tasks.
+* Currently, only models with static shapes are supported on NPU.
 
 **Import/Export:**
 
-Offline compilation and blob import is supported but only for development purposes.
+Offline compilation and blob import is supported only for development purposes.
 Pre-compiled models (blobs) are not recommended to be used in production.
-Blob compatibility across different OpenVINO versions/ NPU driver versions is not
+Blob compatibility across different OpenVINO / NPU Driver versions is not
 guaranteed.
 
 Additional Resources
 #############################
 
-* `Vision colorization Notebook <notebooks/222-vision-image-colorization-with-output.html>`__
+* `Vision colorization Notebook <notebooks/vision-image-colorization-with-output.html>`__
 * `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
 * `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
 * `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # FindOpenVINO
@@ -92,8 +92,15 @@
 #   `OpenVINO_VERSION_PATCH`
 #   Patch version component
 #
+#  OpenVINO build configuration variables:
+#
+#   `OpenVINO_GLIBCXX_USE_CXX11_ABI`
+#   Linux only: defines _GLIBCXX_USE_CXX11_ABI used to compiled OpenVINO
+#
 
 @PACKAGE_INIT@
+
+set(OpenVINO_GLIBCXX_USE_CXX11_ABI "@OV_GLIBCXX_USE_CXX11_ABI@")
 
 #
 # Common functions
@@ -449,7 +456,7 @@ function(_ov_target_no_deprecation_error)
             set(flags "-Wno-error=deprecated-declarations")
         endif()
 
-        set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS ${flags})
+        set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS $<$<NOT:$<BOOL:$<TARGET_PROPERTY:TREAT_DEPRECATED_DECLARATIONS_AS_ERRORS>>>:${flags}>)
     endif()
 endfunction()
 
@@ -473,6 +480,11 @@ set(_OV_ENABLE_OPENVINO_BUILD_SHARED "@BUILD_SHARED_LIBS@")
 if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
+
+    # since OpenVINO is compiled with _GLIBCXX_USE_CXX11_ABI=0
+    if(NOT OpenVINO_GLIBCXX_USE_CXX11_ABI STREQUAL "")
+        add_definitions(-D_GLIBCXX_USE_CXX11_ABI=${OpenVINO_GLIBCXX_USE_CXX11_ABI})
+    endif()
 endif()
 
 if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)

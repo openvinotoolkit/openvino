@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,6 +143,16 @@ inline int createDirectory(const std::string& dirPath) {
     return mkdir(dirPath.c_str(), mode_t(0777));
 #endif
 }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+inline int createDirectory(const std::wstring& dirPath) {
+#    ifdef _WIN32
+    return _wmkdir(dirPath.c_str());
+#    else
+    return mkdir(ov::util::wstring_to_string(dirPath).c_str(), mode_t(0777));
+#    endif
+}
+#endif
 
 inline std::vector<std::string> splitStringByDelimiter(std::string paths, const std::string& delimiter = ",") {
     size_t delimiterPos;

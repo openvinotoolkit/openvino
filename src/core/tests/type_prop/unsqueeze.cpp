@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,11 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 using namespace std;
 using namespace ov;
@@ -97,27 +96,28 @@ protected:
         UnSqueezeFixture::SetUp();
     }
 
-    std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
-        ov::TensorLabel in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
+    std::pair<ov::TensorSymbol, ov::TensorSymbol> make_in_exp_symbols() const {
+        ov::TensorSymbol in_symbols;
+        for (size_t i = 0; i < p_shape.size(); ++i)
+            in_symbols.push_back(std::make_shared<Symbol>());
 
         auto unique_axes = std::set<int64_t>(axes.begin(), axes.end());
         auto out_rank = unique_axes.size() + p_shape.size();
 
-        std::set<int64_t> no_label_axes;
+        std::set<int64_t> no_symbol_axes;
         for (const auto& axis : axes) {
-            no_label_axes.insert(axis < 0 ? axis + out_rank : axis);
+            no_symbol_axes.insert(axis < 0 ? axis + out_rank : axis);
         }
 
-        auto exp_labels = in_labels;
-        for (const auto& axis : no_label_axes) {
-            if (axis < static_cast<int64_t>(exp_labels.size())) {
-                exp_labels.insert(exp_labels.begin() + axis, ov::no_label);
+        auto exp_symbols = in_symbols;
+        for (const auto& axis : no_symbol_axes) {
+            if (axis < static_cast<int64_t>(exp_symbols.size())) {
+                exp_symbols.insert(exp_symbols.begin() + axis, nullptr);
             } else {
-                exp_labels.push_back(ov::no_label);
+                exp_symbols.push_back(nullptr);
             }
         }
-        return {in_labels, exp_labels};
+        return {in_symbols, exp_symbols};
     }
 
     std::vector<int64_t> axes;
@@ -239,20 +239,20 @@ TEST_P(UnsqueezeTest, use_default_ctor) {
     EXPECT_EQ(unsqueeze->get_output_partial_shape(0), exp_shape);
 }
 
-TEST_P(UnsqueezeTest, labels_propagation) {
+TEST_P(UnsqueezeTest, symbols_propagation) {
     if (p_shape.rank().is_dynamic()) {
-        GTEST_SKIP() << "No dimension to set label";
+        GTEST_SKIP() << "No dimension to set symbol";
     }
-    ov::TensorLabel in_labels, exp_labels;
-    std::tie(in_labels, exp_labels) = make_in_exp_labels();
+    ov::TensorSymbol in_symbols, exp_symbols;
+    std::tie(in_symbols, exp_symbols) = make_in_exp_symbols();
 
-    set_shape_labels(p_shape, in_labels);
+    set_shape_symbols(p_shape, in_symbols);
     param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
 
     const auto axes_node = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{axes.size()}, axes);
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(param, axes_node);
 
-    EXPECT_EQ(get_shape_labels(unsqueeze->get_output_partial_shape(0)), exp_labels);
+    EXPECT_EQ(get_shape_symbols(unsqueeze->get_output_partial_shape(0)), exp_symbols);
 }
 
 using UnsqueezeBoundTest = UnSqueezeBoundTest;
@@ -271,29 +271,29 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToStringParamName());
 
 /**
- * \brief Check label and dynamic value propagation.
+ * \brief Check symbol and dynamic value propagation.
  *
- * Test use evaluate label, lower/upper.
+ * Test use evaluate symbol, lower/upper.
  */
-TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
-    PartialShape labeled_shape = PartialShape{p_shape};
-
-    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<ov::label_t>(1));
-    set_shape_labels(labeled_shape, in_labels);
+TEST_P(UnsqueezeBoundTest, propagate_symbol_and_dynamic_value) {
+    PartialShape symboled_shape = PartialShape{p_shape};
+    for (size_t s = 0; s < symboled_shape.size(); ++s)
+        in_symbols.push_back(std::make_shared<Symbol>());
+    set_shape_symbols(symboled_shape, in_symbols);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<ov::op::v0::Parameter>(et, labeled_shape);
-    const auto labeled_shape_of = std::make_shared<op::v0::ShapeOf>(labeled_param);
+    const auto symboled_param = std::make_shared<ov::op::v0::Parameter>(et, symboled_shape);
+    const auto symboled_shape_of = std::make_shared<op::v0::ShapeOf>(symboled_param);
 
     const auto zero = std::vector<int64_t>{0};
     const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
     const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto gather = std::make_shared<op::v7::Gather>(labeled_shape_of, indices, axis);
+    const auto gather = std::make_shared<op::v7::Gather>(symboled_shape_of, indices, axis);
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis);
 
     const auto bc = std::make_shared<op::v3::Broadcast>(param, unsqueeze);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
-    const auto labels = get_shape_labels(bc->get_output_partial_shape(0));
-    EXPECT_THAT(labels, ElementsAre(in_labels.front()));
+    const auto symbols = get_shape_symbols(bc->get_output_partial_shape(0));
+    EXPECT_THAT(symbols, ElementsAre(in_symbols.front()));
 }

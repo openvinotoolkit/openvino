@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,14 +39,13 @@ const auto is_output_foldable = [](const ov::Output<ov::Node>& output) {
  *
  * \return std::string with new friendly name.
  */
-const auto friendly_name_from = [](const ov::Node& node, const size_t output_count, const size_t idx) {
+const auto friendly_name_from = [](const ov::Node& node, const size_t output_count, const size_t idx) -> std::string {
     constexpr auto single_output = static_cast<size_t>(1);
-
-    if (single_output == output_count) {
-        return node.get_friendly_name();
-    } else {
-        return node.get_friendly_name() + "." + std::to_string(idx);
+    auto name = node.get_friendly_name();
+    if (single_output != output_count) {
+        name.append(".").append(std::to_string(idx));
     }
+    return name;
 };
 
 static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& node) {
@@ -74,17 +73,26 @@ static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& no
     return restored;
 }
 
+class RequiresPrecisionConversion : public ov::RuntimeAttribute {
+public:
+    OPENVINO_RTTI("requires_precision_conversion", "0");
+
+    bool is_copyable() const override {
+        return false;
+    }
+};
+
 static void mark_node_requires_precision_conversion(const std::shared_ptr<ov::Node>& node) {
-    node->get_rt_info()["requires_precision_conversion"] = true;
+    node->get_rt_info()[RequiresPrecisionConversion::get_type_info_static()] = RequiresPrecisionConversion{};
 }
 
 static bool node_has_requires_precision_conversion_attribute(const std::shared_ptr<const ov::Node>& node) {
-    return node->get_rt_info().count("requires_precision_conversion") > 0;
+    return node->get_rt_info().count(RequiresPrecisionConversion::get_type_info_static()) > 0;
 }
 
 static void remove_requires_precision_conversion_attribute(const std::shared_ptr<ov::Node>& node) {
     auto& rt_info = node->get_rt_info();
-    auto it = rt_info.find("requires_precision_conversion");
+    auto it = rt_info.find(RequiresPrecisionConversion::get_type_info_static());
     if (it != rt_info.end()) {
         rt_info.erase(it);
     }
@@ -101,7 +109,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             remove_requires_precision_conversion_attribute(node);
             node = util::convert_to_supported_precision(node.get());
         } else {
-            rewritten |= restore_original_input_precision(node);
+            rewritten = restore_original_input_precision(node) || rewritten;
         }
 
         if (rewritten) {
@@ -119,7 +127,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
             for (size_t i = 0; i < replacements.size(); ++i) {
                 auto node_output = original_node->output(i);
-                auto replacement = replacements.at(i);
+                const auto& replacement = replacements.at(i);
                 auto replacement_ptr = replacement.get_node_shared_ptr();
                 if (replacement_ptr && (node_output != replacement)) {
                     replacement_ptr->set_friendly_name(friendly_name_from(*original_node, replacements.size(), i));
@@ -139,7 +147,8 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                    rewritten |= run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind)));
+                    rewritten =
+                        run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind))) || rewritten;
                 }
             }
 

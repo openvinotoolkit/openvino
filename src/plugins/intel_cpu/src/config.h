@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,14 +38,9 @@ struct Config {
         Disable,
     };
 
-    enum class LatencyThreadingMode {
-        PER_NUMA_NODE,
-        PER_SOCKET,
-        PER_PLATFORM,
-    };
-
     enum class ModelType {
         CNN,
+        LLM,
         Unknown
     };
 
@@ -76,9 +71,9 @@ struct Config {
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-    Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-corer: Apache-2.0
 //
 
@@ -19,13 +19,12 @@ class ExportOptimalNumStreams : public ::testing::TestWithParam<PropertiesParams
 
 std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::Shape input_shape = {1, 4096};
-    const ov::element::Type precision = ov::element::f32;
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_shape))};
-    auto matmul_const = ov::test::utils::deprecated::make_constant(precision, {4096, 1024}, std::vector<float>{}, true);
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(input_shape))};
+    auto matmul_const = ov::test::utils::make_constant(ov::element::f32, {4096, 1024});
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], matmul_const);
 
-    auto add_const = ov::test::utils::deprecated::make_constant(precision, {1, 1024}, std::vector<float>{}, true);
+    auto add_const = ov::test::utils::make_constant(ov::element::f32, {1, 1024});
     auto add = ov::test::utils::make_eltwise(matmul, add_const, ov::test::utils::EltwiseTypes::ADD);
     auto softmax = std::make_shared<ov::opset9::Softmax>(add);
 
@@ -104,16 +103,9 @@ const std::vector<ov::AnyMap> testing_property_for_performance_mode = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_1 = {
+const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type = {
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)}};
-
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_2 = {
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
-
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_3 = {
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
 
 const std::vector<ov::AnyMap> testing_property_for_enable_hyper_threading = {{ov::hint::enable_hyper_threading(true)},
@@ -128,9 +120,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExportImportTest,
                                            ::testing::Values(testing_property_for_streams,
                                                              testing_property_for_threads,
                                                              testing_property_for_performance_mode,
-                                                             testing_property_for_scheduling_core_type_1,
-                                                             testing_property_for_scheduling_core_type_2,
-                                                             testing_property_for_scheduling_core_type_3,
+                                                             testing_property_for_scheduling_core_type,
                                                              testing_property_for_enable_hyper_threading,
                                                              testing_property_for_enable_cpu_pinning)));
 

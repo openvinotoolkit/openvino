@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "reorder_inst.h"
@@ -275,6 +275,12 @@ void reorder_inst::update_output_memory() {
 
     if (_node != nullptr)
         build_deps();
+
+    // Do not update output memory when reorder is optimized out
+    // but input memory is not allocated yet because input is dynamic.
+    // Since dep's _outputs may be empty, Check whether input memory is null by dep's outputs_allocated()
+    if (!dependencies().front().first->outputs_allocated())
+        return;
 
     if (requires_reinterpret()) {
         _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 #include "eltwise_inst.h"
 #include "gemm_inst.h"
 #include "lrn_inst.h"
-#include "mutable_data_inst.h"
 #include "mvn_inst.h"
 #include "pooling_inst.h"
 #include "normalize_inst.h"
@@ -432,8 +431,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
-            if (_lo.get_optimization_attributes().use_onednn_impls == 1)
+            if (_lo.get_optimization_attributes().use_onednn_impls == 1 &&
+                _lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::onednn) {
                 return true;
+            }
 
             if (node.get_output_layout().is_dynamic() || node.get_input_layout().is_dynamic()) {
                 return true;
@@ -514,8 +515,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             auto gemm_prim = node.get_primitive();
-            for (size_t idx = 0; idx < gemm_prim->output_order.size(); ++idx) {
-                size_t output_order_idx = static_cast<size_t>(gemm_prim->output_order[idx]);
+            for (size_t idx = 0; idx < gemm_prim->output_transpose_order.size(); ++idx) {
+                size_t output_order_idx = static_cast<size_t>(gemm_prim->output_transpose_order[idx]);
                 if (idx != output_order_idx) {
                     does_support_fusings = false;
                     break;
@@ -562,11 +563,25 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
+            auto has_reorder_behind_mvn = [&]() -> bool {
+                // MVN with rank size 3 always requires Reorder and Reshape. This pattern always run simple formats(bfyx..).
+                if (node.get_dependencies().size() > 0 && node.get_dependency(0).is_type<reshape>()) {
+                    auto& reshape_node = node.get_dependency(0);
+                    if (reshape_node.get_dependencies().size() > 0 && reshape_node.get_dependency(0).is_type<reorder>()) {
+                        auto& reorder_node = reshape_node.get_dependency(0);
+                        if (reorder_node.get_dependencies().size() > 0 && reorder_node.get_dependency(0).is_type<mvn>()) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
             auto out_layout = node.get_output_layout();
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
             if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
                 ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
-                  !_lo.get_optimization_attributes().use_onednn_impls) ||
+                  !_lo.get_optimization_attributes().use_onednn_impls && !has_reorder_behind_mvn()) ||
                  out_layout.format == format::fs_b_yx_fsv32)) {
                 return false;
             }
@@ -980,7 +995,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
 
-            if (_lo.get_optimization_attributes().use_onednn_impls) {
+            if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic())
                     return;
@@ -1110,8 +1125,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
         if (next_node->is_type<fully_connected>() ||
             next_node->is_type<deconvolution>() ||
-            next_node->is_type<convolution>() ||
-            next_node->is_type<deformable_conv>()) {
+            next_node->is_type<convolution>()) {
             size_t weights_offset = next_node->get_primitive()->input_size();
             std::vector<size_t> valid_weights_indices = {next_node->get_primitive()->input_size()};
             if (next_node->is_type<fully_connected>()) {

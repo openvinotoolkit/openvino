@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,8 +166,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Swish", CreatorFunction(translate_unary_op<v4::Swish>)},
 
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
-        {"Add", CreatorFunction(translate_binary_op<v1::Add>)},
-        {"AddV2", CreatorFunction(translate_binary_op<v1::Add>)},
+        {"Add", CreatorFunction(translate_addv2_op)},
+        {"AddV2", CreatorFunction(translate_addv2_op)},
         {"Atan2", CreatorFunction(translate_atan2_op)},
         {"BitwiseAnd", CreatorFunction(translate_binary_op<v13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
@@ -205,6 +205,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Separate translators:
         {"AddN", CreatorFunction(translate_add_n_op)},
         {"AdjustContrastv2", CreatorFunction(translate_adjust_contrast_op)},
+        {"AdjustHue", CreatorFunction(translate_adjust_hue_op)},
+        {"AdjustSaturation", CreatorFunction(translate_adjust_saturation_op)},
+        {"Angle", CreatorFunction(translate_angle_op)},
         {"ArgMax", CreatorFunction(translate_arg_max_op)},
         {"ArgMin", CreatorFunction(translate_arg_min_op)},
         {"Assert", CreatorFunction(translate_no_op)},
@@ -218,6 +221,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BroadcastTo", CreatorFunction(translate_broadcast_to_op)},
         {"Bucketize", CreatorFunction(translate_bucketize_op)},
         {"BiasAdd", CreatorFunction(translate_bias_add_op)},
+        {"Bincount", CreatorFunction(translate_bincount_op)},
         {"Cast", CreatorFunction(translate_cast_op)},
         {"CheckNumerics", CreatorFunction(translate_identity_op)},
         {"CheckNumericsV2", CreatorFunction(translate_identity_op)},
@@ -300,6 +304,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
         {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},
         {"MatrixDiag", CreatorFunction(translate_matrix_diag_op)},
+        {"MatrixInverse", CreatorFunction(translate_matrix_inverse_op)},
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
@@ -350,6 +355,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RFFT", CreatorFunction(translate_rfft_op)},
         {"RFFT2D", CreatorFunction(translate_rfft_op)},
         {"RFFT3D", CreatorFunction(translate_rfft_op)},
+        {"Rint", CreatorFunction(translate_rint_op)},
         {"Roll", CreatorFunction(translate_roll_op)},
         {"Round", CreatorFunction(translate_round_op)},
         {"Rsqrt", CreatorFunction(translate_rsqrt_op)},
@@ -421,6 +427,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
         {"AssignAddVariableOp", CreatorFunction(translate_add_variable_op)},
         {"AssignSubVariableOp", CreatorFunction(translate_sub_variable_op)},
+        {"ApproximateEqual", CreatorFunction(translate_approximate_equal_op)},
         {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
         {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
         {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},
@@ -456,6 +463,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"WriteFile", CreatorFunction(translate_write_file)},
     };
 };
+
+const std::vector<std::string> get_supported_ops_via_tokenizers() {
+    return {"RaggedTensorToSparse",
+            "RaggedTensorToTensor",
+            "StaticRegexReplace",
+            "StringLower",
+            "StringSplitV2",
+            "StringToHashBucketFast"};
+}
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend

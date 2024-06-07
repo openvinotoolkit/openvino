@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ protected:
                                                      paddingType,
                                                      numOutChannels);
         }
-        const auto sharedNode = ov::test::utils::deprecated::make_constant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
+        const auto sharedNode = ov::test::utils::make_constant(element::f32, {1, 16, 1, 1});
         const auto postOpCandidate = ov::test::utils::make_eltwise(conv, sharedNode, utils::EltwiseTypes::ADD);
         const auto secondConsumpt = ov::test::utils::make_eltwise(inputParams[1], sharedNode, utils::EltwiseTypes::ADD);
 

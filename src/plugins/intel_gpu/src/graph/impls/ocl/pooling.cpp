@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,11 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
+        // Legacy multi-output
+        if (instance.get_typed_desc<pooling>()->maxPoolOpset8Features) {
+            args.inputs = { instance.dep_memory_ptr(0) };
+            args.outputs.push_back(instance.dep_memory_ptr(1));
+        }
         return args;
     }
 

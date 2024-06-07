@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -220,50 +220,6 @@ dnnl_primitive_desc_t DnnlExtensionUtils::clone_primitive_desc(const_dnnl_primit
 
 const char* DnnlExtensionUtils::query_pd_info(const_dnnl_primitive_desc_t pd) {
     return pd->info();
-}
-
-dnnl::algorithm DnnlExtensionUtils::convertToDnnlAlgorithm(Algorithm alg) {
-    switch (alg) {
-        case Algorithm::EltwiseRelu: return dnnl::algorithm::eltwise_relu;
-        case Algorithm::EltwiseTanh: return dnnl::algorithm::eltwise_tanh;
-        case Algorithm::EltwiseElu: return dnnl::algorithm::eltwise_elu;
-        case Algorithm::EltwiseAbs: return dnnl::algorithm::eltwise_abs;
-        case Algorithm::EltwiseSqrt: return dnnl::algorithm::eltwise_sqrt;
-        case Algorithm::EltwiseSwish: return dnnl::algorithm::eltwise_swish;
-        case Algorithm::EltwiseHswish: return dnnl::algorithm::eltwise_hardswish;
-        case Algorithm::EltwiseSoftRelu: return dnnl::algorithm::eltwise_soft_relu;
-        case Algorithm::EltwiseMish: return dnnl::algorithm::eltwise_mish;
-        case Algorithm::EltwiseExp: return dnnl::algorithm::eltwise_exp;
-        case Algorithm::EltwiseGeluErf: return dnnl::algorithm::eltwise_gelu_erf;
-        case Algorithm::EltwiseGeluTanh: return dnnl::algorithm::eltwise_gelu_tanh;
-        case Algorithm::EltwiseSigmoid: return dnnl::algorithm::eltwise_logistic;
-        case Algorithm::EltwiseClamp: return dnnl::algorithm::eltwise_clip;
-        case Algorithm::EltwisePowerStatic: return dnnl::algorithm::eltwise_pow;
-        case Algorithm::EltwiseHsigmoid: return dnnl::algorithm::eltwise_hsigmoid;
-        case Algorithm::EltwiseRoundHalfToEven: return dnnl::algorithm::eltwise_round_half_to_even;
-        case Algorithm::EltwiseRoundHalfAwayFromZero: return dnnl::algorithm::eltwise_round_half_away_from_zero;
-        case Algorithm::EltwiseAdd: return dnnl::algorithm::binary_add;
-        case Algorithm::EltwiseMultiply: return dnnl::algorithm::binary_mul;
-        case Algorithm::EltwiseSubtract: return dnnl::algorithm::binary_sub;
-        case Algorithm::EltwiseDivide: return dnnl::algorithm::binary_div;
-        case Algorithm::EltwiseMaximum: return dnnl::algorithm::binary_max;
-        case Algorithm::EltwiseMinimum: return dnnl::algorithm::binary_min;
-        case Algorithm::EltwiseEqual: return dnnl::algorithm::binary_eq;
-        case Algorithm::EltwiseNotEqual: return dnnl::algorithm::binary_ne;
-        case Algorithm::EltwiseGreater: return dnnl::algorithm::binary_gt;
-        case Algorithm::EltwiseGreaterEqual: return dnnl::algorithm::binary_ge;
-        case Algorithm::EltwiseLess: return dnnl::algorithm::binary_lt;
-        case Algorithm::EltwiseLessEqual: return dnnl::algorithm::binary_le;
-        case Algorithm::EltwisePrelu: return dnnl::algorithm::binary_prelu;
-        case Algorithm::ReduceMax: return dnnl::algorithm::reduction_max;
-        case Algorithm::ReduceMin: return dnnl::algorithm::reduction_min;
-        case Algorithm::ReduceSum: return dnnl::algorithm::reduction_sum;
-        case Algorithm::ReduceMean: return dnnl::algorithm::reduction_mean;
-        case Algorithm::FQCommon: return dnnl::algorithm::quantization_quantize_dequantize;
-        case Algorithm::FQQuantization: return dnnl::algorithm::quantization_quantize;
-        case Algorithm::FQBinarization: return dnnl::algorithm::binarization_depthwise;
-        default: return dnnl::algorithm::undef;
-    }
 }
 
 bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
