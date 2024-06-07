@@ -202,8 +202,7 @@ KERNEL(sdpa_opt)(
                     #define QUERY_BLOCK_SIZE 1
 
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, QUERY_BLOCK_SIZE, query_input, query_offset);
-
-                    query_local[query_local_offset] = val;
+                    query_local[query_local_offset] = val * scale_val;
                     query_local_offset += QUERY_STEP_LOCAL;
                     query_offset += query_pitch;
                 }
@@ -338,7 +337,6 @@ KERNEL(sdpa_opt)(
                     for (uint seq_len = sgid * SUBGROUP_SIZE + sglid; seq_len < partition_seq_len; seq_len += (HEAD_SIZE)) {
                         // Read value from SLM and apply scale
                         qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
-                        qk_val[seq_idx] *= scale_val;
 
                         // Apply attention mask
 #if IS_CAUSAL
