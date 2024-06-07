@@ -64,4 +64,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
+# Create venv for Python 3.10 (System) for Debian packages
+RUN python3 -m venv venv3.10
+
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

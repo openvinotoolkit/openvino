@@ -13,9 +13,6 @@ on:
         required: false
         default: null
 
-env:
-  PYTHON_VERSION: '3.11'
-
 permissions: read-all
 
 jobs:
@@ -35,9 +32,6 @@ jobs:
         if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
-      - name: Install git
-        run: apt update && apt install -y git
-
       - name: Download OpenVINO debian packages
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
@@ -47,21 +41,6 @@ jobs:
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: echo "DEBIAN_PACKAGES_DIR=$GITHUB_WORKSPACE/packages" >> "$GITHUB_ENV"
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'action_root'
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./action_root/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
 
       - name: Install debian packages & check conflicts
         run: |

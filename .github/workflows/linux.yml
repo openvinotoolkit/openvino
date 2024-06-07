@@ -222,11 +222,14 @@ jobs:
 
       - name: Build Debian packages
         run: |
+          /venv3.10/bin/python3 -m pip install -U pip
+          /venv3.10/bin/python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_TESTS=OFF \
+                -DPython3_EXECUTABLE=/venv3.10/bin/python3 \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
