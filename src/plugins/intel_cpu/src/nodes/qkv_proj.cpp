@@ -18,6 +18,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_X86_64)
 static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, int n_workers) {
     auto n_groups = grouped_works.size();
     // allocate 1 worker for each group
@@ -41,7 +42,6 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
     return g_workers;
 }
 
-#if defined(OPENVINO_ARCH_X86_64)
 struct QKVProjection::Impl {
     std::vector<Work> works;
     std::vector<PlainTensor> m_tempC;
