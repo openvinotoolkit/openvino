@@ -16,6 +16,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
   cancel-in-progress: true
 
+permissions: read-all
+
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
@@ -29,7 +31,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -62,7 +64,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -111,7 +113,7 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
@@ -126,7 +128,7 @@ jobs:
           git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -254,7 +256,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
           name: build_logs
@@ -263,7 +265,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -271,7 +273,7 @@ jobs:
 
       - name: Upload openvino js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
@@ -279,7 +281,7 @@ jobs:
 
       - name: Upload openvino developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
@@ -287,7 +289,7 @@ jobs:
 
       - name: Upload openvino debian packages
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
@@ -295,7 +297,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -360,13 +362,13 @@ jobs:
       #
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -381,7 +383,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -425,7 +427,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -451,7 +453,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ matrix.TEST_TYPE == 'API' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -594,13 +596,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_developer_package
           path: ${{ env.INSTALL_DIR }}
@@ -616,7 +618,7 @@ jobs:
           popd
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -676,13 +678,13 @@ jobs:
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: 'openvino_package'
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: 'openvino_tests'
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -713,7 +715,7 @@ jobs:
           TZ: "Europe/London" # to prevent tzdata from waiting user input
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -752,7 +754,7 @@ jobs:
 
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
           name: test-results-${{ matrix.TEST_TYPE }}-gpu
