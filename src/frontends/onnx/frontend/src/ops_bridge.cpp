@@ -119,6 +119,7 @@
 #include "op/mmdeploy_roi_align_rotated.hpp"
 #include "op/mod.hpp"
 #include "op/mul.hpp"
+#include "op/multinomial.hpp"
 #include "op/neg.hpp"
 #include "op/nms_rotated.hpp"
 #include "op/non_max_suppression.hpp"
@@ -462,6 +463,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Mod", 1, mod);
     REGISTER_OPERATOR("Mul", 1, mul);
     REGISTER_OPERATOR("Mul", 7, mul);
+    REGISTER_OPERATOR("Multinomial", 1, multinomial)
     REGISTER_OPERATOR("Neg", 1, neg);
     REGISTER_OPERATOR("NonMaxSuppression", 1, non_max_suppression);
     REGISTER_OPERATOR("NonZero", 1, non_zero);
@@ -495,6 +497,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceMax", 18, reduce_max);
     REGISTER_OPERATOR("ReduceMax", 20, reduce_max);
     REGISTER_OPERATOR("ReduceMean", 1, reduce_mean);
+    REGISTER_OPERATOR("ReduceMean", 13, reduce_mean);
+    REGISTER_OPERATOR("ReduceMean", 18, reduce_mean);
     REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
     REGISTER_OPERATOR("ReduceMin", 13, reduce_min);
     REGISTER_OPERATOR("ReduceMin", 18, reduce_min);

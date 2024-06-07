@@ -94,7 +94,7 @@ private:
     ze_device_handle_t _device_handle;
     ov::log::Level _loglevel;
     Logger _logger;
-    ze_device_properties_t _dev_properties;
+    ze_device_properties_t _dev_properties = {};
     int64_t _npu_infer_stats_min_cc = LLONG_MAX;
     int64_t _npu_infer_stats_max_cc = 0;
     int64_t _npu_infer_stats_accu_cc = 0;
