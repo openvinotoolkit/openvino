@@ -488,13 +488,6 @@ void ov::CoreImpl::register_compile_time_plugins() {
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-#ifndef __EMSCRIPTEN__
-    if (ov::util::is_symlink_or_hardlink(xml_config_file)) {
-        std::cout << xml_config_file << std::endl;
-        OPENVINO_THROW("Cannot register plugins " + xml_config_file + ". The path is a symlink or hardlink");
-    }
-#endif
-
     using namespace ov::util;
     auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
