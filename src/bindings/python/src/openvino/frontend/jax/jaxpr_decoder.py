@@ -17,10 +17,29 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 class JaxprPythonDecoder (Decoder):
+    '''
+    The jaxpr decoder uses Jaxpr to get graph information from a jax module.
+    It takes use of the following parts.
+    
+    - `ClosedJaxpr`: the jaxpr object that contains the jaxpr and literals.
+        - `Jaxpr`: the jaxpr object that contains the invars, outvars, and eqns.
+            - `JaxEqns`: A list of jaxpr equations, which contains the information of the operation.
+                - `Primitive`: the operation that is used in the equation.
+                - `invars`: the input variables of the equation.
+                    - `aval`: the abstract value.
+                - `outvars`: the output variables of the equation.
+                    - `aval`: the abstract value.
+            - `invars`: the input variables of the equation.
+                - `aval`: the abstract value.
+            - `outvars`: the output variables of the equation.
+                - `aval`: the abstract value.
+            - `constvars`: the constant variables.
+                - `aval`: the abstract value.
+        - `Literal`: the literal object that contains the value of the constants.
+    '''
     def __init__(self, jaxpr, name=None, literals=None):
         Decoder.__init__(self)
         
-        # TODO: the `self.jaxpr` here is possible to be a jaxpr or a jax_eqn. Maybe we need a better design.
         if isinstance(jaxpr, (jax.core.JaxprEqn, jax.core.Jaxpr, jax.core.Var)):
             self.jaxpr = jaxpr
         elif isinstance(jaxpr, jax.core.ClosedJaxpr):
