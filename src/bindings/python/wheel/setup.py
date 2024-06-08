@@ -312,17 +312,16 @@ class CustomBuild(build):
             # build and install additional files into temporary directories
             self.cmake_build_and_install(DATA_INSTALL_CFG)
 
-            self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
-            self.spawn(["cmake", f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
-                             "-S", OPENVINO_SOURCE_DIR,
-                             "-B", OPENVINO_BINARY_DIR])
-
         # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)
 
         # install clibs into a temporary directory (site-packages)
         if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
+            self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
+            self.spawn(["cmake", f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
+                             "-S", OPENVINO_SOURCE_DIR,
+                             "-B", OPENVINO_BINARY_DIR])
 
         # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
