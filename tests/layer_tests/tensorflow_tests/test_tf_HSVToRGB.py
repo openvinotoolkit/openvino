@@ -15,6 +15,12 @@ class TestHSVToRGB(CommonTFLayerTest):
             images_shape = inputs_info['images:0']
             inputs_data = {}
             inputs_data['images:0'] = np.zeros(images_shape).astype(self.input_type) 
+        elif self.special_case == "Grayscale Image":
+            images_shape = inputs_info['images:0']
+            images_shape[-1] = 1
+            inputs_data = {}
+            inputs_data['images:0'] = np.tile([0,0,.5], images_shape).astype(self.input_type)
+
         else:
             images_shape = inputs_info['images:0']
             inputs_data = {} 
