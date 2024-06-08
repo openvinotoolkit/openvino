@@ -76,11 +76,6 @@ public:
 };
 
 TEST(SerializationTest, WriteInReadOnly) {
-    // Set up paths
-    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
-    std::string test_xml_path = filePrefix + "test_file.xml";
-    std::string test_bin_path = filePrefix + "test_file.bin";
-
     // Create read-only files
     ASSERT_TRUE(createReadOnlyFile(test_xml_path));
     ASSERT_TRUE(createReadOnlyFile(test_bin_path));
