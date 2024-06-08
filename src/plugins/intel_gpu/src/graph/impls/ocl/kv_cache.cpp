@@ -314,7 +314,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 namespace detail {
 
 attach_kv_cache_impl::attach_kv_cache_impl() {
-    auto types = { data_types::f16, data_types::f32 };
+    auto types = { data_types::i8, data_types::f16, data_types::f32 };
     auto formats = { format::bfyx };
     implementation_map<kv_cache>::add(impl_types::ocl,
                                            shape_types::dynamic_shape,

@@ -17,6 +17,8 @@
 // max_logits    [batch, heads_num, q_len, partition_idx]
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
 
+#define SCALE_KEY 16.0h
+#define SCALE_VAL 128.0h
 
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_SIMPLE
@@ -233,11 +235,26 @@ KERNEL(sdpa_opt)(
                 uint head_idx_index = 0;
                 #define KEY_BLOCK_SIZE 8
                 for (; head_idx_index + (KEY_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * KEY_BLOCK_SIZE) {
+#ifdef KV_CACHE_COMP
+#define TO_KEY_VEC_TYPE(x) CAT(convert_, MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE))(x)
+                    #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(char, KEY_BLOCK_SIZE, ptr, offset);
+                    #define KEY_BLOCK MAKE_VECTOR_TYPE(char, KEY_BLOCK_SIZE)
+                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+
+                    KEY_BLOCK __key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+                    MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE) key_vals;
+                    key_vals = TO_KEY_VEC_TYPE(__key_vals);
+                    key_vals /= SCALE_KEY;
+                    if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+                        printf("val %d -> %f\n", __key_vals[0], key_vals[0]);
+                    
+#else
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
                     #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
 
                     KEY_BLOCK key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+#endif
 
                     uint query_offset = head_idx_index + sglid;
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
@@ -256,11 +273,25 @@ KERNEL(sdpa_opt)(
 
                 #define KEY_BLOCK_SIZE 4
                 for (; head_idx_index + (KEY_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * KEY_BLOCK_SIZE) {
+#ifdef KV_CACHE_COMP
+#define TO_KEY_VEC_TYPE(x) CAT(convert_, MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE))(x)
+                    #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(char, KEY_BLOCK_SIZE, ptr, offset);
+                    #define KEY_BLOCK MAKE_VECTOR_TYPE(char, KEY_BLOCK_SIZE)
+                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+
+                    KEY_BLOCK __key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+                    MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE) key_vals;
+                    key_vals = TO_KEY_VEC_TYPE(__key_vals);
+                    key_vals /= SCALE_KEY;
+#else
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
                     #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
 
                     KEY_BLOCK key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
+#endif
+                    if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+                        printf("this is not supposed to be executed 10\n");
 
                     uint query_offset = head_idx_index + sglid;
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
@@ -282,6 +313,8 @@ KERNEL(sdpa_opt)(
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
                     #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+                    if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+                        printf("this is not supposed to be executed 2\n");
 
                     KEY_BLOCK key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
 
@@ -305,6 +338,8 @@ KERNEL(sdpa_opt)(
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
                     #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+                    if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+                        printf("this is not supposed to be executed 3\n");
 
                     KEY_BLOCK key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
 
@@ -481,12 +516,21 @@ KERNEL(sdpa_opt)(
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len * SUBGROUP_SIZE + sglid];
             }
 
-            unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#ifdef BEAM_TABLE_TYPE
-                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+#define __VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(uchar, 1, ptr, offset)
+
+             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+#ifdef KV_CACHE_COMP
+                uchar __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+                half value_val = __value_val;
+                value_val /= SCALE_VAL;
 #else
+    #ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+    #else
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
-#endif
+    #endif
+ #endif
+                // value_val = 0.0h;
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
                 }
@@ -514,8 +558,15 @@ KERNEL(sdpa_opt)(
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
             }
-
+#ifdef KV_CACHE_COMP
+            char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+            half value_val = __value_val;
+            value_val /= SCALE_VAL;
+#else
             INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
+
+#endif
+            // value_val = 0.0h;
 
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 acc[seq_idx] = mad(qk_val[seq_idx], value_val, acc[seq_idx]);
@@ -685,12 +736,23 @@ KERNEL(sdpa_opt)(
                     }
 
                     unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
+#ifdef KV_CACHE_COMP
+#ifdef BEAM_TABLE_TYPE
+                        INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index);
+#else
+                        INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
+#endif
+                        half key_vals = __key_vals;
+                        key_vals /= SCALE_KEY;
+                        // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+                        //     printf("key_vals %d - %f\n", __key_vals, key_vals);
+#else
 #ifdef BEAM_TABLE_TYPE
                         INPUT1_TYPE key_vals = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index);
 #else
                         INPUT1_TYPE key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
 #endif
-
+#endif
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                             acc[key_row_idx] = mad(sub_group_broadcast(key_vals, i), queries_vec[i], acc[key_row_idx]);
                         }
@@ -713,7 +775,7 @@ KERNEL(sdpa_opt)(
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         acc[i] += attn_mask_vec[i];
 #endif
-#if INPUT0_TYPE_SIZE ==  2
+#if INPUT0_TYPE_SIZE == 2
                         /* Adding this clamp improves performance for some reason */
                         acc[i] = INPUT0_MIN_FUNC(INPUT0_MAX_FUNC(acc[i], INPUT0_VAL_MIN), INPUT0_VAL_MAX);
 #endif
@@ -845,6 +907,8 @@ KERNEL(sdpa_opt)(
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len * SUBGROUP_SIZE + sglid];
             }
+            if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+                printf("this is not supposed to be executed 6\n");
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
 #ifdef BEAM_TABLE_TYPE
@@ -885,6 +949,8 @@ KERNEL(sdpa_opt)(
 #endif
 
             for (uint seq_len_idx = 0; seq_len_idx < partition_seq_len - seq_len_leftovers_start; seq_len_idx++) {
+                if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+                    printf("this is not supposed to be executed 7\n");
 #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
 #else
@@ -960,15 +1026,32 @@ KERNEL(sdpa_opt)(
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len * SUBGROUP_SIZE + sglid];
             }
 
+            // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+            //     printf("this is not supposed to be executed 8\n");
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+#ifdef KV_CACHE_COMP
+#ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE __value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+#else
+                INPUT2_TYPE __value_val = VALUE_BLOCK_READ(value_input, value_offset);
+#endif
+                half value_val = __value_val;
+                value_val /= SCALE_VAL;
+#else
 #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
 #else
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
+#endif
+                // value_val = 0.0h;
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
                 }
+#ifdef KV_CACHE_COMP
+                // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+                //     printf("value %d - %f, acc[seq_idx] = %f\n", __value_val, value_val, acc[0]);
+#endif
 
 #ifndef BEAM_TABLE_TYPE
                 value_offset += value_pitch;
@@ -978,6 +1061,10 @@ KERNEL(sdpa_opt)(
 
         // If the number of partitions is greater than 1, save results to the temporary buffer;
         // otherwise, save results directly to the main output.
+#ifdef KV_CACHE_COMP
+        // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
+        //     printf("num_of_partitions %d\n", num_of_partitions);
+#endif
         if (num_of_partitions > 1) {
 #if TARGET_SEQ_LEN_BLOCK_SIZE > 1
             const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
@@ -992,6 +1079,11 @@ KERNEL(sdpa_opt)(
                                             partition_idx * (HEAD_SIZE) +
                                             head_size_idx;
                 tmp_out[tmp_out_offset] = acc[seq_idx];
+                // tmp_out[tmp_out_offset] = 0.0h;
+#ifdef KV_CACHE_COMP
+                // if (tmp_out_offset >= 200 && tmp_out_offset <= 300)
+                //     printf("tmp_out[%d]=%f  acc[%d]=%f\n", tmp_out_offset, tmp_out[tmp_out_offset], seq_idx, acc[seq_idx]);
+#endif
             }
         } else {
 #if TARGET_SEQ_LEN_BLOCK_SIZE > 1
@@ -1096,6 +1188,10 @@ KERNEL(sdpa_opt_finalization_stage)(
                                             partition_idx * (HEAD_SIZE) +
                                             (head_size_idx * SUBGROUP_SIZE + sglid);
                 OUTPUT_TYPE out_val = tmp_out[tmp_out_offset];
+#ifdef KV_CACHE_COMP
+                // if (tmp_out_offset > 200 && tmp_out_offset < 300)
+                //     printf("out_val %f at %d\n", out_val, tmp_out_offset);
+#endif
                 acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) *
                     TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(exp_sum[partition_idx / SUBGROUP_SIZE], partition_idx % SUBGROUP_SIZE)) /
                     TO_SOFTMAX_ACCUMULATOR_TYPE(global_sum);

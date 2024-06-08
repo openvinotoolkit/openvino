@@ -4,6 +4,7 @@
 
 #include "sdpa_kernel_opt.h"
 #include "kernel_selector_utils.h"
+#include "common_types.h"
 #include <string>
 #include <vector>
 
@@ -50,6 +51,7 @@ static std::string GetKernelName(std::string base_name, KernelsTypes type, bool 
 
 ParamsKey SDPAKernelOpt::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
 
@@ -97,6 +99,14 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
     auto sdpa_stage = kernel_idx == KernelsTypes::FINALIZATION ? 1 : 0;
     jit.AddConstant(MakeJitConstant("SDPA_STAGE_" + std::to_string(sdpa_stage), 1));
 
+    auto& input1 = params.inputs[1];
+    if (input1.GetDType() == Datatype::INT8) {
+        jit.AddConstant(MakeJitConstant("KV_CACHE_COMP", 1));
+        std::cout << params.layerID << "  use int8 " << std::endl;
+    }
+
+    // if (getenv("KV_CACHE_COMP") != nullptr)
+
     return jit;
 }
 
@@ -123,11 +133,13 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
                                   head_size * num_of_partitions };
             dispatch_data.lws = { 1, 1, head_size };
+            // std::cout << "non-finalization gws " << dispatch_data.gws[0] << "x" << dispatch_data.gws[1] << "x" << dispatch_data.gws[2] << " - head_size " << head_size << std::endl;
         } else if (kernel_idx == KernelsTypes::FINALIZATION) {
             dispatch_data.gws = { batch_size * heads_num,
                                   target_seq_len,
                                   16 };
             dispatch_data.lws = { 1, 1, 16 };
+            // std::cout << "finalization gws " << dispatch_data.gws[0] << "x" << dispatch_data.gws[1] << "x" << dispatch_data.gws[2] << std::endl;
         }
     }
 

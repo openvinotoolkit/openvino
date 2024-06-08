@@ -815,13 +815,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
-        manager.register_pass<ov::pass::RoPEFusion>();
-        pass_config->disable<ov::pass::RoPEFusionGPTNEOX>();
-        pass_config->disable<ov::pass::RoPEFusionGPTJ>();
-        pass_config->disable<ov::pass::RoPEFusionCosSinPreprocess>();
-        pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
-        pass_config->disable<ov::pass::RoPEFusionPreprocess>();
-        pass_config->disable<ov::pass::RoPEShareCosSin>();
+        // manager.register_pass<ov::pass::RoPEFusion>();
+        // pass_config->disable<ov::pass::RoPEFusionGPTNEOX>();
+        // pass_config->disable<ov::pass::RoPEFusionGPTJ>();
+        // pass_config->disable<ov::pass::RoPEFusionCosSinPreprocess>();
+        // pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
+        // pass_config->disable<ov::pass::RoPEFusionPreprocess>();
+        // pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

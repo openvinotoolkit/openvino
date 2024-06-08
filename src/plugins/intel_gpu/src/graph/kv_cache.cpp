@@ -10,6 +10,7 @@
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
+#include "to_string_utils.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
@@ -25,7 +26,7 @@ layout kv_cache_inst::calc_output_layout(const kv_cache_node& node, kernel_impl_
 }
 
 template<typename ShapeType>
-std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*node*/, kernel_impl_params const& impl_param) {
+std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<kv_cache>();
 
     ov::intel_gpu::op::KVCache op;
@@ -45,6 +46,10 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
         auto out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
+        if (i == 0 && impl_param.get_input_layout(1).data_type == data_types::i8) {
+            std::cout << node.id() << "  input data type " << dt_to_str(impl_param.get_input_layout(1).data_type) << std::endl;
+            out_type = data_types::i8;
+        }
         out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));
     }
 
