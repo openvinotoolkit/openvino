@@ -26,22 +26,24 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnectedCompressed>& op) {
-    validate_inputs_count(op, {4, 5});
+    validate_inputs_count(op, {4, 5, 6});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
     auto supports_immad = p.get_engine().get_device_info().supports_immad;
 
-    const int INPUT_CNT_WITH_ZP = 5;
     auto input_name = inputs[0].pid;
     auto weights_name = inputs[1].pid;
     auto bias_name = inputs[2].pid;
     auto scale_name = inputs[3].pid;
-    auto zp_name = inputs.size() == INPUT_CNT_WITH_ZP ? inputs[4].pid : "";
+    size_t input_idx = 4;
+    const size_t INPUT_PORT_IDX = input_idx;
+    std::string zp_name = op->get_has_zp() ? inputs[input_idx++].pid : "";
+    std::string activation_scale_name = op->get_has_activation_scale() ? inputs[input_idx++].pid : "";
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
-    if (op->get_input_size() == INPUT_CNT_WITH_ZP) {
-        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(INPUT_CNT_WITH_ZP-1));
+    if (op->get_has_zp()) {
+        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(INPUT_PORT_IDX));
         if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
             has_scalar_zp = true;
             zp_value = zp_const->cast_vector<float>()[0];
@@ -55,9 +57,11 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      bias_name,
                                      scale_name,
                                      has_scalar_zp && !supports_immad ? "" : zp_name,
+                                     {activation_scale_name, 1},
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      op->get_input_partial_shape(0).size(),
                                      op->get_input_partial_shape(1).size());
+
 
     if (has_scalar_zp) {
         fc.decompression_zero_point_scalar = zp_value;

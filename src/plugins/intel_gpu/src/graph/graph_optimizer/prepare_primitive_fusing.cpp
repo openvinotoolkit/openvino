@@ -409,6 +409,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 fc_with_bias_prim->decompression_zero_point = desc->decompression_zero_point;
                 if (desc->decompression_zero_point_scalar.has_value())
                     fc_with_bias_prim->decompression_zero_point_scalar = desc->decompression_zero_point_scalar.value();
+                fc_with_bias_prim->activation_scale = desc->activation_scale;
+                fc_with_bias_prim->dynamic_quantized_activation = desc->dynamic_quantized_activation;
             }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);

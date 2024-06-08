@@ -277,6 +277,9 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
             fc_info.add("decompression zp value", desc->decompression_zero_point_scalar.value());
         }
     }
+    if (desc->dynamic_quantized_activation) {
+        fc_info.add("activation scale id", desc->activation_scale.pid);
+    }
 
     node_info->add("fully connected info", fc_info);
     node_info->dump(primitive_description);

@@ -60,19 +60,27 @@ protected:
             const auto weights_dt = instance.get_input_layout(1).data_type;
             auto weight_bitwidth = ov::element::Type(weights_dt).bitwidth();
             OPENVINO_ASSERT(weight_bitwidth == 8 || weight_bitwidth == 4, "[GPU] oneDNN supports only 4bit/8bit compressed weights");
+            int idx = prim->bias.empty() ? 2 : 3;
 
             if (!prim->decompression_scale.empty()) {
-                auto decompression_scale_idx = prim->bias.empty() ? 2 : 3;
+                auto decompression_scale_idx = idx++;
                 auto scale_mem = instance.dep_memory_ptr(decompression_scale_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, true);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
             }
 
             if (!prim->decompression_zero_point.empty()) {
-                auto decompression_zp_idx = prim->bias.empty() ? 3 : 4;
+                auto decompression_zp_idx = idx++;
                 auto zp_mem = instance.dep_memory_ptr(decompression_zp_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
+            }
+
+            if (prim->activation_scale.is_valid()) {
+                auto activation_scale_idx = idx++;
+                auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::a, true);
+                args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
         }
 
@@ -231,6 +239,7 @@ public:
         ob << input_size;
         ob << has_bias;
         ob << is_compressed;
+        ob << prim->dynamic_quantized_activation;
 
         bool has_decompression_scale = !prim->decompression_scale.empty();
         if (has_decompression_scale) {
@@ -256,9 +265,11 @@ public:
         size_t input_size = 2;
         bool has_bias = false;
         bool is_compressed = false;
+        bool dynamic_quantized_activation;
         ib >> input_size;
         ib >> has_bias;
         ib >> is_compressed;
+        ib >> dynamic_quantized_activation;
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
@@ -295,6 +306,20 @@ public:
             }
         }
 
+        if (dynamic_quantized_activation) {
+            int input_idx = has_bias ? 2 : 1;
+            if (has_decompression_scale)
+                input_idx++;
+            if (has_decompression_zp)
+                input_idx++;
+            // Note: it supports per-token activation scale only
+            auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
+            auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
+
+            auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(input_idx).data_type);
+            _attrs->set_scales(DNNL_ARG_SRC, (1 << 1) | (1 << 0), dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
+        }
+
         if (is_compressed) {
             auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, has_bias, *_attrs);
             _pd = *prim_desc;
@@ -321,6 +346,7 @@ public:
         dnnl::memory::data_type ds_data_type = dnnl::memory::data_type::undef;
         dnnl::memory::data_type dzp_data_type = dnnl::memory::data_type::undef;
         bool is_four_bit_weight = false;
+        int idx = !arg.bias_term() ? 1 : 2;
 
         // There may be a performance difference between InnerProduct and MatMul primitives in oneDNN,
         // so use MatMul only for weights compression and IP for all other cases.
@@ -329,7 +355,7 @@ public:
             auto weights_layout = impl_params.get_input_layout(1);
             is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
             if (!prim->decompression_scale.empty()) {
-                auto decompression_scale_idx = !arg.bias_term() ? 2 : 3;
+                auto decompression_scale_idx = ++idx;
                 ds_data_type = convert_data_type(arg.get_dependency(decompression_scale_idx).get_output_layout().data_type);
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
                 auto ngroups = arg.get_dependency(decompression_scale_idx).get_output_layout().get_dim(1);
@@ -344,7 +370,7 @@ public:
             }
 
             if (!prim->decompression_zero_point.empty()) {
-                auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
+                auto decompression_zp_idx = ++idx;
                 auto dzp_layout = arg.get_dependency(decompression_zp_idx).get_output_layout();
                 dzp_data_type = convert_data_type(dzp_layout.data_type);
 
@@ -358,6 +384,16 @@ public:
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
                     }
                 }
+            }
+
+            if (prim->dynamic_quantized_activation) {
+                // Note: it supports per-token activation scale only
+                ++idx;
+                auto partial_shape = impl_params.input_layouts[0].get_partial_shape();
+                auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
+
+                auto act_scale_data_type = convert_data_type(impl_params.input_layouts[idx].data_type);
+                attr->set_scales(DNNL_ARG_SRC, (1 << 1) | (1 << 0), dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
             }
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),

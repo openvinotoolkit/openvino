@@ -71,6 +71,7 @@
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
+#include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -846,6 +847,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
+        GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->dynamic_quantization_group_size > 0) {
+            dynamic_quantization_group_size = cldnn::debug_configuration::get_instance()->dynamic_quantization_group_size;
+        }
+
+        if (device_info.supports_immad && dynamic_quantization_group_size == 1048576) // XXX: 1048576 is considered per-token
+            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
