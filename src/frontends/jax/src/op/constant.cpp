@@ -9,11 +9,11 @@ namespace frontend {
 namespace jax {
 namespace op {
 
-OutputVector translate_constant(const NodeContext &context) {
-  return context.as_constant();
+OutputVector translate_constant(const NodeContext& context) {
+    return context.as_constant();
 };
 
-} // namespace op
-} // namespace jax
-} // namespace frontend
-} // namespace ov
+}  // namespace op
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov
