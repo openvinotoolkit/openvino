@@ -121,7 +121,7 @@ using LSTMCellTFKerasFusionParam = std::tuple<std::string,  // f activation func
                                               size_t,       // input size
                                               size_t>;      // hidden size
 
-class LSTMCellTFKerasFusionTestSuite : public testing::WithParamInterface<LSTMCellTFKerasFusionParam>,
+class LSTMCellFusionWithSplitWeights : public testing::WithParamInterface<LSTMCellTFKerasFusionParam>,
                                        public TransformationTestsF {};
 
 namespace {
@@ -211,7 +211,7 @@ ov::Output<ov::Node> prepare_weight_fico(const std::vector<float>& f_val,
 }
 }  // namespace
 
-TEST_P(LSTMCellTFKerasFusionTestSuite, SubgraphFusedToLSTMCell) {
+TEST_P(LSTMCellFusionWithSplitWeights, SubgraphFusedToLSTMCell) {
     const auto& param = GetParam();
     const std::string& f_activation = std::get<0>(param);
     const std::string& g_activation = std::get<1>(param);
@@ -248,7 +248,7 @@ TEST_P(LSTMCellTFKerasFusionTestSuite, SubgraphFusedToLSTMCell) {
         auto h_abs = std::make_shared<op::v0::Abs>(ht);
 
         model = std::make_shared<Model>(NodeVector{h_abs, c_neg}, ParameterVector{x, h, c});
-        manager.register_pass<ov::pass::LSTMCellTfKerasFusion>();
+        manager.register_pass<ov::pass::LSTMCellFusion>();
     }
 
     {
@@ -288,7 +288,7 @@ TEST_P(LSTMCellTFKerasFusionTestSuite, SubgraphFusedToLSTMCell) {
 }
 
 INSTANTIATE_TEST_SUITE_P(LSTMCellFusion,
-                         LSTMCellTFKerasFusionTestSuite,
+                         LSTMCellFusionWithSplitWeights,
                          testing::Combine(testing::Values("sigmoid", "tanh", "relu"),
                                           testing::Values("sigmoid", "relu"),
                                           testing::Values("tanh", "relu"),

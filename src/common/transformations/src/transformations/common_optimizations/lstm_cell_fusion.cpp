@@ -208,8 +208,8 @@ ov::Output<ov::Node> prepare_weight_fico(const ov::Output<ov::Node>& f,
                                     +----------+
 
  */
-ov::pass::LSTMCellFusion::LSTMCellFusion() {
-    MATCHER_SCOPE(LSTMCellFusion);
+ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
+    MATCHER_SCOPE(LSTMCellFusionWithJointWeights);
 
     auto x_label = pattern::any_input(pattern::rank_equals(2));
     auto h_label = pattern::any_input(pattern::rank_equals(2));
@@ -447,8 +447,91 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::LSTMCellTfKerasFusion::LSTMCellTfKerasFusion() {
-    MATCHER_SCOPE(LSTMCellTfKerasFusion);
+/*
+    The following graph is fused to LSTMCell
+
+      +----+      +----+            +----+                   +----+
+      | It |      | Ct |            | Ft |                   | Ot |
+      +----+      +----+            +----+                   +----+
+         |           |                 |                        |
+         v           |                 |                        v
+  +------+-----+     |                 |                 +------+-----+
+  | Activation |     |                 |                 | Activation |
+  |   (i_t)    |     |                 |                 |   (o_t)    |
+  +------+-----+     |                 |                 +------+-----+
+         |           v                 |                        |
+         |    +------+-----+           |                        |
+         |    | Activation |           |                        |
+         |    |   (c_t)    |           |                        |
+         |    +------+-----+           |                        |
+         |           |                 |                        |
+         |           |                 v                        |
+         +---+   +---+          +------+-----+                  |
+             |   |              | Activation |   +-----+        |
+             v   v              |   (f_t)    |   |  C  |        |
+          +--+---+---+          +------------+   +-----+        |
+          | Multiply |                 |            |           |
+          +----+-----+                 |   +--------+           |
+               |                       |   |                    |
+               |                       v   v                    |
+               |                   +---+---+--+                 |
+               |                   | Multiply |                 |
+               |                   +----+-----+                 |
+               |                        |                       |
+               |                        |                       |
+               +---------+     +--------+                       |
+                         |     |                                |
+                         v     v                                |
+                       +-+-----+-+                              |
+                       |   Add   |                              |
+                       | (C out) |                              |
+                       +----+----+                              |
+                            |                                   |
+                            v                                   |
+                      +-----+------+                            |
+                      | Activation |                            |
+                      +-----+------+                            |
+                            |                                   |
+                            |                                   |
+                            +----------+    +-------------------+
+                                       |    |
+                                       v    v
+                                    +--+----+--+
+                                    | Multiply |
+                                    | (H out)  |
+                                    +----------+
+
+    where each of It, Ct, Ft, and Ot represents a separate graph:
+
+               +-----+    +-----+
+               |  X  |    |  W  |
+               +--+--+    +--+--+
+                  |          |
+                  +---+  +---+
+                      |  |
+                      v  v
+                   +--+--+--+   +------+           +-----+        +----+
+                   | MatMul |   | Bias |           |  H  |        |  R |
+                   +----+---+   +---+--+           +-----+        +----+
+                        |           |                 |              |
+                        |  +--------+                 +---+      +---+
+                        |  |                              |      |
+                        v  v                              v      v
+                     +--+--+--+                          +--------+
+                     |   Add  |                          | MatMul |
+                     +----+---+                          +--+-----+
+                          |                                 |
+                          |   +-----------------------------+
+                          |   |
+                          v   v
+                       +--+---+--+
+                       |   Add   |
+                       +----+----+
+                            |
+
+ */
+ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
+    MATCHER_SCOPE(LSTMCellFusionWithSplitWeights);
 
     auto x_label = pattern::any_input(pattern::rank_equals(2));
     auto h_label = pattern::any_input(pattern::rank_equals(2));
@@ -547,6 +630,12 @@ ov::pass::LSTMCellTfKerasFusion::LSTMCellTfKerasFusion() {
             B,
             static_cast<size_t>(hidden_size),
             std::vector<std::string>{f_activation_name, g_activation_name, h_activation_name});
+
+        if (transformation_callback(lstm_cell)) {
+            return false;
+        }
+
+        lstm_cell->set_friendly_name(m.get_match_root()->get_friendly_name());
 
         copy_runtime_info(m.get_matched_nodes(), rg.get());
 
