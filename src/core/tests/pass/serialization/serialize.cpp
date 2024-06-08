@@ -97,10 +97,6 @@ TEST(SerializationTest, WriteInReadOnly) {
     // Confirm that files were not successfully written.
     ASSERT_FALSE(std::ifstream(test_xml_path).good());
     ASSERT_FALSE(std::ifstream(test_bin_path).good());
-
-    // Clean up
-    std::remove(test_xml_path.c_str());
-    std::remove(test_bin_path.c_str());
 }
 
 TEST_P(SerializationTest, CompareFunctions) {
