@@ -48,7 +48,7 @@ private:
 }  // namespace intel_cpu
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>
+class AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>
     : public EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN> {
 public:
     AttributeAdapter(ov::intel_cpu::LLMMLPNode::ACT_FN& value)
