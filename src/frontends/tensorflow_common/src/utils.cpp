@@ -499,7 +499,7 @@ shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_h
     return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
 }
 
-shared_ptr<Node> hsv_to_rgb(const shared_ptr<Node>& h, const shared_ptr<Node>& s, const shared_ptr<Node>& v) {
+shared_ptr<Node> hsv_to_rgb(const ov::Output<ov::Node>& h, const ov::Output<ov::Node>& s, const ov::Output<ov::Node>& v) {
     // image format conversion based on
     // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
     auto const_six_f_ = create_same_type_const_scalar<float>(h, 6.0f);
