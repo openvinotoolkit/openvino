@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #endif
 
+namespace {
 bool createReadOnlyFile(const std::string& filename) {
     std::ofstream file(filename);
     if(file.is_open()) {
@@ -31,6 +32,7 @@ bool createReadOnlyFile(const std::string& filename) {
 #endif
     }
     return false;
+}
 }
 
 using SerializationParams = std::tuple<std::string, std::string>;
