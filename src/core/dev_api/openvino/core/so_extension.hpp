@@ -3,7 +3,6 @@
 //
 #pragma once
 
-#include "openvino/core/except.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/util/file_util.hpp"
