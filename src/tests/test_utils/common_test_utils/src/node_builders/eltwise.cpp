@@ -12,7 +12,6 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/floor_mod.hpp"
-#include "openvino/op/is_inf.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
