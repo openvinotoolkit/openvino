@@ -24,9 +24,9 @@ OutputVector translate_hsv_to_rgb_op(const NodeContext& node) {
     auto const_minus_one_i = make_shared<v0::Constant>(element::i32, Shape{}, -1);
     auto channels = make_shared<v1::Split>(images, const_minus_one_i, 3);
 
-    auto hh = channels->output(0).get_node_shared_ptr();
-    auto ss = channels->output(1).get_node_shared_ptr();
-    auto vv = channels->output(2).get_node_shared_ptr();
+    auto hh = channels->output(0);
+    auto ss = channels->output(1);
+    auto vv = channels->output(2);
 
     auto new_images = hsv_to_rgb(hh, ss, vv);
 
