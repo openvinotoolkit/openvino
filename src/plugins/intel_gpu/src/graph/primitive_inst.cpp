@@ -1034,8 +1034,8 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     const auto& sequence_axis = desc->concat_axis;
     const auto& gather_axis = desc->gather_axis;
 
-    const auto& prev_batch_size = past_layout.get_shape()[gather_axis];
-    const auto& beam_size = present_layout.get_shape()[gather_axis];
+    const auto& prev_batch_size = static_cast<size_t>(past_layout.get_shape()[gather_axis]);
+    const auto& beam_size = static_cast<size_t>(present_layout.get_shape()[gather_axis]);
     if (prev_batch_size != beam_size) {
         // If the previous batch size is not same as beam size, need explicit concat
         _impl_params->_can_be_optimized = false;

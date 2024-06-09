@@ -9,6 +9,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -415,9 +416,9 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
-    auto qkv_linear = makePattern("f32[?,?,?]");  //  f32[seq_length, batch_size, 4608]
+    auto qkv_linear = makePattern("[?,?,?]");  //  [seq_length, batch_size, 4608]
     auto seq_length = makePattern("i32[1]");
-    auto cos_sin_cache = makePattern("f32[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
+    auto cos_sin_cache = makePattern("[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
 
     auto ndims = ov::gen_pattern::Symbol("ndims");
     auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
@@ -538,9 +539,9 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionQwen);
 
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
-    auto rotary_emb_cos = makePattern("f32[1,?,1,?]");  // [1,..4096,1,128]
-    auto rotary_emb_sin = makePattern("f32[1,?,1,?]");  // [1,..4096,1,128]
-    auto qkv_proj = makePattern("f32[?,?,?]");          // f32[?,?,12288]
+    auto rotary_emb_cos = makePattern("[1,?,1,?]");  // [1,..4096,1,128]
+    auto rotary_emb_sin = makePattern("[1,?,1,?]");  // [1,..4096,1,128]
+    auto qkv_proj = makePattern("[?,?,?]");          // [?,?,12288]
 
     auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
     auto head_size = ov::gen_pattern::Symbol("head_size");
@@ -554,13 +555,13 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         {{"special_zero", true}});
     auto slice_Slice_543 = GenSlice(view_Reshape_424, 0, head_size, 1, 3);  //  tensor_array<f32[?,?,32,128]>
 
-    auto hidden_states = makePattern("f32[?,?,?]");  //
+    auto hidden_states = makePattern();  //
     auto ShapeOf_485735 = makePattern<opset1::ShapeOf>({hidden_states}, {});
     auto Multiply_567524 = makePattern<opset1::Multiply>({ShapeOf_485735, {-1}}, {{"auto_broadcast", "numpy"}});
     auto Gather_377635 = makePattern<opset8::Gather>({Multiply_567524, {1}, 0}, {{"batch_dims", 0}});
 
-    auto input_ids = makePattern("i32[?,?]");  // [batch, length]
-    auto ShapeOf_409241 = makePattern<opset1::ShapeOf>({input_ids}, {});
+    auto input_ids = makePattern();  // [batch, length]
+    auto ShapeOf_409241 = makePattern<ov::op::util::ShapeOfBase>({input_ids}, {});
     auto Gather_311651 = makePattern<opset8::Gather>({ShapeOf_409241, {1}, 0}, {{"batch_dims", 0}});
     auto neg_Multiply = makePattern<opset1::Multiply>({Gather_311651, {-1}}, {{"auto_broadcast", "numpy"}});
 
