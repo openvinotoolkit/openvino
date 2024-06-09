@@ -30,6 +30,8 @@ JitConstants SwiGLUKernelRef::GetJitConstants(const swiglu_params& params) const
 
     jit.AddConstants({MakeJitConstant("AXIS", params.axis)});
     jit.AddConstants({MakeJitConstant("SPLIT_LENGTH", params.split_length)});
+    jit.AddConstants({MakeJitConstant("GLU_TYPE", params.glu_type)});
+    jit.AddConstants({MakeJitConstant("SPLIT_TO_GLU_IDX", params.split_to_glu_idx)});
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 

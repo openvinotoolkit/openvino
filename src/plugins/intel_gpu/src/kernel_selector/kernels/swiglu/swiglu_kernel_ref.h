@@ -14,6 +14,8 @@ struct swiglu_params : public base_params {
     swiglu_params() : base_params(KernelType::SWIGLU), axis(0), split_length(0) {}
     int32_t axis;
     int32_t split_length;
+    int32_t glu_type;
+    int32_t split_to_glu_idx;
 };
 
 class SwiGLUKernelRef : public KernelBaseOpenCL {
