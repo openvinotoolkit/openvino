@@ -197,7 +197,7 @@ source of the function.
 
 .. parsed-literal::
 
-    [05/07 01:57:18] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
+    [05/16 02:37:30] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
 
 
 .. code:: ipython3
@@ -340,19 +340,19 @@ succeeds, the output of the next cell will include
 
 .. parsed-literal::
 
-    2024-05-07 01:57:26 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-05-16 02:37:38 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
     [Paddle2ONNX] Start to parse PaddlePaddle model...
     [Paddle2ONNX] Model file path: model/paddle_model_static_onnx_temp_dir/model.pdmodel
     [Paddle2ONNX] Parameters file path: model/paddle_model_static_onnx_temp_dir/model.pdiparams
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 11 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2024-05-07 01:57:26 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
+    2024-05-16 02:37:38 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
 
 
 .. parsed-literal::
 
-    I0507 01:57:26.255722 2900119 program_interpreter.cc:212] New Executor is Running.
+    I0516 02:37:38.511446 81541 program_interpreter.cc:212] New Executor is Running.
 
 
 Convert to OpenVINO IR
@@ -628,8 +628,8 @@ measure inference on one image. For more accurate benchmarking, use
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.416 seconds per image, FPS: 2.41
-    PaddleGAN model on CPU: 6.152 seconds per image, FPS: 0.16
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.417 seconds per image, FPS: 2.40
+    PaddleGAN model on CPU: 6.102 seconds per image, FPS: 0.16
 
 
 References

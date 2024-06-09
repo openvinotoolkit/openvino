@@ -72,7 +72,7 @@ Install requirements
     magika 0.5.1 requires numpy<2.0,>=1.24; python_version >= "3.8" and python_version < "3.9", but you have numpy 1.23.5 which is incompatible.
     mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.0+cpu which is incompatible.
     mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.0+cpu which is incompatible.
-    optimum-intel 1.17.0.dev0+9bb4334 requires transformers<4.41.0,>=4.36.0, but you have transformers 4.33.3 which is incompatible.
+    optimum-intel 1.17.0.dev0+8c2b787 requires transformers<4.41.0,>=4.36.0, but you have transformers 4.33.3 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 

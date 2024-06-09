@@ -155,6 +155,13 @@ ov::Output<ov::Node> get_data_slice(const ov::Output<ov::Node>& data,
 
 ov::Output<ov::Node> compute_broadcast_args(const ov::Output<ov::Node>& shape1, const ov::Output<ov::Node>& shape2);
 
+std::shared_ptr<std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>> rgb_to_hsv(
+    const std::shared_ptr<ov::Node>& images);
+
+std::shared_ptr<ov::Node> hsv_to_rgb(const std::shared_ptr<ov::Node>& h,
+                                     const std::shared_ptr<ov::Node>& s,
+                                     const std::shared_ptr<ov::Node>& v);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

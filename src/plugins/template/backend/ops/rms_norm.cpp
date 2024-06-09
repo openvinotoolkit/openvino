@@ -16,7 +16,7 @@
 using namespace ov;
 
 template <element::Type_t T>
-bool evaluate(const std::shared_ptr<ov::op::v14::RMSNorm>& node,
+bool evaluate(const std::shared_ptr<ov::op::internal::RMSNorm>& node,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using ET = typename ov::element_type_traits<T>::value_type;
@@ -46,18 +46,18 @@ bool evaluate(const std::shared_ptr<ov::op::v14::RMSNorm>& node,
 }
 
 template <>
-bool evaluate_node<op::v14::RMSNorm>(std::shared_ptr<ov::Node> node,
-                                     ov::TensorVector& outputs,
-                                     const ov::TensorVector& inputs) {
+bool evaluate_node<op::internal::RMSNorm>(std::shared_ptr<ov::Node> node,
+                                          ov::TensorVector& outputs,
+                                          const ov::TensorVector& inputs) {
     switch (node->get_input_element_type(0)) {
     case element::bf16:
-        return evaluate<element::bf16>(as_type_ptr<op::v14::RMSNorm>(node), outputs, inputs);
+        return evaluate<element::bf16>(as_type_ptr<op::internal::RMSNorm>(node), outputs, inputs);
     case element::f16:
-        return evaluate<element::f16>(as_type_ptr<op::v14::RMSNorm>(node), outputs, inputs);
+        return evaluate<element::f16>(as_type_ptr<op::internal::RMSNorm>(node), outputs, inputs);
     case element::f64:
-        return evaluate<element::f64>(as_type_ptr<op::v14::RMSNorm>(node), outputs, inputs);
+        return evaluate<element::f64>(as_type_ptr<op::internal::RMSNorm>(node), outputs, inputs);
     case element::f32:
-        return evaluate<element::f32>(as_type_ptr<op::v14::RMSNorm>(node), outputs, inputs);
+        return evaluate<element::f32>(as_type_ptr<op::internal::RMSNorm>(node), outputs, inputs);
     default:
         OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
     }

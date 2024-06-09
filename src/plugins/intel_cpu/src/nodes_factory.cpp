@@ -21,8 +21,8 @@
 #include "nodes/detection_output.h"
 #include "nodes/dft.h"
 #include "nodes/eltwise.h"
-#include "nodes/embedding_bag_offset_sum.h"
-#include "nodes/embedding_bag_packed_sum.h"
+#include "nodes/embedding_bag_offsets.h"
+#include "nodes/embedding_bag_packed.h"
 #include "nodes/embedding_segments_sum.h"
 #include "nodes/experimental_detectron_detection_output.h"
 #include "nodes/experimental_detectron_generate_proposals_single_image.h"
@@ -124,7 +124,8 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Pooling, Type::Pooling);
     INTEL_CPU_NODE(Eltwise, Type::Eltwise);
     INTEL_CPU_NODE(SoftMax, Type::Softmax);
-    INTEL_CPU_NODE(EmbeddingBagPackedSum, Type::EmbeddingBagPackedSum);
+    INTEL_CPU_NODE(EmbeddingBagPacked, Type::EmbeddingBagPackedSum);
+    INTEL_CPU_NODE(EmbeddingBagPacked, Type::EmbeddingBagPacked);
     INTEL_CPU_NODE(Input, Type::Input);
     INTEL_CPU_NODE(Input, Type::Output);
     INTEL_CPU_NODE(MemoryInput, Type::MemoryInput);
@@ -158,7 +159,8 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(MultiClassNms, Type::MulticlassNms);
     INTEL_CPU_NODE(Convert, Type::Convert);
     INTEL_CPU_NODE(ColorConvert, Type::ColorConvert);
-    INTEL_CPU_NODE(EmbeddingBagOffsetSum, Type::EmbeddingBagOffsetsSum);
+    INTEL_CPU_NODE(EmbeddingBagOffset, Type::EmbeddingBagOffsetsSum);
+    INTEL_CPU_NODE(EmbeddingBagOffset, Type::EmbeddingBagOffsets);
     INTEL_CPU_NODE(Roll, Type::Roll);
     INTEL_CPU_NODE(Pad, Type::Pad);
     INTEL_CPU_NODE(Reshape, Type::Reshape);
@@ -202,7 +204,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
-    INTEL_CPU_NODE(Snippet, Type::Subgraph);
+    INTEL_CPU_NODE(Subgraph, Type::Subgraph);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);

@@ -86,9 +86,9 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE)));
     config.inConfs[PagedAttentionExecutor::ID_VCACHE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE)));
-    // context_lens, int, [b_seq]
-    config.inConfs[PagedAttentionExecutor::ID_CONTEXT_LENS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_CONTEXT_LENS)));
+    // past_lens, int, [b_seq]
+    config.inConfs[PagedAttentionExecutor::ID_PAST_LENS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_PAST_LENS)));
     // subsequence_begins, int, [b_seq]
     config.inConfs[PagedAttentionExecutor::ID_SUBSEQUENCE_BEGINS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SUBSEQUENCE_BEGINS)));

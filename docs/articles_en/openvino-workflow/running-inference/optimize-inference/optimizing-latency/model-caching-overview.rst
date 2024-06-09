@@ -67,7 +67,7 @@ If the device does not support the import/export capability, cache is not create
 Note that the first ``compile_model`` operation takes slightly longer, as the cache needs to be created -
 the compiled blob is saved into a cache file:
 
-.. image:: ../../../../_static/images/caching_enabled.svg
+.. image:: ../../../../assets/images/caching_enabled.svg
 
 
 Make it even faster: use compile_model(modelPath)
@@ -113,7 +113,7 @@ With model caching enabled, the total load time is even shorter, if ``read_model
          :fragment: [ov:caching:part2]
 
 
-.. image:: ../../../../_static/images/caching_times.svg
+.. image:: ../../../../assets/images/caching_times.svg
 
 Advanced Examples
 ++++++++++++++++++++

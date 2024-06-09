@@ -16,7 +16,7 @@ wheel>=0.38.1
 patchelf<=0.17.2.1
 
 # Frontends
-h5py>=3.1.0,<3.11.0
+h5py>=3.1.0,<3.12.0
 docopt~=0.6.2
 paddlepaddle==2.6.0
 tensorflow>=1.15.5,<2.17.0

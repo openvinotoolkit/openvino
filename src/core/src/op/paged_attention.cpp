@@ -57,12 +57,12 @@ void PagedAttentionExtension::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(
         this,
         get_input_partial_shape(5).rank().is_dynamic() || get_input_partial_shape(5).rank().get_length() == 1,
-        "Rank of `context_lens` input should be 1, but it is ",
+        "Rank of `past_lens` input should be 1, but it is ",
         get_input_partial_shape(5).rank().get_length(),
         ".");
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(5).is_dynamic() || get_input_element_type(5) == element::i32,
-                          "Element type of `context_lens` input should be i32, but it is ",
+                          "Element type of `past_lens` input should be i32, but it is ",
                           get_input_element_type(5),
                           ".");
     NODE_VALIDATION_CHECK(

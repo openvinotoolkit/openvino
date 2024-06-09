@@ -210,10 +210,15 @@ static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
-    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
-                   op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model)
-               ? Config::ModelType::CNN
-               : Config::ModelType::Unknown;
+    if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
+        op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model))
+        return Config::ModelType::CNN;
+    
+    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) &&
+        model->get_variables().size() > 0)
+        return Config::ModelType::LLM;
+
+    return Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {

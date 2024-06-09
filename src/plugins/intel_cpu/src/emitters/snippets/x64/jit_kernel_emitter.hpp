@@ -5,6 +5,7 @@
 #pragma once
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
+
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/jit_container_emitter.hpp"
 
@@ -82,13 +83,7 @@ private:
 
     const size_t reg_indexes_idx{1};
     std::vector<size_t> master_shape;
-
-    // Vector of indices (lenght = input tensor rank) per every input and output that describes in which order
-    // corresponding tensor dimensions are accessed (default: consecutive dense, e.g. 0,1,2,3 for 4D tensor).
-    // Needed to calc i/o offsets.
-    std::vector<std::vector<size_t>> io_data_layouts = {};
-    std::vector<std::vector<size_t>> io_shapes = {};
-    std::vector<size_t> io_data_sizes {};
+    std::vector<std::vector<size_t>> data_offsets;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter *emitter);
