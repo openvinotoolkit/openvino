@@ -949,7 +949,7 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 static bool is_node_for_onednn(gemm_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
         return false;
-
+#if 0
     auto gemm_prim = node.get_primitive();
 
     for (size_t idx = 0; idx < gemm_prim->output_transpose_order.size(); idx++) {
@@ -969,7 +969,7 @@ static bool is_node_for_onednn(gemm_node const& node) {
         if (idx != static_cast<size_t>(gemm_prim->input1_transpose_order[idx]))
             return false;
     }
-
+#endif
     return true;
 }
 

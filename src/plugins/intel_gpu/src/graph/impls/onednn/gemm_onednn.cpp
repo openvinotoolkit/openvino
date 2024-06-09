@@ -81,9 +81,14 @@ protected:
         if (gemm_with_bias) {
             in_layouts.emplace_back(impl_params.get_input_layout(2));
         }
-
+        if (prim->id.find("__module.text_model.encoder.layers.0.self_attn/aten::bmm/MatMul") != std::string::npos) {
+            GPU_DEBUG_INFO << "__module.text_model.encoder.layers.0.self_attn/aten::bmm/MatMul" << std::endl;
+        }
+        GPU_DEBUG_INFO << prim->id << ": trans_in0/in1: " << prim->transpose_input0 << ", " << prim->transpose_input1 << std::endl;
+        GPU_DEBUG_INFO << in_layouts[0].to_short_string() << ", " << in_layouts[1].to_short_string() << std::endl;
         in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts);
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
+        GPU_DEBUG_INFO << in_layouts[0].to_short_string() << ", " << in_layouts[1].to_short_string() << std::endl;
 
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
@@ -119,6 +124,7 @@ protected:
                 std::swap(in0_padded_dims[in0_padded_dims.size() - 1], in0_padded_dims[in0_padded_dims.size() - 2]);
             }
             in0_strides = onednn::get_strides(in0_padded_dims);
+            GPU_DEBUG_INFO << prim->id <<  ": in0 has padding" << std::endl;
         }
 
         if (in1_l.data_padding) {
@@ -127,16 +133,234 @@ protected:
                 std::swap(in1_padded_dims[in1_padded_dims.size() - 1], in1_padded_dims[in1_padded_dims.size() - 2]);
             }
             in1_strides = onednn::get_strides(in1_padded_dims);
+            GPU_DEBUG_INFO << prim->id <<  ": in1 has padding" << std::endl;
+        }
+#if 0
+        if (prim->transpose_input0 || prim->transpose_input1) {
+            GPU_DEBUG_INFO << "in0 dim" << std::endl;
+            for (auto i : in0_dims) {
+                std::cout << i << " ";
+            }
+            std::cout << std::endl;
+            GPU_DEBUG_INFO << "in1 dim" << std::endl;
+            for (auto i : in1_dims) {
+                std::cout << i << " ";
+            }
+            std::cout << std::endl;
+
+            GPU_DEBUG_INFO << "in0 input0_transpose_order" << std::endl;
+            for (auto i : prim->input0_transpose_order) {
+                std::cout << i << " ";
+            }
+            std::cout << std::endl;
+            GPU_DEBUG_INFO << "in0 input1_transpose_order" << std::endl;
+            for (auto i : prim->input1_transpose_order) {
+                std::cout << i << " ";
+            }
+            std::cout << std::endl;
         }
 
-        if (prim->transpose_input0) {
+#if 1
+        if (prim->transpose_input0 && batched_dims_can_be_removed) {
+            // GPU_DEBUG_COUT << prim->id <<  ": need transpose_in0: " << static_cast<int>(in0_fmt) << ", " << std::endl;
+            // for (auto i : prim->input0_transpose_order) {
+            //     std::cout << i << " ";
+            // }
+            // std::cout << std::endl;
             in0_fmt = transpose_format(in0_fmt);
             std::swap(in0_dims[in0_dims.size() - 1], in0_dims[in0_dims.size() - 2]);
         }
 
-        if (prim->transpose_input1) {
+        if (prim->transpose_input1 && batched_dims_can_be_removed) {
+            // GPU_DEBUG_COUT << prim->id <<  ": need transpose_in1: " << static_cast<int>(in1_fmt) << std::endl;
+            // for (auto i : prim->input1_transpose_order) {
+            //     std::cout << i << " ";
+            // }
+            // std::cout << std::endl;
+            // std::vector<size_t> order(std::begin(prim->input1_transpose_order), std::end(prim->input1_transpose_order));
+            // format target = format::bfyx;
+            // gemm_inst::is_fusable_permute_input_order_onednn(order, target);
+            // auto temp = in1_fmt;
+            // in1_fmt = convert_data_format(target);  // dnnl_adbc
+            // std::cout << "tag change : " << static_cast<int>(temp) << " TO " << static_cast<int>(in1_fmt) << std::endl;
+
+            // dnnl::memory::dims temp_dims = in1_dims;
+            // for (size_t i = 0; i < in1_dims.size(); ++i) {
+            //     in1_dims[i] = temp_dims[order[i]];
+            // }
             in1_fmt = transpose_format(in1_fmt);
             std::swap(in1_dims[in1_dims.size() - 1], in1_dims[in1_dims.size() - 2]);
+        }
+#endif
+        // Check whether transpose_order increase sequential or not.
+        // Return true when transpose_order is not 0, 1, 2, 3.
+        auto has_transpose_order = [](std::vector<int64_t> transpose_order) {
+            for (size_t i = 0; i < transpose_order.size(); i++) {
+                if (i != static_cast<size_t>(transpose_order[i])) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order, dnnl::memory::dims& dims, dnnl::memory::format_tag& tag) {
+            std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
+            if (dims.size() > order.size()) {
+                size_t orders_to_add = dims.size() - order.size();
+                for (size_t i = orders_to_add - 1; i == 0; --i)
+                     order.insert(order.begin(), i);
+                for (size_t i = orders_to_add; i < order.size(); ++i)
+                    order[i] = order[i] + orders_to_add;
+            } else if (dims.size() < order.size()) {
+                size_t orders_to_remove = order.size() - dims.size();
+                for (size_t i = 0; i < orders_to_remove; ++i) {
+                    order.erase(order.begin());
+                }
+                for (size_t i = 0; i< order.size(); ++i) {
+                    order[i] = order[i] - orders_to_remove;
+                }
+            }
+            GPU_DEBUG_COUT << "my order: " << std::endl;
+            for (auto i : order)
+                std::cout << i << ", ";
+            std::cout << std::endl;
+
+            format transposed_format = format::bfyx;
+            if (gemm_inst::is_fusable_permute_input_order_onednn(order, transposed_format)) {
+                auto original_tag = tag;
+                tag = convert_data_format(transposed_format);
+                GPU_DEBUG_COUT << "Transpose tag: " << static_cast<int>(original_tag) << " to " << static_cast<int>(tag) << std::endl;
+                dnnl::memory::dims original_dims = dims;
+                for (size_t i = 0; i < original_dims.size(); ++i) {
+                    dims[i] = original_dims[order[i]];
+                }
+            } else {
+                GPU_DEBUG_COUT << "order is not included in white list!!!!" << std::endl;
+            }
+        };
+
+        GPU_DEBUG_COUT << "in0" << std::endl;
+        if (has_transpose_order(prim->input0_transpose_order)) transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_fmt);
+        GPU_DEBUG_COUT << "in1" << std::endl;
+        if (has_transpose_order(prim->input1_transpose_order)) transpose_dims_and_format_tag(prim->input1_transpose_order, in1_dims, in1_fmt);
+        GPU_DEBUG_COUT << "out" << std::endl;
+        if (has_transpose_order(prim->output_transpose_order)) transpose_dims_and_format_tag(prim->output_transpose_order, out_dims, out_fmt);
+#if 0
+        if (has_transpose_order(prim->input0_transpose_order)) {
+            std::vector<size_t> order(std::begin(prim->input0_transpose_order), std::end(prim->input0_transpose_order));
+            format target = format::bfyx;
+            gemm_inst::is_fusable_permute_input_order_onednn(order, target);
+            auto temp = in0_fmt;
+            in0_fmt = convert_data_format(target);
+            std::cout << "tag change : " << static_cast<int>(temp) << " TO " << static_cast<int>(in0_fmt) << std::endl;
+
+            dnnl::memory::dims temp_dims = in0_dims;
+            for (size_t i = 0; i < in0_dims.size(); ++i) {
+                in0_dims[i] = temp_dims[order[i]];
+            }
+        }
+        if (has_transpose_order(prim->input1_transpose_order)) {
+            std::vector<size_t> order(std::begin(prim->input1_transpose_order), std::end(prim->input1_transpose_order));
+            format target = format::bfyx;
+            gemm_inst::is_fusable_permute_input_order_onednn(order, target);
+            auto temp = in1_fmt;
+            in1_fmt = convert_data_format(target);
+            std::cout << "tag change : " << static_cast<int>(temp) << " TO " << static_cast<int>(in1_fmt) << std::endl;
+
+            dnnl::memory::dims temp_dims = in1_dims;
+            for (size_t i = 0; i < in1_dims.size(); ++i) {
+                in1_dims[i] = temp_dims[order[i]];
+            }
+        }
+        if (!has_transpose_order(prim->output_transpose_order)) {
+            std::vector<size_t> order(std::begin(prim->output_transpose_order), std::end(prim->output_transpose_order));
+            format target = format::bfyx;
+            gemm_inst::is_fusable_permute_input_order_onednn(order, target);
+            auto temp = out_fmt;
+            out_fmt = convert_data_format(target);
+            std::cout << "tag change : " << static_cast<int>(temp) << " TO " << static_cast<int>(out_fmt) << std::endl;
+
+            dnnl::memory::dims temp_dims = out_dims;
+            for (size_t i = 0; i < out_dims.size(); ++i) {
+                out_dims[i] = temp_dims[order[i]];
+            }
+        }
+#endif
+#endif
+
+        if (batched_dims_can_be_removed) {
+            if (prim->transpose_input0) {
+                in0_fmt = transpose_format(in0_fmt);
+                std::swap(in0_dims[in0_dims.size() - 1], in0_dims[in0_dims.size() - 2]);
+            }
+            if (prim->transpose_input1) {
+                in1_fmt = transpose_format(in1_fmt);
+                std::swap(in1_dims[in1_dims.size() - 1], in1_dims[in1_dims.size() - 2]);
+            }
+        } else {
+            // Check whether transpose_order increase sequential or not.
+            // Return true when transpose_order is not 0, 1, 2, 3.
+            auto has_transpose_order = [](std::vector<int64_t> transpose_order) {
+                for (size_t i = 0; i < transpose_order.size(); i++) {
+                    if (i != static_cast<size_t>(transpose_order[i])) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
+                                                    dnnl::memory::dims& dims,
+                                                    dnnl::memory::format_tag& tag,
+                                                    bool is_input = true) {
+                std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
+                // GPU_DEBUG_INFO << "dims -> " << std::endl;
+                // for (auto i : dims) {
+                //     std::cout << i << ", ";
+                // }
+                // std::cout << std::endl;
+                // GPU_DEBUG_INFO << "order before -> " << std::endl;
+                // for (auto i : order) {
+                //     std::cout << i << ", ";
+                // }
+                // std::cout << std::endl;
+                if (dims.size() > order.size()) {
+                    GPU_DEBUG_INFO << "dims.size() > order.size() case" << std::endl;
+                    size_t orders_to_add = dims.size() - order.size();
+                    for (size_t i = 0; i < orders_to_add; ++i)
+                        order.insert(order.begin(), i);
+                    for (size_t i = orders_to_add; i < order.size(); ++i)
+                        order[i] = order[i] + orders_to_add;
+                }
+                // GPU_DEBUG_INFO << "order after : " << std::endl;
+                // for (auto i : order)
+                //     std::cout << i << ", ";
+                // std::cout << std::endl;
+
+                bool ret = false;
+                format transposed_format = format::bfyx;
+                if (is_input) {
+                    ret = gemm_inst::is_fusable_permute_input_order_onednn(order, transposed_format);
+                } else {
+                    ret = gemm_inst::is_fusable_permute_output_order_onednn(order, transposed_format);
+                }
+
+                if (ret) {
+                    auto original_tag = tag;
+                    tag = convert_data_format(transposed_format);
+                    GPU_DEBUG_INFO << "Transpose tag: " << static_cast<int>(original_tag) << " to " << static_cast<int>(tag) << std::endl;
+                    dnnl::memory::dims original_dims = dims;
+                    for (size_t i = 0; i < original_dims.size(); ++i) {
+                        dims[i] = original_dims[order[i]];
+                    }
+                } else {
+                    OPENVINO_ASSERT(false, "[GPU] Can't find fusable transpoed format: ", transposed_format.to_string());
+                }
+            };
+            GPU_DEBUG_INFO << "in0" << std::endl;
+            if (has_transpose_order(prim->input0_transpose_order)) transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_fmt);
+            GPU_DEBUG_INFO << "in1" << std::endl;
+            if (has_transpose_order(prim->input1_transpose_order)) transpose_dims_and_format_tag(prim->input1_transpose_order, in1_dims, in1_fmt);
+            GPU_DEBUG_INFO << "out" << std::endl;
+            if (has_transpose_order(prim->output_transpose_order)) transpose_dims_and_format_tag(prim->output_transpose_order, out_dims, out_fmt, false);
         }
 
         if (gemm_with_bias) {
@@ -146,6 +370,20 @@ protected:
             bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
+
+        // GPU_DEBUG_INFO<< "fmt: " << static_cast<int>(in0_fmt) << ", " << static_cast<int>(in1_fmt)  << ", " << static_cast<int>(out_fmt) << std::endl;
+        // for (auto i : in0_dims) {
+        //     std::cout << i << ", ";
+        // }
+        // std::cout << std::endl;
+        // for (auto i : in1_dims) {
+        //     std::cout << i << ", ";
+        // }
+        // std::cout << std::endl;
+        // for (auto i : out_dims) {
+        //     std::cout << i << ", ";
+        // }
+        // std::cout << std::endl;
     }
 
     static dnnl::memory::desc get_input_memory_desc(const dnnl::memory::dims& dims,
@@ -374,6 +612,7 @@ attach_gemm_onednn::attach_gemm_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
+        format::bfxy,
         format::byxf,
         format::byfx,
         format::bxfy,
