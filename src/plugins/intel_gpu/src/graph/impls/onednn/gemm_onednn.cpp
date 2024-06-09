@@ -170,7 +170,6 @@ protected:
                 }
 
                 if (ret) {
-                    auto original_tag = tag;
                     tag = convert_data_format(transposed_format);
                     dnnl::memory::dims original_dims = dims;
                     for (size_t i = 0; i < original_dims.size(); ++i) {
