@@ -10,7 +10,7 @@ Performance Benchmarks
    :maxdepth: 1
    :hidden:
 
-   performance-benchmarks/generativeAI-benchmarks
+   Generative AI Performance <performance-benchmarks/generative-ai-performance>
    performance-benchmarks/performance-benchmarks-faq
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
    performance-benchmarks/getting-performance-numbers
