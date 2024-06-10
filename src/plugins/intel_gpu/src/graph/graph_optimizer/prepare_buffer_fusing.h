@@ -6,6 +6,7 @@
 #include "program_helpers.h"
 
 #include "concatenation_inst.h"
+#include "crop_inst.h"
 
 #include <utility>
 #include <list>
@@ -21,7 +22,6 @@ struct concat_noop_optimization : pattern_match_optimization_typed<concat_noop_o
     bool match(concatenation_node& node);
     bool optimize(concatenation_node& node);
 };
-
 struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in_place_optimization, concatenation> {
     // Performs in-place concat optimization.
     // Padding of predecessors is updated to use single buffer by all, which is output from concatenation.
@@ -57,6 +57,15 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
         }
         return false;  // node not invalidated
     }
+};
+
+struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_place_optimization, crop> {
+    // Performs in-place crop optimization.
+    using base = pattern_match_optimization_typed<crop_in_place_optimization, crop>;
+    using base::base;
+
+    bool match(crop_node& node);
+    bool optimize(crop_node& node);
 };
 
 } // namespace cldnn

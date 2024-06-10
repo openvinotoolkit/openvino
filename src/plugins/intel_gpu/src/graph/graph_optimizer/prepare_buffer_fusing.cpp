@@ -450,6 +450,104 @@ static void propagate_padding_to_opt_out_users(program_node& node, cldnn::paddin
     }
 }
 
+bool crop_in_place_optimization::match(crop_node& node) {
+    if (!node.is_valid_output_layout())
+        return false;
+    if (node.is_dynamic() || node.is_output() || node.has_fused_primitives() || node.is_in_shape_of_subgraph())
+        return false;
+    for (auto user : node.get_users()) {
+        if (user->is_type<concatenation>() && !user->is_output())
+            return false;
+        if (user->is_type<loop>() || user->is_type<non_max_suppression>())
+            return false;
+        if (user->is_type<reshape>()) {
+            auto& reshape_node = user->as<reshape>();
+            if (can_reshape_be_optimized(reshape_node))
+                return false;
+        }
+        if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
+            return false;
+    }
+    if (node.is_constant())
+        return false;
+    if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
+        if (node.get_program().is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
+            return false;
+        }
+        // optimization is available for cropping across depth(features) or batch
+        // if output padding has defined padding across features already it wouldn't
+        // work because it expect to have zeros in the padded area.
+        if (!is_optimizable_padding_for_crop(node))
+            return false;
+        if (!(can_crop_be_optimized_along_feature(node) || can_crop_be_optimized_simple_data_format(node)))
+            return false;
+    } else {
+        return false;
+    }
+    return true;
+}
+
+bool crop_in_place_optimization::optimize(crop_node& node) {
+    const auto& crop_layout = node.get_output_layout();
+    const auto& crop_size = crop_layout.get_tensor();
+    const auto& out_pad = crop_layout.data_padding;
+    auto input_layout = node.get_input_layout(0);
+    auto crop_prim = node.get_primitive();
+
+    //  Regular crop
+    //  crop input buffer
+    //  |___________data____________|
+    //
+    //  crop output buffer
+    //  |-------->| offsets[f]  |<--|
+    //            |_____data____|
+    //             <------------>
+    //           reference size
+    //
+    //  In-place crop
+    //  crop output buffer
+    //  |_low_pad_|__data_size__|___|<-upper pad
+    if (can_crop_be_optimized_along_feature(node)) {
+        auto opt_lower_pad = crop_prim->offsets.feature[0];
+        auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
+        auto& dep = node.get_dependency(0);
+        //  feature num of pad should be accumulated if dep has been optimized out.
+        if (dep.is_type<crop>() && dep.can_be_optimized()) {
+            auto dep_pad = dep.get_output_layout().data_padding;
+            opt_lower_pad += dep_pad.lower_size().feature[0];
+            opt_upper_pad += dep_pad.upper_size().feature[0];
+        }
+        // set padding
+        node.set_output_padding(
+            padding({out_pad.lower_size().batch[0],
+                    opt_lower_pad,
+                    out_pad.lower_size().spatial[0],
+                    out_pad.lower_size().spatial[1]},
+                    {out_pad.upper_size().batch[0],
+                    opt_upper_pad,
+                    out_pad.upper_size().spatial[0],
+                    out_pad.upper_size().spatial[1]}));
+    } else if (can_crop_be_optimized_simple_data_format(node)) {
+        std::vector<int32_t> lower_sizes;
+        lower_sizes.push_back(crop_prim->offsets.batch[0]);
+        lower_sizes.push_back(crop_prim->offsets.feature[0]);
+        for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
+            lower_sizes.push_back(crop_prim->offsets.spatial[i]);
+        }
+        std::vector<int32_t> upper_sizes;
+        upper_sizes.push_back(input_layout.batch() - crop_prim->offsets.batch[0] - crop_size.batch[0]);
+        upper_sizes.push_back(input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0]);
+        for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
+            upper_sizes.push_back(input_layout.spatial(i) - crop_prim->offsets.spatial[i] - crop_size.spatial[i]);
+        }
+        node.set_output_padding(padding(lower_sizes, upper_sizes));
+    }
+    node.can_be_optimized(true);
+    propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
+
+    return false;
+}
+
 // ToDo remove friendship relation from  program_node
 void prepare_buffer_fusing::run(program& p) {
     /*
@@ -482,129 +580,10 @@ void prepare_buffer_fusing::run(program& p) {
                            concat_in_place_optimization>(p);
 
     // [2] Then try to optimize all crops
-    auto node_itr = p.get_processing_order().begin();
-    while (node_itr != p.get_processing_order().end()) {
-        auto& node = (*node_itr++);
-        if (!node->is_valid_output_layout())
-            continue;
-        if (!can_optimize(node))
-            continue;
-
-        // zero copy
-        program_helpers::do_for_types<crop>(*node, [&p](crop_node& node) {
-            // if the node is marked as network output, prevent optimizations which would affect a form of its output,
-            // unless debug flag is set
-            if (node.is_output())
-                return;
-
-            // do not optimize when next node is concatenation which is not output
-            for (auto user : node.get_users()) {
-                if (user->is_type<concatenation>() && !user->is_output())
-                    return;
-                if (user->is_type<loop>() || user->is_type<non_max_suppression>())
-                    return;
-            }
-            for (auto user : node.get_users()) {
-                if (user->is_type<reshape>()) {
-                    auto& reshape_node = user->as<reshape>();
-                    if (can_reshape_be_optimized(reshape_node))
-                        return;
-                }
-                if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
-                    return;
-            }
-
-            // do not optimize crop, that must be calculated in propagate_constants
-            if (node.is_constant())
-                return;
-
-            if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
-                if (p.is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
-                    return;
-                }
-
-                // optimization is available for cropping across depth(features) or batch
-                // if output padding has defined padding across features already it wouldn't
-                // work because it expect to have zeros in the padded area.
-                if (!is_optimizable_padding_for_crop(node))
-                    return;
-
-                const auto& crop_layout = node.get_output_layout();
-                const auto& crop_size = crop_layout.get_tensor();
-                const auto& out_pad = crop_layout.data_padding;
-                auto input_layout = node.get_input_layout(0);
-                auto crop_prim = node.get_primitive();
-
-                //  Regular crop
-                //  crop input buffer
-                //  |___________data____________|
-                //
-                //  crop output buffer
-                //  |-------->| offsets[f]  |<--|
-                //            |_____data____|
-                //             <------------>
-                //           reference size
-                //
-                //  In-place crop
-                //  crop output buffer
-                //  |_low_pad_|__data_size__|___|<-upper pad
-                if (can_crop_be_optimized_along_feature(node)) {
-                    auto crop_prim = node.get_primitive();
-                    auto opt_lower_pad = crop_prim->offsets.feature[0];
-                    auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
-                    auto& dep = node.get_dependency(0);
-                    //  feature num of pad should be accumulated if dep has been optimized out.
-                    if (dep.is_type<crop>() && dep.can_be_optimized()) {
-                        auto dep_pad = dep.get_output_layout().data_padding;
-                        OPENVINO_ASSERT(
-                            dep_pad.lower_size().batch[0] == 0 && dep_pad.upper_size().batch[0] == 0 &&
-                            dep_pad.lower_size().spatial[0] == 0 && dep_pad.upper_size().spatial[0] == 0 &&
-                            dep_pad.lower_size().spatial[1] == 0 && dep_pad.upper_size().spatial[1] == 0,
-                            "batch, y, x of pad should be aligned to 0.");
-
-                        opt_lower_pad += dep_pad.lower_size().feature[0];
-                        opt_upper_pad += dep_pad.upper_size().feature[0];
-                    }
-
-                    // set padding
-                    node.set_output_padding(
-                        padding({out_pad.lower_size().batch[0],
-                                opt_lower_pad,
-                                out_pad.lower_size().spatial[0],
-                                out_pad.lower_size().spatial[1]},
-                                {out_pad.upper_size().batch[0],
-                                opt_upper_pad,
-                                out_pad.upper_size().spatial[0],
-                                out_pad.upper_size().spatial[1]}));
-                } else if (can_crop_be_optimized_simple_data_format(node)) {
-                    auto crop_prim = node.get_primitive();
-
-                    std::vector<int32_t> lower_sizes;
-                    lower_sizes.push_back(crop_prim->offsets.batch[0]);
-                    lower_sizes.push_back(crop_prim->offsets.feature[0]);
-                    for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
-                        lower_sizes.push_back(crop_prim->offsets.spatial[i]);
-                    }
-                    std::vector<int32_t> upper_sizes;
-                    upper_sizes.push_back(input_layout.batch() - crop_prim->offsets.batch[0] - crop_size.batch[0]);
-                    upper_sizes.push_back(input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0]);
-                    for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
-                        upper_sizes.push_back(input_layout.spatial(i) - crop_prim->offsets.spatial[i] - crop_size.spatial[i]);
-                    }
-
-                    node.set_output_padding(padding(lower_sizes, upper_sizes));
-                } else {
-                    return;
-                }
-
-                node.can_be_optimized(true);
-                propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
-            }
-        });
-    }
+    run_node_optimizations<crop_in_place_optimization>(p);
 
     // [3] Optimize all other primitives
-    node_itr = p.get_processing_order().begin();
+    auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         if (!node->is_valid_output_layout())
