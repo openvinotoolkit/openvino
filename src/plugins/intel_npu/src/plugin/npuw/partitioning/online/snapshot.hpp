@@ -38,7 +38,9 @@ public:
 
     // Simple passes to clean-up and reduce number of groups via merging them
     void collectLHF();
+    void fuseRemnantsExtended();
     void fuseRemnants();
+    void fuseInputs();
 
     // Advanced passes for repeated blocks algorithm
     void repeatedBlocks();

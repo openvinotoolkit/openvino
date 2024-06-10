@@ -208,7 +208,7 @@ class Compiler {
 
         m_snapshot->earlyAvoids();
         m_snapshot->repeatedBlocks();
-        m_snapshot->repeat([&]{m_snapshot->fuseRemnants();});
+        m_snapshot->repeat([&]{m_snapshot->fuseRemnantsExtended();});
 
         LOG_INFO("Done");
     }

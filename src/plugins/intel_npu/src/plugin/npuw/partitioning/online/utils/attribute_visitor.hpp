@@ -44,7 +44,7 @@ public:
     ReadAttributes() = default;
 
     std::map<std::string, std::string> get_attributes_map() { return attributes_map; }
-    
+
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         attributes_map.insert({ name, "" });
     }

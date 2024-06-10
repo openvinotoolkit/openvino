@@ -49,6 +49,8 @@ public:
     void fuse(const Group::GPtr& gptr_prod);
     // This group consumes its consumer
     void fuseWith(const Group::GPtr& gptr_cons);
+    // The inputs are merged together, this group is unchanged
+    void fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs);
     // Check if there is indirect path from cons to this group
     bool hasCycle(const Group::GPtr& gptr_cons) const;
     size_t size() const;

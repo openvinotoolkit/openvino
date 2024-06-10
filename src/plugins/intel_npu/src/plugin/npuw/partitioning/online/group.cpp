@@ -219,6 +219,25 @@ void Group::fuseWith(const Group::GPtr& gptr_cons) {
     relinkGraph(gptr_cons);
 }
 
+// This group is unchanged, the inputs are merged together into the first one
+void Group::fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs) {
+    Group::GPtr absorbing_group = gptr_inputs.first;
+    Group::GPtr absorbed_group = gptr_inputs.second;
+
+    auto locked_snapshot = m_snapshot.lock();
+    auto node_to_gr = locked_snapshot->getNodeToGroupMap();
+
+    // Update ov::node to ade::NodeHandle map and merge all contents together
+    for (const auto& layer : absorbed_group->m_content) {
+        node_to_gr->at(layer) = absorbing_group;
+        absorbing_group->m_content.insert(layer);
+    }
+    absorbing_group->takeFlags(absorbed_group);
+    absorbing_group->updateInputLayers(absorbed_group);
+    absorbing_group->updateOutputLayers(absorbed_group);
+    absorbing_group->relinkGraph(absorbed_group);
+}
+
 // This group takes extra info of other group (such as reptrack, avoids, etc)
 void Group::takeFlags(const Group::GPtr& gptr_other) {
     // Update reptrack
@@ -236,13 +255,8 @@ void Group::takeFlags(const Group::GPtr& gptr_other) {
     }
 }
 
-// Assuming gptr_cons is a direct consumer of this group, check if there is another way from this to gptr_cons
+// Check if there is indirect path from this to gptr_cons
 bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
-    // Sanity check
-    if (!m_graph->linked(m_nh, gptr_cons->getHandle())) {
-        OPENVINO_THROW("Online partitioning initial group ", m_id , " is not linked with ", gptr_cons->getId(), " during cycle check!");
-    }
-
     std::unordered_set<ade::NodeHandle> visited;
 
     std::stack<ade::NodeHandle> st;
@@ -260,7 +274,7 @@ bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
         visited.insert(nh);
 
         if (nh == m_nh) {
-            // Found another way from self to gptr_cons
+            // Found another path from self to gptr_cons
             return true;
         }
 

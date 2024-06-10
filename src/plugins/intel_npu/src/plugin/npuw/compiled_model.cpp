@@ -477,11 +477,11 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         m_compiled_submodels[id].compiled_model =
             compile_submodel(m_compiled_submodels[id].model, device_to_try);
     } catch (const std::exception& ex) {
-        LOG_ERROR("Failed to compile: " << std::endl << ex.what());
+        LOG_ERROR("Subgraph ["<< id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
         return false;
     } catch (...) {
-        LOG_ERROR("Failed to compile: Unknown error");
+        LOG_ERROR("Subgraph ["<< id << "] Failed to compile: Unknown error");
         dump_on_fail(id, device_to_try, "Unknown error");
         return false;
     }

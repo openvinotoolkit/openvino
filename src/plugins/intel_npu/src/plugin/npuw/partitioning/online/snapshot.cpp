@@ -154,6 +154,16 @@ void Snapshot::collectLHF() {
     LOG_INFO("DONE");
 }
 
+void Snapshot::fuseRemnantsExtended() {
+    LOG_INFO("Online partitioning: executing fuseRemnantsExtended pass...");
+    LOG_BLOCK();
+
+    repeat([&]{fuseRemnants();});
+    repeat([&]{fuseInputs();});
+
+    LOG_INFO("DONE");
+}
+
 void Snapshot::fuseRemnants() {
     LOG_INFO("Online partitioning: executing fuseRemnants pass...");
     LOG_BLOCK();
@@ -169,19 +179,90 @@ void Snapshot::fuseRemnants() {
             }
             auto consumers = group->dstNodes();
             if (!consumers.empty()) {
-                auto cons = consumers.front(); // FIXME: select consumer with smallest flops
-                Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
-                if (m_graph->contains(cons) && !group->hasCycle(cons_group)) {
-                    if (cons_group->isFrozen()) {
+                std::sort(consumers.begin(), consumers.end(),
+                            [&](const ade::NodeHandle &nh1, const ade::NodeHandle &nh2) {
+                                if (!m_graph->contains(nh1) || !m_graph->contains(nh2)) {
+                                    return false;
+                                }
+                                Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
+                                Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
+                                return g1->size() < g2->size();
+                            });
+                for (const auto& cons : consumers) { // FIXME: pick the smallest flops
+                    if (!m_graph->contains(cons)) {
                         continue;
                     }
-                    // stop merging groups if the graph is already small enough
-                    if (graphSize() <= m_ctx.min_graph_size) {
-                        break;
+                    Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
+                    if (!group->hasCycle(cons_group)) {
+                        if (!cons_group->isFrozen()) {
+                            group->fuseWith(cons_group);
+                            break;
+                        }
                     }
-                    group->fuseWith(cons_group);
+                }
+                // stop merging groups if the graph is already small enough
+                if (graphSize() <= m_ctx.min_graph_size) {
+                    break;
                 }
             }
+        }
+    }
+
+    LOG_INFO("DONE");
+}
+
+void Snapshot::fuseInputs() {
+    LOG_INFO("Online partitioning: executing fuseInputs pass...");
+    LOG_BLOCK();
+
+    // iterate it topological order
+    auto graph = getGraph();
+    for (const auto& nh : graph->sorted()) {
+        // skip if removed by fuseInputs
+        if (!m_graph->contains(nh)) {
+            continue;
+        }
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+
+        std::pair<Group::GPtr, Group::GPtr> inputs_to_fuse {nullptr, nullptr};
+        auto src_nodes = group->srcNodes();
+        for (size_t i = 0; i < src_nodes.size(); ++i) {
+            auto prod_nh = src_nodes[i];
+            if (!m_graph->contains(prod_nh)) { // should be there, but check just in case
+                continue;
+            }
+            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
+            if (group_prod->isFrozen()) {
+                continue;
+            }
+            inputs_to_fuse.first = group_prod; // set the first candidate
+
+            // Double loop here since we need to consider every pair of inputs
+            for (size_t j = i + 1; j < src_nodes.size(); ++j) {
+                auto prod_nh_other = src_nodes[j];
+                if (!m_graph->contains(prod_nh_other)) { // should be there, but check just in case
+                    continue;
+                }
+                Group::GPtr group_prod_other = m_graph->meta(prod_nh_other).get<Group::GPtr>();
+                if (group_prod_other->isFrozen()) {
+                    continue;
+                }
+                if (!group_prod->hasCycle(group_prod_other) && !group_prod_other->hasCycle(group_prod)) {
+                    // no cycles -> fusion allowed
+                    inputs_to_fuse.second = group_prod_other;
+                    break;
+                }
+            }
+            // Found 2 inputs to fuse
+            if (inputs_to_fuse.first && inputs_to_fuse.second) {
+                group->fuseInputs(inputs_to_fuse);
+                break;
+            }
+        }
+
+        // stop merging groups if the graph is already small enough
+        if (graphSize() <= m_ctx.min_graph_size) {
+            break;
         }
     }
 
@@ -313,7 +394,7 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
 
     for (const auto& group : repeating_groups) {
         auto producers = group->srcNodes();
-        for (const auto prod_nh : producers) {
+        for (const auto& prod_nh : producers) {
             if (m_graph->contains(prod_nh)) {
                 Group::GPtr prod_group = m_graph->meta(prod_nh).get<Group::GPtr>();
                 if (prod_group->repeated() &&
@@ -449,11 +530,11 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
             return true;
         }
     }
-    
+
     // FIXME: in ensemble we check threshold of 10% of the total compute to discard a repeated block
     // Since we don't have flops here yet, let's just check the size of the group
     auto block_layer_size = (*(gptrs.begin()))->size();
-    if (gptrs.size() < 2 || block_layer_size < 10) {
+    if (gptrs.size() < 2 || block_layer_size < 10 || gptrs.size() * block_layer_size < 100) {
         for (const auto& gptr : gptrs) {
             gptr->setRepeated(nullptr);
         }

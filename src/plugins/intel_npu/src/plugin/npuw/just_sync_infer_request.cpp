@@ -547,10 +547,10 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             }
             job_done = true;
         } catch (const std::exception &ex) {
-            LOG_ERROR("- FAILED to run infer request:" << std::endl << ex.what());
+            LOG_ERROR("Subgraph ["<< idx << "] - FAILED to run infer request:" << std::endl << ex.what());
             should_recreate = true;
         } catch (...) {
-            LOG_ERROR("- FAILED to run infer request: REASON UNKNOWN");
+            LOG_ERROR("Subgraph ["<< idx << "] - FAILED to run infer request: REASON UNKNOWN");
             should_recreate = true;
         }
         if (should_recreate) {

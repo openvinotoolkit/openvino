@@ -47,10 +47,10 @@ ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
             }
             successful = true;
         } catch (const std::exception &ex) {
-            LOG_WARN("- Failed to create infer request:" << std::endl << ex.what());
+            LOG_WARN("Subgraph ["<< id << "] - Failed to create infer request:" << std::endl << ex.what());
             should_recompile = true;
         } catch (...) {
-            LOG_WARN("- Failed to create infer request: REASON UNKNOWN");
+            LOG_WARN("Subgraph ["<< id << "] - Failed to create infer request: REASON UNKNOWN");
             should_recompile = true;
         }
         if (should_recompile) {
