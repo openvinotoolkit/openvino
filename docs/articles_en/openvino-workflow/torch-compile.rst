@@ -37,7 +37,7 @@ This approach works only for the **package distributed via pip**, as it is now c
 For OpenVINO installed via channels other than pip, such as conda, and versions older than
 2024.1, an additional import statement is needed:
 
-.. code-block:: python: sh
+.. code-block:: python
 
    import openvino.torch
 
@@ -64,8 +64,8 @@ enable model caching, set the cache directory etc. You can use a dictionary of t
   By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications
   on CPU. If you set this variable to ``GPU.0``, for example, the application will
   use the integrated graphics processor instead.
-* ``aot_autograd`` - enables a graph capture needed for dynamic shapes or to finetune a 
-  model. For models with dynamic shapes, it is recommended to set this option to ``True``. 
+* ``aot_autograd`` - enables a graph capture needed for dynamic shapes or to finetune a
+  model. For models with dynamic shapes, it is recommended to set this option to ``True``.
   By default, aot_autograd is set to ``False``.
 * ``model_caching`` - enables saving the optimized model files to a hard drive,
   after the first application run. This makes them available for the following
