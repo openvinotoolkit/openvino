@@ -89,11 +89,20 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     else
         apt-get install -y --no-install-recommends nlohmann-json-dev
     fi
-elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
-    # RHEL 8 / CentOS 7
+elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/os-release ; then
     yum update
-    yum install -y centos-release-scl
-    yum install -y epel-release
+    # RHEL 8 / CentOS 7
+    if [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
+        yum install -y centos-release-scl
+        yum install -y epel-release
+        yum install -y \
+            `# to build and check pip packages` \
+            patchelf \
+            `# check bash scripts for correctness` \
+            ShellCheck
+    else
+        yum install -y epol-release
+    fi
     yum install -y \
         file \
         `# build tools` \
@@ -106,14 +115,10 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         make \
         `# to determine openvino version via git` \
         git \
-        `# to build and check pip packages` \
-        patchelf \
         fdupes \
         `# to build and check rpm packages` \
         rpm-build \
         rpmlint \
-        `# check bash scripts for correctness` \
-        ShellCheck \
         `# main openvino dependencies` \
         tbb-devel \
         pugixml-devel \
