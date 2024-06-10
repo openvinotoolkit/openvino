@@ -54,5 +54,9 @@
     {
         "error_text": "Unable to fetch some archives",
         "ticket": 130965
+    },
+    {
+        "error_text": "status_string: \"Timeout was reached\"",
+        "ticket": 142653
     }
 ]
