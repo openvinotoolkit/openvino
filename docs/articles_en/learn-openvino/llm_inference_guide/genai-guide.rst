@@ -273,6 +273,7 @@ including a pipeline for processing inputs, generating text, and managing output
 * streamer_base - an abstract base class for creating streamers.
 * tokenizer - the tokenizer class for text encoding and decoding.
 * visibility
+
 Additional Resources
 ####################
 
