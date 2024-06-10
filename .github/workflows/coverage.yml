@@ -5,6 +5,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Coverage:
     runs-on: ${{ matrix.config.os }}
@@ -16,19 +18,19 @@ jobs:
 
     steps:
       - name: Setup python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
 
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92 # v1.2.13
         with:
           max-size: 50G
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           submodules: 'true'
 
@@ -55,7 +57,7 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
 
       - name: Build OpenVINO with CMake
-        uses: ashutoshvarma/action-cmake-build@master
+        uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
         with:
           build-dir: ${{ github.workspace }}/build
           cc: ${{ matrix.config.cc }}
@@ -112,7 +114,7 @@ jobs:
         run: ${{ github.workspace }}/bin/intel64/Release/ov_tensorflow_frontend_tests --gtest_filter=-*IE_GPU*
 
       - name: Build coverage with CMake
-        uses: ashutoshvarma/action-cmake-build@master
+        uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
         with:
           build-dir: ${{ github.workspace }}/coverage
           cc: ${{ matrix.config.cc }}
@@ -135,6 +137,6 @@ jobs:
           lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
       - name: Collect coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c # v4.4.1
         with:
           verbose: true

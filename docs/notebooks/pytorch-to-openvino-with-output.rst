@@ -251,7 +251,7 @@ Benchmark PyTorch Model Inference
 
 .. parsed-literal::
 
-    18.6 ms ± 32.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    16.4 ms ± 91.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Model to OpenVINO Intermediate Representation
@@ -410,7 +410,7 @@ Benchmark OpenVINO Model Inference
 
 .. parsed-literal::
 
-    3.3 ms ± 10 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.3 ms ± 8.21 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Model with Static Input Shape
@@ -540,7 +540,7 @@ Benchmark OpenVINO Model Inference with Static Input Shape
 
 .. parsed-literal::
 
-    3.04 ms ± 21.5 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    2.98 ms ± 23.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert TorchScript Model to OpenVINO Intermediate Representation
@@ -635,7 +635,7 @@ Benchmark Scripted Model Inference
 
 .. parsed-literal::
 
-    14.3 ms ± 18.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    14 ms ± 28.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Scripted Model to OpenVINO Intermediate Representation
@@ -694,7 +694,7 @@ Benchmark OpenVINO Model Inference Converted From Scripted Model
 
 .. parsed-literal::
 
-    3.23 ms ± 25.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.29 ms ± 21.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Traced Model
@@ -770,7 +770,7 @@ Benchmark Traced Model Inference
 
 .. parsed-literal::
 
-    14.7 ms ± 635 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    14 ms ± 436 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Traced Model to OpenVINO Intermediate Representation
@@ -829,5 +829,5 @@ Benchmark OpenVINO Model Inference Converted From Traced Model
 
 .. parsed-literal::
 
-    3.36 ms ± 32.7 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.34 ms ± 29.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
