@@ -263,7 +263,7 @@ jobs:
       - name: Install dependencies (Linux)
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-          apt update && apt --assume-yes install clang lld
+          apt update && apt --assume-yes install clang lld libtbb2
 
       - name: Fetch Sanitizer Suppression Lists
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
@@ -389,7 +389,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
       - name: ov_subgraphs_dumper_tests tests
-        if: ${{ 'false' }} # Ticket: 134419
+        if: always()
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
