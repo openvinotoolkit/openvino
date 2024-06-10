@@ -18,11 +18,6 @@ std::pair<uint32_t, uint32_t> split_high_low(uint64_t value) {
     return {low, high};
 }
 
-// Concatenates two uint32 values into single uint64 values.
-uint64_t unite_high_low(uint32_t high, uint32_t low) {
-    return (static_cast<uint64_t>(high) << 32) + low;
-}
-
 // Splits uint64 global_seed value into two uint32 values to create a key.
 std::array<uint32_t, 2> split_into_key(uint64_t global_seed) {
     std::array<uint32_t, 2> key;

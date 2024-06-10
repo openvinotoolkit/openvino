@@ -59,6 +59,11 @@ public:
                                   params.alignment);
         inputData = {params.min_val.data, params.max_val.data};
         refOutData = {params.expected.data};
+
+        if (params.out_type == element::bf16) {
+            abs_threshold = 0.51f;  // Differences in class implementation (rounding) can cause a difference of up to
+                                    // 0.5 between values
+        }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RandomUniformParams>& obj) {
         auto param = obj.param;
