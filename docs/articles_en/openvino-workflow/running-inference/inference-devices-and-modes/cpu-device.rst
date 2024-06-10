@@ -234,6 +234,8 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
 
 For more details, see the :doc:`Multi-device execution <multi-device>` article.
 
+.. _multi_stream_execution:
+
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
