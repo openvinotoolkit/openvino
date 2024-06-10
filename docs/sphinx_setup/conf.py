@@ -24,7 +24,6 @@ author = 'Intel®'
 language = 'en'
 version_name = 'nightly'
 
-sys.path.insert(0, os.path.abspath('../openvino/'))
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -40,6 +39,11 @@ extensions = [
     'breathe'
     ]
 
+try:
+    import openvino
+except ImportError:
+    autodoc_mock_imports = ["openvino"]
+    
 breathe_projects = {
     "openvino": "../xml/"
 }
