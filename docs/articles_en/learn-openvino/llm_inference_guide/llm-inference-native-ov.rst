@@ -21,7 +21,6 @@ Inference code that uses native API cannot benefit from Hugging Face pipelines. 
 
 To write such pipelines, you can follow the examples provided as part of OpenVINO:
 
-* `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO Latent Consistency Model C++ image generation pipeline <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/lcm_dreamshaper_v7/cpp>`__
 * `OpenVINO Stable Diffusion (with LoRA) C++ image generation pipeline <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/stable_diffusion_1_5/cpp>`__
 
@@ -174,7 +173,6 @@ This step is essential for interpreting the model's output.
 Additional Resources
 ####################
 
-* `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
