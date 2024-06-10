@@ -36,8 +36,8 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
 
     this->reduceAttrs = reduceAttrs;
 
-    auto srcDims = srcDescs[0]->getShape().getStaticDims();
-    auto dstDims = dstDescs[0]->getShape().getStaticDims();
+    const auto& srcDims = srcDescs[0]->getShape().getStaticDims();
+    const auto& dstDims = dstDescs[0]->getShape().getStaticDims();
     auto srcShape = shapeCast(srcDims);
     auto dstShape = shapeCast(dstDims);
     if (srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) {
@@ -56,7 +56,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
     std::vector<int> castedAxes;
     for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
         int axis = axisCast(reduceAttrs.axes[i], srcDims.size(), srcDescs[0]->hasLayoutType(LayoutType::nspc) ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
-        if (axis == -1) return false;
+        if (srcDescs[0]->hasLayoutType(LayoutType::nspc) && axis == -1) return false;
         castedAxes.push_back(axis);
     }
     switch (reduceAttrs.operation) {
