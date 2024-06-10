@@ -1561,7 +1561,11 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> multiplyConstants, subtractConstants;
     if (is_type<ov::opset1::Concat>(operation)) {
         const auto concatNode = as_type_ptr<ov::opset1::Concat>(operation);
-        auto axis = concatNode->get_concatenation_axis();
+        int64_t axis = -1;
+        if (concatNode->get_output_partial_shape(0).rank().is_static()) {
+            const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
+            axis = ov::util::normalize(concatNode->get_axis(), rank);
+        }
         if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
             multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
         }
@@ -1659,7 +1663,11 @@ std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> NetworkHelper::s
     std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> newConstants(currConstants.size());
     auto number_of_concat_inputs = concat->get_input_size();
     const auto concatNode = as_type_ptr<ov::opset1::Concat>(concat);
-    const auto concat_axis = concatNode->get_concatenation_axis();
+        int64_t concat_axis = -1;
+        if (concatNode->get_output_partial_shape(0).rank().is_static()) {
+            const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
+            concat_axis = ov::util::normalize(concatNode->get_axis(), rank);
+        }
     std::vector<int64_t> shape_axis(number_of_concat_inputs);
     for (size_t i{ 0 }; i < number_of_concat_inputs; ++i) {
         auto shape = concat->get_input_partial_shape(i);

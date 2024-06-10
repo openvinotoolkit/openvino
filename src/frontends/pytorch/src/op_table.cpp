@@ -100,6 +100,7 @@ OP_CONVERTER(translate_glu);
 OP_CONVERTER(translate_grid_sampler);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_gru);
+OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
@@ -479,6 +480,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::group_norm", op::translate_group_norm},
         {"aten::gru", op::translate_gru},
         {"aten::gt", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
+        {"aten::hann_window", op::translate_hann_window},
         {"aten::hardsigmoid", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>},
         {"aten::hardsigmoid_",
          op::quantizable_op<op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>>},
