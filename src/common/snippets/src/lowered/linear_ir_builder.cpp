@@ -111,6 +111,7 @@ LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iter
                         result_expr->get_input_count() == original_expr->get_input_count() &&
                         result_expr->get_output_count() == original_expr->get_output_count(),
                         "Expressions after copying aren't matched!");
+        // Copy tensor shapes as shared pointer if needed
         if (!m_config.deep_copy_of_shapes) {
             for (size_t i = 0; i < original_expr->get_input_count(); ++i)
                 result_expr->get_input_port_descriptor(i)->m_tensor_shape = original_expr->get_input_port_descriptor(i)->m_tensor_shape;

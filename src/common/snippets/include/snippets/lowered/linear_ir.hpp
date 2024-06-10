@@ -76,13 +76,14 @@ public:
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
 
     const container& get_ops() const { return m_expressions; }
+    const container& get_buffers() const { return m_buffer_expressions; }
     const container& get_parameters() const { return m_parameter_expressions; }
     const container& get_results() const { return m_result_expressions; }
     const Config& get_config() const { return m_config; }
-    size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad_size; }
+    size_t get_static_buffer_scratchpad_size() const { return m_static_buffer_scratchpad_size; }
 
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
-    void set_buffer_scratchpad_size(size_t size) { m_buffer_scratchpad_size = size; }
+    void set_static_buffer_scratchpad_size(size_t size) { m_static_buffer_scratchpad_size = size; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -278,13 +279,15 @@ private:
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
     container m_parameter_expressions{};
     container m_result_expressions{};
+    container m_buffer_expressions{};
     Config m_config{};
     LoopManagerPtr m_loop_manager;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
     bool m_is_dynamic = false;
 
-    size_t m_buffer_scratchpad_size = 0;
+    // Size of static Buffer Scratchpad (Buffers with defined allocation size)
+    size_t m_static_buffer_scratchpad_size = 0;
 };
 using LinearIRPtr = std::shared_ptr<LinearIR>;
 

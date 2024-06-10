@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
 #include "snippets/op/memory_access.hpp"
+#include "snippets/utils.hpp"
+#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -49,20 +50,33 @@ bool MemoryAccess::is_full_memory_access_op(const std::shared_ptr<ov::Node>& op)
 }
 
 bool MemoryAccess::visit_attributes(AttributeVisitor& visitor) {
+    bool is_dynamic = false;
     for (const auto& p : m_input_ports) {
         auto idx = p.first;
         auto port = p.second;
-        visitor.on_attribute("count_in_" + std::to_string(idx), port.count);
-        visitor.on_attribute("offset_in_" + std::to_string(idx), port.offset);
-        visitor.on_attribute("stride_in_" + std::to_string(idx), port.stride);
+        auto count = utils::value2str(port.count);
+        auto offset = utils::value2str(port.offset);
+        auto stride = utils::value2str(port.stride);
+        visitor.on_attribute("count_in_" + std::to_string(idx), count);
+        visitor.on_attribute("offset_in_" + std::to_string(idx), offset);
+        visitor.on_attribute("stride_in_" + std::to_string(idx), stride);
+        is_dynamic |= utils::is_dynamic_value(port.count) || utils::is_dynamic_value(port.offset) || utils::is_dynamic_value(port.stride);
     }
     for (const auto& p : m_output_ports) {
         auto idx = p.first;
         auto port = p.second;
-        visitor.on_attribute("count_out_" + std::to_string(idx), port.count);
-        visitor.on_attribute("offset_out_" + std::to_string(idx), port.offset);
-        visitor.on_attribute("stride_out_" + std::to_string(idx), port.stride);
+        auto count = utils::value2str(port.count);
+        auto offset = utils::value2str(port.offset);
+        auto stride = utils::value2str(port.stride);
+        visitor.on_attribute("count_out_" + std::to_string(idx), count);
+        visitor.on_attribute("offset_out_" + std::to_string(idx), offset);
+        visitor.on_attribute("stride_out_" + std::to_string(idx), stride);
+        is_dynamic |= utils::is_dynamic_value(port.count) || utils::is_dynamic_value(port.offset) || utils::is_dynamic_value(port.stride);
     }
+
+    std::string dynamic_status = is_dynamic ? "DYNAMIC" : "STATIC";
+    visitor.on_attribute("dynamic_status", dynamic_status);
+
     return true;
 }
 

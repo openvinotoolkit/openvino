@@ -5,6 +5,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 
 #include "snippets/lowered/expression.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
@@ -180,7 +181,8 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         OPENVINO_ASSERT(index < size, "Incorrect index for broadcasting");
         const auto lhs_value = index < lhs_size ? *(lhs.crbegin() + index) : 1;
         const auto rhs_value = index < rhs_size ? *(rhs.crbegin() + index) : 1;
-        utils::broadcast_merge_dim(*(lhs.rbegin() + index), lhs_value, rhs_value);
+        OPENVINO_ASSERT(utils::broadcast_merge_dim(*(lhs.rbegin() + index), lhs_value, rhs_value),
+                        "Failed to broadcast work amount in marking loop");
     };
 
     auto is_outside_loop = [&FULL_DIM](const std::vector<size_t>& subtensor) {
@@ -281,13 +283,14 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     const auto work_amount = std::max(loop_info_upper->get_work_amount(), loop_info_lower->get_work_amount());
     const auto increment = std::max(loop_info_upper->get_increment(), loop_info_lower->get_increment());
     const auto handlers = SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers());
+    const auto is_work_amount_const = loop_info_upper->is_work_amount_const() || loop_info_lower->is_work_amount_const();
 
     auto new_entries = input_ports_upper;
     new_entries.insert(new_entries.end(), input_ports_lower.begin(), input_ports_lower.end());
     auto new_exits = output_ports_upper;
     new_exits.insert(new_exits.end(), output_ports_lower.begin(), output_ports_lower.end());
 
-    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
+    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers, is_work_amount_const);
 
     for (auto it = loop_begin_target; it != loop_end_target; ++it) {
         const auto& expr = *it;

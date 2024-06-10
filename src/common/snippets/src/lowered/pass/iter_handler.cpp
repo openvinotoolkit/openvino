@@ -115,6 +115,9 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
             offset = offset / inner_loop_work_amount * static_cast<int64_t>(m_tail_size);
         }
         inner_loop_end->set_work_amount(m_tail_size);
+        // Since the loop has work amount equal to increment of outer loop, not broadcasted dimension,
+        // we should set `work_amount_const = true` to avoid rewriting in common loop intiialization passes (for example, `InitLoops`)
+        inner_loop_info->set_work_amount_const(true);
         // TODO: if m_tail_size more than inner loop increment,
         // handlers of the inner loop must be reset with new tail size
         inner_loop_end->set_increment(std::min(inner_loop_increment, m_tail_size));

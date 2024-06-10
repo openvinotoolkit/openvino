@@ -57,6 +57,9 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     const auto& results = linear_ir->get_results();
     const auto& results_ref = linear_ir_ref->get_results();
     COMPARE("Number of results", results.size(), results_ref.size());
+    const auto& buffers = linear_ir->get_buffers();
+    const auto& buffers_ref = linear_ir_ref->get_buffers();
+    COMPARE("Number of buffers", buffers.size(), buffers_ref.size());
 
     auto run_comparison = [&](const LinearIR::constExprIt& expr_it, const LinearIR::constExprIt& expr_it_ref) {
         const auto& expr = expr_it->get();
