@@ -99,9 +99,7 @@ std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size
     FRONT_END_GENERAL_CHECK(!ctx.input_is_none(index), "Input with index: ", index, " is none.");
     auto input_val = ctx.get_input_from_visible_context(index);
     if (ctx.get_input_type(index).is<type::List>()) {
-        if (allow_empty && is_empty_list(input_val))
-            return {};
-        input_val = concat_list_construct(input_val);
+        FRONT_END_THROW("Taking list as constant has not been supported in JAX frontend yet.");
     }
     auto constant = ov::util::get_constant_from_source(input_val);
     FRONT_END_GENERAL_CHECK(constant, "Input with index ", index, " cannot be interpreted as Constant: ", input_val);

@@ -6,7 +6,6 @@
 
 #include "input_model.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/jax/decoder.hpp"
 #include "openvino/util/log.hpp"
 #include "utils.hpp"
 

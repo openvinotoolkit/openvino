@@ -5,6 +5,7 @@
 #include "translate_session.hpp"
 
 #include "input_model.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
@@ -305,19 +306,8 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
     } catch (...) {
         exception = "Unknown exception type.";
     }
-    OPENVINO_DEBUG << exception << "\n";
-    try {
-        // Create PtFrameworkNode for everything that wasn't able to be converted
-        // normally
-        return make_framework_node(context, exception);
-    } catch (std::exception& e) {
-        exception += " Exception happened while creating FrameworkNode with subgraphs: " + std::string(e.what());
-    } catch (...) {
-        exception += " Unknown exception happened while creating FrameworkNode "
-                     "with subgraphs";
-    }
-    OPENVINO_DEBUG << exception << "\n";
-    return make_framework_node_ignore_bodies(context, exception);
+    exception += "Failed to convert operation: " + context.get_op_type() + ". Reason: ";
+    FRONT_END_THROW(exception);
 }
 
 void TranslateSession::encode_tensor_name(Output<Node> output,
