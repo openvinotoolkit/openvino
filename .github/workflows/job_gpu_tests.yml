@@ -71,6 +71,14 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input
+
+      - name: Fetch test skip list
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        with:
+          sparse-checkout: |
+            .github/skip_test/ubuntu22/gpu/unit_test_skip_list.txt
+          sparse-checkout-cone-mode: false
+
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
@@ -117,8 +125,8 @@ jobs:
 
           test_filter=''
           if [[ "${{ inputs.test_type }}" == "unit" ]]; then
-            # Ticket: 138018
-            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
+            # Tickets: 138018, 143677
+            test_filter="$(cat ${{ github.workspace }}/.github/skip_test/ubuntu22/gpu/unit_test_skip_list.txt)"
           else
             test_filter='*smoke*'
           fi

@@ -1,0 +1,6 @@
+-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:
+*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:
+*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*:*scatter_update_gpu_fp16*:
+*fully_connected_gpu_tests*:*fusings_gpu*:*prepare_primitive_fusing*:*smoke/conv_dyn_test*:*implicit_crop_concat_conv_fusings_gpu*:
+*gemm_gpu_tests.dynamic_padding_all_dim*:*clamp_fp16_output_test.test_gemm_softmax_mult_fused*:*conv_b_fs_yx_fsv16_to_bfyx/convolution_gpu*:
+*smoke_low_precision/concat_id_conv_gpu*:*generate_proposals_gpu_test*:*scatter_nd_update_gpu_random_test_i8_fsv32_4d_rank_2*
