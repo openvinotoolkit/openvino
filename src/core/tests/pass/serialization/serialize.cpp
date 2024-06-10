@@ -79,11 +79,11 @@ public:
 
 TEST(SerializationTest, WriteInReadOnly) {
     // Create read-only files
-    ASSERT_TRUE(createReadOnlyFile(test_xml_path));
-    ASSERT_TRUE(createReadOnlyFile(test_bin_path));
+    ASSERT_TRUE(createReadOnlyFile(m_out_xml_path));
+    ASSERT_TRUE(createReadOnlyFile(m_out_bin_path));
 
     // Set up the serializer with the current paths
-    ov::pass::Serialize serializer(test_xml_path, test_bin_path);
+    ov::pass::Serialize serializer(m_out_xml_path, m_out_bin_path);
 
     
     auto m = std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector {}, "");
@@ -92,8 +92,8 @@ TEST(SerializationTest, WriteInReadOnly) {
     EXPECT_THROW(serializer.run_on_model(m), ov::AssertFailure);
 
     // Confirm that files were not successfully written.
-    ASSERT_FALSE(std::ifstream(test_xml_path).good());
-    ASSERT_FALSE(std::ifstream(test_bin_path).good());
+    ASSERT_FALSE(std::ifstream(m_out_xml_path).good());
+    ASSERT_FALSE(std::ifstream(m_out_bin_path).good());
 }
 
 TEST_P(SerializationTest, CompareFunctions) {
