@@ -17,13 +17,6 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-#define OV_ASSERT_PROPERTY_SUPPORTED(property_key)                                  \
-    {                                                                               \
-        auto properties = ie.get_property(target_device, ov::supported_properties); \
-        auto it = std::find(properties.begin(), properties.end(), property_key);    \
-        ASSERT_NE(properties.end(), it);                                            \
-    }
-
 using PropertiesParamsNPU = std::tuple<std::string, AnyMap>;
 
 class OVPropertiesTestsNPU : public testing::WithParamInterface<PropertiesParamsNPU>, public OVPropertiesBase {
@@ -50,21 +43,6 @@ public:
     void TearDown() override;
 
     AnyMap compileModelProperties;
-
-    static std::vector<ov::AnyMap> getROMandatoryProperties(bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getROOptionalProperties(bool is_sw_device = false);
-    static std::vector<ov::AnyMap> configureProperties(std::vector<std::string> props);
-
-    static std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(const std::vector<std::string>& props = {},
-                                                                  bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getWrongRWMandatoryPropertiesValues(const std::vector<std::string>& props = {},
-                                                                       bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getRWOptionalPropertiesValues(const std::vector<std::string>& props = {},
-                                                                 bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getWrongRWOptionalPropertiesValues(const std::vector<std::string>& props = {},
-                                                                      bool is_sw_device = false);
-
-    static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
 
 using OVCheckSetSupportedRWMetricsPropsTestsNPU = OVPropertiesTestsWithCompileModelPropsNPU;
