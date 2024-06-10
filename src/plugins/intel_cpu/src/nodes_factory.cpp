@@ -7,6 +7,7 @@
 #include "nodes/bin_conv.h"
 #include "nodes/broadcast.h"
 #include "nodes/bucketize.h"
+#include "nodes/col2im.h"
 #include "nodes/color_convert.h"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
@@ -158,6 +159,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Math, Type::Math);
     INTEL_CPU_NODE(MultiClassNms, Type::MulticlassNms);
     INTEL_CPU_NODE(Convert, Type::Convert);
+    INTEL_CPU_NODE(Col2Im, Type::Col2Im);
     INTEL_CPU_NODE(ColorConvert, Type::ColorConvert);
     INTEL_CPU_NODE(EmbeddingBagOffset, Type::EmbeddingBagOffsetsSum);
     INTEL_CPU_NODE(EmbeddingBagOffset, Type::EmbeddingBagOffsets);
