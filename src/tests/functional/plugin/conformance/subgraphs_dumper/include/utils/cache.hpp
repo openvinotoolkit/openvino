@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <fstream>
 #include <regex>
+#include <fstream>
 
-#include "cache/cache.hpp"
 #include "openvino/openvino.hpp"
+#include "cache/cache.hpp"
 
 namespace ov {
 namespace util {
@@ -46,26 +46,26 @@ enum ModelCacheStatus {
 };
 
 static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
-    {ModelCacheStatus::SUCCEED, "successful_models"},
-    {ModelCacheStatus::NOT_FULLY_CACHED, "not_fully_cached_models"},
-    {ModelCacheStatus::NOT_READ, "not_read_models"},
-    {ModelCacheStatus::LARGE_MODELS_EXCLUDED, "large_models_excluded"},
-    {ModelCacheStatus::LARGE_MODELS_INCLUDED, "large_models_included"},
+    { ModelCacheStatus::SUCCEED, "successful_models" },
+    { ModelCacheStatus::NOT_FULLY_CACHED, "not_fully_cached_models" },
+    { ModelCacheStatus::NOT_READ, "not_read_models" },
+    { ModelCacheStatus::LARGE_MODELS_EXCLUDED, "large_models_excluded" },
+    { ModelCacheStatus::LARGE_MODELS_INCLUDED, "large_models_included" },
 };
 
-std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>> find_models(
-    const std::vector<std::string>& dirs,
-    const std::string& regexp = ".*");
+std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
+find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".*");
 
 // model_cache_status: model_list
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     std::shared_ptr<ov::tools::subgraph_dumper::ICache>& cache,
     const std::vector<std::string>& models,
-    bool extract_body,
-    bool from_cache = false);
+    bool extract_body, bool from_cache = false);
 
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
                                const std::string& output_dir);
+
+
 
 template <typename ElementType>
 inline void vector_to_file(const std::vector<ElementType>& vec, const std::string& output_file_path) {
