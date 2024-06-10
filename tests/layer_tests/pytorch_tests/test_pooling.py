@@ -142,7 +142,15 @@ class TestPooling(PytorchLayerTest):
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, trace_model=True,
                    dynamic_shapes=False)
 
-    @pytest.mark.parametrize("params", d2_params)
+    @pytest.mark.parametrize(
+        "params",
+        d2_params
+        + [
+            pytest.param(
+                {"kernel_size": [8, 8], "stride": [8, 4], "padding": 1},
+                marks=pytest.mark.xfail(reason="Sliding windows that would start in the right padded are ignored.")
+            )
+        ])
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
