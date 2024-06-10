@@ -205,6 +205,8 @@ typedef enum {
 
     STRING,          //!< string element type
 
+    F4E2M1,          //!< f4e2m1 element type
+
 } ov_element_type_e;
 ```
 
