@@ -63,7 +63,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 RUN python3 -m venv venv3.10
 
 # Use Python 3.11 as default instead of Python 3.8
-# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
+# Using venv here 'cause other methods to switch the default Python on Ubuntu 22 break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
