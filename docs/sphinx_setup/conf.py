@@ -11,6 +11,7 @@ import sys
 import json
 import shutil
 from sphinx.util import logging
+from pathlib import Path
 from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 import pkg_resources
@@ -21,24 +22,9 @@ copyright = '2024, Intel®'
 author = 'Intel®'
 
 language = 'en'
-version_name = 'nightly'
+version_name = '2024'
 
-try:
-    openvino_path = None
-    openvino_path = pkg_resources.get_distribution("openvino").location
-    sys.path.insert(0, os.path.abspath(openvino_path))
-except pkg_resources.DistributionNotFound:
-    pass
-
-try:
-    openvino_nightly_path = None
-    openvino_nightly_path = pkg_resources.get_distribution("openvino_nightly").location
-    sys.path.insert(0, os.path.abspath(openvino_nightly_path))
-except pkg_resources.DistributionNotFound:
-    pass
-
-if openvino_path is None and openvino_nightly_path is None:
-    autodoc_mock_imports = ["openvino"]
+sys.path.insert(0, os.path.abspath('../openvino'))
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

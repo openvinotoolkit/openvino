@@ -65,7 +65,8 @@ function(build_docs)
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO Python API")
         list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${OV_INSTALLATION_SCRIPT}
         --ov_dir=${SPHINX_SETUP_DIR}
-        --python=${Python3_EXECUTABLE})
+        --python=${Python3_EXECUTABLE}
+        --build_dir=${DOCS_BUILD_DIR})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO Python API")
     endif()
 
