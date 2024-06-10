@@ -5,6 +5,7 @@
 #include "transformations/transpose_sinking/ts_concat.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
@@ -35,8 +36,7 @@ TSConcatForward::TSConcatForward() {
             return false;
         }
 
-        auto concat_axis = concat_node->get_concatenation_axis();
-        if (concat_axis < 0) {
+        if (concat_node->get_output_partial_shape(0).is_dynamic()) {
             return false;
         }
         // todo: support dyn rank case
@@ -45,10 +45,12 @@ TSConcatForward::TSConcatForward() {
             return false;
         }
 
+        const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
+        const auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank);
+
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
         const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
         concat_node->set_axis(transposed_concat_axis);
-        concat_node->set_concatenation_axis(-1);
 
         default_outputs_update(main_node, transpose_info);
         return true;
@@ -81,10 +83,12 @@ TSConcatBackward::TSConcatBackward() {
         }
 
         auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
-        auto concat_axis = concat_node->get_concatenation_axis();
-        if (concat_axis < 0) {
+        if (concat_node->get_output_partial_shape(0).is_dynamic()) {
             return false;
         }
+
+        const auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
+        auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank);
 
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_axis_order);
@@ -94,7 +98,6 @@ TSConcatBackward::TSConcatBackward() {
 
         const auto transposed_concat_axis = reversed_transpose_axis_order[concat_axis];
         concat_node->set_axis(static_cast<int64_t>(transposed_concat_axis));
-        concat_node->set_concatenation_axis(-1);
 
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
             register_new_node(new_node);
