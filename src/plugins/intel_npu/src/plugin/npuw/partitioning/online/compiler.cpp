@@ -11,60 +11,46 @@
 #include "snapshot.hpp"
 #include "group.hpp"
 #include "../../logging.hpp"
-#include "../../config.hpp"
+#include "../../util.hpp"
+
+#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/al/config/npuw.hpp"
 
 namespace ov {
 namespace npuw {
 namespace online {
 
 namespace detail{
-size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model) {
-    const auto *min_graph_size_opt = ov::npuw::get_env({
-        "OPENVINO_NPUW_PARC_GRAPH_SIZE_" + model->get_friendly_name(),
-        "OPENVINO_NPUW_PARC_GRAPH_SIZE"
-    });
+size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model,
+                       ::intel_npu::Config& cfg) {
+    std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_MIN_SIZE>();
 
-    size_t m_min_graph_size = 10;
-
-    if (!min_graph_size_opt) {
-        LOG_WARN("Neither OPENVINO_NPUW_PARC_GRAPH_SIZE nor "
-                << "OPENVINO_NPUW_PARC_GRAPH_SIZE_" + model->get_friendly_name()
-                << " are set! Using a default value of 10.");
-        return m_min_graph_size;
-    } else {
-        std::stringstream s(min_graph_size_opt);
-        s >> m_min_graph_size;
-
-        // Sanity check
-        if (m_min_graph_size < 10) {
-            LOG_WARN("Minimum graph size for online partitioning is too small: "
-                     << m_min_graph_size << ", using a default value of 10.");
-            m_min_graph_size = 10;
-        }
+    // Sanity check
+    if (min_size < 10) {
+        LOG_WARN("Minimum possible partitioning size is too small: "
+                << min_size << ", using a default value of 10.");
+        min_size = 10;
     }
 
     LOG_INFO("Online partitioning will continue until there are "
-             << m_min_graph_size << " or less subgraphs.");
+             << min_size << " or less subgraphs.");
 
-    return m_min_graph_size;
+    return min_size;
 }
 
-std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model) {
+std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model,
+                             ::intel_npu::Config& cfg) {
     std::vector<Avoid> avoids;
 
-    const auto *avoids_opt = ov::npuw::get_env({
-        "OPENVINO_NPUW_AVOID_" + model->get_friendly_name(),
-        "OPENVINO_NPUW_AVOID"
-    });
-
-    if (!avoids_opt) {
-        LOG_INFO("Neither OPENVINO_NPUW_AVOID nor "
-                << "OPENVINO_NPUW_AVOID_" + model->get_friendly_name()
-                << " are set! NPU device will be prioritized for every subgraph.");
+    std::string avoids_opt =
+        cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
+    if (avoids_opt.empty()) {
+        LOG_INFO(::intel_npu::NPUW_ONLINE_AVOID().key()
+                << " property is not set! NPU device will be prioritized for every subgraph.");
         return {};
     }
 
-    std::string s(avoids_opt);
+    std::string s = avoids_opt;
 
     size_t pos = 0;
     size_t start = 0;
@@ -98,7 +84,9 @@ std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model) {
     return avoids;
 }
 
-void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::Model>& model) {
+void dump_partitioning(const ov::npuw::Ensemble& ens,
+                       const std::shared_ptr<ov::Model>& model,
+                       const std::string& to) {
     pugi::xml_document doc;
 
     pugi::xml_node node = doc.append_child("ensemble");
@@ -152,7 +140,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::
         }
     }
 
-    doc.save_file(std::string(model->get_friendly_name() + "_parc_plan.xml").data());
+    doc.save_file(to.data());
 }
 } // namespace detail
 
@@ -165,10 +153,8 @@ class Compiler {
     };
 
     Pipeline currentPipeline(const std::shared_ptr<ov::Model> &model) {
-        std::string pipeline_opt = ov::npuw::get_env({
-                "OPENVINO_NPUW_PARC_PIPELINE_" + model->get_friendly_name(),
-                "OPENVINO_NPUW_PARC_PIPELINE"
-            }, "REP");
+        std::string pipeline_opt =
+            m_cfg.getString<::intel_npu::NPUW_ONLINE_PIPELINE>();
         if (pipeline_opt == "INIT") {
             return Pipeline::INIT;
         } else if (pipeline_opt == "JUST") {
@@ -214,8 +200,10 @@ class Compiler {
     }
 
 public:
-    explicit Compiler(const std::shared_ptr<ov::Model>& model)
-        : m_model(model), m_snapshot(std::make_shared<Snapshot>(model)) {
+    explicit Compiler(const std::shared_ptr<ov::Model>& model,
+                      ::intel_npu::Config& cfg)
+        : m_model(model), m_snapshot(std::make_shared<Snapshot>(model)),
+          m_cfg(cfg) {
         // Parse OV Model into internal data structures. After this
         // stage each layer = it's own group (excluding Parameters,
         // Results, Constants and Converts).
@@ -223,8 +211,8 @@ public:
         m_snapshot->buildGraph();
 
         PassContext ctx;
-        ctx.min_graph_size = detail::getMinGraphSize(model);
-        ctx.avoids = detail::getAvoids(model);
+        ctx.min_graph_size = detail::getMinGraphSize(model, m_cfg);
+        ctx.avoids = detail::getAvoids(model, m_cfg);
 
         m_snapshot->setCtx(ctx);
 
@@ -268,14 +256,10 @@ public:
         }
         ens.repeated = repeated;
 
-        const auto *dump_part_opt = ov::npuw::get_env({
-            "OPENVINO_NPUW_DUMP_PLAN_" + m_model->get_friendly_name(),
-            "OPENVINO_NPUW_DUMP_PLAN"
-        });
-
-        if (dump_part_opt && std::string(dump_part_opt) == "YES") {
-            detail::dump_partitioning(ens, m_model);
-            LOG_INFO("Dumped online partitioning in the current directory.");
+        std::string dump_plan_path = m_cfg.get<::intel_npu::NPUW_ONLINE_DUMP_PLAN>(); 
+        if (!dump_plan_path.empty()) {
+            detail::dump_partitioning(ens, m_model, dump_plan_path);
+            LOG_INFO("Dumped online partitioning to " << dump_plan_path << ".");
         }
 
         LOG_INFO("DONE.");
@@ -286,15 +270,18 @@ public:
 private:
     std::shared_ptr<Snapshot> m_snapshot;
     std::shared_ptr<ov::Model> m_model;
+    ::intel_npu::Config& m_cfg;
 };
 
 } // namespace online
 } // namespace npuw
 } // namespace ov
 
-ov::npuw::Ensemble ov::npuw::online::buildPartitioning(const std::shared_ptr<ov::Model>& model) {
+// TODO: decouple configuration for partitioning from the plugin's cfg.
+ov::npuw::Ensemble ov::npuw::online::buildPartitioning(const std::shared_ptr<ov::Model>& model,
+                                                       ::intel_npu::Config& cfg) {
     // Creates compiler and runs partitioning algorithm.
-    ov::npuw::online::Compiler partitioner(model);
+    ov::npuw::online::Compiler partitioner(model, cfg);
 
     // Convert groups formed after passes into plugin-compatible data structure.
     return partitioner.getPartitioning();

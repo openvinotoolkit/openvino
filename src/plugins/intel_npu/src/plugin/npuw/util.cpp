@@ -13,12 +13,32 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/constant.hpp"
 
+#include <intel_npu/al/config/config.hpp>
+
 #include "logging.hpp"
 #include "util.hpp"
 
 #ifdef UNPACK_PROFILING
 # include "tbb/concurrent_unordered_map.h"
 #endif
+
+bool ov::npuw::util::is_set(const std::size_t sub_idx,
+                            const std::string& opt) {
+    if (opt.empty()) {
+        return false;
+    }
+    if (opt == "YES") {
+        return true;
+    }
+
+    std::vector<std::size_t> sub_inds{};
+    sub_inds = ::intel_npu
+        ::OptionParser<std::vector<std::size_t>>::parse(opt);
+    if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx)
+        != sub_inds.end()) {
+        return true;
+    }
+}
 
 ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node> &node) {
     NPUW_ASSERT(ov::op::util::is_constant(node));

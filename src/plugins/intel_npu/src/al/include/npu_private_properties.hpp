@@ -388,13 +388,5 @@ static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_n
  */
 static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKEND_COMPILATION_PARAMS"};
 
-/**
- * @brief [Only for NPUW path]
- * Type: std::string, default is empty
- * This option is set automatically by the NPUW part when the compile_model request comes to NPU plugin from the NPUW to compile subgraphs on NPU
- * Possible values: YES
- */
-static constexpr ov::Property<std::string> from_npuw{"NPU_FROM_NPUW"};
-
 }  // namespace intel_npu
 }  // namespace ov

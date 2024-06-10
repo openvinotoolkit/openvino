@@ -7,15 +7,24 @@
 #include <ctime>
 #include <mutex>
 
-#include "config.hpp"
 #include "logging.hpp"
+
+namespace {
+const char* get_env(const std::vector<std::string> &list_to_try) {
+    for (auto &&key : list_to_try) {
+        const char *pstr = std::getenv(key.c_str());
+        if (pstr) return pstr;
+    }
+    return nullptr;
+}
+} // anonymous namespace
 
 ov::npuw::LogLevel ov::npuw::get_log_level() {
     static LogLevel log_level = LogLevel::None;
     static std::once_flag flag;
 
     std::call_once(flag, [](){
-        const auto *log_opt = ov::npuw::get_env({
+        const auto *log_opt = get_env({
                 "OPENVINO_NPUW_LOG_LEVEL",
                 "OPENVINO_NPUW_LOG"});
         if (!log_opt) {

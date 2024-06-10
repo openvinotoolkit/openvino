@@ -18,7 +18,6 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
-#include "npuw/config.hpp"
 #include "npuw/compiled_model.hpp"
 
 using namespace intel_npu;
@@ -167,16 +166,15 @@ static Config add_platform_to_the_config(Config config, const std::string_view p
 }
 
 Plugin::Plugin()
-    : _options(std::make_shared<OptionsDesc>()),
-      _globalConfig(_options),
+    : _options(std::make_shared<OptionsDesc>("OptionDesc")),
+      _globalConfig(_options, "Config"),
       _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
     registerCommonOptions(*_options);
     registerCompilerOptions(*_options);
-    registerRunTimeOptions(*_options);
-    registerNPUWOptions(*_options);
+    registerRunTimeOptions(*_options);;
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
@@ -510,13 +508,7 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
-          }}},
-        {ov::intel_npu::from_npuw.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<FROM_NPUW>();
-          }}},
+          }}}
     };
 
     for (auto& property : _properties) {
@@ -565,25 +557,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "merge_configs");
-    auto localConfig = merge_configs(_globalConfig, any_copy(properties));
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
     // ... 2 - this request is NOT coming from NPUW,
     // activate the NPUW path
-    if (ov::npuw::get_env({"OV_USE_NPUW"}, "NO") == std::string("YES")
-        && !localConfig.has<FROM_NPUW>() ) {
-        auto config = ov::npuw::Configuration{properties};
-        return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), config);
+    auto localProperties = properties;
+    auto useNpuwKey = NPU_USE_NPUW::key().data();
+    auto fromNpuwKey = NPU_FROM_NPUW::key().data();
+    if (localProperties.count(useNpuwKey) &&
+        localProperties.at(useNpuwKey).as<bool>() == true &&
+        localProperties.count(fromNpuwKey) == 0) {
+            return std::make_shared<ov::npuw::CompiledModel>
+                (model->clone(), shared_from_this(),
+                 localProperties);
+    } else if (localProperties.count(fromNpuwKey)) {
+        OPENVINO_ASSERT(localProperties.count(useNpuwKey) == 0);
+        localProperties.erase(fromNpuwKey);
     }
 
-    // The FROM_NPUW check passed - so (due to some high coupling between compiler
-    // and plugin options) remove it for now.
-    // FIXME{{{: This is ugly and must be reconsidered!!!
-    auto props_no_npuw = properties;
-    props_no_npuw.erase(FROM_NPUW::key().data());
-    localConfig = merge_configs(_globalConfig, any_copy(props_no_npuw));
-    // FIXME}}}
+    auto localConfig = merge_configs(_globalConfig, any_copy(localProperties));
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {

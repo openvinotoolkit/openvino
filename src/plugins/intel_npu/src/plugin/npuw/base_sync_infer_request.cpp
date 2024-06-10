@@ -7,7 +7,10 @@
 #include "logging.hpp"
 #include "util.hpp"
 
-ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
+#include "intel_npu/al/config/npuw.hpp"
+
+ov::npuw::IBaseInferRequest::IBaseInferRequest(
+    const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model)
     , m_npuw_model(compiled_model)
     , m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
@@ -222,26 +225,21 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
         + subgr_path_suffix(idx)
         + iter_path_suffix(idx);
 
-    const auto *dump_io_opt = ov::npuw::get_env({
-            "OPENVINO_NPUW_DUMP_IO",
-            "OPENVINO_NPUW_DUMP_IO_" + m_npuw_model->m_name,
-            "OPENVINO_NPUW_DUMP_IO_" + comp_submodel_name
-        });
-    if (!dump_io_opt || dump_io_opt != std::string("YES")) {
-        return;
+    const std::string dump_ios_opt =
+        m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
+    if (ov::npuw::util::is_set(idx, dump_ios_opt)) {
+        std::vector<std::string> in_base_names;
+        for (std::size_t i = 0u, num_inputs = comp_submodel->inputs().size(); i < num_inputs; i++) {
+            const auto &port = comp_submodel->inputs()[i];
+            const auto &tnsr = m_subrequests[real_idx]->get_tensor(port);
+            std::string in_base_name = comp_submodel_path
+                + "_input_"
+                + ov::npuw::util::fmt(i, num_inputs);
+            ov::npuw::dump_tensor(tnsr, in_base_name);
+            in_base_names.push_back(std::move(in_base_name));
+        }
+        ov::npuw::dump_input_list(comp_submodel_path, in_base_names);
     }
-
-    std::vector<std::string> in_base_names;
-    for (std::size_t i = 0u, num_inputs = comp_submodel->inputs().size(); i < num_inputs; i++) {
-        const auto &port = comp_submodel->inputs()[i];
-        const auto &tnsr = m_subrequests[real_idx]->get_tensor(port);
-        std::string in_base_name = comp_submodel_path
-            + "_input_"
-            + ov::npuw::util::fmt(i, num_inputs);
-        ov::npuw::dump_tensor(tnsr, in_base_name);
-        in_base_names.push_back(std::move(in_base_name));
-    }
-    ov::npuw::dump_input_list(comp_submodel_path, in_base_names);
 }
 
 void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
@@ -258,26 +256,21 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
         + subgr_path_suffix(idx)
         + iter_path_suffix(idx);
 
-    const auto *dump_io_opt = ov::npuw::get_env({
-            "OPENVINO_NPUW_DUMP_IO",
-            "OPENVINO_NPUW_DUMP_IO_" + m_npuw_model->m_name,
-            "OPENVINO_NPUW_DUMP_IO_" + comp_submodel_name
-        });
-    if (!dump_io_opt || dump_io_opt != std::string("YES")) {
-        return;
+    const std::string dump_ios_opt =
+        m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
+    if (ov::npuw::util::is_set(idx, dump_ios_opt)) {
+        std::vector<std::string> out_base_names;
+        for (std::size_t i = 0u, num_outputs = comp_submodel->outputs().size(); i < num_outputs; i++) {
+            const auto &port = comp_submodel->outputs()[i];
+            const auto &tnsr = m_subrequests[real_idx]->get_tensor(port);
+            std::string out_base_name = comp_submodel_path
+                + "_output_"
+                + ov::npuw::util::fmt(i, num_outputs);
+            ov::npuw::dump_tensor(tnsr, out_base_name);
+            out_base_names.push_back(std::move(out_base_name));
+        }
+        ov::npuw::dump_output_list(comp_submodel_path, out_base_names);
     }
-
-    std::vector<std::string> out_base_names;
-    for (std::size_t i = 0u, num_outputs = comp_submodel->outputs().size(); i < num_outputs; i++) {
-        const auto &port = comp_submodel->outputs()[i];
-        const auto &tnsr = m_subrequests[real_idx]->get_tensor(port);
-        std::string out_base_name = comp_submodel_path
-            + "_output_"
-            + ov::npuw::util::fmt(i, num_outputs);
-        ov::npuw::dump_tensor(tnsr, out_base_name);
-        out_base_names.push_back(std::move(out_base_name));
-    }
-    ov::npuw::dump_output_list(comp_submodel_path, out_base_names);
 }
 
 std::string ov::npuw::IBaseInferRequest::subgr_name(std::size_t idx) const {
@@ -291,12 +284,7 @@ std::string ov::npuw::IBaseInferRequest::subgr_path_suffix(std::size_t idx) cons
 std::string ov::npuw::IBaseInferRequest::iter_path_suffix(std::size_t idx) const {
     // Check if per-iter dump is required - and provide the suffix if necessary
     if (!m_iter_suffix_required.has_value()) {
-        const auto *dump_io_iters_opt = ov::npuw::get_env({
-                "OPENVINO_NPUW_DUMP_IO_ITERS",
-                "OPENVINO_NPUW_DUMP_IO_ITERS_" + m_npuw_model->m_name,
-                "OPENVINO_NPUW_DUMP_IO_ITERS_" + subgr_name(idx)
-            }, "NO");
-        m_iter_suffix_required = (dump_io_iters_opt == std::string("YES"));
+        m_iter_suffix_required = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO_ITERS>();
     }
 
     if (!m_iter_suffix_required.value()) {

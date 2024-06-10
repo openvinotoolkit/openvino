@@ -11,6 +11,8 @@
 
 #include "openvino/openvino.hpp"
 
+#include "intel_npu/al/config/config.hpp"
+
 namespace ov {
 namespace npuw {
 
@@ -104,7 +106,8 @@ struct Partitioning {
     float total_gflops = 0.f;
 };
 
-Partitioning getPartitioning(const std::shared_ptr<ov::Model> &model);
+Partitioning getPartitioning(const std::shared_ptr<ov::Model> &model,
+                             ::intel_npu::Config& config);
 
 } // namespace npuw
 } // namespace ov

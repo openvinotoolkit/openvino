@@ -6,11 +6,13 @@
 
 #include <optional>
 
-#include "config.hpp"
 #include "common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/openvino.hpp"
+
+#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/al/config/npuw.hpp"
 
 #include "partitioning/partitioning.hpp"
 
@@ -26,11 +28,13 @@ class ThinInferRequest;
 
 class CompiledModel : public ov::ICompiledModel {
     using DevList = std::vector<std::string>;
-
+    using GetPropertiesMap = std::map<std::string,
+        std::tuple<ov::PropertyMutability,
+                   std::function<ov::Any(const ::intel_npu::Config&)>>>;
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const Configuration& cfg);
+                  const ov::AnyMap& properties);
 
     void export_model(std::ostream& model) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -68,7 +72,14 @@ private:
 
     void log_device_dist() const;
 
-    Configuration m_cfg;
+    void implement_properties();
+   
+    std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
+    ::intel_npu::Config m_cfg;
+    GetPropertiesMap m_prop_to_opt;
+    std::vector<ov::PropertyName> m_all_supported_props;
+    ov::AnyMap m_non_npuw_props;
+
     std::string m_name;
     const bool m_loaded_from_cache;
 

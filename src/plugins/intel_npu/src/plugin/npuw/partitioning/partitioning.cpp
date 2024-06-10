@@ -11,11 +11,12 @@
 #include "openvino/util/xml_parse_utils.hpp"
 
 #include "../logging.hpp"
-#include "../config.hpp"
 #include "../util.hpp"
 #include "partitioning.hpp"
 #include "online/compiler.hpp"
 #include "patterns/dcoff.hpp"
+
+#include "intel_npu/al/config/npuw.hpp"
 
 namespace {
 
@@ -27,9 +28,12 @@ class FuncallEverywhere {
     mutable bool m_enabled = false;
     mutable std::once_flag m_once;
 
+    ::intel_npu::Config& m_cfg;
 public:
-    explicit FuncallEverywhere(const std::shared_ptr<ov::Model> &model)
-        : m_model(model) {
+    explicit FuncallEverywhere(const std::shared_ptr<ov::Model> &model,
+                               ::intel_npu::Config& cfg)
+        : m_model(model),
+          m_cfg(cfg) {
     }
 
     void register_known(const std::string fcn_id) {
@@ -47,11 +51,9 @@ public:
 
     bool enabled() const {
         std::call_once(m_once, [&](){
-            const char * fce_opt = ov::npuw::get_env({
-                    "OPENVINO_NPUW_FUNCALL_FORALL_" + m_model->get_friendly_name(),
-                    "OPENVINO_NPUW_FUNCALL_FORALL"
-                }, "NO");
-            if ("YES" == std::string(fce_opt)) {
+            const bool fce_opt =
+                m_cfg.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>();
+            if (fce_opt) {
                 LOG_WARN("Every subgraph in "
                          << m_model->get_friendly_name()
                          << " will be turned to a function: may cause performance issues");
@@ -69,28 +71,22 @@ struct BankContains {
     }
 };
 
-ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model> &model) {
+ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model> &model,
+                               const std::string& path_to_plan) {
     // Try to load the partitioning plan...
-    const char * pfile = ov::npuw::get_env({
-            "OPENVINO_NPUW_PLAN_" + model->get_friendly_name(),
-            "OPENVINO_NPUW_PLAN"});
-    if (!pfile) {
-        LOG_WARN("Neither OPENVINO_NPUW_PLAN nor "
-                 << "OPENVINO_NPUW_PLAN_" + model->get_friendly_name()
-                 << " are set! No partitioning will be done");
-        return {};
-    }
+    NPUW_ASSERT(!path_to_plan.empty());
 
-    std::ifstream ifs(pfile);
+    std::ifstream ifs(path_to_plan);
     if (!ifs) {
-        LOG_ERROR("Couldn't open OPENVINO_NPUW_PLAN pointing to " << pfile << "!");
+        LOG_ERROR("Couldn't open " << ::intel_npu::NPUW_PLAN().key()
+                  << "pointing to " << path_to_plan << "!");
         return {};
     }
 
     // If file is specified and it exists, try to parse the XML document
-    LOG_INFO("Loading plan from " << pfile << "...");
+    LOG_INFO("Loading plan from " << path_to_plan << "...");
     pugi::xml_document xml_doc;
-    pugi::xml_parse_result xml_res = xml_doc.load_file(pfile);
+    pugi::xml_parse_result xml_res = xml_doc.load_file(path_to_plan.c_str());
     if (xml_res.status != pugi::status_ok) {
         LOG_ERROR("Couldn't parse the plan XML!");
         return {};
@@ -232,11 +228,13 @@ private:
 public:
     Partitioner(const std::shared_ptr<ov::Model> &_model,
                 ov::npuw::Ensemble &_ens,
-                ov::npuw::Partitioning &_P)
+                ov::npuw::Partitioning &_P,
+                ::intel_npu::Config& cfg)
         : model(_model)
         , ens(_ens)
         , P(_P)
-        , uzhas_type(UzhasType::FOLD) {
+        , uzhas_type(UzhasType::FOLD)
+        , cfg(cfg) {
     }
 
     ////////////////////////////////////////////////////////
@@ -273,6 +271,7 @@ public:
 
 private:
     UzhasType uzhas_type;
+    ::intel_npu::Config& cfg;
 };
 
 void Partitioner::identifySubgraphs() {
@@ -1509,12 +1508,9 @@ void Partitioner::decompressionCutOff(const std::string &func_name) {
              << "...");
     LOG_BLOCK();
 
-    const char * dcoff_opt = ov::npuw::get_env({
-            "OPENVINO_NPUW_DCOFF_" + model->get_friendly_name(),
-            "OPENVINO_NPUW_DCOFF"});
+    std::string dcoff_type_opt = cfg.getString<::intel_npu::NPUW_DCOFF_TYPE>();
     ov::element::Type dcoff_type{};
-    if (dcoff_opt) {
-        std::string dcoff_type_opt(dcoff_opt);
+    if (!dcoff_type_opt.empty()) {
         if (dcoff_type_opt == "i8") {
             dcoff_type = ov::element::i8;
         } else if (dcoff_type_opt == "f16") {
@@ -1526,19 +1522,19 @@ void Partitioner::decompressionCutOff(const std::string &func_name) {
         }
     } else {
         LOG_INFO("Cancelled - no dcoff type specified via "
-                 << "OPENVINO_NPUW_DCOFF_" + model->get_friendly_name()
-                 << " or OPENVINO_NPUW_DCOFF");
+                 << ::intel_npu::NPUW_DCOFF_TYPE().key()
+                 << " property.");
         return;
     }
 
     ov::npuw::DCOffMode dcoff_mode = ov::npuw::DCOffMode::CAST_ONLY;
-    const char * dcoff_scale_opt = ov::npuw::get_env({
-            "OPENVINO_NPUW_DCOFF_SCALE_" + model->get_friendly_name(),
-            "OPENVINO_NPUW_DCOFF_SCALE"});
-    if (dcoff_scale_opt && std::string(dcoff_scale_opt) == "YES") {
+    if (cfg.get<::intel_npu::NPUW_DCOFF_SCALE>()) {
         if (dcoff_type != ov::element::f16) {
             // Moving out scaling off graph works only for the f16 DCOFF type
-            LOG_WARN("DCOFF_SCALE is specified, but the target DCOFF type is not f16 - ignoring");
+            LOG_WARN(::intel_npu::NPUW_DCOFF_SCALE().key()
+                     << " property is specified, but the target "
+                     << ::intel_npu::NPUW_DCOFF_TYPE().key()
+                     << " is not f16 - ignoring");
         } else {
             LOG_INFO("Decompression cut-off: Weight scaling will be moved off the model");
             dcoff_mode = ov::npuw::DCOffMode::CAST_SCALE;
@@ -1699,32 +1695,27 @@ void Partitioner::finalizeLinks() {
 } // namespace
 
 ov::npuw::Partitioning
-ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model) {
+ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model,
+                          ::intel_npu::Config& cfg) {
     LOG_INFO("Building partitioning for model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
 
     ov::npuw::Ensemble ens;
 
-    const auto *use_online_part = ov::npuw::get_env({
-        "OPENVINO_NPUW_USE_PARC",
-        "OPENVINO_NPUW_USE_PARC_" + model->get_friendly_name()
-    });
-
-    if (!use_online_part || use_online_part != std::string("YES")) {
-       LOG_INFO("Neither OPENVINO_NPUW_USE_PARC nor "
-                 << "OPENVINO_NPUW_USE_PARC_" + model->get_friendly_name()
-                 << " are set! Using offline partitioning.");
-        ens = load_groups(model);
+    // Try to load the partitioning plan...
+    const std::string file_path = cfg.get<::intel_npu::NPUW_PLAN>();
+    if (file_path.empty()) {
+        LOG_WARN("No " << ::intel_npu::NPUW_PLAN().key()
+                 << " property is provided! Using online partitioning.");
+        ens = ov::npuw::online::buildPartitioning(model, cfg);
     } else {
-        LOG_INFO("Using online partitioning for " << model->get_friendly_name());
-        ens = ov::npuw::online::buildPartitioning(model);
+        ens = load_groups(model, file_path);
     }
 
-    const auto *dump_opt = ov::npuw::get_env({
-            "OPENVINO_NPUW_DUMP_" + model->get_friendly_name(),
-            "OPENVINO_NPUW_DUMP"});
-    if (dump_opt && dump_opt == std::string("YES")) {
+    const bool dump_full_opt =
+        cfg.get<::intel_npu::NPUW_DUMP_FULL>();;
+    if (dump_full_opt) {
         ov::save_model(model, model->get_friendly_name() + ".xml");
         LOG_INFO("Dumped the model in the current directory.");
     }
@@ -1740,7 +1731,7 @@ ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model) {
     }
 
     // Handle funcall everywhere, if needed
-    FuncallEverywhere fcew(model);
+    FuncallEverywhere fcew(model, cfg);
     if (fcew.enabled()) {
         std::size_t gid = 0u; // TODO: Use indexed()
         for (auto &&this_group : ens.groups) {
@@ -1766,23 +1757,11 @@ ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model) {
     Partitioning P;
     P.total_gflops = ens.gflops;
 
-    Partitioner p(model, ens, P);
+    Partitioner p(model, ens, P, cfg);
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
-        const bool do_fold = [&model]() {
-            const char *fold_opt = ov::npuw::get_env({
-                    "OPENVINO_NPUW_FOLD_" + model->get_friendly_name(),
-                    "OPENVINO_NPUW_FOLD"});
-            return fold_opt && std::string(fold_opt) == "YES";
-        } ();
-        const bool do_cwai = [&model]() {
-            const char *cwai_opt = ov::npuw::get_env({
-                    "OPENVINO_NPUW_CWAI_" + model->get_friendly_name(),
-                    "OPENVINO_NPUW_CWAI"});
-            return cwai_opt && std::string(cwai_opt) == "YES";
-        } ();
-        if (do_fold) {
+        if (cfg.get<::intel_npu::NPUW_FOLD>()) {
             // Do full-featured folding
             auto all_functions = p.initUzhas(Partitioner::UzhasType::FOLD);
             for (auto &&func_group : all_functions) {
@@ -1799,7 +1778,7 @@ ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model) {
                 p.matchRepeatedSubgraphs(func_group);
                 p.decompressionCutOff(func_group);
             }
-        } else if (do_cwai) {
+        } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
             // Less brutal version - just transform repeated blocks
             // into the closure forms, but don't do folding.
             // This path is likely to be removed soon (is here for

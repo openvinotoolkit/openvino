@@ -137,8 +137,10 @@ details::OptionValue::~OptionValue() = default;
 // OptionsDesc
 //
 
+OptionsDesc::OptionsDesc(const std::string_view& name) : _name(name) {}
+
 details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) const {
-    auto log = Logger::global().clone("OptionsDesc");
+    auto log = Logger::global().clone(_name);
 
     std::string searchKey{key};
     const auto itDeprecated = _deprecated.find(std::string(key));
@@ -190,12 +192,13 @@ void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) co
 // Config
 //
 
-Config::Config(const std::shared_ptr<const OptionsDesc>& desc) : _desc(desc) {
+Config::Config(const std::shared_ptr<const OptionsDesc>& desc,
+               const std::string_view& name) : _desc(desc), _name(name) {
     OPENVINO_ASSERT(_desc != nullptr, "Got NULL OptionsDesc");
 }
 
 void Config::parseEnvVars() {
-    auto log = Logger::global().clone("Config");
+    auto log = Logger::global().clone(_name);
 
     _desc->walk([&](const details::OptionConcept& opt) {
         if (!opt.envVar().empty()) {
@@ -212,7 +215,7 @@ void Config::parseEnvVars() {
 }
 
 void Config::update(const ConfigMap& options, OptionMode mode) {
-    auto log = Logger::global().clone("Config");
+    auto log = Logger::global().clone(_name);
 
     for (const auto& p : options) {
         log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());

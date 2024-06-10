@@ -23,10 +23,7 @@
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : IBaseInferRequest(compiled_model) {
 
-    m_use_function_pipelining = std::string("YES") == ov::npuw::get_env({
-            "OPENVINO_NPUW_FUNCALL_ASYNC_" + m_npuw_model->m_name,
-            "OPENVINO_NPUW_FUNCALL_ASYNC",
-        }, "NO");
+    m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
         LOG_WARN("Function call pipelining is enabled for " << m_npuw_model->m_name
                  << ", expect a higher memory consumption");

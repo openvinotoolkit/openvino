@@ -13,6 +13,8 @@ namespace ov {
 namespace npuw {
 namespace util {
 
+bool is_set(const std::size_t sub_idx, const std::string& opt);
+
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
 ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node> &node);
