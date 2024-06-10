@@ -30,7 +30,7 @@ def test_simple_model_and_pattern():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
-    model_result = ops.result(model_relu)
+    model_result = ops.result(model_relu) # noqa
 
     # Create a sample pattern
     pattern_mul = ops.matmul(AnyInput(), AnyInput(), False, False)
@@ -52,7 +52,7 @@ def test_simple_model_and_pattern_wrap_type():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
-    model_result = ops.result(model_relu)
+    model_result = ops.result(model_relu) # noqa
 
     # Create a sample pattern
     pattern_mul = WrapType("opset13.MatMul", [AnyInput(), AnyInput()])
@@ -74,9 +74,9 @@ def test_wrap_type_list():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
-    model_result = ops.result(model_relu)
+    model_result = ops.result(model_relu) # noqa
     model_sig = ops.sigmoid(model_abs)  # Note that we've added a Sigmoid node after Abs
-    model_result1 = ops.result(model_sig)
+    model_result1 = ops.result(model_sig) # noqa
 
     # Create a sample pattern
     pattern_mul = WrapType("opset13.MatMul", [AnyInput(), AnyInput()])
@@ -99,7 +99,7 @@ def test_pattern_or():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
-    model_result = ops.result(model_relu)
+    model_result = ops.result(model_relu) # noqa
 
     # Create a red branch
     red_pattern_add = WrapType("opset13.Add", [AnyInput(), AnyInput()])
@@ -129,7 +129,7 @@ def test_pattern_optional_middle():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
-    model_result = ops.result(model_relu)
+    model_result = ops.result(model_relu) # noqa
 
     # Create a sample pattern with an Optional node in the middle
     pattern_mul = WrapType("opset13.MatMul", [AnyInput(), AnyInput()])
@@ -152,7 +152,7 @@ def test_pattern_optional_top():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
-    model_result = ops.result(model_relu)
+    model_result = ops.result(model_relu) # noqa
 
     # Create a sample pattern an optional top node
     pattern_sig_opt = Optional(["opset13.Sigmoid"], AnyInput())
@@ -174,7 +174,7 @@ def test_pattern_optional_root():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
-    model_result = ops.result(model_relu)
+    model_result = ops.result(model_relu) # noqa
 
     # Create a sample pattern with an optional root node
     pattern_mul = WrapType("opset13.MatMul", [AnyInput(), AnyInput()])
