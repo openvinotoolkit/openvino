@@ -477,7 +477,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
-      runner: 'aks-linux-16-cores-32gb'
+      runner: 'aks-linux-16-cores-64gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   CXX_Unit_Tests:
@@ -534,7 +534,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-32gb'
+      runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_tf_hub'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
@@ -544,7 +544,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-32gb'
+      runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_hf'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
