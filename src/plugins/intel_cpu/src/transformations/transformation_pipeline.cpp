@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
 #include <ov_ops/gather_compressed.hpp>
@@ -115,6 +116,8 @@
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
+#include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
+#include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -143,6 +146,8 @@
 #include "nodes/mha.h"
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
+#include "nodes/llm_mlp.h"
+#include "nodes/qkv_proj.h"
 #include "dnnl.hpp"
 #if defined(OPENVINO_ARCH_ARM64)
 #include "cpu/aarch64/cpu_isa_traits.hpp"
@@ -559,7 +564,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-    CPU_SET_CALLBACK_X64(manager,
+    CPU_SET_CALLBACK_COMMON(manager,
         [this](const_node_ptr &node) -> bool {
             std::string errorMsg;
             // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf regression.
@@ -780,6 +785,37 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
+    // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
+    auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (inferencePrecision == element::bf16);
+    if (can_use_amx_bf16) {
+        auto has_paged_attention = op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
+        if (has_paged_attention) {
+            CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+            CPU_SET_CALLBACK_X64(postLPTPassManager,
+                [](const_node_ptr &node) -> bool {
+                    std::string errorMsg;
+                    return node::LLMMLP::isSupportedOperation(node, errorMsg);
+                },
+                MLPFusion);
+        }
+
+        // Limitations: at least 3 workers are required for QKV fusion
+        size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+        if (concurrency == 0)
+            concurrency = parallel_get_max_threads();
+        if (concurrency >= 3) {
+            if (has_paged_attention) {
+                CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+                CPU_SET_CALLBACK_X64(postLPTPassManager,
+                    [](const_node_ptr &node) -> bool {
+                        std::string errorMsg;
+                        return node::QKVProjection::isSupportedOperation(node, errorMsg);
+                    },
+                    QKVProjFusion);
+            }
+        }
+    }
+
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
@@ -867,7 +903,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
         const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-        if (!matmul)
+        if (!matmul || matmul->is_dynamic())
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
