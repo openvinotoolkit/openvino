@@ -779,6 +779,8 @@ template <>
 OPENVINO_API Constant::LPBuffer<element::i4>::LPBuffer(void* ptr);
 template <>
 OPENVINO_API Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr);
+template <>
+OPENVINO_API Constant::LPBuffer<element::f4e2m1>::LPBuffer(void* ptr);
 
 template <>
 OPENVINO_API void Constant::LPBuffer<element::u1>::write(const float value);
@@ -794,6 +796,8 @@ template <>
 OPENVINO_API void Constant::LPBuffer<element::i4>::write(const float value);
 template <>
 OPENVINO_API void Constant::LPBuffer<element::nf4>::write(const float value);
+template <>
+OPENVINO_API void Constant::LPBuffer<element::f4e2m1>::write(const float value);
 
 template <>
 OPENVINO_API ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const;
@@ -809,6 +813,8 @@ template <>
 OPENVINO_API ov::fundamental_type_for<element::i4> Constant::LPBuffer<element::i4>::read() const;
 template <>
 OPENVINO_API ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() const;
+template <>
+OPENVINO_API ov::fundamental_type_for<element::f4e2m1> Constant::LPBuffer<element::f4e2m1>::read() const;
 
 template <>
 OPENVINO_API Constant::LPBuffer<element::u1>& Constant::LPBuffer<element::u1>::operator++();
@@ -824,6 +830,8 @@ template <>
 OPENVINO_API Constant::LPBuffer<element::i4>& Constant::LPBuffer<element::i4>::operator++();
 template <>
 OPENVINO_API Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++();
+template <>
+OPENVINO_API Constant::LPBuffer<element::f4e2m1>& Constant::LPBuffer<element::f4e2m1>::operator++();
 
 #define CONSTANT_FILL_DATA_SPECIALIZATION(ET, SRC_TYPE) \
     template <>                                         \
