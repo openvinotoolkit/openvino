@@ -48,7 +48,7 @@ Clone repositories and install requirements
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.0" "torch>=2.1" opencv-python supervision transformers yapf pycocotools addict "gradio>=4.19" tqdm timm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2024.0" "torch>=2.1" opencv-python "supervision[desktop]" transformers yapf pycocotools addict "gradio>=4.19" tqdm timm --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
@@ -111,17 +111,17 @@ segmentation you can select vanilla ``SAM``.
 
     Cloning into 'GroundingDINO'...
     remote: Enumerating objects: 379, done.[K
-    remote: Counting objects: 100% (175/175), done.[K
-    remote: Compressing objects: 100% (63/63), done.[K
-    remote: Total 379 (delta 135), reused 112 (delta 112), pack-reused 204[K
-    Receiving objects: 100% (379/379), 14.03 MiB | 27.68 MiB/s, done.
-    Resolving deltas: 100% (194/194), done.
+    remote: Counting objects: 100% (177/177), done.[K
+    remote: Compressing objects: 100% (64/64), done.[K
+    remote: Total 379 (delta 137), reused 113 (delta 113), pack-reused 202[K
+    Receiving objects: 100% (379/379), 14.03 MiB | 23.40 MiB/s, done.
+    Resolving deltas: 100% (195/195), done.
     Cloning into 'EfficientSAM'...
     remote: Enumerating objects: 424, done.[K
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
     remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 24.66 MiB/s, done.
+    Receiving objects: 100% (424/424), 262.14 MiB | 23.25 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
 
 
@@ -248,15 +248,6 @@ GroundingDINO imports
 .. parsed-literal::
 
     final text_encoder_type: bert-base-uncased
-
-
-.. parsed-literal::
-
-    FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-
-
-.. parsed-literal::
-
     final text_encoder_type: bert-base-uncased
 
 
@@ -507,10 +498,10 @@ class, but the inference will be done using OpenVINO optimized model.
 
 .. parsed-literal::
 
-    2024-05-16 00:24:34.510973: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 00:24:34.551326: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 00:30:58.009326: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 00:30:58.048500: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 00:24:35.297555: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:30:58.610355: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert predicted boxes to supervision box detections format

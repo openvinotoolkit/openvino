@@ -839,12 +839,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -862,9 +858,6 @@ Let’s load ``skip magic`` extension to skip quantization if
 .. code:: ipython3
 
     int8_pipe = None
-    
-    if to_quantize.value and "GPU" in device.value:
-        to_quantize.value = False
     
     # Fetch `skip_kernel_extension` module
     import requests

@@ -40,7 +40,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "ultralytics==8.1.42" "openvino>=2024.0.0" "nncf>=2.9.0" tqdm
+    %pip install -q "ultralytics==8.2.24" "openvino>=2024.0.0" "nncf>=2.9.0" tqdm
 
 
 .. parsed-literal::
@@ -167,7 +167,6 @@ instance.
 .. parsed-literal::
 
     val: New cache created: /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/labels/train.cache
-
 
 
 

@@ -124,8 +124,10 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip unsinstall -q -y openvino openvino-dev openvino-nightly optimum optimum-intel
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "openvino-nightly" "nncf>=2.10.0" onnx "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "nncf>=2.10.0" onnx "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 Convert model using Optimum-CLI tool

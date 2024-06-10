@@ -71,9 +71,10 @@ useful modules.
 
 .. code:: ipython3
 
-    %pip install -q --upgrade pip
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
-    %pip install -q --upgrade transformers "torch>=2.1" "gradio>=4.19" openvino-nightly accelerate onnx ipywidgets "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q --upgrade transformers "torch>=2.1" "gradio>=4.19" accelerate onnx ipywidgets "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 Select inference device

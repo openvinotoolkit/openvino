@@ -372,12 +372,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -400,9 +396,6 @@ improve model inference speed.
     open("skip_kernel_extension.py", "w").write(r.text)
     
     int8_pipe = None
-    
-    if to_quantize.value and "GPU" in device.value:
-        to_quantize.value = False
     
     %load_ext skip_kernel_extension
 

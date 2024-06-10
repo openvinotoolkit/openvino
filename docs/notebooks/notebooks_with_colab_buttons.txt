@@ -23,6 +23,7 @@ mobileclip-video-search
 model-tools
 music-generation
 named-entity-recognition
+nano-llava-multimodal-chatbot
 object-detection
 openvino-api
 openvino-tokenizers
@@ -30,6 +31,7 @@ optical-character-recognition
 optimize-preprocessing
 paddle-ocr-webcam
 paddle-to-openvino-classification
+person-counting
 person-tracking
 pix2struct-docvqa
 pytorch-onnx-to-openvino
