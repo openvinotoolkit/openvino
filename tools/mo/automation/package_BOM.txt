@@ -835,7 +835,6 @@ openvino/tools/mo/moc_frontend/__init__.py
 openvino/tools/mo/moc_frontend/analysis.py
 openvino/tools/mo/moc_frontend/check_config.py
 openvino/tools/mo/moc_frontend/extractor.py
-openvino/tools/mo/moc_frontend/jax_frontend_utils.py
 openvino/tools/mo/moc_frontend/layout_utils.py
 openvino/tools/mo/moc_frontend/moc_emit_ir.py
 openvino/tools/mo/moc_frontend/paddle_frontend_utils.py

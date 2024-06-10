@@ -20,7 +20,27 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
                                                              kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scaled_dot_product_attention>();
 
-    return impl_param.get_input_layout(0);
+    auto transpose_shape = [&desc](const ov::PartialShape& shape, const std::vector<int64_t>& order) {
+        if (desc->input_q_transpose_order.empty())
+            return shape;
+
+        auto shape_transposed = ov::PartialShape(shape);
+        auto rank_diff = shape.size() - order.size();
+        for (size_t i = 0; i < order.size(); i++) {
+            size_t idx = static_cast<size_t>(order[i]);
+            shape_transposed[i + rank_diff] = shape[idx + rank_diff];
+        }
+
+        return shape_transposed;
+    };
+
+    auto input0_layout = impl_param.get_input_layout(0);
+    auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
+    auto output_type = desc->output_data_types[0].value_or(default_out_dt);
+    auto output_format = input0_layout.format;
+    auto output_shape = transpose_shape(input0_layout.get_partial_shape(), desc->input_q_transpose_order); // output shape matches with Q input shape
+
+    return { layout{output_shape, output_type, output_format, desc->output_paddings[0]} };
 }
 
 template<typename ShapeType>
