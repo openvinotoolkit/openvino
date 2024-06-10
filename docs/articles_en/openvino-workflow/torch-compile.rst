@@ -64,10 +64,9 @@ enable model caching, set the cache directory etc. You can use a dictionary of t
   By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications
   on CPU. If you set this variable to ``GPU.0``, for example, the application will
   use the integrated graphics processor instead.
-* ``aot_autograd`` - enables aot_autograd graph capture. The aot_autograd graph capture
-is needed to enable dynamic shapes or to finetune a model. For models with dynamic
-shapes, it is recommended to set this option to ``True``. By default, aot_autograd
-is set to ``False``.
+* ``aot_autograd`` - enables a graph capture needed for dynamic shapes or to finetune a 
+  model. For models with dynamic shapes, it is recommended to set this option to ``True``. 
+  By default, aot_autograd is set to ``False``.
 * ``model_caching`` - enables saving the optimized model files to a hard drive,
   after the first application run. This makes them available for the following
   application executions, reducing the first-inference latency. By default, this
