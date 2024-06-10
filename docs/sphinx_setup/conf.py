@@ -22,7 +22,7 @@ copyright = '2024, Intel®'
 author = 'Intel®'
 
 language = 'en'
-version_name = '2024'
+version_name = 'nightly'
 
 sys.path.insert(0, os.path.abspath('../openvino/'))
 
