@@ -11,8 +11,6 @@ from openvino.runtime import op, Type as OVType, Shape, Tensor
 from openvino.runtime import opset11 as ops
 
 def jax_array_to_ov_const(arr: np.ndarray, shared_memory=True):
-    def jax_array_to_ov_const(arr: jax.Array, shared_memory=True):
-    assert isinstance(arr, (np.ndarray, jax.Array)), "Constant is expected to be a numpy array or jax array."
     # TODO: deal with bfloat16 dtype here.
     if isinstance(arr, np.ndarray):
         return op.Constant(arr, shared_memory=shared_memory)
