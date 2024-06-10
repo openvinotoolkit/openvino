@@ -63,8 +63,8 @@ def main():
         else:
             ov_version = f"openvino=={version_name}"
     subprocess.check_call([f'{python_executable}', '-m', 'pip', 'install', '-U', ov_version, '--no-cache-dir'])
-    openvino_path = Path(pkg_resources.get_distribution("openvino").location).joinpath("openvino")
-    subprocess.check_call(['cp', '-r', openvino_path, build_dir])
+    # openvino_path = Path(pkg_resources.get_distribution("openvino").location).joinpath("openvino")
+    # subprocess.check_call(['cp', '-r', openvino_path, build_dir])
 
 
 if __name__ == "__main__":
