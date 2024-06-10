@@ -10,19 +10,19 @@ $(document).ready(function () {
     //   //   return parseFloat(TextInsideLi);
     //   // }
     // }],
-    columns: [
-      {
-        "render": function (data, type, row, meta) {
+    // columns: [
+    //   {
+    //     "render": function (data, type, row, meta) {
 
-          if (type === 'sort' || type === 'type') {
-            return parseFloat(data);
-          }
+    //       if (type === 'sort' || type === 'type') {
+    //         return parseFloat(data);
+    //       }
 
-          return data;
+    //       return data;
 
-        }
-      }
-    ]
+    //     }
+    //   }
+    // ]
   });
 
   document.querySelectorAll('input.toggle-vis').forEach((el) => {
