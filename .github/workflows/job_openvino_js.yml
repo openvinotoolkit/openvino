@@ -13,6 +13,8 @@ on:
         required: false
         default: '{"image": null}'
 
+permissions: read-all
+
 jobs:
   JS_API:
     name: OpenVINO JS API
@@ -29,7 +31,7 @@ jobs:
       NODE_VERSION: 20
     steps:
       - name: Fetch OpenVINO JS sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: |
             src/bindings/js
@@ -42,13 +44,13 @@ jobs:
           echo "OPENVINO_JS_LIBS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node/bin" >> "$GITHUB_ENV"
 
       - name: Download OpenVINO JS package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
         with:
           node-version: ${{ env.NODE_VERSION }}
 

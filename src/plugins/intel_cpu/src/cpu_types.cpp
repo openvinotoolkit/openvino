@@ -188,7 +188,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ceiling", Type::Math},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
-        {"Floor", Type::Math},
+        {"Floor", Type::Eltwise},
         {"HardSigmoid", Type::Math},
         {"If", Type::If},
         {"Neg", Type::Math},
@@ -245,6 +245,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"CausalMaskPreprocess", Type::CausalMaskPreprocess},
         {"EmbeddingBagPacked", Type::EmbeddingBagPacked},
         {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
+        {"LLMMLP", Type::LLMMLP},
+        {"QKVProjection", Type::QKVProjection},
     };
     return type_to_name_tbl;
 }
@@ -369,6 +371,8 @@ std::string NameFromType(const Type type) {
         CASE(PagedAttention);
         CASE(RoPE);
         CASE(CausalMaskPreprocess);
+        CASE(LLMMLP);
+        CASE(QKVProjection);
         CASE(Unknown);
     }
 #undef CASE
@@ -396,6 +400,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseMultiply);
         CASE(EltwiseSubtract);
         CASE(EltwiseDivide);
+        CASE(EltwiseFloor);
         CASE(EltwiseFloorMod);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);

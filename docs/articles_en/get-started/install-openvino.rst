@@ -1,6 +1,4 @@
-.. {#openvino_docs_install_guides_overview}
-
-Install OpenVINO™ 2024.0
+Install OpenVINO™ 2024.2
 ==========================
 
 
@@ -36,17 +34,17 @@ Install OpenVINO™ 2024.0
 
 .. tip::
 
-   OpenVINO 2024.0, described here, is not a Long-Term-Support version!
+   OpenVINO 2024.2, described here, is not a Long-Term-Support version!
    All currently supported versions are:
 
-   * 2024.0 (development)
+   * 2024.2 (development)
    * 2023.3 (LTS)
    * 2022.3 (LTS)
 
    Moreover, different OpenVINO distributions may support slightly different sets of features.
    Read installation guides for particular distributions for more details.
 
-   .. dropdown:: Distribution Comparison for OpenVINO 2024.0
+   .. dropdown:: Distribution Comparison for OpenVINO 2024.2
 
       ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
        Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
@@ -56,7 +54,7 @@ Install OpenVINO™ 2024.0
        NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
       ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
 
-      | \* **Of the Linux systems, only Ubuntu 22.04 includes drivers for NPU device.**
+      | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
       |  **For Windows, CPU inference on ARM64 is not supported.**
 
 | **Build OpenVINO from source**

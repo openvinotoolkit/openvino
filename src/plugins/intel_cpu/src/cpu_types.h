@@ -125,6 +125,8 @@ enum class Type {
     PagedAttention,
     RoPE,
     CausalMaskPreprocess,
+    LLMMLP,
+    QKVProjection,
 };
 
 enum class Algorithm {
@@ -154,6 +156,7 @@ enum class Algorithm {
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
+    EltwiseFloor,
     EltwiseFloorMod,
     EltwiseMod,
     EltwiseMaximum,

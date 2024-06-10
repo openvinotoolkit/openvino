@@ -38,7 +38,8 @@ typedef std::tuple<
     bool,   // Optimized pipeline
     bool,   // With SplitLoops opt
     size_t, // Expected Buffer size in bytes
-    size_t  // Expected unique Buffer IDs count
+    size_t, // Expected unique Buffer reg group count
+    size_t  // Expected unique Buffer cluster count
 > BufferAllocationCPUParams;
 
 class BufferAllocationCPUTest : public testing::TestWithParam<BufferAllocationCPUParams> {
@@ -46,19 +47,20 @@ public:
     using VectorDims = ov::snippets::VectorDims;
     static std::string getTestCaseName(testing::TestParamInfo<BufferAllocationCPUParams> obj) {
         bool is_optimized, with_split_loops;
-        size_t expected_size, expected_count;
-        std::tie(is_optimized, with_split_loops, expected_size, expected_count) = obj.param;
+        size_t expected_size, expected_reg_group_count, expected_cluster_count;
+        std::tie(is_optimized, with_split_loops, expected_size, expected_reg_group_count, expected_cluster_count) = obj.param;
         std::ostringstream result;
         result << "Opt=" << ov::test::utils::bool2str(is_optimized) << "_";
         result << "Split=" << ov::test::utils::bool2str(with_split_loops) << "_";
         result << "ExpBufferSize=" << expected_size << "_";
-        result << "ExpBufferNum=" << expected_count;
+        result << "ExpBufferRegGroupCount=" << expected_reg_group_count << "_";
+        result << "ExpBufferClustersCount=" << expected_reg_group_count << "_";
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        std::tie(m_is_buffer_optimized, m_with_split_loops, m_expected_size, m_expected_count) = this->GetParam();
+        std::tie(m_is_buffer_optimized, m_with_split_loops, m_expected_size, m_expected_reg_group_count, m_expected_cluster_count) = this->GetParam();
 
         const auto body = GetModel();
         m_linear_ir = ov::snippets::lowered::LinearIR(body, std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
@@ -82,7 +84,7 @@ protected:
         pipeline.register_pass<ov::snippets::lowered::pass::ReduceDecomposition>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::FuseLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
-        pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>(2);
+        pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
@@ -92,14 +94,16 @@ protected:
     }
 
     void Validate() {
-        std::set<size_t> gprs;
+        std::set<size_t> reg_groups, clusters;
         for (const auto& expr : m_linear_ir) {
             if (const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(expr->get_node())) {
-                gprs.insert(buffer->get_id());
+                reg_groups.insert(buffer->get_reg_group());
+                clusters.insert(buffer->get_cluster_id());
             }
         }
-        EXPECT_EQ(gprs.size(), m_expected_count);
-        EXPECT_EQ(m_linear_ir.get_buffer_scratchpad_size(), m_expected_size);
+        EXPECT_EQ(reg_groups.size(), m_expected_reg_group_count);
+        EXPECT_EQ(clusters.size(), m_expected_cluster_count);
+        EXPECT_EQ(m_linear_ir.get_static_buffer_scratchpad_size(), m_expected_size);
     }
 
     virtual std::shared_ptr<ov::Model> GetModel() const = 0;
@@ -116,13 +120,72 @@ protected:
     ov::snippets::lowered::LinearIR m_linear_ir;
 
     size_t m_expected_size = 0;
-    size_t m_expected_count = 0;
+    size_t m_expected_reg_group_count = 0;
+    size_t m_expected_cluster_count = 0;
 
     size_t m_loop_depth = 2;
     size_t m_vector_size = 16;
 
     bool m_is_buffer_optimized = true;
     bool m_with_split_loops = true;
+};
+
+class MHAFP32BufferAllocationTest : public BufferAllocationCPUTest {
+protected:
+    std::shared_ptr<ov::Model> GetModel() const override {
+        const size_t m_blk = 32;
+        const size_t k_blk = 16;
+        const size_t n_blk = 64;
+        const auto subtensor_scalar = std::vector<size_t>{1};
+        const auto subtensor_power = std::vector<size_t>{1, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
+        const auto subtensor_full = std::vector<size_t>(2, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM);
+
+        const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 12, 128, 64}));
+        const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 128, 12, 64}));
+        const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 12, 128, 64}));
+
+        const auto order = std::vector<size_t>{0, 2, 3, 1};
+        const auto load_reshape = std::make_shared<ov::snippets::op::LoadReshape>(parameter1, 1, 0, order);
+        const auto store = std::make_shared<ov::snippets::op::Store>(load_reshape);
+        const auto relu0 = std::make_shared<ov::op::v0::Relu>(store);
+        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(parameter0, relu0, ov::intel_cpu::BrgemmCPU::Type::Floating);
+        brgemm_cpu0->set_m_block_size(m_blk);
+        brgemm_cpu0->set_k_block_size(k_blk);
+        brgemm_cpu0->set_n_block_size(n_blk);
+
+        const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
+
+        // Decomposed Softmax
+        const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(relu1, 3);
+        ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(reduce_max);
+        const auto subtract = std::make_shared<ov::op::v1::Subtract>(relu1, reduce_max);
+        const auto exp = std::make_shared<ov::op::v0::Exp>(subtract);
+
+        const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(exp, 3);
+        ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(reduce_sum);
+        const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
+        const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
+
+        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(multiply, parameter2, ov::intel_cpu::BrgemmCPU::Type::Floating);
+        brgemm_cpu1->set_m_block_size(m_blk);
+        brgemm_cpu1->set_k_block_size(k_blk);
+        brgemm_cpu1->set_n_block_size(n_blk);
+
+        const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
+
+        const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(relu2), ov::ParameterVector{parameter0, parameter1, parameter2});
+
+        MarkOp(load_reshape, subtensor_scalar);
+        MarkOp(store, subtensor_scalar);
+        MarkOp(power, subtensor_power);
+
+        MarkOp(brgemm_cpu0, subtensor_full);
+        MarkOp(brgemm_cpu1, subtensor_full);
+
+        ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(load_reshape->input(0))->set_layout(order);
+
+        return body;
+    }
 };
 
 class MHABF16AMXBufferAllocationTest : public BufferAllocationCPUTest {
@@ -139,7 +202,8 @@ protected:
         const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::PartialShape({1, 128, 12, 64}));
         const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::PartialShape({1, 12, 128, 64}));
 
-        const auto load_reshape = std::make_shared<ov::snippets::op::LoadReshape>(parameter1, 1, 0, std::vector<size_t>{0, 2, 3, 1});
+        const auto order = std::vector<size_t>{0, 2, 3, 1};
+        const auto load_reshape = std::make_shared<ov::snippets::op::LoadReshape>(parameter1, 1, 0, order);
         const auto store = std::make_shared<ov::snippets::op::Store>(load_reshape);
         const auto convert0 = std::make_shared<ov::snippets::op::ConvertSaturation>(store, ov::element::f32);
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(convert0);
@@ -197,47 +261,92 @@ protected:
         MarkOp(scratch0, subtensor_full);
         MarkOp(scratch1, subtensor_full);
 
+        ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(load_reshape->input(0))->set_layout(order);
+
         return body;
     }
 };
+
+TEST_P(MHAFP32BufferAllocationTest, BufferAllocationCPU) {
+    Validate();
+}
 
 TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
     Validate();
 }
 
-
 namespace BufferAllocationCPUTest_Instances {
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWSplit, MHAFP32BufferAllocationTest,
+                         ::testing::Combine(
+                                 ::testing::Values(false),
+                                 ::testing::Values(true),
+                                 ::testing::Values(75264), // Each Buffer has own allocated memory
+                                 ::testing::Values(7),     // Each Buffer has unique ID
+                                 ::testing::Values(7)),    // Each Buffer has unique cluster ID
+                         BufferAllocationCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit, MHAFP32BufferAllocationTest,
+                         ::testing::Combine(
+                                 ::testing::Values(true),
+                                 ::testing::Values(true),
+                                 ::testing::Values(57344), // (Buffer before brgemm) + (between brgemms) + (after brgemm)
+                                 ::testing::Values(2),     // (Buffer before brgemm0 and after brgemm1) + (between brgemms)
+                                 ::testing::Values(3)),    // (Buffer before brgemm0) + (between brgemms) + (after brgemm1)
+                         BufferAllocationCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit, MHAFP32BufferAllocationTest,
+                         ::testing::Combine(
+                                 ::testing::Values(false),
+                                 ::testing::Values(false),
+                                 ::testing::Values(198144), // Each Buffer has own allocated memory
+                                 ::testing::Values(7),      // Each Buffer has unique ID
+                                 ::testing::Values(7)),     // Each Buffer has unique cluster ID
+                         BufferAllocationCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit, MHAFP32BufferAllocationTest,
+                         ::testing::Combine(
+                                 ::testing::Values(true),
+                                 ::testing::Values(false),
+                                 ::testing::Values(98304), // (between brgemms) + (Buffer before brgemm0 and after brgemm1)
+                                 ::testing::Values(2),     // (Buffer before brgemm0 and after brgemm1) + (between brgemms)
+                                 ::testing::Values(3)),    // (Buffer before brgemm0) + (between brgemms) + (after brgemm1)
+                         BufferAllocationCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedWSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
                                  ::testing::Values(false),
                                  ::testing::Values(true),
-                                 ::testing::Values(167936),
+                                 ::testing::Values(120064),
+                                 ::testing::Values(11),
                                  ::testing::Values(11)),
                          BufferAllocationCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit, MHABF16AMXBufferAllocationTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
                                  ::testing::Values(true),
                                  ::testing::Values(true),
                                  ::testing::Values(73728),
-                                 ::testing::Values(3)),
+                                 ::testing::Values(3),
+                                 ::testing::Values(8)),
                          BufferAllocationCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
                                  ::testing::Values(false),
                                  ::testing::Values(false),
-                                 ::testing::Values(364544),
+                                 ::testing::Values(218368),
+                                 ::testing::Values(11),
                                  ::testing::Values(11)),
                          BufferAllocationCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
                                  ::testing::Values(true),
                                  ::testing::Values(false),
                                  ::testing::Values(116736),
-                                 ::testing::Values(3)),
+                                 ::testing::Values(3),
+                                 ::testing::Values(8)),
                          BufferAllocationCPUTest::getTestCaseName);
 
 }  // namespace BufferAllocationCPUTest_Instances
