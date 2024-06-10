@@ -1101,15 +1101,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (fused_node->is_type<resample>()) {
                 recalc_processing_order = true;
             }
-            {
-                if (parent1.first->is_type<fully_connected>()) {
-                    std::cout << parent1.first->id() << " has fused primitive(eltwise) .... " << std::endl;
-                }
-
-                if (parent2.first->is_type<fully_connected>()) {
-                    std::cout << parent2.first->id() << " has fused primitive(eltwise) .... " << std::endl;
-                }
-            }
 
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };

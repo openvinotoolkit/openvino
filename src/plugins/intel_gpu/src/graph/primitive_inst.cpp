@@ -459,10 +459,14 @@ void primitive_inst::update_shape() {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::onednn) {
+        auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
+        std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
         cldnn::create_onednn_primitive_attributes(get_node(),
                                                     _impl_params->fused_desc,
-                                                    _impl_params->attrs_onednn,
-                                                    _impl_params->fused_desc_onednn);
+                                                    attrs_onednn,
+                                                    fused_desc_onednn);
+        _impl_params->attrs_onednn = attrs_onednn;
+        _impl_params->fused_desc_onednn = fused_desc_onednn;
     }
 #endif
 }
@@ -562,7 +566,28 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layout = actual_layout;
-    for (auto user : get_user_insts()) {
+    std::vector<cldnn::primitive_inst *> user_insts;
+    {
+        auto user_insts_origin = get_user_insts();
+        for (auto& user : user_insts_origin) {
+            auto uid = user->id();
+            if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this
+                && std::find_if(user_insts_origin.begin(), user_insts_origin.end(), [&](cldnn::primitive_inst * uu){
+                    for (auto dep_inst : uu->_deps) {
+                        if (dep_inst.first->id() == uid)
+                            return true;
+                    }
+                    return false;
+                }) != user_insts_origin.end()) {
+                    user_insts.insert(user_insts.begin(), user);
+            } else {
+                user_insts.push_back(user);
+            }
+        }
+        OPENVINO_ASSERT(user_insts.size() == user_insts_origin.size(), "Should have same size between ",
+                        user_insts.size(), " and ", user_insts_origin.size());
+    }
+    for (auto user : user_insts) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {

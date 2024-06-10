@@ -1005,6 +1005,10 @@ static dnnl::post_ops try_optimize_post_ops(const program_node& node, std::vecto
 
     // Add new post-op into optimized_p_ops structure
     auto add_post_op = [&](onednn_post_op_type type, const dnnl::post_ops& cur_p_ops, dnnl::post_ops& new_p_ops, int idx) {
+        GPU_DEBUG_TRACE << "add_post_op: " << type
+                        << ", idx: " << idx
+                        << ", cur_p_ops: " << cur_p_ops.len()
+                        << ", new_p_ops: " << new_p_ops.len() << std::endl;
         switch (type) {
             case onednn_post_op_type::eltwise_act:
             case onednn_post_op_type::eltwise_clip:
@@ -1144,6 +1148,11 @@ static dnnl::post_ops try_optimize_post_ops(const program_node& node, std::vecto
 
     GPU_DEBUG_TRACE << "================================================" << std::endl;
     GPU_DEBUG_TRACE << " " << node.id() << ", num of post_ops " << p_ops.len() << std::endl;
+    GPU_DEBUG_TRACE << " * p_ops: " << std::endl;
+    for (int i = 0; i < p_ops.len(); i++)
+        GPU_DEBUG_TRACE << "    " << i << ": " << static_cast<int>(p_ops.kind(i)) << std::endl;
+
+    GPU_DEBUG_TRACE << " * cur_post_ops: " << std::endl;
     for (size_t i = 0; i < cur_post_ops.size(); i++)
         GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
 
@@ -1151,6 +1160,10 @@ static dnnl::post_ops try_optimize_post_ops(const program_node& node, std::vecto
 
     GPU_DEBUG_TRACE << "remove optimized prefix ------------------------" << std::endl;
     GPU_DEBUG_TRACE << " " << node.id() << ", num of post_ops " << p_ops.len() << std::endl;
+    GPU_DEBUG_TRACE << " * p_ops: " << std::endl;
+    for (int i = 0; i < p_ops.len(); i++)
+        GPU_DEBUG_TRACE << "    " << i << ": " << static_cast<int>(p_ops.kind(i)) << std::endl;
+    GPU_DEBUG_TRACE << " * cur_post_ops: " << std::endl;
     for (size_t i = 0; i < cur_post_ops.size(); i++)
         GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
     GPU_DEBUG_TRACE << "----------------------------------->>>>>>>>>>>>>" << std::endl;
