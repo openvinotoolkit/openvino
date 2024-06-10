@@ -31,7 +31,7 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@185c9c06d0a28fbe43b50aca4b32777b649e7cbd # v1.12.0
+        uses: reviewdog/action-suggester@9e1cd88b79ba3c0023c94e44accd72344f032093 # v1.13.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
