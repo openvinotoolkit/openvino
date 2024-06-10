@@ -24,7 +24,7 @@ author = 'Intel®'
 language = 'en'
 version_name = '2024'
 
-sys.path.insert(0, os.path.abspath('../openvino'))
+sys.path.insert(0, os.path.abspath('../openvino/'))
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
