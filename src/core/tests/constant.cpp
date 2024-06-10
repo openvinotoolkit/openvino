@@ -14,10 +14,8 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
-using namespace ov;
-using namespace std;
-
-using testing::ElementsAre;
+namespace ov {
+namespace test {
 
 struct TestDType {
     operator float() const {
@@ -26,6 +24,9 @@ struct TestDType {
 
     float value;
 };
+
+using std::string;
+using std::vector;
 
 using testing::Each;
 using testing::ElementsAre;
@@ -1847,8 +1848,8 @@ TEST(constant, float16_vector_broadcast) {
 
 TEST(constant, shared_data) {
     Shape shape{100, 200};
-    auto c1 = make_shared<ov::op::v0::Constant>(element::f16, shape, vector<float16>{123});
-    auto c2 = static_pointer_cast<ov::op::v0::Constant>(c1->clone_with_new_inputs({}));
+    auto c1 = std::make_shared<ov::op::v0::Constant>(element::f16, shape, vector<float16>{123});
+    auto c2 = std::static_pointer_cast<ov::op::v0::Constant>(c1->clone_with_new_inputs({}));
     const int16_t* p1 = c1->get_data_ptr<int16_t>();
     const int16_t* p2 = c2->get_data_ptr<int16_t>();
     EXPECT_EQ(p1, p2);
@@ -1901,8 +1902,8 @@ TEST(constant, ov_string_broadcast) {
 
 TEST(constant, ov_string_shared_data) {
     Shape shape{100, 200};
-    auto c1 = make_shared<ov::op::v0::Constant>(element::string, shape, vector<std::string>{"123"});
-    auto c2 = static_pointer_cast<ov::op::v0::Constant>(c1->clone_with_new_inputs({}));
+    auto c1 = std::make_shared<ov::op::v0::Constant>(element::string, shape, vector<std::string>{"123"});
+    auto c2 = std::static_pointer_cast<ov::op::v0::Constant>(c1->clone_with_new_inputs({}));
     const int16_t* p1 = c1->get_data_ptr<int16_t>();
     const int16_t* p2 = c2->get_data_ptr<int16_t>();
     EXPECT_EQ(p1, p2);
@@ -1917,11 +1918,89 @@ TEST(constant, ov_string_from_non_string_vector) {
                  Exception);
 }
 
+//
+// f4e2m1
+//
+TEST(constant, f4e2m1_string) {
+    vector<string> input{"1", "0", "1.5", "2"};
+    ov::op::v0::Constant c(element::f4e2m1, Shape{4}, input);
+    auto v = c.cast_vector<float4_e2m1>();
+    ASSERT_EQ(v.size(), shape_size(c.get_shape()));
+    EXPECT_THAT(v, ElementsAre(1.0f, 0.0f, 1.5f, 2.0f));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x02);
+    EXPECT_EQ(p[1], 0x43);
+
+    EXPECT_EQ(input, c.get_value_strings());
+
+    for (unsigned i = 0; i != input.size(); ++i) {
+        EXPECT_EQ(input[i], c.convert_value_to_string(i));
+    }
+}
+
+TEST(constant, f4e2m1_string_broadcast) {
+    Shape shape{4};
+    op::v0::Constant c(element::f4e2m1, shape, std::vector<string>{"1.5"});
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, Each(1.5f));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x33);
+    EXPECT_EQ(p[1], 0x33);
+}
+
+TEST(constant, f4e2m1_vector) {
+    op::v0::Constant c(element::f4e2m1, Shape{5}, std::vector<float4_e2m1>{-1.5f, 4.0f, -2.0f, 1.5f, -3.0f});
+    auto v = c.cast_vector<float>();
+    EXPECT_THAT(v, ElementsAre(-1.5f, 4.0f, -2.0f, 1.5f, -3.0f));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x6b);
+    EXPECT_EQ(p[1], 0x3c);
+    EXPECT_EQ(p[2] & 0x0F, 0x0d);
+}
+
+TEST(constant, f4e2m1_from_float_vector) {
+    op::v0::Constant c(element::f4e2m1, Shape{5}, std::vector<float>{-1.5f, 4.0f, -2.0f, 1.5f, -3.0f});
+    auto v = c.cast_vector<float>();
+    EXPECT_THAT(v, ElementsAre(-1.5f, 4.0f, -2.0f, 1.5f, -3.0f));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x6b);
+    EXPECT_EQ(p[1], 0x3c);
+    EXPECT_EQ(p[2] & 0x0F, 0x0d);
+}
+
+TEST(constant, f4e2m1_vector_broadcast) {
+    Shape shape{3};
+    op::v0::Constant c(element::u4, shape, std::vector<float>{1.5f});
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, Each(1.5f));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(0x11, p[0]);
+    EXPECT_EQ(0x01, p[1] & 0x0F);
+}
+
+TEST(constant, f4e2m1_write_then_cast_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{1.0f}, {3.0f}, {6.0f}};
+    op::v0::Constant c(element::u4, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, 3, 6));
+}
+
 template <typename T1, typename T2>
 ::testing::AssertionResult test_convert() {
     Shape shape{5};
-    vector<T1> expected{1, 2, 3, 4, 5};
-    auto c1 = make_shared<ov::op::v0::Constant>(ov::element::from<T2>(), shape, expected);
+    vector<T1> expected{1, 2, 3, 4, 6};
+    auto c1 = std::make_shared<ov::op::v0::Constant>(ov::element::from<T2>(), shape, expected);
     vector<T1> actual = c1->template cast_vector<T1>();
     ::testing::AssertionResult rc =
         (actual == expected ? ::testing::AssertionSuccess() : ::testing::AssertionFailure());
@@ -1932,7 +2011,7 @@ template <typename T1, typename T2>
 TEST(constant, convert_input_ov_string) {
     Shape shape{5};
     vector<std::string> expected{"1", "2", "3", "4", "5"};
-    auto c1 = make_shared<ov::op::v0::Constant>(ov::element::from<std::string>(), shape, expected);
+    auto c1 = std::make_shared<ov::op::v0::Constant>(ov::element::from<std::string>(), shape, expected);
     vector<std::string> actual = c1->template cast_vector<std::string>();
 
     EXPECT_EQ(actual, expected);
@@ -1951,6 +2030,7 @@ TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<float, uint16_t>()));
     EXPECT_TRUE((test_convert<float, uint32_t>()));
     EXPECT_TRUE((test_convert<float, uint64_t>()));
+    EXPECT_TRUE((test_convert<float, float4_e2m1>()));
 
     EXPECT_TRUE((test_convert<double, float>()));
     EXPECT_TRUE((test_convert<double, double>()));
@@ -1964,6 +2044,7 @@ TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<double, uint16_t>()));
     EXPECT_TRUE((test_convert<double, uint32_t>()));
     EXPECT_TRUE((test_convert<double, uint64_t>()));
+    EXPECT_TRUE((test_convert<double, float4_e2m1>()));
 
     EXPECT_TRUE((test_convert<float16, float>()));
     EXPECT_TRUE((test_convert<float16, double>()));
@@ -1977,6 +2058,7 @@ TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<float16, uint16_t>()));
     EXPECT_TRUE((test_convert<float16, uint32_t>()));
     EXPECT_TRUE((test_convert<float16, uint64_t>()));
+    EXPECT_TRUE((test_convert<float16, float4_e2m1>()));
 
     EXPECT_TRUE((test_convert<bfloat16, float>()));
     EXPECT_TRUE((test_convert<bfloat16, double>()));
@@ -1990,6 +2072,7 @@ TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<bfloat16, uint16_t>()));
     EXPECT_TRUE((test_convert<bfloat16, uint32_t>()));
     EXPECT_TRUE((test_convert<bfloat16, uint64_t>()));
+    EXPECT_TRUE((test_convert<bfloat16, float4_e2m1>()));
 
     EXPECT_TRUE((test_convert<int8_t, float>()));
     EXPECT_TRUE((test_convert<int8_t, double>()));
@@ -2099,8 +2182,8 @@ TEST(constant, convert_input) {
 template <typename T1, typename T2>
 ::testing::AssertionResult test_uniform_ctor() {
     Shape shape{5};
-    vector<T1> expected{3, 3, 3, 3, 3};
-    auto c1 = make_shared<ov::op::v0::Constant>(ov::element::from<T2>(), shape, 3);
+    vector<T1> expected{2, 2, 2, 2, 2};
+    auto c1 = std::make_shared<ov::op::v0::Constant>(ov::element::from<T2>(), shape, 2);
     vector<T1> actual = c1->template cast_vector<T1>();
     ::testing::AssertionResult rc =
         (actual == expected ? ::testing::AssertionSuccess() : ::testing::AssertionFailure());
@@ -2121,6 +2204,7 @@ TEST(constant, construct_uniform) {
     EXPECT_TRUE((test_uniform_ctor<float, uint16_t>()));
     EXPECT_TRUE((test_uniform_ctor<float, uint32_t>()));
     EXPECT_TRUE((test_uniform_ctor<float, uint64_t>()));
+    EXPECT_TRUE((test_uniform_ctor<float, float4_e2m1>()));
 
     EXPECT_TRUE((test_uniform_ctor<double, float>()));
     EXPECT_TRUE((test_uniform_ctor<double, double>()));
@@ -2134,6 +2218,7 @@ TEST(constant, construct_uniform) {
     EXPECT_TRUE((test_uniform_ctor<double, uint16_t>()));
     EXPECT_TRUE((test_uniform_ctor<double, uint32_t>()));
     EXPECT_TRUE((test_uniform_ctor<double, uint64_t>()));
+    EXPECT_TRUE((test_uniform_ctor<double, float4_e2m1>()));
 
     EXPECT_TRUE((test_uniform_ctor<float16, float>()));
     EXPECT_TRUE((test_uniform_ctor<float16, double>()));
@@ -2147,6 +2232,7 @@ TEST(constant, construct_uniform) {
     EXPECT_TRUE((test_uniform_ctor<float16, uint16_t>()));
     EXPECT_TRUE((test_uniform_ctor<float16, uint32_t>()));
     EXPECT_TRUE((test_uniform_ctor<float16, uint64_t>()));
+    EXPECT_TRUE((test_uniform_ctor<float16, float4_e2m1>()));
 
     EXPECT_TRUE((test_uniform_ctor<bfloat16, float>()));
     EXPECT_TRUE((test_uniform_ctor<bfloat16, double>()));
@@ -2160,6 +2246,7 @@ TEST(constant, construct_uniform) {
     EXPECT_TRUE((test_uniform_ctor<bfloat16, uint16_t>()));
     EXPECT_TRUE((test_uniform_ctor<bfloat16, uint32_t>()));
     EXPECT_TRUE((test_uniform_ctor<bfloat16, uint64_t>()));
+    EXPECT_TRUE((test_uniform_ctor<bfloat16, float4_e2m1>()));
 
     EXPECT_TRUE((test_uniform_ctor<int8_t, float>()));
     EXPECT_TRUE((test_uniform_ctor<int8_t, double>()));
@@ -2386,25 +2473,10 @@ TEST(constant, lazy_bitwise_identical) {
 }
 
 TEST(constant, cast_vector) {
-    std::vector<element::Type_t> types = {element::boolean,
-                                          element::bf16,
-                                          element::f16,
-                                          element::f32,
-                                          element::f64,
-                                          element::i4,
-                                          element::i8,
-                                          element::i16,
-                                          element::i32,
-                                          element::i64,
-                                          element::u1,
-                                          element::u2,
-                                          element::u3,
-                                          element::u4,
-                                          element::u6,
-                                          element::u8,
-                                          element::u16,
-                                          element::u32,
-                                          element::u64};
+    std::vector<element::Type_t> types = {element::boolean, element::bf16, element::f16, element::f32, element::f64,
+                                          element::i4,      element::i8,   element::i16, element::i32, element::i64,
+                                          element::u1,      element::u2,   element::u3,  element::u4,  element::u6,
+                                          element::u8,      element::u16,  element::u32, element::u64, element::f4e2m1};
     std::vector<int64_t> data = {0, 1, 0, 0, 1, 1, 0, 1};
     std::vector<int64_t> expected_partial_data = {0, 1, 0, 0, 1, 1};
 
@@ -2461,3 +2533,5 @@ TEST(constant, get_values_as) {
     EXPECT_EQ(c.get_axis_vector_val(), AxisVector({2, 0, 1, 0, 1, 5}));
     EXPECT_EQ(c.get_axis_set_val(), AxisSet({0, 1, 2, 5}));
 }
+}  // namespace test
+}  // namespace ov

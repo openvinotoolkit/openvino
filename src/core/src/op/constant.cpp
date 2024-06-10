@@ -124,6 +124,12 @@ fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
     return result;
 }
 
+template <element::Type_t ET, class U, typename std::enable_if<ET == element::f4e2m1>::type* = nullptr>
+fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
+    using T = fundamental_type_for<ET>;
+    return static_cast<T>(value);
+}
+
 template <element::Type_t ET, class T>
 void fill_buffer(void* buffer, const Shape& shape, const T& value) {
     std::fill_n(element::iterator<ET>(buffer), shape_size(shape), convert_if_in_element_range<ET>(value));
@@ -255,11 +261,19 @@ struct ValueToString : ov::element::NotSupported<std::string> {
     }
 
     template <ov::element::Type_t ET,
-              typename std::enable_if<ov::is_floating_point<fundamental_type_for<ET>>() && ET != element::f64>::type* =
-                  nullptr>
+              typename std::enable_if<ov::is_floating_point<fundamental_type_for<ET>>() && element::is_byte_type(ET) &&
+                                      ET != element::f64>::type* = nullptr>
     static result_type visit(const void* const ptr, const size_t index) {
         const auto it = element::iterator<ET>(ptr);
-        return element::is_byte_type(ET) ? to_cpp_string<float>(it[index]) : to_cpp_string<float>(*(it + index));
+        return to_cpp_string<float>(it[index]);
+    }
+
+    template <ov::element::Type_t ET,
+              typename std::enable_if<ov::is_floating_point<fundamental_type_for<ET>>() &&
+                                      element::is_nibble_type(ET)>::type* = nullptr>
+    static result_type visit(const void* const ptr, const size_t index) {
+        const auto it = element::iterator<ET>(ptr);
+        return to_cpp_string<float>(*(it + index));
     }
 
     template <ov::element::Type_t ET,
@@ -299,7 +313,8 @@ std::string Constant::convert_value_to_string(size_t index) const {
                     nf4,
                     f8e4m3,
                     f8e5m2,
-                    string>::apply<ValueToString>(get_element_type(), get_data_ptr(), index);
+                    string,
+                    f4e2m1>::apply<ValueToString>(get_element_type(), get_data_ptr(), index);
 }
 
 size_t Constant::get_byte_size() const {
@@ -321,10 +336,18 @@ struct ValuesToString : ov::element::NotSupported<void> {
 
     template <ov::element::Type_t ET,
               class T = fundamental_type_for<ET>,
-              typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
+              typename std::enable_if<ET == element::f64>::type* = nullptr>
     static result_type visit(const void* const ptr, const size_t num_elements, std::vector<std::string>& strs) {
         const auto first = element::iterator<ET>(ptr);
         std::transform(first, first + num_elements, std::back_inserter(strs), to_cpp_string<double>);
+    }
+
+    template <ov::element::Type_t ET,
+              class T = fundamental_type_for<ET>,
+              typename std::enable_if<ov::is_floating_point<T>() && ET != element::f64>::type* = nullptr>
+    static result_type visit(const void* const ptr, const size_t num_elements, std::vector<std::string>& strs) {
+        const auto first = element::iterator<ET>(ptr);
+        std::transform(first, first + num_elements, std::back_inserter(strs), to_cpp_string<float>);
     }
 
     template <ov::element::Type_t ET,
@@ -346,8 +369,28 @@ struct ValuesToString : ov::element::NotSupported<void> {
 std::vector<std::string> Constant::get_value_strings() const {
     std::vector<std::string> out;
     using namespace ov::element;
-    IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, string>::
-        apply<ValuesToString>(get_element_type(), get_data_ptr(), shape_size(m_shape), out);
+    IfTypeOf<boolean,
+             bf16,
+             f16,
+             f32,
+             f64,
+             i4,
+             i8,
+             i16,
+             i32,
+             i64,
+             u1,
+             u2,
+             u3,
+             u4,
+             u6,
+             u8,
+             u16,
+             u32,
+             u64,
+             nf4,
+             string,
+             f4e2m1>::apply<ValuesToString>(get_element_type(), get_data_ptr(), shape_size(m_shape), out);
     return out;
 }
 
@@ -552,6 +595,10 @@ Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr)
     : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::nf4>*>(ptr))} {}
 
 template <>
+Constant::LPBuffer<element::f4e2m1>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::f4e2m1>*>(ptr))} {}
+
+template <>
 void Constant::LPBuffer<element::u1>::write(const float value) {
     iter->operator*() = convert_if_in_element_range<element::u1>(value);
 }
@@ -587,6 +634,11 @@ void Constant::LPBuffer<element::nf4>::write(const float value) {
 }
 
 template <>
+void Constant::LPBuffer<element::f4e2m1>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::f4e2m1>(value);
+}
+
+template <>
 ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const {
     return iter->operator*();
 }
@@ -618,6 +670,11 @@ ov::fundamental_type_for<element::i4> Constant::LPBuffer<element::i4>::read() co
 
 template <>
 ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() const {
+    return iter->operator*();
+}
+
+template <>
+ov::fundamental_type_for<element::f4e2m1> Constant::LPBuffer<element::f4e2m1>::read() const {
     return iter->operator*();
 }
 
@@ -663,10 +720,22 @@ Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++()
     return *this;
 }
 
+template <>
+Constant::LPBuffer<element::f4e2m1>& Constant::LPBuffer<element::f4e2m1>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
 #define CONSTANT_FILL_DATA(ET, SRC_TYPE)                                      \
     template <>                                                               \
     void Constant::fill_lp_data<element::Type_t::ET>(const SRC_TYPE& value) { \
         ov::op::fill_buffer<element::ET>(get_data_ptr_nc(), m_shape, value);  \
+    }
+
+#define CONSTANT_FILL_DATA_NOT_SUPPORTED_TYPE(ET, SRC_TYPE)             \
+    template <>                                                         \
+    void Constant::fill_lp_data<element::Type_t::ET>(const SRC_TYPE&) { \
+        OPENVINO_THROW("cannot onvert");                                \
     }
 
 CONSTANT_FILL_DATA(u1, bool)
@@ -802,6 +871,26 @@ CONSTANT_FILL_DATA(nf4, bfloat16)
 CONSTANT_FILL_DATA(nf4, float)
 CONSTANT_FILL_DATA(nf4, double)
 
+CONSTANT_FILL_DATA(f4e2m1, bool)
+CONSTANT_FILL_DATA(f4e2m1, char)
+CONSTANT_FILL_DATA(f4e2m1, signed char)
+CONSTANT_FILL_DATA(f4e2m1, unsigned char)
+CONSTANT_FILL_DATA(f4e2m1, short)
+CONSTANT_FILL_DATA(f4e2m1, unsigned short)
+CONSTANT_FILL_DATA(f4e2m1, int)
+CONSTANT_FILL_DATA(f4e2m1, unsigned int)
+CONSTANT_FILL_DATA(f4e2m1, long)
+CONSTANT_FILL_DATA(f4e2m1, unsigned long)
+CONSTANT_FILL_DATA(f4e2m1, long long)
+CONSTANT_FILL_DATA(f4e2m1, unsigned long long)
+// CONSTANT_FILL_DATA(f4e2m1, float4_e2m1)
+CONSTANT_FILL_DATA(f4e2m1, float8_e4m3)
+CONSTANT_FILL_DATA(f4e2m1, float8_e5m2)
+CONSTANT_FILL_DATA(f4e2m1, float16)
+CONSTANT_FILL_DATA(f4e2m1, bfloat16)
+CONSTANT_FILL_DATA(f4e2m1, float)
+CONSTANT_FILL_DATA(f4e2m1, double)
+
 #undef CONSTANT_FILL_DATA
 
 #define CONSTANT_CAST_VECTOR(ET, DST_TYPE)                                                              \
@@ -913,12 +1002,35 @@ CONSTANT_CAST_VECTOR(i4, bfloat16)
 CONSTANT_CAST_VECTOR(i4, float)
 CONSTANT_CAST_VECTOR(i4, double)
 
+CONSTANT_CAST_VECTOR(f4e2m1, bool)
+CONSTANT_CAST_VECTOR(f4e2m1, char)
+CONSTANT_CAST_VECTOR(f4e2m1, signed char)
+CONSTANT_CAST_VECTOR(f4e2m1, unsigned char)
+CONSTANT_CAST_VECTOR(f4e2m1, short)
+CONSTANT_CAST_VECTOR(f4e2m1, unsigned short)
+CONSTANT_CAST_VECTOR(f4e2m1, int)
+CONSTANT_CAST_VECTOR(f4e2m1, unsigned int)
+CONSTANT_CAST_VECTOR(f4e2m1, long)
+CONSTANT_CAST_VECTOR(f4e2m1, unsigned long)
+CONSTANT_CAST_VECTOR(f4e2m1, long long)
+CONSTANT_CAST_VECTOR(f4e2m1, unsigned long long)
+CONSTANT_CAST_VECTOR(f4e2m1, float16)
+CONSTANT_CAST_VECTOR(f4e2m1, bfloat16)
+CONSTANT_CAST_VECTOR(f4e2m1, float)
+CONSTANT_CAST_VECTOR(f4e2m1, double)
+
 #undef CONSTANT_CAST_VECTOR
 
 #define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                    \
     template <>                                                                                \
     void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source) { \
         ov::op::write_buffer<element::ET>(source, get_data_ptr_nc());                          \
+    }
+
+#define CONSTANT_WRITE_BUFFER_NOT_SUPPORTED(ET, SRC_TYPE)                               \
+    template <>                                                                         \
+    void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>&) { \
+        OPENVINO_THROW("Not supported type");                                           \
     }
 
 CONSTANT_WRITE_BUFFER(u1, bool)
@@ -1053,6 +1165,26 @@ CONSTANT_WRITE_BUFFER(nf4, float16)
 CONSTANT_WRITE_BUFFER(nf4, bfloat16)
 CONSTANT_WRITE_BUFFER(nf4, float)
 CONSTANT_WRITE_BUFFER(nf4, double)
+
+CONSTANT_WRITE_BUFFER(f4e2m1, bool)
+CONSTANT_WRITE_BUFFER(f4e2m1, char)
+CONSTANT_WRITE_BUFFER(f4e2m1, signed char)
+CONSTANT_WRITE_BUFFER(f4e2m1, unsigned char)
+CONSTANT_WRITE_BUFFER(f4e2m1, short)
+CONSTANT_WRITE_BUFFER(f4e2m1, unsigned short)
+CONSTANT_WRITE_BUFFER(f4e2m1, int)
+CONSTANT_WRITE_BUFFER(f4e2m1, unsigned int)
+CONSTANT_WRITE_BUFFER(f4e2m1, long)
+CONSTANT_WRITE_BUFFER(f4e2m1, unsigned long)
+CONSTANT_WRITE_BUFFER(f4e2m1, long long)
+CONSTANT_WRITE_BUFFER(f4e2m1, unsigned long long)
+// CONSTANT_WRITE_BUFFER(f4e2m1, float4_e2m1)
+CONSTANT_WRITE_BUFFER(f4e2m1, float8_e4m3)
+CONSTANT_WRITE_BUFFER(f4e2m1, float8_e5m2)
+CONSTANT_WRITE_BUFFER(f4e2m1, float16)
+CONSTANT_WRITE_BUFFER(f4e2m1, bfloat16)
+CONSTANT_WRITE_BUFFER(f4e2m1, float)
+CONSTANT_WRITE_BUFFER(f4e2m1, double)
 
 #undef CONSTANT_WRITE_BUFFER
 
