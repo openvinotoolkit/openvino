@@ -13,8 +13,8 @@ Large Language Model Inference Guide
    :maxdepth: 1
    :hidden:
 
-   Run LLMs with OpenVINO GenAI Flavor <llm_inference_guide/genai-guide>
    Run LLMs with Optimum Intel <llm_inference_guide/llm-inference-hf>
+   Run LLMs with OpenVINO GenAI Flavor <llm_inference_guide/genai-guide>
    Run LLMs with Base OpenVINO <llm_inference_guide/llm-inference-native-ov>
    OpenVINO Tokenizers <llm_inference_guide/ov-tokenizers>
 
