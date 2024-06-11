@@ -157,6 +157,7 @@ public:
             fill_data<Type_t::string>(value);
             break;
         case Type_t::f4e2m1:
+        case Type_t::f8e8m0:
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -709,6 +710,7 @@ private:
             write_buffer<Type_t::string>(source);
             break;
         case Type_t::f4e2m1:
+        case Type_t::f8e8m0:
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
