@@ -127,8 +127,7 @@ jobs:
           test_filter=''
           if [[ "${{ inputs.test_type }}" == "unit" ]]; then
             # Tickets: 138018, 143677
-            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*'
-            # test_filter="$(cat ./test_utils/.github/skip_test/ubuntu22/gpu/unit_test_skip_list.txt)"
+            test_filter="$(cat ./test_utils/.github/skip_test/ubuntu22/gpu/unit_test_skip_list.txt)"
           else
             test_filter='*smoke*'
           fi
