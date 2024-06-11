@@ -53,7 +53,7 @@ Install requirements
     import platform
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" opencv-python-headless
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" opencv-python
     %pip install -q "gdown<4.6.4"
 
     if platform.system() != "Windows":
@@ -188,7 +188,7 @@ next cell loads the model and the pre-trained weights.
     Downloading...
     From: https://drive.google.com/uc?id=1W8E4FHIlTVstfRkYmNOjbr0VDXTZm0jD
     To: <_io.BufferedWriter name='model/u2net_lite/u2net_lite.pth'>
-    100%|██████████| 4.68M/4.68M [00:00<00:00, 29.1MB/s]
+    100%|██████████| 4.68M/4.68M [00:00<00:00, 29.0MB/s]
 
 .. parsed-literal::
 
@@ -237,7 +237,7 @@ OpenVINO IR format. Executing the following command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
       warnings.warn("nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.")
 
 
@@ -334,7 +334,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.109 seconds, FPS: 9.20.
+    Inference finished. Inference time: 0.113 seconds, FPS: 8.88.
 
 
 Visualize Results
