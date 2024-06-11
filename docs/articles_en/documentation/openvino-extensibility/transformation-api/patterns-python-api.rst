@@ -19,7 +19,7 @@ Add the following lines to your file:
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
-   :fragment: [ov::imports]
+   :fragment: [ov:imports]
 
 Pattern Creation
 +++++++++++++++++++++
