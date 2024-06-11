@@ -32,10 +32,6 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
         PYBIND11_OVERRIDE_PURE(std::string, JaxDecoder, get_op_type);
     }
 
-    const std::string& get_input_debug_name(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, get_input_debug_name, index);
-    }
-
     const std::string& get_input_signature_name(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, get_input_signature_name, index);
     }
@@ -52,12 +48,8 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
         PYBIND11_OVERRIDE_PURE(ov::Any, JaxDecoder, get_input_type, index);
     }
 
-    size_t get_named_input(const std::string& name) const override {
-        PYBIND11_OVERRIDE_PURE(size_t, JaxDecoder, get_named_input, name);
-    }
-
-    const std::string& get_output_debug_name(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, get_output_debug_name, index);
+    const std::string& get_output_name(size_t index) const override {
+        PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, get_output_name, index);
     }
 
     ov::Any get_output_type(size_t index) const override {
@@ -66,18 +58,6 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
 
     const std::vector<size_t>& inputs() const override {
         PYBIND11_OVERRIDE_PURE(std::vector<size_t>&, JaxDecoder, inputs);
-    }
-
-    const bool input_has_aval(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(bool, JaxDecoder, input_has_aval, index);
-    }
-
-    ov::Any input_aval(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(ov::Any, JaxDecoder, input_aval, index);
-    }
-
-    bool input_is_none(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(bool, JaxDecoder, input_is_none, index);
     }
 
     size_t num_inputs() const override {
@@ -96,24 +76,12 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
         PYBIND11_OVERRIDE_PURE(std::vector<size_t>&, JaxDecoder, outputs);
     }
 
-    const std::string debug_info() const override {
-        PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, debug_info);
-    }
-
     std::shared_ptr<ov::Node> mark_node(std::shared_ptr<ov::Node> ov_node) const override {
         PYBIND11_OVERRIDE_PURE(std::shared_ptr<ov::Node>, JaxDecoder, mark_node, ov_node);
     }
 
     void visit_subgraph(std::function<void(std::shared_ptr<JaxDecoder>)> node_visitor) const override {
         PYBIND11_OVERRIDE_PURE(void, JaxDecoder, visit_subgraph, node_visitor);
-    }
-
-    ov::Any get_attribute(const std::string& name) const override {
-        PYBIND11_OVERRIDE_PURE(ov::Any, JaxDecoder, get_attribute, name);
-    }
-
-    const std::string& decoder_type_name() const override {
-        PYBIND11_OVERRIDE_PURE(const std::string&, JaxDecoder, decoder_type_name);
     }
 };
 

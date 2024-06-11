@@ -68,12 +68,6 @@ class JaxprPythonDecoder (Decoder):
         else:
             return id(self.jaxpr.invars[idx])
     
-    def get_attribute(self, name):
-        return OVAny(None)
-    
-    def get_input_debug_name(self, index) -> str:
-        return "jaxpr_invar_" + str(index)
-    
     def get_input_shape(self, index):
         if isinstance(self.jaxpr, jax.core.Var):
             raise IndexError("The jaxpr is a constant, which does not have input shape.")
@@ -81,11 +75,7 @@ class JaxprPythonDecoder (Decoder):
             return PartialShape(self.jaxpr.invars[index].aval.shape)
     
     def get_input_signature_name(self, index) -> str:
-        # TODO: add a real signature name here
-        if isinstance(self.jaxpr, jax.core.Var):
-            raise IndexError("The jaxpr is a constant, which does not have input signature name.")
-        else:
-            return self.get_input_debug_name(index)
+        return "jaxpr_invar_" + str(index)
     
     def get_input_type(self, index) -> OVType:
         if isinstance(self.jaxpr, jax.core.Var):
@@ -93,27 +83,20 @@ class JaxprPythonDecoder (Decoder):
         else:
             return self.get_type_for_value(self.jaxpr.invars[index])
     
-    def get_named_input(self, name):
-        # TODO: check again if there's named input in jaxpr
-        raise NotImplementedError("Currently named input is not expected in jax.")
-        
-    def get_output_debug_name(self, index) -> str:
-        return "jaxpr_outvar_" + str(index)
-    
     def get_output_type(self, index) -> OVType:
         if isinstance(self.jaxpr, jax.core.Var):
             return self.get_type_for_value(self.jaxpr)
         else:
             return self.get_type_for_value(self.jaxpr.outvars[index])
+        
+    def get_output_name(self, index) -> str:
+        return "jaxpr_outvar_" + str(index)
     
     def get_output_shape(self, index):
         if isinstance(self.jaxpr, jax.core.Var):
             return PartialShape(self.jaxpr.aval.shape)
         else:
             return PartialShape(self.jaxpr.outvars[index].aval.shape)
-    
-    def decoder_type_name(self) -> str:
-        return "jaxpr"
     
     def visit_subgraph(self, node_visitor) -> None:
         if isinstance(self.jaxpr, jax.core.JaxprEqn):
