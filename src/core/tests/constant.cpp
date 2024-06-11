@@ -27,6 +27,12 @@ struct TestDType {
         return value;
     }
 
+    // To print values in tests
+    friend std::ostream& operator<<(std::ostream& os, const TestDType& obj) {
+        os << obj.value;
+        return os;
+    }
+
     float value;
 };
 
