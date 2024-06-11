@@ -55,10 +55,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
     std::shared_ptr<Node> reshape_k, reshape_v, unsqueeze_k, unsqueeze_v;
     std::shared_ptr<Node> computed_bcst_k, computed_bcst_v, multiply_k, multiply_v;
-    auto multi_query_bcst = [](const std::shared_ptr<Node>& kv, std::shared_ptr<Node>& reshape_kv,
-        std::shared_ptr<Node>& unsqueeze_kv, std::shared_ptr<Node>& computed_bcst, std::shared_ptr<Node>& multiply_kv) {
-        reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
-        unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
+    std::shared_ptr<Node> mq_reshape_k, mq_reshape_v;
+    auto multi_query_bcst = [](const std::shared_ptr<Node>& kv) {
+        auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
+        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
 
         auto check_one = [] (Output<Node> output) -> bool {
             auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
@@ -69,15 +69,16 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         };
         auto constant_bcst = wrap_type<opset1::Constant>(check_one);
 
-        computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
+        auto computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
             any_input(), any_input()}, {{"mode", "numpy"}});
 
-        multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-        return wrap_type<opset6::Reshape>({multiply_kv, any_input()});
+        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
+        auto result = wrap_type<opset6::Reshape>({multiply_kv, any_input()});
+        return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv);
     };
 
-    auto mq_reshape_k = multi_query_bcst(concat_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k);
-    auto mq_reshape_v = multi_query_bcst(concat_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v);
+    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k) = multi_query_bcst(concat_k);
+    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v) = multi_query_bcst(concat_v);
     auto present_k = concat_k | mq_reshape_k;
     auto present_v = concat_v | mq_reshape_v;
 
@@ -199,8 +200,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         if (!is_optional_one_child({convert_past_k, convert_past_v, transpose_q, transpose_k, transpose_v,
                                     reshape_k, unsqueeze_k, computed_bcst_k, multiply_k,
                                     reshape_v, unsqueeze_v, computed_bcst_v, multiply_v,
-                                    mq_reshape_k, mq_reshape_v}))
+                                    mq_reshape_k, mq_reshape_v})) {
             return false;
+        }
 
         // past_k & past_v must be reordered by same beam_idx
         const auto gather_k_node =
