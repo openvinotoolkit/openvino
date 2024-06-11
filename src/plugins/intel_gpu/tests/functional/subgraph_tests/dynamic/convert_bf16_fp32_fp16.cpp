@@ -43,6 +43,9 @@ class BF16WeightsDecompression : public testing::WithParamInterface<MatmulWeight
                                    virtual public ov::test::SubgraphBaseTest {
 public:
     ov::CompiledModel cM;
+    ov::CompiledModel cMF16;
+    std::shared_ptr<ov::Model> functionF16;
+    ov::ParameterVector paramsf16{std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::Shape{{2, 2}})};
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::Shape{{2, 2}})};
     static std::string get_test_case_name(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj) {
         ShapeParams shape_params;
@@ -91,10 +94,29 @@ protected:
         return std::make_shared<ov::Model>(ov::NodeVector{matmul_res}, params, "BF16WeightsDecompression");
     }
 
+    std::shared_ptr<ov::Model> init_subgraph_f16() {
+        paramsf16.front()->output(0).get_tensor().set_names({"scalar1"});
+        auto r = std::make_shared<ov::op::v0::Convert>(paramsf16[0], ov::element::f16);
+        r->set_friendly_name("konwersja_bf16_na_f16");
+        const auto weights_subgraph = init_compressed_weights_subgraph_f16();
+        auto matmul_res = std::make_shared<ov::op::v0::MatMul>(weights_subgraph, r);
+        auto end = std::make_shared<ov::op::v0::Convert>(matmul_res, ov::element::f32);
+        end->set_friendly_name("konwersja_fp16_na_f32");
+        return std::make_shared<ov::Model>(ov::NodeVector{end}, paramsf16, "BF16WeightsDecompression");
+    }
+
+
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph() {
         auto weights_tensor_left = ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{{2, 2}});
         auto weights_left = std::make_shared<ov::op::v0::Constant>(weights_tensor_left);
         weights_left->fill_data(ov::element::f32, 2);
+        return weights_left;
+    }
+
+    std::shared_ptr<ov::Node> init_compressed_weights_subgraph_f16() {
+        auto weights_tensor_left = ov::test::utils::create_and_fill_tensor(ov::element::f16, ov::Shape{{2, 2}});
+        auto weights_left = std::make_shared<ov::op::v0::Constant>(weights_tensor_left);
+        weights_left->fill_data(ov::element::f16, 2);
         return weights_left;
     }
 
@@ -107,13 +129,14 @@ protected:
         inType = outType = activations_precision;
 
         function = init_subgraph();
-
+        functionF16 = init_subgraph_f16();
         if (activations_precision == ov::element::f16) {
             abs_threshold = 1.0f;
         } else {
             abs_threshold = 1e-4f;
         }
         cM = core->compile_model(function, targetDevice, {ov::hint::inference_precision(ov::element::f32)});
+        cMF16 = core->compile_model(functionF16, targetDevice, {ov::hint::inference_precision(ov::element::f16)});
     }
 
     void check_results() {
@@ -158,6 +181,23 @@ TEST_F(BF16WeightsDecompression, Inference_input_3) {
         (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448; //3 inbf16
     }
     auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], 12);
+    }
+}
+
+TEST_F(BF16WeightsDecompression, Inference_input_3_f16) {
+    const auto& model_inputs = cMF16.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448; //3 inbf16
+    }
+    auto request = cMF16.create_infer_request();
     request.set_tensor("scalar1", tensor);
     request.infer();
     request.wait();
