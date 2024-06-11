@@ -14,9 +14,9 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface IdentifyBuffers
- * @brief The pass set identifiers for Buffers in common Buffer system.
- *        The buffers with the same identifier will be assigned the same data register.
+ * @interface SetBufferRegGroup
+ * @brief The pass groups Buffers by Register groups.
+ *        The buffers with the same RegGroup will be assigned the same data register.
  *        The pass uses greedy graph coloring algorithm using adjacency matrix:
  *          - Buffers - are vertices of graph;
  *          - Loops, Brgemm (the same other ops) - are "edges" between Buffers (hub of edges).
@@ -26,13 +26,12 @@ namespace pass {
  *            or one of the Buffers is in some a Loop but another Buffer is not;
  *          - Firstly, create adjacency matrix using the definition above;
  *          - Secondly, assign the same color to non-adjacent vertices of graph (buffers), and use different colors otherwise.
- *        Note: should be called before ResetBuffer() pass to have correct offsets
  * @ingroup snippets
  */
-class IdentifyBuffers: public RangedPass {
+class SetBufferRegGroup: public RangedPass {
 public:
-    OPENVINO_RTTI("IdentifyBuffers", "RangedPass")
-    IdentifyBuffers() = default;
+    OPENVINO_RTTI("SetBufferRegGroup", "RangedPass")
+    SetBufferRegGroup() = default;
 
     /**
      * @brief Apply the pass to the Linear IR
@@ -57,12 +56,12 @@ public:
     };
 
     /**
-     * @brief Check if two Buffers can reuse ID by ShiftPtrParams < data_size, ptr_increment, finalization_offset >
+     * @brief Check if two Buffers can be in one register group by ShiftPtrParams < data_size, ptr_increment, finalization_offset >
      * @param lhs Data pointer shift params for first Buffer
      * @param rhs Data pointer shift params for second Buffer
-     * @return Returns True if params are valid for reusing. Otherwise returns False
+     * @return Returns True if params are valid to reuse one register. Otherwise returns False
      */
-    static bool can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);
+    static bool can_be_in_one_group(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs);
 
 private:
     using BufferPool = std::vector<ExpressionPtr>;
