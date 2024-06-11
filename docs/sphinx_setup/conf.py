@@ -20,7 +20,6 @@ author = 'Intel®'
 language = 'en'
 version_name = 'nightly'
 
-
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
