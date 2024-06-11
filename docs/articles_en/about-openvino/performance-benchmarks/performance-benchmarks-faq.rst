@@ -19,7 +19,13 @@ Performance Information F.A.Q.
 
 .. dropdown:: Where can I find the models used in the performance benchmarks?
 
-   All models used are included in the GitHub repository of :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
+   All models used are included in the GitHub repository of
+   :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
+
+   .. important::
+
+      Due to the deprecation of Open Model Zoo, models in the OpenVINO IR format are now
+      published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
 
 .. dropdown:: Will there be any new models added to the list used for benchmarking?
 

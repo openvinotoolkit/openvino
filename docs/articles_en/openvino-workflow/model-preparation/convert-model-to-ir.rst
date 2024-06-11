@@ -18,7 +18,8 @@ Convert to OpenVINO IR
    Convert from PaddlePaddle <convert-model-paddle>
 
 
-:doc:`IR (Intermediate Representation) <../../documentation/openvino-ir-format>` is OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
+:doc:`IR (Intermediate Representation) <../../documentation/openvino-ir-format>` is
+OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
 Convert the model into OpenVINO IR for `better performance <#ir-conversion-benefits>`__.
 
 Convert Models
@@ -616,4 +617,5 @@ Additional Resources
 ####################
 
 * :doc:`Transition guide from the legacy to new conversion API <../../documentation/legacy-features/transition-legacy-conversion-api>`
+* `Download models from Hugging Face <https://huggingface.co/models>`__.
 
