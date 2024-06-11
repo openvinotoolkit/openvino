@@ -202,7 +202,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: 136862
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
             // TODO: Issue: 142899
-            R"(.*KVCacheTests.smoke_multipleIterations_stateful_gather_with_initializer.*)",
+            R"(.*smoke_multipleIterations_stateful_gather_with_initializer.*)",
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
