@@ -46,10 +46,7 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
-//NHWC layout is disabled on ARM due to accuracy issue: https://github.com/ARM-software/ComputeLibrary/issues/1044
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-#endif
 };
 
 /* ================================ 1.1 No fusion - Arithmetic ================================ */
