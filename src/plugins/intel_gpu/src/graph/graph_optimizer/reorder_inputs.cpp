@@ -872,11 +872,15 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto& weights = fc_node.weights();
         auto& input = fc_node.input();
         auto input_layout = input.get_output_layout();
+
         // Change input data type of fully-connected node from i32 to f32
         if (input_layout.data_type == data_types::i32) {
             auto new_layout = input_layout;
             new_layout.data_type = data_types::f32;
-            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            auto new_input = rf.get_reorder(input.id(),
+                                            input.get_user_index(fc_node),
+                                            input.get_output_layouts().size(),
+                                            input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, fc_node, 0);
             }

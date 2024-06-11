@@ -144,6 +144,7 @@ bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, dat
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        int32_t src_port,
+                                                                       int32_t src_output_size,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout) {
     if (in_layout == out_layout)
@@ -158,10 +159,24 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
     std::stringstream ss;
     ss << src_id << "_" << std::to_string(src_port) << "_reorder_" << count;
 
+    // In the code just above, src_port is used to name the reorder.
+    // In the code below, src_port is used to index the output.
+    if (src_port >= src_output_size) {
+        // This is for the case where the node has single output but multiple users.
+        src_port = src_output_size - 1;
+    }
+
     auto reorder = std::make_shared<cldnn::reorder>(ss.str(), input_info{src_id, src_port}, out_layout);
     _cached_reorders[ckey] = reorder;
 
     return std::make_pair(reorder, false);
+}
+
+std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
+                                                                       int32_t src_port,
+                                                                       const layout& in_layout,
+                                                                       const layout& out_layout) {
+    return get_reorder(src_id, src_port, 1, in_layout, out_layout);
 }
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
