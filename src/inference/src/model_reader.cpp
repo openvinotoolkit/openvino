@@ -119,8 +119,8 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
 #endif
 
 #ifndef __EMSCRIPTEN__
-    if (ov::util::is_symlink_or_hardlink(model_path) || ov::util::is_symlink_or_hardlink(binPath)) {
-        OPENVINO_THROW("Cannot read model" + modelPath + "/" + binPath + ". The path is a symlink or hardlink");
+    if (ov::util::is_symlink_or_hardlink(model_path)) {
+        OPENVINO_THROW("Cannot read model" + modelPath + ". The path is a symlink or hardlink");
     }
 #endif
 
