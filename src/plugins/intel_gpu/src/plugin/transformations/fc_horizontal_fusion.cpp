@@ -20,54 +20,80 @@ namespace intel_gpu {
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
     using namespace ov::pass::pattern;
 
-    auto input = any_input(consumers_more_than(3));
-    auto weight1 = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto weight2 = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto weight3 = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto bias1 = any_input();
-    auto bias2 = any_input();
-    auto bias3 = any_input();
-    auto scale1 = any_input();
-    auto scale2 = any_input();
-    auto scale3 = any_input();
- 
-    auto fc1 = wrap_type<op::FullyConnectedCompressed>({input, weight1, bias1, scale1, any_input()}, consumers_count(1));
-    auto fc2 = wrap_type<op::FullyConnectedCompressed>({input, weight2, bias2, scale2, any_input()}, consumers_count(1));
-    auto fc3 = wrap_type<op::FullyConnectedCompressed>({input, weight3, bias3, scale3, any_input()}, consumers_count(1));
+    auto is_target_pattern = [](const Output<Node>& output) {
+        auto is_constant = [](const std::shared_ptr<ov::Node> node) {
+            if (std::dynamic_pointer_cast<ov::op::v0::Constant>(node))
+                return true;
+            if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(node))
+                return false;
+            const auto& parent = node->get_input_node_shared_ptr(0);
+            return (std::dynamic_pointer_cast<ov::op::v0::Constant>(parent) != nullptr);
+        };
+        auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
+            return std::dynamic_pointer_cast<op::Placeholder>(node);
+        };
+        // Three FCs connected to the same input
+        const int num_fcs_to_fuse = 3;
+        const auto& fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
+        const auto& input = fc->get_input_node_shared_ptr(0);
+        if (input->get_users().size() < num_fcs_to_fuse)
+            return false;
+        size_t user_fc_count = 0;
+        int32_t nodes_with_bias = 0;
+        int32_t nodes_with_zp = 0;
+        for (const auto& u : input->get_users()) {
+            const auto& fc_user = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(u);
+            if (!fc_user)
+                continue;
+            // inputs: input, weight, bias, scale, [zp]
+            // Bias/scale/zp are constant or none
+            // if it is not constant, the only allowed cases are Constant => convert
+            // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
+            auto num_inputs = fc_user->inputs().size();
+            if (num_inputs >= 5)
+                nodes_with_zp++;
+            for (size_t i = 2; i < num_inputs; ++i) {
+                const auto& fc_input = fc_user->get_input_node_shared_ptr(i);
+                if (!is_constant(fc_input) && !is_placeholder(fc_input))
+                    return false;
+                if (i == 2 && !is_placeholder(fc_input)) {
+                    nodes_with_bias++;
+                }
+            }
+            user_fc_count++;
+        }
+        return (user_fc_count == num_fcs_to_fuse) && (nodes_with_bias == num_fcs_to_fuse || nodes_with_bias == 0) &&
+               (nodes_with_zp == num_fcs_to_fuse || nodes_with_zp == 0);
+    };
+
+    auto target_fc = wrap_type<op::FullyConnectedCompressed>(is_target_pattern);
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& m_input = pattern_map.at(input).get_node_shared_ptr();
-        std::shared_ptr<Node> m_fc = pattern_map.at(fc3).get_node_shared_ptr();
-        auto m_bias = pattern_map.at(bias3).get_node_shared_ptr();
-        // bias is not supported yet
-        // also only scalar zp supported
-        if (!std::dynamic_pointer_cast<op::Placeholder>(m_bias)) {
-            std::cout << "there is bias!" << m_bias->get_friendly_name() << std::endl;
-            return false;
-        }
+        auto m_fc = pattern_map.at(target_fc).get_node_shared_ptr();
         auto input_node = m_fc->get_input_node_shared_ptr(0);
         std::vector<std::shared_ptr<op::FullyConnectedCompressed>> fc_nodes;
         ov::NodeVector weight_nodes;
         ov::NodeVector scale_nodes;
+        ov::NodeVector bias_nodes;
+        ov::NodeVector zp_nodes;
         for (auto user : input_node->get_users()) {
             auto fc_user = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(user);
             if (fc_user) {
+                OPENVINO_ASSERT(fc_user->inputs().size() >= 4, "Compressed FC should have at least 4 inputs");
                 fc_nodes.push_back(fc_user);
-                auto weight = fc_user->get_input_node_shared_ptr(1);
-                weight_nodes.push_back(weight);
-                auto scale = fc_user->get_input_node_shared_ptr(3);
-                scale_nodes.push_back(scale);
+                weight_nodes.push_back(fc_user->get_input_node_shared_ptr(1));
+                if (!std::dynamic_pointer_cast<op::Placeholder>(fc_user->get_input_node_shared_ptr(2)))
+                    bias_nodes.push_back(fc_user->get_input_node_shared_ptr(2));
+                scale_nodes.push_back(fc_user->get_input_node_shared_ptr(3));
+                if (fc_user->inputs().size() > 4)
+                    zp_nodes.push_back(fc_user->get_input_node_shared_ptr(4));
             }
         }
-        if (fc_nodes.size() != 3)
-            return false;
-        std::cout << "Found target FC nodes to fuse: " << std::endl;
         auto weight_dtype = fc_nodes[0]->get_input_element_type(1);
-        auto zp_node = fc_nodes[0]->get_input_node_shared_ptr(4);
-        std::vector<int64_t> out_n_sizes;
-        auto new_n_size = 0;
         auto k_size = fc_nodes[0]->get_input_shape(1)[fc_nodes[0]->get_input_shape(1).size() - 1];
+        std::vector<int64_t> orig_n_sizes;
+        auto new_n_size = 0;
         // merge weights, scale, zp
         for (auto fc : fc_nodes) {
             if (k_size != fc->get_input_shape(1)[fc->get_input_shape(1).size() - 1])
@@ -75,81 +101,95 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
             if (weight_dtype != fc->get_input_element_type(1))
                 return false;
             new_n_size += fc->get_input_shape(1)[fc->get_input_shape(1).size() - 2];
-            out_n_sizes.push_back(fc->get_input_shape(1)[fc->get_input_shape(1).size() - 2]);
-            std::cout << " === " << fc->get_friendly_name() << " " << fc->get_input_shape(1).to_string() << std::endl;
-            std::cout << "     " << "has " << fc->get_input_size() << " inputs" << std::endl;
-            for (size_t i = 0; i < fc->get_input_size(); ++i) {
-                std::cout << "      input[" << i << "] : " << fc->get_input_node_shared_ptr(i)->get_friendly_name() << " ("
-                          << fc->get_input_partial_shape(i).to_string() << ") " << std::endl;
-                if (i == fc->get_input_size() - 1) {
-                    // zeropoint
-                    auto zp_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(i));
-                    if (zp_node) {
-                        auto zp_val = zp_node->cast_vector<int32_t>();
-                        std::cout << "           zp[0] value : " << zp_val[0] << std::endl;
-                    }
-                }
-            }
+            orig_n_sizes.push_back(fc->get_input_shape(1)[fc->get_input_shape(1).size() - 2]);
         }
-        std::cout << " === dtype : " << weight_dtype << std::endl;
         auto weight_nodes_as_output_vector = ov::OutputVector{weight_nodes[0], weight_nodes[1], weight_nodes[2]};
         auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, 0);
+        ov::copy_runtime_info(weight_nodes[0], fused_weight);
+
         auto scale_nodes_as_output_vector = ov::OutputVector{scale_nodes[0], scale_nodes[1], scale_nodes[2]};
         auto fused_scale = std::make_shared<ov::op::v0::Concat>(scale_nodes_as_output_vector, 0);
-        auto new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node, fused_weight, m_bias, fused_scale, zp_node);
-        auto new_fc_name = fc_nodes[0]->get_friendly_name() + "fused";
+        ov::copy_runtime_info(scale_nodes[0], fused_scale);
+
+        std::shared_ptr<ov::Node> fused_bias;
+        if (bias_nodes.size() == 3) {
+            auto bias_nodes_as_output_vector = ov::OutputVector{bias_nodes[0], bias_nodes[1], bias_nodes[2]};
+            fused_bias = std::make_shared<ov::op::v0::Concat>(bias_nodes_as_output_vector, 0);
+            ov::copy_runtime_info(bias_nodes[0], fused_bias);
+        } else {
+            fused_bias = std::make_shared<op::Placeholder>();
+        }
+
+        std::shared_ptr<ov::Node> fused_zps;
+        if (zp_nodes.size() > 0) {
+            // scalar zp
+            auto zp_shape = zp_nodes[0]->get_output_shape(0);
+            bool is_scalar = (ov::shape_size(zp_nodes[0]->get_output_shape(0)) == 1);
+            int32_t scalar_zp_val = 0;
+            if (is_scalar) {
+                if (auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_nodes[0])) {
+                    scalar_zp_val = zp_const->cast_vector<int32_t>()[0];
+                } else if (auto zp_convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(zp_nodes[0])) {
+                    auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
+                    scalar_zp_val = zp_const->cast_vector<int32_t>()[0];
+                }
+                fused_zps = zp_nodes[0];
+            }
+            if (is_scalar) {
+                for (size_t i = 1; i < zp_nodes.size(); ++i) {
+                    bool current_is_scalar = (ov::shape_size(zp_nodes[i]->get_output_shape(0)) == 1);
+                    if (!current_is_scalar)
+                        return false;
+                    // validate all values are same
+                    int32_t cur_zp_val;
+                    if (auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_nodes[i])) {
+                        cur_zp_val = zp_const->cast_vector<int32_t>()[0];
+                    } else if (auto zp_convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(zp_nodes[i])) {
+                        auto zp_const =
+                            std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
+                        cur_zp_val = zp_const->cast_vector<int32_t>()[0];
+                    }
+                    if (cur_zp_val != scalar_zp_val)
+                        return false;
+                }
+            } else {
+                auto zp_nodes_as_output_vector = ov::OutputVector{zp_nodes[0], zp_nodes[1], zp_nodes[2]};
+                fused_zps = std::make_shared<ov::op::v0::Concat>(zp_nodes_as_output_vector, 0);
+            }
+        }
+        // Create new fc with merged weights, bias, scale, zp
+        std::shared_ptr<ov::Node> new_fc;
+        if (fused_zps)
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node, fused_weight, fused_bias, fused_scale, fused_zps);
+        else
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node, fused_weight, fused_bias, fused_scale);
+
+        auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused";
         new_fc->set_friendly_name(new_fc_name);
         copy_runtime_info(fc_nodes[0], new_fc);
 
-        std::cout << "=> Fused to new single fc " << new_fc->get_friendly_name() << std::endl;
-        std::cout << " === weight new shape : " << new_n_size << ","  << k_size << std::endl;
-
-        auto split_name = fc_nodes[0]->get_friendly_name() + "split";
+        // Split output and connect to the orig users
+        auto split_name = fc_nodes[0]->get_friendly_name() + "_split";
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {new_fc->get_output_partial_shape(0).size() - 1});
-        auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, out_n_sizes);
+        auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, orig_n_sizes);
         auto output_split = std::make_shared<ov::op::v1::VariadicSplit>(new_fc, axis_const, split_const);
+        copy_runtime_info(fc_nodes[0], output_split);
         output_split->set_friendly_name(split_name);
-        auto out_0 = output_split->output(0);
-        auto out_1 = output_split->output(1);
-        auto out_2 = output_split->output(2);
         for (size_t i = 0; i < fc_nodes.size(); ++i) {
-            // consumers count limit : 1
-            auto user_node = fc_nodes[i]->get_users()[0];
-            user_node->input(0).replace_source_output(output_split->output(i));
-            fc_nodes[i]->clear_control_dependents();
+            auto org_fc = fc_nodes[i];
+            for (auto u : org_fc->get_users()) {
+                for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
+                    if (u->get_input_node_shared_ptr(idx) == org_fc) {
+                        u->input(idx).replace_source_output(output_split->output(i));
+                    }
+                }
+            }
+            org_fc->clear_control_dependencies();
         }
-
-        // add variable split of output
-
-//        const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
-//        const auto& m_weights = pattern_map.at(weights).get_node_shared_ptr();
-//        const auto& m_bias = pattern_map.at(bias).get_node_shared_ptr();
-//        const auto& m_convert = pattern_map.at(convert).get_node_shared_ptr();
-//        auto output_type = m_convert->get_output_element_type(0);
-//
-//        std::shared_ptr<Node> m_fc = nullptr;
-//        std::shared_ptr<Node> new_fc = nullptr;
-//        auto it = pattern_map.find(fully_connected);
-//        if (it != pattern_map.end()) {
-//            m_fc = it->second.get_node_shared_ptr();
-//            new_fc = std::make_shared<op::FullyConnected>(m_data, m_weights, m_bias, output_type);
-//        } else {
-//            m_fc = pattern_map.at(fully_connected_compressed).get_node_shared_ptr();
-//            new_fc = std::make_shared<op::FullyConnectedCompressed>(m_data,
-//                                                                    m_weights,
-//                                                                    m_bias,
-//                                                                    m_fc->input_value(3),
-//                                                                    m_fc->input_value(4),
-//                                                                    output_type);
-//        }
-//        new_fc->set_friendly_name(m_convert->get_friendly_name());
-//        copy_runtime_info(m.get_matched_nodes(), new_fc);
-//        replace_node(m_convert, new_fc);
-
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(fc3, "FullyConnectedHorizontalFusion");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(target_fc, "FullyConnectedHorizontalFusion");
     this->register_matcher(m, callback);
 }
 
