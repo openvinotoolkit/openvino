@@ -81,21 +81,25 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
+    import os
+    
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+    
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "datasets"\
     "accelerate"\
-    "openvino-nightly"\
     "gradio"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes" "chromadb" "sentence_transformers" "langchain>=0.1.15" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pypdf" 
+    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes" "faiss-cpu" "sentence_transformers" "langchain>=0.2.0" "langchain-community>=0.2.0" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pypdf" 
 
 
 .. parsed-literal::
 
     WARNING: Skipping openvino-dev as it is not installed.
-    WARNING: Skipping openvino as it is not installed.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -105,6 +109,7 @@ Install required dependencies
     import os
     from pathlib import Path
     import requests
+    import shutil
     import io
     
     # fetch model configuration
@@ -118,11 +123,23 @@ Install required dependencies
     
     if not config_dst_path.exists():
         if config_shared_path.exists():
-            os.symlink(config_shared_path, config_dst_path)
+            try:
+                os.symlink(config_shared_path, config_dst_path)
+            except Exception:
+                shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w") as f:
                 f.write(r.text)
+    elif not os.path.islink(config_dst_path):
+        print("LLM config will be updated")
+        if config_shared_path.exists():
+            shutil.copy(config_shared_path, config_dst_path)
+        else:
+            r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
+            with open("llm_config.py", "w") as f:
+                f.write(r.text)
+    
     
     if not text_example_en_path.exists():
         r = requests.get(url=text_example_en)
@@ -768,14 +785,14 @@ of LangChain.
 
 .. parsed-literal::
 
-    2024-04-28 21:05:33.318682: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-28 21:05:33.322370: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-28 21:05:33.366644: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-04-28 21:05:33.366676: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-04-28 21:05:33.366714: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-04-28 21:05:33.376052: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-05-24 00:13:06.057342: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-24 00:13:06.061389: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-05-24 00:13:06.108453: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-05-24 00:13:06.108490: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-05-24 00:13:06.108542: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-05-24 00:13:06.120406: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-28 21:05:34.068587: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-05-24 00:13:06.938926: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Compiling the model to CPU ...
 
 
@@ -910,7 +927,6 @@ inference framework.
 .. parsed-literal::
 
     Compiling the model to CPU ...
-    Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
 
 
 
@@ -1065,7 +1081,7 @@ which will help to create a chain to connect RAG components including:
 .. code:: ipython3
 
     from langchain.prompts import PromptTemplate
-    from langchain.vectorstores import Chroma
+    from langchain_community.vectorstores import FAISS
     from langchain.chains.retrieval import create_retrieval_chain
     from langchain.chains.combine_documents import create_stuff_documents_chain
     from langchain.docstore.document import Document
@@ -1074,6 +1090,7 @@ which will help to create a chain to connect RAG components including:
     import gradio as gr
     
     stop_tokens = llm_model_configuration.get("stop_tokens")
+    rag_prompt_template = llm_model_configuration["rag_prompt_template"]
     
     
     class StopOnTokens(StoppingCriteria):
@@ -1151,7 +1168,7 @@ which will help to create a chain to connect RAG components including:
         texts = text_splitter.split_documents(documents)
     
         global db
-        db = Chroma.from_documents(texts, embedding)
+        db = FAISS.from_documents(texts, embedding)
     
         global retriever
         if search_method == "similarity_score_threshold":
@@ -1162,7 +1179,7 @@ which will help to create a chain to connect RAG components including:
         if run_rerank:
             reranker.top_n = vector_search_top_n
             retriever = ContextualCompressionRetriever(base_compressor=reranker, base_retriever=retriever)
-        prompt = PromptTemplate.from_template(llm_model_configuration["rag_prompt_template"])
+        prompt = PromptTemplate.from_template(rag_prompt_template)
     
         global combine_docs_chain
         combine_docs_chain = create_stuff_documents_chain(llm, prompt)
@@ -1214,7 +1231,7 @@ which will help to create a chain to connect RAG components including:
         return "", history + [[message, ""]]
     
     
-    def bot(history, temperature, top_p, top_k, repetition_penalty, hide_full_prompt):
+    def bot(history, temperature, top_p, top_k, repetition_penalty, hide_full_prompt, do_rag):
         """
         callback function for running chatbot on submit button click
     
@@ -1226,6 +1243,7 @@ which will help to create a chain to connect RAG components including:
           top_k: parameter for control the range of tokens considered by the AI model based on their cumulative probability, selecting number of tokens with highest probability.
           repetition_penalty: parameter for penalizing tokens based on how frequently they occur in the text.
           hide_full_prompt: whether to show searching results in promopt.
+          do_rag: whether do RAG when generating texts.
     
         """
         streamer = TextIteratorStreamer(
@@ -1246,7 +1264,11 @@ which will help to create a chain to connect RAG components including:
         if stop_tokens is not None:
             llm.pipeline._forward_params["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
     
-        t1 = Thread(target=rag_chain.invoke, args=({"input": history[-1][0]},))
+        if do_rag:
+            t1 = Thread(target=rag_chain.invoke, args=({"input": history[-1][0]},))
+        else:
+            input_text = rag_prompt_template.format(input=history[-1][0], context="")
+            t1 = Thread(target=llm.invoke, args=(input_text,))
         t1.start()
     
         # Initialize an empty string to store the generated text
@@ -1301,8 +1323,8 @@ which will help to create a chain to connect RAG components including:
     
                     chunk_size = gr.Slider(
                         label="Chunk size",
-                        value=700,
-                        minimum=100,
+                        value=400,
+                        minimum=50,
                         maximum=2000,
                         step=50,
                         interactive=True,
@@ -1311,7 +1333,7 @@ which will help to create a chain to connect RAG components including:
     
                     chunk_overlap = gr.Slider(
                         label="Chunk overlap",
-                        value=100,
+                        value=50,
                         minimum=0,
                         maximum=400,
                         step=10,
@@ -1323,6 +1345,12 @@ which will help to create a chain to connect RAG components including:
                     label="Vector Store Status",
                     value="Vector Store is Not ready",
                     interactive=False,
+                )
+                do_rag = gr.Checkbox(
+                    value=True,
+                    label="RAG is ON",
+                    interactive=True,
+                    info="Whether to do RAG for generation",
                 )
                 with gr.Accordion("Generation Configuration", open=False):
                     with gr.Row():
@@ -1454,13 +1482,13 @@ which will help to create a chain to connect RAG components including:
         )
         submit_event = msg.submit(user, [msg, chatbot], [msg, chatbot], queue=False).then(
             bot,
-            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context],
+            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context, do_rag],
             chatbot,
             queue=True,
         )
         submit_click_event = submit.click(user, [msg, chatbot], [msg, chatbot], queue=False).then(
             bot,
-            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context],
+            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context, do_rag],
             chatbot,
             queue=True,
         )
