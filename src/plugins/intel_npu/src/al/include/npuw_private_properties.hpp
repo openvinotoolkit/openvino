@@ -43,7 +43,7 @@ namespace online {
  * @brief
  * Type: std::string.
  * Specify which partitioning pipeline to run.
- * Possible values: "INIT", "JUST", "REP".
+ * Possible values: "NONE", "INIT", "JUST", "REP".
  * Default value: "REP".
  */
 static constexpr ov::Property<std::string> pipeline{"NPUW_ONLINE_PIPELINE"};
