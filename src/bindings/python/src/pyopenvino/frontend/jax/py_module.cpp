@@ -11,6 +11,4 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(py_jax_frontend, m) {
     regclass_frontend_jax_decoder(m);
-    // regclass_frontend_pytorch_ConversionExtension(m);
-    // regclass_frontend_pytorch_OpExtension(m);
 }
