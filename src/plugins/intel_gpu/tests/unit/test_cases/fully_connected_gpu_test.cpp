@@ -1361,7 +1361,7 @@ public:
             count++;
             OPENVINO_ASSERT(abs_diff < 256);
         }
-        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
     }
 
 
@@ -3276,14 +3276,30 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan) {
     this->test_compressed_int4_scale_dyn_quan(false, false, 512);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_unaligned) {
+    this->test_compressed_int4_scale_dyn_quan(false, false, 511);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_single_batch) {
     this->test_compressed_int4_scale_dyn_quan(false, true, 1);
 }
 
-
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic) {
     this->test_compressed_int4_scale_dyn_quan(false, true, 512);
 }
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_unaligned) {
+    this->test_compressed_int4_scale_dyn_quan(false, true, 511);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_cache) {
+    this->test_compressed_int4_scale_dyn_quan(true, false, 512);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_cache_dynamic) {
+    this->test_compressed_int4_scale_dyn_quan(true, true, 512);
+}
+
 
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {

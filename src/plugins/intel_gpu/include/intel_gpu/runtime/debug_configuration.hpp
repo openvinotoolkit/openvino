@@ -139,6 +139,7 @@ public:
     int disable_runtime_skip_reorder;                           // Disable runtime skip reorder
     int disable_primitive_fusing;                               // Disable primitive fusing
     int disable_fake_alignment;                                 // Disable fake alignment
+    int enable_dynamic_quantize;                                // Enable Dynamic quantization for fully connected primitive
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();

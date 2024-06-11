@@ -64,7 +64,7 @@ inline char8 unpack_to_char(uint4x8_t v) __attribute__((overloadable)) {
     return (char8)(v0.s0, v0.s1, v1.s0, v1.s1, v2.s0, v2.s1, v3.s0, v3.s1);
 }
 
-inline char8 unpack_mixed_to_char(uint4x8_t v) __attribute__((overloadable)) {
+inline char8 unpack_transposed_to_char(uint4x8_t v) __attribute__((overloadable)) {
     char2 v0 = unpack_to_char(v.s0);
     char2 v1 = unpack_to_char(v.s1);
     char2 v2 = unpack_to_char(v.s2);
@@ -72,7 +72,7 @@ inline char8 unpack_mixed_to_char(uint4x8_t v) __attribute__((overloadable)) {
     return (char8)(v0.s0, v1.s0, v2.s0, v3.s0, v0.s1, v1.s1, v2.s1, v3.s1);
 }
 
-inline uchar8 unpack_mixed_to_uchar(uint4x8_t v) __attribute__((overloadable)) {
+inline uchar8 unpack_transposed_to_uchar(uint4x8_t v) __attribute__((overloadable)) {
     uchar2 v0 = unpack_to_uchar(v.s0);
     uchar2 v1 = unpack_to_uchar(v.s1);
     uchar2 v2 = unpack_to_uchar(v.s2);
@@ -80,7 +80,7 @@ inline uchar8 unpack_mixed_to_uchar(uint4x8_t v) __attribute__((overloadable)) {
     return (uchar8)(v0.s0, v1.s0, v2.s0, v3.s0, v0.s1, v1.s1, v2.s1, v3.s1);
 }
 
-inline char8 unpack_mixed_to_char_osv32_isv2(uint4x8_t v) __attribute__((overloadable)) {
+inline char8 unpack_transposed_to_char_osv32_isv2(uint4x8_t v) __attribute__((overloadable)) {
     char2 v0 = unpack_to_char(v.s0);
     char2 v1 = unpack_to_char(v.s2);
     char2 v2 = unpack_to_char(v.s1);
@@ -88,7 +88,7 @@ inline char8 unpack_mixed_to_char_osv32_isv2(uint4x8_t v) __attribute__((overloa
     return (char8)(v0.s0, v1.s0, v2.s0, v3.s0, v0.s1, v1.s1, v2.s1, v3.s1);
 }
 
-inline uchar8 unpack_mixed_to_uchar_osv32_isv2(uint4x8_t v) __attribute__((overloadable)) {
+inline uchar8 unpack_transposed_to_uchar_osv32_isv2(uint4x8_t v) __attribute__((overloadable)) {
     uchar2 v0 = unpack_to_uchar(v.s0);
     uchar2 v1 = unpack_to_uchar(v.s2);
     uchar2 v2 = unpack_to_uchar(v.s1);
@@ -207,5 +207,5 @@ inline uchar8 unpack_to_uchar_osv32_isv2(uint4x8_t v) __attribute__((overloadabl
 
 #define UNPACK_INT4x2(target_type, value) CAT(unpack_to_, target_type)(value)
 #define UNPACK_INT4x2_OSV32_ISV2(target_type, value) CAT(CAT(unpack_to_, target_type), _osv32_isv2)(value)
-#define UNPACK_MIXED_INT4x2(target_type, value) CAT(unpack_mixed_to_, target_type)(value)
-#define UNPACK_MIXED_INT4x2_OSV32_ISV2(target_type, value) CAT(CAT(unpack_mixed_to_, target_type), _osv32_isv2)(value)
+#define UNPACK_MIXED_INT4x2(target_type, value) CAT(unpack_transposed_to_, target_type)(value)
+#define UNPACK_MIXED_INT4x2_OSV32_ISV2(target_type, value) CAT(CAT(unpack_transposed_to_, target_type), _osv32_isv2)(value)

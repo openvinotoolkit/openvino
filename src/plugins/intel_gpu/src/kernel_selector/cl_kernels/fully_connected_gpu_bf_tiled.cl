@@ -83,10 +83,10 @@ KERNEL(quantize_input)(
 // Data stored in memory : f0k0k1|f16k0k1|f0k2k3|f16k2k3
 // => unpack as f0k0k1|f0k2k3|f16k0k1|f16k2k3 so that the weight access order is preserved 
 #define UNPACK_INT4 UNPACK_INT4x2_OSV32_ISV2
-#define UNPACK_MIXED_INT4 UNPACK_INT4x2_OSV32_ISV2
+#define UNPACK_TRANSPOSED_INT4 UNPACK_INT4x2_OSV32_ISV2
 #else
 #define UNPACK_INT4 UNPACK_INT4x2
-#define UNPACK_MIXED_INT4 UNPACK_MIXED_INT4x2
+#define UNPACK_TRANSPOSED_INT4 UNPACK_TRANSPOSED_INT4x2
 #endif
 // Macros for vectorized types.
 #define INPUT_VEC_TYPE             MAKE_VECTOR_TYPE(INPUT0_TYPE, TILE_IFM)
@@ -701,6 +701,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 }
 
 // Dyc Quantize
+#if USE_SLM && DYNAMIC_QUANTIZE
 #define PACKED_DQ_TYPE                      int
 #define DQ_VEC_TYPE                         MAKE_VECTOR_TYPE(DQ_TYPE, TILE_IFM)
 #define DQ_SLM_FILTER_VEC                   MAKE_VECTOR_TYPE(DQ_TYPE, 4)
@@ -717,7 +718,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #define AS_TYPE_N(type, n, x)   AS_TYPE_N_(type, n, x)
 #define AS_DQ_TYPE_4(x)         AS_TYPE_N(DQ_TYPE, INPUT_LOAD_SIZE, x)
 
-#if USE_SLM && DYNAMIC_QUANTIZE
 inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -855,7 +855,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         // DECOMPRESSION_SCALE_POST_OP SHOULD be enabled for dynamic quantize FC : scale is ACCUMULATOR_VAL_ONE
         unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
             SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
-            DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_MIXED_INT4(DQ_TYPE, *((uint4x8_t *)&wei_packed));
+            DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((uint4x8_t *)&wei_packed));
 
             // Calculate zero-point and scale only for DECOMPRESSION_SCALE_POST_OP enabled
             #if DECOMPRESSION_ZP_TERM
@@ -966,80 +966,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             }
         #endif
     }  // Main compute loop : ni
-
-    // =====================================================================================================================================
-    // Leftovers
-#if MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD) != 0
-    // Handle leftovers in normal case without alignment correction.
-    #define LEFTOVER_IFM               (MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD))
-    {
-        #define LOAD_IN_0(bi) do {                                  \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                    \
-            } while (false)
-
-        CONST_LOOP(TILE_B, LOAD_IN_0);
-        #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
-        unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
-            #if USE_SLM
-                FILTER_VEC_TYPE wei = 0;
-            #endif
-
-            #if COMPRESSED_WEIGHTS_INT4
-                FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
-                wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
-            #else
-                wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
-            #endif
-
-            #if COMPRESSED_WEIGHTS
-                ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
-                unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
-                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
-                        #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
-                            const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
-                                                      ((kii + ki*TILE_K + iterations*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-                            ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
-                        #else
-                            ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
-                        #endif
-
-                        #if DECOMPRESSION_ZP_TERM
-                            #if DECOMPRESSION_ZP_SCALAR
-                                ACCUMULATOR_TYPE dzp = DECOMPRESSION_ZP_VALUE;
-                            #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
-                                const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
-                                                    ((kii + ki*TILE_K + iterations*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                                ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
-                            #else
-                                ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
-                            #endif
-                        #else
-                            ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
-                        #endif
-                        w[W_IDX] = (w[W_IDX] - dzp) * ds;
-                    }
-                }
-            #endif
-            weights_offset += TILE_K_OFM_PACKED * SIMD;
-
-            unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
-                unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                        const uint total_k = ki * TILE_K + kii;
-                        if (total_k < LEFTOVER_IFM) {
-                            INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
-                        }
-                    }
-                }
-            }
-        }
-    }
-    #undef LEFTOVER_IFM
-#endif // MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD) != 0
 
     // =====================================================================================================================================
     // Post-processing: bias, activation, fused-ops

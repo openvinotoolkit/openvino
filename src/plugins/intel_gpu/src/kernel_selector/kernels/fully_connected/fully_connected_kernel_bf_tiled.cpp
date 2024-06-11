@@ -26,26 +26,32 @@ static std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params&
     return {input_batch, input_f};
 }
 
-static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params, bool is_aligned, uint32_t align_b = 1, uint32_t align_f = 1) {
-    size_t output_f = (is_aligned == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
+static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params, bool needs_align, uint32_t align_b = 1, uint32_t align_f = 1) {
+    size_t output_f = (needs_align == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
     size_t output_b = params.outputs[0].Batch().v;
     // 3D output
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        output_f = (is_aligned == true) ? CeilDiv(params.outputs[0].Y().v, align_f) : params.outputs[0].Y().v;
+        output_f = (needs_align == true) ? CeilDiv(params.outputs[0].Y().v, align_f) : params.outputs[0].Y().v;
         output_b = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
     }
 
-    output_b = (is_aligned == true) ? CeilDiv(output_b, align_b) : output_b;
+    output_b = (needs_align == true) ? CeilDiv(output_b, align_b) : output_b;
 
     return {output_b, output_f};
 }
 
 // DYNAMIC_QUANTIZE
-static bool is_dynamic_quantize(const fully_connected_params& params) {
+static bool should_dynamic_quantize(const fully_connected_params& params) {
+    auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->enable_dynamic_quantize) {
+        dynamic_quantization_group_size = quantize_grp_size;
+    }
+
     if (params.inputs[0].GetFirstElementOffset() != 0)
         return false;
 
-    if (params.dynamic_quantization_group_size < quantize_grp_size)
+    if (dynamic_quantization_group_size < quantize_grp_size)
         return false;
 
     auto threads = get_input_bf_size(params);
@@ -306,7 +312,7 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
-                if (params.is_shape_agnostic && !is_dynamic_quantize(params)) {
+                if (params.is_shape_agnostic && !should_dynamic_quantize(params)) {
                     selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                             .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
                 }
@@ -490,15 +496,14 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
-    if (is_dynamic_quantize(params) && dispatchData.tile_m > 1 && dispatchData.tile_n == 2) {
+    if (should_dynamic_quantize(params) && dispatchData.tile_m > 1 && dispatchData.tile_n == 2) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
         jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+        jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
+        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
     }
-
-    jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
-    jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
@@ -614,7 +619,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
 
-                    if (kd.kernels[0].params.workGroups.global[0] < (input_size / quantize_grp_size)) {
+                    if (kd.internalBufferSizes[0] < input_size) {
                         kd.internalBufferSizes.clear();
                         kd.internalBufferSizes.push_back(input_size);                           // quantized input is char type
                         kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);   // de_quan_scale is half type
@@ -651,7 +656,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     }
 
     KernelsData kernels_data;
-    if (is_dynamic_quantize(fc_params)) {
+    if (should_dynamic_quantize(fc_params)) {
         // Use seperate 2 kernels for dynamic quantizing : quantizing_kernel + fc_kernel
         // 1st kernel : Dynamic quantizing by quantize_grp_size
         // 2nd kernel : fully connected kernel with KernelType::DEFAULT. Quantized inputs and scale values could be used.
