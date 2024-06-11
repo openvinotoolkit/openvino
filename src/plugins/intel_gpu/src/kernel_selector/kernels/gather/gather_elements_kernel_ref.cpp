@@ -143,6 +143,7 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
+
     return jit;
 }
 
