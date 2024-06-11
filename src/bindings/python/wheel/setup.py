@@ -301,13 +301,6 @@ class CustomBuild(build):
     def run(self):
         # build and install clib into temporary directories
         if not PYTHON_EXTENSIONS_ONLY:
-
-            self.announce(f"Reset cpack_generator {CPACK_GENERATOR}", level=3)
-            self.spawn(["cmake", "-DCPACK_GENERATOR=WHEEL",
-                            "-DENABLE_PKGCONFIG_GEN=OFF",
-                            "-S", OPENVINO_SOURCE_DIR,
-                            "-B", OPENVINO_BINARY_DIR])
-
             self.cmake_build_and_install(LIB_INSTALL_CFG)
             # build and install additional files into temporary directories
             self.cmake_build_and_install(DATA_INSTALL_CFG)
@@ -320,8 +313,8 @@ class CustomBuild(build):
             self.run_command("build_clib")
             self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
             self.spawn(["cmake", f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
-                             "-S", OPENVINO_SOURCE_DIR,
-                             "-B", OPENVINO_BINARY_DIR])
+                                "-S", OPENVINO_SOURCE_DIR,
+                                "-B", OPENVINO_BINARY_DIR])
 
         # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
