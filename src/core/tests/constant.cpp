@@ -410,7 +410,7 @@ TEST(constant, int4_write_then_cast_custom_type) {
     auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(1, -2, 7));
+    EXPECT_THAT(v, ElementsAre(1.0f, -2.0f, 7.0f));
 }
 //
 // int8
@@ -843,7 +843,7 @@ TEST(constant, uint1_write_then_cast_custom_type) {
     auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(1, 0, 1));
+    EXPECT_THAT(v, ElementsAre(1.0f, 0.0f, 1.0f));
 }
 
 //
@@ -929,7 +929,7 @@ TEST(constant, uint2_write_then_cast_custom_type) {
     auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(1, 3, 2));
+    EXPECT_THAT(v, ElementsAre(1.0f, 3.0f, 2.0f));
 }
 
 TEST(constant, uint2_input_value_validation) {
@@ -1049,7 +1049,7 @@ TEST(constant, uint3_write_then_cast_custom_type) {
     auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(1, 3, 2, 6, 3));
+    EXPECT_THAT(v, ElementsAre(1.0f, 3.0f, 2.0f, 6.0f, 3.0f));
 }
 
 TEST(constant, uint3_input_value_validation) {
@@ -1169,7 +1169,7 @@ TEST(constant, uint4_write_then_cast_custom_type) {
     auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(1, 3, 12));
+    EXPECT_THAT(v, ElementsAre(1.0f, 3.0f, 12.0f));
 }
 
 //
@@ -1267,7 +1267,7 @@ TEST(constant, uint6_write_then_cast_custom_type) {
     auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(1, 3, 2, 6, 3));
+    EXPECT_THAT(v, ElementsAre(1.0f, 3.0f, 2.0f, 6.0f, 3.0f));
 }
 
 TEST(constant, uint6_input_value_validation) {
@@ -1998,7 +1998,7 @@ TEST(constant, f4e2m1_write_then_cast_custom_type) {
     auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(1.5, 3, 6));
+    EXPECT_THAT(v, ElementsAre(1.5f, 3.0f, 6.0f));
 }
 
 template <typename T1, typename T2>
