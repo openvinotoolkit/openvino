@@ -11,6 +11,7 @@
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
 #include "node/include/type_validation.hpp"
+#include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
@@ -127,26 +128,29 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
 }
 
 Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {
+    std::vector<std::string> checked_signatures;
+
     try {
-        if (js::validate<std::string, std::string>(info)) {
+        if (js::validate<Napi::String, Napi::String>(info, checked_signatures)) {
             return compile_model_sync(info, info[0].ToString(), info[1].ToString());
-        } else if (js::validate<ov::Model, std::string>(info)) {
+        } else if (js::validate<ov::Model, Napi::String>(info, checked_signatures)) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
-        } else if (js::validate<std::string, std::string, Napi::Object>(info)) {
+        } else if (js::validate<Napi::String, Napi::String, Napi::Object>(info, checked_signatures)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
+
             return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
-        } else if (js::validate<ov::Model, std::string, Napi::Object>(info)) {
+        } else if (js::validate<ov::Model, Napi::String, Napi::Object>(info, checked_signatures)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
+
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
-        } else if (info.Length() < 2 || info.Length() > 3) {
-            reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-            return info.Env().Undefined();
-        } else {
-            reportError(info.Env(), "Error while compiling model.");
-            return info.Env().Undefined();
         }
+
+        std::string error_message = js::get_parameters_error_msg(info, checked_signatures);
+
+        OPENVINO_THROW(error_message);
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
+
         return info.Env().Undefined();
     }
 }
