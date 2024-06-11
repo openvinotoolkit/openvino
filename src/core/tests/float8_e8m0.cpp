@@ -359,10 +359,7 @@ std::vector<std::tuple<float, float>> f32_f8_f32{
 using f8m8e0_params_cast = std::tuple<float, float>;
 class F8E8M0PTestCast : public testing::TestWithParam<f8m8e0_params_cast> {};
 
-INSTANTIATE_TEST_SUITE_P(cast,
-                         F8E8M0PTestCast,
-                         testing::ValuesIn(f32_f8_f32),
-                         testing::PrintToStringParamName());
+INSTANTIATE_TEST_SUITE_P(cast, F8E8M0PTestCast, testing::ValuesIn(f32_f8_f32), testing::PrintToStringParamName());
 
 TEST_P(F8E8M0PTestCast, f32_to_f8_to_f32) {
     const auto& params = GetParam();
