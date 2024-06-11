@@ -54,11 +54,42 @@ class OPENVINO_API float8_e8m0 {
 
 public:
     float8_e8m0() = default;
-    // float8_e8m0(uint32_t sign, uint32_t biased_exponent, uint32_t fraction);
     float8_e8m0(const float value) : m_value{f32_to_f8e8m0_bits(value)}{};
 
     template <typename I>
     explicit float8_e8m0(I value) : m_value{float8_e8m0{static_cast<float>(value)}.m_value} {}
+
+    template <typename T>
+    bool operator==(const T& other) const;
+    template <typename T>
+    bool operator!=(const T& other) const {
+        return !(*this == other);
+    }
+
+    template <typename T>
+    bool operator<(const T& other) const;
+    template <typename T>
+    bool operator<=(const T& other) const;
+    template <typename T>
+    bool operator>(const T& other) const;
+    template <typename T>
+    bool operator>=(const T& other) const;
+    template <typename T>
+    float8_e8m0 operator+(const T& other) const;
+    template <typename T>
+    float8_e8m0 operator+=(const T& other);
+    template <typename T>
+    float8_e8m0 operator-(const T& other) const;
+    template <typename T>
+    float8_e8m0 operator-=(const T& other);
+    template <typename T>
+    float8_e8m0 operator*(const T& other) const;
+    template <typename T>
+    float8_e8m0 operator*=(const T& other);
+    template <typename T>
+    float8_e8m0 operator/(const T& other) const;
+    template <typename T>
+    float8_e8m0 operator/=(const T& other);
 
     operator float() const {
         constexpr uint8_t float_mantissa_bits {23u};
@@ -78,8 +109,6 @@ public:
         i_val = static_cast<uint32_t>(m_value & byte_mask) << float_mantissa_bits;
         return f_val;
 
-        // const auto& i_val = static_cast<uint32_t>(m_value) << float_mantissa_bits;
-        // return *reinterpret_cast<const float*>(&i_val);
     }
 
     static constexpr float8_e8m0 from_bits(uint8_t bits) {
@@ -98,3 +127,83 @@ private:
 
     uint8_t m_value{};
 };
+
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4756)
+#endif
+template <typename T>
+bool float8_e8m0::operator==(const T& other) const {
+#if defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
+    return (static_cast<float>(*this) == static_cast<float>(other));
+#if defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#endif
+}
+
+template <typename T>
+bool float8_e8m0::operator<(const T& other) const {
+    return (static_cast<float>(*this) < static_cast<float>(other));
+}
+
+template <typename T>
+bool float8_e8m0::operator<=(const T& other) const {
+    return (static_cast<float>(*this) <= static_cast<float>(other));
+}
+
+template <typename T>
+bool float8_e8m0::operator>(const T& other) const {
+    return (static_cast<float>(*this) > static_cast<float>(other));
+}
+
+template <typename T>
+bool float8_e8m0::operator>=(const T& other) const {
+    return (static_cast<float>(*this) >= static_cast<float>(other));
+}
+
+template <typename T>
+float8_e8m0 float8_e8m0::operator+(const T& other) const {
+    return {static_cast<float>(*this) + static_cast<float>(other)};
+}
+
+template <typename T>
+float8_e8m0 float8_e8m0::operator+=(const T& other) {
+    return *this = *this + other;
+}
+
+template <typename T>
+float8_e8m0 float8_e8m0::operator-(const T& other) const {
+    return {static_cast<float>(*this) - static_cast<float>(other)};
+}
+
+template <typename T>
+float8_e8m0 float8_e8m0::operator-=(const T& other) {
+    return *this = *this - other;
+}
+
+template <typename T>
+float8_e8m0 float8_e8m0::operator*(const T& other) const {
+    return {static_cast<float>(*this) * static_cast<float>(other)};
+}
+
+template <typename T>
+float8_e8m0 float8_e8m0::operator*=(const T& other) {
+    return *this = *this * other;
+}
+
+template <typename T>
+float8_e8m0 float8_e8m0::operator/(const T& other) const {
+    return {static_cast<float>(*this) / static_cast<float>(other)};
+}
+
+template <typename T>
+float8_e8m0 float8_e8m0::operator/=(const T& other) {
+    return *this = *this / other;
+}
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
+}  // namespace ov
