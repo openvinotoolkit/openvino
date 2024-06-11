@@ -495,7 +495,7 @@ void Deconvolution::getSupportedDescriptors() {
                     creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
         }
 
-        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+        for (size_t i = 0; i < config.outConfs.size(); ++i) {
             config.outConfs[i].setMemDesc(
                     creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(i)));
         }
@@ -1145,7 +1145,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
                     creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
         }
 
-        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+        for (size_t i = 0; i < config.outConfs.size(); ++i) {
             config.outConfs[i].setMemDesc(
                     creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(i)));
         }
