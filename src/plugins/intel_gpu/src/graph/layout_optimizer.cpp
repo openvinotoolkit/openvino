@@ -159,10 +159,11 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
     std::stringstream ss;
     ss << src_id << "_" << std::to_string(src_port) << "_reorder_" << count;
 
-    // In the code just above, src_port is used to name the reorder.
-    // In the code below, src_port is used to index the output.
-    if (src_port >= src_output_size) {
-        // This is for the case where the node has single output but multiple users.
+    // src_port is used to name the reorder in the code just above,
+    // whereas used to index the output in the code below.
+    if (src_port >= src_output_size && src_output_size > 0) {
+        // Cover the case where the node has single output but multiple users,
+        // while port number to each user is same.
         src_port = src_output_size - 1;
     }
 

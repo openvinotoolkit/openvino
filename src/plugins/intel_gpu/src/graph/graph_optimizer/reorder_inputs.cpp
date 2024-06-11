@@ -878,8 +878,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto new_layout = input_layout;
             new_layout.data_type = data_types::f32;
             auto new_input = rf.get_reorder(input.id(),
-                                            input.get_user_index(fc_node),
-                                            input.get_output_layouts().size(),
+                                            static_cast<int32_t>(input.get_user_index(fc_node)),
+                                            static_cast<int32_t>(input.get_output_layouts().size()),
                                             input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, fc_node, 0);
