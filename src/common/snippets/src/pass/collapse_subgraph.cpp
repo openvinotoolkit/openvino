@@ -229,8 +229,11 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 } // namespace
 
 const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
-    static const std::set<ov::element::Type> supported_element_types =
-        { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+    static const std::set<ov::element::Type> supported_element_types = {ov::element::f32,
+                                                                        ov::element::bf16,
+                                                                        ov::element::f16,
+                                                                        ov::element::i8,
+                                                                        ov::element::u8};
     return supported_element_types;
 }
 

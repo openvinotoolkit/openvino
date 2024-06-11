@@ -281,13 +281,13 @@ KERNEL(gemm_tiled_opt)(
                 #if B_VEC_SIZE == 1
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
-                    #if TILE_N_NOT_DIVISIBLE
+                    if (TILE_N_NOT_DIVISIBLE == 0 || N_IS_ALIGNED_4BYTE)
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                    else {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                             b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
                         }
-                    #else // TILE_N_NOT_DIVISIBLE
-                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                    #endif // TILE_N_NOT_DIVISIBLE
+                    }
                 #endif // B_VEC_SIZE == 1
                 b_ptr += input1_offset;
             }
@@ -387,7 +387,7 @@ KERNEL(gemm_tiled_opt)(
 
         // Loading A tile and tile C calculation
 #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING && TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
-        A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+        A_FLOATN a_read = (TILE_K_NOT_DIVISIBLE == 0 || K_IS_ALIGNED_4BYTE) ? BLOCK_READ_A(a_ptr, 0): a_ptr[sglid];
 #endif
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
@@ -433,7 +433,7 @@ KERNEL(gemm_tiled_opt)(
             }
     #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING
         // Read A for next dot_id
-        a_read = (dot_id + 1 < tile_m_iterations) ? TILE_K_NOT_DIVISIBLE ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0) : 0;
+        a_read = (dot_id + 1 < tile_m_iterations) ? (TILE_K_NOT_DIVISIBLE == 0 || K_IS_ALIGNED_4BYTE) ? BLOCK_READ_A(a_ptr, 0) : a_ptr[sglid] : 0;
     #endif
 #elif TRANSPOSE_INPUT0 == TRANSPOSE_OTHER // TRANSPOSE_INPUT0
     #if INDIRECT_INPUT0
@@ -516,13 +516,13 @@ KERNEL(gemm_tiled_opt)(
                 #if B_VEC_SIZE == 1
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
-                    #if TILE_N_NOT_DIVISIBLE
+                    if (TILE_N_NOT_DIVISIBLE == 0 || N_IS_ALIGNED_4BYTE)
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                    else {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                             b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
                         }
-                    #else
-                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                    #endif // TILE_N_NOT_DIVISIBLE
+                    }
                 #endif // B_VEC_SIZE == 1
                     b_ptr += input1_offset;
                 }

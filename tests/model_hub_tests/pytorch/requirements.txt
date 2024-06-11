@@ -1,9 +1,9 @@
 -c ../../constraints.txt
---extra-index-url https://download.pytorch.org/whl/cpu
 auto-gptq
 av
 basicsr
 datasets
+easyocr
 facexlib
 g2p-en
 kornia
@@ -27,3 +27,14 @@ torchaudio
 torchvision
 transformers
 wheel
+PyYAML
+kornia
+
+# use latest released version once it's available
+git+https://github.com/huggingface/optimum-intel.git@main
+# set 'export HF_HUB_ENABLE_HF_TRANSFER=1' to benefits from hf_transfer
+hf_transfer
+
+# requirements for specific models
+# - hf-tiny-model-private/tiny-random-RoFormerForCausalLM
+rjieba

@@ -176,7 +176,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-        ASSERT_EQ(params_hash, 15950979219660866859UL);
+        ASSERT_EQ(params_hash, 4712165546063627148UL);
     }
 
     void test_reshape_basic(bool is_caching_test) {

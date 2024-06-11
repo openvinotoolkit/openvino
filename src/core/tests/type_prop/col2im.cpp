@@ -68,17 +68,26 @@ TEST_F(TypePropCol2ImTest, incorrect_types) {
     const auto data = std::make_shared<Parameter>(element::i32, PartialShape{3, 12, 225});
     const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
     const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
+    constexpr auto error_substring =
+        "The element types of the output_size and kernel_size tensors must match and be of i32 or i64 type";
     {
         const auto output_size_i4 = std::make_shared<Parameter>(element::i4, PartialShape{16, 16});
         OV_EXPECT_THROW(std::ignore = make_op(data, output_size_i4, kernel_size),
                         ov::NodeValidationFailure,
-                        HasSubstr("The element type of the output_size tensor must be i32 or i64 type"));
+                        HasSubstr(error_substring));
     }
     {
         const auto kernel_size_u8 = std::make_shared<Parameter>(element::u8, PartialShape{2, 2});
         OV_EXPECT_THROW(std::ignore = make_op(data, output_size, kernel_size_u8),
                         ov::NodeValidationFailure,
-                        HasSubstr("The element type of the kernel_size tensor must be i32 or i64 type"));
+                        HasSubstr(error_substring));
+    }
+    {
+        const auto output_size_i32 = std::make_shared<Parameter>(element::i32, PartialShape{16, 16});
+        const auto kernel_size_i64 = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
+        OV_EXPECT_THROW(std::ignore = make_op(data, output_size_i32, kernel_size_i64),
+                        ov::NodeValidationFailure,
+                        HasSubstr(error_substring));
     }
 }
 

@@ -18,7 +18,8 @@ DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
                                const MemoryCPtr weightsMem,
-                               const ExecutorContext::CPtr context);
+                               const ExecutorContext::CPtr context,
+                               const bool needShiftSignedToUnsigned = false);
 }  // namespace utils
 }  // namespace intel_cpu
 }  // namespace ov

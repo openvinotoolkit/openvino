@@ -382,8 +382,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
         src_t lbound, ubound;
         std::tie(lbound, ubound) = ctx.range<src_t>();
 
-        if (std::is_integral<src_t>::value
-            || ctx.interimPrc.is_real()) {
+        if (std::is_integral<src_t>::value) {
             parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
@@ -391,6 +390,19 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
                 for (size_t j = 0; j < current_batch_size; ++j)         // src_t -> fp32
                     tmp[j] = static_cast<float>(std::max(std::min(src[offset + j], ubound), lbound));
                 jit_convert(tmp, dst + offset, current_batch_size);     // fp32 -> fp16
+            });
+        } else if (ctx.interimPrc.is_real()) {
+            parallel_for(iterations, [&](size_t i) {
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                if (std::is_same<typename std::remove_cv<src_t>::type, float>::value) {  // fp32 -> fp16
+                    jit_convert(reinterpret_cast<const float *>(src) + offset, dst + offset, current_batch_size);
+                } else {
+                    batch_type tmp;
+                    for (size_t j = 0; j < current_batch_size; ++j)  // src_t -> fp32
+                        tmp[j] = static_cast<float>(src[offset + j]);
+                    jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
+                }
             });
         } else {
             parallel_for(iterations, [&](size_t i) {
@@ -420,8 +432,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         float lbound, ubound;
         std::tie(lbound, ubound) = ctx.range<ov::float16>();
 
-        if (ctx.interimPrc.is_real()
-            || std::is_integral<dst_t>::value) {
+        if (std::is_integral<dst_t>::value) {
             parallel_for(iterations, [&](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
@@ -429,6 +440,19 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 jit_convert(src + offset, tmp, current_batch_size);     // fp16 -> fp32
                 for (size_t j = 0; j < current_batch_size; ++j)         // fp32 -> dst_t
                     dst[offset + j] = static_cast<dst_t>(std::max(std::min(tmp[j], ubound), lbound));
+            });
+        } else if (ctx.interimPrc.is_real()) {
+            parallel_for(iterations, [&](size_t i) {
+                const size_t offset = i * batch;
+                const size_t current_batch_size = std::min(ctx.size - offset, batch);
+                if (std::is_same<typename std::remove_cv<dst_t>::type, float>::value) {  // fp16 -> fp32
+                    jit_convert(src + offset, reinterpret_cast<float *>(dst) + offset, current_batch_size);
+                } else {
+                    batch_type tmp;
+                    jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
+                    for (size_t j = 0; j < current_batch_size; ++j)      // fp32 -> dst_t
+                        dst[offset + j] = static_cast<dst_t>(tmp[j]);
+                }
             });
         } else {
             parallel_for(iterations, [&](size_t i) {
@@ -565,9 +589,9 @@ struct ConvertFromBinPrecision {
 
 #define INTEL_CPU_CVT_FROM_4BIT(DT) OV_CASE(ov::element::DT, PrecisionInfo<ov::element::DT>::value_type)
 
-#define INTEL_CPU_CVT_FROM_4BIT_LIST                                                          \
-    INTEL_CPU_CVT_FROM_4BIT(f32), INTEL_CPU_CVT_FROM_4BIT(bf16), INTEL_CPU_CVT_FROM_4BIT(i8), \
-        INTEL_CPU_CVT_FROM_4BIT(u8)
+#define INTEL_CPU_CVT_FROM_4BIT_LIST                                                           \
+    INTEL_CPU_CVT_FROM_4BIT(f32), INTEL_CPU_CVT_FROM_4BIT(bf16), INTEL_CPU_CVT_FROM_4BIT(f16), \
+        INTEL_CPU_CVT_FROM_4BIT(i8), INTEL_CPU_CVT_FROM_4BIT(u8)
 
 struct ConvertFrom4BitContext {
     ov::element::Type_t inType;

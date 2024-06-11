@@ -20,12 +20,11 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
 
     try {
-        const auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
+        const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
 
         OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
 
-        const auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
-        const auto& shape = ov::Shape(shape_vec);
+        const auto& shape = js_to_cpp<ov::Shape>(info, 1);
 
         if (info.Length() == 2) {
             this->_tensor = ov::Tensor(type, shape);

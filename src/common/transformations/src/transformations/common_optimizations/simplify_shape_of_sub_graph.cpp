@@ -9,8 +9,11 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -136,6 +139,40 @@ pass::GatherNopElimination::GatherNopElimination() {
         return replace_output_update_name(gather->output(0), gather->input_value(0));
     };
     auto m = std::make_shared<Matcher>(gather_label, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+pass::AbsSinking::AbsSinking() {
+    MATCHER_SCOPE(AbsSinking);
+    const auto abs_label = wrap_type<op::v0::Abs>(pattern::rank_equals(1));
+
+    matcher_pass_callback callback = [](Matcher& m) {
+        NodeVector abs_ops = {m.get_match_root()};
+
+        bool graph_got_changed = false;
+
+        if (auto concat = as_type_ptr<v0::Concat>(abs_ops[0]->get_input_node_shared_ptr(0))) {
+            for (const auto& input : concat->inputs()) {
+                auto new_abs = ov::op::util::make_try_fold<v0::Abs>(input.get_source_output());
+                if (!as_type_ptr<v0::Constant>(new_abs))
+                    abs_ops.push_back(new_abs);
+                input.replace_source_output(new_abs);
+                ov::copy_runtime_info(abs_ops[0], new_abs);
+            }
+            replace_output_update_name(abs_ops[0]->output(0), abs_ops[0]->input_value(0));
+            abs_ops.erase(abs_ops.begin());
+            graph_got_changed = true;
+        }
+        for (const auto& abs : abs_ops) {
+            auto bounds = ov::evaluate_both_bounds(abs->input_value(0));
+            if (ov::util::reduce_and(ov::util::greater_equal(bounds.first, 0))) {
+                replace_output_update_name(abs->output(0), abs->input_value(0));
+                graph_got_changed = true;
+            }
+        }
+        return graph_got_changed;
+    };
+    auto m = std::make_shared<Matcher>(abs_label, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -316,10 +353,13 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
 bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
-    Manager manager;
+    Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
     REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)
+    REGISTER_PASS(manager, AbsSinking)
+    // FIXME: manager runs Validate based on the last pass, when fixed the following line must be deleted
+    REGISTER_PASS(manager, Validate)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, EliminateGatherUnsqueeze)  // should run after SharedOpOptimization
     REGISTER_PASS(manager, NopElimination, m_use_shapes)
