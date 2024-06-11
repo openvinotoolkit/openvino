@@ -143,9 +143,6 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
-
-    if (params.layerID == "gatherelements:__module.model.23/aten::gather/GatherElements")
-        jit.AddConstant(MakeJitConstant("KERNEL_DEBUG_XXX", 1));
     return jit;
 }
 
