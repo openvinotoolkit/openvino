@@ -190,6 +190,144 @@ TEST_F(BF16WeightsDecompression, Inference_input_3) {
     }
 }
 
+TEST_F(BF16WeightsDecompression, Inference_input_768) {
+    const auto& model_inputs = cM.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448+1024; //3*256 inbf16
+    }
+    auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], 3072);
+    }
+}
+
+TEST_F(BF16WeightsDecompression, Inference_input_768x16) {
+    const auto& model_inputs = cM.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448+1024+512; //3*256*16 inbf16
+    }
+    auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], 3072*16);
+    }
+}
+
+TEST_F(BF16WeightsDecompression, Inference_input_768x64) {
+    const auto& model_inputs = cM.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448+1024+512+256; //3*256*64 inbf16
+    }
+    auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], 3072*64);
+    }
+}
+
+TEST_F(BF16WeightsDecompression, Inference_input_768x128) {
+    const auto& model_inputs = cM.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448+1024+512+256+128; //3*256*128 inbf16
+    }
+    auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], 3072*128);
+    }
+}
+
+TEST_F(BF16WeightsDecompression, Inference_input_768x256) {
+    const auto& model_inputs = cM.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448+1024+1024; //3*256*256 inbf16
+    }
+    auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], 3072*256);
+    }
+}
+
+TEST_F(BF16WeightsDecompression, Inference_input_16448plus8192) {
+    const auto& model_inputs = cM.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448+8192;
+    }
+    auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        float expected_val = 221360928884514619392.0f;
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], expected_val);
+    }
+}
+
+TEST_F(BF16WeightsDecompression, Inference_input_16448plus8192_but_minus) {
+    const auto& model_inputs = cM.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 16448+8192+32768;
+    }
+    auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        float expected_val = -221360928884514619392.0f;
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], expected_val);
+    }
+}
+
+TEST_F(BF16WeightsDecompression, Inference_input_minus3) {
+    const auto& model_inputs = cM.inputs();
+    const auto& model_input = model_inputs[0];
+    ov::Tensor tensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape());
+    for (size_t j =0 ; j < tensor.get_size(); j++) {
+        (reinterpret_cast<ushort*>(tensor.data())) [j] = 49216; //-3 inbf16
+    }
+    auto request = cM.create_infer_request();
+    request.set_tensor("scalar1", tensor);
+    request.infer();
+    request.wait();
+    auto out_tensor = request.get_output_tensor();
+    for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
+        ASSERT_FLOAT_EQ(reinterpret_cast<float*>(out_tensor.data())[i], -12);
+    }
+}
+
 TEST_F(BF16WeightsDecompression, Inference_input_3_f16) {
     const auto& model_inputs = cMF16.inputs();
     const auto& model_input = model_inputs[0];

@@ -66,12 +66,17 @@ float convert_bf16(const ushort in){
     uint u = 0;
     //sign
     if ( (in>>15) ) { 
-        u = 1 << 32;
+        u = 1 << 31;
     }
     //exponent
     u += ( ( (in >> 7) & 0b11111111)) << 23;
     //fraction 
     u += (in & 0b1111111) << 16;
     float* f = &u;
+    printf("I ret %f %e u is  %u in is %u or %x\n", *f, *f, u, in, in);
     return *f;
+}
+
+float convert_bf16_no_change(const float in){
+    return in;
 }
