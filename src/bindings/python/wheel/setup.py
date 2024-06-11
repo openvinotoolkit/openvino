@@ -279,7 +279,7 @@ class CustomBuild(build):
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
                                         f"-DPython3_EXECUTABLE={sys.executable}",
-                                        f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
+                                        f'-DCPACK_GENERATOR=WHEEL',
                                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                         "-DENABLE_WHEEL=OFF",
                                         self.cmake_args,
