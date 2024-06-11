@@ -294,7 +294,7 @@ ov::Tensor cast_to_tensor(const Napi::Value& value) {
 }
 
 ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
-    if (!js::validate_value<ov::Tensor>(info.Env(), info[index])) {
+    if (!js::validate_value<TensorWrap>(info.Env(), info[index])) {
         OPENVINO_THROW(std::string("Argument #" + std::to_string(index) + " must be a Tensor."));
     }
     const auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[index].ToObject());
@@ -520,4 +520,10 @@ ov::AnyMap to_anyMap(const Napi::Env& env, const Napi::Value& val) {
     }
 
     return properties;
+}
+
+std::string buffer_to_string(const Napi::Value& value) {
+    Napi::Buffer<uint8_t> model_data = value.As<Napi::Buffer<uint8_t>>();
+
+    return std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
 }

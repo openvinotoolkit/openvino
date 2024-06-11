@@ -65,17 +65,22 @@ const char* get_attr_type<Napi::Object>() {
 }
 
 template <>
+const char* get_attr_type<Napi::Buffer<uint8_t>>() {
+    return BindingTypename::BUFFER;
+}
+
+template <>
 const char* get_attr_type<int>() {
     return BindingTypename::INT;
 }
 
 template <>
-const char* get_attr_type<ov::Model>() {
+const char* get_attr_type<ModelWrap>() {
     return BindingTypename::MODEL;
 }
 
 template <>
-const char* get_attr_type<ov::Tensor>() {
+const char* get_attr_type<TensorWrap>() {
     return BindingTypename::TENSOR;
 }
 
@@ -87,6 +92,11 @@ bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value
 template <>
 bool validate_value<Napi::Object>(const Napi::Env& env, const Napi::Value& value) {
     return napi_object == value.Type();
+}
+
+template <>
+bool validate_value<Napi::Buffer<uint8_t>>(const Napi::Env& env, const Napi::Value& value) {
+    return value.IsBuffer();
 }
 
 template <>
@@ -102,14 +112,16 @@ bool validate_value<int>(const Napi::Env& env, const Napi::Value& value) {
 }
 
 template <>
-bool validate_value<ov::Model>(const Napi::Env& env, const Napi::Value& value) {
+bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->model;
+
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }
 
 template <>
-bool validate_value<ov::Tensor>(const Napi::Env& env, const Napi::Value& value) {
+bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->tensor;
+
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }
 

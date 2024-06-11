@@ -5,6 +5,8 @@
 #include <napi.h>
 
 #include "node/include/addon.hpp"
+#include "node/include/model_wrap.hpp"
+#include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -26,6 +28,7 @@ namespace BindingTypename {
 static const char INT[] = "Integer";
 static const char MODEL[] = "Model";
 static const char TENSOR[] = "Tensor";
+static const char BUFFER[] = "Buffer";
 }  // namespace BindingTypename
 
 namespace NapiArg {
@@ -37,7 +40,7 @@ std::string get_current_signature(const Napi::CallbackInfo& info);
 
 template <typename T>
 const char* get_attr_type() {
-    throw std::runtime_error("get_attr_type is not implemented for passed type!");
+    throw std::runtime_error("get_attr_type 123 is not implemented for passed type!");
 };
 
 template <>
@@ -47,13 +50,16 @@ template <>
 const char* get_attr_type<Napi::Object>();
 
 template <>
+const char* get_attr_type<Napi::Buffer<uint8_t>>();
+
+template <>
 const char* get_attr_type<int>();
 
 template <>
-const char* get_attr_type<ov::Model>();
+const char* get_attr_type<ModelWrap>();
 
 template <>
-const char* get_attr_type<ov::Tensor>();
+const char* get_attr_type<TensorWrap>();
 
 template <typename T>
 bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
@@ -67,14 +73,17 @@ template <>
 bool validate_value<Napi::Object>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
+bool validate_value<Napi::Buffer<uint8_t>>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
 bool validate_value<int>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
-bool validate_value<ov::Model>(const Napi::Env& env, const Napi::Value& value);
+bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value);
 
 /** @brief Checks if Napi::Value is a Tensor.*/
 template <>
-bool validate_value<ov::Tensor>(const Napi::Env& env, const Napi::Value& value);
+bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value);
 
 template <typename Arg>
 std::vector<std::string> get_signature() {
