@@ -24,19 +24,17 @@ public:
                 const TensorMap& ext_tensor_map,
                 std::shared_ptr<TensorMap> tensor_map,
                 std::shared_ptr<ParameterVector> external_parameters,
-                std::shared_ptr<std::set<size_t>> mutated_tensors,
                 TranslateSession* translate_session)
         : frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
           m_ext_tensor_map(ext_tensor_map),
           m_tensor_map(tensor_map),
           m_external_parameters(external_parameters),
-          m_mutated_tensors(mutated_tensors),
           m_translate_session(translate_session),
           m_decoder_inputs(decoder->inputs()),
           m_decoder_outputs(decoder->outputs()) {
         FRONT_END_GENERAL_CHECK(m_tensor_map != nullptr && m_external_parameters != nullptr &&
-                                m_mutated_tensors != nullptr && m_translate_session != nullptr);
+                                m_translate_session != nullptr);
     }
 
     // Do not search for input in tensor map; try to access it as a constant of
@@ -148,7 +146,6 @@ private:
     const TensorMap& m_ext_tensor_map;
     std::shared_ptr<TensorMap> m_tensor_map;
     std::shared_ptr<ParameterVector> m_external_parameters;
-    std::shared_ptr<std::set<size_t>> m_mutated_tensors;
     TranslateSession* m_translate_session = nullptr;
     const std::vector<size_t> m_decoder_inputs;
     const std::vector<size_t> m_decoder_outputs;

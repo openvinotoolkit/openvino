@@ -76,7 +76,6 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
     {
         auto parameters = std::make_shared<ParameterVector>();
         auto tensor_map = std::make_shared<TensorMap>();  // tensor map of the current context
-        auto mutated_tensors = std::make_shared<std::set<size_t>>();
         std::vector<size_t> inserted_params;
 
         if (input_model) {
@@ -148,7 +147,7 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
                     inserted_params.push_back(input);
                 }
             }
-            auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, mutated_tensors, this);
+            auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, this);
             // Add op type in the statistics
             m_op_statistics[context.get_op_type()]++;
             auto converted_outputs = convert_node(context);
@@ -247,23 +246,6 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
         for (const auto& param : *parameters) {
             auto input_idx = decode_tensor_name(param->output(0));
             param_names.insert(input_idx);
-        }
-        for (const auto& tensor_id : *mutated_tensors) {
-            if (param_names.count(tensor_id)) {
-                FRONT_END_GENERAL_CHECK(tensor_map->count(tensor_id),
-                                        "Tensor with id: ",
-                                        tensor_id,
-                                        " doesn't exist in tensor map.");
-                // model input was mutated we need to make a result for it
-                // empty external_tensor_map means this is main body of the model and we
-                // don't want to create additional outputs in that case.
-                if (!external_tensor_map.empty()) {
-                    OPENVINO_DEBUG << "Creating Result for mutated tensor  " << tensor_id;
-                    results.push_back(std::make_shared<v0::Result>(tensor_map->at(tensor_id)));
-                }
-            } else {
-                OPENVINO_DEBUG << "Mutated tensor with id " << tensor_id << " doesn't exist in inputs, skipping.";
-            }
         }
         if (!external_tensor_map.empty()) {
             // for internal bodies we want to remove all extra inputs that were
