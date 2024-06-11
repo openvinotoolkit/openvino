@@ -12,20 +12,20 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface NormalizeBufferIDs
- * @brief After optimizations some Buffer IDs might be set unevenly: some numbers are missed.
+ * @interface NormalizeBufferRegisterGroups
+ * @brief After optimizations some Buffer RegGroups might be set unevenly: some numbers are missed.
  *        For example,
- *                 [Buffer -> ID]
- *                  Buffer0 -> 0    Two Buffers have ID = 0, one has ID = 2.
- *                  Buffer1 -> 2    Obviosly, we can normalize this IDs to set ID = 1 to Buffer1.
+ *                 [Buffer -> RegGroup]
+ *                  Buffer0 -> 0    Two Buffers have RegGroup = 0, one has RegGroup = 2.
+ *                  Buffer1 -> 2    Obviosly, we can normalize this IDs to set RegGroup = 1 to Buffer1.
  *                  Buffer2 -> 0    It helps to assign GPR registers in `AssignRegister` more effective.
  *        Thus, the pass normalize IDs of Buffers in Linear IR.
  * @ingroup snippets
  */
 
-class NormalizeBufferIDs : public RangedPass {
+class NormalizeBufferRegisterGroups : public RangedPass {
 public:
-    OPENVINO_RTTI("NormalizeBufferIDs", "RangedPass")
+    OPENVINO_RTTI("NormalizeBufferRegisterGroups", "RangedPass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
