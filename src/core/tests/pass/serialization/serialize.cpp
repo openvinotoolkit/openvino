@@ -15,15 +15,15 @@
 #include "read_ir.hpp"
 
 #ifdef _WIN32
-#include <windows.h>
+#    include <windows.h>
 #else
-#include <sys/stat.h>
+#    include <sys/stat.h>
 #endif
 
 namespace {
 bool createReadOnlyFile(const std::string& filename) {
     std::ofstream file(filename);
-    if(file.is_open()) {
+    if (file.is_open()) {
         file.close();
 #ifdef _WIN32
         return SetFileAttributes(filename.c_str(), FILE_ATTRIBUTE_READONLY) != 0;
@@ -33,7 +33,7 @@ bool createReadOnlyFile(const std::string& filename) {
     }
     return false;
 }
-}
+} // namespace
 
 using SerializationParams = std::tuple<std::string, std::string>;
 
@@ -84,9 +84,8 @@ TEST(SerializationTest, WriteInReadOnly) {
 
     // Set up the serializer with the current paths
     ov::pass::Serialize serializer(m_out_xml_path, m_out_bin_path);
-
     
-    auto m = std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector {}, "");
+    auto m = std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector{}, "");
 
     // Expect that running the serializer on a read-only file throws an exception
     EXPECT_THROW(serializer.run_on_model(m), ov::AssertFailure);
