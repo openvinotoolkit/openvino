@@ -135,7 +135,7 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
         ASSERT_FALSE(default_property.empty());
 
         if (ov::PropertyName(property_item.first).is_mutable() && !property_item.second.empty()) {
-            core->set_property(target_device, {property_item});
+            OV_ASSERT_NO_THROW(core->set_property(target_device, {property_item}));
             core->compile_model(model, target_device, compileModelProperties);
             ov::Any actual_property_value;
             OV_ASSERT_NO_THROW(actual_property_value = core->get_property(target_device, property_item.first));
@@ -155,12 +155,11 @@ const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
     {{ov::intel_npu::compilation_mode_params.name(), "dump-task-stats=false propagate-quant-dequant=0"}},
     {{ov::intel_npu::platform.name(),
-      removeDeviceNameOnlyID("NPU")}},
+      removeDeviceNameOnlyID(getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
     {{ov::intel_npu::stepping.name(), 0}},
     {{ov::intel_npu::max_tiles.name(), 2}},
     {{ov::intel_npu::use_elf_compiler_backend.name(), ov::intel_npu::ElfCompilerBackend::NO}},
-    {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}
-};
+    {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}};
 
 const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::intel_npu::compilation_mode.name(), -3.6}},
