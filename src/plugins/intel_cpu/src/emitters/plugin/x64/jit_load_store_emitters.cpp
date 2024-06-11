@@ -65,13 +65,15 @@ static int get_aux_regs_as_temp(const int elem_count, const int data_size, bool 
                                 const int avx512_threshold_for_mask = 0, const bool is_fill = false) {
     if (mayiuse(cpu::x64::avx512_core) && is_fill)
         return 1;
-
-    // load i8/u8/i16/u16/bf16/fp16 to full xmm/ymm/zmm has direct no-mask ISA, no aux-reg need.
-    // store i32 on full xmm/ymm/zmm to i8/u8/i16/u16 has direct no-mask ISA, no aux-reg need.
-    // store f32 on full xmm/ymm/zmm to bf16/fp16. need convert to bf16/fp16 on vmm, then store to memory, use store_base condition.
+    // for pure move, there are direct no-mask instructions to move on full xmm/ymm/zmm, so aux_gpr is not needed.
+    // for move+convert:
+    // there are direct no-mask instructions to load i8/u8/i16/u16/bf16/fp16 to full xmm/ymm/zmm as f32/i32, so aux_gpr is not needed.
+    // there are direct no-mask instructions to store i32 on full xmm/ymm/zmm to i8/u8/i16/u16, so aux_gpr is not needed.
+    // store f32 on full xmm/ymm/zmm to bf16/fp16, need convert to bf16/fp16 on vmm, then store vmm to memory, use store_dword_to_word/byte_base condition.
     // store_num == 16, vector: 16 * f32 -> 16 * bf16 -> ymm(256bit) -> store
     // store_num == 8,  vector:  8 * f32 ->  8 * bf16 -> xmm(128bit)  -> store
-    // store_num == 4,  vector:  4 * f32 ->  4 * bf16 ->       64bit  -> no direct store
+    // store_num == 4,  vector:  4 * f32 ->  4 * bf16 ->       64bit  -> masked instruction with aux_gpr needed
+    // f32<->i32 is on full vmm, so aux_gpr is not needed.
     const int byte_size = elem_count * data_size;
     if ((is_pure_move && one_of(byte_size, 16, 32, 64)) || (!is_pure_move && one_of(elem_count, 4, 8, 16) && !is_store_as_real16))
         return 0;
@@ -702,7 +704,8 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
 
     data_idx = in_vec_idx;
     data_reg_updated = false;
-    aux_src_idx = aux_vec_idxs.back(); // for avoid src pollution
+    if (!aux_vec_idxs.empty())
+        aux_src_idx = aux_vec_idxs.back(); // to avoid src pollution
     if (src_prc_ != dst_prc_) {
         switch (src_prc_) {
             case ov::element::f32:
