@@ -176,6 +176,7 @@ PhilloxOutput OpenvinoPhilloxGenerator::random() {
     }
 
     m_n = split_high_low(m_n64);
+    m_key = split_high_low(m_key64);
     m_counter = split_high_low(m_counter64);
 
     ++m_total_generated_elements;
@@ -185,7 +186,7 @@ PhilloxOutput OpenvinoPhilloxGenerator::random() {
 
 // ====== PytorchPhilloxGenerator functions ======
 PytorchPhilloxGenerator::PytorchPhilloxGenerator(const uint64_t global_seed)
-    : PhilloxGenerator(PhilloxAlignment::PYTORCH, global_seed, 0UL, {0UL, 0UL}, 2UL),
+    : PhilloxGenerator(PhilloxAlignment::PYTORCH, global_seed, 0UL, {0UL, 0UL}, 4UL),
       m_left(1),
       m_next(0) {
     m_mersenne_state[0] = global_seed & 0xffffffff;
@@ -217,28 +218,16 @@ void PytorchPhilloxGenerator::next_mersenne_state() {
 PhilloxOutput PytorchPhilloxGenerator::random() {
     PhilloxOutput result(get_generated_elements_count());
 
-    if (--m_left == 0) {
-        next_mersenne_state();
-    }
+    for (size_t i = 0; i < get_generated_elements_count(); ++i) {
+        if (--m_left == 0) {
+            next_mersenne_state();
+        }
 
-    result[0] = *(m_mersenne_state.data() + m_next++);
-    result[0] ^= (result[0] >> 11);
-    result[0] ^= (result[0] << 7) & 0x9d2c5680;
-    result[0] ^= (result[0] << 15) & 0xefc60000;
-    result[0] ^= (result[0] >> 18);
-
-    if (--m_left == 0) {
-        next_mersenne_state();
-    }
-
-    result[1] = *(m_mersenne_state.data() + m_next++);
-    result[1] ^= (result[1] >> 11);
-    result[1] ^= (result[1] << 7) & 0x9d2c5680;
-    result[1] ^= (result[1] << 15) & 0xefc60000;
-    result[1] ^= (result[1] >> 18);
-
-    if (--m_left == 0) {
-        next_mersenne_state();
+        result[i] = *(m_mersenne_state.data() + m_next++);
+        result[i] ^= (result[i] >> 11);
+        result[i] ^= (result[i] << 7) & 0x9d2c5680;
+        result[i] ^= (result[i] << 15) & 0xefc60000;
+        result[i] ^= (result[i] >> 18);
     }
 
     return result;

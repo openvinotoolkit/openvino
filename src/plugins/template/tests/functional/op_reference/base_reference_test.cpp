@@ -68,27 +68,6 @@ void CommonReferenceTest::Infer() {
 }
 
 void CommonReferenceTest::Validate() {
-    std::cout << "OV: ";
-    size_t x = 0;
-    for (size_t i = 0; i < refOutData[x].get_size(); i++) {
-        if (refOutData[x].get_element_type().is_integral()) {
-            std::cout << ((int64_t*)refOutData[x].data())[i] << " ";
-        } else {
-            std::cout << ((float*)refOutData[x].data())[i] << " ";
-        }
-    }
-    std::cout << "\n";
-
-    std::cout << "TARGET: ";
-    for (size_t i = 0; i < actualOutData[x].get_size(); i++) {
-        if (actualOutData[x].get_element_type().is_integral()) {
-            std::cout << ((int64_t*)actualOutData[x].data())[i] << " ";
-        } else {
-            std::cout << ((float*)actualOutData[x].data())[i] << " ";
-        }
-    }
-    std::cout << "\n";
-
     ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
     actualOutData.clear();
     for (const auto& output : executableNetwork.outputs()) {

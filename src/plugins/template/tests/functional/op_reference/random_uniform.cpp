@@ -17,24 +17,25 @@ namespace reference_tests {
 namespace {
 
 struct RandomUniformParams {
-    RandomUniformParams(const std::vector<int64_t>& paramOutShape,
-                        const reference_tests::Tensor& paramMinValue,
-                        const reference_tests::Tensor& paramMaxValue,
-                        ov::element::Type paramOutType,
-                        int64_t paramGlobalSeed,
-                        int64_t paramOpSeed,
-                        const PhilloxAlignment& alignment,
-                        const reference_tests::Tensor& paramExpected,
-                        const std::string& test_name)
-        : out_shape(paramOutShape),
-          min_val(paramMinValue),
-          max_val(paramMaxValue),
-          out_type(paramOutType),
-          global_seed(paramGlobalSeed),
-          op_seed(paramOpSeed),
+    RandomUniformParams(const std::vector<int64_t>& out_shape,
+                        const reference_tests::Tensor& min_val,
+                        const reference_tests::Tensor& max_val,
+                        ov::element::Type out_type,
+                        int64_t global_seed,
+                        int64_t op_seed,
+                        const PhilloxAlignment alignment,
+                        const reference_tests::Tensor& expected,
+                        const std::string name)
+        : out_shape(out_shape),
+          min_val(min_val),
+          max_val(max_val),
+          out_type(out_type),
+          global_seed(global_seed),
+          op_seed(op_seed),
           alignment(alignment),
-          expected(paramExpected),
-          test_case_name(test_name) {}
+          expected(expected),
+          test_case_name(std::move(name)) {}
+
     std::vector<int64_t> out_shape;
     reference_tests::Tensor min_val;
     reference_tests::Tensor max_val;
@@ -61,8 +62,16 @@ public:
         refOutData = {params.expected.data};
 
         if (params.out_type == element::bf16) {
-            abs_threshold = 0.51f;  // Differences in class implementation (rounding) can cause a difference of up to
-                                    // 0.5 between values
+            const auto min = static_cast<bfloat16*>(params.min_val.data.data())[0];
+            const auto max = static_cast<bfloat16*>(params.max_val.data.data())[0];
+            if (max - min <= 1) {
+                abs_threshold = 0.01f;  // Slight differences based on class implementation
+            } else {
+                abs_threshold = 1.01f;  // Differences in class implementation (rounding) can cause a difference of up
+                                        // to 1 between values
+            }
+        } else {
+            abs_threshold = 0.0f;  // Exact match
         }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RandomUniformParams>& obj) {
@@ -78,22 +87,22 @@ private:
                                                  int64_t global_seed,
                                                  int64_t op_seed,
                                                  const PhilloxAlignment alignment) {
+        const auto out_shape_const =
+            std::make_shared<op::v0::Constant>(element::i64, Shape{out_shape.size()}, out_shape);
         const auto min_val_param = std::make_shared<op::v0::Parameter>(min_val.type, min_val.shape);
         const auto max_val_param = std::make_shared<op::v0::Parameter>(max_val.type, max_val.shape);
-        auto out_shape_ = std::make_shared<op::v0::Constant>(element::i64, Shape{out_shape.size()}, out_shape);
-
-        return std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v8::RandomUniform>(out_shape_,
-                                                                                              min_val_param,
-                                                                                              max_val_param,
-                                                                                              out_type,
-                                                                                              global_seed,
-                                                                                              op_seed,
-                                                                                              alignment)},
-                                           ParameterVector{min_val_param, max_val_param});
+        const auto random_uniform = std::make_shared<op::v8::RandomUniform>(out_shape_const,
+                                                                            min_val_param,
+                                                                            max_val_param,
+                                                                            out_type,
+                                                                            global_seed,
+                                                                            op_seed,
+                                                                            alignment);
+        return std::make_shared<ov::Model>(random_uniform->outputs(), ParameterVector{min_val_param, max_val_param});
     }
 };
 
-TEST_P(ReferenceRandomUniformLayerTest, RandomUniformWithHardcodedRefs) {
+TEST_P(ReferenceRandomUniformLayerTest, CompareWithRefs) {
     Exec();
 }
 
@@ -588,6 +597,24 @@ INSTANTIATE_TEST_SUITE_P(
                                                      -49, 153, 119, 76,  121, 144, 12,  -1,  105, 107, -27,
                                                      141, 232, 165, 237, 125, 47,  123, -81, 242}},
                             "int64_pytorch"),
+        RandomUniformParams(std::vector<int64_t>{2, 4},
+                            reference_tests::Tensor{{1}, element::i64, std::vector<int64_t>{0}},
+                            reference_tests::Tensor{{1}, element::i64, std::vector<int64_t>{4294967300}},
+                            element::i64,
+                            12345,
+                            54321,
+                            PhilloxAlignment::PYTORCH,
+                            reference_tests::Tensor{{2, 4},
+                                                    element::i64,
+                                                    std::vector<int64_t>{737404521,
+                                                                         3716027413,
+                                                                         1306031901,
+                                                                         35197318,
+                                                                         1121750166,
+                                                                         2465874581,
+                                                                         2593594281,
+                                                                         1335862698}},
+                            "int64_pytorch_high_values"),
         RandomUniformParams(std::vector<int64_t>{7, 6},
                             reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{-100}},
                             reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{250}},

@@ -118,12 +118,19 @@ bfloat16 uint32_to_bfloat16(uint32_t x) {
 // Helper function for converting uint32 values to any T type float, using PyTorch
 // conversion method. Sets fractional part of floating value with bits from
 // uint32 value. Resulting value is in interval [0,1).
-template <typename T>
-T uint32_to_T_type_float(uint32_t x) {
-    constexpr auto mask = (1U << std::numeric_limits<float>::digits) - 1;
-    constexpr auto divisor = static_cast<float>(1) / static_cast<float>(1U << std::numeric_limits<float>::digits);
+template <typename T, typename V>
+PytorchAccumulatorType<T> uint32_to_T_type_float(V x) {
+    const auto mask = static_cast<V>((1UL << std::numeric_limits<T>::digits) - 1);
+    const auto divisor = static_cast<PytorchAccumulatorType<T>>(1) / (1UL << std::numeric_limits<T>::digits);
     PytorchAccumulatorType<T> ret = (x & mask) * divisor;
-    return static_cast<T>(ret);
+    return ret;
+}
+
+float uint32_to_bfloat16_pytorch(uint32_t x) {
+    const auto mask = static_cast<uint32_t>((1UL << 8) - 1);
+    const auto divisor = static_cast<PytorchAccumulatorType<ov::bfloat16>>(1) / (1UL << 8);
+    PytorchAccumulatorType<ov::bfloat16> ret = (x & mask) * divisor;
+    return ret;
 }
 
 // Converts uint32 values to destination type and normalizes to required range.
@@ -321,7 +328,20 @@ PyTorchPhilloxConverter::PyTorchPhilloxConverter(char* out,
 size_t PyTorchPhilloxConverter::get_converted_elements_count() const {
     // PyTorch uses one uint32_t value per generated output
     // except for int64 only
-    return m_elem_type == element::i64 ? 2 : 4;
+    if (m_elem_type.size() > 4) {
+        int64_t mn[1];
+        int64_t mx[1];
+        memcpy(mn, m_min_val, m_elem_type.size());
+        memcpy(mx, m_max_val, m_elem_type.size());
+
+        if (mn[0] <= std::numeric_limits<uint32_t>::max() && mx[0] <= std::numeric_limits<uint32_t>::max()) {
+            return 4;
+        }
+        return 2;
+    }
+    return 4;
+    // return m_elem_type.size() > 4 ? 2 : 4;
+    // return m_elem_type == element::i64 ? 2 : 4;
 }
 
 void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
@@ -337,7 +357,7 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
                                       m_out,
                                       idx,
                                       m_elem_count,
-                                      uint32_to_T_type_float<float>);
+                                      uint32_to_T_type_float<float, uint32_t>);
         break;
     }
     case element::Type_t::f16: {
@@ -350,7 +370,12 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
                                         m_out,
                                         idx,
                                         m_elem_count,
-                                        uint32_to_T_type_float<ov::float16>);
+                                        nullptr,
+                                        nullptr,
+                                        [](uint32_t x, float16 mn, float16 mx) {
+                                            auto x_conv = uint32_to_T_type_float<float16, uint32_t>(x);
+                                            return static_cast<float16>(x_conv * (mx - mn) + mn);
+                                        });
         break;
     }
     case element::Type_t::bf16: {
@@ -363,7 +388,12 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
                                          m_out,
                                          idx,
                                          m_elem_count,
-                                         uint32_to_T_type_float<ov::bfloat16>);
+                                         nullptr,
+                                         nullptr,
+                                         [](uint32_t x, bfloat16 mn, bfloat16 mx) {
+                                             auto x_conv = uint32_to_bfloat16_pytorch(x);
+                                             return bfloat16(x_conv * (mx - mn) + mn);
+                                         });
         break;
     }
     case element::Type_t::f64: {
@@ -376,7 +406,11 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
                                        m_out,
                                        idx,
                                        m_elem_count,
-                                       uint32_to_T_type_float<double>);
+                                       nullptr,
+                                       [](uint32_t a, uint32_t b, double mn, double mx) {
+                                           uint64_t val = unite_high_low(a, b);
+                                           return uint32_to_T_type_float<double, uint64_t>(val) * (mx - mn) + mn;
+                                       });
         break;
     }
     case element::Type_t::i32: {
@@ -392,24 +426,42 @@ void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
                                     nullptr,
                                     nullptr,
                                     [](uint32_t x, int mn, int mx) {
-                                        return static_cast<int>(x % (mx - mn) + mn);
+                                        return static_cast<int>((x) % (mx - mn) + mn);
                                     });
         break;
     }
     case element::Type_t::i64: {
-        convert_to_output_type<int64_t>(result,
-                                        m_uints_generated_per_exec,
-                                        get_converted_elements_count(),
-                                        m_elem_type,
-                                        m_min_val,
-                                        m_max_val,
-                                        m_out,
-                                        idx,
-                                        m_elem_count,
-                                        nullptr,
-                                        [](uint32_t a, uint32_t b, int64_t mn, int64_t mx) {
-                                            return static_cast<int64_t>(unite_high_low(b, a) % (mx - mn) + mn);
-                                        });
+        if (get_converted_elements_count() == 4) {
+            convert_to_output_type<int64_t>(result,
+                                            m_uints_generated_per_exec,
+                                            get_converted_elements_count(),
+                                            m_elem_type,
+                                            m_min_val,
+                                            m_max_val,
+                                            m_out,
+                                            idx,
+                                            m_elem_count,
+                                            nullptr,
+                                            nullptr,
+                                            [](uint32_t x, int64_t mn, int64_t mx) {
+                                                return (static_cast<int64_t>(x) % (mx - mn)) + mn;
+                                            });
+        } else {
+            convert_to_output_type<int64_t>(result,
+                                            m_uints_generated_per_exec,
+                                            get_converted_elements_count(),
+                                            m_elem_type,
+                                            m_min_val,
+                                            m_max_val,
+                                            m_out,
+                                            idx,
+                                            m_elem_count,
+                                            nullptr,
+                                            [](uint32_t a, uint32_t b, int64_t mn, int64_t mx) {
+                                                auto val = unite_high_low(a, b);
+                                                return static_cast<int64_t>(val % (mx - mn)) + mn;
+                                            });
+        }
         break;
     }
     default:
