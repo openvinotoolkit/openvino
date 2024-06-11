@@ -396,8 +396,8 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
 
     ASSERT_NE(program, nullptr);
 
-    // auto& dft_node = program->get_node("rdft");
-    // ASSERT_EQ(size_t(4), format::dimension(dft_node.get_input_layouts()[0].format));
+    auto& dft_node = program->get_node("rdft");
+    ASSERT_EQ(size_t(4), format::dimension(dft_node.get_input_layouts()[0].format));
 }
 
 TEST(reorder_inputs, insert_reorder_between_single_output_type_node_and_multiple_fc_nodes) {
