@@ -37,13 +37,22 @@ class JaxprPythonDecoder (Decoder):
                 - `aval`: the abstract value.
         - `Literal`: the literal object that contains the value of the constants.
     '''
+    
     def __init__(self, jaxpr, name=None, literals=None):
+        '''
+        Inputs: 
+            - jaxpr: for users, `ClosedJaxpr` is expected here. See https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L197
+            - name: the name for the model.
+            - literals: the literals (constants) that are used in the model.
+        '''
         Decoder.__init__(self)
         
         if isinstance(jaxpr, (jax.core.JaxprEqn, jax.core.Jaxpr, jax.core.Var)):
             self.jaxpr = jaxpr
         elif isinstance(jaxpr, jax.core.ClosedJaxpr):
+            # Take the `Jaxpr` from `ClosedJaxpr`, see https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L85
             self.jaxpr = jaxpr.jaxpr
+            # Literal should be a `Jax.core.Var`, see https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L85
             self.literals = jaxpr.literals
         else:
             raise ValueError(f"Unexpected type of jaxpr: {type(jaxpr)}")
@@ -60,6 +69,7 @@ class JaxprPythonDecoder (Decoder):
         if isinstance(self.jaxpr, jax.core.Var):
             return []
         else:
+            
             return [id(v) for v in self.jaxpr.invars]
     
     def input(self, idx: int) -> int:
@@ -105,6 +115,7 @@ class JaxprPythonDecoder (Decoder):
             decoder = JaxprPythonDecoder(node, name=self.name + "/" + f"const({id(node)})", literals=self.literals[idx])
             self.m_decoders.append(decoder)
             node_visitor(decoder)
+        # Visit every `JaxEqn` in the jaxpr, see https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L285
         for node in self.jaxpr.eqns:
             decoder = JaxprPythonDecoder(node, name=self.name + "/" + node.primitive.name)
             self.m_decoders.append(decoder)
