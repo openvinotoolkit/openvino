@@ -127,7 +127,8 @@ jobs:
           test_filter=''
           if [[ "${{ inputs.test_type }}" == "unit" ]]; then
             # Tickets: 138018, 143677
-            test_filter="$(cat ./test_utils/.github/skip_test/ubuntu22/gpu/unit_test_skip_list.txt)"
+            test_filter=$(python3 -c "skip_list = open('./test_utils/.github/skip_test/ubuntu22/gpu/unit_test_skip_list.txt').read(); print(skip_list.replace('\n', ''))")
+            # test_filter="$(cat ./test_utils/.github/skip_test/ubuntu22/gpu/unit_test_skip_list.txt)"
           else
             test_filter='*smoke*'
           fi
