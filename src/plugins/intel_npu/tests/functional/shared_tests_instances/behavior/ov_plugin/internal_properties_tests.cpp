@@ -155,7 +155,8 @@ const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
     {{ov::intel_npu::compilation_mode_params.name(), "dump-task-stats=false propagate-quant-dequant=0"}},
     {{ov::intel_npu::platform.name(),
-      removeDeviceNameOnlyID(getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
+      removeDeviceNameOnlyID(
+          ov::test::utils::getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
     {{ov::intel_npu::stepping.name(), 0}},
     {{ov::intel_npu::max_tiles.name(), 2}},
     {{ov::intel_npu::use_elf_compiler_backend.name(), ov::intel_npu::ElfCompilerBackend::NO}},
