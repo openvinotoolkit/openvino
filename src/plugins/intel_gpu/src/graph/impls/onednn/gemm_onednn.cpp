@@ -128,26 +128,31 @@ protected:
             in1_strides = onednn::get_strides(in1_padded_dims);
         }
 
+        // Check whether transpose_order increase sequential or not.
+        // Return true when transpose_order is not 0, 1, 2, 3.
+        auto has_transpose_order = [](std::vector<int64_t> transpose_order) {
+            for (size_t i = 0; i < transpose_order.size(); i++) {
+                if (i != static_cast<size_t>(transpose_order[i])) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
         if (batched_dims_can_be_removed) {
-            if (prim->transpose_input0) {
+            if (has_transpose_order(prim->input0_transpose_order)) {
                 in0_fmt = transpose_format(in0_fmt);
                 std::swap(in0_dims[in0_dims.size() - 1], in0_dims[in0_dims.size() - 2]);
             }
-            if (prim->transpose_input1) {
+            if (has_transpose_order(prim->input1_transpose_order)) {
                 in1_fmt = transpose_format(in1_fmt);
                 std::swap(in1_dims[in1_dims.size() - 1], in1_dims[in1_dims.size() - 2]);
             }
+            if (has_transpose_order(prim->output_transpose_order)) {
+                out_fmt = transpose_format(out_fmt);
+                std::swap(out_dims[out_dims.size() - 1], out_dims[out_dims.size() - 2]);
+            }
         } else {
-            // Check whether transpose_order increase sequential or not.
-            // Return true when transpose_order is not 0, 1, 2, 3.
-            auto has_transpose_order = [](std::vector<int64_t> transpose_order) {
-                for (size_t i = 0; i < transpose_order.size(); i++) {
-                    if (i != static_cast<size_t>(transpose_order[i])) {
-                        return true;
-                    }
-                }
-                return false;
-            };
             auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
                                                     dnnl::memory::dims& dims,
                                                     dnnl::memory::format_tag& tag,
@@ -176,7 +181,9 @@ protected:
                         dims[i] = original_dims[order[i]];
                     }
                 } else {
-                    OPENVINO_ASSERT(false, "[GPU] Can't find fusable transpoed format: ", transposed_format.to_string());
+                    std::ostringstream ostream;
+                    std::copy(order.begin(), order.end() - 1, std::ostream_iterator<size_t>(ostream, ", "));
+                    OPENVINO_ASSERT(false, "[GPU] Can't find fusable transpoed format: ", ostream.str());
                 }
             };
             if (has_transpose_order(prim->input0_transpose_order)) transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_fmt);
