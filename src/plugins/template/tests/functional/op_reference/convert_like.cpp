@@ -115,7 +115,7 @@ INSTANTIATE_TEST_SUITE_P(
                       ov::PartialShape{11},
                       ov::element::f4e2m1,
                       ov::element::bf16,
-                      // only one nibble got value others are be 0
+                      // Unpacked data only first nibble got value, the other is 0
                       std::vector<float4_e2m1>{0.0f, -1.0f, -0.5f, 6.0f, -4.0f, 1.5f},
                       std::vector<bfloat16>{0.0f, 0.0f, -1.0f, 0.0f, -0.5f, 0.0f, 6.0f, 0.0f, -4.0f, 0.0f, 1.5f}),
 
