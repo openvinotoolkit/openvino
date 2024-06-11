@@ -49,7 +49,7 @@ TransposeDecomposition::TransposeDecomposition() {
         const auto transpose = ov::as_type_ptr<ov::opset1::Transpose>(pattern_to_output.at(match_transpose).get_node_shared_ptr());
 
         const auto order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(match_order).get_node_shared_ptr());
-        if (transformation_callback(transpose) || transpose->is_dynamic())
+        if (transformation_callback(transpose))
             return false;
 
         auto order_value = order->cast_vector<int>();
@@ -65,10 +65,14 @@ TransposeDecomposition::TransposeDecomposition() {
         auto load = std::make_shared<snippets::op::LoadReshape>(data_input, subtensor[0], 0, layout);
         auto store = std::make_shared<snippets::op::Store>(load, subtensor[0]);
 
-        PortDescriptorUtils::set_port_descriptor_ptr(load->input(0), std::make_shared<PortDescriptor>(load->get_input_shape(0), subtensor, layout));
-        PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), std::make_shared<PortDescriptor>(load->get_output_shape(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(store->input(0), std::make_shared<PortDescriptor>(store->get_input_shape(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), std::make_shared<PortDescriptor>(store->get_output_shape(0), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(load->input(0),
+            std::make_shared<PortDescriptor>(utils::pshape_to_vdims(load->get_input_partial_shape(0)), subtensor, layout));
+        PortDescriptorUtils::set_port_descriptor_ptr(load->output(0),
+            std::make_shared<PortDescriptor>(utils::pshape_to_vdims(load->get_output_partial_shape(0)), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(store->input(0),
+            std::make_shared<PortDescriptor>(utils::pshape_to_vdims(store->get_input_partial_shape(0)), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(store->output(0),
+            std::make_shared<PortDescriptor>(utils::pshape_to_vdims(store->get_output_partial_shape(0)), subtensor));
 
         for (auto& input : transpose->output(0).get_target_inputs()) {
             input.replace_source_output(store->output(0));
