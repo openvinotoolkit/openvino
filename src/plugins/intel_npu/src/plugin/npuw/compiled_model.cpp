@@ -530,9 +530,6 @@ ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& subm
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
-    if (ov::npuw::util::starts_with(device, "NPU")) {
-        device_config.insert(ov::intel_npu::from_npuw("YES"));
-    }
     return core->compile_model(submodel, device, device_config);
 }
 
@@ -674,10 +671,8 @@ void ov::npuw::CompiledModel::implement_properties() {
     // 1.
     m_prop_to_opt = {
         BIND(use_npuw, NPU_USE_NPUW),
-        BIND(from_npuw, NPU_FROM_NPUW),
         BIND(npuw::devices, NPUW_DEVICES),
         BIND(npuw::submodel_device, NPUW_SUBMODEL_DEVICE),
-        BIND(npuw::num_submodels, NPUW_NUM_SUBMODELS),
         BIND(npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE),
         BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
         BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
@@ -695,8 +690,8 @@ void ov::npuw::CompiledModel::implement_properties() {
         BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
         BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
         BIND(npuw::dump::full, NPUW_DUMP_FULL),
-        BIND(npuw::dump::subgraph, NPUW_DUMP_SUBS),
-        BIND(npuw::dump::subgraph_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
+        BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
+        BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
         BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
         BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
     };

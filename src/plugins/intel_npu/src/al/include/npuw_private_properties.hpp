@@ -11,20 +11,11 @@ namespace intel_npu {
 /**
  * @brief
  * Type: bool
- * This option is set automatically by the NPUW part when the compile_model request comes to NPU plugin from the NPUW to compile subgraphs on NPU
+ * Set this option to true to utilize NPUW extension
  * Possible values: true, false
  * Default value: false
  */
 static constexpr ov::Property<std::string> use_npuw{"NPU_USE_NPUW"};
-
-/**
- * @brief [Only for internal use!]
- * Type: bool
- * This option is set automatically by the NPUW part when the compile_model request comes to NPU plugin from the NPUW to compile subgraphs on NPU
- * Possible values: true, false
- * Default value: false
- */
-static constexpr ov::Property<std::string> from_npuw{"NPU_FROM_NPUW"};
 
 namespace npuw {
 /**
@@ -40,21 +31,11 @@ static constexpr ov::Property<std::string> devices{"NPUW_DEVICES"};
  * @brief
  * Type: std::string.
  * Force the specific subgraph to specific device. The device must be present in the NPUW_DEVICES list.
- * Possible values: Comma-separate "Subgraph index:OpenVINO device name" pairs,
+ * Possible values: Comma-separated "Subgraph index:OpenVINO device name" pairs,
  * e.g. "0:CPU,1:NPU".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE"};
-
-/**
- * @brief
- * Type: std::size_t.
- * Number of created submodels.
- * Read-only.
- * Possible values: Integer > 0.
- * Default value: none.
- */
-static constexpr ov::Property<std::size_t> num_submodels{"NPUW_NUM_SUBMODELS"};
 
 namespace partitioning {
 namespace online {
@@ -63,7 +44,7 @@ namespace online {
  * Type: std::string.
  * Specify which partitioning pipeline to run.
  * Possible values: "INIT", "JUST", "REP".
- * Default value: "JUST".
+ * Default value: "REP".
  */
 static constexpr ov::Property<std::string> pipeline{"NPUW_ONLINE_PIPELINE"};
 
@@ -71,7 +52,7 @@ static constexpr ov::Property<std::string> pipeline{"NPUW_ONLINE_PIPELINE"};
  * @brief
  * Type: std::string.
  * Forbids operation(s) and/or predefined pattern(s) to compile and run on a
- * specified device. Only compatible with online partitioning (see `NPUW_USE_ONLINE_PART`).
+ * specified device. Only compatible with online partitioning.
  * Possible values: comma-separated list of operations slash device, e.g.
  *                  "Op:Select/NPU,P:RMSNorm/NPU".
  * Default value: empty.
@@ -226,7 +207,7 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * subgraphs, e.g. "0,1" or "YES".
  * Default value: empty.
  */
-static constexpr ov::Property<std::string> subgraph{"NPUW_DUMP_SUBS"};
+static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
 
 /**
  * @brief
@@ -236,7 +217,7 @@ static constexpr ov::Property<std::string> subgraph{"NPUW_DUMP_SUBS"};
  * subgraphs, e.g. "0,1" or "YES".
  * Default value: empty.
  */
-static constexpr ov::Property<std::string> subgraph_on_fail{"NPUW_DUMP_SUBS_ON_FAIL"};
+static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_FAIL"};
 
 /**
  * @brief

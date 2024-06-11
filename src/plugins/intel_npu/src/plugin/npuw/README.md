@@ -43,96 +43,79 @@ memory.
 
 Running the NPU with NPUW is easy, just keep using the `NPU`
 as the device name in arguments to `compile_model()` / `benchmark_app`
-and so on -- but set `OV_USE_NPUW=YES` in your environment variables
-first.
+and so on -- but additionally set the `"NPU_USE_NPUW" : "YES"` (Python)
+or `ov::intel_npu::use_npuw(true)` (C++) property to them.
 
 Currently it may not show anything special when ran "as-is". It
 requires options to show some magic, see below.
 
 ## Options
 
-Currently NPUW extension is configured via environment variables. It is
-not very great in terms of usability, but in fact allows us to
-configure the NPUW behavior in a non-invasive way, especially when it
-is hidden behind a number of abstraction layers in the application or
-notebook.
+NPUW extension is configured via options, that can be passed to
+`compile_model()` as OpenVINO properties.
+You may find the table with options/properties and their meanings
+in [Option reference](#option-reference).
 
 ### Naming conventions
 
-Currently all NPUW environment variables start with prefix
-`OPENVINO_NPUW_`. The following part is the option name. Some options
-may apply only globally, but some options may apply to specific models
-(in multi-model applications) or even to specific model
-subgraphs. Such models will be highlighed in the below configuration
-table.
-- If an option `$OPTIONNAME` can be applied to a particular model,
-  then it can be set via `OPENVINO_NPUW_$OPTIONNAME_$MODELNAME`, where
-  `$MODELNAME` is defined in the OpenVINO model IR (or set via
-  `set_friendly_name()` in runtime), e.g.:
-
-  ```bash
-  $ head -n2 decoder_model.xml
-  <?xml version="1.0"?>
-  <net name="torch_jit_dec_int4" version="11">
-  $ head -n2 decoder_with_past_model.xml
-  <?xml version="1.0"?>
-  <net name="Model0_dec_int4" version="11">
-  ```
-  Here model names are `torch_jit_dec_int4` and `Model0_dec_int4`,
-  respectively.
-- If an option `$OPTIONNAME` can be applied to a particular sub-model,
-  then it can be set via `OPENVINO_NPUW_$OPTIONNAME_$MODELNAME_$IDX`,
-  where `$MODELNAME` is the same as defined before, and `$IDX` is a
-  numeric *zero-based* index of a submodel.
-
-Examples:
-
-| Option                                     | Meaning                                                                                     |
-|--------------------------------------------|---------------------------------------------------------------------------------------------|
-| `set OPENVINO_NPUW_LOG=INFO`               | A global option, set the current log level to `INFO`                                        |
-| `set OPENVINO_NPUW_DEVICES_Model0=GPU,CPU` | A model-specific option, set device list to try for `Model0` to `GPU,CPU`                   |
-| `set OPENVINO_NPUW_DEVICE_Model0_3=CPU`    | A sub-model-specific option, force the device to `CPU` for the fourth subgraph of `Model0`. |
-
+Almost all NPUW options start with `NPUW_` prefix in Python or `ov::intel_npu::npuw::`
+namespace in C++. The remaining part is the option name.
+All options work on a per model basis and are applied to that compiled model,
+to which compilation routine they are passed. However, there are options, like
+`NPUW_SUBMODEL_DEVICE` (Python) or `ov::intel_npu::npuw::submodel_device()` (C++),
+that accepts values for specific subgraphs of the model. For example,
+`"0:NPU,1:CPU"` is a possible value meaning that subgraph 0 should work on NPU
+and subgraph 1 - on CPU. So, subgraph level fine-tuning is also available.
 
 ### Option reference
 
-In the table below, for brevity, the following codes are used to
-denote the supported scope for an option:
+Here, for brevity, only text version of properties is preserved.
+You can refer to src/plugins/intel_npu/src/al/include/npuw_private_properties.hpp
+for full `ov::Property` descriptions.
 
-* `G` - this is a global option (applies to entire plugin, all models
-  and submodels)
-* `M` - this option may be specified per-model.
-* `S` - this option may be specifed per-sub-model.
 
-Combinations are also possible.
+| Option (Python)            | Possible values                                               | Default Value | Meaning                                                                                                                                    |
+|----------------------------|---------------------------------------------------------------|---------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| `"NPU_USE_NPUW"`           | `"YES"`, `"NO"`                                               | `"NO"`        | Set this option to `YES` to utilize NPUW extension.                                                                                        |
+| `"NPUW_DEVICES"`           | List of devices                                               | `"NPU,CPU"`   | Device list to try in order.                                                                                                               |
+| `"NPUW_SUBMODEL_DEVICE"`   | List of "Subgraph idx: device"                                | `""`          | Force the specific subgraph to specific device. The device must be present in the `"NPUW_DEVICES"` list.                                   |
+| `"NPUW_ONLINE_PIPELINE"`   | `"INIT"`, `"JUST"`, `"REP"`                                   | `"REP"`       | Specify which partitioning pipeline to run.                                                                                                |
+| `"NPUW_ONLINE_AVOID"`      | E.g., `"Op:Select/NPU,P:RMSNorm/NPU"`                         | `""`          | Forbids operation(s) and/or predefined pattern(s) to compile and run on a specified device.                                                |
+| `"NPUW_ONLINE_MIN_SIZE"`   | Integer > `10`                                                | `10`          | Lower boundary of partition graph size the plugin can generate. Used to control fusion term criteria in online partitioning.               |
+| `"NPUW_ONLINE_DUMP_PLAN"`  |  `"path-to-file.xml"`                                         | `""`          | Dump online partitioning to the specified file. This partitioning can be reused via `NPUW_PLAN` property later.                            |
+| `"NPUW_PLAN"`              | `"path-to-file.xml"`                                          | `""`          | Set plan file to use by offline partitioning.                                                                                              |
+| `"NPUW_FOLD"`              | `"YES"`, `"NO"`                                               | `"NO"`        | Perform function call folding if there are repeating blocks in the graph.                                                                  |
+| `"NPUW_CWAI"`              | `"YES"`, `"NO"`                                               | `"NO"`        | Cut-off weighs from repeating blocks, but don't do folding. Decompression cut-off may still happen. Conflicts with `"NPUW_FOLD"`           |
+| `"NPUW_DCOFF_TYPE"`        | `"f16"`, `"i8"`                                               | `""`          | Promotional data type for weights decompression. Works only with function `"NPUW_FOLD"`ing.                                                |
+| `"NPUW_DCOFF_SCALE"`       | `"YES"`, `"NO"`                                               | `"NO"`        | Include weights scaling into the decompression procedure (and exclude it from function bodies). Works only with function `"NPUW_FOLD"`ing. |
+| `"NPUW_FUNCALL_FOR_ALL"`   | `"YES"`, `"NO"`                                               | `"NO"`        | Every subgraph will be turned into a function. Warning: May cause performance issues!                                                      |
+| `"NPUW_PARALLEL_COMPILE"`  | `"YES"`, `"NO"`                                               | `"NO"`        | Employ parallel subgraph compilation. Disabled by default due to instaibilities.                                                           |
+| `"NPUW_FUNCALL_ASYNC"`     | `"YES"`, `"NO"`                                               | `"NO"`        | Pipeline execution of functions (repeating blocks) and their prologues (e.g., where weights decompression may happen).                     |
+| `"NPUW_ACC_CHECK"`         | `"YES"`, `"NO"`                                               | `"NO"`        | Enable accuracy check for inference to make infer requests tolerant to accuracy fails                                                      |
+| `"NPUW_ACC_THRESH" : 0.01` | Double floating-point value from `0.0` to `1.0`.              | `0.01`        | Threshold for accuracy validators, to indicate that metric returns successfull comparison.                                                 |
+| `"NPUW_ACC_DEVICE"`        | Device name                                                   | `""`          | Reference device, giving accurate results for given model(s).                                                                              |
+| `"NPUW_DUMP_FULL"`         | `"YES"`, `"NO"`                                               | `"NO"`        | Dump the whole model in its original form (as plugin gets it, before any partitioning is done).                                            |
+| `"NPUW_DUMP_SUBS"`         | Comma-separated list of subgraph indices  or `"YES"` for all. | `""`          | Dump the specified subgraph(s) in OpenVINO IR form in the current directory.                                                               |
+| `"NPUW_DUMP_SUBS_ON_FAIL"` | Comma-separated list of subgraph indices  or `"YES"` for all. | `""`          | Dump the specified subgraph(s) on disk if a compilation failure happens.                                                                   |
+| `"NPUW_DUMP_IO"`           | Comma-separated list of subgraph indices  or `"YES"` for all. | `""`          | Dump input & output tensors for subgraph(s).                                                                                               |
+| `"NPUW_DUMP_IO_ITERS"`     | `"YES"`, `"NO"`                                               | `"NO"`        | Dump input & output tensors for subgraph(s) for every iteration. WARNING: may exhaust the disk space quickly.                              |
 
-| Option                          | Scope       | Possible values                    | Default Value | Meaning                                                                                                                                                                 |
-|---------------------------------|-------------|------------------------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `OPENVINO_NPUW_CWAI`            | `G`,`M`     | `YES`                              | (no)          | Cut-off weighs from repeating blocks, but don't do folding. Decompression cut-off may still happen. Conflicts with `FOLD`.                                              |
-| `OPENVINO_NPUW_DCOFF_SCALE`     | `G`,`M`     | `YES`                              | (no)          | Include weights scaling into the decompression procedure (and exclude it from function bodies). Works only with function `FOLD`ing.                                     |
-| `OPENVINO_NPUW_DCOFF`           | `G`,`M`     | `i8`, `f16`                        | (no)          | Promotional data type for weights decompression. Works only with function `FOLD`ing.                                                                                    |
-| `OPENVINO_NPUW_DEVICES`         | `G`, `M`    | Comma-separated list               | `NPU,CPU`     | Device list to try in order. E.g., `NPU,GPU,CPU`.                                                                                                                       |
-| `OPENVINO_NPUW_DEVICE`          | `S`         | OpenVINO device name               | (none)        | Force the specific subgraph to specific device. The device must be present in the `NPUW_DEVICES` list.                                                                  |
-| `OPENVINO_NPUW_DUMP_IO`         | `G`,`M`,`S` | `YES`                              | (no)          | Dump input & output tensors for subgraph(s).                                                                                                                            |
-| `OPENVINO_NPUW_DUMP_IO_ITERS`   | `G`,`M`,`S` | `YES`                              | (no)          | Dump input & output tensors for subgraph(s) for every iteration. Warning: may exhaust the disk space quickly.                                                           |
-| `OPENVINO_NPUW_DUMP_ON_FAIL`    | `G`,`M`,`S` | `YES`                              | (no)          | Dump a submodel on disk if a compilation failure happens.                                                                                                               |
-| `OPENVINO_NPUW_DUMP_SUB`        | `G`,`M`,`S` | `YES`                              | (no)          | Dump the specified subgraph(s) in OpenVINO IR form in the current directory.                                                                                            |
-| `OPENVINO_NPUW_DUMP_PLAN`       | `G`,`M`     | `YES`                              | (no)          | Dump online partitioning in the current directory. The partitioning can be used as an offline one later (see `OPENVINO_NPUW_PLAN`).                                     |
-| `OPENVINO_NPUW_DUMP`            | `G`,`M`     | `YES`                              | (no)          | Dump the whole model in its original form (as plugin gets it, before any partitioning is done).                                                                         |
-| `OPENVINO_NPUW_FOLD`            | `G`,`M`     | `YES`                              | (no)          | Perform function call folding if there's repeating blocks in the graph.                                                                                                 |
-| `OPENVINO_NPUW_LOG_LEVEL`       | `G`         | (See log levels)                   | (no)          | Set the log verbosity level. Same as `OPENVINO_NPUW_LOG`.                                                                                                               |
-| `OPENVINO_NPUW_LOG`             | `G`         | (See log levels)                   | (no)          | Set the log verbosity level.                                                                                                                                            |
-| `OPENVINO_NPUW_PARC_GRAPH_SIZE` | `G`,`M`     | Integer >= 10                      | 10            | Lower boundary of partition graph size the plugin can generate. Used to control fusion term criteria. Works with `USE_PARC` only.                                       |
-| `OPENVINO_NPUW_PARC_PIPELINE`   | `G`,`M`     | `INIT`,`JUST`                      | `JUST`        | Specify which partitioning pipeline to run.                                                                                                                             |
-| `OPENVINO_NPUW_AVOID`           | `G`,`M`     | e.g. `Op:Select/NPU,P:RMSNorm/NPU` | (none)        | Forbids operation(s) and/or predefined pattern(s) compiling and running on a specified device. Only compatible with online partitioning (see `OPENVINO_NPUW_USE_PARC`). |
-| `OPENVINO_NPUW_PARC`            | `G`,`M`     | `YES`                              | (no)          | Employ parallel subgraph compilation. Disabled by default due to instaibilities.                                                                                        |
-| `OPENVINO_NPUW_PLAN`            | `G`,`M`     | Path to .xml file                  | (no)          | Pre-defined partitioning plan file to use.                                                                                                                              |
-| `OPENVINO_NPUW_USE_PARC`        | `G`,`M`     | `YES`                              | (no)          | Use online partitioning by default (`_PLAN` option is ignored in this case).                                                                                            |
-| `OPENVINO_NPUW_FUNCALL_ASYNC`   | `G`,`M`     | `YES`                              | (no)          | Pipeline execution of functions (repeating blocks) and their prologues (e.g., where weights decompression may happen).                                                  |
+NOTE: `"YES/NO"`values above are to be used in Python.
+For C++ namespace please use `true/false` values
+within the `ov::intel_npu::npuw` namespace.
 
-The following log levels are available: `ERROR`, `WARNING`, `INFO`,
+## Logging
+
+There is a possibility to turn on logging via environment variables:
+`OPENVINO_NPUW_LOG` and `OPENVINO_NPUW_LOG_LEVEL`. They are both
+absolutely the same.
+
+They can accept following values: `ERROR`, `WARNING`, `INFO`,
 `DEBUG`, `YES`. Every next level in the list includes the previous
 one. `YES` equals to `DEBUG`.
+
+For example: `set OPENVINO_NPUW_LOG=INFO` enables detailed logging
+of processes underlying NPUW.
 
 ## Contacts
 

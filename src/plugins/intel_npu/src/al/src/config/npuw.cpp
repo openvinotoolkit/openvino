@@ -13,10 +13,8 @@ using namespace ov::intel_npu;
 
 void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPU_USE_NPUW>();
-    desc.add<NPU_FROM_NPUW>();
     desc.add<NPUW_DEVICES>();
     desc.add<NPUW_SUBMODEL_DEVICE>();
-    desc.add<NPUW_NUM_SUBMODELS>();
     desc.add<NPUW_ONLINE_PIPELINE>();
     desc.add<NPUW_ONLINE_AVOID>();
     desc.add<NPUW_ONLINE_MIN_SIZE>();

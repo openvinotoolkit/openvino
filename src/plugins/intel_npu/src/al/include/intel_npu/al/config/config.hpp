@@ -48,6 +48,7 @@ TYPE_PRINTER(unsigned int)
 TYPE_PRINTER(int64_t)
 TYPE_PRINTER(double)
 TYPE_PRINTER(std::string)
+TYPE_PRINTER(std::size_t)
 
 //
 // OptionParser

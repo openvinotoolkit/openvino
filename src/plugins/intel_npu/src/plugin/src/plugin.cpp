@@ -563,17 +563,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // ... 2 - this request is NOT coming from NPUW,
     // activate the NPUW path
     auto localProperties = properties;
-    auto useNpuwKey = NPU_USE_NPUW::key().data();
-    auto fromNpuwKey = NPU_FROM_NPUW::key().data();
+    auto useNpuwKey = ov::intel_npu::use_npuw.name();
     if (localProperties.count(useNpuwKey) &&
-        localProperties.at(useNpuwKey).as<bool>() == true &&
-        localProperties.count(fromNpuwKey) == 0) {
+        localProperties.at(useNpuwKey).as<bool>() == true) {
             return std::make_shared<ov::npuw::CompiledModel>
                 (model->clone(), shared_from_this(),
                  localProperties);
-    } else if (localProperties.count(fromNpuwKey)) {
-        OPENVINO_ASSERT(localProperties.count(useNpuwKey) == 0);
-        localProperties.erase(fromNpuwKey);
     }
 
     auto localConfig = merge_configs(_globalConfig, any_copy(localProperties));
