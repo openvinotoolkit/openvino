@@ -47,7 +47,7 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));
     const auto outer_inc = blocked_wa;
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_input_ports, loop_output_ports);
-    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports);
+    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports, true, true);
     const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_input_ports, loop_output_ports);
     const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto outer_tail_size = outer_wa % outer_inc;

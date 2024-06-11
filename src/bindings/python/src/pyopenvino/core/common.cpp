@@ -29,6 +29,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
         {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
+        {ov::element::f4e2m1, py::dtype("uint8")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -433,10 +434,14 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
     if (array_helpers::is_contiguous(array)) {
-        auto memory = std::make_shared<ov::SharedBuffer<py::array>>(
+        auto buffer = new ov::SharedBuffer<py::array>(
             static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
+        std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
+            py::gil_scoped_acquire acquire;
+            delete buffer;
+        });
         return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
@@ -614,7 +619,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        auto t = request.m_request.get_tensor(out);
+        auto t = request.m_request->get_tensor(out);
         if (t.get_element_type() == ov::element::string) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);
