@@ -18,6 +18,11 @@ namespace ov {
 namespace test {
 
 struct TestDType {
+    TestDType(float v) : value{v} {}
+
+    template <typename I>
+    explicit TestDType(I v) : value{static_cast<float>(v)} {}
+
     operator float() const {
         return value;
     }
@@ -402,7 +407,7 @@ TEST(constant, int4_write_then_cast_custom_type) {
     std::vector<TestDType> input{{1.0f}, {-2.0f}, {7.0f}};
     ov::op::v0::Constant c(element::i4, shape, input);
 
-    auto v = c.cast_vector<int8_t>();
+    auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(1, -2, 7));
@@ -835,7 +840,7 @@ TEST(constant, uint1_write_then_cast_custom_type) {
     std::vector<TestDType> input{{1.0f}, {0.0f}, {12.0f}};
     ov::op::v0::Constant c(element::u1, shape, input);
 
-    auto v = c.cast_vector<int8_t>();
+    auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(1, 0, 1));
@@ -921,7 +926,7 @@ TEST(constant, uint2_write_then_cast_custom_type) {
     std::vector<TestDType> input{{1.0f}, {3.0f}, {2.0f}};
     ov::op::v0::Constant c(element::u2, shape, input);
 
-    auto v = c.cast_vector<int8_t>();
+    auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(1, 3, 2));
@@ -1041,7 +1046,7 @@ TEST(constant, uint3_write_then_cast_custom_type) {
     std::vector<TestDType> input{{1.0f}, {3.0f}, {2.0f}, {6.1f}, {3.5f}};
     ov::op::v0::Constant c(element::u3, shape, input);
 
-    auto v = c.cast_vector<int8_t>();
+    auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(1, 3, 2, 6, 3));
@@ -1161,7 +1166,7 @@ TEST(constant, uint4_write_then_cast_custom_type) {
     std::vector<TestDType> input{{1.0f}, {3.0f}, {12.0f}};
     ov::op::v0::Constant c(element::u4, shape, input);
 
-    auto v = c.cast_vector<int8_t>();
+    auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(1, 3, 12));
@@ -1259,7 +1264,7 @@ TEST(constant, uint6_write_then_cast_custom_type) {
     std::vector<TestDType> input{{1.0f}, {3.0f}, {2.0f}, {6.1f}, {3.5f}};
     ov::op::v0::Constant c(element::u6, shape, input);
 
-    auto v = c.cast_vector<int8_t>();
+    auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(1, 3, 2, 6, 3));
@@ -1975,25 +1980,25 @@ TEST(constant, f4e2m1_from_float_vector) {
 
 TEST(constant, f4e2m1_vector_broadcast) {
     Shape shape{3};
-    op::v0::Constant c(element::u4, shape, std::vector<float>{1.5f});
-    auto v = c.cast_vector<uint8_t>();
+    op::v0::Constant c(element::f4e2m1, shape, std::vector<float4_e2m1>{1.5f});
+    auto v = c.cast_vector<float>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, Each(1.5f));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(0x11, p[0]);
-    EXPECT_EQ(0x01, p[1] & 0x0F);
+    EXPECT_EQ(0x33, p[0]);
+    EXPECT_EQ(0x03, p[1] & 0x0F);
 }
 
 TEST(constant, f4e2m1_write_then_cast_custom_type) {
     Shape shape{3};
-    std::vector<TestDType> input{{1.0f}, {3.0f}, {6.0f}};
-    op::v0::Constant c(element::u4, shape, input);
+    std::vector<TestDType> input{1.5f, 3.0f, 6.0f};
+    op::v0::Constant c(element::f4e2m1, shape, input);
 
-    auto v = c.cast_vector<int8_t>();
+    auto v = c.cast_vector<TestDType>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(1, 3, 6));
+    EXPECT_THAT(v, ElementsAre(1.5, 3, 6));
 }
 
 template <typename T1, typename T2>
@@ -2535,3 +2540,24 @@ TEST(constant, get_values_as) {
 }
 }  // namespace test
 }  // namespace ov
+
+namespace std {
+
+template <>
+class numeric_limits<ov::test::TestDType> {
+public:
+    static constexpr bool is_specialized = true;
+    static ov::test::TestDType min() noexcept {
+        return numeric_limits<float>::min();
+    }
+    static ov::test::TestDType max() noexcept {
+        return numeric_limits<float>::max();
+    }
+    static ov::test::TestDType lowest() noexcept {
+        return numeric_limits<float>::lowest();
+    }
+
+    static constexpr bool is_signed = true;
+    static constexpr bool is_integer = false;
+};
+}  // namespace std

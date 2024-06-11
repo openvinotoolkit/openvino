@@ -483,7 +483,11 @@ private:
         auto lp_buffer = LPBuffer<ET>(get_data_ptr());
         auto out_inserter = std::back_inserter(output);
         for (size_t i = 0; i < num_elements; ++i, ++lp_buffer) {
-            *out_inserter = lp_buffer.read();
+            using UT = typename std::decay<U>::type;
+            using LPT = decltype(lp_buffer.read());
+            using CastT = typename std::
+                conditional<!std::is_same<UT, LPT>::value && !std::is_integral<U>::value, float, LPT>::type;
+            *out_inserter = static_cast<CastT>(lp_buffer.read());
         }
     }
 
