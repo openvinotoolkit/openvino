@@ -17,6 +17,8 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -32,9 +34,9 @@ RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) :
     auto W_in = ov::pass::pattern::any_input();
     auto R_in = ov::pass::pattern::any_input();
 
-    const auto lstm_seq = ov::pass::pattern::wrap_type<ov::opset5::LSTMSequence>(
+    const auto lstm_seq = ov::pass::pattern::wrap_type<op::v5::LSTMSequence>(
         {X_in, H_in, C, S, W_in, R_in, B});
-    const auto gru_seq  = ov::pass::pattern::wrap_type<ov::opset5::GRUSequence>(
+    const auto gru_seq  = ov::pass::pattern::wrap_type<op::v5::GRUSequence>(
         {X_in, H_in,    S, W_in, R_in, B});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -188,12 +190,18 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
     if (!canBeTransformed(context, lstm)) {
         return false;
     }
+    const auto& pattern_map  = m.get_pattern_value_map();
+    const auto input_shift_it = pattern_map.find(dequantization_X);
+    const auto input_h_it = pattern_map.find(dequantization_without_subtract_H_i8);
+    if (input_shift_it != pattern_map.end() && input_h_it != pattern_map.end()) {
+        return false;
+    }
 
     for (size_t parentIndex = 0ul; parentIndex < lstm->get_input_size(); parentIndex++) {
         auto lstm_parent = lstm->get_input_node_shared_ptr(parentIndex);
         if (is_type<ov::opset1::FakeQuantize>(lstm_parent)) {
             auto fq_parent = lstm_parent->get_input_node_shared_ptr(0);
-            if (is_type<ov::opset5::Constant>(fq_parent)) {
+            if (is_type<op::v0::Constant>(fq_parent)) {
                 auto fq_node = as_type_ptr<ov::opset1::FakeQuantize>(lstm_parent);
                 const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq_node);
                 const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(lstm_parent);
