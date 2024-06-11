@@ -53,11 +53,7 @@ void compile_graph::run(program& p) {
         bool change_initial_impl = node->is_dynamic() && original_impl_type == impl_types::onednn;
 
         if (change_initial_impl) {
-            if (node->is_type<fully_connected>()) {
-                // Do not change impl (i.e. do not use ocl shape-agnostic kernels)
-                // since oneDNN primitives/kernels caching mechanism will be used instead.
-                change_initial_impl = false;
-            } else if (node->is_type<gemm>() && !disable_permute_fuse_onednn_gemm) {
+            if (node->is_type<gemm>() && !disable_permute_fuse_onednn_gemm) {
                 // permute is fused to onednn gemm. The updated memory formats are not supported by ocl this keep onednn impl
                 for (const auto& dep : node->get_dependencies()) {
                     if (dep.first->is_type<permute>() && dep.first->can_be_optimized() && !dep.first->is_runtime_skippable() &&
