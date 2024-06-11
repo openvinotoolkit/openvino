@@ -53,10 +53,6 @@ void align_eltwise_input_types(const NodeContext& context,
                                const bool& ir_rhs_python_scalar = false);
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
-void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
-                                ov::NodeVector to,
-                                const ov::NodeVector& additional_rt_info_src = {});
-
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
@@ -64,12 +60,6 @@ Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
 std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
                                                                       size_t lhs_idx,
                                                                       size_t rhs_idx);
-
-// helper ops
-Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
-                         const Output<Node>& data,
-                         const Output<Node>& mask,
-                         const Output<Node>& value);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
@@ -83,16 +73,11 @@ OutputVector inplace_op(const NodeContext& context) {
 template <OutputVector (*T)(const NodeContext&), size_t idx>
 OutputVector optional_out(const NodeContext& context) {
     auto translation_res = T(context);
-    if (!context.input_is_none(idx)) {
-        FRONT_END_OP_CONVERSION_CHECK(translation_res.size() == 1,
-                                      "inplace_op function must be used on single output translators");
-    }
     return translation_res;
 }
 
 template <typename T>
 OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
     auto res = context.mark_node(std::make_shared<T>(context.get_input(0)));
     auto out_type = context.get_output_type(0);
     if (out_type.is<element::Type>()) {
@@ -106,7 +91,6 @@ OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
 
 template <typename T>
 OutputVector translate_1to1_match_1_inputs_with_fp32_type_alignment(const NodeContext& context) {
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
     auto x = get_input_with_floating_type(context, 0);
     return {context.mark_node(std::make_shared<T>(x))};
 }
@@ -114,14 +98,12 @@ OutputVector translate_1to1_match_1_inputs_with_fp32_type_alignment(const NodeCo
 template <typename T>
 OutputVector translate_1to1_match_2_inputs(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
     return {context.mark_node(std::make_shared<T>(context.get_input(0), context.get_input(1)))};
 }
 
 template <typename T>
 OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
     auto lhs_type = context.get_input_type(0);
@@ -143,7 +125,6 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
 template <typename T, size_t idx = 0>
 OutputVector inplace_translate_1to1_match_2_inputs_align_types(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
     // For inplace op we know direction of type alignment

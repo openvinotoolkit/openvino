@@ -36,7 +36,6 @@ public:
     void set_tensor_value(const frontend::Place::Ptr& place, const void* value) override;
     void override_all_outputs(const std::vector<frontend::Place::Ptr>& outputs) override;
     void override_all_inputs(const std::vector<frontend::Place::Ptr>& inputs) override;
-    const std::string& decoder_type_name() const;
     std::shared_ptr<JaxDecoder> get_decoder() const;
 
 private:

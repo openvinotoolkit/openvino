@@ -4,7 +4,7 @@
 
 #include "op_table.hpp"
 
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset14.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -20,7 +20,7 @@ OP_CONVERTER(translate_constant);
 
 // Supported ops for Jaxpr
 const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
-    return {{"add", op::translate_1to1_match_2_inputs<opset10::Add>}, {"constant", op::translate_constant}};
+    return {{"add", op::translate_1to1_match_2_inputs<opset14::Add>}, {"constant", op::translate_constant}};
 };
 
 }  // namespace jax

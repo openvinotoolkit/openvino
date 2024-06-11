@@ -6,6 +6,7 @@
 
 #include <functional>
 
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/jax/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
 
@@ -36,9 +37,6 @@ public:
           m_decoder_outputs(decoder->outputs()) {
         FRONT_END_GENERAL_CHECK(m_tensor_map != nullptr && m_external_parameters != nullptr &&
                                 m_mutated_tensors != nullptr && m_translate_session != nullptr);
-        for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
-            m_inputs_is_none.push_back(decoder->input_is_none(i));
-        }
     }
 
     // Do not search for input in tensor map; try to access it as a constant of
@@ -55,8 +53,6 @@ public:
     // TODO: int due to base class uses it, but naturally it should be size_t for
     // PT
     Output<Node> get_input(int index) const override {
-        size_t index_ = static_cast<size_t>(index);
-        FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index_), "Input doesn't exist with index: ", index);
         auto input = m_decoder_inputs.at(index);
         FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
         return m_tensor_map->at(input);
@@ -69,10 +65,7 @@ public:
             // Case when input is constant value
             return attr.as<Output<Node>>();
         } else if (attr.is<type::PyNone>()) {
-            // None means input is unknown type, most likely a Node
-            auto input = m_decoder->get_named_input(name);
-            FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
-            return m_tensor_map->at(input);
+            FRONT_END_THROW("Got a none input in the JAX frontend.");
         }
         FRONT_END_GENERAL_CHECK(false, "Input has type which can't be converted to ov::Node.");
     }
@@ -92,8 +85,6 @@ public:
     Any get_input_type(size_t index) const {
         return m_decoder->get_input_type(index);
     }
-
-    bool input_is_none(size_t index) const;
 
     Any get_output_type(size_t index) const {
         return m_decoder->get_output_type(index);
@@ -128,7 +119,7 @@ public:
     }
 
     Any get_attribute_as_any(const std::string& name) const override {
-        return m_decoder->get_attribute(name);
+        FRONT_END_THROW("Attribute is not expected to appear in JAX. Implement it if it does appear.");
     }
 
     std::shared_ptr<JaxDecoder> get_decoder() const {
@@ -161,7 +152,6 @@ private:
     TranslateSession* m_translate_session = nullptr;
     const std::vector<size_t> m_decoder_inputs;
     const std::vector<size_t> m_decoder_outputs;
-    std::vector<bool> m_inputs_is_none;
 };
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::jax::NodeContext&)>;

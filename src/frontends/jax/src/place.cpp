@@ -39,7 +39,7 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
         m_is_output = true;
         if (!m_is_input) {
             auto idx = std::distance(outputs.begin(), out_it);
-            const auto& debug_name = decoder->get_output_debug_name(idx);
+            const auto& debug_name = decoder->get_output_name(idx);
             m_names.push_back(debug_name);
 
             auto type_any = simplified_type_interpret(decoder->get_output_type(idx));

@@ -16,9 +16,6 @@ namespace jax {
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs, "Got less inputs than expected");
-    for (auto i = max_inputs; i < inputs.size(); i++) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
-    }
 }
 
 const std::string& get_jax_prefix() {
@@ -118,8 +115,6 @@ Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
 std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
                                                                       size_t lhs_idx,
                                                                       size_t rhs_idx) {
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(lhs_idx) && !context.input_is_none(rhs_idx),
-                                  "Input should not be None.");
     auto lhs = context.get_input(static_cast<int>(lhs_idx));
     auto rhs = context.get_input(static_cast<int>(rhs_idx));
     align_eltwise_input_types(context,
@@ -136,40 +131,6 @@ void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg
         attrs[JaxFrameworkNode::failed_conversion_key] = msg;
         fw_node->set_attrs(attrs);
     }
-}
-
-void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
-                                ov::NodeVector to,
-                                const ov::NodeVector& additional_rt_info_src) {
-    if (to.size() == 1) {
-        // We do 1 to 1 matching, no need to process names, just inherit initial name
-        to[0]->set_friendly_name(from->get_friendly_name());
-    } else {
-        std::unordered_set<std::string> unique_names;
-        size_t idx = 0;
-        for (auto& op : to) {
-            auto new_name = from->get_friendly_name() + '/' + op->get_type_name();
-            if (unique_names.count(new_name)) {
-                new_name += '_' + std::to_string(idx++);
-            } else {
-                unique_names.insert(new_name);
-            }
-            op->set_friendly_name(new_name);
-        }
-    }
-    copy_runtime_info(from, to);
-    if (!additional_rt_info_src.empty())
-        copy_runtime_info(additional_rt_info_src, to);
-}
-
-// helper ops
-Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
-                         const Output<Node>& data,
-                         const Output<Node>& mask,
-                         const Output<Node>& value) {
-    auto _value = rg.make<opset10::ConvertLike>(value, data);
-    auto bool_mask = rg.make<opset10::Convert>(mask, element::boolean);
-    return rg.make<opset10::Select>(bool_mask, _value, data);
 }
 
 }  // namespace jax

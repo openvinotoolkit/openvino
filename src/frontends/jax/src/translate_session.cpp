@@ -113,7 +113,7 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
                 }
                 auto parameter = std::make_shared<v0::Parameter>(type, pshape);
                 parameter->set_friendly_name(jax_model->get_input_signature_name(i));
-                encode_tensor_name(parameter->output(0), inputs.at(i), {jax_model->get_input_debug_name(i)});
+                encode_tensor_name(parameter->output(0), inputs.at(i), {jax_model->get_input_signature_name(i)});
                 parameters->push_back(parameter);
                 (*tensor_map)[inputs.at(i)] = parameter;
             }
@@ -201,7 +201,7 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
                     }
                 }
                 (*tensor_map)[fw_tensor_id] = converted_outputs[i];
-                encode_tensor_name(converted_outputs[i], fw_tensor_id, {node->get_output_debug_name(i)});
+                encode_tensor_name(converted_outputs[i], fw_tensor_id, {node->get_output_name(i)});
             }
         };
 

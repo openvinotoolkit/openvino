@@ -163,10 +163,6 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
     m_inputs = inputs;
 }
 
-const std::string& InputModel::decoder_type_name() const {
-    return m_model_decoder->decoder_type_name();
-}
-
 std::shared_ptr<JaxDecoder> InputModel::get_decoder() const {
     return m_model_decoder;
 }
