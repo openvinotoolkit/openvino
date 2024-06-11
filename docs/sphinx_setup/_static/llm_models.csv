@@ -10,9 +10,9 @@ chatglm3-6b,16.49,3569,Data is coming.,1024,128,INT4,1,1,PT
 dolly-v2-3b,15.84,6890,Data is coming.,1024,128,INT4,1,1,PT
 stablelm-3b-4e1t,15.69,2050,Data is coming.,1024,128,INT4,1,1,PT
 red-pajama-incite-chat-3b-v1,14.81,6582,Data is coming.,1020,128,INT4,1,1,PT
-codegen25-7b,13.34,3982.0081,Data is coming.,1024,128,INT4,1,1,PT
-gpt-j-6b,13.17,7212.5721,Data is coming.,1024,128,INT4,1,1,PT
-stablelm-7b,12.82,6339.49,Data is coming.,1020,128,INT4,1,1,PT
+codegen25-7b,13.34,3982,Data is coming.,1024,128,INT4,1,1,PT
+gpt-j-6b,13.17,7212,Data is coming.,1024,128,INT4,1,1,PT
+stablelm-7b,12.82,6339,Data is coming.,1020,128,INT4,1,1,PT
 llama-3-8b,12.76,4355,Data is coming.,1024,128,INT4,1,1,PT
 llama-2-7b-chat,12.25,4205,Data is coming.,1024,128,INT4,1,1,PT
 llama-7b,11.74,4314,Data is coming.,1024,128,INT4,1,1,PT

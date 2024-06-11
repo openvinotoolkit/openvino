@@ -2,8 +2,8 @@ Most Efficient Large Language Models for AI PC
 ==============================================
 
 This page is regularly updated to help you identify the best-performing LLMs on the Intel® Core™ Ultra processor family and AI PCs.
-The table below lists the key performance indicators for a selection of Generative AI models running on a Core Ultra 7-165H based system.
 
+The table below lists the key performance indicators for a selection of Large Language Models running on an Intel® Core™ Ultra 7-165H based system.
 
 .. raw:: html
 
