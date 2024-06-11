@@ -26,7 +26,10 @@ static std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params&
     return {input_batch, input_f};
 }
 
-static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params, bool needs_align, uint32_t align_b = 1, uint32_t align_f = 1) {
+static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params,
+                                                            bool needs_align,
+                                                            uint32_t align_b = 1,
+                                                            int32_t align_f = 1) {
     size_t output_f = (needs_align == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
     size_t output_b = params.outputs[0].Batch().v;
     // 3D output

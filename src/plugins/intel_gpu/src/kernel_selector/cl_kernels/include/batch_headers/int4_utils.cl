@@ -207,5 +207,5 @@ inline uchar8 unpack_to_uchar_osv32_isv2(uint4x8_t v) __attribute__((overloadabl
 
 #define UNPACK_INT4x2(target_type, value) CAT(unpack_to_, target_type)(value)
 #define UNPACK_INT4x2_OSV32_ISV2(target_type, value) CAT(CAT(unpack_to_, target_type), _osv32_isv2)(value)
-#define UNPACK_MIXED_INT4x2(target_type, value) CAT(unpack_transposed_to_, target_type)(value)
-#define UNPACK_MIXED_INT4x2_OSV32_ISV2(target_type, value) CAT(CAT(unpack_transposed_to_, target_type), _osv32_isv2)(value)
+#define UNPACK_TRANSPOSED_INT4x2(target_type, value) CAT(unpack_transposed_to_, target_type)(value)
+#define UNPACK_TRANSPOSED_INT4x2_OSV32_ISV2(target_type, value) CAT(CAT(unpack_transposed_to_, target_type), _osv32_isv2)(value)
