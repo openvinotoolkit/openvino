@@ -39,11 +39,10 @@ try:
     import openvino
 except ImportError:
     autodoc_mock_imports = ["openvino"]
-    
+
 breathe_projects = {
     "openvino": "../xml/"
 }
-
 
 myst_enable_extensions = ["colon_fence"]
 myst_heading_anchors = 4

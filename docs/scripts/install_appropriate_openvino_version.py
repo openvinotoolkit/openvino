@@ -1,20 +1,20 @@
 import re
 import argparse
-from pathlib import Path
 import subprocess
 import requests
-from packaging import version
 import pkg_resources
+from packaging import version
+from pathlib import Path
 
 
 def determine_openvino_version(file_path):
     pattern = r"version_name\s*=\s*['\"]([^'\"]+)['\"]"
-    
+
     with open(file_path, 'r') as file:
         content = file.read()
-    
+
     match = re.search(pattern, content)
-    
+
     if match:
         return match.group(1)
     else:
@@ -24,19 +24,19 @@ def determine_openvino_version(file_path):
 def get_latest_version(major_version):
     url = f"https://pypi.org/pypi/openvino/json"
     response = requests.get(url)
-    
+
     if response.status_code == 200:
         data = response.json()
         versions = data['releases'].keys()
-        
+
         # Filter versions by the major version prefix
         matching_versions = [v for v in versions if v.startswith(major_version)]
-        
+
         # Sort the matching versions and return the latest one
         if matching_versions:
             matching_versions.sort(key=version.parse)
             return matching_versions[-1]
-    
+
     return None
 
 
