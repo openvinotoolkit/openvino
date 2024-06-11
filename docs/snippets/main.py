@@ -36,7 +36,8 @@ def import_python_modules(directory, subdirectory=""):
 
 
 def main():
-    dir_path = os.path.dirname(os.path.realpath(__file__))
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    dir_path = os.path.join(current_dir, "..", "articles_en", "assets", "snippets")
     import_python_modules(dir_path)
 
 
