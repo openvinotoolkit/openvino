@@ -147,6 +147,7 @@ void dump_partitioning(const ov::npuw::Ensemble& ens,
 // Interface to get online partitioning from the model
 class Compiler {
     enum class Pipeline {
+        NONE, // Do nothing, partitioning will be empty
         INIT, // Initialize only. The hardest mode, every group has just 1 layer inside
         JUST, // "justParitioning" - combination of LHF + Remnants
         REP,  // Repeated blocks pipeline - combination of repeatedBlocks and Remnants - default configuration
@@ -155,7 +156,9 @@ class Compiler {
     Pipeline currentPipeline(const std::shared_ptr<ov::Model> &model) {
         std::string pipeline_opt =
             m_cfg.getString<::intel_npu::NPUW_ONLINE_PIPELINE>();
-        if (pipeline_opt == "INIT") {
+        if (pipeline_opt == "NONE") {
+            return Pipeline::NONE;
+        } else if (pipeline_opt == "INIT") {
             return Pipeline::INIT;
         } else if (pipeline_opt == "JUST") {
             return Pipeline::JUST;
@@ -204,6 +207,11 @@ public:
                       ::intel_npu::Config& cfg)
         : m_model(model), m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
+        if (currentPipeline(model) == Pipeline::NONE) {
+            LOG_INFO("NPUW_ONLINE_PIPELINE is set to NONE. No online partitioning is done.");
+            return;
+        }
+
         // Parse OV Model into internal data structures. After this
         // stage each layer = it's own group (excluding Parameters,
         // Results, Constants and Converts).
