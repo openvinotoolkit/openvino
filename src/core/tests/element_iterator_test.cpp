@@ -485,8 +485,9 @@ TEST(ElementIteratorTest, write_f4e2m1_data) {
 
     std::copy_n(input_unpacked.begin(), elements_count, iter);
 
-    EXPECT_THAT(std::vector<float4_e2m1>(iter, iter + elements_count),
-                ElementsAre(-.5f, 0, 0, 0, 1.0f, 6.0f, -1.0f, -4.0f, 0, 0, 0, 0, 0, 0, 0, 0));
+    EXPECT_EQ(std::vector<float4_e2m1>(iter, iter + elements_count),
+              std::vector<float4_e2m1>(
+                  {-.5f, 0.0f, 0.0f, 0.0f, 1.0f, 6.0f, -1.0f, -4.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}));
 }
 
 TEST(ElementIteratorTest, read_const_f4e2m1_data) {
@@ -502,8 +503,10 @@ TEST(ElementIteratorTest, read_const_f4e2m1_data) {
                                                          0x56};
     auto iter = element::iterator<element::f4e2m1>(input.data());
 
-    EXPECT_THAT(std::vector<float4_e2m1>(iter, iter + elements_count),
-                ElementsAre(1, 0.5, -1, 1.5, -6, -2, 2, -4, -0.5, 6, -3, -1.5, -0, 0, 4, 3));
+    EXPECT_EQ(
+        std::vector<float4_e2m1>(iter, iter + elements_count),
+        std::vector<float4_e2m1>(
+            {1.0f, 0.5f, -1.0f, 1.5f, -6.0f, -2.0f, 2.0f, -4.0f, -0.5f, 6.0f, -3.0f, -1.5f, -0.0f, 0.0f, 4.0f, 3.0f}));
 }
 
 TEST(ElementIteratorTest, read_non_const_f4e2m1_data) {
@@ -519,8 +522,10 @@ TEST(ElementIteratorTest, read_non_const_f4e2m1_data) {
                                                0x56};
     auto iter = element::iterator<element::f4e2m1>(input.data());
 
-    EXPECT_THAT(std::vector<float4_e2m1>(iter, iter + elements_count),
-                ElementsAre(1, 0.5, -1, 1.5, -6, -2, 2, -4, -0.5, 6, -3, -1.5, -0, 0, 4, 3));
+    EXPECT_EQ(
+        std::vector<float4_e2m1>(iter, iter + elements_count),
+        std::vector<float4_e2m1>(
+            {1.0f, 0.5f, -1.0f, 1.5f, -6.0f, -2.0f, 2.0f, -4.0f, -0.5f, 6.0f, -3.0f, -1.5f, -0.0f, 0.0f, 4.0f, 3.0f}));
 }
 
 TEST(ElementIteratorTest, read_f4e2m1_data_increment_decrement_iterator) {
@@ -563,8 +568,8 @@ TEST(ElementIteratorTest, read_f4e2m1_from_tensor) {
     auto t = ov::Tensor(element::f4e2m1, Shape{10, 1, 1}, input.data());
     auto iter = element::iterator<element::f4e2m1>(t.data<float4_e2m1>());
 
-    EXPECT_THAT(std::vector<float4_e2m1>(iter, iter + t.get_size()),
-                ElementsAre(1, 2, -1, 1.5, 0.5, 4, -0.5, 6, -1.5, 3));
+    EXPECT_EQ(std::vector<float4_e2m1>(iter, iter + t.get_size()),
+              std::vector<float4_e2m1>({1.0f, 2.0f, -1.0f, 1.5f, 0.5f, 4.0f, -0.5f, 6.0f, -1.5f, 3.0f}));
 }
 
 }  // namespace test
