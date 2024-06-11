@@ -65,14 +65,19 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
+    import os
+
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "torch>=2.1"\
     "datasets" \
     "accelerate"\
-    "openvino-nightly"\
     "gradio>=4.19"\
     "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes"
 
@@ -81,6 +86,7 @@ Install required dependencies
     import os
     from pathlib import Path
     import requests
+    import shutil
 
     # fetch model configuration
 
@@ -89,7 +95,18 @@ Install required dependencies
 
     if not config_dst_path.exists():
         if config_shared_path.exists():
-            os.symlink(config_shared_path, config_dst_path)
+            try:
+                os.symlink(config_shared_path, config_dst_path)
+            except Exception:
+                shutil.copy(config_shared_path, config_dst_path)
+        else:
+            r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
+            with open("llm_config.py", "w") as f:
+                f.write(r.text)
+    elif not os.path.islink(config_dst_path):
+        print("LLM config will be updated")
+        if config_shared_path.exists():
+            shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w") as f:
@@ -708,8 +725,12 @@ Select device for inference and model variant
 
     core = ov.Core()
 
+    support_devices = core.available_devices
+    if "NPU" in support_devices:
+        support_devices.remove("NPU")
+
     device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
@@ -722,7 +743,7 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
 
 
 

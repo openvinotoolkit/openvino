@@ -50,7 +50,7 @@ async function save() {
 
     // remote cache directory may not be created yet
     if (!(await checkFileExists(cacheRemotePath))) {
-      await fs.mkdir(cacheRemotePath);
+      await fs.mkdir(cacheRemotePath, { recursive: true });
     }
 
     core.info('Copying cache...');

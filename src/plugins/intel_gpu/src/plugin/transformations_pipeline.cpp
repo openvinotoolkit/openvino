@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -60,14 +61,13 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
-#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
-#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -80,6 +80,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/convert_precision.hpp"
@@ -307,6 +308,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
+            GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_sdpa != -1) {
+                GPU_DEBUG_CODE(return cldnn::debug_configuration::get_instance()->enable_sdpa == 1);
+            }
+
             if (!config.get_property(ov::intel_gpu::hint::enable_sdpa_optimization))
                 return false;
 
@@ -316,10 +321,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto& value_ps = sdpa->get_input_partial_shape(2);
 
             // Known limitations:
-            // - SDPA impl could be slower in non-LLM scenarios than decomposed version
-            if (func->get_variables().size() == 0)
-                return false;
-
             // - The data type of SDPA should be fp16
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
@@ -342,7 +343,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // - The head size should be divisible by 16
             const auto optimal_subgroup_size = 16;
             if (query_ps[query_ps.size() - 1].is_dynamic() ||
-                query_ps[query_ps.size() - 1].get_length() > 256 ||
+                query_ps[query_ps.size() - 1].get_length() != 128 ||
                 query_ps[query_ps.size() - 1].get_length() % optimal_subgroup_size != 0) {
                 return false;
             }
@@ -813,6 +814,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
+
+        manager.register_pass<ov::pass::RoPEFusion>();
+        pass_config->disable<ov::pass::RoPEFusionGPTJ>();
+        pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
+        pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
