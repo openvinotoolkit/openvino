@@ -19,20 +19,7 @@
             "source": [
                 "const path = require('node:path');\nconst { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst tf = require('@tensorflow/tfjs-node');\nconst {\n  getImageData,\n  displayArrayAsImage,\n  arrayToImageData,\n  getImageBuffer,\n  transform,\n  downloadFile,\n} = require('../helpers.js');\n\nconst { addon: ov } = require('openvino-node');\n"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stderr",
-                            "value": [
-                                "2024-06-11 22:36:54.247801: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F FMA",
-                                "To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         },
         {
             "language": "markdown",
@@ -73,7 +60,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU', { PERFORMANCE_HINT: 'LATENCY' });\n\nconst inputLayer = compiledModel.inputs[0];\nconst outputLayers = compiledModel.outputs;\n\nconst [height, width] = inputLayer.shape.slice(2);\n\nconst pafsOutputKey = 'Mconv7_stage2_L1';\nconst heatmapsOutputKey = 'Mconv7_stage2_L2';\n\nconst THRESHOLD = 0.3;\nconst COLOR = [0, 255, 0, 255];"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU', { PERFORMANCE_HINT: 'LATENCY' });\n\nconst inputLayer = compiledModel.inputs[0];\nconst outputLayers = compiledModel.outputs;\n\nconst [height, width] = inputLayer.shape.slice(2);\n\nconst heatmapsOutputKey = 'Mconv7_stage2_L2';\n\nconst THRESHOLD = 0.3;\nconst COLOR = [0, 255, 0, 255];"
             ],
             "outputs": []
         },
@@ -115,7 +102,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, inputLayer.shape, tensorData);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\nconst outputs = inferRequest.infer();\n\nconst pafs = outputs[pafsOutputKey];\nconst heatmaps = outputs[heatmapsOutputKey];"
+                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, inputLayer.shape, tensorData);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\nconst outputs = inferRequest.infer();\n\nconst heatmaps = outputs[heatmapsOutputKey];"
             ],
             "outputs": []
         },
