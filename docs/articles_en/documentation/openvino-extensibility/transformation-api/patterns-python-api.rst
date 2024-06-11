@@ -17,7 +17,7 @@ Add the following lines to your file:
    :language: python
    :fragment: [ov:imports]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:imports]
 
@@ -36,7 +36,7 @@ Let's create the model and the pattern:
    :language: python
    :fragment: [ov:create_simple_model_and_pattern]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:create_simple_model_and_pattern]
 
@@ -49,7 +49,7 @@ For the given case, ``WrapType`` is used and the code looks as following:
    :language: python
    :fragment: [ov:create_simple_model_and_pattern_wrap_type]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:create_simple_model_and_pattern_wrap_type]
 
@@ -63,7 +63,7 @@ However, you can also list all possible types for a given node, for example:
    :language: python
    :fragment: [ov:wrap_type_list]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:wrap_type_list]
 
@@ -76,7 +76,7 @@ To add additional checks for your node, create a predicate by providing a functi
    :language: python
    :fragment: [ov:wrap_type_predicate]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:wrap_type_predicate]
 
@@ -88,7 +88,7 @@ To add additional checks for your node, create a predicate by providing a functi
    :language: python
    :fragment: [ov:any_input]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:any_input]
 
@@ -98,7 +98,7 @@ You can also create ``AnyInput()`` with a predicate, if you want additional chec
    :language: python
    :fragment: [ov:any_input_predicate]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:any_input_predicate]
 
@@ -117,7 +117,7 @@ Here is how it looks in code:
    :language: python
    :fragment: [ov:pattern_or]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:pattern_or]
 
@@ -137,7 +137,7 @@ The code for our model looks as follows:
    :language: python
    :fragment: [ov:pattern_optional_middle]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:pattern_optional_middle]
 
@@ -150,7 +150,7 @@ Top node:
    :language: python
    :fragment: [ov:pattern_optional_top]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:pattern_optional_top]
 
@@ -160,7 +160,7 @@ Root node:
    :language: python
    :fragment: [ov:pattern_optional_root]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:pattern_optional_root]
 
@@ -170,6 +170,6 @@ Root node:
    :language: python
    :fragment: [ov:optional_predicate]
 
-.. doxygensnippet:: docs/ov_patterns.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:optional_predicate]
