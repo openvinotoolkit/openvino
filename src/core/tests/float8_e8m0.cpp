@@ -3,8 +3,11 @@
 //
 
 #include "openvino/core/type/float8_e8m0.hpp"
+
 #include <gtest/gtest.h>
+
 #include <climits>
+
 #include "common_test_utils/float_util.hpp"
 
 namespace ov {
