@@ -4,6 +4,7 @@
 
 import numpy as np
 
+from typing import Dict
 from openvino import Op
 from openvino.runtime import CompiledModel, DiscreteTypeInfo, Model, Shape, compile_model, Tensor
 import openvino.runtime.opset14 as ops
@@ -44,6 +45,35 @@ def create_snake_model():
         custom_op = CustomOp([custom_op])
         custom_op.set_friendly_name("custom_" + str(i + 1))
     return Model(custom_op, [param1], "TestModel")
+
+
+class CustomConcat(Op):
+    class_type_info = DiscreteTypeInfo("CustomConcat", "extension")
+
+    def __init__(self, inputs):
+        super().__init__(self)
+        self.set_arguments(inputs)
+        self.constructor_validate_and_infer_types()
+
+    def validate_and_infer_types(self):
+        self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
+
+    def clone_with_new_inputs(self, new_inputs):
+        return CustomOp(new_inputs)
+
+    def get_type_info(self):
+        return CustomOp.class_type_info
+
+    def evaluate(self, outputs, inputs):
+        inputs[0].copy_to(outputs[0])
+        return True
+
+    def has_evaluate(self):
+        return True
+    
+    def visit_attributes(self, attributes: Dict):
+        super().visit_attributes(attributes)
+        return True
 
 
 class CustomAdd(Op):

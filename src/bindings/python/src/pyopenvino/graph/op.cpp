@@ -10,6 +10,7 @@
 #include <pybind11/stl_bind.h>
 
 #include <pyopenvino/graph/op.hpp>
+#include <pyopenvino/graph/dict_attribute_visitor.hpp>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
@@ -29,9 +30,7 @@ public:
     }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        // PYBIND11_OVERRIDE_PURE(bool, Op, visit_attributes, visitor);
-        //  Requires binding for visitor
-        //  Now works only for operations without attributes
+        // PYBIND11_OVERRIDE(bool, Op, visit_attributes, visitor);
         return true;
     }
 
@@ -51,13 +50,25 @@ public:
         PYBIND11_OVERRIDE(bool, ov::op::Op, has_evaluate);
     }
 
+    void custom_attribute_visitor(const py::dict& attributes) {
+        util::DictAttributeDeserializer visitor(attributes, m_variables);
+        this->visit_attributes(visitor);
+    }
+
 private:
     py::object py_handle;  // Holds the Python object to manage its lifetime
+    std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };
 
 void regclass_graph_Op(py::module m) {
-    py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node>(m, "Op").def(
-        py::init([](const py::object& py_obj) {
-            return PyOp(py_obj);
-        }));
+    py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node> op(m, "Op");
+
+    op.def(py::init([](const py::object& py_obj) {
+        return PyOp(py_obj);
+    }));
+
+    op.def("visit_attributes", [](PyOp& self, const py::dict& attributes) {
+        return self.custom_attribute_visitor(attributes);
+    });
+
 }
