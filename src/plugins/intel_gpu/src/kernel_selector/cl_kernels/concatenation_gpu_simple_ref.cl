@@ -55,4 +55,9 @@ KERNEL (concatenation_gpu_ref)(
 #else
     output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
 #endif
+    // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0) {
+    //     printf("mingyuki: log from concate_gpu_simple_ref: %d,%d,%d,%d -> %d,%d,%d,%d     offset %d->%d\n", INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X, OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X,
+    //         input_offset, output_offset);
+    //     printf("mingyuki: first value %d, sizeof first elem %d  --> output %d\n", input[0], sizeof(input[0]), (int)output[output_offset]);
+    // }
 }

@@ -191,7 +191,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             return aggregate_events(res_events, stream, res_events.size() > 1);
         } else {
             // Othwerise, we need to copy result from out buffer to state memory
-            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable meomry" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable memory" << std::endl;
 
             stream.enqueue_barrier();
             auto out = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(0), variable.get_memory()->get_layout());
@@ -221,9 +221,21 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         const auto inputs_count = 2;
         params.inputs.resize(inputs_count);
-        for (size_t i = 0; i < inputs_count; ++i) {
-            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
+
+        auto dt = data_types::undefined;
+        if (impl_param.output_layouts[0].data_type == data_types::i8) {
+            // std::cout << "mingyuki: found i8 output " << std::endl;
+            dt = data_types::i8;
         }
+        // if (impl_param.layerID.find("kvcache:__module.model.transformer.h.0.attn/aten::cat/Concat_4") != std::string::npos) {
+        //     std::cout << "mingyuki: found " << impl_param.layerID << std::endl;
+        //     dt = data_types::i8;
+        // }
+
+        for (size_t i = 0; i < inputs_count; ++i) {
+            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i], tensor {}, dt);
+        }
+        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor {}, dt);
 
         params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
         params.kernelPerInput = true;
@@ -282,6 +294,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     static std::unique_ptr<primitive_impl> create(const typed_program_node<kv_cache>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
+        // if (arg.id().find("kvcache:__module.model.transformer.h.0.attn/aten::cat/Concat_4") != std::string::npos)
+        //     std::cout << "mingyuki: create " << arg.id() << std::endl;
         auto concat_kernel_params = get_concat_kernel_params(impl_param, impl_param.is_dynamic());
         auto& concat_kernel_selector = kernel_selector_t::Instance();
         kernels_data.push_back(concat_kernel_selector.get_best_kernel(concat_kernel_params));
@@ -301,10 +315,17 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         }
         auto& params = static_cast<kernel_params_t&>(*_kernels_data[concat_stage].params);
         const auto inputs_count = 2;
-        for (size_t i = 0; i < inputs_count; ++i) {
-            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
+
+        auto dt = data_types::undefined;
+        if (impl_param.output_layouts[0].data_type == data_types::i8) {
+            // std::cout << "mingyuki: found i8 output " << std::endl;
+            dt = data_types::i8;
         }
-        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
+
+        for (size_t i = 0; i < inputs_count; ++i) {
+            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i], tensor {}, dt);
+        }
+        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor {}, dt);
 
         (_kernels_data[concat_stage].update_dispatch_data_func)(params, _kernels_data[concat_stage]);
         _kernels_data[concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(0).count() == 0;

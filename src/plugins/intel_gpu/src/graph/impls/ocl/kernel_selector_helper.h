@@ -101,7 +101,7 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {}, const data_types dt = data_types::undefined);
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);

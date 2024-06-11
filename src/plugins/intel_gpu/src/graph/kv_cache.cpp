@@ -47,7 +47,7 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& node
     for (size_t i = 0; i < desc->num_outputs; i++) {
         auto out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
         if (i == 0 && impl_param.get_input_layout(1).data_type == data_types::i8) {
-            std::cout << node.id() << "  input data type " << dt_to_str(impl_param.get_input_layout(1).data_type) << std::endl;
+            // std::cout << node.id() << "  input data type " << dt_to_str(impl_param.get_input_layout(1).data_type) << std::endl;
             out_type = data_types::i8;
         }
         out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));

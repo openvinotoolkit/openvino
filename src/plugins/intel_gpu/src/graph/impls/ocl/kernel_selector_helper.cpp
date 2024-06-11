@@ -770,7 +770,7 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
     }
 }
 
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset) {
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset, const data_types dt) {
     const auto& pad = l.data_padding;
     const auto& vals_original = l.get_partial_shape();
 
@@ -810,7 +810,9 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
         pitch *= (reserved_in_mem_count + lp + up);
     }
 
-    return kernel_selector::data_tensor(vec, to_data_type(l.data_type), ks_layout);
+    data_types new_dt = (dt == data_types::undefined) ? l.data_type : dt;
+
+    return kernel_selector::data_tensor(vec, to_data_type(new_dt), ks_layout);
 }
 
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped) {
