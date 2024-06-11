@@ -188,7 +188,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
