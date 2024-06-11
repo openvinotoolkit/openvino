@@ -732,12 +732,6 @@ Constant::LPBuffer<element::f4e2m1>& Constant::LPBuffer<element::f4e2m1>::operat
         ov::op::fill_buffer<element::ET>(get_data_ptr_nc(), m_shape, value);  \
     }
 
-#define CONSTANT_FILL_DATA_NOT_SUPPORTED_TYPE(ET, SRC_TYPE)             \
-    template <>                                                         \
-    void Constant::fill_lp_data<element::Type_t::ET>(const SRC_TYPE&) { \
-        OPENVINO_THROW("cannot onvert");                                \
-    }
-
 CONSTANT_FILL_DATA(u1, bool)
 CONSTANT_FILL_DATA(u1, char)
 CONSTANT_FILL_DATA(u1, signed char)
@@ -883,7 +877,6 @@ CONSTANT_FILL_DATA(f4e2m1, long)
 CONSTANT_FILL_DATA(f4e2m1, unsigned long)
 CONSTANT_FILL_DATA(f4e2m1, long long)
 CONSTANT_FILL_DATA(f4e2m1, unsigned long long)
-// CONSTANT_FILL_DATA(f4e2m1, float4_e2m1)
 CONSTANT_FILL_DATA(f4e2m1, float8_e4m3)
 CONSTANT_FILL_DATA(f4e2m1, float8_e5m2)
 CONSTANT_FILL_DATA(f4e2m1, float16)
@@ -1025,12 +1018,6 @@ CONSTANT_CAST_VECTOR(f4e2m1, double)
     template <>                                                                                \
     void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source) { \
         ov::op::write_buffer<element::ET>(source, get_data_ptr_nc());                          \
-    }
-
-#define CONSTANT_WRITE_BUFFER_NOT_SUPPORTED(ET, SRC_TYPE)                               \
-    template <>                                                                         \
-    void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>&) { \
-        OPENVINO_THROW("Not supported type");                                           \
     }
 
 CONSTANT_WRITE_BUFFER(u1, bool)
@@ -1178,7 +1165,6 @@ CONSTANT_WRITE_BUFFER(f4e2m1, long)
 CONSTANT_WRITE_BUFFER(f4e2m1, unsigned long)
 CONSTANT_WRITE_BUFFER(f4e2m1, long long)
 CONSTANT_WRITE_BUFFER(f4e2m1, unsigned long long)
-// CONSTANT_WRITE_BUFFER(f4e2m1, float4_e2m1)
 CONSTANT_WRITE_BUFFER(f4e2m1, float8_e4m3)
 CONSTANT_WRITE_BUFFER(f4e2m1, float8_e5m2)
 CONSTANT_WRITE_BUFFER(f4e2m1, float16)
