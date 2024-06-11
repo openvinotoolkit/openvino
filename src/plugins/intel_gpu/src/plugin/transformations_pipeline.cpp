@@ -340,11 +340,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // - The head size should be divisible by 16
+            // - Head size should be static dim
+            const auto head_size_dim = query_ps[query_ps.size() - 1];
+            if (head_size_dim.is_dynamic())
+                return false;
+
+            // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
+            //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
+            //   until the SDPA operation is optimized for these cases
             const auto optimal_subgroup_size = 16;
-            if (query_ps[query_ps.size() - 1].is_dynamic() ||
-                query_ps[query_ps.size() - 1].get_length() != 128 ||
-                query_ps[query_ps.size() - 1].get_length() % optimal_subgroup_size != 0) {
+            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            bool valid_head_size = head_size % optimal_subgroup_size == 0;
+            valid_head_size &= (head_size == 128) || (func->get_variables().size() > 0 && head_size >= 64 && head_size <= 256);
+            if (!valid_head_size) {
                 return false;
             }
 
