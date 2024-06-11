@@ -207,3 +207,65 @@ float8_e8m0 float8_e8m0::operator/=(const T& other) {
 #    pragma warning(pop)
 #endif
 }  // namespace ov
+
+namespace std {
+template <>
+class numeric_limits<ov::float8_e8m0> {
+public:
+    static constexpr bool is_specialized = true;
+    static constexpr ov::float8_e8m0 min() noexcept {
+        return ov::float8_e8m0::from_bits(0b00000000u);
+    }
+    static constexpr ov::float8_e8m0 max() noexcept {
+        return ov::float8_e8m0::from_bits(0b11111110u);
+    }
+    static constexpr ov::float8_e8m0 lowest() noexcept {
+        return ov::float8_e8m0::from_bits(0b00000000u);
+    }
+    static constexpr int digits = CHAR_BIT * sizeof(uint8_t);
+    static constexpr int digits10 = 2;
+
+    static constexpr bool is_signed = false;
+    static constexpr bool is_integer = false;
+    static constexpr bool is_exact = false;
+
+    static constexpr int radix = 2;
+
+    static constexpr ov::float8_e8m0 epsilon() noexcept {
+        return ov::float8_e8m0::from_bits(0b00000000u);
+    }
+    static constexpr ov::float8_e8m0 round_error() noexcept {
+        return ov::float8_e8m0::from_bits(0b00000000u);
+    }
+
+    static constexpr int min_exponent = -126;
+    static constexpr int min_exponent10 = -37;
+    static constexpr int max_exponent = 128;
+    static constexpr int max_exponent10 = 39;
+
+    static constexpr bool has_infinity = false;
+    static constexpr bool has_quiet_NaN = true;
+    static constexpr bool has_signaling_NaN = false;
+
+    static constexpr float_denorm_style has_denorm = denorm_absent;
+    static constexpr bool has_denorm_loss = false;
+
+    static constexpr ov::float8_e8m0 quiet_NaN() noexcept {
+        return ov::float8_e8m0::from_bits(0b11111111);
+    }
+
+    static constexpr bool is_iec559 = false;
+    static constexpr bool is_bounded = true;
+    static constexpr bool is_modulo = false;
+    static constexpr bool traps = false;
+    static constexpr bool tinyness_before = false;
+    static constexpr float_round_style round_style = round_to_nearest;
+};
+}  // namespace std
+
+static_assert(sizeof(ov::float8_e8m0) == 1, "class f8e8m0 must be exactly 1 byte");
+static_assert(std::is_trivially_constructible<ov::float8_e8m0, ov::float8_e8m0>::value, "should be trivially constructible");
+static_assert(std::is_trivially_copyable<ov::float8_e8m0>::value, "must be trivially copyable");
+static_assert(std::is_trivially_destructible<ov::float8_e8m0>::value, "must be trivially destructible");
+static_assert(std::numeric_limits<ov::float8_e8m0>::is_specialized, "numeric_limits must be specialized");
+static_assert(!std::numeric_limits<ov::float8_e8m0>::is_integer, "numeric_limits::is_integer must be false");
