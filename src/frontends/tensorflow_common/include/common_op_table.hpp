@@ -87,6 +87,7 @@ OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
 OP_CONVERTER(translate_gather_tree_op);
 OP_CONVERTER(translate_gelu_op);
+OP_CONVERTER(translate_hsv_to_rgb_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_ifft_op);

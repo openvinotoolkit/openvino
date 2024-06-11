@@ -214,4 +214,39 @@ class TestUpsample2DListSizes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_upsample2d_list_sizes(self, mode, ie_device, precision, ir_version):
-        self._test(*self.create_model(mode), ie_device, precision, ir_version, trace_model=True)
+        self._test(*self.create_model(mode), ie_device,
+                   precision, ir_version, trace_model=True)
+
+
+class TestUpsampleScripted(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3, 200, 200).astype(np.float32),)
+
+    def create_model(self):
+        import torch.nn as nn
+
+        class TestModel(nn.Module):
+            def __init__(self, n_channels, n_classes):
+                super().__init__()
+                self.n_channels = n_channels
+                self.n_classes = n_classes
+
+                self.cv1 = nn.Conv2d(n_channels, 16, kernel_size=3, padding=1)
+                self.mp1 = nn.MaxPool2d((2, 2), (2, 2))
+                self.up = nn.Upsample(scale_factor=2.)
+
+            def forward(self, x):
+                x1 = self.cv1(x)
+                x2 = self.mp1(x1)
+                x3 = self.up(x2)
+                return x3
+
+        return TestModel(1, 3), None, ["prim::If", "aten::upsample_nearest1d", "aten::upsample_nearest2d", "aten::upsample_nearest3d"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(reason="Scripted upsample is not supported")
+    def test_upsample_scripted(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device,
+                   precision, ir_version, trace_model=False)
