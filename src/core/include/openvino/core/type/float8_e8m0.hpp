@@ -222,8 +222,8 @@ public:
     static constexpr ov::float8_e8m0 lowest() noexcept {
         return ov::float8_e8m0::from_bits(0b00000000u);
     }
-    static constexpr int digits = CHAR_BIT * sizeof(uint8_t);
-    static constexpr int digits10 = 2;
+    static constexpr int digits = 1;
+    static constexpr int digits10 = 0;
 
     static constexpr bool is_signed = false;
     static constexpr bool is_integer = false;
@@ -232,16 +232,16 @@ public:
     static constexpr int radix = 2;
 
     static constexpr ov::float8_e8m0 epsilon() noexcept {
-        return ov::float8_e8m0::from_bits(0b00000000u);
+        return ov::float8_e8m0::from_bits(0b00000001u);
     }
     static constexpr ov::float8_e8m0 round_error() noexcept {
-        return ov::float8_e8m0::from_bits(0b00000000u);
+        return ov::float8_e8m0::from_bits(0b01111110u);
     }
 
     static constexpr int min_exponent = -126;
-    static constexpr int min_exponent10 = -37;
+    static constexpr int min_exponent10 = -38;
     static constexpr int max_exponent = 128;
-    static constexpr int max_exponent10 = 39;
+    static constexpr int max_exponent10 = 38;
 
     static constexpr bool has_infinity = false;
     static constexpr bool has_quiet_NaN = true;
