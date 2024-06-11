@@ -264,13 +264,9 @@ GenAI API
 
 OpenVINO GenAI Flavor includes the following API:
 
-* generation_config - defines a configuration class for text generation,
-enabling customization of the generation process such as the maximum length of the
-generated text, whether to ignore end-of-sentence tokens, and the specifics of the decoding
-strategy (greedy, beam search, or multinomial sampling).
+* generation_config - defines a configuration class for text generation, enabling customization of the generation process such as the maximum length of the generated text, whether to ignore end-of-sentence tokens, and the specifics of the decoding strategy (greedy, beam search, or multinomial sampling).
 
-* llm_pipeline - provides classes and utilities for text generation,
-including a pipeline for processing inputs, generating text, and managing outputs with configurable options.
+* llm_pipeline - provides classes and utilities for text generation, including a pipeline for processing inputs, generating text, and managing outputs with configurable options.
 
 * streamer_base - an abstract base class for creating streamers.
 
