@@ -345,6 +345,8 @@ void Graph::InitGraph(bool optimize) {
     optimizer.ShareReorders(*this);
     RemoveDroppedNodes();
 
+    SortTopologically();
+
     ResolveComplexInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
