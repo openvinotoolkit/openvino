@@ -7,8 +7,7 @@ from packaging import version
 import pkg_resources
 
 
-def determine_python_version(file_path):
-    # Define the regex pattern
+def determine_openvino_version(file_path):
     pattern = r"version_name\s*=\s*['\"]([^'\"]+)['\"]"
     
     with open(file_path, 'r') as file:
@@ -45,12 +44,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ov_dir', type=Path, help='OpenVINO docs directory')
     parser.add_argument('--python', type=Path, help='Python executable')
-    parser.add_argument('--build_dir', type=Path, help='Build directory')
     args = parser.parse_args()
     ov_dir = args.ov_dir
     python_executable = args.python
-    build_dir = args.build_dir
-    version_name = determine_python_version(ov_dir.joinpath("conf.py"))
+    version_name = determine_openvino_version(ov_dir.joinpath("conf.py"))
 
     if version_name is None:
         ov_version = "openvino"
@@ -63,8 +60,6 @@ def main():
         else:
             ov_version = f"openvino=={version_name}"
     subprocess.check_call([f'{python_executable}', '-m', 'pip', 'install', '-U', ov_version, '--no-cache-dir'])
-    # openvino_path = Path(pkg_resources.get_distribution("openvino").location).joinpath("openvino")
-    # subprocess.check_call(['cp', '-r', openvino_path, build_dir])
 
 
 if __name__ == "__main__":

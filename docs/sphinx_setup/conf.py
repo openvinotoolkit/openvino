@@ -7,15 +7,11 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 import os
-import sys
 import json
 import shutil
 from sphinx.util import logging
-from pathlib import Path
 from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
-import pkg_resources
-
 
 project = 'OpenVINO™'
 copyright = '2024, Intel®'
@@ -47,6 +43,7 @@ except ImportError:
 breathe_projects = {
     "openvino": "../xml/"
 }
+
 
 myst_enable_extensions = ["colon_fence"]
 myst_heading_anchors = 4
