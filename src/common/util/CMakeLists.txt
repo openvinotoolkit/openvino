@@ -17,7 +17,9 @@ if (WIN32)
 else()
     # Remove windows specific files
     file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.hpp
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.cpp)
     list(REMOVE_ITEM LIBRARY_SRC ${WIN_FILES})
 endif()
 
@@ -39,7 +41,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::pugixml)
 if (WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
+    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi pdh dxgi)
 endif()
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
