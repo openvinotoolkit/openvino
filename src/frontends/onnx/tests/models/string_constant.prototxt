@@ -1,0 +1,41 @@
+ir_version: 9
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test"
+  node {
+    output: "Y"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 2
+        data_type: 8
+        string_data: "string1"
+        string_data: "string2"
+        name: "str_const"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "Y"
+    output: "O"
+    op_type: "Shape"
+  }
+  output {
+    name: "O"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 20
+}

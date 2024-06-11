@@ -60,8 +60,12 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::dynamic;
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
+    case TensorProto_DataType::TensorProto_DataType_STRING:
+        return ov::element::string;
     }
-    OPENVINO_THROW("unsupported element type");
+    ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
+                               "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16, "
+                               "UINT32, UINT64, STRING, UNDEFINED");
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,

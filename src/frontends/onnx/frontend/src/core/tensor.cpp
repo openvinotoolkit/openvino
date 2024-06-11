@@ -202,6 +202,25 @@ std::vector<char> Tensor::get_data() const {
     ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "BOOL, raw data");
 }
 
+template <>
+std::vector<std::string> Tensor::get_data() const {
+    if (has_external_data()) {
+        FRONT_END_THROW("External strings are not supported");
+    }
+    if (m_tensor_proto->has_raw_data()) {
+        FRONT_END_THROW("Loading strings from raw data isn't supported");
+    }
+    if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_STRING) {
+        return std::vector<std::string>(m_tensor_proto->string_data().begin(), m_tensor_proto->string_data().end());
+        std::vector<std::string> data(m_tensor_proto->string_data_size());
+        for (const auto& str : m_tensor_proto->string_data()) {
+            data.push_back(str);
+        }
+        return data;
+    }
+    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "STRING");
+}
+
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
