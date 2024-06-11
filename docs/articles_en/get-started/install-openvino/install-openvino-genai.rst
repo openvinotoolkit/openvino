@@ -50,18 +50,6 @@ Here are the full guides:
 :doc:`Windows <install-openvino-archive-windows>`, and
 :doc:`macOS <install-openvino-archive-macos>`.
 
-If OpenVINO GenAI is installed via archive distribution or built from source, you will need to install additional python dependencies (for example, `optimum-cli` for simplified model downloading and exporting):
-
-.. code-block:: sh
-
-   # (Optional) Clone OpenVINO GenAI repository
-   git clone --recursive https://github.com/openvinotoolkit/openvino.genai.git
-   cd openvino.genai
-   # Install python dependencies
-   python -m pip install ./thirdparty/openvino_tokenizers/[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/pre-release
-   python -m pip install --upgrade-strategy eager -r ./samples/cpp/requirements.txt
-
-
 PyPI Installation
 ###############################
 
