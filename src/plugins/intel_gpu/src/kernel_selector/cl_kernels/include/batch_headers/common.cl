@@ -63,18 +63,15 @@
 #endif
 
 float convert_bf16(const ushort in){
-    union fp_bit_twiddler {
-    float f;
-    uint u;
-    } q;
-    q.u = 0;
+    uint u = 0;
     //sign
     if ( (in>>15) ) { 
-        q.u = 1 << 32;
+        u = 1 << 32;
     }
     //exponent
-    q.u += ( ( (in >> 7) & 0b11111111)) << 23;
+    u += ( ( (in >> 7) & 0b11111111)) << 23;
     //fraction 
-    q.u += (in & 0b1111111) << 16;
-    return q.f;
+    u += (in & 0b1111111) << 16;
+    float* f = &u;
+    return *f;
 }
