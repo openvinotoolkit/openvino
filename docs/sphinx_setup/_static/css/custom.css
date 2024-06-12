@@ -148,6 +148,10 @@ nav.bd-links .current>a {
     padding: 0 0.8rem;
 }
 
+a.nav-link:hover {
+    text-decoration:none !important;
+}
+
 /* Github icon size */
 .nav-link[data-bs-original-title="GitHub"] {
     font-size: 2rem!important;
