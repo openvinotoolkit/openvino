@@ -31,9 +31,9 @@ void MultiplyAddLayerTest::SetUp() {
     std::vector<size_t> constShape(inputShape.size(), 1);
     constShape[1] = inputShape[1];
 
-    auto const_mul = ov::test::utils::deprecated::make_constant<float>(element_type, constShape, {}, true);
+    auto const_mul = ov::test::utils::make_constant(element_type, constShape);
     auto mul = std::make_shared<ov::op::v1::Multiply>(params[0], const_mul);
-    auto const_add = ov::test::utils::deprecated::make_constant<float>(element_type, constShape, {}, true);
+    auto const_add = ov::test::utils::make_constant(element_type, constShape);
     auto add = std::make_shared<ov::op::v1::Add>(mul, const_add);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
     function = std::make_shared<ov::Model>(results, params, "multiplyAdd");

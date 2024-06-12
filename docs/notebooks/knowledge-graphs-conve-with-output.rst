@@ -222,7 +222,7 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -384,7 +384,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6107787291208903 ms
+    Average time taken for inference: 0.6391008694966634 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
@@ -531,7 +531,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6598830223083496 ms
+    Average time taken for inference: 0.7032553354899088 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -550,7 +550,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 0.93 X
+    Speedup with OpenVINO optimizations: 0.91 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -580,30 +580,22 @@ inference can also be obtained by looking at the benchmark app results.
 .. parsed-literal::
 
     Benchmark OpenVINO model using the benchmark app
-
-
-.. parsed-literal::
-
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-
-
-.. parsed-literal::
-
-    [ INFO ] Read model took 13.96 ms
+    [ INFO ] Read model took 5.04 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     e1 (node: e1) : i64 / [...] / []
@@ -619,11 +611,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: aten::softmax/Softmax) : f32 / [...] / [1,271]
     [Step 7/11] Loading the model to the device
-
-
-.. parsed-literal::
-
-    [ INFO ] Compile model took 82.08 ms
+    [ INFO ] Compile model took 64.51 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -638,6 +626,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
     [ INFO ]   ENABLE_CPU_PINNING: True
     [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]   ENABLE_HYPER_THREADING: True
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
@@ -652,21 +641,17 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.43 ms
-
-
-.. parsed-literal::
-
+    [ INFO ] First inference took 1.24 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            101412 iterations
-    [ INFO ] Duration:         10001.13 ms
+    [ INFO ] Count:            100548 iterations
+    [ INFO ] Duration:         10001.41 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.01 ms
-    [ INFO ]    Average:       1.02 ms
-    [ INFO ]    Min:           0.60 ms
-    [ INFO ]    Max:           8.57 ms
-    [ INFO ] Throughput:   10140.06 FPS
+    [ INFO ]    Median:        1.02 ms
+    [ INFO ]    Average:       1.03 ms
+    [ INFO ]    Min:           0.65 ms
+    [ INFO ]    Max:           8.40 ms
+    [ INFO ] Throughput:   10053.38 FPS
 
 
 Conclusions

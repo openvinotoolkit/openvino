@@ -44,20 +44,13 @@ void PortDescriptor::validate_arguments() {
 }
 
 const VectorDims& PortDescriptor::get_shape() const {
-    return *get_shape_ptr();
-}
-const VectorDimsPtr& PortDescriptor::get_shape_ptr() const {
     OPENVINO_ASSERT(m_tensor_shape, "Failed to get_shape: Tensor Shape is nullptr");
-    return m_tensor_shape;
+    return *m_tensor_shape;
 }
 
 void PortDescriptor::set_shape(const VectorDims& tensor) {
     OPENVINO_ASSERT(m_tensor_shape, "Failed to set_shape: Tensor Shape is nullptr");
     *m_tensor_shape = tensor;
-}
-void PortDescriptor::set_shape_ptr(const VectorDimsPtr& tensor) {
-    OPENVINO_ASSERT(tensor, "Failed to set_shape: Tensor Shape is nullptr");
-    m_tensor_shape = tensor;
 }
 
 PortDescriptorPtr PortDescriptor::clone() const {

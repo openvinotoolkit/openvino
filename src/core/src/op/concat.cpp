@@ -40,9 +40,6 @@ void Concat::validate_and_infer_types() {
     }
 
     const auto output_shape = shape_infer(this, input_shapes).front();
-    if (output_shape.rank().is_static() && (get_concatenation_axis() < 0)) {
-        set_concatenation_axis(ov::util::normalize(get_axis(), output_shape.size()));
-    }
 
     set_output_type(0, inputs_et, output_shape);
 }

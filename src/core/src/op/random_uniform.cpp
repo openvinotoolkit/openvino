@@ -92,19 +92,15 @@ bool RandomUniform::evaluate(TensorVector& outputs, const TensorVector& inputs) 
 
     outputs[0].set_shape(out_shape);
 
-    auto state = ov::reference::random_uniform(out_dims.data(),
-                                               static_cast<const char*>(inputs[1].data()),
-                                               static_cast<const char*>(inputs[2].data()),
-                                               static_cast<char*>(outputs[0].data()),
-                                               inputs[0].get_shape(),
-                                               get_out_type(),
-                                               get_global_seed(),
-                                               get_op_seed(),
-                                               m_state);
-
-    // Update RandomUniform state
-    std::lock_guard<std::mutex> guard(m_state_mutex);
-    m_state = state;
+    m_state = ov::reference::random_uniform(out_dims.data(),
+                                            static_cast<const char*>(inputs[1].data()),
+                                            static_cast<const char*>(inputs[2].data()),
+                                            static_cast<char*>(outputs[0].data()),
+                                            inputs[0].get_shape(),
+                                            get_out_type(),
+                                            get_global_seed(),
+                                            get_op_seed(),
+                                            m_state);
     return true;
 }
 

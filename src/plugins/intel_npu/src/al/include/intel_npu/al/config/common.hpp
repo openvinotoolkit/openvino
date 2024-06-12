@@ -252,6 +252,10 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
         return "ov::intel_npu::BatchMode";
     }
 
+    static ov::intel_npu::BatchMode defaultValue() {
+        return ov::intel_npu::BatchMode::AUTO;
+    }
+
     static ov::intel_npu::BatchMode parse(std::string_view val);
 
     static std::string toString(const ov::intel_npu::BatchMode& val);

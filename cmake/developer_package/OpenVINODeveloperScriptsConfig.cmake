@@ -179,10 +179,6 @@ else()
 endif()
 add_definitions(-DOV_BUILD_POSTFIX=\"${OV_BUILD_POSTFIX}\")
 
-# for BW compatibility; removed before 2024.0
-set(IE_BUILD_POSTFIX ${OV_BUILD_POSTFIX})
-add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
-
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})

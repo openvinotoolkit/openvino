@@ -1623,6 +1623,81 @@ TEST(crop_single_axis, simple_Baxis) {
     ASSERT_EQ(crop_prim->can_be_optimized(), true);
 }
 
+TEST(crop_single_axis, simple_Xaxis) {
+    auto& engine = get_test_engine();
+
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 3, 1 } });
+
+    set_values(input0, {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f,
+        7.f, 8.f, 9.f, 10.f, 11.f, 12.f,
+        13.f, 14.f, 15.f, 16.f, 17.f, 18.f,
+    });
+
+    topology topology;
+    topology.add(input_layout("Input", input0->get_layout()));
+    topology.add(crop("crop", input_info("Input"), tensor{3, 2, 1, 1}, tensor(0, 0, 1, 0)));
+    topology.add(reorder("reorder", input_info("crop"), format::bfyx, data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("Input", input0);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+
+    std::vector<int> expected_results = {
+        2, 5, 8, 11, 14, 17,
+    };
+
+    for (size_t i = 0; i < expected_results.size(); i++) {
+        ASSERT_EQ(output_ptr[i], expected_results[i]);
+    }
+
+    auto crop_prim = network.get_primitive("crop");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+}
+
+TEST(crop_single_axis, simple_all_axis) {
+    auto& engine = get_test_engine();
+
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 3, 3, 3 } });
+
+    std::vector<float> input0_vals;
+    for (uint32_t i = 0; i < 81; ++i)
+        input0_vals.push_back(i);
+
+    set_values(input0, input0_vals);
+
+    topology topology;
+    topology.add(input_layout("Input", input0->get_layout()));
+    topology.add(crop("crop", input_info("Input"), tensor{1, 1, 1, 1}, tensor(1, 1, 1, 1)));
+    topology.add(reorder("reorder", input_info("crop"), format::bfyx, data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("Input", input0);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+
+    std::vector<int> expected_results = {
+        40,
+    };
+
+    for (size_t i = 0; i < expected_results.size(); i++) {
+        ASSERT_EQ(output_ptr[i], expected_results[i]);
+    }
+
+    auto crop_prim = network.get_primitive("crop");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+}
 
 struct crop_input_test_params {
     data_types  input_type;

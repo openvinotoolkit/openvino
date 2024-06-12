@@ -28,7 +28,7 @@ def tanh_shrink(name: str, x):
         saveModel(
             name,
             exe,
-            feedkeys=['x'],
+            feed_vars=[node_x],
             fetchlist=[out],
             inputs=[x],
             outputs=[outs[0]],

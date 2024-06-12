@@ -29,16 +29,26 @@ struct memory_user {
     size_t _unique_id;
     uint32_t _network_id;
     primitive_id _prim_id;
+#ifdef GPU_DEBUG_CONFIG
+    size_t _mem_size;
+
+    memory_user(size_t unique_id, uint32_t network_id, primitive_id prim_id, size_t mem_size)
+        : _unique_id(unique_id), _network_id(network_id), _prim_id(prim_id), _mem_size(mem_size) {}
+#endif
+
+    memory_user(size_t unique_id, uint32_t network_id, primitive_id prim_id)
+        : _unique_id(unique_id), _network_id(network_id), _prim_id(prim_id) {}
 
     bool operator==(const struct memory_user& rhs) const {
         return _unique_id == rhs._unique_id && _network_id == rhs._network_id;
     }
 
-    memory_user(size_t unique_id, uint32_t network_id, primitive_id prim_id)
-        : _unique_id(unique_id), _network_id(network_id), _prim_id(prim_id) {}
-
     friend std::ostream& operator<<(std::ostream& os, const memory_user& memory_user) {
-        os << memory_user._prim_id << " (unique_id:" << memory_user._unique_id << ", net_id:" << memory_user._network_id << ")";
+        os << memory_user._prim_id << " (unique_id:" << memory_user._unique_id;
+        os << ", net_id:" << memory_user._network_id << ")";
+#ifdef GPU_DEBUG_CONFIG
+        os << ", mem_size: " << memory_user._mem_size;
+#endif
         return os;
     }
 };
@@ -63,6 +73,7 @@ struct memory_record {
     memory_ptr _memory;
     uint32_t _network_id;
     allocation_type _type;
+
     memory_record(memory_set users, memory_ptr& memory, uint32_t net_id, allocation_type type);
 };
 
@@ -119,7 +130,8 @@ public:
                           const std::unordered_set<size_t>& restrictions,
                           allocation_type type,
                           bool reusable = true,
-                          bool reset = true);  // get from pool or create memory allocation
+                          bool reset = true,
+                          bool is_dynamic = false);  // get from pool or create memory allocation
     memory_ptr get_memory(const layout& layout, allocation_type type, bool reset = true);
     memory_ptr get_from_non_padded_pool(const layout& layout,
                                         const primitive_id& prim_id,
@@ -127,7 +139,8 @@ public:
                                         uint32_t network_id,
                                         const std::unordered_set<size_t>&,
                                         allocation_type type,
-                                        bool reset = true);
+                                        bool reset = true,
+                                        bool is_dynamic = false);
     memory_ptr get_from_padded_pool(const layout& layout,
                                     const primitive_id& prim_id,
                                     size_t unique_id,
@@ -146,7 +159,23 @@ public:
         return _non_padded_pool.size();
     }
 
-    void dump(uint32_t id);
+    void dump(uint32_t id, uint32_t iter, std::string dump_dir_path = "");
+    size_t get_total_mem_pool_size(allocation_type type);
+
+private:
+    void dump_to_screen(uint32_t id, uint32_t iter);
+    void dump_to_file(uint32_t id, uint32_t iter, std::string dump_dir_path);
+
+#ifdef GPU_DEBUG_CONFIG
+    std::vector<memory_record> _no_reusable_mems;
+
+    float total_mem_size_non_padded_pool        = 0.f;
+    float total_mem_size_padded_pool            = 0.f;
+    float total_mem_size_no_reusable            = 0.f;
+    float mem_size_non_padded_pool_host         = 0.f;
+    float mem_size_padded_pool_host             = 0.f;
+    float mem_size_no_reusable_host             = 0.f;
+#endif
 };
 
 }  // namespace cldnn

@@ -32,8 +32,9 @@ def get_try_legacy_fe_message():
 
 def get_ovc_message():
     link = "https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html"
-    message = '[ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. ' \
-              'Please use OpenVINO Model Converter (OVC). ' \
+    message = '[ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.\n' \
+              'In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. ' \
+              'Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). ' \
               'OVC represents a lightweight alternative of MO and provides simplified model conversion API. \n' \
               'Find more information about transition from MO to OVC at {}'.format(link)
 

@@ -66,8 +66,10 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino openvino-dev openvino-nightly optimum optimum-intel
-    %pip install -q "torch>=2.1" openvino-nightly "nncf>=2.7" "transformers>=4.36.0" onnx "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "torch>=2.1" "nncf>=2.7" "transformers>=4.36.0" onnx "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Select model for inference
 --------------------------
@@ -128,9 +130,54 @@ The available options are:
    card <https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2>`__,
    `paper <https://arxiv.org/abs/2310.06825>`__ and `release blog
    post <https://mistral.ai/news/announcing-mistral-7b/>`__.
+-  **llama-3-8b-instruct** - Llama 3 is an auto-regressive language
+   model that uses an optimized transformer architecture. The tuned
+   versions use supervised fine-tuning (SFT) and reinforcement learning
+   with human feedback (RLHF) to align with human preferences for
+   helpfulness and safety. The Llama 3 instruction tuned models are
+   optimized for dialogue use cases and outperform many of the available
+   open source chat models on common industry benchmarks. More details
+   about model can be found in `Meta blog
+   post <https://ai.meta.com/blog/meta-llama-3/>`__, `model
+   website <https://llama.meta.com/llama3>`__ and `model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
+   carefully read terms of usage and click accept button. You will need
+   to use an access token for the code below to run. For more
+   information on access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model 
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
 
 .. code:: ipython3
 
+    from pathlib import Path
+    import requests
+    
+    # Fetch `notebook_utils` module
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    from notebook_utils import download_file
+    
+    if not Path("./config.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-question-answering/config.py")
     from config import SUPPORTED_LLM_MODELS
     import ipywidgets as widgets
 
@@ -164,7 +211,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Selected model phi-2
+    Selected model llama-3-8b-instruct
 
 
 Instantiate Model using Optimum Intel
@@ -307,10 +354,8 @@ compression.
     import openvino as ov
     import nncf
     from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
-    from optimum.utils import NormalizedTextConfig, NormalizedConfigManager
     import gc
     
-    NormalizedConfigManager._conf["phi"] = NormalizedTextConfig
     
     nncf.set_log_level(logging.ERROR)
     
@@ -354,6 +399,7 @@ compression.
                 "ratio": 0.5,
             },
             "dolly-v2-3b": {"sym": False, "group_size": 32, "ratio": 0.5},
+            "llama-3-8b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
             "default": {
                 "sym": False,
                 "group_size": 128,
@@ -385,14 +431,71 @@ compression.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
 .. parsed-literal::
 
-    /home/ea/work/genai_env/lib/python3.8/site-packages/torch/cuda/__init__.py:138: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 11080). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
-      return torch._C._cuda_getDeviceCount() > 0
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    2024-04-19 10:35:50.012050: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-04-19 10:35:50.025002: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-04-19 10:35:50.060073: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-04-19 10:35:50.060108: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-04-19 10:35:50.060134: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-04-19 10:35:50.068691: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-04-19 10:35:50.069448: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-04-19 10:35:51.045741: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+    Framework not specified. Using pt to export the model.
+
+
+
+.. parsed-literal::
+
+    Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Using framework PyTorch: 2.2.2+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> True
+    /home/ea/miniconda3/lib/python3.11/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    The cos_cached attribute will be removed in 4.39. Bear in mind that its contents changed in v4.38. Use the forward method of RoPE from now on instead. It is not used in the `LlamaAttention` class
+    The sin_cached attribute will be removed in 4.39. Bear in mind that its contents changed in v4.38. Use the forward method of RoPE from now on instead. It is not used in the `LlamaAttention` class
+    /home/ea/miniconda3/lib/python3.11/site-packages/optimum/exporters/openvino/model_patcher.py:311: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if sequence_length != 1:
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    Configuration saved in llama-3-8b-instruct/INT4_compressed_weights/openvino_config.json
 
 
 Let’s compare model size for different compression types
@@ -414,7 +517,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 1734.02 MB
+    Size of model with INT4 compressed weights is 4435.75 MB
 
 
 Select device for inference and model variant
@@ -428,8 +531,13 @@ Select device for inference and model variant
 .. code:: ipython3
 
     core = ov.Core()
+    
+    support_devices = core.available_devices
+    if "NPU" in support_devices:
+        support_devices.remove("NPU")
+    
     device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
@@ -500,7 +608,7 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Loading model from phi-2/INT4_compressed_weights
+    Loading model from llama-3-8b-instruct/INT4_compressed_weights
 
 
 .. parsed-literal::
@@ -938,3 +1046,17 @@ generation parameters:
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+
+
+
+

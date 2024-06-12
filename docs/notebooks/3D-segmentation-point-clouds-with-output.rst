@@ -48,10 +48,6 @@ Table of contents:
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -220,7 +216,7 @@ chair for example.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3630/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_3063563/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter3D(X, Y, Z, s=5, cmap="jet", marker="o", label="chair")
 
 
@@ -321,7 +317,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3630/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_3063563/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter(XCur, YCur, ZCur, s=5, cmap="jet", marker="o", label=classes[i])
 
 

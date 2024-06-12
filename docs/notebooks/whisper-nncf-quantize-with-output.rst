@@ -23,8 +23,8 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
--  `Create and initialize quantization
-    <#create-and-initialize-quantization-#0>`__
+-  `Create and initialize
+   quantization <#create-and-initialize-quantization>`__
 
    -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
    -  `Quantize Whisper encoder and decoder
@@ -140,7 +140,8 @@ Select the task for the model:
 
 
 Create and initialize quantization
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------
+
 
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
@@ -177,6 +178,19 @@ Load FP32 model IR.
 .. code:: ipython3
 
     import whisper
+
+    # Fetch `notebook_utils` module
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    from notebook_utils import download_file
+
+    if not Path("./utils.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/whisper-subtitles-generation/utils.py")
+
     from utils import (
         patch_whisper_for_ov_inference,
         OpenVINOAudioEncoder,
@@ -357,6 +371,8 @@ and save the quantized IRs after that.
 .. parsed-literal::
 
     Saved quantized decoder at ./whisper_large-v2_decoder_int8.xml
+
+
 
 
 

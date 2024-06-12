@@ -106,7 +106,7 @@ project/
    └── src/            - source folder
        └── main.c
 build/                  - build directory
-   ...      
+   ...
 
 //! [part7]
 */

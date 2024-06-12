@@ -36,6 +36,8 @@ public:
     uint32_t GetDriverVersion() const;
     uint32_t GetDriverExtVersion() const;
     ov::device::PCIInfo GetPciInfo(const std::string& specifiedDeviceName) const;
+    std::map<ov::element::Type, float> GetGops(const std::string& specifiedDeviceName) const;
+    ov::device::Type GetDeviceType(const std::string& specifiedDeviceName) const;
 
     std::vector<ov::PropertyName> GetCachingProperties() const;
     std::vector<ov::PropertyName> GetInternalSupportedProperties() const;
@@ -59,7 +61,9 @@ private:
                                                               ov::intel_npu::compilation_mode.name(),
                                                               ov::intel_npu::driver_version.name(),
                                                               ov::intel_npu::compiler_type.name(),
-                                                              ov::intel_npu::use_elf_compiler_backend.name()};
+                                                              ov::intel_npu::use_elf_compiler_backend.name(),
+                                                              ov::intel_npu::batch_mode.name(),
+                                                              ov::hint::execution_mode.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name()};
 

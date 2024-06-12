@@ -93,6 +93,11 @@ struct OptionParser<ov::log::Level> final {
     static ov::log::Level parse(std::string_view val);
 };
 
+template <>
+struct OptionParser<ov::hint::ExecutionMode> final {
+    static ov::hint::ExecutionMode parse(std::string_view val);
+};
+
 void splitAndApply(const std::string& str, char delim, std::function<void(std::string_view)> callback);
 
 template <typename T>
@@ -160,6 +165,11 @@ struct OptionPrinter<std::chrono::duration<Rep, Period>> final {
 template <>
 struct OptionPrinter<ov::log::Level> final {
     static std::string toString(ov::log::Level val);
+};
+
+template <>
+struct OptionPrinter<ov::hint::ExecutionMode> final {
+    static std::string toString(ov::hint::ExecutionMode val);
 };
 
 //

@@ -22,7 +22,7 @@ class BrgemmCPU : public snippets::op::Brgemm {
 public:
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
-    enum Type {
+    enum class Type {
         Floating,          // f32|f32
         WithDataRepacking, // u8|i8 or bf16|bf16 (non-AMX system) - needs BrgemmCopyB on second input for data repacking
         WithCompensations, // i8|i8 (non-AMX system) - needs BrgemmCopyB for data repacking and compensations
@@ -66,11 +66,17 @@ public:
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
-    void validate_with_scratchpad(const ov::Shape& shape_b) const;
+    void validate_with_scratchpad() const;
     void validate_inputs() const;
 
     Type m_type = Type::Floating;
 };
-
 } // namespace intel_cpu
+
+template <>
+class AttributeAdapter<intel_cpu::BrgemmCPU::Type> : public EnumAttributeAdapterBase<intel_cpu::BrgemmCPU::Type> {
+public:
+    AttributeAdapter(intel_cpu::BrgemmCPU::Type& value) : EnumAttributeAdapterBase<intel_cpu::BrgemmCPU::Type>(value) {}
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::BrgemmCPU::Type>");
+};
 } // namespace ov

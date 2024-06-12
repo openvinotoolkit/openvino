@@ -80,8 +80,8 @@ Turn the model to evaluation for switching some operations to inference
 mode.
 
 In this case, the creators of the model provide an API that enables
-converting the YOLOv8 model to ONNX and then to OpenVINO IR. Therefore,
-we do not need to do these steps manually.
+converting the YOLOv8 model to OpenVINO IR. Therefore, we do not need to
+do these steps manually.
 
 Prerequisites
 ^^^^^^^^^^^^^
@@ -93,7 +93,7 @@ Install necessary packages.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
-    %pip install -q "protobuf==3.20.*" "torch>=2.1" "torchvision>=0.16" "ultralytics==8.1.42" "onnx" tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "protobuf==3.20.*" "torch>=2.1" "torchvision>=0.16" "ultralytics==8.2.24" "onnx" tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.

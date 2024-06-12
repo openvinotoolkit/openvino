@@ -269,7 +269,12 @@ public:
             outputs.push_back(copy);
         }
         auto states = inferRequest.query_state();
-        for (auto&& state : states) {
+        for (std::string name : {"pastk", "pastv"}) {
+            auto itr = std::find_if(states.begin(), states.end(), [&](const ov::VariableState& state) {
+                return name == state.get_name();
+            });
+            OPENVINO_ASSERT(itr != states.end(), "Failed to find ", name, " state");
+            const auto& state = *itr;
             auto state_tensor = state.get_state();
             ov::Tensor copy{state_tensor.get_element_type(), state_tensor.get_shape()};
             state_tensor.copy_to(copy);

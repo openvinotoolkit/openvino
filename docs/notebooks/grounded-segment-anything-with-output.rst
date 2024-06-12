@@ -48,19 +48,8 @@ Clone repositories and install requirements
 
 .. code:: ipython3
 
-    %pip install -q timm --extra-index-url https://download.pytorch.org/whl/cpu  # is needed for torch
-    %pip install -q "openvino>=2024.0" "torch>=2.1" opencv-python supervision transformers yapf pycocotools addict "gradio>=4.19" tqdm
+    %pip install -q "openvino>=2024.0" "torch>=2.1" opencv-python "supervision[desktop]" transformers yapf pycocotools addict "gradio>=4.19" tqdm timm --extra-index-url https://download.pytorch.org/whl/cpu
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    
 
 .. parsed-literal::
 
@@ -121,693 +110,19 @@ segmentation you can select vanilla ``SAM``.
 .. parsed-literal::
 
     Cloning into 'GroundingDINO'...
-
-
-.. parsed-literal::
-
     remote: Enumerating objects: 379, done.[K
-    remote: Counting objects:   0% (1/177)[K
-remote: Counting objects:   1% (2/177)[K
-remote: Counting objects:   2% (4/177)[K
-remote: Counting objects:   3% (6/177)[K
-remote: Counting objects:   4% (8/177)[K
-remote: Counting objects:   5% (9/177)[K
-remote: Counting objects:   6% (11/177)[K
-remote: Counting objects:   7% (13/177)[K
-remote: Counting objects:   8% (15/177)[K
-remote: Counting objects:   9% (16/177)[K
-remote: Counting objects:  10% (18/177)[K
-remote: Counting objects:  11% (20/177)[K
-remote: Counting objects:  12% (22/177)[K
-remote: Counting objects:  13% (24/177)[K
-remote: Counting objects:  14% (25/177)[K
-remote: Counting objects:  15% (27/177)[K
-remote: Counting objects:  16% (29/177)[K
-remote: Counting objects:  17% (31/177)[K
-remote: Counting objects:  18% (32/177)[K
-remote: Counting objects:  19% (34/177)[K
-remote: Counting objects:  20% (36/177)[K
-remote: Counting objects:  21% (38/177)[K
-remote: Counting objects:  22% (39/177)[K
-remote: Counting objects:  23% (41/177)[K
-remote: Counting objects:  24% (43/177)[K
-remote: Counting objects:  25% (45/177)[K
-remote: Counting objects:  26% (47/177)[K
-remote: Counting objects:  27% (48/177)[K
-remote: Counting objects:  28% (50/177)[K
-remote: Counting objects:  29% (52/177)[K
-remote: Counting objects:  30% (54/177)[K
-remote: Counting objects:  31% (55/177)[K
-remote: Counting objects:  32% (57/177)[K
-remote: Counting objects:  33% (59/177)[K
-remote: Counting objects:  34% (61/177)[K
-remote: Counting objects:  35% (62/177)[K
-remote: Counting objects:  36% (64/177)[K
-remote: Counting objects:  37% (66/177)[K
-remote: Counting objects:  38% (68/177)[K
-remote: Counting objects:  39% (70/177)[K
-remote: Counting objects:  40% (71/177)[K
-remote: Counting objects:  41% (73/177)[K
-remote: Counting objects:  42% (75/177)[K
-remote: Counting objects:  43% (77/177)[K
-remote: Counting objects:  44% (78/177)[K
-remote: Counting objects:  45% (80/177)[K
-remote: Counting objects:  46% (82/177)[K
-remote: Counting objects:  47% (84/177)[K
-remote: Counting objects:  48% (85/177)[K
-remote: Counting objects:  49% (87/177)[K
-remote: Counting objects:  50% (89/177)[K
-remote: Counting objects:  51% (91/177)[K
-remote: Counting objects:  52% (93/177)[K
-remote: Counting objects:  53% (94/177)[K
-remote: Counting objects:  54% (96/177)[K
-remote: Counting objects:  55% (98/177)[K
-remote: Counting objects:  56% (100/177)[K
-remote: Counting objects:  57% (101/177)[K
-remote: Counting objects:  58% (103/177)[K
-remote: Counting objects:  59% (105/177)[K
-remote: Counting objects:  60% (107/177)[K
-remote: Counting objects:  61% (108/177)[K
-remote: Counting objects:  62% (110/177)[K
-remote: Counting objects:  63% (112/177)[K
-remote: Counting objects:  64% (114/177)[K
-remote: Counting objects:  65% (116/177)[K
-remote: Counting objects:  66% (117/177)[K
-remote: Counting objects:  67% (119/177)[K
-remote: Counting objects:  68% (121/177)[K
-remote: Counting objects:  69% (123/177)[K
-remote: Counting objects:  70% (124/177)[K
-remote: Counting objects:  71% (126/177)[K
-remote: Counting objects:  72% (128/177)[K
-remote: Counting objects:  73% (130/177)[K
-remote: Counting objects:  74% (131/177)[K
-remote: Counting objects:  75% (133/177)[K
-remote: Counting objects:  76% (135/177)[K
-remote: Counting objects:  77% (137/177)[K
-remote: Counting objects:  78% (139/177)[K
-remote: Counting objects:  79% (140/177)[K
-remote: Counting objects:  80% (142/177)[K
-remote: Counting objects:  81% (144/177)[K
-remote: Counting objects:  82% (146/177)[K
-remote: Counting objects:  83% (147/177)[K
-remote: Counting objects:  84% (149/177)[K
-remote: Counting objects:  85% (151/177)[K
-remote: Counting objects:  86% (153/177)[K
-remote: Counting objects:  87% (154/177)[K
-remote: Counting objects:  88% (156/177)[K
-remote: Counting objects:  89% (158/177)[K
-remote: Counting objects:  90% (160/177)[K
-remote: Counting objects:  91% (162/177)[K
-remote: Counting objects:  92% (163/177)[K
-remote: Counting objects:  93% (165/177)[K
-remote: Counting objects:  94% (167/177)[K
-remote: Counting objects:  95% (169/177)[K
-remote: Counting objects:  96% (170/177)[K
-remote: Counting objects:  97% (172/177)[K
-remote: Counting objects:  98% (174/177)[K
-remote: Counting objects:  99% (176/177)[K
-remote: Counting objects: 100% (177/177)[K
-remote: Counting objects: 100% (177/177), done.[K
-    remote: Compressing objects:   1% (1/64)[K
-remote: Compressing objects:   3% (2/64)[K
-remote: Compressing objects:   4% (3/64)[K
-remote: Compressing objects:   6% (4/64)[K
-remote: Compressing objects:   7% (5/64)[K
-remote: Compressing objects:   9% (6/64)[K
-remote: Compressing objects:  10% (7/64)[K
-remote: Compressing objects:  12% (8/64)[K
-remote: Compressing objects:  14% (9/64)[K
-remote: Compressing objects:  15% (10/64)[K
-remote: Compressing objects:  17% (11/64)[K
-remote: Compressing objects:  18% (12/64)[K
-remote: Compressing objects:  20% (13/64)[K
-remote: Compressing objects:  21% (14/64)[K
-remote: Compressing objects:  23% (15/64)[K
-remote: Compressing objects:  25% (16/64)[K
-remote: Compressing objects:  26% (17/64)[K
-remote: Compressing objects:  28% (18/64)[K
-remote: Compressing objects:  29% (19/64)[K
-remote: Compressing objects:  31% (20/64)[K
-remote: Compressing objects:  32% (21/64)[K
-remote: Compressing objects:  34% (22/64)[K
-remote: Compressing objects:  35% (23/64)[K
-remote: Compressing objects:  37% (24/64)[K
-remote: Compressing objects:  39% (25/64)[K
-remote: Compressing objects:  40% (26/64)[K
-remote: Compressing objects:  42% (27/64)[K
-remote: Compressing objects:  43% (28/64)[K
-remote: Compressing objects:  45% (29/64)[K
-remote: Compressing objects:  46% (30/64)[K
-remote: Compressing objects:  48% (31/64)[K
-remote: Compressing objects:  50% (32/64)[K
-remote: Compressing objects:  51% (33/64)[K
-remote: Compressing objects:  53% (34/64)[K
-remote: Compressing objects:  54% (35/64)[K
-remote: Compressing objects:  56% (36/64)[K
-remote: Compressing objects:  57% (37/64)[K
-remote: Compressing objects:  59% (38/64)[K
-remote: Compressing objects:  60% (39/64)[K
-remote: Compressing objects:  62% (40/64)[K
-remote: Compressing objects:  64% (41/64)[K
-remote: Compressing objects:  65% (42/64)[K
-remote: Compressing objects:  67% (43/64)[K
-remote: Compressing objects:  68% (44/64)[K
-remote: Compressing objects:  70% (45/64)[K
-remote: Compressing objects:  71% (46/64)[K
-remote: Compressing objects:  73% (47/64)[K
-remote: Compressing objects:  75% (48/64)[K
-remote: Compressing objects:  76% (49/64)[K
-remote: Compressing objects:  78% (50/64)[K
-remote: Compressing objects:  79% (51/64)[K
-remote: Compressing objects:  81% (52/64)[K
-remote: Compressing objects:  82% (53/64)[K
-remote: Compressing objects:  84% (54/64)[K
-remote: Compressing objects:  85% (55/64)[K
-remote: Compressing objects:  87% (56/64)[K
-remote: Compressing objects:  89% (57/64)[K
-remote: Compressing objects:  90% (58/64)[K
-remote: Compressing objects:  92% (59/64)[K
-remote: Compressing objects:  93% (60/64)[K
-remote: Compressing objects:  95% (61/64)[K
-remote: Compressing objects:  96% (62/64)[K
-remote: Compressing objects:  98% (63/64)[K
-remote: Compressing objects: 100% (64/64)[K
-remote: Compressing objects: 100% (64/64), done.[K
-
-
-.. parsed-literal::
-
-    Receiving objects:   0% (1/379)
-
-.. parsed-literal::
-
-    Receiving objects:   1% (4/379)
-
-.. parsed-literal::
-
-    Receiving objects:   2% (8/379)
-Receiving objects:   3% (12/379)
-Receiving objects:   4% (16/379)
-Receiving objects:   5% (19/379)
-Receiving objects:   6% (23/379)
-Receiving objects:   7% (27/379)
-Receiving objects:   8% (31/379)
-Receiving objects:   9% (35/379)
-Receiving objects:  10% (38/379)
-Receiving objects:  11% (42/379)
-Receiving objects:  12% (46/379)
-Receiving objects:  13% (50/379)
-Receiving objects:  14% (54/379)
-Receiving objects:  15% (57/379)
-Receiving objects:  16% (61/379)
-Receiving objects:  17% (65/379)
-Receiving objects:  18% (69/379)
-Receiving objects:  19% (73/379)
-Receiving objects:  20% (76/379)
-Receiving objects:  21% (80/379)
-Receiving objects:  22% (84/379)
-Receiving objects:  23% (88/379)
-Receiving objects:  24% (91/379)
-
-.. parsed-literal::
-
-    Receiving objects:  25% (95/379)
-
-.. parsed-literal::
-
-    Receiving objects:  26% (99/379)
-
-.. parsed-literal::
-
-    Receiving objects:  27% (103/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  28% (107/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  29% (110/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  30% (114/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  31% (118/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  32% (122/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  33% (126/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  34% (129/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  35% (133/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  36% (137/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  37% (141/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  38% (145/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  39% (148/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  40% (152/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  41% (156/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  42% (160/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  43% (163/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  44% (167/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  45% (171/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  46% (175/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  47% (179/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  48% (182/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  49% (186/379), 9.38 MiB | 18.39 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  50% (190/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  51% (194/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  52% (198/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  53% (201/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  54% (205/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  55% (209/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  56% (213/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  57% (217/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  58% (220/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  59% (224/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  60% (228/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  61% (232/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  62% (235/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  63% (239/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  64% (243/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  65% (247/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  66% (251/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  67% (254/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  68% (258/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  69% (262/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  70% (266/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  71% (270/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  72% (273/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  73% (277/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  74% (281/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  75% (285/379), 9.38 MiB | 18.39 MiB/s
-remote: Total 379 (delta 137), reused 113 (delta 113), pack-reused 202[K
-    Receiving objects:  76% (289/379), 9.38 MiB | 18.39 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  77% (292/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  78% (296/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  79% (300/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  80% (304/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  81% (307/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  82% (311/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  83% (315/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  84% (319/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  85% (323/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  86% (326/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  87% (330/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  88% (334/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  89% (338/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  90% (342/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  91% (345/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  92% (349/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  93% (353/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  94% (357/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  95% (361/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  96% (364/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  97% (368/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  98% (372/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects:  99% (376/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects: 100% (379/379), 9.38 MiB | 18.39 MiB/s
-Receiving objects: 100% (379/379), 14.03 MiB | 19.52 MiB/s, done.
-    Resolving deltas:   0% (0/195)
-Resolving deltas:   3% (7/195)
-Resolving deltas:   6% (13/195)
-Resolving deltas:   7% (15/195)
-Resolving deltas:   8% (16/195)
-Resolving deltas:  16% (32/195)
-Resolving deltas:  17% (35/195)
-Resolving deltas:  18% (37/195)
-Resolving deltas:  19% (38/195)
-Resolving deltas:  20% (39/195)
-Resolving deltas:  21% (41/195)
-Resolving deltas:  26% (51/195)
-Resolving deltas:  41% (80/195)
-Resolving deltas:  50% (99/195)
-Resolving deltas:  52% (102/195)
-Resolving deltas:  55% (109/195)
-Resolving deltas:  57% (112/195)
-Resolving deltas:  60% (117/195)
-Resolving deltas:  61% (120/195)
-Resolving deltas:  62% (121/195)
-Resolving deltas:  68% (133/195)
-Resolving deltas:  69% (135/195)
-Resolving deltas:  73% (143/195)
-Resolving deltas:  74% (145/195)
-Resolving deltas:  75% (147/195)
-Resolving deltas:  76% (149/195)
-Resolving deltas:  78% (153/195)
-Resolving deltas:  80% (157/195)
-Resolving deltas:  81% (159/195)
-Resolving deltas: 100% (195/195)
-Resolving deltas: 100% (195/195), done.
-
-
-.. parsed-literal::
-
+    remote: Counting objects: 100% (177/177), done.[K
+    remote: Compressing objects: 100% (64/64), done.[K
+    remote: Total 379 (delta 137), reused 113 (delta 113), pack-reused 202[K
+    Receiving objects: 100% (379/379), 14.03 MiB | 23.40 MiB/s, done.
+    Resolving deltas: 100% (195/195), done.
     Cloning into 'EfficientSAM'...
-
-
-.. parsed-literal::
-
     remote: Enumerating objects: 424, done.[K
-    remote: Counting objects:   1% (1/85)[K
-remote: Counting objects:   2% (2/85)[K
-remote: Counting objects:   3% (3/85)[K
-remote: Counting objects:   4% (4/85)[K
-remote: Counting objects:   5% (5/85)[K
-remote: Counting objects:   7% (6/85)[K
-remote: Counting objects:   8% (7/85)[K
-remote: Counting objects:   9% (8/85)[K
-remote: Counting objects:  10% (9/85)[K
-remote: Counting objects:  11% (10/85)[K
-remote: Counting objects:  12% (11/85)[K
-remote: Counting objects:  14% (12/85)[K
-remote: Counting objects:  15% (13/85)[K
-remote: Counting objects:  16% (14/85)[K
-remote: Counting objects:  17% (15/85)[K
-remote: Counting objects:  18% (16/85)[K
-remote: Counting objects:  20% (17/85)[K
-remote: Counting objects:  21% (18/85)[K
-remote: Counting objects:  22% (19/85)[K
-remote: Counting objects:  23% (20/85)[K
-remote: Counting objects:  24% (21/85)[K
-remote: Counting objects:  25% (22/85)[K
-remote: Counting objects:  27% (23/85)[K
-remote: Counting objects:  28% (24/85)[K
-remote: Counting objects:  29% (25/85)[K
-remote: Counting objects:  30% (26/85)[K
-remote: Counting objects:  31% (27/85)[K
-remote: Counting objects:  32% (28/85)[K
-remote: Counting objects:  34% (29/85)[K
-remote: Counting objects:  35% (30/85)[K
-remote: Counting objects:  36% (31/85)[K
-remote: Counting objects:  37% (32/85)[K
-remote: Counting objects:  38% (33/85)[K
-remote: Counting objects:  40% (34/85)[K
-remote: Counting objects:  41% (35/85)[K
-remote: Counting objects:  42% (36/85)[K
-remote: Counting objects:  43% (37/85)[K
-remote: Counting objects:  44% (38/85)[K
-remote: Counting objects:  45% (39/85)[K
-remote: Counting objects:  47% (40/85)[K
-remote: Counting objects:  48% (41/85)[K
-remote: Counting objects:  49% (42/85)[K
-remote: Counting objects:  50% (43/85)[K
-remote: Counting objects:  51% (44/85)[K
-remote: Counting objects:  52% (45/85)[K
-remote: Counting objects:  54% (46/85)[K
-remote: Counting objects:  55% (47/85)[K
-remote: Counting objects:  56% (48/85)[K
-remote: Counting objects:  57% (49/85)[K
-remote: Counting objects:  58% (50/85)[K
-remote: Counting objects:  60% (51/85)[K
-remote: Counting objects:  61% (52/85)[K
-remote: Counting objects:  62% (53/85)[K
-remote: Counting objects:  63% (54/85)[K
-remote: Counting objects:  64% (55/85)[K
-remote: Counting objects:  65% (56/85)[K
-remote: Counting objects:  67% (57/85)[K
-remote: Counting objects:  68% (58/85)[K
-remote: Counting objects:  69% (59/85)[K
-remote: Counting objects:  70% (60/85)[K
-remote: Counting objects:  71% (61/85)[K
-remote: Counting objects:  72% (62/85)[K
-remote: Counting objects:  74% (63/85)[K
-remote: Counting objects:  75% (64/85)[K
-remote: Counting objects:  76% (65/85)[K
-remote: Counting objects:  77% (66/85)[K
-remote: Counting objects:  78% (67/85)[K
-remote: Counting objects:  80% (68/85)[K
-remote: Counting objects:  81% (69/85)[K
-remote: Counting objects:  82% (70/85)[K
-remote: Counting objects:  83% (71/85)[K
-remote: Counting objects:  84% (72/85)[K
-remote: Counting objects:  85% (73/85)[K
-remote: Counting objects:  87% (74/85)[K
-remote: Counting objects:  88% (75/85)[K
-remote: Counting objects:  89% (76/85)[K
-remote: Counting objects:  90% (77/85)[K
-remote: Counting objects:  91% (78/85)[K
-remote: Counting objects:  92% (79/85)[K
-remote: Counting objects:  94% (80/85)[K
-remote: Counting objects:  95% (81/85)[K
-remote: Counting objects:  96% (82/85)[K
-remote: Counting objects:  97% (83/85)[K
-remote: Counting objects:  98% (84/85)[K
-remote: Counting objects: 100% (85/85)[K
-remote: Counting objects: 100% (85/85), done.[K
-    remote: Compressing objects:   3% (1/33)[K
-remote: Compressing objects:   6% (2/33)[K
-remote: Compressing objects:   9% (3/33)[K
-remote: Compressing objects:  12% (4/33)[K
-remote: Compressing objects:  15% (5/33)[K
-remote: Compressing objects:  18% (6/33)[K
-remote: Compressing objects:  21% (7/33)[K
-remote: Compressing objects:  24% (8/33)[K
-remote: Compressing objects:  27% (9/33)[K
-remote: Compressing objects:  30% (10/33)[K
-remote: Compressing objects:  33% (11/33)[K
-remote: Compressing objects:  36% (12/33)[K
-remote: Compressing objects:  39% (13/33)[K
-remote: Compressing objects:  42% (14/33)[K
-remote: Compressing objects:  45% (15/33)[K
-remote: Compressing objects:  48% (16/33)[K
-remote: Compressing objects:  51% (17/33)[K
-remote: Compressing objects:  54% (18/33)[K
-remote: Compressing objects:  57% (19/33)[K
-remote: Compressing objects:  60% (20/33)[K
-remote: Compressing objects:  63% (21/33)[K
-remote: Compressing objects:  66% (22/33)[K
-remote: Compressing objects:  69% (23/33)[K
-remote: Compressing objects:  72% (24/33)[K
-remote: Compressing objects:  75% (25/33)[K
-remote: Compressing objects:  78% (26/33)[K
-remote: Compressing objects:  81% (27/33)[K
-remote: Compressing objects:  84% (28/33)[K
-remote: Compressing objects:  87% (29/33)[K
-remote: Compressing objects:  90% (30/33)[K
-remote: Compressing objects:  93% (31/33)[K
-remote: Compressing objects:  96% (32/33)[K
-remote: Compressing objects: 100% (33/33)[K
-remote: Compressing objects: 100% (33/33), done.[K
-
-
-.. parsed-literal::
-
-    Receiving objects:   0% (1/424)
-Receiving objects:   1% (5/424)
-
-.. parsed-literal::
-
-    Receiving objects:   2% (9/424)
-Receiving objects:   3% (13/424)
-Receiving objects:   4% (17/424)
-Receiving objects:   5% (22/424)
-
-.. parsed-literal::
-
-    Receiving objects:   5% (24/424), 17.34 MiB | 17.34 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   6% (26/424), 29.54 MiB | 19.69 MiB/s
-Receiving objects:   7% (30/424), 29.54 MiB | 19.69 MiB/s
-Receiving objects:   8% (34/424), 29.54 MiB | 19.69 MiB/s
-Receiving objects:   9% (39/424), 29.54 MiB | 19.69 MiB/s
-Receiving objects:  10% (43/424), 29.54 MiB | 19.69 MiB/s
-Receiving objects:  11% (47/424), 29.54 MiB | 19.69 MiB/s
-Receiving objects:  12% (51/424), 29.54 MiB | 19.69 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  12% (54/424), 41.72 MiB | 20.86 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  12% (54/424), 66.43 MiB | 22.08 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  13% (56/424), 66.43 MiB | 22.08 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  13% (56/424), 92.11 MiB | 22.90 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  14% (60/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  15% (64/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  16% (68/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  17% (73/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  18% (77/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  19% (81/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  20% (85/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  21% (90/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  22% (94/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  23% (98/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  24% (102/424), 105.12 MiB | 23.20 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  25% (106/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  26% (111/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  27% (115/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  28% (119/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  29% (123/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  30% (128/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  31% (132/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  32% (136/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  33% (140/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  34% (145/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  35% (149/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  36% (153/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  37% (157/424), 105.12 MiB | 23.20 MiB/s
-Receiving objects:  38% (162/424), 105.12 MiB | 23.20 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 118.14 MiB | 24.69 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 144.35 MiB | 25.23 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 170.95 MiB | 25.59 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 197.61 MiB | 26.01 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  39% (166/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  40% (170/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  41% (174/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  42% (179/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  43% (183/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  44% (187/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  45% (191/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  46% (196/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  47% (200/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  48% (204/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  49% (208/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  50% (212/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  51% (217/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  52% (221/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  53% (225/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  54% (229/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  55% (234/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  56% (238/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  57% (242/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  58% (246/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  59% (251/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  60% (255/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  61% (259/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  62% (263/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  63% (268/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  64% (272/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  65% (276/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  66% (280/424), 197.61 MiB | 26.01 MiB/s
-Receiving objects:  67% (285/424), 197.61 MiB | 26.01 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  67% (288/424), 222.04 MiB | 25.75 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  67% (288/424), 240.28 MiB | 24.07 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  68% (289/424), 240.28 MiB | 24.07 MiB/s
-Receiving objects:  69% (293/424), 240.28 MiB | 24.07 MiB/s
-Receiving objects:  70% (297/424), 240.28 MiB | 24.07 MiB/s
-Receiving objects:  71% (302/424), 240.28 MiB | 24.07 MiB/s
-Receiving objects:  72% (306/424), 240.28 MiB | 24.07 MiB/s
-Receiving objects:  73% (310/424), 240.28 MiB | 24.07 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  73% (313/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  74% (314/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  75% (318/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  76% (323/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  77% (327/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  78% (331/424), 259.66 MiB | 22.62 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  79% (335/424), 259.66 MiB | 22.62 MiB/s
-
-.. parsed-literal::
-
+    remote: Counting objects: 100% (85/85), done.[K
+    remote: Compressing objects: 100% (33/33), done.[K
     remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339[K
-    Receiving objects:  80% (340/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  81% (344/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  82% (348/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  83% (352/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  84% (357/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  85% (361/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  86% (365/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  87% (369/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  88% (374/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  89% (378/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  90% (382/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  91% (386/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  92% (391/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  93% (395/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  94% (399/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  95% (403/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  96% (408/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  97% (412/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  98% (416/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects:  99% (420/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects: 100% (424/424), 259.66 MiB | 22.62 MiB/s
-Receiving objects: 100% (424/424), 262.14 MiB | 23.41 MiB/s, done.
-    Resolving deltas:   0% (0/246)
-Resolving deltas:   4% (10/246)
-Resolving deltas:   6% (17/246)
-Resolving deltas:  15% (37/246)
-Resolving deltas:  18% (46/246)
-Resolving deltas:  22% (56/246)
-Resolving deltas:  23% (57/246)
-Resolving deltas:  24% (60/246)
-Resolving deltas:  26% (64/246)
-Resolving deltas:  32% (81/246)
-Resolving deltas:  36% (90/246)
-Resolving deltas:  37% (92/246)
-Resolving deltas:  38% (94/246)
-Resolving deltas:  41% (101/246)
-
-.. parsed-literal::
-
-    Resolving deltas:  43% (108/246)
-Resolving deltas:  45% (112/246)
-
-.. parsed-literal::
-
-    Resolving deltas:  48% (119/246)
-Resolving deltas:  49% (121/246)
-Resolving deltas:  51% (127/246)
-Resolving deltas:  52% (128/246)
-Resolving deltas:  54% (133/246)
-Resolving deltas:  57% (142/246)
-Resolving deltas:  61% (152/246)
-Resolving deltas:  62% (154/246)
-Resolving deltas:  65% (162/246)
-Resolving deltas:  66% (164/246)
-Resolving deltas:  67% (165/246)
-Resolving deltas:  69% (172/246)
-Resolving deltas:  70% (174/246)
-Resolving deltas:  88% (217/246)
-Resolving deltas:  96% (237/246)
-Resolving deltas:  97% (240/246)
-Resolving deltas:  98% (243/246)
-
-.. parsed-literal::
-
-    Resolving deltas:  99% (245/246)
-
-.. parsed-literal::
-
-    Resolving deltas: 100% (246/246)
-Resolving deltas: 100% (246/246), done.
+    Receiving objects: 100% (424/424), 262.14 MiB | 23.25 MiB/s, done.
+    Resolving deltas: 100% (246/246), done.
 
 
 .. code:: ipython3
@@ -927,16 +242,12 @@ GroundingDINO imports
 
 .. parsed-literal::
 
-    UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3549.)
+    UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3587.)
 
 
 .. parsed-literal::
 
     final text_encoder_type: bert-base-uncased
-
-
-.. parsed-literal::
-
     final text_encoder_type: bert-base-uncased
 
 
@@ -1018,18 +329,10 @@ Convert GroundingDINO to OpenVINO IR format
     TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-
-
-.. parsed-literal::
-
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-
-
-.. parsed-literal::
-
     TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
     TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
@@ -1040,10 +343,6 @@ Convert GroundingDINO to OpenVINO IR format
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
     TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
-
-
-.. parsed-literal::
-
     TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
@@ -1199,14 +498,10 @@ class, but the inference will be done using OpenVINO optimized model.
 
 .. parsed-literal::
 
-    2024-04-17 23:56:30.569255: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-17 23:56:30.608409: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 00:30:58.009326: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 00:30:58.048500: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-17 23:56:31.167736: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:30:58.610355: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert predicted boxes to supervision box detections format
@@ -1232,7 +527,7 @@ Draw box detections
 
 .. parsed-literal::
 
-    SupervisionWarnings: BoxAnnotator is deprecated: `BoxAnnotator` is deprecated and will be removed in `supervision-0.22.0`. Use `BoundingBoxAnnotator` and `LabelAnnotator` instead
+    SupervisionWarnings: annotate is deprecated: `BoxAnnotator` is deprecated and will be removed in `supervision-0.22.0`. Use `BoundingBoxAnnotator` and `LabelAnnotator` instead
 
 
 
@@ -1285,10 +580,6 @@ segmentation. First of all let’s convert ``SAM`` model to OpenVINO IR.
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-
-
-.. parsed-literal::
-
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
@@ -1491,7 +782,7 @@ Combine both boxes and segmentation masks and draw them.
 
 .. parsed-literal::
 
-    SupervisionWarnings: BoxAnnotator is deprecated: `BoxAnnotator` is deprecated and will be removed in `supervision-0.22.0`. Use `BoundingBoxAnnotator` and `LabelAnnotator` instead
+    SupervisionWarnings: annotate is deprecated: `BoxAnnotator` is deprecated and will be removed in `supervision-0.22.0`. Use `BoundingBoxAnnotator` and `LabelAnnotator` instead
 
 
 

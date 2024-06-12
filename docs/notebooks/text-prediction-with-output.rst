@@ -116,35 +116,10 @@ used for text generation whereas PersonaGPT is used for Conversation.
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -258,19 +233,9 @@ consumption.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4481: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:801: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if batch_size <= 0:
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1102: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1116: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
     
     Mismatched elements: 22 / 502630 (0.0%)
@@ -385,14 +350,10 @@ at later stage.
 
 .. parsed-literal::
 
-    2024-04-18 01:17:07.121619: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-18 01:17:07.154872: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 03:42:05.179279: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 03:42:05.214993: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-18 01:17:07.673304: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 03:42:05.744388: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Define Softmax layer
@@ -749,59 +710,23 @@ The style of inference can be selected in the next cell.
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: i'm good thanks for asking
-
-
-.. parsed-literal::
-
+    PersonaGPT: i am doing very well, you?
     Person: What are you doing?
-    PersonaGPT: just relaxing before bed
-
-
-.. parsed-literal::
-
+    PersonaGPT: i am trying to figure out what to make for dinner
     Person: I like to dance,do you?
-    PersonaGPT: no. what do you dance to?
-
-
-.. parsed-literal::
-
+    PersonaGPT: not really, i don't know the recipes
     Person: Can you recommend me some books?
-    PersonaGPT: what do you do for fun or for a hobby?
-
-
-.. parsed-literal::
-
+    PersonaGPT: of course i can. what do you like to eat?
     Person: Hi,How are you?
-    PersonaGPT: i like to read and play games.
-
-
-.. parsed-literal::
-
+    PersonaGPT: i am great thank you. what are some foods you like to cook?
     Person: What are you doing?
-    PersonaGPT: i'm great thanks for asking.
-
-
-.. parsed-literal::
-
+    PersonaGPT: i am cooking spaghetti right now.
     Person: I like to dance,do you?
-    PersonaGPT: no. what do you like to do for fun?
-
-
-.. parsed-literal::
-
+    PersonaGPT: i don't really do anything but listen to music
     Person: Can you recommend me some books?
-    PersonaGPT: what do you like to do for fun?
-
-
-.. parsed-literal::
-
+    PersonaGPT: of course. what kind of music do you like?
     Person: Hi,How are you?
-    PersonaGPT: i am good thanks for asking
-
-
-.. parsed-literal::
-
+    PersonaGPT: i'm doing very well, you?
     Person: What are you doing?
-    PersonaGPT: i'm relaxing before bed.
+    PersonaGPT: i'm cooking a feast right now.
 

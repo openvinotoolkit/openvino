@@ -90,14 +90,14 @@ Whisper family.
 
     from whisper import _MODELS
     import ipywidgets as widgets
-
+    
     model_id = widgets.Dropdown(
         options=list(_MODELS),
         value="large-v2",
         description="Model:",
         disabled=False,
     )
-
+    
     model_id
 
 
@@ -112,7 +112,7 @@ Whisper family.
 .. code:: ipython3
 
     import whisper
-
+    
     model = whisper.load_model(model_id.value, "cpu")
     model.eval()
     pass
@@ -138,7 +138,7 @@ Convert Whisper Encoder to OpenVINO IR
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     WHISPER_ENCODER_OV = Path(f"whisper_{model_id.value}_encoder.xml")
     WHISPER_DECODER_OV = Path(f"whisper_{model_id.value}_decoder.xml")
 
@@ -146,7 +146,7 @@ Convert Whisper Encoder to OpenVINO IR
 
     import torch
     import openvino as ov
-
+    
     mel = torch.zeros((1, 80 if "v3" not in model_id.value else 128, 3000))
     audio_features = model.encoder(mel)
     if not WHISPER_ENCODER_OV.exists():
@@ -167,8 +167,8 @@ modify this process for correct tracing.
     import torch
     from typing import Optional, Tuple
     from functools import partial
-
-
+    
+    
     def attention_forward(
         attention_module,
         x: torch.Tensor,
@@ -190,7 +190,7 @@ modify this process for correct tracing.
           updated kv_cache
         """
         q = attention_module.query(x)
-
+    
         if xa is None:
             # hooks, if installed (i.e. kv_cache is not None), will prepend the cached kv tensors;
             # otherwise, perform key/value projections for self- or cross-attention as usual.
@@ -205,11 +205,11 @@ modify this process for correct tracing.
             k = attention_module.key(xa)
             v = attention_module.value(xa)
             kv_cache_new = (None, None)
-
+    
         wv, qk = attention_module.qkv_attention(q, k, v, mask)
         return attention_module.out(wv), kv_cache_new
-
-
+    
+    
     def block_forward(
         residual_block,
         x: torch.Tensor,
@@ -228,7 +228,7 @@ modify this process for correct tracing.
           Returns:
             x: residual block output
             kv_cache: updated kv_cache
-
+    
         """
         x0, kv_cache = residual_block.attn(residual_block.attn_ln(x), mask=mask, kv_cache=kv_cache)
         x = x + x0
@@ -237,16 +237,16 @@ modify this process for correct tracing.
             x = x + x1
         x = x + residual_block.mlp(residual_block.mlp_ln(x))
         return x, kv_cache
-
-
+    
+    
     # update forward functions
     for idx, block in enumerate(model.decoder.blocks):
         block.forward = partial(block_forward, block)
         block.attn.forward = partial(attention_forward, block.attn)
         if block.cross_attn:
             block.cross_attn.forward = partial(attention_forward, block.cross_attn)
-
-
+    
+    
     def decoder_forward(
         decoder,
         x: torch.Tensor,
@@ -269,17 +269,17 @@ modify this process for correct tracing.
         x = decoder.token_embedding(x) + decoder.positional_embedding[offset : offset + x.shape[-1]]
         x = x.to(xa.dtype)
         kv_cache_upd = []
-
+    
         for block, kv_block_cache in zip(decoder.blocks, kv_cache):
             x, kv_block_cache_upd = block(x, xa, mask=decoder.mask, kv_cache=kv_block_cache)
             kv_cache_upd.append(tuple(kv_block_cache_upd))
-
+    
         x = decoder.ln(x)
         logits = (x @ torch.transpose(decoder.token_embedding.weight.to(x.dtype), 1, 0)).float()
-
+    
         return logits, tuple(kv_cache_upd)
-
-
+    
+    
     # override decoder forward
     model.decoder.forward = partial(decoder_forward, model.decoder)
 
@@ -287,9 +287,9 @@ modify this process for correct tracing.
 
     tokens = torch.ones((5, 3), dtype=torch.int64)
     logits, kv_cache = model.decoder(tokens, audio_features, kv_cache=None)
-
+    
     tokens = torch.ones((5, 1), dtype=torch.int64)
-
+    
     if not WHISPER_DECODER_OV.exists():
         decoder_model = ov.convert_model(model.decoder, example_input=(tokens, audio_features, kv_cache))
         ov.save_model(decoder_model, WHISPER_DECODER_OV)
@@ -322,6 +322,8 @@ original models with OpenVINO IR versions.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
@@ -331,14 +333,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -352,14 +354,26 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    # Fetch `notebook_utils` module
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    from notebook_utils import download_file
+    
+    if not Path("./utils.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/whisper-subtitles-generation/utils.py")
+    
     from utils import (
         patch_whisper_for_ov_inference,
         OpenVINOAudioEncoder,
         OpenVINOTextDecoder,
     )
-
+    
     patch_whisper_for_ov_inference(model)
-
+    
     model.encoder = OpenVINOAudioEncoder(core, WHISPER_ENCODER_OV, device=device.value)
     model.decoder = OpenVINOTextDecoder(core, WHISPER_DECODER_OV, device=device.value)
 
@@ -375,7 +389,7 @@ take some time.
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     VIDEO_LINK = "https://youtu.be/kgL5LBM-hFI"
     link = widgets.Text(
         value=VIDEO_LINK,
@@ -383,7 +397,7 @@ take some time.
         description="Video:",
         disabled=False,
     )
-
+    
     link
 
 
@@ -398,9 +412,9 @@ take some time.
 .. code:: ipython3
 
     from pytube import YouTube
-
+    
     print(f"Downloading video {link.value} started")
-
+    
     output_file = Path("downloaded_video.mp4")
     yt = YouTube(link.value)
     yt.streams.get_highest_resolution().download(filename=output_file)
@@ -416,7 +430,7 @@ take some time.
 .. code:: ipython3
 
     from utils import get_audio
-
+    
     audio, duration = get_audio(output_file)
 
 Select the task for the model:
@@ -458,7 +472,7 @@ into video files using ``ffmpeg``.
 .. code:: ipython3
 
     from utils import prepare_srt
-
+    
     srt_lines = prepare_srt(transcription, filter_duration=duration)
     # save transcription
     with output_file.with_suffix(".srt").open("w") as f:
@@ -489,36 +503,36 @@ Now let us see the results.
     1
     00:00:00,000 --> 00:00:05,000
      What's that?
-
+    
     2
     00:00:05,000 --> 00:00:07,000
      Wow.
-
+    
     3
     00:00:07,000 --> 00:00:10,000
      Hello, humans.
-
+    
     4
     00:00:10,000 --> 00:00:15,000
      Focus on me.
-
+    
     5
     00:00:15,000 --> 00:00:16,000
      Focus on the guard.
-
+    
     6
     00:00:16,000 --> 00:00:20,000
      Don't tell anyone what you've seen in here.
-
+    
     7
     00:00:20,000 --> 00:00:24,000
      Have you seen what's in there?
-
+    
     8
     00:00:24,000 --> 00:00:30,000
      Intel. This is where it all changes.
-
-
+    
+    
 
 
 Interactive demo
@@ -529,8 +543,8 @@ Interactive demo
 .. code:: ipython3
 
     import gradio as gr
-
-
+    
+    
     def transcribe(url, task):
         output_file = Path("downloaded_video.mp4")
         yt = YouTube(url)
@@ -541,8 +555,8 @@ Interactive demo
         with output_file.with_suffix(".srt").open("w") as f:
             f.writelines(srt_lines)
         return [str(output_file), str(output_file.with_suffix(".srt"))]
-
-
+    
+    
     demo = gr.Interface(
         transcribe,
         [
@@ -565,7 +579,7 @@ Interactive demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7862
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 

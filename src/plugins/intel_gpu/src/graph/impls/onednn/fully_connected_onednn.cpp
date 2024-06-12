@@ -334,7 +334,12 @@ public:
             dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
             zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
             mem_fill(stream, zp_mem, static_cast<uint8_t>(std::round(prim->decompression_zero_point_scalar.value())));
-            attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
+
+            if (!is_four_bit_weight) {
+                attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
+            } else {
+                attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
+            }
         } else if (!prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
             auto &zp_node = arg.get_dependency(decompression_zp_idx).as<data>();
@@ -385,14 +390,14 @@ public:
             if (!prim->decompression_scale.empty()) {
                 auto decompression_scale_idx = !arg.bias_term() ? 2 : 3;
                 ds_data_type = convert_data_type(arg.get_dependency(decompression_scale_idx).get_output_layout().data_type);
+                auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
+                auto ngroups = arg.get_dependency(decompression_scale_idx).get_output_layout().get_dim(1);
+                group_size = ifm / ngroups;
                 if (!is_four_bit_weight) {
                     // 8-bit quantized weight
                     attr->set_scales(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
-                    auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
-                    auto ngroups = arg.get_dependency(decompression_scale_idx).get_output_layout().get_dim(1);
-                    group_size = ifm / ngroups;
                     attr->set_scales(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, ds_data_type);
                 }
             }

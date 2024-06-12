@@ -57,10 +57,6 @@ Table of contents:
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -645,7 +641,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8110d1bd60>
+    <matplotlib.image.AxesImage at 0x7f9eff572a90>
 
 
 

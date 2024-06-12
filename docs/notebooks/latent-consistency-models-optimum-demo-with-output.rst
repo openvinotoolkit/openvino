@@ -56,15 +56,7 @@ Install required packages
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -129,14 +121,10 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 
 .. parsed-literal::
 
-    2024-04-18 00:04:08.916564: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-18 00:04:08.953118: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 00:42:53.373765: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 00:42:53.408053: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-18 00:04:09.550802: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:42:53.902704: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -149,7 +137,7 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 
     prompt = "A cute squirrel in the forest, portrait, 8k"
     
-    image = pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0).images[0]
+    image = pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0, height=512, width=512).images[0]
     image.save("image_standard_pipeline.png")
     image
 
@@ -217,10 +205,15 @@ and there is no need to do it manually
 .. code:: ipython3
 
     from optimum.intel.openvino import OVLatentConsistencyModelPipeline
+    from pathlib import Path
     
-    ov_pipeline = OVLatentConsistencyModelPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7", export=True, compile=False)
-    ov_pipeline.reshape(batch_size=1, height=768, width=768, num_images_per_prompt=1)
-    ov_pipeline.save_pretrained("./openvino_ir")
+    if not Path("./openvino_ir").exists():
+        ov_pipeline = OVLatentConsistencyModelPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7", height=512, width=512, export=True, compile=False)
+        ov_pipeline.save_pretrained("./openvino_ir")
+    else:
+        ov_pipeline = OVLatentConsistencyModelPipeline.from_pretrained("./openvino_ir", export=False, compile=False)
+    
+    ov_pipeline.reshape(batch_size=1, height=512, width=512, num_images_per_prompt=1)
 
 
 .. parsed-literal::
@@ -231,11 +224,7 @@ and there is no need to do it manually
 .. parsed-literal::
 
     Framework not specified. Using pt to export the model.
-
-
-.. parsed-literal::
-
-    Keyword arguments {'subfolder': '', 'trust_remote_code': False} are not expected by StableDiffusionPipeline and will be ignored.
+    Keyword arguments {'subfolder': '', 'token': None, 'trust_remote_code': False} are not expected by StableDiffusionPipeline and will be ignored.
 
 
 
@@ -246,7 +235,7 @@ and there is no need to do it manually
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.2.2+cpu
+    Using framework PyTorch: 2.3.1+cpu
 
 
 .. parsed-literal::
@@ -257,21 +246,57 @@ and there is no need to do it manually
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    Using framework PyTorch: 2.3.1+cpu
+    Using framework PyTorch: 2.3.1+cpu
+    Using framework PyTorch: 2.3.1+cpu
+
+
 
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.2.2+cpu
+    OVLatentConsistencyModelPipeline {
+      "_class_name": "OVLatentConsistencyModelPipeline",
+      "_diffusers_version": "0.24.0",
+      "feature_extractor": [
+        "transformers",
+        "CLIPImageProcessor"
+      ],
+      "requires_safety_checker": true,
+      "safety_checker": [
+        "stable_diffusion",
+        "StableDiffusionSafetyChecker"
+      ],
+      "scheduler": [
+        "diffusers",
+        "LCMScheduler"
+      ],
+      "text_encoder": [
+        "optimum",
+        "OVModelTextEncoder"
+      ],
+      "text_encoder_2": [
+        null,
+        null
+      ],
+      "tokenizer": [
+        "transformers",
+        "CLIPTokenizer"
+      ],
+      "unet": [
+        "optimum",
+        "OVModelUnet"
+      ],
+      "vae_decoder": [
+        "optimum",
+        "OVModelVaeDecoder"
+      ],
+      "vae_encoder": [
+        "optimum",
+        "OVModelVaeEncoder"
+      ]
+    }
 
-
-.. parsed-literal::
-
-    Using framework PyTorch: 2.2.2+cpu
-
-
-.. parsed-literal::
-
-    Using framework PyTorch: 2.2.2+cpu
 
 
 .. code:: ipython3
@@ -283,20 +308,8 @@ and there is no need to do it manually
 .. parsed-literal::
 
     Compiling the vae_decoder to CPU ...
-
-
-.. parsed-literal::
-
     Compiling the unet to CPU ...
-
-
-.. parsed-literal::
-
     Compiling the vae_encoder to CPU ...
-
-
-.. parsed-literal::
-
     Compiling the text_encoder to CPU ...
 
 
@@ -304,7 +317,7 @@ and there is no need to do it manually
 
     prompt = "A cute squirrel in the forest, portrait, 8k"
     
-    image_ov = ov_pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0).images[0]
+    image_ov = ov_pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0, height=512, width=512).images[0]
     image_ov.save("image_opt.png")
     image_ov
 

@@ -4,20 +4,27 @@ Interface CoreConstructor
 .. code-block:: ts
 
    interface CoreConstructor {
-       new Core(): Core;
+       new CoreConstructor(): Core;
    }
 
-- Defined in
-  `addon.ts:40 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L40>`__
+* **Defined in:**
+  `addon.ts:187 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L187>`__
+
+
+Constructors
+#####################
+
 
 .. rubric:: constructor
 
-.. code-block:: ts
+.. container:: m-4
 
-   new Core(): Core
+   .. code-block:: ts
 
-**Returns** :doc:`Core <Core>`
+      new CoreConstructor(): Core
 
-- Defined in
-  `addon.ts:41 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L41>`__
+   * **Returns:** :doc:`Core <Core>`
+
+   * **Defined in:**
+     `addon.ts:188 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L188>`__
 

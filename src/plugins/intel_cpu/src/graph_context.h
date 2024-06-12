@@ -14,6 +14,10 @@
 namespace ov {
 namespace intel_cpu {
 
+namespace node {
+class MemoryStatesRegister;
+} // namespace node
+
 class GraphContext {
 public:
     typedef std::shared_ptr<GraphContext> Ptr;
@@ -23,26 +27,7 @@ public:
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
-                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr)
-        : config(config),
-          weightsCache(std::move(w_cache)),
-          isGraphQuantizedFlag(isGraphQuantized),
-          streamExecutor(streamExecutor),
-          subMemoryManager(sub_memory_manager) {
-        rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
-        // primitive/executors can be shared across sub-stream
-        // but scratch pad cannot be shared.
-        numNumaNodes = 1;
-        if (streamExecutor) {
-            cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
-            auto nNumaNodes = get_num_numa_nodes();
-            if (numNumaNodes < nNumaNodes)
-                numNumaNodes = nNumaNodes;
-        }
-        for (int i = 0; i < numNumaNodes; i++) {
-            rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
-        }
-    }
+                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
     const Config& getConfig() const {
         return config;
@@ -87,6 +72,10 @@ public:
         return numNumaNodes;
     }
 
+    const std::shared_ptr<node::MemoryStatesRegister>& getMemoryStatesRegister() const {
+        return memoryStatesRegister;
+    }
+
 private:
     Config config;  // network-level config
 
@@ -106,6 +95,8 @@ private:
     std::shared_ptr<SubMemoryManager> subMemoryManager;
 
     int numNumaNodes = 1;
+
+    std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister;
 };
 
 }  // namespace intel_cpu

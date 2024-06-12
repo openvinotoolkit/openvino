@@ -90,40 +90,12 @@ Settings
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -235,8 +207,8 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2024-04-18 00:18:31.032726: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-04-18 00:18:31.032904: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-06-06 01:01:17.864372: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-06-06 01:01:17.864557: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
@@ -394,7 +366,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fb824264a70>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f4ec064a1f0>
 
 
 
@@ -425,7 +397,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fb824264a30>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f4ec0650b70>
 
 
 
@@ -463,7 +435,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fb8242640b0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f4ec0650330>
 
 
 
@@ -677,10 +649,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.42
-
-
-.. parsed-literal::
-
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0184 seconds per image, FPS: 54.27
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.57
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0140 seconds per image, FPS: 71.22
 

@@ -38,10 +38,6 @@ Table of contents:
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -198,7 +194,7 @@ is provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fcde9549940>
+    <matplotlib.image.AxesImage at 0x7f35bceac760>
 
 
 
@@ -225,7 +221,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fcd9050b400>
+    <matplotlib.image.AxesImage at 0x7f3580514910>
 
 
 

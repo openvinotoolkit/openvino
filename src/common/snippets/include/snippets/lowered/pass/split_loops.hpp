@@ -14,7 +14,7 @@ namespace pass {
 
 /**
  * @interface SplitLoops
- * @brief If loop_1 has larger increment but the same works amount of loop_2, that follows loop_1, then split loop_2
+ * @brief If Unified Loop `loop_1` has larger increment but the same works amount of Unified loop `loop_2`, that follows loop_1, then split loop_2
  *        into two loops so the outermost of the split loops could be fused with the loop_1 using the pass `FuseLoops`.
  * Example:
  *         Loop_1_begin                                Loop_1_begin                                  Loop_1_begin
@@ -36,7 +36,7 @@ public:
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
-    static bool can_be_split(const LoopInfoPtr& current, const LoopInfoPtr& target);
+    static bool can_be_split(const UnifiedLoopInfoPtr& current, const UnifiedLoopInfoPtr& target);
 };
 
 } // namespace pass

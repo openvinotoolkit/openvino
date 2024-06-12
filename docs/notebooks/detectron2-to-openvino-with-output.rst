@@ -52,7 +52,7 @@ Install required packages for running model
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
+    %pip install -q "torch" "torchvision" "opencv-python" "wheel" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/facebookresearch/detectron2.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0"
 
@@ -60,15 +60,7 @@ Install required packages for running model
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 

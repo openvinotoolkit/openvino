@@ -25,9 +25,9 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
     const size_t out_channels = 10;
     if (layer_type == "Convolution") {
         const size_t in_channels = input_params[0]->get_partial_shape()[1].get_length();
-        auto weights = ov::test::utils::deprecated::make_constant<int8_t>(ov::element::i8, Shape{out_channels, in_channels, 1, 1}, {}, true);
+        auto weights = ov::test::utils::make_constant(ov::element::i8, Shape{out_channels, in_channels, 1, 1});
         auto convert = std::make_shared<ov::opset1::Convert>(weights, precision);
-        auto mul_const = ov::test::utils::deprecated::make_constant<float>(precision, Shape{1, 1, 1, 1}, {}, true);
+        auto mul_const = ov::test::utils::make_constant(precision, Shape{1, 1, 1, 1});
         auto mul = std::make_shared<ov::opset1::Multiply>(convert, mul_const);
 
         const ov::Strides strides = {1, 1};
@@ -37,9 +37,9 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
         layer = std::make_shared<ov::opset1::Convolution>(fq, mul, strides, pads_begin, pads_end, dilations);
     } else if (layer_type == "GroupConvolution") {
         const size_t in_channels = input_params[0]->get_partial_shape()[1].get_length();
-        auto weights = ov::test::utils::deprecated::make_constant<int8_t>(ov::element::i8, Shape{in_channels, 1, 1, 1}, {}, true);
+        auto weights = ov::test::utils::make_constant(ov::element::i8, Shape{in_channels, 1, 1, 1}, {});
         auto convert = std::make_shared<ov::opset1::Convert>(weights, precision);
-        auto mul_const = ov::test::utils::deprecated::make_constant<float>(precision, Shape{1, 1, 1, 1}, {}, true);
+        auto mul_const = ov::test::utils::make_constant(precision, Shape{1, 1, 1, 1});
         auto mul = std::make_shared<ov::opset1::Multiply>(convert, mul_const);
 
         std::vector<int32_t> target_shape{static_cast<int32_t>(in_channels), 1, 1, 1, 1};
@@ -53,9 +53,9 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
         layer = std::make_shared<ov::opset1::GroupConvolution>(fq, reshape, strides, pads_begin, pads_end, dilations);
     } else if (layer_type == "ConvolutionBackpropData") {
         const size_t in_channels = input_params[0]->get_partial_shape()[1].get_length();
-        auto weights = ov::test::utils::deprecated::make_constant<int8_t>(ov::element::i8, Shape{in_channels, out_channels, 1, 1}, {}, true);
+        auto weights = ov::test::utils::make_constant(ov::element::i8, Shape{in_channels, out_channels, 1, 1});
         auto convert = std::make_shared<ov::opset1::Convert>(weights, precision);
-        auto mul_const = ov::test::utils::deprecated::make_constant<float>(precision, Shape{1, 1, 1, 1}, {}, true);
+        auto mul_const = ov::test::utils::make_constant(precision, Shape{1, 1, 1, 1});
         auto mul = std::make_shared<ov::opset1::Multiply>(convert, mul_const);
 
         const ov::Strides strides = {1, 1};
@@ -74,9 +74,9 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
         layer = std::make_shared<ov::opset1::MatMul>(fq, fq_2, false, true);
     } else if (layer_type == "MatMulWithConstant") {
         const size_t in_channels = input_params[0]->get_partial_shape()[1].get_length();
-        auto weights = ov::test::utils::deprecated::make_constant<int8_t>(ov::element::i8, Shape{out_channels, in_channels}, {}, true);
+        auto weights = ov::test::utils::make_constant(ov::element::i8, Shape{out_channels, in_channels});
         auto convert = std::make_shared<ov::opset1::Convert>(weights, precision);
-        auto mul_const = ov::test::utils::deprecated::make_constant<float>(precision, Shape{out_channels, 1}, {}, true);
+        auto mul_const = ov::test::utils::make_constant(precision, Shape{out_channels, 1});
         auto mul = std::make_shared<ov::opset1::Multiply>(convert, mul_const);
         layer = std::make_shared<ov::opset1::MatMul>(fq, mul, false, true);
     } else {
@@ -100,7 +100,7 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
             mul_shape = Shape{1};
         }
         std::shared_ptr<ov::Node> mul;
-        auto mul_input = ov::test::utils::deprecated::make_constant<float>(precision, mul_shape, {}, true);
+        auto mul_input = ov::test::utils::make_constant(precision, mul_shape);
         add_input0 = std::make_shared<ov::opset1::Multiply>(layer, mul_input);
     }
     std::shared_ptr<ov::Node> add_input1;
@@ -109,10 +109,10 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
         Shape bias_shape(out_shape.size(), 1);
         if (layer_type != "MatMul")
             bias_shape[1] = out_shape[1].get_length();
-        add_input1 = ov::test::utils::deprecated::make_constant<float>(precision, bias_shape, {}, true);
+        add_input1 = ov::test::utils::make_constant(precision, bias_shape);
     } else {
         if (add_shape.is_static()) {
-            add_input1 = ov::test::utils::deprecated::make_constant<float>(precision, add_shape.to_shape(), {}, true);
+            add_input1 = ov::test::utils::make_constant(precision, add_shape.to_shape());
         } else {
             auto new_param = std::make_shared<ov::opset1::Parameter>(precision, input_shape);
             input_params.push_back(new_param);

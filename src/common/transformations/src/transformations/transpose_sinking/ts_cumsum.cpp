@@ -25,7 +25,7 @@ using namespace ov::pass::transpose_sinking::utils;
 TSCumSumForward::TSCumSumForward() {
     MATCHER_SCOPE(TSCumSumForward);
 
-    create_pattern<ov::op::v0::CumSum>(true, {0});
+    create_pattern<ov::op::v0::CumSum>({0});
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {

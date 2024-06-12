@@ -19,7 +19,7 @@ using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using testing::HasSubstr;
 
-class TypePropRMSNormTest : public TypePropOpTest<op::v14::RMSNorm> {
+class TypePropRMSNormTest : public TypePropOpTest<op::internal::RMSNorm> {
 public:
     double eps = 1e-5;
 };
