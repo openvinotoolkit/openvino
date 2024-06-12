@@ -75,6 +75,26 @@ bool is_type_allocable(const element::Type& type) {
     return type != element::undefined && type.is_static();
 }
 
+/**
+ * @brief Invalidates unused tensor values for outputs (except Constants)
+ *
+ * @param outputs  Outputs to apply invalidation.
+ */
+void invalidate_unused_values(const ov::OutputVector& outputs) {
+    for (const auto& output : outputs) {
+        if (!is_type<op::v0::Constant>(output.get_node())) {
+            auto& tensor = output.get_tensor();
+            const auto& lower = tensor.get_lower_value();
+            const auto& upper = tensor.get_upper_value();
+            const auto should_invalidate =
+                (lower && shape_size(lower.get_shape()) > 10) || (upper && shape_size(upper.get_shape()) > 10);
+            if (should_invalidate && output.get_target_inputs().size() == 1) {
+                tensor.invalidate_values();
+            }
+        }
+    }
+}
+
 ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
     if (is_upper && output.get_tensor().get_upper_value()) {
         return output.get_tensor().get_upper_value();
@@ -87,16 +107,21 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
     std::vector<Node*> order;
     if (could_propagate(output, order)) {
         for (const auto& node : order) {
-            ov::TensorVector outputs;
-            for (const auto& out : node->outputs()) {
-                if (is_type_allocable(out.get_element_type())) {
-                    outputs.emplace_back(out);
-                } else {
-                    outputs.emplace_back();
+            // Constant has bounds set when created and does not support symbols evaluation
+            // apply rt_info propagation only
+            if (is_type<op::v0::Constant>(node)) {
+                ov::TensorVector outputs;
+                for (const auto& out : node->outputs()) {
+                    if (is_type_allocable(out.get_element_type())) {
+                        outputs.emplace_back(out);
+                    } else {
+                        outputs.emplace_back();
+                    }
                 }
-            }
 
-            if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
+                if (is_upper ? !node->evaluate_upper(outputs) : !node->evaluate_lower(outputs)) {
+                    break;
+                }
                 const auto& input_values = node->input_values();
                 TensorSymbolVector output_symbols(outputs.size());
 
@@ -131,22 +156,11 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
                         ov::populate_tensor_with_missing_symbols(out_tensor);
                 }
 
-                for (const auto& input : input_values) {
-                    auto& tensor = input.get_tensor();
-                    bool should_invalidate = invalidate_all_unused_values;
-                    if (tensor.get_lower_value() && shape_size(tensor.get_lower_value().get_shape()) > 10)
-                        should_invalidate |= true;
-
-                    if (tensor.get_upper_value() && shape_size(tensor.get_upper_value().get_shape()) > 10)
-                        should_invalidate |= true;
-
-                    if (should_invalidate && input.get_target_inputs().size() == 1)
-                        tensor.invalidate_values();
+                if (invalidate_all_unused_values) {
+                    invalidate_unused_values(input_values);
                 }
-                propagate_rt_info(node, output);
-            } else {
-                break;
             }
+            propagate_rt_info(node, output);
         }
     }
 
@@ -314,50 +328,47 @@ std::pair<ov::Tensor, ov::Tensor> ov::util::evaluate_both_bounds(const Output<No
     std::vector<Node*> order;
     if (could_propagate(output, order)) {
         for (const auto& node : order) {
-            ov::TensorVector outputs_lower, outputs_upper;
-            for (const auto& out : node->outputs()) {
-                if (is_type_allocable(out.get_element_type())) {
-                    outputs_lower.emplace_back(out);
-                    outputs_upper.emplace_back(out);
-                } else {
-                    outputs_lower.emplace_back();
-                    outputs_upper.emplace_back();
+            // Constant has bounds set when created and does not support symbols evaluation
+            // apply rt_info propagation only
+            if (!is_type<op::v0::Constant>(node)) {
+                ov::TensorVector outputs_lower, outputs_upper;
+                for (const auto& out : node->outputs()) {
+                    if (is_type_allocable(out.get_element_type())) {
+                        outputs_lower.emplace_back(out);
+                        outputs_upper.emplace_back(out);
+                    } else {
+                        outputs_lower.emplace_back();
+                        outputs_upper.emplace_back();
+                    }
                 }
-            }
-            if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
-                break;
-            }
-            auto input_values = node->input_values();
-            bool same_inputs = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-                auto& t = input.get_tensor();
-                return t.has_and_set_bound() || are_equal(t.get_lower_value(), t.get_upper_value());
-            });
-            TensorSymbolVector output_symbols(node->get_output_size());
-            bool symbols_evaluated = node->evaluate_symbol(output_symbols);
-            for (size_t i = 0; i < node->get_output_size(); ++i) {
-                auto& out_tensor = node->get_output_tensor(i);
+                if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
+                    break;
+                }
+                auto input_values = node->input_values();
+                bool same_inputs = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
+                    auto& t = input.get_tensor();
+                    return t.has_and_set_bound() || are_equal(t.get_lower_value(), t.get_upper_value());
+                });
+                TensorSymbolVector output_symbols(node->get_output_size());
+                bool symbols_evaluated = node->evaluate_symbol(output_symbols);
+                for (size_t i = 0; i < node->get_output_size(); ++i) {
+                    auto& out_tensor = node->get_output_tensor(i);
 
-                out_tensor.set_lower_value(outputs_lower[i]);
-                if (same_inputs || are_equal(outputs_lower[i], outputs_upper[i])) {
-                    out_tensor.set_upper_value(outputs_lower[i]);
-                } else {
-                    out_tensor.set_upper_value(outputs_upper[i]);
+                    out_tensor.set_lower_value(outputs_lower[i]);
+                    if (same_inputs || are_equal(outputs_lower[i], outputs_upper[i])) {
+                        out_tensor.set_upper_value(outputs_lower[i]);
+                    } else {
+                        out_tensor.set_upper_value(outputs_upper[i]);
+                    }
+
+                    if (!out_tensor.get_value_symbol().empty())
+                        continue;
+                    if (symbols_evaluated)
+                        out_tensor.set_value_symbol(output_symbols[i]);
+                    ov::populate_tensor_with_missing_symbols(node->get_output_tensor(i));
                 }
 
-                if (!out_tensor.get_value_symbol().empty())
-                    continue;
-                if (symbols_evaluated)
-                    out_tensor.set_value_symbol(output_symbols[i]);
-                ov::populate_tensor_with_missing_symbols(node->get_output_tensor(i));
-            }
-            for (const auto& input : node->input_values()) {
-                auto& tensor = input.get_tensor();
-                const auto& lower = tensor.get_lower_value();
-                const auto& upper = tensor.get_upper_value();
-                const auto should_invalidate =
-                    (lower && shape_size(lower.get_shape()) > 10) || (upper && shape_size(upper.get_shape()) > 10);
-                if (should_invalidate && input.get_target_inputs().size() == 1)
-                    tensor.invalidate_values();
+                invalidate_unused_values(input_values);
             }
             propagate_rt_info(node, output);
         }
