@@ -44,9 +44,9 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
     } else {
         // normal values
         const auto input_mantissa_bits = input.bits & f32_mantissa_bits_mask;
-        return input_exponent_bits +
-               static_cast<uint8_t>((input_mantissa_bits > round_even) || // round to nearest
-                                    (input_mantissa_bits == round_even) && (input_exponent_bits & 0x1)); // round to even
+        return input_exponent_bits + static_cast<uint8_t>((input_mantissa_bits > round_even) ||  // round to nearest
+                                                          (input_mantissa_bits == round_even) && // round to even
+                                                              (input_exponent_bits & 0x1));
     }
 }
 }  // namespace
