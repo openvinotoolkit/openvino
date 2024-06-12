@@ -8,6 +8,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
@@ -74,9 +75,28 @@ OutputVector translate_full(const NodeContext& context) {
 OutputVector translate_full_fx(const NodeContext& context) {
     // aten.full.default([16, 16], 0, dtype = torch.float32, layout = torch.strided, device = device(type='cpu'),
     // pin_memory = False)
-    num_inputs_check(context, 2, 2);
-    auto sizes = context.get_input(0);
-    auto value = context.get_input(1);
+    auto num_inputs = context.get_input_size();
+    num_inputs_check(context, 2, num_inputs);
+    ov::Output<ov::Node> sizes;
+    if (context.get_input_type(0).is<type::List>()) {
+        std::deque<Output<Node>> list_elems;
+        for (size_t i = 0; i < num_inputs-1; i++) {
+            if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
+                auto const_val = context.const_input<int32_t>(i);
+                std::vector<int32_t> dim_vec;
+                dim_vec.push_back(const_val);
+                auto dim_const = ov::op::v0::Constant::create(element::i32, Shape{1}, dim_vec);
+                list_elems.push_back(dim_const);
+            } else {
+                auto converted_dim = context.mark_node(std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
+                list_elems.push_back(converted_dim);
+            }
+        }
+        sizes = std::make_shared<ov::op::v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0);
+    } else {
+        sizes = context.get_input(0);
+    }
+    auto value = context.get_input(num_inputs-1);
 
     auto filled_tensor = base_translate_full(context, sizes, value);
     if (context.has_attribute("dtype")) {

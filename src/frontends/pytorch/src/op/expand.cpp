@@ -5,6 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
@@ -46,23 +47,31 @@ OutputVector translate_expand_fx(const NodeContext& context) {
     num_inputs_check(context, 2, num_inputs);
     auto x = context.get_input(0);
     std::vector<int32_t> shape_vec;
-    auto sizes = context.get_input(1);
-    if (num_inputs != 2) {
+    if (context.get_input_type(1).is<type::List>()) {
+        std::deque<Output<Node>> list_elems;
         for (size_t i = 1; i < num_inputs; i++) {
-            auto a = context.get_input_from_visible_context(i).get_node_shared_ptr();
-            auto shape_input = context.get_input(static_cast<int>(i));
-            if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(a) ||
-                shape_input.get_partial_shape().rank().is_dynamic() ||
-                shape_input.get_partial_shape().rank().get_length() == 0) {
-                shape_vec.push_back(-1);
+            if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
+                auto const_val = context.const_input<int32_t>(i);
+                std::vector<int32_t> dim_vec;
+                dim_vec.push_back(const_val);
+                auto dim_const = ov::op::v0::Constant::create(element::i32, Shape{1}, dim_vec);
+                list_elems.push_back(dim_const);
             } else {
-                auto val = context.const_input<int32_t>(i);
-                shape_vec.push_back(val);
+                auto converted_dim = context.mark_node(std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
+                list_elems.push_back(converted_dim);
             }
         }
-        sizes = ov::op::v0::Constant::create(element::i32, Shape{num_inputs - 1}, shape_vec);
+        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0);
+        return base_expand(context, x, concat);
+    } else {
+        auto x = context.get_input(0);
+        auto sizes = context.get_input(1);
+        // TODO: figure out what implicit means
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<bool>(2) == false,
+                                    "Unexpected value of implicit for expand operation");
+        return base_expand(context, x, sizes);
     }
-    return base_expand(context, x, sizes);
+
 };
 
 }  // namespace op
