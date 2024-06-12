@@ -8,6 +8,22 @@
 #include "node.h"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/plain_tensor.hpp"
+#include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "arm_compute/core/Types.h"
+
+using Dim = std::size_t;
+using VectorDims = std::vector<Dim>;
+inline arm_compute::TensorShape shapeCast(const VectorDims& dims) {
+    arm_compute::TensorShape tensorShape;
+    for (std::size_t i = 0; i < dims.size(); ++i) {
+        tensorShape.set(dims.size() - i - 1, dims[i], false);
+    }
+    if (tensorShape.num_dimensions() == 0) {
+        tensorShape.set(0, 1, false);
+        tensorShape.set_num_dimensions(1);
+    }
+    return tensorShape;
+}
 
 namespace ov {
 namespace intel_cpu {
@@ -36,7 +52,7 @@ public:
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
+    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS, KT_ACL};
 
     void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
 

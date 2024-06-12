@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <iostream>
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
@@ -193,6 +194,7 @@ struct MHAKernel {
         });
     }
 };
+
 
 template <typename T>
 struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
@@ -505,7 +507,205 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     }
 };
 
-#ifdef OV_CPU_WITH_MLAS
+// ACL ARM
+#ifdef OV_CPU_WITH_ACL
+template <>
+struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
+    const GraphContext::CPtr context;
+    size_t m_block_size;
+    // buffer to hold qk temp
+    std::vector<PlainTensor> qk_buffers;
+
+    MHAKernel() = delete;
+    explicit MHAKernel(GraphContext::CPtr ctx): context(ctx) {
+        m_block_size = 4;
+        select_nfltmax_at_0 = false;
+        qk_buffers.resize(parallel_get_max_threads());
+    }
+
+    PlainTensor causal_mask;
+    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
+        causal_mask = mask;
+        select_nfltmax_at_0 = _select_nfltmax_at_0;
+    }
+
+    // Q, K, V is ready, do attention
+    // query         [B, H, q_len, S]
+    // present_key   [B, H, kv_len, S]  stride of last dim maybe > 1
+    // present_value [B, H, kv_len, S]
+    // attention_mask [B, 1, q_len, kv_len]
+    // alibi
+    // output_emb    [B, L1, H*S]
+    void operator()(dnnl::stream strm,
+                    PlainTensor& query,
+                    PlainTensor& present_key,
+                    PlainTensor& present_value,
+                    const PlainTensor& alibi_mask,
+                    const PlainTensor& attention_mask,
+                    PlainTensor& output_emb,
+                    bool has_out_transpose,
+                    bool auto_causal,
+                    float d_scale = 0.0f) {
+        auto B = query.size(0);
+        auto H = query.size(1);
+        auto q_len = query.size(2);
+        auto head_size = query.size(3);
+        auto kv_len = present_key.size(2);
+        auto h_group_num = present_key.size(1);
+        size_t h_each_group_len = H / h_group_num;
+
+        if (d_scale == 0.0f)
+            d_scale = 1.0f / sqrt(head_size);
+        auto k_stride_s = present_key.stride(3);
+
+        auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
+
+        parallel_for2d(B, H, [&](size_t b, size_t h) {
+            arm_compute::NEGEMM gemm;
+            arm_compute::NETranspose trans;
+            auto thread_id = parallel_get_thread_num();
+            if (thread_id < 0)
+                OPENVINO_THROW("The calling thread isn't initialized!");
+            auto& qk_buf = qk_buffers[thread_id];
+
+//            auto m_start = m_blk * m_block_size;
+//            auto m_end = std::min(m_start + m_block_size, q_len);
+//            auto m_cnt = m_end - m_start;
+
+            auto kv_len_cache_align = (((kv_len * sizeof(float)) + 63) / 64 * 64) / sizeof(float);
+            qk_buf.resize<float>({q_len, kv_len_cache_align});
+            float* q_ptr = &query.at<float>({b, h, 0, 0});
+            float* k_ptr = &present_key.at<float>({b, h / h_each_group_len, 0, 0});
+            float* v_ptr = &present_value.at<float>({b, h / h_each_group_len, 0, 0});
+
+            float* alibi_ptr = nullptr;
+            auto alibi_stride = 0;
+            if (alibi_mask) {
+                alibi_ptr = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                if (alibi_mask.size(2) > 1)
+                    alibi_stride = alibi_mask.stride(2);
+            }
+            uint8_t* attn_mask_ptr = nullptr;
+            auto attn_mask_stride = 0;
+            if (attention_mask) {
+                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<float>({b, h, 0, 0}, true));
+                if (attention_mask.size(2) > 1)
+                    attn_mask_stride = attention_mask.stride(2) * sizeof(float);
+            }
+            uint8_t* cmask_ptr = nullptr;
+            auto cmask_stride = 0;
+            if (causal_mask) {
+                cmask_ptr = &causal_mask.at<uint8_t>({b, h, 0, 0}, true);
+                if (causal_mask.size(2) > 1)
+                    cmask_stride = causal_mask.stride(2);
+            }
+
+            float* qk = &(qk_buf.at<float>({0, 0}));
+            auto qk_m_stride = qk_buf.stride(0);
+
+            arm_compute::TensorInfo qInfo(shapeCast({q_len, head_size}), 1, arm_compute::DataType::F32);
+            arm_compute::TensorInfo kInfo(shapeCast({kv_len, head_size}), 1, arm_compute::DataType::F32);
+            arm_compute::TensorInfo kTInfo(shapeCast({head_size, kv_len}), 1, arm_compute::DataType::F32);
+            arm_compute::TensorInfo vInfo(shapeCast({kv_len, head_size}), 1, arm_compute::DataType::F32);
+            arm_compute::TensorInfo qkInfo(shapeCast({q_len, kv_len}), 1, arm_compute::DataType::F32);
+
+            arm_compute::Tensor qTensor;
+            arm_compute::Tensor kTensor;
+            arm_compute::Tensor kTTensor;
+            arm_compute::Tensor vTensor;
+            arm_compute::Tensor qkTensor;
+
+            qTensor.allocator()->init(qInfo);
+            kTensor.allocator()->init(kInfo);
+            kTTensor.allocator()->init(kTInfo);
+            vTensor.allocator()->init(vInfo);
+            qkTensor.allocator()->init(qkInfo);
+
+            kTTensor.allocator()->allocate();
+
+            qTensor.allocator()->import_memory(reinterpret_cast<void*>(q_ptr));
+            kTensor.allocator()->import_memory(reinterpret_cast<void*>(k_ptr));
+            vTensor.allocator()->import_memory(reinterpret_cast<void*>(v_ptr));
+            qkTensor.allocator()->import_memory(reinterpret_cast<void*>(qk));
+
+            auto transStatus = trans.validate(&kInfo, &kTInfo);
+
+            trans.configure(&kTensor, &kTTensor);
+            trans.run();
+
+            auto status = gemm.validate(&qInfo, &kTInfo, nullptr, &qkInfo, 1.0f, 0.0f);
+
+            gemm.configure(&qTensor, &kTTensor, nullptr, &qkTensor, 1.0f, 0.0f);
+
+            if (k_stride_s == 1) {
+                gemm.run();
+//                mlas_sgemm("N",
+//                           "T",
+//                           m_cnt,
+//                           kv_len,
+//                           head_size,
+//                           1.0f,
+//                           q_ptr,
+//                           query.stride(2),
+//                           k_ptr,
+//                           present_key.stride(2),
+//                           0.f,
+//                           qk,
+//                           qk_m_stride,
+//                           1);
+            } else {
+//                mlas_sgemm("N",
+//                           "N",
+//                           m_cnt,
+//                           kv_len,
+//                           head_size,
+//                           1.0f,
+//                           q_ptr,
+//                           query.stride(2),
+//                           k_ptr,
+//                           present_key.stride(3),
+//                           0.f,
+//                           qk,
+//                           qk_m_stride,
+//                           1);
+            }
+
+            for (size_t m = 0; m < q_len; m++) {
+                // apply attention mask & sofmax
+                auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+
+                attn_softmax(qk + m * qk_m_stride,
+                            qk + m * qk_m_stride,
+                            d_scale,
+                            alibi_ptr + m * alibi_stride,
+                            attn_mask_ptr + m * attn_mask_stride,
+                            cmask_ptr + m * cmask_stride,
+                            select_nfltmax_at_0,
+                            ncausal,
+                            kv_len,
+                            ov::element::f32,
+                            ov::element::f32);
+            }
+            mlas_sgemm("N",
+                       "N",
+                       q_len,
+                       head_size,
+                       kv_len,
+                       1.0f,
+                       qk,
+                       qk_m_stride,
+                       v_ptr,
+                       present_value.stride(2),
+                       0.f,
+                       has_out_transpose ? &output_emb.at<float>({b, 0, h * head_size}) : &output_emb.at<float>({b, h, 0}),
+                       has_out_transpose ? output_emb.stride(1) : output_emb.stride(2),
+                       1);
+        });
+    }
+};
+#endif
+#ifdef  OV_CPU_WITH_MLAS
 template <>
 struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     const GraphContext::CPtr context;
@@ -930,23 +1130,7 @@ void ScaledDotProductAttention::createPrimitive() {
 
     auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
         std::shared_ptr<Executor> executor = nullptr;
-        if (rtPrecision == ov::element::bf16) {
-#ifdef OPENVINO_ARCH_X86_64
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
-#endif
-        } else {
-#ifdef OV_CPU_WITH_MLAS
-            executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
-#elif defined(OPENVINO_ARCH_X86_64)
-            if (with_cpu_x86_avx512_core()) {
-                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
-            } else {
-                executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
-            }
-#else
-            executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
-#endif
-        }
+        executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
         return executor;
     };
 
