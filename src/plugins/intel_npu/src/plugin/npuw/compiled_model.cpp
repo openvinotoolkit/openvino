@@ -17,7 +17,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "plugin.hpp"
-#include "properties.hpp"
+
 #include "npu_private_properties.hpp"
 #include "logging.hpp"
 #include "util.hpp"
