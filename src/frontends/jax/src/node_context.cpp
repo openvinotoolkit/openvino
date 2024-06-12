@@ -47,46 +47,9 @@ std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) cons
     return ov_node;
 }
 
-void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) const {
-    if (m_tensor_map->count(index)) {
-        OPENVINO_DEBUG << "[ WARNING ] Current context has tensor " << index << ". Assuming mutated output.\n";
-    }
-    m_translate_session->encode_tensor_name(ov_output, index);
-    (*m_tensor_map)[index] = ov_output;
-}
-
-Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) const {
-    if (m_tensor_map->find(index) != m_tensor_map->end()) {
-        return m_tensor_map->at(index);
-    } else {
-        // nested subgraphs case
-        auto parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
-        m_translate_session->encode_tensor_name(parameter->output(0), index);
-        (*m_tensor_map)[index] = parameter;
-        m_external_parameters->push_back(parameter);
-        OPENVINO_DEBUG << "Nested case, created: " << parameter << '\n';
-        return parameter;
-    }
-}
-
-Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
-    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower then number of inputs.");
-    auto input_tensor = get_input(static_cast<int>(index));
-    auto input_node = input_tensor.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<v0::Parameter>(input_node)) {
-        // We need to look into external context for inputs that would be feed into
-        // this parameter
-        size_t tensor_idx = m_translate_session->decode_tensor_name(input_node->output(0));
-        if (m_ext_tensor_map.count(tensor_idx)) {
-            input_tensor = m_ext_tensor_map.at(tensor_idx);
-        }
-    }
-    return input_tensor;
-}
-
 namespace {
 std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size_t index, bool allow_empty = true) {
-    auto input_val = ctx.get_input_from_visible_context(index);
+    auto input_val = ctx.get_input(static_cast<int>(index));
     if (ctx.get_input_type(index).is<type::List>()) {
         FRONT_END_THROW("Taking list as constant has not been supported in JAX frontend yet.");
     }
@@ -174,7 +137,7 @@ Any NodeContext::get_values_from_const_input(int index) const {
                             "Input with index: ",
                             index,
                             " does not exist.");
-    auto input_val = get_input_from_visible_context(index);
+    auto input_val = get_input(index);
     if (auto input = std::dynamic_pointer_cast<JaxFrameworkNode>(input_val.get_node_shared_ptr())) {
         const auto& attrs = input->get_attrs();
         if (attrs.find("none_value") != attrs.end()) {

@@ -128,8 +128,6 @@ public:
         return m_translate_session;
     }
 
-    void add_tensor_to_context(size_t index, Output<Node> ov_output) const;
-
     Output<Node> get_tensor_from_model(size_t index) const {
         if (m_tensor_map->find(index) != m_tensor_map->end()) {
             return m_tensor_map->at(index);
@@ -137,9 +135,6 @@ public:
             return Output<Node>();
         }
     }
-
-    Output<Node> get_tensor_from_model_or_create_input(size_t index) const;
-    Output<Node> get_input_from_visible_context(size_t index) const;
 
 private:
     std::shared_ptr<JaxDecoder> m_decoder;
