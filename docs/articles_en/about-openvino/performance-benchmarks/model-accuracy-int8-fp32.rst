@@ -29,73 +29,73 @@ the table for more information.
    * - bert-base-cased
      - SST-2_bert_cased_padded
      - spearman@cosine
-     - 2.93%
-     - 2.68%
-     - 2.76%
-     - 2.72%
+     - 3.33%
+     - 3.22%
+     - 3.69%
+     - 3.28%
    * - bert-large-uncased-whole-word-masking-squad-0001
      - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
      - F1
      - 0.19%
-     - -0.03%
+     - -0.06%
      - 0.03%
      - 0.11%
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
-     - -0.84%
-     - -0.64%
-     - -0.62%
+     - -0.90%
      - -0.63%
+     - -0.61%
+     - -0.62%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
      - -0.04%
+     - -0.03%
+     - 0.04%
      - 0.02%
-     - 0.04%
-     - 0.04%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
      -
-     - -0.97%
-     - -0.97%
+     - -0.87%
+     - -0.89%
      - -0.95%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - -0.09%
-     - -0.12%
+     - -0.20%
+     - -0.18%
+     - -0.18%
      - -0.13%
-     - -0.19%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
+     - -0.03%
      - -0.02%
-     - -0.01%
-     - -0.02%
-     - 0.04%
+     - -0.03%
+     - -0.03%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
-     - -2.97%
-     - -0.29%
-     - -0.31%
-     - -0.26%
+     - -2.75%
+     - -0.11%
+     - -0.11%
+     - -0.08%
    * - unet-camvid-onnx-0001
      - CamVid_12cl
      - mean_iou @ mean
      - -6.28%
-     - 6.41%
+     - 6.45%
      - 6.46%
      - 6.40%
    * - yolo_v3_tiny
      - COCO2017_detection_80cl
      - map
-     - -0.30%
-     - -0.43%
-     - -0.43%
-     - -0.87%
+     - -0.57%
+     - -0.58%
+     - -0.58%
+     - -0.70%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
@@ -165,7 +165,7 @@ the table for more information.
      - 0.04%
      - 0.04%
      - 0.06%
-     - 0.05%
+     - 0.04%
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
@@ -178,7 +178,7 @@ the table for more information.
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
      - -0.01%
-     - -0.02%
+     - -0.01%
      - -0.01%
      - 0.09%
      - 0.00%
@@ -205,7 +205,7 @@ the table for more information.
      - 0.00%
      - 0.00%
      - -0.02%
-     - 0.02%
+     - 0.00%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
