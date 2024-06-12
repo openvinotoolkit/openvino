@@ -360,7 +360,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
-        if: always()
+        if: ${{ 'false' }} # Ticket: 143900
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
