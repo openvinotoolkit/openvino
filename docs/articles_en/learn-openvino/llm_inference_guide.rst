@@ -42,10 +42,10 @@ The advantages of using OpenVINO for LLM deployment:
 
 OpenVINO offers three main paths for Generative AI use cases:
 
-* **OpenVINO GenAI Flavor**: use OpenVINO GenAI APIs (Python and C++).
 * **Hugging Face**: use OpenVINO as a backend for Hugging Face frameworks (transformers,
   diffusers) through the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__
   extension.
+* **OpenVINO GenAI Flavor**: use OpenVINO GenAI APIs (Python and C++).
 * **Base OpenVINO**: use OpenVINO native APIs (Python and C++) with
   `custom pipeline code <https://github.com/openvinotoolkit/openvino.genai>`__.
 
@@ -67,12 +67,11 @@ further. Optimum Intel provides interfaces that enable model optimization (weigh
 using `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__,
 and export models to the OpenVINO model format for use in native API applications.
 
-* To proceed with **Hugging Face API**, read
-  :doc:`LLM Inference with Hugging Face and Optimum Intel <./llm_inference_guide/llm-inference-hf>`
-  guide.
-* To proceed with **Native OpenVINO API**, go to
-  :doc:`LLM Inference with Native OpenVINO <./llm_inference_guide/llm-inference-native-ov>`
-  page.
+Proceed to run LLMs with:
+
+* `Hugging Face and Optimum Intel <./llm_inference_guide/llm-inference-hf>`
+* `OpenVINO GenAI Flavor <./llm_inference_guide/genai-guide>`
+* `Native OpenVINO API <./llm_inference_guide/llm-inference-native-ov>`
 
 The table below summarizes the differences between Hugging Face and the native OpenVINO API
 approaches.
