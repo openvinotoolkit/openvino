@@ -157,4 +157,4 @@ test=0*:*reduce_gpu_b_fs_yx_fsv16_i8_f32/general_reduce_gpu_i8_f32.base/in_b_17_
 *smoke_ctc_loss_floatint64_t*:*full/dynamic_fully_connected_gpu_i8_3d.basic/23*:
 *export_import/experimental_detectron_generate_proposals_single_image_test_f16.basic/min_size=0_nms_threshold=0.7_pre_nms_count=1000_post_nms_count=6_layout=bfyxis_caching_test=1*:*roi_align_test/8.max_half_pixel_cached*:
 *dynamic_fully_connected_gpu*:*experimental_detectron_detection_output*:*roi_align_test*:*ctc_loss*:*non_max_suppression*:*convolution_random_smoke_test*:*border_test*:*cl_mem_check*:*deconvolution_basic*:
-*loop_gpu*:*detection_output_test*
+*loop_gpu*:*detection_output_test*:*memory_pool*:*scatter_nd_update*:*multiclass_nms*:*concat_implicit*:**
