@@ -48,9 +48,8 @@ public:
         std::replace(target_device.begin(), target_device.end(), ':', '.');
 
         std::ostringstream result;
-        result << "OVClassNetworkTestName_" << target_device;
-        result << "_targetDevice=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)
-               << "_";
+        result << "OVClassNetworkTestName_";
+        result << "targetDevice=" << target_device << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";

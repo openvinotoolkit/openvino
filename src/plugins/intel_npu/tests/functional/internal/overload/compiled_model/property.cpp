@@ -183,9 +183,10 @@ public:
         std::string targetDevice;
         std::pair<std::string, ov::Any> configuration;
         std::tie(targetDevice, configuration) = obj.param;
-        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
+
         std::ostringstream result;
-        result << "targetDevice=" << ov::test::utils::getDeviceNameTestCase(targetDevice) << "_";
+        result << "targetDevice=" << targetDevice << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
         result << "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
         return result.str();

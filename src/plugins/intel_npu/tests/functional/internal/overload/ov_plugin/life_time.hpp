@@ -29,7 +29,7 @@ public:
         std::replace(target_device.begin(), target_device.end(), ':', '.');
 
         std::ostringstream result;
-        result << "target_device=" << target_device << "_";
+        result << "targetDevice=" << target_device << "_";
         result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)
                << "_";
         if (!configuration.empty()) {
