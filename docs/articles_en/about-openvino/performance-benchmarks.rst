@@ -23,7 +23,7 @@ selection of public neural networks and Intel® devices. The results may help yo
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
 For more detailed view of performance numbers for generative AI models, check the
-:doc:`Generative AI Benchmark Results <./performance-benchmarks/generativeAI-benchmarks>`
+:doc:`Generative AI Benchmark Results <./performance-benchmarks/generative-ai-performance>`
 
 .. grid:: 1 1 2 2
    :gutter: 4
