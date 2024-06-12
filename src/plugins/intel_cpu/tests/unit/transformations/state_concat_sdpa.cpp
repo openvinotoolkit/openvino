@@ -196,7 +196,7 @@ TEST(TransformationTests, StateConcatSDPAMixtral) {
 }
 
 TEST(TransformationTests, StateConcatSDPAWithExtraNode) {
-    // when some unexpected extra nodes exist in SDPA, the fusion should be fail
+    // when some unexpected extra nodes exist in SDPA, the fusion should fail
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         using namespace ov;
