@@ -1,5 +1,5 @@
 Supported Models
-==============
+========================
 
 .. toctree::
    :maxdepth: 1
