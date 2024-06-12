@@ -330,6 +330,7 @@ class CustomBuild(build):
             self.spawn(["cmake",
                         f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
+                        "-DENABLE_WHEEL=ON",
                         "-S", OPENVINO_SOURCE_DIR,
                         "-B", OPENVINO_BINARY_DIR])
 
