@@ -516,7 +516,7 @@ TEST_P(F8E8M0PTest, f8_bits_to_f32) {
 TEST_P(F8E8M0PTest, f32_to_f8_bits) {
     const auto& params = GetParam();
     const auto& value = std::get<1>(params);
-    const auto exp_value = std::get<0>(params);
+    const auto& exp_value = std::get<0>(params);
     const auto f8 = ov::float8_e8m0(value);
     const auto f8_bits = f8.to_bits();
 
