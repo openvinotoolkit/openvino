@@ -118,9 +118,7 @@ void MvnLayerCPUTest::SetUp() {
 
     rel_threshold = 0.015f;
     if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
-        //FIXME: ref and acl mvn implementation has accuracy issues on fp16 (#116344)
-        abs_threshold = .05f;
-        rel_threshold = 250.f;
+        abs_threshold = .03f;
     }
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(getPrimitiveType(), netPrecision, configuration);
