@@ -1032,6 +1032,15 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     auto& past_layout = _impl_params->input_layouts[0];
     auto& present_layout = _impl_params->output_layouts[0];
     const auto& sequence_axis = desc->concat_axis;
+    const auto& gather_axis = desc->gather_axis;
+
+    const auto& prev_batch_size = static_cast<size_t>(past_layout.get_shape()[gather_axis]);
+    const auto& beam_size = static_cast<size_t>(present_layout.get_shape()[gather_axis]);
+    if (prev_batch_size != beam_size) {
+        // If the previous batch size is not same as beam size, need explicit concat
+        _impl_params->_can_be_optimized = false;
+        return;
+    }
 
     auto sequence_axis_legacy = kv_cache_inst::get_sequence_axis_legacy(sequence_axis, past_layout.get_partial_shape().size());
     if (present_layout.data_padding.get_dynamic_pad_dims().sizes()[sequence_axis_legacy] != 1)
@@ -1067,6 +1076,7 @@ void primitive_inst::do_runtime_skip_gather() {
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : check optimizability" << std::endl;
+
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     auto axis = _impl_params->typed_desc<gather>()->axis;
     auto idx_id = get_node().get_dependency(1).id();
@@ -1304,11 +1314,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     _mem_changed = false;
     const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
-    if (is_dynamic() && !has_inner_networks()) {
+    if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
-
 
         bool can_skip_execution = false;
         if (_impl_params->output_layouts[0].count() == 0) {
@@ -1316,7 +1325,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             can_skip_execution = true;
         }
 
-        if (_node->is_in_shape_of_subgraph()) {
+        // subgraph_input_changed can be available only shape_of is dynamic.
+        // shape_of_subgraph for static shape_of could be run every inference if constant propagation does not work.
+        if (_node->is_in_shape_of_subgraph() && dependant_shape_of_insts.front()->is_dynamic()) {
             bool subgraph_input_changed = false;
             for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
                 if (dependant_shape_of_insts[i]->shape_changed()) {

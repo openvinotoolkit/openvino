@@ -4,7 +4,7 @@
 # We use pin versions for packages to stabilize test runs
 
 # for common utils
-py-cpuinfo==7.0.0
+py-cpuinfo==9.0.0
 scipy>=1.5.4,<1.12
 opencv-python>=4.5; sys_platform != "darwin"
 opencv-python==4.6.0.66; sys_platform == "darwin"

@@ -213,7 +213,7 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
         });
 
         // exclude not repeated pattern
-        while (potential_patterns.rbegin()->size() < 2 && !potential_patterns.empty()) {
+        while (!potential_patterns.empty() && potential_patterns.rbegin()->size() < 2) {
             potential_patterns.pop_back();
         }
         patterns = potential_patterns;
