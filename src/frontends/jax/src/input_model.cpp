@@ -35,14 +35,6 @@ InputModel::InputModel(const std::shared_ptr<JaxDecoder>& model_decoder) : m_mod
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
-    if (m_inputs.size() > 0 && m_inputs[0]) {
-        // We need to remove "self" input to not confuse external users
-        const auto& names = m_inputs[0]->get_names();
-        if (std::any_of(names.cbegin(), names.cend(), [](const std::string& n) {
-                return n.find("self") != std::string::npos;
-            }))
-            return std::vector<ov::frontend::Place::Ptr>(m_inputs.begin() + 1, m_inputs.end());
-    }
     return m_inputs;
 }
 
@@ -130,30 +122,6 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
         return p->is_input();
     });
     FRONT_END_GENERAL_CHECK(all_inputs, "Only initial inputs are supported by override_all_inputs.");
-    // We need to add back "self" input if it was in initial inputs
-    if (m_inputs.size() > 0 && m_inputs[0]) {
-        // We need to remove "self" input to not confuse external users
-        const auto& names = m_inputs[0]->get_names();
-        if (std::any_of(names.cbegin(), names.cend(), [](const std::string& n) {
-                return n.find("self") != std::string::npos;
-            })) {
-            FRONT_END_GENERAL_CHECK(inputs.size() == m_inputs.size() - 1,
-                                    "Number of inputs provided is incorrect. Graph modification is not supported for "
-                                    "this model. Expected number of inputs: ",
-                                    m_inputs.size() - 1,
-                                    " received ",
-                                    inputs.size());
-            auto self_place = m_inputs[0];
-            // Verify that no same place already in vector
-            auto no_self = std::all_of(inputs.cbegin(), inputs.cend(), [&](const Place::Ptr& p) {
-                return !p->is_equal(self_place);
-            });
-            FRONT_END_GENERAL_CHECK(no_self, "Unexpected input of 'self' was provided to override_all_inputs.");
-            m_inputs = std::vector<ov::frontend::Place::Ptr>{self_place};
-            m_inputs.insert(m_inputs.cend(), inputs.cbegin(), inputs.cend());
-            return;
-        }
-    }
     FRONT_END_GENERAL_CHECK(inputs.size() == m_inputs.size(),
                             "Number of inputs provided is incorrect. Graph modification is not supported for "
                             "this model. Expected number of inputs: ",

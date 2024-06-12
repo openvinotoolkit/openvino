@@ -91,21 +91,14 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
         converted_model = translate_session.get_converted_model();
     }
 
-    std::string norm_err;
-    try {
-        normalize(converted_model);
-    } catch (const std::exception& e) {
-        norm_err = "\n-- normalize step failed with: " + std::string(e.what());
-    }
-
     const auto& unconverted_ops = get_unconverted_types_from_model(converted_model);
     for (auto&& op : unconverted_ops) {
         if (m_telemetry) {
             m_telemetry->send_event("error_cause", "jax_" + op.first);
         }
     }
-    bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
-    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
+    bool is_conversion_successful = unconverted_ops.size() == 0;
+    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops));
     return converted_model;
 }
 
@@ -121,41 +114,11 @@ std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputMode
         TranslateSession translate_session(model, supported_ops, m_telemetry);
         partial_model = translate_session.get_converted_model();
     }
-    try {
-        normalize(partial_model);
-    } catch (...) {
-        // normalize can fail on transformation, but the model is still valid. We
-        // can return such model. If model can be validated we suppress normalize
-        // exception.
-        partial_model->validate_nodes_and_infer_types();
-    }
     return partial_model;
 }
 
 std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     FRONT_END_NOT_IMPLEMENTED(decode);
-}
-
-void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    // Usually if nn.Module.forward is given as a source model for conversion,
-    // there is the first Parameter that represents original `self` argument in
-    // forward(self, ...). `self` shouldn't play any role in model inference if
-    // model is completely frozen and all methods are inlined. So we check if it
-    // doesn't have any consumers in the finally converted model and remove this
-    // parameter. This parameter should have index 0.
-    if (model->get_parameters().size() > 0) {
-        auto self = model->get_parameters()[0];
-        if (self->output(0).get_target_inputs().empty()) {
-            // There is no consumers: safe to remove
-            OPENVINO_DEBUG << "[ WARNING ] Removing parameter[0] in converted jax "
-                              "model, because it is never used "
-                              "and treated as `self`\n";
-            model->remove_parameter(self);
-        } else {
-            OPENVINO_DEBUG << "[ WARNING ] Couldn't remove parameter[0] in converted "
-                              "jax model\n";
-        }
-    }
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {

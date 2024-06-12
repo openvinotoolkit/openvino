@@ -28,7 +28,6 @@ public:
     /// main body conversion.
     /// \return fully converted OV Model
     std::shared_ptr<Model> convert_jax_model(std::shared_ptr<JaxDecoder> jax_model,
-                                             const TensorMap& external_tensor_map = {},
                                              const std::shared_ptr<jax::InputModel>& input_model = nullptr);
 
     /// \brief Writes jax tensor index into openvino tensor
@@ -38,10 +37,6 @@ public:
 
     /// \brief Gets jax tensor index from openvino tensor
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
-
-    // Maps tensor index to initial tensor index which it is alias to, and to decoder of the node produced this alias
-    // and to the output produced during conversion of this node
-    std::map<size_t, std::tuple<size_t, std::shared_ptr<JaxDecoder>, Output<Node>>> m_may_be_alias;
 
 private:
     OutputVector convert_node(const NodeContext& context);

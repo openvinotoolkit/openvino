@@ -43,10 +43,6 @@ public:
     /// \return OV Model after decoding
     std::shared_ptr<Model> decode(const InputModel::Ptr& model) const override;
 
-    /// \brief Runs normalization passes on Model that was loaded with partial conversion
-    /// \param Model partially converted OV Model
-    void normalize(const std::shared_ptr<ov::Model>& model) const override;
-
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model
     /// \return Paddle frontend name.

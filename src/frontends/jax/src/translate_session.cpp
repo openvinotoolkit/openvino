@@ -45,7 +45,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model) {
     auto jax_model = std::dynamic_pointer_cast<jax::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(jax_model != nullptr, "Invalid input model");
-    auto model = convert_jax_model(jax_model->m_model_decoder, {}, jax_model);
+    auto model = convert_jax_model(jax_model->m_model_decoder, jax_model);
     // First delete tensor indexes from outputs then resolve input names,
     // otherwise Parameter->Result will fail
     for (auto& result : model->get_results()) {
@@ -70,52 +70,34 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
 }
 
 std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDecoder> jax_model,
-                                                           const TensorMap& external_tensor_map,
                                                            const std::shared_ptr<jax::InputModel>& input_model) {
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         auto parameters = std::make_shared<ParameterVector>();
         auto tensor_map = std::make_shared<TensorMap>();  // tensor map of the current context
-        std::vector<size_t> inserted_params;
 
-        if (input_model) {
-            // When we have input model we should use its inputs order to create
-            // Parameters We use m_inputs instead of get_inputs() because latter
-            // doesn't have "self" input
-            for (auto& input_p : input_model->m_inputs) {
-                auto jax_place = std::dynamic_pointer_cast<jax::Place>(input_p);
-                FRONT_END_GENERAL_CHECK(jax_place, "Only place produced by Jax Frontend is supported.");
-                auto tensor_id = jax_place->get_tensor_index();
-                element::Type type = jax_place->get_element_type();
-                PartialShape pshape = jax_place->get_partial_shape();
-                auto parameter = std::make_shared<v0::Parameter>(type, pshape);
-                if (jax_place->get_names().size() > 0)
-                    parameter->set_friendly_name(jax_place->get_names().at(0));
-                encode_tensor_name(parameter->output(0), tensor_id);
-                parameters->push_back(parameter);
-                (*tensor_map)[tensor_id] = parameter;
-            }
-            // Add all tensors that were frozen
-            for (auto& desc : input_model->m_descriptors) {
-                (*tensor_map)[desc.first] = desc.second.m_value;
-            }
-        } else {
-            // Go over all jax_model inputs and register them in the tensor map:
-            auto inputs = jax_model->inputs();
-            for (size_t i = 0; i < inputs.size(); ++i) {
-                element::Type type = element::dynamic;
-                PartialShape pshape = jax_model->get_input_shape(i);
-                auto type_any = simplified_type_interpret(jax_model->get_input_type(i));
-                // TODO: Use special API to set custom type specification
-                if (type_any.is<element::Type>()) {
-                    type = type_any.as<element::Type>();
-                }
-                auto parameter = std::make_shared<v0::Parameter>(type, pshape);
-                parameter->set_friendly_name(jax_model->get_input_signature_name(i));
-                encode_tensor_name(parameter->output(0), inputs.at(i), {jax_model->get_input_signature_name(i)});
-                parameters->push_back(parameter);
-                (*tensor_map)[inputs.at(i)] = parameter;
-            }
+        FRONT_END_GENERAL_CHECK(input_model,
+                                "Got null input model in JAX frontend TranslateSession::convert_jax_model.");
+
+        // When we have input model we should use its inputs order to create
+        // Parameters We use m_inputs instead of get_inputs() because latter
+        // doesn't have "self" input
+        for (auto& input_p : input_model->m_inputs) {
+            auto jax_place = std::dynamic_pointer_cast<jax::Place>(input_p);
+            FRONT_END_GENERAL_CHECK(jax_place, "Only place produced by Jax Frontend is supported.");
+            auto tensor_id = jax_place->get_tensor_index();
+            element::Type type = jax_place->get_element_type();
+            PartialShape pshape = jax_place->get_partial_shape();
+            auto parameter = std::make_shared<v0::Parameter>(type, pshape);
+            if (jax_place->get_names().size() > 0)
+                parameter->set_friendly_name(jax_place->get_names().at(0));
+            encode_tensor_name(parameter->output(0), tensor_id);
+            parameters->push_back(parameter);
+            (*tensor_map)[tensor_id] = parameter;
+        }
+        // Add all tensors that were frozen
+        for (auto& desc : input_model->m_descriptors) {
+            (*tensor_map)[desc.first] = desc.second.m_value;
         }
 
         auto node_visitor = [&](std::shared_ptr<JaxDecoder> node) {
@@ -144,10 +126,9 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
                     // set name of parameter to the index of node in the model
                     encode_tensor_name(parameter->output(0), input);
                     parameters->push_back(parameter);
-                    inserted_params.push_back(input);
                 }
             }
-            auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, this);
+            auto context = NodeContext(node, tensor_map, parameters, this);
             // Add op type in the statistics
             m_op_statistics[context.get_op_type()]++;
             auto converted_outputs = convert_node(context);
@@ -166,27 +147,6 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
 
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
-                if (node->inputs().size() > 0) {
-                    // TODO: do we need to check other inputs, not only 0?
-                    auto in_tensor_id = node->inputs().at(0);
-                    if (m_may_be_alias.count(fw_tensor_id)) {
-                        size_t recorded_in_tensor_id;
-                        std::shared_ptr<JaxDecoder> recorded_node;
-                        std::tie(recorded_in_tensor_id, recorded_node, std::ignore) = m_may_be_alias.at(fw_tensor_id);
-                        FRONT_END_GENERAL_CHECK(recorded_in_tensor_id == in_tensor_id,
-                                                "Operation ",
-                                                context.get_op_type(),
-                                                " creates alias to tensor which was already created before by ",
-                                                recorded_node->get_op_type(),
-                                                ", but from different tensor: ",
-                                                in_tensor_id,
-                                                " vs ",
-                                                recorded_in_tensor_id);
-                    }
-                    m_may_be_alias[fw_tensor_id] = {node->inputs().at(0), node, converted_outputs[i]};
-                    OPENVINO_DEBUG << "Registered alias: " << fw_tensor_id << " of tensor: " << node->inputs().at(0)
-                                   << " of operation: " << context.get_op_type();
-                }
                 FRONT_END_GENERAL_CHECK(tensor_map->find(fw_tensor_id) == tensor_map->end(),
                                         "Duplicated producer for Jax value with unique ID: ",
                                         fw_tensor_id);
@@ -207,38 +167,18 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
         jax_model->visit_subgraph(node_visitor);
 
         ResultVector results;
-        if (input_model) {
-            // For the case when we have InputModel we need to have same order as its
-            // outputs
-            for (auto& output_p : input_model->get_outputs()) {
-                auto jax_place = std::dynamic_pointer_cast<jax::Place>(output_p);
-                FRONT_END_GENERAL_CHECK(jax_place, "Only place produced by Jax Frontend is supported.");
-                auto tensor_id = jax_place->get_tensor_index();
-                auto ov_output = tensor_map->at(tensor_id);
-                FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
-                                        "Tensor doesn't have name, while it should have name: ",
-                                        tensor_id);
-                auto result = std::make_shared<v0::Result>(ov_output);
-                results.push_back(result);
-            }
-        } else {
-            for (size_t i = 0; i < jax_model->num_outputs(); ++i) {
-                size_t id = jax_model->output(i);
-                if (tensor_map->find(id) == tensor_map->end()) {
-                    // Not found in this scope, adding Parameter to connect to external
-                    // scope
-                    auto parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
-                    encode_tensor_name(parameter->output(0), id);
-                    parameters->push_back(parameter);
-                    (*tensor_map)[id] = parameter;
-                }
-                auto ov_output = tensor_map->at(id);
-                FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
-                                        "Tensor doesn't have name, while it should have name: ",
-                                        id);
-                auto result = std::make_shared<v0::Result>(ov_output);
-                results.push_back(result);
-            }
+        // For the case when we have InputModel we need to have same order as its
+        // outputs
+        for (auto& output_p : input_model->get_outputs()) {
+            auto jax_place = std::dynamic_pointer_cast<jax::Place>(output_p);
+            FRONT_END_GENERAL_CHECK(jax_place, "Only place produced by Jax Frontend is supported.");
+            auto tensor_id = jax_place->get_tensor_index();
+            auto ov_output = tensor_map->at(tensor_id);
+            FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
+                                    "Tensor doesn't have name, while it should have name: ",
+                                    tensor_id);
+            auto result = std::make_shared<v0::Result>(ov_output);
+            results.push_back(result);
         }
 
         // Since parameters can be added we need to list all current parameters
@@ -246,20 +186,6 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
         for (const auto& param : *parameters) {
             auto input_idx = decode_tensor_name(param->output(0));
             param_names.insert(input_idx);
-        }
-        if (!external_tensor_map.empty()) {
-            // for internal bodies we want to remove all extra inputs that were
-            // created, but not used
-            parameters->erase(std::remove_if(parameters->begin(),
-                                             parameters->end(),
-                                             [&](std::shared_ptr<v0::Parameter> p) {
-                                                 auto tensor_id = decode_tensor_name(p);
-                                                 return p->output(0).get_target_inputs().empty() &&
-                                                        std::find(inserted_params.begin(),
-                                                                  inserted_params.end(),
-                                                                  tensor_id) != inserted_params.end();
-                                             }),
-                              parameters->end());
         }
         resulting_model = std::make_shared<Model>(results, *parameters);
         // Did a conversion in a nested scope to automatically remove any holders of

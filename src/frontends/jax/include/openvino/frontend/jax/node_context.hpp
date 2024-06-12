@@ -21,13 +21,11 @@ typedef std::unordered_map<size_t, Output<Node>> TensorMap;
 class NodeContext : public frontend::NodeContext {
 public:
     NodeContext(std::shared_ptr<JaxDecoder> decoder,
-                const TensorMap& ext_tensor_map,
                 std::shared_ptr<TensorMap> tensor_map,
                 std::shared_ptr<ParameterVector> external_parameters,
                 TranslateSession* translate_session)
         : frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
-          m_ext_tensor_map(ext_tensor_map),
           m_tensor_map(tensor_map),
           m_external_parameters(external_parameters),
           m_translate_session(translate_session),
@@ -138,7 +136,6 @@ public:
 
 private:
     std::shared_ptr<JaxDecoder> m_decoder;
-    const TensorMap& m_ext_tensor_map;
     std::shared_ptr<TensorMap> m_tensor_map;
     std::shared_ptr<ParameterVector> m_external_parameters;
     TranslateSession* m_translate_session = nullptr;
