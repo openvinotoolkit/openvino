@@ -57,6 +57,7 @@ LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 PYTHON_EXTENSIONS_ONLY = True if os.getenv("PYTHON_EXTENSIONS_ONLY") is not None else False
 SKIP_RPATH = True if os.getenv("SKIP_RPATH") is not None else False
 CPACK_GENERATOR = os.getenv("CPACK_GENERATOR", "WHEEL")
+ENABLE_WHEEL = os.getenv("ENABLE_WHEEL", "ON")
 
 LIB_INSTALL_CFG = {
     "ie_libs": {
@@ -330,7 +331,7 @@ class CustomBuild(build):
             self.spawn(["cmake",
                         f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                        "-DENABLE_WHEEL=ON",
+                        f"-DENABLE_WHEEL={ENABLE_WHEEL}",
                         "-S", OPENVINO_SOURCE_DIR,
                         "-B", OPENVINO_BINARY_DIR])
 
