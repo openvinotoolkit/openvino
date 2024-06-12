@@ -37,20 +37,15 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
 
     const auto input_exponent_bits = static_cast<uint8_t>((input.bits & f32_exponent_bits_mask) >> f32_mantissa_bits);
 
-    if (value <= 0.0) {
+    if (std::signbit(value)) {
         return 0b00000000;
-    } else if (std::isinf(value) || input_exponent_bits == 0b11111110) {
-        return 0b11111110;
-    } else if (std::isnan(value)) {
-        return 0b11111111;
-    }
-
-    if ((input.bits & f32_mantissa_bits_mask) > round_even) {
-        return input_exponent_bits + 1;
-    } else if ((input.bits & f32_mantissa_bits_mask) == round_even) {
-        return input_exponent_bits + (input_exponent_bits & 0x1);
+    } else if (input_exponent_bits >= 0b11111110) {
+        return input_exponent_bits - static_cast<uint8_t>(std::isinf(value));
     } else {
-        return input_exponent_bits;
+        const auto input_mantissa_bits = input.bits & f32_mantissa_bits_mask;
+        return input_exponent_bits +
+               static_cast<uint8_t>((input_mantissa_bits > round_even) ||
+                                    (input_mantissa_bits == round_even) && (input_exponent_bits & 0x1));
     }
 }
 }  // namespace
