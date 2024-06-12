@@ -10,7 +10,7 @@
 *kernels_cache.sub_kernel_ordering_test*:*dyn_shape_mem_test.igpu_shape_infer_dep_mem_type*:*activation_gpu.has_proper_synchronization*:
 *add_required_reorders.skip_adding_reorder_batch_axis_padding*:*eltwise_activation_fusing_test.basic_dynamic_rank4*:*priorbox_constant_propagation_test.basic*:
 *remove_redundant_reorders.remove_dep_dynamic*:*prepare_buffer_fusing.optimize_reshape*:*optimized_out_execution_test.concat_blocked_format*:
-*border_gpu.3d_input*:*weights_factory.reorder_test*:*kernel_impl_params_relevance.weights_layout*:
+*border_gpu.3d_input*:*weights_factory.reorder_test*:*kernel_impl_params_relevance.weights_layout*:*fusings_gpu*:
 *custom_gpu_primitive_f32.add_basic_in2x2x2x2*:*custom_gpu_primitive_u8.add_basic_in2x2x2x2*:*concat_gpu.pooling_dynamic_input_no_exception*:
 *convolution_int8_fw_gpu.quantized_convolution_u8s8f32_asymmetric_activations_per_channel*:*concat_gpu.i8_optimization_with_conv*:*convolution_int8_fw_gpu.quantized_convolution_u8s8f32_asymmetric_activations_per_tensor*:
 *export_import_custom_gpu_primitive_u8.add_basic_in2x2x2x2*:*condition_gpu_tests.dynamic_shapes_skip_condition_cached*:*depth_concatenate_f32_gpu.test03_cascade_concat_opt*:
@@ -143,7 +143,4 @@ p_k_inputs/matrix_nms_gpu_test_floatget_matrix_nms_by_keep_top_k_inputs.test/Sor
 1)_BlankIndex=2_Format=b_fs_yx_fsv32is_caching_test=0*:*smoke_ctc_loss_float16int32_t/ctc_loss_gpu_test_float16int32_t.test/PreprocessCollapseRepeated=0_CtcMergeRepeated=0_Unique=1_LogitsShape=(2.3.3)_LogitsLength=(3.3)_Labels=(0.1.2.1.1.1)_LabelLength=(2.1)_BlankIndex=2_Format=b_fs_yx_fsv32is_caching_test=0*:
 *smoke_ctc_loss_floatint64_t/ctc_loss_gpu_test_floatint64_t.test/PreprocessCollapseRepeated=0_CtcMergeRepeated=1_Unique=1_LogitsShape=(2.3.3)_LogitsLength=(3.3)_Labels=(0.1.2.1.1.1)_LabelLength=(2.1)_BlankIndex=2_Format=b_fs_yx_fsv32is_caching_test=0*:*fusings_gpu/pooling_scale_activation_quantize.per_channel/25*:*fusings_gpu/lrn_fp32_quantize_i8_eltwise_activation.basic/4*:
 *border_gpu.basic_fsv16_0x0x1x2_0x0x3x4_border_constant*:*smoke/dynamic_fully_connected_gpu_f32_3d.basic/5*:*fusings_gpu/lrn_fp32_quantize_u8_eltwise_activation.per_channel/13*:
-*fusings_gpu/reduce_scale_activation.dynamic/4*:*fusings_gpu/lrn_fp32_quantize_u8_eltwise_activation.basic/0*:*fusings_gpu/lrn_fp32_quantize_u8_eltwise_activation.basic/9*:
-*fusings_gpu/deconv_actv_eltw_actv.basic_cached/0*:*deconvolution_basic/4.no_bias_basic_wsiz2x2_in2x2x1x1_nopad_exclude_fused_mem_dep*:*fusings_gpu/deconv_actv_eltw_actv.basic_cached/17*:
 *roi_align_test/16.avg_asymmetric_cached*:*fully_connected_gpu_tests.compressed_int4_scale_dynamic*:*non_max_suppression_basic/2.basic_cached*:
-*fusings_gpu/conv_int8_eltwise.fp16_eltwise_out/5*:*fusings_gpu/conv_int8_eltwise.fp16_eltwise_out/0*:*fusings_gpu/deconv_actv_eltw_actv.basic_cached/8*:
