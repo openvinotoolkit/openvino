@@ -5,6 +5,7 @@
 #include "zero_wrappers.hpp"
 
 #include "intel_npu/al/config/common.hpp"
+#include "zero_api.hpp"
 
 namespace intel_npu {
 

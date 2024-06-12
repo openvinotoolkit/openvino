@@ -6,11 +6,7 @@
 
 #include <ze_api.h>
 
-#include <stdexcept>
-
-#include "openvino/core/except.hpp"
-#include "openvino/util/file_util.hpp"
-#include "openvino/util/shared_object.hpp"
+#include <memory>
 
 namespace intel_npu {
 
@@ -56,39 +52,33 @@ namespace intel_npu {
     symbol_statement(zeMemFree)
 // clang-format on
 
-// TODO: remove static
-#define symbol_statement(symbol) static decltype(&::symbol) symbol = nullptr;
+class ZeroApi {
+public:
+    ZeroApi(const ZeroApi& other) = delete;
+    ZeroApi(ZeroApi&& other) = delete;
+    void operator=(const ZeroApi&) = delete;
+    void operator=(ZeroApi&&) = delete;
+
+    static ZeroApi& getInstance() {
+        static ZeroApi instance;
+        return instance;
+    }
+#define symbol_statement(symbol) decltype(&::symbol) symbol;
+    symbols_list();
+#undef symbol_statement
+
+private:
+    ZeroApi();
+
+    std::shared_ptr<void> lib;
+};
+
+#define symbol_statement(symbol)                                                                  \
+    template <typename... Args>                                                                   \
+    inline typename std::invoke_result<decltype(&::symbol), Args...>::type symbol(Args... args) { \
+        return ZeroApi::getInstance().symbol(std::forward<Args>(args)...);                        \
+    }
 symbols_list();
 #undef symbol_statement
-
-inline void loadSymbols(std::shared_ptr<void> so) {
-#define symbol_statement(symbol) symbol = reinterpret_cast<decltype(&::symbol)>(ov::util::get_symbol(so, #symbol));
-    symbols_list()
-#undef symbol_statement
-
-#define symbol_statement(symbol)                                         \
-    if (symbol == nullptr) {                                             \
-        throw std::runtime_error("Failed to load symbol for: " #symbol); \
-    }
-        symbols_list()
-#undef symbols_list
-}
-
-inline void loadLibary() {
-    const std::string baseName = "ze_loader";
-    try {
-        auto libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        auto libSp = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-        auto libSp = ov::util::load_shared_object(libpath.c_str());
-        loadSymbols(libSp);
-#endif
-    } catch (const std::runtime_error& error) {
-        throw error;
-    } catch (const std::exception& error) {
-        OPENVINO_THROW("Unexpected error while loading the " + baseName + " library");
-    }
-}
 
 }  // namespace intel_npu

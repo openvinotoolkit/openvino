@@ -9,6 +9,7 @@
 
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/profiling.hpp"
+#include "zero_api.hpp"
 #include "zero_profiling.hpp"
 #include "zero_utils.hpp"
 

@@ -7,8 +7,10 @@
 #include <ze_api.h>
 
 #include "intel_npu/al/itt.hpp"
+#include "zero_api.hpp"
 #include "zero_executor.hpp"
 #include "zero_infer_request.hpp"
+#include "zero_utils.hpp"
 
 using namespace intel_npu;
 

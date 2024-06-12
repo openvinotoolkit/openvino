@@ -5,6 +5,7 @@
 #include "zero_init.hpp"
 
 #include "intel_npu/al/itt.hpp"
+#include "zero_api.hpp"
 #include "zero_utils.hpp"
 
 namespace intel_npu {
