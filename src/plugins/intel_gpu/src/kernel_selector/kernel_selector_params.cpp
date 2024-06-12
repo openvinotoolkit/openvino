@@ -407,32 +407,18 @@ void ParamsKey::EnableQuantization(QuantizationType q) {
 }
 
 bool ParamsKey::Support(const ParamsKey& k) const {
-    auto m = 0b100000000000;
-    std::cout << "support raw check " << std::endl;
-    if ( key.inputWeightsType.raw & m ) {
-        std::cout << "I support raw " << std::endl;
-    }
-    if ( k.key.inputWeightsType.raw & m ) {
-        std::cout << "Input want  support raw " << std::endl;
-    }
     if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw))  // check if this kernel supports this params
         return false;
-    std::cout << "pass restrict one " << std::endl;
     if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw))
         return false;
-    std::cout << "pass input type" << std::endl;
     if (!((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw))
         return false;
-    std::cout << "pass outut type" << std::endl;
     if (!((key.inputWeightsType.raw & k.key.inputWeightsType.raw) == k.key.inputWeightsType.raw))
         return false;
-    std::cout << "pass in weights type" << std::endl;
     if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw))
         return false;
-    std::cout << "pass ourweights type" << std::endl;
     if (!((key.inputLayout & k.key.inputLayout) != 0 || key.inputLayout == k.key.inputLayout))
         return false;
-    std::cout << "pass in lay type" << std::endl;
     if (!((key.outputLayout & k.key.outputLayout) != 0 || key.outputLayout == k.key.outputLayout))
         return false;
     if (!((key.weightsInputLayout & k.key.weightsInputLayout) != 0 ||

@@ -528,7 +528,7 @@ KERNEL (reorder_weights_bf16)(const __global INPUT0_TYPE* input, write_only imag
     MAKE_VECTOR_TYPE(UNIT_TYPE, 4) input_val = (MAKE_VECTOR_TYPE(UNIT_TYPE, 4))(UNIT_VAL_ZERO, UNIT_VAL_ZERO, UNIT_VAL_ZERO, UNIT_VAL_ZERO);
     const int2 coord = (int2)(o, iyx);
     uint8 ir = RESHAPE_WEIGHT_DIMS(OUTPUT, INPUT0, o, i, 0, 0, y, x);
-    input_val.s0 = TO_OUTPUT_TYPE(input[FUNC_CALL(get_input_index)(ir.s0,ir.s1,ir.s2,ir.s4,ir.s5,ir.s6)]);
+    input_val.s0 = TO_OUTPUT_TYPE(convert_bf16_to_float(input[FUNC_CALL(get_input_index)(ir.s0,ir.s1,ir.s2,ir.s4,ir.s5,ir.s6)]));
     IMAGE_WRITE(output, coord, input_val);
 }
 #else
@@ -572,6 +572,6 @@ KERNEL (reorder_weights_bf16)(const __global INPUT0_TYPE* input, __global OUTPUT
     uint output_idx = FUNC_CALL(get_output_index)(g, o, i, OUTPUT_SIZE_Z - z - 1, OUTPUT_SIZE_Y - y - 1, OUTPUT_SIZE_X - x - 1);
 #endif
 
-    output[output_idx] = TO_OUTPUT_TYPE(input[input_idx]);
+    output[output_idx] = TO_OUTPUT_TYPE(convert_bf16_to_float(input[input_idx]));
 }
 #endif
