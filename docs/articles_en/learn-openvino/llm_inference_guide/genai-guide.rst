@@ -280,6 +280,7 @@ Additional Resources
 ####################
 
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
+* `OpenVINO GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
 
