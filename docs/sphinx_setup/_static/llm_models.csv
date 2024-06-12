@@ -1,23 +1,23 @@
-﻿Model name,Throughput: (tokens/sec. 2nd token),1st token latency (msec),Max_RSS_memory used. (MB),Input tokens,Output tokens,Model Precision,Beam,Batch size,Framework
-falcon-7b-instruct,0,4551,Data is coming.,1049,128,INT4,1,1,PT
-vicuna-7b-v1.5,0,3982,Data is coming.,1024,128,INT4,1,1,PT
-opt-2.7b,20.23,2756,Data is coming.,937,128,INT4,1,1,PT
-phi-3-mini-4k-instruct,19.90,2775,Data is coming.,1062,128,INT4,1,1,PT
-orca-mini-3b,19.22,2966,Data is coming.,1024,128,INT4,1,1,PT
-phi-2,17.82,2161,Data is coming.,1024,128,INT4,1,1,PT
-stable-zephyr-3b-dpo,16.96,1791,Data is coming.,946,128,INT4,1,1,PT
-chatglm3-6b,16.49,3569,Data is coming.,1024,128,INT4,1,1,PT
-dolly-v2-3b,15.84,6890,Data is coming.,1024,128,INT4,1,1,PT
-stablelm-3b-4e1t,15.69,2050,Data is coming.,1024,128,INT4,1,1,PT
-red-pajama-incite-chat-3b-v1,14.81,6582,Data is coming.,1020,128,INT4,1,1,PT
-codegen25-7b,13.34,3982,Data is coming.,1024,128,INT4,1,1,PT
-gpt-j-6b,13.17,7212,Data is coming.,1024,128,INT4,1,1,PT
-stablelm-7b,12.82,6339,Data is coming.,1020,128,INT4,1,1,PT
-llama-3-8b,12.76,4355,Data is coming.,1024,128,INT4,1,1,PT
-llama-2-7b-chat,12.25,4205,Data is coming.,1024,128,INT4,1,1,PT
-llama-7b,11.74,4314,Data is coming.,1024,128,INT4,1,1,PT
-mistral-7b-v0.1,10.53,4462,Data is coming.,1007,128,INT4,1,1,PT
-zephyr-7b-beta,10.48,4499,Data is coming.,1024,128,INT4,1,1,PT
-qwen1.5-7b-chat,9.88,4318,Data is coming.,1024,128,INT4,1,1,PT
-baichuan2-7b-chat,9.81,4667,Data is coming.,1024,128,INT4,1,1,PT
-qwen-7b-chat,8.95,5141,Data is coming.,1024,128,INT4,1,1,PT
+﻿Model name:,"Throughput: (tokens/sec. 2nd token)",1st token latency (msec),Max_RSS_memory used. (MB),Input tokens:,Output tokens:,Model Precision:,Beam:,Batch size:,Framework:,
+OPT-2.7b,20.2,2757,7084,937,128,INT4,1,1,PT,
+Phi-3-mini-4k-instruct,19.9,2776,7028,1062,128,INT4,1,1,PT,
+Orca-mini-3b,19.2,2966,7032,1024,128,INT4,1,1,PT,
+Phi-2,17.8,2162,7032,1024,128,INT4,1,1,PT,
+Stable-Zephyr-3b-dpo,17.0,1791,7007,946,128,INT4,1,1,PT,
+ChatGLM3-6b,16.5,3569,6741,1024,128,INT4,1,1,PT,
+Dolly-v2-3b,15.8,6891,6731,1024,128,INT4,1,1,PT,
+Stablelm-3b-4e1t,15.7,2051,7018,1024,128,INT4,1,1,PT,
+Red-Pajama-Incite-Chat-3b-V1,14.8,6582,7028,1020,128,INT4,1,1,PT,
+Falcon-7b-instruct,14.5,4552,7033,1049,128,INT4,1,1,PT,
+Codegen25-7b,13.3,3982,6732,1024,128,INT4,1,1,PT,
+GPT-j-6b,13.2,7213,6882,1024,128,INT4,1,1,PT,
+Stablelm-7b,12.8,6339,7013,1020,128,INT4,1,1,PT,
+Llama-3-8b,12.8,4356,6953,1024,128,INT4,1,1,PT,
+Llama-2-7b-chat,12.3,4205,6906,1024,128,INT4,1,1,PT,
+Llama-7b,11.7,4315,6927,1024,128,INT4,1,1,PT,
+Mistral-7b-v0.1,10.5,4462,7242,1007,128,INT4,1,1,PT,
+Zephyr-7b-beta,10.5,4500,7039,1024,128,INT4,1,1,PT,
+Qwen1.5-7b-chat,9.9,4318,7034,1024,128,INT4,1,1,PT,
+Baichuan2-7b-chat,9.8,4668,6724,1024,128,INT4,1,1,PT,
+Qwen-7b-chat,9.0,5141,6996,1024,128,INT4,1,1,PT,
+Vicuna-7b-v1.5,0.0,3982,7022,1024,128,INT4,1,1,PT,
