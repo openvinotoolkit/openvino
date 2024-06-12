@@ -278,13 +278,13 @@ class CustomBuild(build):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
-                                        f"-DPython3_EXECUTABLE={sys.executable}",
-                                        f'-DCPACK_GENERATOR=WHEEL',
-                                        f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                                        "-DENABLE_WHEEL=OFF",
-                                        self.cmake_args,
-                                        "-S", source_dir,
-                                        "-B", binary_dir])
+                                         f"-DPython3_EXECUTABLE={sys.executable}",
+                                         '-DCPACK_GENERATOR=WHEEL',
+                                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
+                                         "-DENABLE_WHEEL=OFF",
+                                         self.cmake_args,
+                                         "-S", source_dir,
+                                         "-B", binary_dir])
 
                     self.announce(f"Building {comp} project", level=3)
                     self.spawn(["cmake", "--build", binary_dir,
@@ -296,7 +296,6 @@ class CustomBuild(build):
                                      "--prefix", prefix,
                                      "--config", CONFIG,
                                      "--component", cpack_comp_name])
-
 
     def run(self):
         # build and install clib into temporary directories
@@ -312,9 +311,9 @@ class CustomBuild(build):
         if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
             self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
-            self.spawn(["cmake", f'-DCPACK_GENERATOR={CPACK_GENERATOR}',
-                                "-S", OPENVINO_SOURCE_DIR,
-                                "-B", OPENVINO_BINARY_DIR])
+            self.spawn(["cmake", f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                                 "-S", OPENVINO_SOURCE_DIR,
+                                 "-B", OPENVINO_BINARY_DIR])
 
         # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
