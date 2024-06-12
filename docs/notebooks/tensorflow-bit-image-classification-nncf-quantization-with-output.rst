@@ -137,8 +137,8 @@ Prepare Dataset
 
 .. parsed-literal::
 
-    2024-05-15 23:30:57.328419: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-05-15 23:30:57.328646: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-06-05 23:30:23.049720: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-06-05 23:30:23.049944: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. code:: ipython3
@@ -274,7 +274,7 @@ Model Fine-tuning
 
 .. parsed-literal::
 
-    101/101 [==============================] - 968s 9s/step - loss: 0.5992 - accuracy: 0.8659 - val_loss: 0.0881 - val_accuracy: 0.9760
+    101/101 [==============================] - 966s 9s/step - loss: 0.6241 - accuracy: 0.8605 - val_loss: 0.0783 - val_accuracy: 0.9720
 
 
 .. parsed-literal::
@@ -502,10 +502,10 @@ Compare FP32 and INT8 accuracy
 
 .. parsed-literal::
 
-    Accuracy of the tensorflow model (fp32):  97.60%
-    Accuracy of the OpenVINO optimized model (fp32):  97.60%
-    Accuracy of the OpenVINO quantized model (int8):  96.80%
-    Accuracy drop between OV FP32 and INT8 model: 0.8% 
+    Accuracy of the tensorflow model (fp32):  97.20%
+    Accuracy of the OpenVINO optimized model (fp32):  97.20%
+    Accuracy of the OpenVINO quantized model (int8):  96.60%
+    Accuracy drop between OV FP32 and INT8 model: 0.6% 
 
 
 Compare inference results on one picture
@@ -573,9 +573,9 @@ Compare inference results on one picture
 
 .. parsed-literal::
 
-    Predicted label for the sample picture by float (fp32) model: gas pump
+    Predicted label for the sample picture by float (fp32) model: church
     
-    Predicted label for the sample picture by qunatized (int8) model: gas pump
+    Predicted label for the sample picture by qunatized (int8) model: church
     
 
 

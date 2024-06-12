@@ -23,6 +23,8 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
+#include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
@@ -82,6 +84,8 @@ private:
     OP_EXTENSION(ov::op::internal::RoPE)                                    \
     OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
+    OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \
+    OP_EXTENSION_X64(ov::intel_cpu::QKVProjectionNode)                      \
     OP_EXTENSION_X64(ov::intel_cpu::ScaledDotProductAttentionWithKVCache)   \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertSaturation)                  \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertTruncation)                  \
@@ -159,10 +163,8 @@ private:
     OP_EXTENSION(ov::snippets::op::IntermediateMemoryBuffer) \
     OP_EXTENSION(ov::snippets::op::Load)                     \
     OP_EXTENSION(ov::snippets::op::LoadReshape)              \
-    OP_EXTENSION(ov::snippets::op::LoopBeginStatic)          \
-    OP_EXTENSION(ov::snippets::op::LoopBeginDynamic)         \
-    OP_EXTENSION(ov::snippets::op::LoopEndStatic)            \
-    OP_EXTENSION(ov::snippets::op::LoopEndDynamic)           \
+    OP_EXTENSION(ov::snippets::op::LoopBegin)                \
+    OP_EXTENSION(ov::snippets::op::LoopEnd)                  \
     OP_EXTENSION(ov::snippets::op::NewMemoryBuffer)          \
     OP_EXTENSION(ov::snippets::op::Nop)                      \
     OP_EXTENSION(ov::snippets::op::PowerStatic)              \

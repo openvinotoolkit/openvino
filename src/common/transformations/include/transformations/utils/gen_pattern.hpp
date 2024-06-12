@@ -54,7 +54,9 @@ static bool matcher_verbose_enabled() {
     return enabled;
 }
 
-#    define _VERBOSE_LOG(...) if (matcher_verbose_enabled()) _verbose_log(__VA_ARGS__)
+#    define _VERBOSE_LOG(...)          \
+        if (matcher_verbose_enabled()) \
+        _verbose_log(__VA_ARGS__)
 #else
 static bool matcher_verbose_enabled() {
     return false;
@@ -724,7 +726,7 @@ public:
     explicit GenericPattern(const DiscreteTypeInfo& type_info,
                             const OutputVector& args,
                             const detail::AttrMap& attrs,
-                            const char * vt)
+                            const char* vt)
         : ov::pass::pattern::op::Pattern(args),
           m_type_info(type_info),
           m_attrs(attrs),
@@ -1100,6 +1102,33 @@ inline std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const s
         OutputVector{lhs->get_default_output(), rhs->get_default_output()});
 }
 
+inline std::shared_ptr<Node> GenSlice2(detail::PatternNode data,
+                                       detail::PatternNode start,
+                                       detail::PatternNode stop,
+                                       detail::PatternNode step,
+                                       size_t axis) {
+    std::vector<Symbol> axes(axis + 1);
+    std::iota(axes.begin(), axes.end(), 0);
+    auto opt1 = makePattern<opset8::Slice>({data, start, stop, step, axes});
+
+    std::vector<int64_t> begin_mask(axis + 1, 1);
+    std::vector<int64_t> end_mask(axis + 1, 1);
+    std::vector<int64_t> new_axis_mask;
+    std::vector<int64_t> shrink_axis_mask;
+    std::vector<int64_t> ellipsis_mask;
+
+    begin_mask[axis] = 0;
+    end_mask[axis] = 0;
+
+    auto opt2 = makePattern<opset1::StridedSlice>({data, start, stop, step},
+                                                  {{"begin_mask", begin_mask},
+                                                   {"end_mask", end_mask},
+                                                   {"new_axis_mask", new_axis_mask},
+                                                   {"shrink_axis_mask", shrink_axis_mask},
+                                                   {"ellipsis_mask", ellipsis_mask}});
+    return opt1 | opt2;
+}
+
 inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis) {
     auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}});
 
@@ -1183,7 +1212,8 @@ public:
                         return false;
                     }
 
-                    if (ele_type == ov::element::i32 || ele_type == ov::element::f32 || ele_type == ov::element::i64) {
+                    if (ele_type == ov::element::i32 || ele_type == ov::element::i64 || ele_type == ov::element::f16 ||
+                        ele_type == ov::element::f32) {
                         auto observed = constop->cast_vector<double>();
                         for (size_t i = 0; i < symbols.size(); i++)
                             detail::add_symbol_observed(sov, symbols[i], observed[i]);
@@ -1225,6 +1255,15 @@ public:
                         vconst_node->get_output_element_type(0).is_signed()) {
                         auto p_values = pconst_node->cast_vector<int64_t>();
                         auto v_values = vconst_node->cast_vector<int64_t>();
+                        if (p_values == v_values) {
+                            continue;
+                        }
+                    }
+
+                    if (pconst_node->get_output_element_type(0).is_real() &&
+                        vconst_node->get_output_element_type(0).is_real()) {
+                        auto p_values = pconst_node->cast_vector<float>();
+                        auto v_values = vconst_node->cast_vector<float>();
                         if (p_values == v_values) {
                             continue;
                         }

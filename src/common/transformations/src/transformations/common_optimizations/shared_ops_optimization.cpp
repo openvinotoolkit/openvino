@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
@@ -65,8 +66,7 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
             return false;
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())
             return false;
-        const auto& lhs_shape = lhs_constant->get_shape();
-        if (lhs_shape != rhs_constant->get_shape() || shape_size(lhs_shape) > 10)
+        if (lhs_constant->get_shape() != rhs_constant->get_shape())
             return false;
         if (memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), lhs_constant->get_byte_size()) != 0)
             return false;
@@ -135,6 +135,12 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                         if (visited_nodes[j])
                             continue;
                         const auto& child_op = shared_nodes[j];
+
+                        // no functionality is implemented to compare bodies of MultiSubGraphOp operations
+                        if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(root_op)) {
+                            continue;
+                        }
+
                         if (nodes_are_equal(root_op, child_op)) {
                             rewritten =
                                 replace_output_update_name(child_op->output(0), root_op->output(0)) || rewritten;

@@ -1555,7 +1555,11 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::cre
     std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
 
     if (!dir.empty()) {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        ov::util::create_directory_recursive(ov::util::string_to_wstring(dir));
+#else
         ov::util::create_directory_recursive(dir);
+#endif
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
 
