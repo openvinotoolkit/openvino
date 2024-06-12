@@ -30,7 +30,6 @@ using namespace ov::builder::subgraph;
 class ReduceSumTransformation : public ReduceTransformation<ov::op::v1::ReduceSum> {
     void SetUp() override {
         ReduceTransformation::SetUp();
-
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
@@ -352,7 +351,7 @@ namespace testValues3 {
                 ov::element::u8,
                 {
                     {ov::element::f32},
-                    {{2.f, 4.f, 6.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::u8, true},
+                    {{40.f, 80.f, 120.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::u8, true},
                     {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
                 }
             },
@@ -362,7 +361,7 @@ namespace testValues3 {
                 ov::element::f32,
                 {
                     {},
-                    {{8.f, 16.f, 24.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::u8, true},
+                    {{160.f, 320.f, 480.f}, ov::element::f32, {1, 3, 1, 1}},
                     {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
                 }
             }
@@ -375,7 +374,7 @@ namespace testValues3 {
                 ov::element::i8,
                 {
                     {ov::element::f32},
-                    {{2.f, 4.f, 6.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::i8, true},
+                    {{40.f, 80.f, 120.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::i8, true},
                     {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
                 }
             },
@@ -385,7 +384,7 @@ namespace testValues3 {
                 ov::element::f32,
                 {
                     {},
-                    {{8.f, 16.f, 24.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::i8, true},
+                    {{160.f, 320.f, 480.f}, ov::element::f32, {1, 3, 1, 1}},
                     {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
                 }
             }
