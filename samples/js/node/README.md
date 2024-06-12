@@ -26,10 +26,10 @@ VSCode extension to run these notebook samples
   - 004-hello-detection.nnb
   - 213-question-answering.nnb
 
-## Live sample
+## Live Sample
 
-This sample you can run in the browser, no installation required.
-[Codesandbox](https://codesandbox.io/) is free online service with limited resources. For the best performance and more control, you should run the sample locally.
+You can run this sample in the browser; no installation is required.
+[Codesandbox](https://codesandbox.io/) is a free online service with limited resources. For optimal performance and more control,  it is recommended to run the sample locally.
 
 - [hello-classification-sample](https://codesandbox.io/p/devbox/openvino-node-hello-classification-sample-djl893)
 
