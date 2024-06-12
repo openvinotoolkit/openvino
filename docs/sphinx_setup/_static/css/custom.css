@@ -921,6 +921,7 @@ div.highlight {
 
 
 /* Content formatting for the benchmark pages */
+/* =================================================== */
 .picker-options {
     margin: 15px 0;
 }
@@ -1307,3 +1308,29 @@ input:-webkit-autofill {
     -webkit-box-shadow: 0 0 0px 1000px white inset;
 }
 
+/* Scrollbox Extension */
+/* =================================================== */
+.scrollbox {
+    overflow-y:scroll;
+    height:300px;
+    margin-bottom: 20px;
+}
+
+/* overriding the 'back to top btn' style from webpack://pydata_sphinx_theme/src/pydata_sphinx_theme/assets/styles/base/_base.scss */
+/* =================================================== */
+#pst-back-to-top {
+    top: unset;
+    bottom: 3rem;
+    left: unset;
+    right: -2rem;
+    background-color: #0068b5;
+    font-size: .8rem;
+    border-radius: .25rem !important;
+}
+
+/* hide the header for the side menu */
+/* =================================================== */
+
+nav.bd-links p.bd-links__title {
+    display: none;
+}
