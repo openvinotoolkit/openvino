@@ -14,65 +14,20 @@ namespace ov {
 namespace intel_gpu {
 namespace op {
 
-SDPA::SDPA(const ov::Output<Node>& Q,
-           const ov::Output<Node>& K,
-           const ov::Output<Node>& V,
+SDPA::SDPA(const OutputVector& inputs,
+           const bool is_causal,
            const std::vector<int64_t>& order_q,
            const std::vector<int64_t>& order_k,
            const std::vector<int64_t>& order_v,
            const std::vector<int64_t>& order_out,
-           const bool is_causal,
            const ov::element::Type output_type)
-    : m_order_q(order_q)
+    : m_is_causal(is_causal)
+    , m_order_q(order_q)
     , m_order_k(order_k)
     , m_order_v(order_v)
     , m_order_out(order_out)
-    , m_is_causal(is_causal)
     , m_output_type(output_type) {
-    set_arguments({Q, K, V});
-    set_causal(is_causal);
-    validate_and_infer_types();
-}
-
-SDPA::SDPA(const ov::Output<Node>& Q,
-           const ov::Output<Node>& K,
-           const ov::Output<Node>& V,
-           const ov::Output<Node>& attn_mask,
-           const std::vector<int64_t>& order_q,
-           const std::vector<int64_t>& order_k,
-           const std::vector<int64_t>& order_v,
-           const std::vector<int64_t>& order_out,
-           const bool is_causal,
-           const ov::element::Type output_type)
-    : m_order_q(order_q)
-    , m_order_k(order_k)
-    , m_order_v(order_v)
-    , m_order_out(order_out)
-    , m_is_causal(is_causal)
-    , m_output_type(output_type) {
-    set_arguments({Q, K, V, attn_mask});
-    set_causal(is_causal);
-    validate_and_infer_types();
-}
-
-SDPA::SDPA(const ov::Output<Node>& Q,
-           const ov::Output<Node>& K,
-           const ov::Output<Node>& V,
-           const ov::Output<Node>& attn_mask,
-           const ov::Output<Node>& scale,
-           const std::vector<int64_t>& order_q,
-           const std::vector<int64_t>& order_k,
-           const std::vector<int64_t>& order_v,
-           const std::vector<int64_t>& order_out,
-           const bool is_causal,
-           const ov::element::Type output_type)
-    : m_order_q(order_q)
-    , m_order_k(order_k)
-    , m_order_v(order_v)
-    , m_order_out(order_out)
-    , m_is_causal(is_causal)
-    , m_output_type(output_type) {
-    set_arguments({Q, K, V, attn_mask, scale});
+    set_arguments(inputs);
     set_causal(is_causal);
     validate_and_infer_types();
 }
@@ -80,16 +35,13 @@ SDPA::SDPA(const ov::Output<Node>& Q,
 std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
-    if (new_args.size() == 3) {
-        return std::make_shared<SDPA>(new_args.at(0), new_args.at(1), new_args.at(2),
-                                      m_order_q, m_order_k, m_order_v, m_order_out, m_is_causal, m_output_type);
-    } else if (new_args.size() == 4) {
-        return std::make_shared<SDPA>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                      m_order_q, m_order_k, m_order_v, m_order_out, m_is_causal, m_output_type);
-    } else {
-        return std::make_shared<SDPA>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4),
-                                      m_order_q, m_order_k, m_order_v, m_order_out, m_is_causal, m_output_type);
-    }
+    return std::make_shared<SDPA>(new_args,
+                                  m_is_causal,
+                                  m_order_q,
+                                  m_order_k,
+                                  m_order_v,
+                                  m_order_out,
+                                  m_output_type);
 }
 
 void SDPA::validate_and_infer_types() {

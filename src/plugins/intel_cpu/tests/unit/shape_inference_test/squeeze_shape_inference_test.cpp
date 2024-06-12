@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "squeeze_shape_inference.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "squeeze_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -69,6 +70,7 @@ protected:
 INSTANTIATE_TEST_SUITE_P(1d_shapes,
                          SqueezeStaticShapeInferenceTest,
                          Values(make_tuple(ShapeVector{{1}, {1}}, std::vector<int64_t>{-1}, StaticShape({})),
+                                make_tuple(ShapeVector{{6}, {1}}, std::vector<int64_t>{-1}, StaticShape({6})),
                                 make_tuple(ShapeVector{{1}, {1}}, std::vector<int64_t>{0}, StaticShape({}))),
                          PrintToStringParamName());
 
@@ -77,6 +79,7 @@ INSTANTIATE_TEST_SUITE_P(
     SqueezeStaticShapeInferenceTest,
     Values(make_tuple(ShapeVector{{1, 2, 3, 1}, {2}}, std::vector<int64_t>{0, 3}, StaticShape({2, 3})),
            make_tuple(ShapeVector{{2, 1, 1, 4}, {2}}, std::vector<int64_t>{2, 1}, StaticShape({2, 4})),
+           make_tuple(ShapeVector{{2, 1, 1, 4, 1}, {2}}, std::vector<int64_t>{0, 1, -2, -1}, StaticShape({2, 1, 4})),
            make_tuple(ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{0, 2, 4}, StaticShape({3, 2})),
            make_tuple(ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{4, 2, 0}, StaticShape({3, 2})),
            make_tuple(ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{2, 0, 4}, StaticShape({3, 2})),
