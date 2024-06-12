@@ -262,8 +262,8 @@ class CustomBuild(build):
         # build some components which have not been built yet
         for comp, comp_data in install_cfg.items():
             cpack_comp_name = comp_data.get("name")
-            source_dir = comp_data.get("source_dir")
-            binary_dir = comp_data.get("binary_dir")
+            source_dir = comp_data.get("source_dir", OPENVINO_SOURCE_DIR)
+            binary_dir = comp_data.get("binary_dir", OPENVINO_BINARY_DIR)
             install_dir = comp_data.get("install_dir")
             prefix = comp_data.get("prefix")
 
@@ -274,14 +274,15 @@ class CustomBuild(build):
 
                 # even perform a build in case of binary directory does not exist
                 binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
+
                 if not os.path.exists(binary_dir):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake",
                                 f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
                                 f"-DPython3_EXECUTABLE={sys.executable}",
-                                '-DCPACK_GENERATOR=WHEEL',
                                 f"-DCMAKE_BUILD_TYPE={CONFIG}",
+                                "-DCPACK_GENERATOR=WHEEL",
                                 "-DENABLE_WHEEL=OFF",
                                 self.cmake_args,
                                 "-S", source_dir,
@@ -299,8 +300,22 @@ class CustomBuild(build):
                                      "--component", cpack_comp_name])
 
     def run(self):
-        # build and install clib into temporary directories
         if not PYTHON_EXTENSIONS_ONLY:
+            self.announce(f"reset cpack_generator {CPACK_GENERATOR}", level=3)
+            self.spawn(["cmake",
+                    f"-DCPACK_GENERATOR=WHEEL",
+                    "-DENABLE_WHEEL=OFF",
+                    f"-DCMAKE_BUILD_TYPE={CONFIG}",
+                    "-S", OPENVINO_SOURCE_DIR,
+                    "-B", OPENVINO_BINARY_DIR])
+
+            self.announce(f"Rebuilding project", level=3)
+            self.spawn(["cmake",
+                        "--build", OPENVINO_BINARY_DIR,
+                        "--config", CONFIG,
+                        "--parallel", str(self.jobs)])
+
+            # build and install clib into temporary directories
             self.cmake_build_and_install(LIB_INSTALL_CFG)
             # build and install additional files into temporary directories
             self.cmake_build_and_install(DATA_INSTALL_CFG)
@@ -311,13 +326,12 @@ class CustomBuild(build):
         # install clibs into a temporary directory (site-packages)
         if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
-
-        self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
-        self.spawn(["cmake",
-                    f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
-                    f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                    "-S", OPENVINO_SOURCE_DIR,
-                    "-B", OPENVINO_BINARY_DIR])
+            self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
+            self.spawn(["cmake",
+                        f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                        f"-DCMAKE_BUILD_TYPE={CONFIG}",
+                        "-S", OPENVINO_SOURCE_DIR,
+                        "-B", OPENVINO_BINARY_DIR])
 
         # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
