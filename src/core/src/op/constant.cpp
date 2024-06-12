@@ -12,6 +12,7 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
@@ -154,8 +155,12 @@ namespace v0 {
 Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
       m_shape{tensor.get_shape()},
+      m_byte_strides{},
       m_data{
           std::make_shared<SharedBuffer<Tensor>>(static_cast<char*>(tensor.data()), tensor.get_byte_size(), tensor)} {
+    if (m_element_type.bitwidth() >= 8) {
+        m_byte_strides = tensor.get_strides();
+    }
     constructor_validate_and_infer_types();
 }
 
@@ -191,7 +196,8 @@ Constant::Constant(const element::Type& type, const Shape& shape) : Constant(tru
 
 Constant::Constant(bool memset_allocation, const element::Type& type, const Shape& shape)
     : m_element_type(type),
-      m_shape(shape) {
+      m_shape(shape),
+      m_byte_strides{} {
     allocate_buffer(memset_allocation);
     constructor_validate_and_infer_types();
 }
@@ -225,6 +231,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
 Constant::Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data)
     : m_element_type(type),
       m_shape(shape),
+      m_byte_strides(),
       m_data(data) {
     constructor_validate_and_infer_types();
 }
@@ -232,6 +239,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
 Constant::Constant(const Constant& other)
     : m_element_type{other.m_element_type},
       m_shape{other.m_shape},
+      m_byte_strides{other.m_byte_strides},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
       m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()} {
@@ -241,6 +249,7 @@ Constant::Constant(const Constant& other)
 Constant::Constant(const Constant& other, const Shape& new_shape)
     : m_element_type{other.m_element_type},
       m_shape{new_shape},
+      m_byte_strides{},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
       m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()} {
@@ -483,6 +492,10 @@ void Constant::update_identical_flags(bool is_checked, bool identical_value) con
 
 void Constant::validate_and_infer_types() {
     set_output_type(0, m_element_type, m_shape);
+    auto& output_tensor = get_output_tensor(0);
+    const auto tensor = Tensor(m_element_type, m_shape, get_data_ptr_nc(), m_byte_strides);
+    output_tensor.set_lower_value(tensor);
+    output_tensor.set_upper_value(tensor);
 }
 
 bool Constant::visit_attributes(AttributeVisitor& visitor) {

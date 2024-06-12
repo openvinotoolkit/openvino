@@ -763,6 +763,7 @@ private:
 
     element::Type m_element_type{};
     Shape m_shape{};
+    Strides m_byte_strides{};
     std::shared_ptr<ov::AlignedBuffer> m_data{};
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
