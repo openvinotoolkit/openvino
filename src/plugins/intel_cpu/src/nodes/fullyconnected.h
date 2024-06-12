@@ -63,10 +63,6 @@ public:
     void fuseDecompressionMultiply(const MemoryCPtr& memory);
     void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
-    MemoryPtr split_h(const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill = true);
-    MemoryPtr split_v(const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill = true);
-    void allreduce(void* send_buf, void* recv_buf, size_t count, ov::element::Type dtype);
-
 protected:
     void toNumaNodeImpl(int numaID) override;
 
@@ -88,12 +84,7 @@ private:
     int w_size = -1;
     int id = 0;
     std::shared_ptr<ov::threading::MessageManager> message = nullptr;
-    /*
-     * 1: allreduce     : split src and wgt, element-add dst
-     * 2: allgather_h   : split src and wgt, concat in horizontal direction
-     * 3: allgather_v   : split src(batch size > 1 is required.), concat in vertical direction
-    */
-    int tp_mode;
+    bool enable_tensor_parallel = false;
     MemoryPtr cached_splited_weight;
     MemoryPtr cached_splited_bias;
     MemoryPtr cached_scale = nullptr;

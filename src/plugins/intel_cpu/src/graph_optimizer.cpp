@@ -135,15 +135,9 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
-    if (std::getenv("ENABLE_TP")) {
-        const char* str_enable = std::getenv("ENABLE_TP");
-        int tp_mode = std::atoi(str_enable);
-        if (tp_mode != 1 && tp_mode != 2) {
-            OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFullyConnectedAndSimpleOperation");
-            FuseFullyConnectedAndSimpleOperation(graph);
-            graph.RemoveDroppedNodes();
-        }
-    }
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFullyConnectedAndSimpleOperation");
+    FuseFullyConnectedAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMatMulAndSimpleOperation");
     FuseMatMulAndSimpleOperation(graph);
@@ -1153,6 +1147,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph &graph) {
+    bool enable_tensor_parallel = std::getenv("ENABLE_TP") == nullptr ? false : true;
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](NodePtr node) {
@@ -1177,7 +1172,7 @@ void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph &graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (childNode->getType() == Type::FakeQuantize || (childNode->getType() == Type::Eltwise && !enable_tensor_parallel)) {
             auto parentEdges = childNode->parentEdges;
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();

@@ -6,6 +6,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include <common/memory_desc_wrapper.hpp>
 #include "nodes/reorder.h"
+#include "nodes/common/cpu_memcpy.h"
 #include "utils/debug_capabilities.h"
 #if defined(__linux__)
 #    include <sys/syscall.h> /* Definition of SYS_* constants */
@@ -662,6 +663,91 @@ bool mbind_move(const dnnl::memory mem, int numaNodeID) {
     auto desc = mem.get_desc();
     auto size = desc.get_size();
     return mbind_move(data, size, numaNodeID);
+}
+
+MemoryPtr split_horizontal(const dnnl::engine& eng, const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill) {
+        auto desc = src->getDescPtr();
+    auto shape = src->getShape();
+    auto dims = shape.getDims();
+    auto prec = src->getPrecision();
+    if (dim < 0) {
+        dim += dims.size();
+    }
+    if (shape.isDynamic()) {
+        // if the dim is dynamic, should return a dynamic dim without any change.
+        // if the dim is static, should split it indeed.
+        const auto& pshape = shape.toPartialShape();
+        if (pshape[dim].is_dynamic()) {
+            return src;
+        }
+        auto new_pshape = pshape;
+        new_pshape[dim] = new_pshape[dim] / w_size;
+        auto new_desc = std::make_shared<CpuBlockedMemoryDesc>(prec, Shape{new_pshape});
+        MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
+        return ptr;
+    }
+    // auto element_size = prec.size();
+    VectorDims new_dims = dims;
+    new_dims[dim] = dims[dim] / w_size;
+    // const int stride = dims[dim] / w_size;
+    auto new_desc = desc->cloneWithNewDims(new_dims, true);
+    if (!need_fill) {
+        MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc, nullptr);
+        return ptr;
+    }
+    auto srcPtr = static_cast<uint8_t*>(src->getData());
+    size_t stride = src->getSize() / w_size;
+    if (prec == ov::element::u4) {
+        stride /= 2;
+    }
+
+    MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc, srcPtr + w_rank * stride);
+    return ptr;
+}
+MemoryPtr split_vertical(const dnnl::engine& eng, const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill) {
+    auto desc = src->getDescPtr();
+    auto shape = src->getShape();
+    auto dims = shape.getDims();
+    auto prec = src->getPrecision();
+    if (dim < 0) {
+        dim += dims.size();
+    }
+    if (shape.isDynamic()) {
+        const auto& pshape = shape.toPartialShape();
+        if (pshape[dim].is_dynamic()) {
+            OPENVINO_THROW("Can't split data with dynamic shapes");
+        }
+        auto new_pshape = pshape;
+        new_pshape[dim] = pshape[dim] / w_size;
+        auto new_desc = std::make_shared<CpuBlockedMemoryDesc>(prec, Shape{new_pshape});
+        MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
+        return ptr;
+    }
+    auto element_size = prec.size();
+    VectorDims new_dims = dims;
+    new_dims[dim] = dims[dim] / w_size;
+    auto new_desc = desc->cloneWithNewDims(new_dims, true);
+    MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
+    if (!need_fill) {
+        return ptr;
+    }
+    // copy
+    auto srcPtr = static_cast<uint8_t*>(src->getData());
+    auto dstPtr = static_cast<uint8_t*>(ptr->getData());
+    auto mem_size = src->getSize(); // total bytes
+    auto channel_size = dims[dim] * element_size; // selected dim bytes
+    const int step = (mem_size / channel_size); // the steps need to copy.
+    int stride = dims[dim] / w_size; // elements of half selected dim.
+    if (prec == ov::element::u4) {
+        stride /= 2;
+    }
+    const auto copySize = stride * element_size; // bytes of half selected dim.
+    parallel_for(step, [&](int i){
+        int dst_offset = i * copySize;
+        int src_offset = i * copySize* 2 + w_rank * copySize;
+        cpu_parallel_memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);
+    });
+    return ptr;
 }
 
 }   // namespace intel_cpu
