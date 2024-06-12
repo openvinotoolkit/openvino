@@ -21,13 +21,20 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
     using namespace ov::pass::pattern;
 
     auto is_target_pattern = [](const Output<Node>& output) {
+        // Currently this pass targets only compressed FCs (QKV) on dynamic generative models
+        // inputs: input, weight, bias, scale, [zp]
+        // Bias/scale/zp are constant or none
+        // if it is not constant, the only allowed cases are Constant => convert
+        // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
+
         auto is_constant = [](const std::shared_ptr<ov::Node> node) {
             if (std::dynamic_pointer_cast<ov::op::v0::Constant>(node))
                 return true;
-            if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(node))
-                return false;
-            const auto& parent = node->get_input_node_shared_ptr(0);
-            return (std::dynamic_pointer_cast<ov::op::v0::Constant>(parent) != nullptr);
+            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(node) && std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
+                return true;
+            if (std::dynamic_pointer_cast<ov::op::v1::Transpose>(node) && std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
+                return true;
+            return false;
         };
         auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
             return std::dynamic_pointer_cast<op::Placeholder>(node);
@@ -36,6 +43,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         const int num_fcs_to_fuse = 3;
         const auto& fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
         const auto& input = fc->get_input_node_shared_ptr(0);
+        if (!fc->get_input_partial_shape(0).is_dynamic())
+            return false;
         if (input->get_users().size() < num_fcs_to_fuse)
             return false;
         size_t user_fc_count = 0;
@@ -45,10 +54,6 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
             const auto& fc_user = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(u);
             if (!fc_user)
                 continue;
-            // inputs: input, weight, bias, scale, [zp]
-            // Bias/scale/zp are constant or none
-            // if it is not constant, the only allowed cases are Constant => convert
-            // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
             auto num_inputs = fc_user->inputs().size();
             if (num_inputs >= 5)
                 nodes_with_zp++;
@@ -105,16 +110,19 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         }
         auto weight_nodes_as_output_vector = ov::OutputVector{weight_nodes[0], weight_nodes[1], weight_nodes[2]};
         auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, 0);
+        fused_weight->set_friendly_name(weight_nodes[0]->get_friendly_name() + "_fused");
         ov::copy_runtime_info(weight_nodes[0], fused_weight);
 
         auto scale_nodes_as_output_vector = ov::OutputVector{scale_nodes[0], scale_nodes[1], scale_nodes[2]};
         auto fused_scale = std::make_shared<ov::op::v0::Concat>(scale_nodes_as_output_vector, 0);
+        fused_scale->set_friendly_name(scale_nodes[0]->get_friendly_name() + "_fused");
         ov::copy_runtime_info(scale_nodes[0], fused_scale);
 
         std::shared_ptr<ov::Node> fused_bias;
         if (bias_nodes.size() == 3) {
             auto bias_nodes_as_output_vector = ov::OutputVector{bias_nodes[0], bias_nodes[1], bias_nodes[2]};
             fused_bias = std::make_shared<ov::op::v0::Concat>(bias_nodes_as_output_vector, 0);
+            fused_bias->set_friendly_name(bias_nodes[0]->get_friendly_name() + "_fused");
             ov::copy_runtime_info(bias_nodes[0], fused_bias);
         } else {
             fused_bias = std::make_shared<op::Placeholder>();
@@ -140,7 +148,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
                     bool current_is_scalar = (ov::shape_size(zp_nodes[i]->get_output_shape(0)) == 1);
                     if (!current_is_scalar)
                         return false;
-                    // validate all values are same
+                    // validate all zp values are same
                     int32_t cur_zp_val;
                     if (auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_nodes[i])) {
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
@@ -155,6 +163,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
             } else {
                 auto zp_nodes_as_output_vector = ov::OutputVector{zp_nodes[0], zp_nodes[1], zp_nodes[2]};
                 fused_zps = std::make_shared<ov::op::v0::Concat>(zp_nodes_as_output_vector, 0);
+                fused_zps->set_friendly_name(zp_nodes[0]->get_friendly_name() + "_fused");
             }
         }
         // Create new fc with merged weights, bias, scale, zp
@@ -186,6 +195,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
             }
             org_fc->clear_control_dependencies();
         }
+        std::cout << "Fusing done" << std::endl;
         return true;
     };
 
