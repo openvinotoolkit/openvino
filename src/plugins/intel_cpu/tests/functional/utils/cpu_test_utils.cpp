@@ -474,25 +474,37 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
 }
 
 
+// deduce the actual precision of the operation given the ngraph level operation precision and the plugin config
 ov::element::Type
-CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& in_type,
+CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& op_prc,
                                              const ov::AnyMap& configuration) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    return in_type;
+    return op_prc;
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
-    return in_type;
+    return op_prc;
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
     // if is not float
-    if (!in_type.is_real()) {
-        return in_type;
+    if (!op_prc.is_real()) {
+        return op_prc;
     }
-
+    ov::element::Type inferencePrecision = ov::element::f32;
+    bool inferencePrecisionSetExplicitly = false;
     const std::string precison_key = ov::hint::inference_precision.name();
     const auto& it = configuration.find(precison_key);
-    auto inferencePrecision =  it != configuration.end() ? it->second.as<ov::element::Type>() : ov::element::undefined;
-    if (inferencePrecision == ov::element::undefined) {
+    if (it != configuration.end()) {
+        auto inferencePrecisionConfig = it->second.as<ov::element::Type>();
+        inferencePrecisionSetExplicitly = true;
+        // TODO also need to check (dnnl::impl::cpu::x64::avx2_vnni_2)
+        if ((inferencePrecisionConfig == ov::element::bf16 && ov::with_cpu_x86_avx512_core())
+                || (inferencePrecisionConfig == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16())
+                || (inferencePrecisionConfig == ov::element::f32)
+                || (inferencePrecisionConfig == ov::element::undefined)) {
+            inferencePrecision = inferencePrecisionConfig;
+        }
+    }
+    if (!inferencePrecisionSetExplicitly) {
         const std::string perf_key = ov::hint::execution_mode.name();
         const auto& perf_it = configuration.find(perf_key);
         if (perf_it != configuration.end() && perf_it->second.as<ov::hint::ExecutionMode>() == ov::hint::ExecutionMode::PERFORMANCE) {
@@ -500,11 +512,18 @@ CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& in_type,
             if (ov::with_cpu_x86_bfloat16()) {
                 inferencePrecision = ov::element::bf16;
             }
+        } else {
+            inferencePrecision = ov::element::undefined;
         }
     }
 
+    ov::element::Type type = op_prc;
+    // enforceInferPrecision stage
+    if (inferencePrecision == ov::element::bf16) {
+        type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+    }
+
     // ngraph transform pipeline stage
-        ov::element::Type type = in_type;
     if (inferencePrecision == ov::element::f16) {
         if (type == ov::element::f32) {
             type = ov::element::f16;
@@ -518,11 +537,6 @@ CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& in_type,
         }
     } else {
         type = ov::element::f32;
-    }
-
-    // enforceInferPrecision stage
-    if (inferencePrecision == ov::element::bf16) {
-        type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
     }
 
     return type;
