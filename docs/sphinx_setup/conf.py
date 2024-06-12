@@ -199,6 +199,7 @@ html_js_files = [
     'js/papaparse.min.js',
     'js/viewer.min.js',
     'js/custom.js',
+    'js/modern.js',
 ]
 
 # monkeypatch sphinx api doc to prevent showing inheritance from object and enum.Enum

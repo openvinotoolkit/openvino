@@ -8,14 +8,14 @@ Compression Framework) and infer quantized model via OpenVINO™ Toolkit.
 The optimization process contains the following steps:
 
 1. Quantize the converted OpenVINO model from `whisper-convert
-   notebook <whisper-convert-with-output.html>`__ with NNCF.
+   notebook <whisper-convert.ipynb>`__ with NNCF.
 2. Check model result for the demo video.
 3. Compare model size, performance and accuracy of FP32 and quantized
    INT8 models.
 
 ..
 
-   **NOTE**: you should run `whisper-convert <whisper-convert-with-output.html>`__
+   **NOTE**: you should run `whisper-convert <whisper-convert.ipynb>`__
    notebook first to generate OpenVINO IR model that is used for
    quantization.
 
@@ -23,8 +23,8 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
--  `Create and initialize quantization
-    <#create-and-initialize-quantization-#0>`__
+-  `Create and initialize
+   quantization <#create-and-initialize-quantization>`__
 
    -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
    -  `Quantize Whisper encoder and decoder
@@ -140,7 +140,8 @@ Select the task for the model:
 
 
 Create and initialize quantization
------------------------------------
+----------------------------------
+
 
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
@@ -159,7 +160,7 @@ The optimization process contains the following steps:
    function.
 
 Set paths to the model converted in
-`whisper-convert <whisper-convert-with-output.html>`__ notebook and the paths where
+`whisper-convert <whisper-convert.ipynb>`__ notebook and the paths where
 quantized models will be saved.
 
 .. code:: ipython3
@@ -391,7 +392,7 @@ Load ``INT8`` models saved above into a new instance of Whisper model.
     model_int8.decoder = OpenVINOTextDecoder(core, WHISPER_DECODER_OV_INT8, device=device.value)
 
 Select a video for transcription as in
-`whisper-convert <whisper-convert-with-output.html>`__ notebook.
+`whisper-convert <whisper-convert.ipynb>`__ notebook.
 
 .. code:: ipython3
 

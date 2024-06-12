@@ -44,9 +44,9 @@ struct jit_snippets_call_args {
     // Note: Ideally loop_args must be private, since we manage this pointer manually.
     // However, standard-layout class definition (to use offset_of) requires the same access specifier
     // for all non-static data members. So we can keep them public or friend all control-flow emitters
-    int32_t num_loops = 0;
     loop_args_t* loop_args = nullptr;
     amx_tile_config_t amx_tile_config;
+    size_t buffer_offsets[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
 };
 
 struct jit_snippets_call_args::loop_args_t {

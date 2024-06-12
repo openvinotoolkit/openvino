@@ -289,7 +289,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
-    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8, ov::element::nf4, ov::element::u4, ov::element::i4};
+    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8, ov::element::i8, ov::element::nf4, ov::element::u4, ov::element::i4};
     const std::set<ov::element::Type> supportedDataPrecisions{ov::element::f32, ov::element::bf16};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
@@ -927,7 +927,8 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
             continue;
         }
         const auto convert = fullyConnected->getParentEdgeAt(1)->getParent();
-        if (convert->getType() != Type::Convert || convert->getOriginalInputPrecisionAtPort(0) != ov::element::f16 ||
+        if (convert->getType() != Type::Convert ||
+            !one_of(convert->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) ||
             !one_of(convert->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16) ||
             !convert->isConstant()) {
             continue;
@@ -3104,6 +3105,9 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             }
         }
 
+        //capture reference to the original mem output before graph transformations
+        auto& memOutput = memInputNode->getOutputNode();
+
         auto memInputSdpa = std::make_shared<MemoryInputSDPA>(
             memInputNode->getId(),
             memInputNode->getName(),
@@ -3131,8 +3135,6 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         }
 
         //create a stub memory output
-        auto& memOutput = memInputNode->getOutputNode();
-
         auto memOutputStub = std::make_shared<MemoryOutputStub>(
             memOutput.getId(),
             memOutput.getName(),
@@ -3145,8 +3147,6 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         const auto inputNum = memOutputEdge->getInputNum();
         graph.RemoveEdge(memOutputEdge);
         graph.CreateEdge(sdpa, memOutputStub, inputNum, 0);
-
-        memInputSdpa->registerOutputNode(memOutputStub.get());
 
         graph.AddNode(memInputSdpa);
         graph.AddNode(memOutputStub);

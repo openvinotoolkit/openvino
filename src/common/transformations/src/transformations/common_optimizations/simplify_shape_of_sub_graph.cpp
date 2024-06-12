@@ -353,11 +353,13 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
 bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
-    Manager manager;
+    Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
     REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)
     REGISTER_PASS(manager, AbsSinking)
+    // FIXME: manager runs Validate based on the last pass, when fixed the following line must be deleted
+    REGISTER_PASS(manager, Validate)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, EliminateGatherUnsqueeze)  // should run after SharedOpOptimization
     REGISTER_PASS(manager, NopElimination, m_use_shapes)

@@ -115,6 +115,14 @@ static constexpr Property<ov::hint::Priority> host_task_priority{"GPU_HOST_TASK_
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SIZE"};
+
+/**
+ * @brief Turning on this key disables SDPA operation decomposition and keeps SDPA operation in the graph.
+ * Enabling SDPA optimization may provide performance improvements and memory usage reduction.
+ * This key serves as a recommendation and may be ignored in known sub-optimal cases.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMIZATION"};
 }  // namespace hint
 
 /**

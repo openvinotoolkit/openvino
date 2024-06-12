@@ -151,6 +151,7 @@ protected:
 
     inline void init_call_args(jit_snippets_call_args& call_args) {
         call_args.register_loops(loop_args);
+        std::copy(buffer_offsets.cbegin(), buffer_offsets.cend(), call_args.buffer_offsets);
 
         if (m_buffer_scratchpad_size > 0)
             call_args.buffer_scratchpad_ptr =
@@ -191,10 +192,12 @@ protected:
 
     void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config) override {
         SubgraphExecutor::init_runtime_params(snippet_config);
+        buffer_offsets = snippet_config->buffer_cluster_offsets;
         data_offsets = snippet_config->io_data_offsets;
         loop_args = snippet_config->loop_args;
     }
 
+    std::vector<size_t> buffer_offsets = {};
     std::vector<std::vector<size_t>> data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
 };
@@ -680,8 +683,6 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                     ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
-    // Note: temporary disabled. Re-enable after ticket 132833 is resolved
-    lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
@@ -723,7 +724,7 @@ void Subgraph::optimizeIR() {
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
-    lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
+    control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
 
     subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
 #endif
@@ -848,6 +849,7 @@ void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURu
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
 
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
 
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
@@ -881,7 +883,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
     segfault_detector();
 #endif
 
-    parallel_nt(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args);
 
@@ -905,7 +907,7 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
     segfault_detector();
 #endif
 
-    parallel_nt(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args);
 
