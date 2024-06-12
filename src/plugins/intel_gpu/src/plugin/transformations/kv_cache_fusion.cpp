@@ -24,7 +24,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/fake_quantize.hpp"
+#include "intel_gpu/op/dynamic_quantize.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -81,15 +81,8 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             if (count++ < 3) {
                 std::cout << "KV_CACHE_COMP " << concat_node->get_friendly_name() << std::endl;
             }
-            float range = 8.0f;
-            if (concat_node->get_friendly_name().find("__module.model.transformer.h.0.attn/aten::cat/Concat_5") != std::string::npos)
-                range = 1.0f;
-            auto in_lo = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape(1, 1), std::vector<float>{0-range});
-            auto in_hi = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape(1, 1), std::vector<float>{range});
-            auto out_lo = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape(1, 1), std::vector<float>{-128.0f});
-            auto out_hi = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape(1, 1), std::vector<float>{127.0f});
-            auto new_fq = std::make_shared<ov::op::v0::FakeQuantize>(concat_node->get_input_node_shared_ptr(1), in_lo, in_hi, out_lo, out_hi, 256);
-            auto new_convert = std::make_shared<ov::op::v0::Convert>(new_fq, ov::element::i8);
+            auto new_dyn_quan = std::make_shared<op::DynamicQuantize>(concat_node->get_input_node_shared_ptr(1));
+            new_dyn_quan->set_friendly_name(concat_node->get_friendly_name() + "_compressed");
 
             // Replace common ReadValue op with a custom one as common one expects paired Assign operation which is removed by this transform
             auto new_read_value_node = variable_initializer ? std::make_shared<ov::intel_gpu::op::ReadValue>(variable_initializer, variable)
@@ -101,13 +94,13 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             // XXX: Need to change precision for sdpa output and new_read_value_node also.
             if (pattern_map.count(gather_past) > 0) {
                 kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
-                                                            new_convert,
+                                                            new_dyn_quan,
                                                             variable,
                                                             concat_axis,
                                                             new_read_value_node->get_output_element_type(0));
             } else {
                 kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
-                                                            new_convert,
+                                                            new_dyn_quan,
                                                             variable,
                                                             concat_axis,
                                                             new_read_value_node->get_output_element_type(0));

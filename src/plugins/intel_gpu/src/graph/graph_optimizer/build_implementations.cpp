@@ -6,6 +6,7 @@
 #include "program_helpers.h"
 
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace cldnn;
 
@@ -19,6 +20,7 @@ void build_implementations::run(program& p) {
     for (auto& n : p.get_processing_order()) {
         if (auto impl = n->get_selected_impl()) {
             auto params = n->get_kernel_impl_params();
+            GPU_DEBUG_TRACE << "add_kernels_source: " << params->desc->id << std::endl;
             cache.add_kernels_source(*params, impl->get_kernels_source());
         }
     }
@@ -26,6 +28,7 @@ void build_implementations::run(program& p) {
     for (auto& n : p.get_processing_order()) {
         if (auto impl = n->get_selected_impl()) {
             auto params = n->get_kernel_impl_params();
+            GPU_DEBUG_TRACE << "init_kernels: " << params->desc->id << std::endl;
             impl->init_kernels(cache, *params);
             impl->reset_kernels_source();
         }

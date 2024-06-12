@@ -317,6 +317,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                     kernel::ptr kernel = kernels_factory::create(_engine, context, kern, entry_point);
                     auto& params = iter->second.first;
                     auto kernel_part_idx = iter->second.second;
+                    GPU_DEBUG_TRACE << "Compiled kernel: " << entry_point << std::endl;
                     if (compiled_kernels.find(params) != compiled_kernels.end()) {
                         compiled_kernels[params].push_back(std::make_pair(kernel, kernel_part_idx));
                     } else {
