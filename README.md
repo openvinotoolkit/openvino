@@ -24,7 +24,7 @@ Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2024/_static/downl
 [Get your preferred distribution of OpenVINO](https://docs.openvino.ai/2024/get-started/install-openvino.html) or use this command for quick installation:
 
 ```sh
-pip install openvino -U
+pip install -U openvino
 ```
 
 Check [system requirements](https://docs.openvino.ai/2024/about-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html) for detailed information.
