@@ -400,14 +400,14 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
     ASSERT_EQ(size_t(4), format::dimension(dft_node.get_input_layouts()[0].format));
 }
 
-TEST(reorder_inputs, insert_reorder_between_single_output_type_node_and_multiple_fc_nodes) {
+TEST(reorder_inputs, add_reorder_between_single_output_type_node_and_multiple_users) {
     // Topology:
     //
-    //         Add (single output)                       Add
-    //          |                                         |
-    //  0->0 -------- 0->0       ------------>      Reorder  Reorder
-    //       |      |                                  |       |
-    //      FC      FC                                FC       FC
+    //         Add (single output)               Add
+    //          |                                 |
+    //  0->0 -------- 0->0    ------------>    Reorder
+    //       |      |                           |   |
+    //      FC      FC                         FC   FC
     //
     // Description :
     //     : Test the case where a node which doens't have muptiple output but have multiple users,
@@ -439,10 +439,17 @@ TEST(reorder_inputs, insert_reorder_between_single_output_type_node_and_multiple
     program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
 
     ASSERT_NE(program, nullptr);
+
     auto& add = program->get_node("add");
     for (auto& user : add.get_users()) {
         ASSERT_TRUE(user->is_type<reorder>());
     }
+
+    auto& fc1 = program->get_node("fc1");
+    auto& fc2 = program->get_node("fc2");
+
+    ASSERT_TRUE(fc1.get_dependency(0).is_type<reorder>());
+    ASSERT_TRUE(fc2.get_dependency(0).is_type<reorder>());
 }
 
 // TODO Not yet implemented
