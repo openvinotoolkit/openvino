@@ -7,7 +7,7 @@
 #include <ze_api.h>
 
 #include "intel_npu/al/itt.hpp"
-#include "zero_api.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_utils.hpp"

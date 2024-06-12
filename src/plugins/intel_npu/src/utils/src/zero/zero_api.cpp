@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_api.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 
 #include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
