@@ -21,8 +21,8 @@ static_assert(!std::numeric_limits<ov::float8_e8m0>::is_integer, "numeric_limits
 namespace {
 
 union f32_t {
-    float value;
     uint32_t bits;
+    float value;
 };
 
 constexpr uint8_t f32_mantissa_bits{23u};
@@ -32,7 +32,8 @@ constexpr uint32_t f32_mantissa_bits_mask{0x007fffffu};
 constexpr uint32_t round_even{0x00400000u};
 
 uint8_t f32_to_f8e8m0_bits(const float value) {
-    const auto input = f32_t{value};
+    f32_t input{};
+    input.value = value;
 
     const auto input_exponent_bits = static_cast<uint8_t>((input.bits & f32_exponent_bits_mask) >> f32_mantissa_bits);
 
@@ -63,7 +64,7 @@ float8_e8m0::operator float() const {
         return std::numeric_limits<float>::min() / 2;
     }
 
-    return f32_t{.bits = static_cast<uint32_t>(m_value & byte_mask) << f32_mantissa_bits}.value;
+    return f32_t{static_cast<uint32_t>(m_value & byte_mask) << f32_mantissa_bits}.value;
 }
 
 uint8_t float8_e8m0::to_bits() const {
