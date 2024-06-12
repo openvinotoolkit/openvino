@@ -144,6 +144,7 @@ static void print_help_messages() {
                               "from one specific iteration by giving the same values for the start and end, and the open "
                               "ended range is also available by range from given start to the last iteration as -1. e.g. "
                               "OV_GPU_DumpProfilingDataIteration='10..-1'");
+    message_list.emplace_back("OV_GPU_HostTimeProfiling", "Enable collecting of model enqueue time spent on the host");
     message_list.emplace_back("OV_GPU_DumpGraphs", "1) dump ngraph before and after transformation. 2) dump graph in model compiling."
                               "3) dump graph in execution.");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
@@ -219,6 +220,7 @@ debug_configuration::debug_configuration()
         , disable_onednn_opt_post_ops(0)
         , dump_profiling_data(std::string(""))
         , dump_profiling_data_per_iter(0)
+        , host_time_profiling(0)
         , dump_graphs(std::string())
         , dump_sources(std::string())
         , dump_layers_path(std::string())
@@ -268,6 +270,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
     get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
     get_gpu_debug_env_var("DumpProfilingDataPerIter", dump_profiling_data_per_iter);
+    get_gpu_debug_env_var("HostTimeProfiling", host_time_profiling);
     std::string dump_prof_data_iter_str;
     get_gpu_debug_env_var("DumpProfilingDataIteration", dump_prof_data_iter_str);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
