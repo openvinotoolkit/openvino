@@ -24,7 +24,6 @@ namespace ov {
 namespace npuw {
 
 class InferRequest;
-class ThinInferRequest;
 
 class CompiledModel : public ov::ICompiledModel {
     using DevList = std::vector<std::string>;
@@ -48,7 +47,6 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
-    friend class ThinInferRequest;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string &device_to_try);

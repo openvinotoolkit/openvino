@@ -118,23 +118,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         LOG_INFO("Accuracy check is enabled.");
     }
 
-    LOG_INFO("*** Original model ***");
+    LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
-    { LOG_BLOCK(); for (auto &&p : orig_parameters) LOG_INFO(p); }
+    { LOG_BLOCK(); for (auto &&p : orig_parameters) LOG_VERB(p); }
     const auto& orig_results = model->get_results();
-    { LOG_BLOCK(); for (auto &&r: orig_results) LOG_INFO(r); }
+    { LOG_BLOCK(); for (auto &&r: orig_results) LOG_VERB(r); }
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
-    // if (dumpDotFile) {
-    //     std::map<std::string, int> map_id;
-    //     for (const auto& v : subgraphIds) {
-    //         map_id.emplace(v.first->get_friendly_name(), v.second);
-    //     }
-    //     ov::npuw::debug::dump_subgraphs(model, queryNetworkResult, map_id);
-    // }
 
     // Prepare mapping between original inputs/outputs and compiled
     // submodels inputs/outputs. Example:
@@ -155,28 +148,28 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_outputs_to_submodels_outputs.resize(orig_results.size(), NO_LINK);
 
     for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
-        LOG_INFO("Subgraph[" << id << "]");
+        LOG_VERB("Subgraph[" << id << "]");
         LOG_BLOCK();
         if (orderedSubgraphs[id]._optimized_out) {
-            LOG_INFO("OPTIMIZED OUT");
+            LOG_VERB("OPTIMIZED OUT");
             continue;
         }
         auto process_params = [&](const ov::ParameterVector &_parameters) {
             for (size_t i = 0; i < _parameters.size(); i++) {
-                LOG_INFO(_parameters[i]);
+                LOG_VERB(_parameters[i]);
                 for (size_t j = 0; j < orig_parameters.size(); j++) {
                     if (_parameters[i] == orig_parameters[j]) {
                         LOG_BLOCK();
-                        LOG_INFO("MATCHED WITH " << orig_parameters[j]);
+                        LOG_VERB("MATCHED WITH " << orig_parameters[j]);
                         if (NO_LINK == m_inputs_to_submodels_inputs[j]) {
                             // Easy case, first come first served
-                            LOG_INFO("Map this parameter directly");
+                            LOG_VERB("Map this parameter directly");
                             m_inputs_to_submodels_inputs[j] = ToSubmodel{id, i};
                         } else {
                             // There's multiple subgraphs reading from the same Parameter.
                             // Record them here, see how this list is later used in the
                             // sync_infer_request.cpp
-                            LOG_INFO("Subscribe this parameter to tensor");
+                            LOG_VERB("Subscribe this parameter to tensor");
                             m_param_subscribers[j].push_back(ToSubmodel{id, i});
                         } // if(NO_LINK)
                         // Regardless of the order, if the reader is a function,
@@ -191,12 +184,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     // See the rearrange_to_function_protocol<>()...
                     continue;
                 }
-                LOG_INFO(_results[i]);
+                LOG_VERB(_results[i]);
                 for (size_t j = 0; j < orig_results.size(); j++) {
                     if (_results[i] == orig_results[j]) {
                         // FIXME: There may be a problem, see below (!)
                         LOG_BLOCK();
-                        LOG_INFO("MATCHED WITH " << orig_results[j]);
+                        LOG_VERB("MATCHED WITH " << orig_results[j]);
                         m_outputs_to_submodels_outputs[j] = {id, i};
                     }
                 }
@@ -418,7 +411,7 @@ void ov::npuw::CompiledModel::reset_io() {
     // Instead, remember the mapping from the original CompiledModel::input/output ports
     // to the Subgraph's input/output ports.
 
-    LOG_INFO("*** Partition graph ***");
+    LOG_VERB("*** Partition graph ***");
     int idx_in = 0, idx_out = 0; // FIXME: use indexed()
     for (const auto& to_submodel : m_inputs_to_submodels_inputs) {
         LOG_BLOCK();
@@ -431,7 +424,7 @@ void ov::npuw::CompiledModel::reset_io() {
         }
         const auto& submodel_idx = to_submodel.first;
         const auto& input_idx    = to_submodel.second;
-        LOG_INFO("Input (Parameter) " << inputs()[idx_in]
+        LOG_VERB("Input (Parameter) " << inputs()[idx_in]
                  << " from Subgraph[" << submodel_idx << "]/" << input_idx);
         idx_in++;
     }
@@ -440,7 +433,7 @@ void ov::npuw::CompiledModel::reset_io() {
         LOG_BLOCK(); // in fact, to_submodel <is> from_submodel here, but who cares
         const auto& submodel_idx = to_submodel.first;
         const auto& output_idx   = to_submodel.second;
-        LOG_INFO("Output (Result) " << outputs()[idx_out]
+        LOG_VERB("Output (Result) " << outputs()[idx_out]
                  << " from Subgraph[" << submodel_idx << "]/" << output_idx);
         idx_out++;
     }
@@ -649,14 +642,6 @@ void ov::npuw::CompiledModel::log_device_dist() const {
     }
 }
 
-#define BIND(N,T) \
-        {ov::intel_npu::N.name(), \
-         {ov::PropertyMutability::RW, \
-          [](const ::intel_npu::Config& config) -> ov::Any \
-            { return config.get<::intel_npu::T>(); } \
-         } \
-        } 
-
 void ov::npuw::CompiledModel::implement_properties() {
     // This function fills the map: {`property name`: `getter for property value`},
     // that can be used later to return requested properties by user.
@@ -669,6 +654,14 @@ void ov::npuw::CompiledModel::implement_properties() {
     // 3. Fill `m_all_supported_props` with all properties, mentioned above.
 
     // 1.
+#define BIND(N,T) \
+        {ov::intel_npu::N.name(), \
+         {ov::PropertyMutability::RW, \
+          [](const ::intel_npu::Config& config) -> ov::Any \
+            { return config.get<::intel_npu::T>(); } \
+         } \
+        } 
+
     m_prop_to_opt = {
         BIND(use_npuw, NPU_USE_NPUW),
         BIND(npuw::devices, NPUW_DEVICES),
@@ -689,13 +682,15 @@ void ov::npuw::CompiledModel::implement_properties() {
         BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
         BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
         BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
         BIND(npuw::dump::full, NPUW_DUMP_FULL),
         BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
         BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
         BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
         BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
+#endif
     };
-
+#undef BIND
     // 2.
     m_prop_to_opt.insert({
         {ov::supported_properties.name(),
