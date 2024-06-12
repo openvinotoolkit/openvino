@@ -73,12 +73,14 @@ private:
     std::shared_ptr<void> lib;
 };
 
-#define symbol_statement(symbol)                                                                  \
-    template <typename... Args>                                                                   \
-    inline typename std::invoke_result<decltype(&::symbol), Args...>::type symbol(Args... args) { \
-        return ZeroApi::getInstance().symbol(std::forward<Args>(args)...);                        \
+#define symbol_statement(symbol)                                                                            \
+    template <typename... Args>                                                                             \
+    inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
+        return ZeroApi::getInstance().symbol(std::forward<Args>(args)...);                                  \
     }
 symbols_list();
 #undef symbol_statement
-
+#define symbol_statement(symbol) inline decltype(&::symbol) symbol = wrapped_##symbol;
+symbols_list();
+#undef symbol_statement
 }  // namespace intel_npu

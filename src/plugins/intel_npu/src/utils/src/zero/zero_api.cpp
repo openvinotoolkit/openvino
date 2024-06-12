@@ -9,7 +9,6 @@
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {
-
 ZeroApi::ZeroApi() {
     const std::string baseName = "ze_loader";
     try {
