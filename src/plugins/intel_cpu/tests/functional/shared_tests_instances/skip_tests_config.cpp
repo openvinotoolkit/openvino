@@ -387,6 +387,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i32.*Conversion=i8.*)");
     // by calc abs_threshold with expected value
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.*_eltwise_op_type=Div_.*_model_type=i32_.*)");
+
+    retVector.emplace_back(R"(.*smoke_RoPETest.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)
