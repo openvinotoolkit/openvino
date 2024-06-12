@@ -321,9 +321,9 @@ void SyncInferRequest::change_default_ptr() {
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     if (m_asyncRequest->m_has_sub_infers) {
-        auto message = ov::threading::message_manager();
+        auto requests = m_asyncRequest->getSubInferRequest();
         std::vector<ov::SoPtr<ov::IVariableState>> states;
-        for (auto request : message->get_sub_infer_requests()) {
+        for (auto request : requests) {
             auto cur = request->query_state();
             states.insert(states.end(), cur.begin(), cur.end());
         }
@@ -629,7 +629,7 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
 void SyncInferRequest::sub_streams_infer() {
     std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> input_tensors;
     auto message = ov::threading::message_manager();
-    auto requests = message->get_sub_infer_requests();
+    auto requests = m_asyncRequest->getSubInferRequest();
     auto inputs = get_inputs();
     auto outputs = get_outputs();
 

@@ -83,7 +83,7 @@ private:
     int w_rank = -1;
     int w_size = -1;
     int id = 0;
-    std::shared_ptr<ov::threading::MessageManager> message = nullptr;
+    std::shared_ptr<SubMemoryManager> sub_memory = nullptr;
     bool enable_tensor_parallel = false;
     MemoryPtr cached_splited_weight;
     MemoryPtr cached_splited_bias;

@@ -68,7 +68,7 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
         w_rank = context->getCPUStreamExecutor()->get_rank()[0];
         w_size = 2;
         // std::cout << "[dbg] w_rank: " << w_rank << ", w_size: " << w_size << "\n";
-        message = ov::threading::message_manager();
+        sub_memory = context->getSubMemory();
     }
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
@@ -102,17 +102,17 @@ void FullyConnected::prepareParams() {
 void FullyConnected::execute(dnnl::stream strm) {
     if (enable_tensor_parallel) {
         PROFILE(_prof1, "fc_sync");
-        id = message->get_memory_id(w_rank);
-        message->set_memory_used(id, w_rank);
+        id = sub_memory->get_memory_id(w_rank);
+        sub_memory->set_memory_used(id, w_rank);
         while (true) {
-            std::lock_guard<std::mutex> lock(message->_flagMutex);
-            if (message->_use_count[id] == w_size) {
-                message->_use_count[id] = 0;
+            std::lock_guard<std::mutex> lock(sub_memory->_flagMutex);
+            if (sub_memory->_use_count[id] == w_size) {
+                sub_memory->_use_count[id] = 0;
                 for (int i = 0; i < w_size; i++) {
-                    message->_memorys_table[id][i].flag = false;
+                    sub_memory->_memorys_table[id][i].flag = false;
                 }
             }
-            if (message->_use_count[id] == 0) {
+            if (sub_memory->_use_count[id] == 0) {
                 break;
             }
         }
@@ -142,15 +142,15 @@ void FullyConnected::execute(dnnl::stream strm) {
         const size_t count = (mem_size / channel_size);     // the steps need to copy.
 
         const auto copySize = (dims[dim] / w_size) * prec.size();    // bytes of half selected dim.
-        message->_memorys_table[id][w_rank].send_buf = cur_dst->getData();
-        message->_memorys_table[id][w_rank].flag = true;
+        sub_memory->_memorys_table[id][w_rank].send_buf = cur_dst->getData();
+        sub_memory->_memorys_table[id][w_rank].flag = true;
 
         std::vector<int> wait_list(w_size, 1);
         while (true) {
             int wait_size = 0;
             for (int idx = 0; idx < w_size; idx++) {
-                if (wait_list[idx] > 0 && message->_memorys_table[id][idx].flag) {
-                    auto new_ptr = static_cast<uint8_t*>(message->_memorys_table[id][idx].send_buf);
+                if (wait_list[idx] > 0 && sub_memory->_memorys_table[id][idx].flag) {
+                    auto new_ptr = static_cast<uint8_t*>(sub_memory->_memorys_table[id][idx].send_buf);
                     // parallel_for(step, [&](int i) {
                     //     int src_offset = i * copySize;
                     //     int dst_offset = i * copySize * 2 + idx * copySize;
@@ -185,8 +185,8 @@ void FullyConnected::execute(dnnl::stream strm) {
             }
         }
         {
-            std::lock_guard<std::mutex> lock(message->_flagMutex);
-            message->_use_count[id]++;
+            std::lock_guard<std::mutex> lock(sub_memory->_flagMutex);
+            sub_memory->_use_count[id]++;
         }
     }
 }

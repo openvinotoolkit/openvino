@@ -14,6 +14,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
+#include "sub_memory_manager.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -25,7 +26,16 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Config& cfg,
-                  const bool loaded_from_cache);
+                  const bool loaded_from_cache,
+                  const std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
+
+    ~CompiledModel() {
+        if (m_has_sub_compiled_models) {
+            std::cout << "[~CompiledModel] clear\n";
+            m_sub_compiled_models.clear();
+            m_sub_memory_manager->_memorys_table.clear();
+        }
+    }
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -74,6 +84,12 @@ private:
      */
     GraphGuard::Lock get_graph() const;
 
+    std::vector<std::shared_ptr<CompiledModel>> get_sub_compiled_models() const {
+        return m_sub_compiled_models;
+    }
+
+    std::vector<std::shared_ptr<CompiledModel>> m_sub_compiled_models;
+    std::shared_ptr<SubMemoryManager> m_sub_memory_manager;
     bool m_has_sub_compiled_models = false;
 };
 
