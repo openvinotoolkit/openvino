@@ -1,5 +1,3 @@
-.. {#openvino_docs_get_started_guide_troubleshooting}
-
 Troubleshooting Guide for OpenVINO™ Installation & Configuration
 ================================================================
 
@@ -142,4 +140,18 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    For specific issues, see Errors with Installing via PIP for Users in China and Proxy issues
    with installing OpenVINO on Linux from Docker questions above.
 
+.. dropdown:: a Yocto Image error when adding the "meta-intel" layer
 
+   When using the ``bitbake-layers add-layer meta-intel`` command, the following error might
+   occur:
+
+   .. code-block:: sh
+
+      NOTE: Starting bitbake server...
+      ERROR: The following required tools (as specified by HOSTTOOLS) appear to be unavailable in PATH, please install them in order to proceed: chrpath diffstat pzstd zstd
+
+   To resolve the issue, install the ``chrpath diffstat zstd`` tools:
+
+   .. code-block:: sh
+
+      sudo apt-get install chrpath diffstat zstd

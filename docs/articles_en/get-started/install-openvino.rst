@@ -14,6 +14,7 @@ Install OpenVINO™ 2024.2
    OpenVINO Runtime on Linux <install-openvino/install-openvino-linux>
    OpenVINO Runtime on Windows <install-openvino/install-openvino-windows>
    OpenVINO Runtime on macOS <install-openvino/install-openvino-macos>
+   Create an OpenVINO Yocto Image <install-openvino/install-openvino-yocto>
    OpenVINO GenAI Flavor <install-openvino/install-openvino-genai>
 
 .. raw:: html
