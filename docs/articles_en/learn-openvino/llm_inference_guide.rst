@@ -56,13 +56,14 @@ The Hugging Face API is easy to learn, provides a simple interface and hides the
 model initialization and text generation for a better developer experience. However, it has more
 dependencies, less customization, and cannot be ported to C/C++.
 
-The Native OpenVINO API requires fewer dependencies, minimizing  the application footprint, and
-enables the use of generative models in C++ applications. However, it requires explicit
-implementation of the text generation loop, tokenization functions, and scheduler functions used
-in a typical LLM pipeline.
+The OpenVINO GenAI Flavor reduces the complexity of LLMs implementation by
+automatically managing essential tasks like the text generation loop, tokenization,
+and scheduling. The Native OpenVINO API provides a more hands-on experience,
+requiring manual setup of these functions. Both methods are designed to minimize dependencies
+and the overall application footprint and enable the use of generative models in C++ applications.
 
 It is recommended to start with Hugging Face frameworks to experiment with different models and
-scenarios. Then the model can be used with OpenVINO native APIs if it needs to be optimized
+scenarios. Then the model can be used with OpenVINO APIs if it needs to be optimized
 further. Optimum Intel provides interfaces that enable model optimization (weight compression)
 using `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__,
 and export models to the OpenVINO model format for use in native API applications.
