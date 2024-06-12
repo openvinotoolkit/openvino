@@ -279,7 +279,9 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 #
 
 if(BUILD_SHARED_LIBS)
-    add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
+    add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS}
+            src/nodes/kernels/acl/gemm_kernel.cpp
+            src/nodes/kernels/acl/gemm_kernel.hpp)
     ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)

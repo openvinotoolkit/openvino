@@ -40,6 +40,8 @@ ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecom
         auto node = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(
             pattern_to_output.at(pattern_node).get_node_shared_ptr());
 
+        return false;
+
         if (node == nullptr || transformation_callback(node)) {
             return false;
         }

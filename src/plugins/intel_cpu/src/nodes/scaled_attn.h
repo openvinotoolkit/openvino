@@ -16,7 +16,7 @@ using VectorDims = std::vector<Dim>;
 inline arm_compute::TensorShape shapeCast(const VectorDims& dims) {
     arm_compute::TensorShape tensorShape;
     for (std::size_t i = 0; i < dims.size(); ++i) {
-        tensorShape.set(dims.size() - i - 1, dims[i], false);
+        tensorShape.set(dims.size() - i - 1, dims[i], true);
     }
     if (tensorShape.num_dimensions() == 0) {
         tensorShape.set(0, 1, false);
