@@ -129,7 +129,7 @@ nav.bd-links li > a:hover {
     text-decoration: underline
 }
 
-ul#navbar-main-elements > li:hover { 
+ul#navbar-main-elements > li:hover {
     text-decoration: underline;
     color: #fff;
 }
@@ -223,7 +223,7 @@ details.sd-dropdown:not([open]).sd-card {
 /* Ttile is at the same place for both open and close states */
 .sd-card-header {
     border-radius: 0px !important;
-    
+
 }
 
 /* Ttile is at the same place for both open and close states */
@@ -262,7 +262,7 @@ details.sd-dropdown .sd-summary-title {
     min-width: 125px!important;
 }
 
-[aria-labelledby="version-selector"]  .dropdown-item { 
+[aria-labelledby="version-selector"]  .dropdown-item {
     padding: 0.25rem 0.5rem!important;
 }
 
@@ -423,23 +423,40 @@ div.highlight {
 .hidden-banner {
     display: none!important;
 }
+/* Header */
 
+.bd-header label.primary-toggle {
+    color: white;
+}
+
+.bd-header label.secondary-toggle {
+    visibility: hidden;
+}
 
 /* Responsiveness */
 /* =================================================== */
 @media (max-width: 720px) {
+
+    .container,
+    .container-lg,
+    .container-md,
+    .container-sm,
+    .container-xl {
+        max-width: 1850px;
+    }
+
     .transition-banner {
         margin-top: 2rem;
     }
 }
 
 @media (min-width: 1200px) {
-    .container, 
+    .container,
     .container-lg,
     .container-md,
     .container-sm,
     .container-xl {
-        max-width: 1800px;
+        max-width: 1900px;
     }
 }
 
@@ -1206,7 +1223,7 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
 
 .newsletter-submit-btn:before {
     font-family: "Font Awesome 5 Free";
-    content: "\f0e0\00a0"; 
+    content: "\f0e0\00a0";
     font-size: 1rem;
 }
 
