@@ -1,6 +1,6 @@
 .. {#llm_inference}
 
-Inference with Hugging Face and Optimum Intel
+Run LLMs with Hugging Face and Optimum Intel
 =====================================================
 
 The steps below show how to load and infer LLMs from Hugging Face using Optimum Intel.
