@@ -20,10 +20,10 @@ def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
 
     :param array: numpy array with values to pack.
     :type array: numpy array
-    :param type: Type to interpret the array values. Type must be u1, u4, i4 or nf4.
+    :param type: Type to interpret the array values. Type must be u1, u4, i4, nf4 or f4e2m1.
     :type type: openvino.runtime.Type
     """
-    assert type in [Type.u1, Type.u4, Type.i4, Type.nf4], "Packing algorithm for the" "data types stored in 1, 2 or 4 bits"
+    assert type in [Type.u1, Type.u4, Type.i4, Type.nf4, Type.f4e2m1], "Packing algorithm for the" "data types stored in 1, 2 or 4 bits"
 
     minimum_regular_dtype = np.int8 if type == Type.i4 else np.uint8
     casted_to_regular_type = array.astype(dtype=minimum_regular_dtype, casting="unsafe")
@@ -57,12 +57,12 @@ def unpack_data(array: np.ndarray, type: Type, shape: Union[list, Shape]) -> np.
 
     :param array: numpy array to unpack.
     :type array: numpy array
-    :param type: Type to extract from array values. Type must be u1, u4, i4 or nf4.
+    :param type: Type to extract from array values. Type must be u1, u4, i4, nf4 or f4e2m1.
     :type type: openvino.runtime.Type
     :param shape: the new shape for the unpacked array.
     :type shape: Union[list, openvino.runtime.Shape]
     """
-    assert type in [Type.u1, Type.u4, Type.i4, Type.nf4], "Unpacking algorithm for the" "data types stored in 1, 2 or 4 bits"
+    assert type in [Type.u1, Type.u4, Type.i4, Type.nf4, Type.f4e2m1], "Unpacking algorithm for the" "data types stored in 1, 2 or 4 bits"
     unpacked = np.unpackbits(array.view(np.uint8))
     shape = list(shape)
     if type.bitwidth == 1:

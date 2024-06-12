@@ -16,6 +16,8 @@ namespace reference_tests {
 namespace ConversionOpsRefTestDefinitions {
 namespace {
 
+const auto f4e2m1_values = std::vector<uint8_t>{0x0a, 0x2f, 0x49, 0x3b, 0x78, 0x05};
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_Conversion_With_Hardcoded_Refs,
     ReferenceConversionLayerTest,
@@ -109,6 +111,13 @@ INSTANTIATE_TEST_SUITE_P(
                       ov::element::bf16,
                       std::vector<uint8_t>{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142},
                       std::vector<bfloat16>{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142}),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{11},
+                      ov::element::f4e2m1,
+                      ov::element::bf16,
+                      // Unpacked data only first nibble got value, the other is 0
+                      std::vector<float4_e2m1>{0.0f, -1.0f, -0.5f, 6.0f, -4.0f, 1.5f},
+                      std::vector<bfloat16>{0.0f, 0.0f, -1.0f, 0.0f, -0.5f, 0.0f, 6.0f, 0.0f, -4.0f, 0.0f, 1.5f}),
 
         // destination f16
         ConvertParams(ConversionTypes::CONVERT_LIKE,
@@ -150,7 +159,12 @@ INSTANTIATE_TEST_SUITE_P(
                       ov::element::f16,
                       std::vector<uint8_t>{0xE1, 0x1F},
                       std::vector<float16>{-0.6961928009986877f, 0.7229568362236023f, 1.0f, -0.6961928009986877f}),
-
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{11},
+                      ov::element::f4e2m1,
+                      ov::element::f16,
+                      f4e2m1_values,
+                      std::vector<float16>{-1.0f, 0.0f, -6.0f, 1.0f, -0.5f, 2.0f, -1.5f, 1.5f, -0.0f, 6.0f, 3.0f}),
         // destination f32
         ConvertParams(ConversionTypes::CONVERT_LIKE,
                       ov::PartialShape{2, 2},
@@ -313,6 +327,13 @@ INSTANTIATE_TEST_SUITE_P(
                 vector<float>{0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
             std::vector<
                 float>{0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{11},
+                      ov::element::f4e2m1,
+                      ov::element::f32,
+                      // only one nibble got value others are be 0
+                      f4e2m1_values,
+                      std::vector<float>{-1.0f, 0.0f, -6.0f, 1.0f, -0.5f, 2.0f, -1.5f, 1.5f, -0.0f, 6.0f, 3.0f}),
         ConvertParams(ConversionTypes::CONVERT_LIKE,
                       ov::PartialShape{4},
                       ov::element::nf4,
@@ -1808,7 +1829,26 @@ INSTANTIATE_TEST_SUITE_P(
                       ov::element::f64,
                       ov::element::u6,
                       std::vector<double>{0.0, 2.1, 1.7, -3.1, 24.0, -1.0, 32.0, 52.0},
-                      std::vector<uint8_t>{0x02, 0x1d, 0b00000011, 0x8f, 0x04, 0b01111011})),
+                      std::vector<uint8_t>{0x02, 0x1d, 0b00000011, 0x8f, 0x04, 0b01111011}),
+        // destination f4e2m1
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{11},
+                      ov::element::f16,
+                      ov::element::f4e2m1,
+                      std::vector<float16>{-0.9f, 0.0f, -6.5f, 1.2f, -0.6f, 2.0f, -1.5f, 1.5f, -0.1f, 6.0f, 2.8f},
+                      f4e2m1_values),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{11},
+                      ov::element::bf16,
+                      ov::element::f4e2m1,
+                      std::vector<bfloat16>{-1.2f, 0.2f, -6.5f, 1.2f, -0.6f, 2.49f, -1.4f, 1.5f, -0.1f, 6.0f, 2.8f},
+                      f4e2m1_values),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{11},
+                      ov::element::f32,
+                      ov::element::f4e2m1,
+                      std::vector<float>{-1.2f, 0.2f, -6.5f, 1.2f, -0.6f, 2.49f, -1.5f, 1.6f, -0.1f, 6.0f, 2.8f},
+                      f4e2m1_values)),
     ReferenceConversionLayerTest::getTestCaseName);
 }  // namespace
 }  // namespace ConversionOpsRefTestDefinitions
