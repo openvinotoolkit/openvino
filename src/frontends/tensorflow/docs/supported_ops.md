@@ -487,7 +487,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | GroupByReducerDataset                                   | NO                            |                               |
 | GroupByWindowDataset                                    | NO                            |                               |
 | GuaranteeConst                                          | NO                            |                               |
-| HSVToRGB                                                | NO                            |                               |
+| HSVToRGB                                                | YES                           |                               |
 | HashTable                                               | YES                           |                               |
 | HashTableV2                                             | YES                           |                               |
 | HistogramFixedWidth                                     | NO                            |                               |

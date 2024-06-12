@@ -15,7 +15,7 @@
 static bool use_broadcast(const std::shared_ptr<ov::op::v0::Concat>& concat) {
     const auto& output = concat->output(0);
     const auto& input = concat->input(0);
-    const auto& input_concat_dim = input.get_partial_shape()[concat->get_concatenation_axis()];
+    const auto& input_concat_dim = input.get_partial_shape()[concat->get_axis()];
 
     return input_concat_dim.is_static() && input_concat_dim.get_length() == 1 && output.get_partial_shape().is_static();
 }
