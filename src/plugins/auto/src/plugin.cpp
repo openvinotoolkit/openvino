@@ -3,15 +3,21 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <string>
-#include <vector>
-#include <memory>
+#include "plugin.hpp"
+
 #include <map>
+#include <memory>
+#include <string>
+#include <transformations/utils/utils.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
-#include <transformations/utils/utils.hpp>
-
+#include "auto_compiled_model.hpp"
+#include "auto_schedule.hpp"
+#include "cumulative_compiled_model.hpp"
+#include "cumulative_schedule.hpp"
+#include "itt.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -19,12 +25,9 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
-#include "plugin.hpp"
-#include "auto_schedule.hpp"
-#include "auto_compiled_model.hpp"
-#include "cumulative_compiled_model.hpp"
-#include "cumulative_schedule.hpp"
-#include "itt.hpp"
+#include "openvino/util/monitors/cpu_performance_counter.hpp"
+#include "openvino/util/monitors/device_monitor.hpp"
+#include "openvino/util/monitors/gpu_performance_counter.hpp"
 
 namespace {
     const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {
@@ -510,6 +513,13 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
     std::list<DeviceInformation> Others;
+    // check the device utilization
+    ov::util::monitor::DeviceMonitor cpu_monitor{std::make_shared<ov::util::monitor::CpuPerformanceCounter>()};
+    std::cout << "CPU: ";
+    for (auto load : cpu_monitor.getMeanDeviceLoad()) {
+        std::cout << std::fixed << std::setprecision(2) << load * 100 << "% ";
+    }
+    std::cout << std::endl;
     auto is_supported_model = [this, model_precision](const std::string& device_name) {
         // Check if candidate device supported the specified model precision.
         std::vector<std::string> capability;
