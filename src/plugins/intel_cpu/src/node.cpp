@@ -36,8 +36,6 @@
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 
-#include "utils/profiler.hpp"
-
 using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
@@ -550,7 +548,6 @@ void Node::updateShapes() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-<<<<<<< HEAD
         try {
             if (needShapeInfer()) {
                 auto result = shapeInfer();
@@ -560,13 +557,6 @@ void Node::updateShapes() {
             }
         } catch (const std::exception& exp) {
             THROW_CPU_NODE_ERR(exp.what());
-=======
-    if (needShapeInfer()) {
-        PROFILE(_prof, "updateShape", getName());
-        auto result = shapeInfer();
-        if (ShapeInferStatus::success == result.status) {
-            redefineOutputMemory(result.dims);
->>>>>>> e1fce7e4de (Add chrome trace)
         }
 }
 
@@ -576,7 +566,6 @@ void Node::updateDynamicParams() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-<<<<<<< HEAD
     try {
         if (isExecutable()) {
             if (needPrepareParams()) {
@@ -586,20 +575,6 @@ void Node::updateDynamicParams() {
                         " ", getName(), " ", getOriginalLayers());
                 prepareParams();
             }
-=======
-    if (isExecutable()) {
-        PROFILE(_prof, "updateDynamicParams", getName());
-        if (needPrepareParams()) {
-            OPENVINO_ASSERT(inputShapesDefined(),
-                            "Can't prepare params for ",
-                            getTypeStr(),
-                            " node with name: ",
-                            getName(),
-                            " since the input shapes are not defined.");
-            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
-                      " ", getName(), " ", getOriginalLayers());
-            prepareParams();
->>>>>>> e1fce7e4de (Add chrome trace)
         }
     } catch (const std::exception& e) {
         THROW_CPU_NODE_ERR(e.what());

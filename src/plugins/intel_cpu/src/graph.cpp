@@ -37,7 +37,6 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
-#include "utils/profiler.hpp"
 #include "utils/verbose.h"
 #include "utils/precision_support.h"
 
@@ -1013,7 +1012,6 @@ bool Graph::ProcessDynNodes() {
 }
 
 void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
-    PROFILE(_prof, "Graph::PushInputData");
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
     auto input_itr = inputNodesMap.find(index);
     if (input_itr != inputNodesMap.end()) {
@@ -1046,7 +1044,6 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
 void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output) {
-    PROFILE(_prof, "Graph::PullOutputData");
     if (!IsReady())
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
@@ -1126,7 +1123,6 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
 void Graph::InferStatic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
-    PROFILE(_prof0, std::string("Graph::InferStatic_#") + std::to_string(infer_count));
 
     for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
@@ -1134,7 +1130,6 @@ void Graph::InferStatic(SyncInferRequest* request) {
 
         if (request)
             request->throw_if_canceled();
-        PROFILE(_prof, node->getTypeStr(), node->getName());
         ExecuteNode(node, stream);
     }
 }
@@ -1348,19 +1343,6 @@ public:
 void Graph::InferDynamic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-<<<<<<< HEAD
-=======
-    PROFILE(_prof0, std::string("Graph::InferDynamic_#") + std::to_string(infer_count));
-    std::set<size_t> syncIndsWorkSet;
-    for (const auto& nodeIndx : syncNodesInds) {
-        syncIndsWorkSet.insert(nodeIndx.second);
-        //since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
-        //let's add another sync index after the sync point node
-        syncIndsWorkSet.insert(nodeIndx.second + 1);
-    }
-    syncIndsWorkSet.insert(executableGraphNodes.size());
-
->>>>>>> e1fce7e4de (Add chrome trace)
     std::unique_ptr<IUpdateNodes> updateNodes{};
     if (parallel_get_max_threads() > 1) {
         updateNodes.reset(new UpdateNodes(m_executableGraphNodes));
@@ -1368,22 +1350,13 @@ void Graph::InferDynamic(SyncInferRequest* request) {
         updateNodes.reset(new UpdateNodesSeq(m_executableGraphNodes));
     }
 
-<<<<<<< HEAD
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
         updateNodes->run(stopIndx);
-=======
-    for (auto stopIndx : syncIndsWorkSet) {
-        {
-            PROFILE(_prof, "updateNodes");
-            updateNodes->run(stopIndx);
-        }
->>>>>>> e1fce7e4de (Add chrome trace)
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
-            PROFILE(_prof, node->getTypeStr(), node->getName());
             if (request)
                 request->throw_if_canceled();
             try {
@@ -1493,7 +1466,7 @@ void Graph::Infer(SyncInferRequest* request) {
         OPENVINO_THROW("Unknown ov::intel_cpu::Graph state: " , static_cast<size_t>(status));
     }
 
-    infer_count++;
+    if (infer_count != -1) infer_count++;
 }
 
 void Graph::SortTopologically() {
