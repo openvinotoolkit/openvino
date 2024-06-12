@@ -70,9 +70,9 @@ and export models to the OpenVINO model format for use in native API application
 
 Proceed to run LLMs with:
 
-* `Hugging Face and Optimum Intel <./llm_inference_guide/llm-inference-hf>`
-* `OpenVINO GenAI Flavor <./llm_inference_guide/genai-guide>`
-* `Native OpenVINO API <./llm_inference_guide/llm-inference-native-ov>`
+* :doc:`Hugging Face and Optimum Intel <./llm_inference_guide/llm-inference-hf>`
+* :doc:`OpenVINO GenAI Flavor <./llm_inference_guide/genai-guide>`
+* :doc:`Native OpenVINO API <./llm_inference_guide/llm-inference-native-ov>`
 
 The table below summarizes the differences between Hugging Face and the native OpenVINO API
 approaches.
