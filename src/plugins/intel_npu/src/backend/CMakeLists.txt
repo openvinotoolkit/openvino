@@ -25,7 +25,6 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
         openvino_npu_zero_result_parser
-        ze_loader
 )
 
 #
