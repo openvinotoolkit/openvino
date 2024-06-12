@@ -7,7 +7,7 @@ The table below lists the key performance indicators for a selection of Large La
 
 .. raw:: html
 
-   For complete information on the system config, see: <a href="https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.1-platform_list.pdf">Hardware Platforms [PDF]</a>
+   For complete information on the system config, see: <a href="https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.2-platform_list.pdf">Hardware Platforms [PDF]</a>
 
 .. raw:: html
 
