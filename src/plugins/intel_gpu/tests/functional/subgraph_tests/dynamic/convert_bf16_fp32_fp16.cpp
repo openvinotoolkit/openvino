@@ -49,8 +49,8 @@ public:
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::Shape{{2, 2}})};
     static std::string get_test_case_name(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj) {
         ShapeParams shape_params;
-        ov::element::Type weights_precision;
         ov::element::Type activations_precision;
+        ov::element::Type weights_precision;
         bool transpose;
         bool decompression_sub;
         bool reshape_on_decompression;
@@ -124,7 +124,6 @@ protected:
         init_input_shapes({ov::test::InputShape{ov::PartialShape{3, 3}, 3}, ov::test::InputShape{ov::PartialShape{3, 3}, 5}});
         targetDevice = ov::test::utils::DEVICE_GPU;
         ShapeParams shape_params;
-        ov::element::Type weights_precision;
         ov::element::Type activations_precision;
         inType = outType = activations_precision;
 
