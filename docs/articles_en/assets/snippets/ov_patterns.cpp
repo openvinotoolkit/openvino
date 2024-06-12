@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-// ! [ov::imports]
+// ! [ov:imports]
 #include <gtest/gtest.h>
 
 #include "common_test_utils/matcher.hpp"
@@ -19,7 +19,7 @@
 using namespace ov;
 using namespace ov::pass;
 using namespace std;
-// ! [ov::imports]
+// ! [ov:imports]
 
 // ! [ov:create_simple_model_and_pattern]
 TEST(pattern, simple_model_and_pattern) {
@@ -132,7 +132,7 @@ void patterns_misc() {
 }
 
 
-// ! [ov::pattern_or]
+// ! [ov:pattern_or]
 TEST(pattern, pattern_or) {
     // Create a sample model
     PartialShape shape{2, 2};
@@ -164,7 +164,7 @@ TEST(pattern, pattern_or) {
     // The same pattern perfectly matches 2 different nodes
     ASSERT_TRUE(tm.match(pattern_or, model_relu));
 }
-// ! [ov::pattern_or]
+// ! [ov:pattern_or]
 
 
 // ! [ov:pattern_optional_middle]
