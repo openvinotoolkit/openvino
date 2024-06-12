@@ -1490,37 +1490,19 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             is_fp = false;
             break;
         case Datatype::BF16:
-            std::cout << " macroName " << macroName << std::endl;
-            if ( macroName == "INPUT0" || macroName == "INPUT1" || macroName == "INPUT2" || macroName == "INPUT_REORDER" ) {
-                type = "ushort";
-                max_val = "USHORT_MAX";
-                min_val = "0";
-                max_func = "fmax";
-                min_func = "fmin";
-                abs_func = "fabs";
-                type_size = "2";
-                is_fp = false;
-            } else {
-                type = "float";
-                max_val = "FLOAT_MAX";
-                min_val = "FLOAT_MIN";
-                max_func = "fmax";
-                min_func = "fmin";
-                abs_func = "fabs";
-                type_size = "4";
-                is_fp = true;
-            }
-            val_one = "1.0f";
-            val_zero = "0.0f";
-            if ( macroName == "INPUT_REORDER" ) {
-                to_type = "convert_bf16_no_change(v)";
-                to_type_sat = "convert_bf16_no_change(v)";
-                as_type = "convert_bf16_no_change(v)";
-            } else {
-                to_type = "convert_bf16(v)";
-                to_type_sat = "convert_bf16(v)";
-                as_type = "convert_bf16(v)";
-            }
+            type = "ushort";
+            max_val = "USHRT_MAX";
+            min_val = "0";
+            val_one = "(ushort) 1";
+            val_zero = "(ushort) 0";
+            to_type = "convert_bf16(v)";
+            to_type_sat = "convert_bf16(v)";
+            as_type = "convert_bf16(v)";
+            max_func = "max";
+            min_func = "min";
+            abs_func = "abs";
+            type_size = "2";
+            is_fp = false;
             break;
         default:
             type = "float";
