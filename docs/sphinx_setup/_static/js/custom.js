@@ -20,11 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         var parentElement = toggle.parentElement;
-        if (!parentElement
-            || !parentElement.parentElement
-            || !parentElement.parentElement.parentElement
-            || !parentElement.parentElement.classList.contains('current')
-            || (parentElement.parentElement.classList.contains('current') && parentElement.parentElement)) {
+        if (!parentElement || !parentElement.parentElement || !parentElement.parentElement.classList.contains('current')) {
             toggle.classList.add('rotate');
         }
     });
@@ -54,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function () {
             showMenuToggle();
         });
     });
-
+ 
     function showMenuToggle() {
         const ddMs = document.querySelectorAll('.dropdown-menu');
         ddMs.forEach((dm) => {
@@ -115,12 +111,12 @@ function getPageUrlWithVersion(version) {
 function createSphinxTabSets() {
     var sphinxTabSets = $('.sphinxtabset');
     var tabSetCount = 1000;
-    sphinxTabSets.each(function () {
+    sphinxTabSets.each(function() {
         var tabSet = $(this);
         var inputCount = 1;
         tabSet.addClass('tab-set docutils');
         tabSetCount++;
-        tabSet.find('> .sphinxtab').each(function () {
+        tabSet.find('> .sphinxtab').each(function() {
             var tab = $(this);
             var checked = '';
             var tabValue = tab.attr('data-sphinxtab-value');
@@ -166,7 +162,7 @@ function getCurrentVersion() {
 
 function updateSearchForm() {
     var currentVersion = getCurrentVersion();
-    $('.searchForm').append('<input type="hidden" name="version" value="' + currentVersion + '">');
+    $('.searchForm').append('<input type="hidden" name="version" value="' + currentVersion  + '">');
 }
 
 function createVersions() {
@@ -188,7 +184,7 @@ function createVersions() {
 
 function updateLanguageSelector() {
     const currentVersion = getCurrentVersion();
-    $('[aria-labelledby="language-selector"]').find('a').each(function () {
+    $('[aria-labelledby="language-selector"]').find('a').each(function(){
         const newUrl = $(this).attr('href').replace('latest', currentVersion);
         $(this).attr('href', newUrl);
     });
@@ -278,37 +274,37 @@ function init_switchers() {
 
 // initBenchmarkPickers and initCollapsibleHeaders included with the new benchmarks page
 function initBenchmarkPickers() {
-    $('.picker-options .option').on('click', function (event) {
-        const selectedOption = $(this).data('option');
-        $('.picker-options .selectable').each(function () {
-            $(this).removeClass('selected');
-            const toSelect = this.classList.contains(selectedOption);
-            if (toSelect) {
-                $(this).addClass('selected');
-            }
-        });
-    });
-}
-
-
-function initCollapsibleHeaders() {
-    $('#performance-information-frequently-asked-questions section').on('click', function () {
-        console.log($(this).find('p, table').length);
-        if (!$(this).find('table, p').is(':visible')) {
-            resetCollapsibleHeaders();
-            $(this).find('table, p').css('display', 'block');
-            $(this).find('h2').addClass('expanded')
-            $(this).find('h2').get(0).scrollIntoView();
-        } else {
-            resetCollapsibleHeaders();
+    $('.picker-options .option').on('click', function(event) {
+      const selectedOption = $(this).data('option');
+      $('.picker-options .selectable').each(function() {
+        $(this).removeClass('selected');
+        const toSelect = this.classList.contains(selectedOption);
+        if(toSelect) {
+          $(this).addClass('selected');
         }
+      });
     });
-
+  }
+  
+  
+  function initCollapsibleHeaders() {
+    $('#performance-information-frequently-asked-questions section').on('click', function() {
+      console.log($(this).find('p, table').length);
+      if(!$(this).find('table, p').is(':visible')) {
+        resetCollapsibleHeaders();
+        $(this).find('table, p').css('display', 'block');
+        $(this).find('h2').addClass('expanded')
+        $(this).find('h2').get(0).scrollIntoView();
+      } else {
+        resetCollapsibleHeaders();
+      }
+    });
+  
     function resetCollapsibleHeaders() {
-        $('#performance-information-frequently-asked-questions section').find('h2').removeClass('expanded');
-        $('#performance-information-frequently-asked-questions section p, #performance-information-frequently-asked-questions section table').hide();
+      $('#performance-information-frequently-asked-questions section').find('h2').removeClass('expanded');
+      $('#performance-information-frequently-asked-questions section p, #performance-information-frequently-asked-questions section table').hide();
     }
-}
+  }
 
 function addFooter() {
     const footerAnchor = $('.footer');
@@ -321,18 +317,18 @@ function addFooter() {
 
 function initSplide() {
 
-    var splide = new Splide('.splide', {
-        type: 'fade',
-        autoHeight: true,
-        perPage: 1,
-        autoplay: true,
-        arrows: false,
-        waitForTransition: true,
-        wheel: true,
-        wheelSleep: 250,
-        interval: 3000,
-    });
-    splide.mount();
+  var splide = new Splide('.splide', {
+    type              : 'fade',
+    autoHeight        : true,
+    perPage           : 1,
+    autoplay          : true,
+    arrows            : false,
+    waitForTransition : true,
+    wheel             : true,
+    wheelSleep        : 250,
+    interval          : 3000,
+  });
+  splide.mount();
 }
 
 // ---------- COVEO SEARCH -----------
@@ -361,29 +357,29 @@ function addViewTypeListeners() {
     });
     selectResultViewType(resultViewTypeFromLs || "grid", viewSelectorGrid, viewSelectorList);
 }
-
+ 
 document.addEventListener('DOMContentLoaded', function () {
     (async () => {
-        await customElements.whenDefined("atomic-search-interface");
+        await customElements.whenDefined("atomic-search-interface"); 
         const searchInterfaceSa = document.querySelector("#sa-search");
         const searchInterface = document.querySelector("#search");
         if (searchInterfaceSa) {
             let ver = getCurrentVersion();
             if (ver) {
-                searchInterfaceSa.innerHTML = searchInterfaceSa.innerHTML.replace('search.html', '/' + ver + '/search.html#f-ovversion=' + ver);
+                searchInterfaceSa.innerHTML = searchInterfaceSa.innerHTML.replace('search.html', '/' + ver +'/search.html#f-ovversion=' + ver);
             }
-            await searchInterfaceSa.initialize({
-                accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
-                organizationId: "intelcorporationnonproduction2ybdyblf7",
+            await searchInterfaceSa.initialize({ 
+            accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
+            organizationId: "intelcorporationnonproduction2ybdyblf7",
             });
-            searchInterfaceSa.executeFirstSearch();
+            searchInterfaceSa.executeFirstSearch(); 
         }
         if (searchInterface) {
-            await searchInterface.initialize({
-                accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
-                organizationId: "intelcorporationnonproduction2ybdyblf7",
+            await searchInterface.initialize({ 
+            accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
+            organizationId: "intelcorporationnonproduction2ybdyblf7",
             });
-            searchInterface.executeFirstSearch();
+            searchInterface.executeFirstSearch(); 
         }
         addViewTypeListeners();
     })();
