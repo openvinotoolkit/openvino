@@ -35,14 +35,13 @@ private:
             std::string xml_path = pathAndName + std::to_string(num) + '_' + pass_name + "_control_flow" + postfix +".xml";
             lowered::pass::SerializeControlFlow SerializeLIR(xml_path);
             SerializeLIR.run(linear_ir);
-            num++;
         }
         if (debug_config.dumpLIR.format.filter[DebugCapsConfig::LIRFormatFilter::dataFlow]) {
             std::string xml_path = pathAndName + std::to_string(num) + '_' + pass_name + "_data_flow" + postfix +".xml";
             lowered::pass::SerializeDataFlow SerializeLIR(xml_path);
             SerializeLIR.run(linear_ir);
-            num++;
         }
+        num++;
     }
 
     lowered::LinearIR& linear_ir;
