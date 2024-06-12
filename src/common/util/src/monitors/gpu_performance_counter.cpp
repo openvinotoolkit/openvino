@@ -15,9 +15,7 @@
 #    include <string>
 #    include <system_error>
 #    include <thread>
-
 #    include "query_wrapper.hpp"
-#    define _PDH_
 #    include <dxgi.h>
 #    include <pdh.h>
 #    include <pdhmsg.h>
@@ -131,7 +129,7 @@ public:
         return CounterList;
     }
 
-    std::vector<double> getGpuLoad() {
+    std::vector<double> getLoad() {
         PDH_STATUS status;
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {
@@ -203,14 +201,14 @@ public:
     };
 };
 #endif
-GpuPerformanceCounter::GpuPerformanceCounter() : ov::util::monitor::PerformanceCounter("GPU") {}
+GpuPerformanceCounter::GpuPerformanceCounter() : PerformanceCounter("GPU") {}
 GpuPerformanceCounter::~GpuPerformanceCounter() {
     delete performanceCounter;
 }
 std::vector<double> GpuPerformanceCounter::getLoad() {
     if (!performanceCounter)
         performanceCounter = new PerformanceCounterImpl();
-    return performanceCounter->getGpuLoad();
+    return performanceCounter->getLoad();
 }
 }
 }

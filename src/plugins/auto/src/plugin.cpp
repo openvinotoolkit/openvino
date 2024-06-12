@@ -515,8 +515,14 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> Others;
     // check the device utilization
     ov::util::monitor::DeviceMonitor cpu_monitor{std::make_shared<ov::util::monitor::CpuPerformanceCounter>()};
-    std::cout << "CPU: ";
+    ov::util::monitor::DeviceMonitor gpu_monitor{std::make_shared<ov::util::monitor::GpuPerformanceCounter>()};
+    std::cout << "CPU utilization: ";
     for (auto load : cpu_monitor.getMeanDeviceLoad()) {
+        std::cout << std::fixed << std::setprecision(2) << load * 100 << "% ";
+    }
+    std::cout << std::endl;
+    std::cout << "GPU utilization: ";
+    for (auto load : gpu_monitor.getMeanDeviceLoad()) {
         std::cout << std::fixed << std::setprecision(2) << load * 100 << "% ";
     }
     std::cout << std::endl;

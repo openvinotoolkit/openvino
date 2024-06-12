@@ -9,15 +9,15 @@
 
 #ifdef _WIN32
 #    define NOMINMAX
-#    include <PdhMsg.h>
+#    include "query_wrapper.hpp"
+#    include <pdh.h>
+#    include <pdhmsg.h>
 #    include <windows.h>
-
 #    include <chrono>
 #    include <string>
 #    include <system_error>
 #    include <thread>
 
-#    include "query_wrapper.hpp"
 
 namespace ov {
 namespace util {
@@ -59,7 +59,7 @@ public:
         }
     }
 
-    std::vector<double> getCpuLoad() {
+    std::vector<double> getLoad() {
         PDH_STATUS status;
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {

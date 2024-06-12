@@ -41,7 +41,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::pugixml)
 if (WIN32)
-    set(MONITORS_WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.hpp)
+    set(MONITORS_WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/)
     target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi pdh dxgi)
 endif()
