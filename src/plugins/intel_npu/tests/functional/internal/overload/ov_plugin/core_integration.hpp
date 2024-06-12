@@ -23,7 +23,6 @@ using CompilationParams = std::tuple<std::string,  // Device name
 #include <iostream>
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #include <codecvt>
-#include <functional_test_utils/skip_tests_config.hpp>
 #include "openvino/pass/manager.hpp"
 #endif
 
