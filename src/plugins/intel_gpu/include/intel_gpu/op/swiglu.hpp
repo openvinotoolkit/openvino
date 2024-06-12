@@ -18,7 +18,8 @@ public:
 
     enum GluType {
         Swish = 0,
-        Gelu
+        Gelu,
+        Gelu_Tanh
     };
 
     SwiGLU() = default;

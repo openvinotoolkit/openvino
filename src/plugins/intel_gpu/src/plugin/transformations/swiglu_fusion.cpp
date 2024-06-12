@@ -60,9 +60,11 @@ SwiGLUFusion::SwiGLUFusion() {
         auto isSwiGLU = pattern_map.count(swish_m);
         auto isGeGLU = pattern_map.count(gelu_m);
         size_t split_to_glu_idx = 0;
+        ov::intel_gpu::op::SwiGLU::GluType glu_type;
 
         if (isSwiGLU) {
             auto swish = std::dynamic_pointer_cast<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
+            glu_type = ov::intel_gpu::op::SwiGLU::GluType::Swish;
             split_to_glu_idx = swish->input_value(0).get_index();
 
             size_t split_in_idx = ov::is_type<ov::op::v4::Swish>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
@@ -70,6 +72,8 @@ SwiGLUFusion::SwiGLUFusion() {
                 return false;
         } else if (isGeGLU) {
             auto gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
+            glu_type = (gelu->get_approximation_mode() == ov::op::GeluApproximationMode::ERF) ? ov::intel_gpu::op::SwiGLU::GluType::Gelu
+                                                                                              : ov::intel_gpu::op::SwiGLU::GluType::Gelu_Tanh;
             split_to_glu_idx = gelu->input_value(0).get_index();
 
             size_t split_in_idx = ov::is_type<ov::op::v7::Gelu>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
@@ -101,7 +105,7 @@ SwiGLUFusion::SwiGLUFusion() {
         auto swiglu = std::make_shared<op::SwiGLU>(data,
                                                    axis_value,
                                                    split_lengths_value,
-                                                   (isSwiGLU ? ov::intel_gpu::op::SwiGLU::GluType::Swish : ov::intel_gpu::op::SwiGLU::GluType::Gelu),
+                                                   glu_type,
                                                    split_to_glu_idx,
                                                    output_type);
         swiglu->set_friendly_name(m.get_match_root()->get_friendly_name());
