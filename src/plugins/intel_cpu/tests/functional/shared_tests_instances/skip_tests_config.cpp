@@ -538,17 +538,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 142465
         retVector.emplace_back(R"(smoke_Reduce_MultiAxis_4D_fusing_CPU/ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
         retVector.emplace_back(R"(smoke_Reduce_MultiAxis_5D_fusing_CPU/ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
-        //
+        // Issue: 143852
         retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
-        retVector.emplace_back(R"(smoke_MM_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"((smoke|nightly)_MM_Brgemm_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_MM_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_Conv_.*_FP16/.*_Fused=PRelu1D\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
-        retVector.emplace_back(R"(smoke_AvgPool_CPU_4D_FP16/PoolingLayerCPUTest.CompareWithRefs/IS=\(\[\?.*\).*_Prc=f32_AvgPool_ExcludePad=1_K\(4\.4\)_S\(4\.4\)_PB\(2\.2\)_PE\(2\.2\)_Rounding=ceil.*)");
-        retVector.emplace_back(R"(smoke_FC_(2|3)D_runtime_FP16/MatMulDecompressConvertTest.*transpose_b=1_weiLemType=f32.*)");
-        retVector.emplace_back(R"((smoke|nightly)_FC_(2|3)D.*_FP16/MatMulLayerCPUTest.*transpose_b=1.*)");
     }
 
     if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
