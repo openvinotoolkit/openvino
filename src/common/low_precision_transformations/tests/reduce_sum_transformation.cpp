@@ -30,6 +30,7 @@ using namespace ov::builder::subgraph;
 class ReduceSumTransformation : public ReduceTransformation<ov::op::v1::ReduceSum> {
     void SetUp() override {
         ReduceTransformation::SetUp();
+
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
@@ -336,4 +337,68 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(reduceSumTransformationTestValues)),
     ReduceSumTransformation::getTestCaseName);
 } // namespace testValues2
+
+namespace testValues3 {
+    const std::vector<ov::PartialShape> inputShapes = {
+        {4, 3, 16, 16}
+    };
+
+    const std::vector<ReduceTransformationTestValues> reduceSumTransformationTestValues = {
+        {
+            LayerTransformation::createParamsU8I8(),
+            {0},
+            true,
+            {
+                ov::element::u8,
+                {
+                    {ov::element::f32},
+                    {{2.f, 4.f, 6.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::u8, true},
+                    {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
+                }
+            },
+            {
+                ov::element::u8,
+                {},
+                ov::element::f32,
+                {
+                    {},
+                    {{8.f, 16.f, 24.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::u8, true},
+                    {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
+                }
+            }
+        },
+        {
+            LayerTransformation::createParamsU8I8(),
+            {0},
+            true,
+            {
+                ov::element::i8,
+                {
+                    {ov::element::f32},
+                    {{2.f, 4.f, 6.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::i8, true},
+                    {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
+                }
+            },
+            {
+                ov::element::i8,
+                {},
+                ov::element::f32,
+                {
+                    {},
+                    {{8.f, 16.f, 24.f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul, ov::element::i8, true},
+                    {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
+                }
+            }
+        }
+    };
+
+    INSTANTIATE_TEST_SUITE_P(
+        smoke_LPT,
+        ReduceSumTransformation,
+        ::testing::Combine(
+            ::testing::ValuesIn(inputShapes),
+            ::testing::ValuesIn(reduceSumTransformationTestValues)),
+        ReduceSumTransformation::getTestCaseName);
+} // namespace testValues3
+
 } // namespace
