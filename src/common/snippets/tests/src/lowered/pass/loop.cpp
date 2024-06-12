@@ -47,7 +47,7 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));
     const auto outer_inc = blocked_wa;
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_input_ports, loop_output_ports);
-    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports);
+    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports, true, true);
     const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_input_ports, loop_output_ports);
     const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto outer_tail_size = outer_wa % outer_inc;
@@ -79,8 +79,7 @@ static void validate(const LinearIR& linear_ir, const ref_map& reference) {
     size_t loop_num = 0;
     for (const auto& expr : linear_ir) {
         const auto& node = expr->get_node();
-        ASSERT_TRUE(!ov::is_type<ov::snippets::op::LoopBeginDynamic>(node) && !ov::is_type<ov::snippets::op::LoopEndDynamic>(node));
-        const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEndStatic>(node);
+        const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(node);
         if (!loop_end)
             continue;
         ASSERT_GT(reference.count(loop_num), 0);

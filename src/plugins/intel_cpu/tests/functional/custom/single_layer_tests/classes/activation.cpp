@@ -159,7 +159,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         ((activation_type == utils::ActivationTypes::Clamp) ||
         (activation_type == utils::ActivationTypes::Elu) ||
         (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::Floor) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
+        (activation_type == utils::ActivationTypes::IsInf) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
         (activation_type == utils::ActivationTypes::Mish) ||
         (activation_type == utils::ActivationTypes::GeluErf) ||
@@ -176,6 +178,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "";
     }
 #endif
+    if (activation_type == utils::ActivationTypes::Floor) {
+        return "ref";
+    }
     return "acl";
 #else
     return CPUTestsBase::getPrimitiveType();
@@ -202,6 +207,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Exp,         {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
+        {Floor,       {{}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
