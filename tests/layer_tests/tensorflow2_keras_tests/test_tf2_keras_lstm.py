@@ -17,6 +17,9 @@ class TestKerasLSTM(CommonTF2LayerTest):
         """
         tf.keras.backend.clear_session()  # For easy reset of notebook state
         x1 = tf.keras.Input(shape=input_shapes[0][1:], name=input_names[0])
+        # add additional layer Add to avoid
+        # double tensor name for Parameter after EliminateLoopInputsOutputs elimination
+        x1_post = tf.keras.layers.Lambda(lambda x: x + 0.01)(x1)
         dropout, recurrent_dropout = dropouts
         go_backwards, time_major = flags
         y = tf.keras.layers.LSTM(units=units, activation=activation,
@@ -25,7 +28,7 @@ class TestKerasLSTM(CommonTF2LayerTest):
                                  recurrent_dropout=recurrent_dropout,
                                  return_sequences=False, return_state=False,
                                  go_backwards=go_backwards,
-                                 time_major=time_major)(x1)
+                                 time_major=time_major)(x1_post)
         tf2_net = tf.keras.Model(inputs=[x1], outputs=[y])
 
         # TODO: add reference IR net. Now it is omitted since inference is more

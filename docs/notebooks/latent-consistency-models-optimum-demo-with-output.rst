@@ -121,10 +121,10 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 
 .. parsed-literal::
 
-    2024-05-16 00:36:40.510949: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 00:36:40.546299: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 00:42:53.373765: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 00:42:53.408053: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 00:36:41.041474: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:42:53.902704: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -235,7 +235,7 @@ and there is no need to do it manually
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.3.0+cpu
+    Using framework PyTorch: 2.3.1+cpu
 
 
 .. parsed-literal::
@@ -246,9 +246,9 @@ and there is no need to do it manually
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    Using framework PyTorch: 2.3.0+cpu
-    Using framework PyTorch: 2.3.0+cpu
-    Using framework PyTorch: 2.3.0+cpu
+    Using framework PyTorch: 2.3.1+cpu
+    Using framework PyTorch: 2.3.1+cpu
+    Using framework PyTorch: 2.3.1+cpu
 
 
 
