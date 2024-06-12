@@ -77,7 +77,14 @@ void ExtremumLayerCPUTest::SetUp() {
 }
 
 std::string ExtremumLayerCPUTest::getPrimitiveType() {
+#if defined(OV_CPU_WITH_ACL)
+#if defined(OPENVINO_ARCH_ARM64)
     return "jit";
+#endif
+    return "acl";
+#else
+    return CPUTestsBase::getPrimitiveType();
+#endif
 }
 
 TEST_P(ExtremumLayerCPUTest, CompareWithRefs) {
