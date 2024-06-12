@@ -388,7 +388,7 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     } else if (element_type == ov::element::i64) {
         return _get_byte_strides<int64_t>(shape);
     } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
-               element_type == ov::element::nf4) {
+               element_type == ov::element::nf4 || element_type == ov::element::f4e2m1) {
         // WA for u1, u4, nf4, all returned as packed uint8 arrays
         return _get_byte_strides<uint8_t>(shape);
     } else if (element_type == ov::element::u16) {
