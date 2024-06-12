@@ -42,10 +42,11 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
     } else if (input_exponent_bits >= 0b11111110) {
         return input_exponent_bits - static_cast<uint8_t>(std::isinf(value));
     } else {
+        // normal values
         const auto input_mantissa_bits = input.bits & f32_mantissa_bits_mask;
         return input_exponent_bits +
-               static_cast<uint8_t>((input_mantissa_bits > round_even) ||
-                                    (input_mantissa_bits == round_even) && (input_exponent_bits & 0x1));
+               static_cast<uint8_t>((input_mantissa_bits > round_even) || // round to nearest
+                                    (input_mantissa_bits == round_even) && (input_exponent_bits & 0x1)); // round to even
     }
 }
 }  // namespace
