@@ -43,7 +43,7 @@ public:
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           int32_t src_port,
-                                                          int32_t src_output_size,
+                                                          size_t src_num_of_users,
                                                           const layout& in_layout,
                                                           const layout& out_layout);
 

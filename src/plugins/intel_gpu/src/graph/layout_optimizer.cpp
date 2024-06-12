@@ -144,7 +144,7 @@ bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, dat
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        int32_t src_port,
-                                                                       int32_t src_output_size,
+                                                                       size_t src_num_of_users,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout) {
     if (in_layout == out_layout)
@@ -152,20 +152,16 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
     cache_key ckey{ src_id + "." + std::to_string(src_port), out_layout };
     auto itr = _cached_reorders.find(ckey);
-    if (itr != _cached_reorders.end())
+    // Finding existing reorder is used by with the key which was made with src_id, src_port.
+    // But that doens't cover the case where the node has single output but multiple users.
+    // Because in that case, port number to each user is same, and thereby reorder is created for only one user.
+    // For this case to be covered, the condition 'src_num_of_users <= 1' is needed.
+    if (itr != _cached_reorders.end() && src_num_of_users <= 1)
         return std::make_pair(itr->second, true);
 
     auto count = _cached_reorders.size();
     std::stringstream ss;
     ss << src_id << "_" << std::to_string(src_port) << "_reorder_" << count;
-
-    // src_port is used to name the reorder in the code just above,
-    // whereas used to index the output in the code below.
-    if (src_port >= src_output_size && src_output_size > 0) {
-        // Cover the case where the node has single output but multiple users,
-        // while port number to each user is same.
-        src_port = src_output_size - 1;
-    }
 
     auto reorder = std::make_shared<cldnn::reorder>(ss.str(), input_info{src_id, src_port}, out_layout);
     _cached_reorders[ckey] = reorder;
