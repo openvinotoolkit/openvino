@@ -82,7 +82,7 @@ void MatMulSplitDecompose::SetUp() {
 
     function = functionRefs->clone();
     ov::pass::Manager manager;
-    // apply 
+    // apply
     manager.register_pass<ov::pass::MatmulSplitDecomposition>();
     manager.run_passes(function);
     ov::pass::Serialize serializer2("matmul_gathers.xml", "matmul_gathers.bin");
