@@ -32,7 +32,6 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        RHEL8 x86_64          V      V     n/a
       ===================  =====  =====  =====
 
-
 .. tab-set::
 
    .. tab-item:: System Requirements
@@ -90,8 +89,6 @@ Install OpenVINO™ Runtime on Linux from an Archive File
 
                source /opt/rh/devtoolset-8/enable
                gcc -v
-
-
 
 
 
