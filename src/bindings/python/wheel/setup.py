@@ -310,10 +310,11 @@ class CustomBuild(build):
         # install clibs into a temporary directory (site-packages)
         if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
-            self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
-            self.spawn(["cmake", f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
-                                 "-S", OPENVINO_SOURCE_DIR,
-                                 "-B", OPENVINO_BINARY_DIR])
+            
+        self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
+        self.spawn(["cmake", f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                            "-S", OPENVINO_SOURCE_DIR,
+                            "-B", OPENVINO_BINARY_DIR])
 
         # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
