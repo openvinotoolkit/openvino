@@ -27,59 +27,38 @@
 namespace ov {
 
 namespace threading {
-enum MsgType { START_INFER, TENSOR_PARALLEL, CALL_BACK, REDUCE, QUIT };
+enum MsgType { START_INFER, CALL_BACK, QUIT };
 
 struct MessageInfo {
     MsgType msg_type;
-    std::vector<int> rank;
-    void* buf;
     Task task;
 };
+
 class OPENVINO_RUNTIME_API MessageManager {
 public:
     MessageManager();
 
     void send_message(const MessageInfo& msg_info);
 
-    std::vector<MessageInfo> wait_message(int stream_id);
-
     void infer_wait();
-
-    void reduce_wait(int stream_id);
 
     void server_wait();
 
     void stop_server_thread();
 
-    void clear();
-
     ~MessageManager();
 
-    void set_sub_compiled_models(std::vector<std::shared_ptr<ov::ICompiledModel>> models);
-    std::vector<std::shared_ptr<ov::ICompiledModel>> get_sub_compiled_models();
-
-    void set_sub_infer_requests(std::vector<std::shared_ptr<ov::IAsyncInferRequest>> requests);
-    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> get_sub_infer_requests();
-
-    int get_num_sub_streams();
+    void set_num_sub_streams(int num_sub_streams);
 
 private:
-    int _num_sub_streams;
-    std::vector<std::shared_ptr<ov::ICompiledModel>> _sub_compiled_models;
-    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> _sub_infer_requests;
+    int _num_sub_streams = 0;
     std::thread _serverThread;
     bool _isServerStopped = false;
     std::vector<MessageInfo> _messageQueue;
-    std::vector<std::vector<MessageInfo>> _readQueue;
-    std::vector<int> _reduceQueue;
     std::mutex _msgMutex;
-    std::mutex _readMutex;
     std::mutex _inferMutex;
-    std::mutex _reduceMutex;
     std::condition_variable _msgCondVar;
-    std::condition_variable _readCondVar;
     std::condition_variable _inferCondVar;
-    std::condition_variable _reduceCondVar;
 };
 
 OPENVINO_RUNTIME_API std::shared_ptr<MessageManager> message_manager();

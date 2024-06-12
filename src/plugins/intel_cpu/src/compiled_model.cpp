@@ -45,13 +45,15 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
-                             const bool loaded_from_cache)
+                             const bool loaded_from_cache,
+                             const std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
       m_plugin(plugin),
       m_cfg{cfg},
       m_name{model->get_name()},
-      m_loaded_from_cache(loaded_from_cache) {
+      m_loaded_from_cache(loaded_from_cache),
+      m_sub_memory_manager(sub_memory_manager) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
@@ -116,9 +118,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         m_cfg.enableSubStreams = false;
         m_has_sub_compiled_models = true;
         auto sub_cfg = m_cfg;
-        std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
         auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
         auto message = message_manager();
+        m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.streamExecutorConfig.get_sub_streams());
         for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
             std::vector<std::vector<int>> sub_streams_table;
             sub_streams_table.push_back(streams_info_table[i + 1]);
@@ -131,9 +133,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                     true,
                                                                     sub_streams_table,
                                                                     sub_cfg.streamsRankTable[i]};
-            sub_models.push_back(std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache));
+            m_sub_compiled_models.push_back(
+                std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
         }
-        message->set_sub_compiled_models(sub_models);
+        message->set_num_sub_streams(static_cast<int>(m_sub_compiled_models.size()));
     }
     // init sub stream threads of executor
     // int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
@@ -169,7 +172,11 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
+                    ctx = std::make_shared<GraphContext>(m_cfg,
+                                                         weightsCache,
+                                                         isQuantizedFlag,
+                                                         streamsExecutor,
+                                                         m_sub_memory_manager);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
@@ -201,13 +208,11 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                             get_task_executor(),
                                             get_callback_executor());
     if (m_has_sub_compiled_models) {
-        auto message = message_manager();
-        auto sub_models = message->get_sub_compiled_models();
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
-        for (auto model : sub_models) {
+        for (auto model : m_sub_compiled_models) {
             requests.push_back(model->create_infer_request());
         }
-        message->set_sub_infer_requests(requests);
+        async_infer_request->setSubInferRequest(requests);
         async_infer_request->setSubInfer(true);
     }
     return async_infer_request;

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "sub_memory_manager.hpp"
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "dnnl_scratch_pad.h"
@@ -21,11 +22,13 @@ public:
     GraphContext(const Config& config,
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
-                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr)
+                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
+                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr)
         : config(config),
           weightsCache(std::move(w_cache)),
           isGraphQuantizedFlag(isGraphQuantized),
-          streamExecutor(streamExecutor) {
+          streamExecutor(streamExecutor),
+          subMemoryManager(sub_memory_manager) {
         rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
         // primitive/executors can be shared across sub-stream
         // but scratch pad cannot be shared.
@@ -76,6 +79,10 @@ public:
         return cpuStreamExecutor;
     }
 
+    std::shared_ptr<SubMemoryManager> getSubMemory() const {
+        return subMemoryManager;
+    }
+
     int getNumNumaNodes() const {
         return numNumaNodes;
     }
@@ -95,6 +102,8 @@ private:
     ov::threading::IStreamsExecutor::Ptr streamExecutor;   // stream executor for current graph
 
     ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // cpu stream executor for current graph
+
+    std::shared_ptr<SubMemoryManager> subMemoryManager;
 
     int numNumaNodes = 1;
 };
