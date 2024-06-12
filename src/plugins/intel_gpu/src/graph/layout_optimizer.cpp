@@ -904,14 +904,9 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
     bool onednn_valid_dt = layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
 
-    bool onednn_valid_params = onednn_valid_dt &&
-                               input_layout.feature() >= 16 &&
-                               prim->groups == 1 &&
-                               get_post_ops_count(node) <= 32;
-
     auto spatial_dims_num = input_layout.get_spatial_rank();
 
-    return onednn_valid_dt && onednn_valid_params && spatial_dims_num <= 3;
+    return onednn_valid_dt && spatial_dims_num <= 3;
 }
 
 
