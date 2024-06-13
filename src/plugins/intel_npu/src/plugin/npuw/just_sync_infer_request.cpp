@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <limits>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -126,7 +127,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 ->inputs()[to_submodel.second];
         } else {
             // Quick hack to support models with unused Parameters...
-            m_port_to_subrequest_idx[port] = size_t{-1};
+            m_port_to_subrequest_idx[port] = std::numeric_limits<std::size_t>::max();
         }
     }
     // One more map to fill...
@@ -266,7 +267,7 @@ void ov::npuw::JustInferRequest::bind_params_results() {
         const auto& port = m_npuw_model->inputs()[i];
 
         auto ptidx = m_port_to_subrequest_idx.at(port);
-        if (ptidx == size_t{-1}) continue;
+        if (ptidx == std::numeric_limits<std::size_t>::max()) continue;
         if (m_npuw_model->m_compiled_submodels[ptidx].replaced_by) {
             // Don't do here - function call will take parameter
             // itself. Note it may be implemented more efficently
