@@ -625,7 +625,7 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_inside_shape_of_subgraph) {
     ASSERT_FALSE(in_place);
 }
 
-TEST(prepare_buffer_fusing, in_place_crop_and_fc) {
+TEST(prepare_buffer_fusing, in_place_crop_static) {
     auto& engine = get_test_engine();
 
     auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
@@ -698,7 +698,7 @@ TEST(prepare_buffer_fusing, in_place_crop_and_fc) {
         ASSERT_EQ(output_ptr_3[i], out3[i]);
 }
 
-TEST(prepare_buffer_fusing, in_place_crop_and_fc_dyn) {
+TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
     auto& engine = get_test_engine();
 
     auto in_layout = layout{ ov::PartialShape{-1, -1, 4}, data_types::f32, format::bfyx};

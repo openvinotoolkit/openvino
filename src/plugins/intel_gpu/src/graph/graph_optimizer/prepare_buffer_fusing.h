@@ -64,8 +64,23 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
     using base = pattern_match_optimization_typed<crop_in_place_optimization, crop>;
     using base::base;
 
+    static bool can_crop_be_optimized_along_feature(const program_node& node);
+    static bool can_crop_be_optimized_simple_data_format(const program_node& node);
     bool match(crop_node& node);
+    static bool match(const program_node& node,
+                      kernel_impl_params crop_params,
+                      std::vector<kernel_impl_params> pred_params,
+                      bool is_runtime = false);
     bool optimize(crop_node& node);
+    static void update_in_place_crop_padding_along_feature(const program_node& node,
+                                                           layout& crop_layout,
+                                                           layout& pred_layout,
+                                                           const tensor offsets,
+                                                           bool is_runtime);
+    static void update_in_place_crop_padding_simple_data_format(layout& crop_layout,
+                                                                layout& pred_layout,
+                                                                const tensor offsets,
+                                                                bool is_runtime);
 };
 
 } // namespace cldnn
