@@ -16,7 +16,10 @@
 #include <intel_gpu/primitives/shape_of.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "intel_gpu/primitives/permute.hpp"
 #include <intel_gpu/graph/program.hpp>
+
+#include "program_wrapper.h"
 
 #include <cassert>
 #include <cmath>
@@ -435,8 +438,6 @@ TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
 }
 
-
-
 static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout,
                                         ov::PartialShape whole_layout,
                                         std::vector<float> input_data,
@@ -760,6 +761,127 @@ static void test_loop_gpu_wo_trip_count_w_multiple_shapes(ov::PartialShape body_
     }
 }
 
+static void test_loop_gpu_multiple_shapes(ov::PartialShape body_input_layout,
+                                        std::vector<ov::PartialShape> whole_layouts,
+                                        std::vector<std::vector<float>> input_data_list,
+                                        std::vector<float> expected_output_data,
+                                        int32_t axis,
+                                        size_t exit_value,
+                                        bool is_caching_test = false) {
+    auto& engine = get_test_engine();
+
+    auto b_input_layout = cldnn::layout{ body_input_layout, data_types::f32, format::bfyx };
+    auto const_layout = cldnn::layout{ {}, data_types::i64, format::bfyx };
+
+    auto e_initial_condition_mem = engine.allocate_memory(const_layout);
+    auto e_num_iteration_mem = engine.allocate_memory(const_layout);
+    auto b_exit_value_mem = engine.allocate_memory(const_layout);
+    auto b_index_inc_mem = engine.allocate_memory(const_layout);
+
+    // initialize input buffers
+    set_values(e_initial_condition_mem, {1});
+    set_values(b_exit_value_mem, {exit_value});
+    set_values(b_index_inc_mem, {1});
+    set_values(e_num_iteration_mem, {10});
+
+    primitive_id body_current_iteration_id = "b_index";
+    primitive_id body_execution_condition_id = "b_cond_exit_value";
+
+    cldnn::topology body(
+        input_layout(body_current_iteration_id, const_layout),
+        input_layout("b_add_data", b_input_layout),
+        input_layout("b_mul_data", b_input_layout),
+        data("b_exit_value", b_exit_value_mem),
+        data("b_index_inc", b_index_inc_mem),
+        eltwise("b_index_update", input_info(body_current_iteration_id), input_info("b_index_inc"), eltwise_mode::sum),
+        reorder("b_index_cast", input_info("b_index_update"),
+                    cldnn::format::any, data_types::f32, {}, cldnn::reorder_mean_mode::subtract, cldnn::padding(), true),
+        eltwise(body_execution_condition_id, input_info("b_index"), input_info("b_exit_value"), eltwise_mode::lt),
+        eltwise("b_add", input_info("b_add_data"), input_info("b_index_cast"), eltwise_mode::sum),
+        eltwise("b_mul", input_info("b_mul_data"), input_info("b_index_cast"), eltwise_mode::prod));
+
+    primitive_id trip_count_id = "";
+    primitive_id actual_iteration_count_id = "actual_iteration_count";
+    primitive_id initial_condition_id = "initial_condition";
+    int64_t num_iterations = -1;
+
+    std::vector<loop::io_primitive_map> input_primitive_maps {
+        loop::io_primitive_map("input1", "b_add_data", axis),
+        loop::io_primitive_map("input2", "b_mul_data", axis),
+        loop::io_primitive_map(actual_iteration_count_id, body_current_iteration_id) };
+    std::vector<loop::io_primitive_map> output_primitive_maps {
+        loop::io_primitive_map(cldnn::input_info("loop", 0), cldnn::input_info("b_add", 0), axis),
+        loop::io_primitive_map(cldnn::input_info("loop", 1), cldnn::input_info("b_mul", 0), axis) };
+    std::vector<loop::backedge_mapping> back_edges {
+        loop::backedge_mapping("b_index_update", body_current_iteration_id) };
+
+    auto body_program = build_program(engine, body, body_execution_condition_id, output_primitive_maps, back_edges, true);
+
+    auto const_shape = engine.allocate_memory({ov::PartialShape{4}, data_types::i32, format::bfyx});
+    std::vector<int32_t> body_input_layouts;
+    for (size_t i = 0; i < body_input_layout.size(); i++) {
+        if (body_input_layout[i].is_dynamic())
+            body_input_layouts.push_back(-1);
+        else
+            body_input_layouts.push_back(body_input_layout[i].get_length());
+    }
+    set_values<int32_t>(const_shape, body_input_layouts);
+
+    cldnn::topology topology(
+        input_layout("input_origin", b_input_layout),
+        input_layout(initial_condition_id, e_initial_condition_mem->get_layout()),
+        mutable_data(actual_iteration_count_id, e_num_iteration_mem),
+        permute("input2", input_info("input_origin"), {0, 1, 2, 3}),
+        data("const", const_shape),
+        permute("permute1", input_info("input_origin"), {0, 1, 2, 3}),
+        concatenation("input1", {input_info("permute1"), input_info("input_origin")}, 0),
+        loop("loop",
+             {input_info(actual_iteration_count_id), input_info(initial_condition_id), input_info("input1"), input_info("input2")}, 
+             body_program, trip_count_id, initial_condition_id, actual_iteration_count_id,
+             input_primitive_maps, output_primitive_maps, back_edges,
+             num_iterations, body_current_iteration_id, body_execution_condition_id, 2),
+        eltwise("out_sum", input_info("loop", 0), input_info("loop", 1), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    for (size_t i = 0 ; i < whole_layouts.size(); i++) {
+        auto whole_layout = whole_layouts[i];
+        auto input_data = input_data_list[i];
+
+        set_values(e_initial_condition_mem, {1});
+        set_values(b_exit_value_mem, {exit_value});
+        set_values(b_index_inc_mem, {1});
+        set_values(e_num_iteration_mem, {10});
+
+        auto e_input_layout = cldnn::layout{ whole_layout, data_types::f32, format::bfyx };
+        auto e_input_mem = engine.allocate_memory(e_input_layout); // b,f,x,y
+        auto expected_output_layout = whole_layout;
+        set_values(e_input_mem, input_data);
+        network.set_input_data("input_origin", e_input_mem);
+
+        network.set_input_data(initial_condition_id, e_initial_condition_mem);
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), 1);
+        auto output_layout = outputs.begin()->second.get_layout();
+        auto input_layout = network.get_primitive("input1")->get_output_layout();
+
+        ASSERT_EQ(output_layout.batch(), input_layout.batch());
+        ASSERT_EQ(output_layout.feature(), input_layout.feature());
+        ASSERT_EQ(output_layout.spatial(0), input_layout.spatial(0));
+        ASSERT_EQ(output_layout.spatial(1), input_layout.spatial(1));
+    }
+}
+
+std::vector<float> input_data_2_4{
+    1.0f,  2.0f,
+    4.0f, -15.f,
+    -15.f, 7.0f,
+    0.0f, -15.f,
+};
+
 std::vector<float> input_data_4_4{
     1.0f,  2.0f, -15.f,  3.0f,
     4.0f, -15.f, 5.0f,  6.0f,
@@ -779,13 +901,22 @@ std::vector<float> input_data_2_4_4{
     0.0f, -15.f, 0.5f, -0.5f,
 };
 
-TEST(loop_gpu, support_loop_w_dynamic_input_w_various_shapes) {
+TEST(loop_gpu, support_loop_w_dynamic_input_w_various_shapes1) {
     test_loop_gpu_wo_trip_count_w_multiple_shapes(
         { 1, -1, 4, 4 },
         {{ 1, 1, 4, 4 }, { 1, 2, 4, 4 }},   // axis value should be iter_num = (exit_value + 1)
         {input_data_4_4, input_data_2_4_4},
         std::vector<float>(),
         2, 3);
+}
+
+TEST(loop_gpu, support_loop_w_dynamic_input_w_various_shapes2) {
+    test_loop_gpu_multiple_shapes(
+        { 1, -1, -1, 4 },
+        {{ 1, 1, 2, 4 }, { 1, 1, 4, 4 }, { 1, 2, 4, 4 }},
+        {input_data_2_4, input_data_4_4, input_data_2_4_4},
+        std::vector<float>(),
+        -1, 10);
 }
 
 static void test_loop_gpu_wo_trip_count_update_primitive_id(ov::PartialShape body_input_layout,

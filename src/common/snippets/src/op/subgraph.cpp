@@ -454,7 +454,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
-    pipeline.register_pass<lowered::pass::InsertBuffers>(static_cast<int32_t>(loop_depth));
+    pipeline.register_pass<lowered::pass::InsertBuffers>();
     pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();

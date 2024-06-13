@@ -1,5 +1,3 @@
-.. {#openvino_docs_performance_benchmarks}
-
 Performance Benchmarks
 ======================
 
@@ -12,6 +10,7 @@ Performance Benchmarks
    :maxdepth: 1
    :hidden:
 
+   Efficient LLMs for AI PC <performance-benchmarks/generative-ai-performance>
    performance-benchmarks/performance-benchmarks-faq
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
    performance-benchmarks/getting-performance-numbers
@@ -23,6 +22,8 @@ and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a 
 selection of public neural networks and Intel® devices. The results may help you decide which
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
+For more detailed view of performance numbers for generative AI models, check the
+:doc:`Generative AI Benchmark Results <./performance-benchmarks/generative-ai-performance>`
 
 .. grid:: 1 1 2 2
    :gutter: 4
@@ -126,21 +127,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.2-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.2-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.2-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -213,7 +214,7 @@ or
 
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.1, as of April 17, 2024.
+  2024.2, as of June 17, 2024.
 
 * OpenVINO Model Server performance results are based on release
   2024.0, as of March 15, 2024.
