@@ -5,6 +5,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 
@@ -34,6 +35,9 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
     };
 
     auto inputs = p.GetInputInfo(op);
+    auto const_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    OPENVINO_ASSERT(const_axis != nullptr, "[GPU] Unsupported axis node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+    auto axis = const_axis->cast_vector<int64_t>()[0];
     if (p.use_new_shape_infer() || op->is_dynamic()) {
         std::vector<cldnn::tensor> offsets;
 
@@ -58,10 +62,13 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         }
 
         cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+        std::vector<cldnn::input_info> reordered_inputs = { inputs[0] };
         auto num_splits = static_cast<size_t>(1);
         if (ov::is_type<ov::op::v1::Split>(op)) {
             num_splits = ov::as_type_ptr<ov::op::v1::Split>(op)->get_num_splits();
             op_mode = cldnn::crop_ngraph_op_mode::split;
+        } else {
+            reordered_inputs.push_back(inputs[2]);
         }
 
         for (size_t i = 0; i < op->get_output_size(); i++) {
@@ -69,13 +76,13 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
             // don't add crop primitive if port is not used by anyone
             if (users.size() == 0)
                 continue;
-
             auto cropPrim = cldnn::crop(get_layer_name(i),
-                                        inputs,
+                                        reordered_inputs,
                                         cldnn::tensor(1),
                                         (offsets.empty() ? cldnn::tensor(0) : offsets[i]),
                                         op_mode,
                                         static_cast<int>(i),
+                                        axis,
                                         num_splits);
             p.add_primitive(*op, cropPrim);
         }
