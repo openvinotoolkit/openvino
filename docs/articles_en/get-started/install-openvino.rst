@@ -23,8 +23,6 @@ Install OpenVINO™ 2024.2
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <iframe id="selector" src="../_static/selector-tool/selector-1c16038.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
-**Supported OpenVINO Versions**
-
 OpenVINO 2024.2, described here, is not a Long-Term-Support version!
 All currently supported versions are:
 
@@ -32,31 +30,33 @@ All currently supported versions are:
 * 2023.3 (LTS)
 * 2022.3 (LTS)
 
-Moreover, different OpenVINO distributions may support slightly different sets of features.
-Read installation guides for particular distributions for more details.
-Refer to the :doc:`OpenVINO Release Policy <../../../about-openvino/release-notes-openvino/release-policy>`
-to learn more about the release types.
+.. dropdown:: Distributions and Device Support
 
-.. dropdown:: Distribution Comparison for OpenVINO 2024.2
+   Different OpenVINO distributions may support slightly different sets of features.
+   Read installation guides for particular distributions for more details.
+   Refer to the :doc:`OpenVINO Release Policy <../../../about-openvino/release-notes-openvino/release-policy>`
+   to learn more about the release types.
 
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-   Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-   CPU              V           V       V                V         V            V          V          V
-   GPU              V           V       V                V         V            V          V          V
-   NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   .. dropdown:: Distribution Comparison for OpenVINO 2024.2
 
-   | \* **Of the Linux systems, version 22.04 includes drivers for NPU.**
-   |  **For Windows, CPU inference on ARM64 is not supported.**
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+      Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+      CPU              V           V       V                V         V            V          V          V
+      GPU              V           V       V                V         V            V          V          V
+      NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
 
-**Effortless GenAI integration with OpenVINO GenAI Flavor**
+      | \* **Of the Linux systems, version 22.04 includes drivers for NPU.**
+      |  **For Windows, CPU inference on ARM64 is not supported.**
 
-A new OpenVINO GenAI Flavor streamlines application development by providing
-LLM-specific interfaces for easy integration of language models, handling tokenization and
-text generation. For installation and usage instructions, proceed to
-:doc:`Install OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>` and
-:doc:`Run LLMs with OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>`.
+.. dropdown:: Effortless GenAI integration with OpenVINO GenAI Flavor**
+
+   A new OpenVINO GenAI Flavor streamlines application development by providing
+   LLM-specific interfaces for easy integration of language models, handling tokenization and
+   text generation. For installation and usage instructions, proceed to
+   :doc:`Install OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>` and
+   :doc:`Run LLMs with OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>`.
 
 .. dropdown:: Deprecation of OpenVINO™ Development Tools Package
 
