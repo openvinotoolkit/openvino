@@ -146,13 +146,13 @@ This macro should have a vector of all OpenVINO Extensions as an argument.
 
 Based on that, the declaration of an extension class might look like the following:
 
-.. doxygensnippet:: ./src/core/template_extension/new/ov_extension.cpp
+.. doxygensnippet:: src/core/template_extension/new/ov_extension.cpp
    :language: cpp
    :fragment: [ov_extension:entry_point]
 
 2. Configure the build of your extension library, using the following CMake script:
 
-.. doxygensnippet:: ./src/core/template_extension/new/CMakeLists.txt
+.. doxygensnippet:: src/core/template_extension/new/CMakeLists.txt
    :language: cpp
    :fragment: [cmake:extension]
 
