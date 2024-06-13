@@ -392,7 +392,20 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
 
     std::unordered_map<std::vector<MetaInterconnect>, std::vector<std::pair<Group::GPtr, Group::GPtr>>> mics;
 
-    for (const auto& group : repeating_groups) {
+    std::vector<Group::GPtr> repeating_groups_sorted;
+    std::transform(repeating_groups.begin(), repeating_groups.end(),
+                   std::back_inserter(repeating_groups_sorted), [](const Group::GPtr& gptr) {
+                                                                    return gptr;
+                                                                });
+
+    // FIXME: this was introduced to make the partitioning
+    // the same every run when created the same way.
+    std::sort(repeating_groups_sorted.begin(), repeating_groups_sorted.end(),
+              [&](const Group::GPtr& gptr_a, const Group::GPtr& gptr_b) {
+                  return gptr_a->getId() < gptr_b->getId();
+              });
+
+    for (const auto& group : repeating_groups_sorted) {
         auto producers = group->srcNodes();
         for (const auto& prod_nh : producers) {
             if (m_graph->contains(prod_nh)) {
@@ -422,7 +435,16 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
 
     std::sort(mics_vec.begin(), mics_vec.end(),
               [](const auto& a, const auto& b)
-                { return a.size() > b.size();});
+                {
+                    if (a.size() == b.size()) {
+                        if (a.empty()) {
+                            return false; // doesn't matter for stability - no groups are fused
+                        }
+                        // FIXME: is it stable to always check a single group here?
+                        return a.at(0).first->getId() < b.at(0).first->getId();
+                    }
+                    return a.size() > b.size();
+                });
 
     for (const auto& mic : mics_vec) {
         std::vector<Group::GPtr> prods;
