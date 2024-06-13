@@ -69,10 +69,21 @@ void ReduceSumTransformation::changeDequantizationValues(
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
         const auto reductionSizeConstant = ov::opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
-        const auto result = fold<ov::opset1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
+        OPENVINO_ASSERT(deqPrecision == dequantization.subtract->get_input_element_type(0),
+                        "dequantization precision ", deqPrecision,
+                        " differs from zero point 0 input ", dequantization.subtract->get_input_element_type(0));
+        const auto result = fold<ov::opset1::Multiply>(
+            foldConvert(dequantization.subtractConstant, deqPrecision),
+            reductionSizeConstant);
 
-        replace_node(dequantization.subtractConstant, result);
+        replace_node(
+            dequantization.subtractConvert != nullptr ?
+                std::dynamic_pointer_cast<ov::Node>(dequantization.subtractConvert) :
+                dequantization.subtractConstant,
+            result);
+
         dequantization.subtractConstant = ov::as_type_ptr<ov::opset1::Constant>(result);
+        dequantization.subtractConvert = nullptr;
     }
 }
 
