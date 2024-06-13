@@ -26,7 +26,6 @@ union f32_t {
 };
 
 constexpr uint8_t f32_mantissa_bits{23u};
-constexpr uint8_t byte_mask{0xffu};
 constexpr uint32_t f32_exponent_bits_mask{0x7f800000u};
 constexpr uint32_t f32_mantissa_bits_mask{0x007fffffu};
 constexpr uint32_t round_even{0x00400000u};
