@@ -20,7 +20,7 @@ class FrameworkNode;
 namespace frontend {
 namespace jax {
 
-const std::string jax_prefix = "[Jax Frontend] ";
+const std::string jax_prefix = "[JAX Frontend] ";
 
 const std::string& get_jax_prefix();
 
