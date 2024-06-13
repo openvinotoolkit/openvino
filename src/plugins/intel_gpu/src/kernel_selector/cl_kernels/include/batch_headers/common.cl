@@ -61,31 +61,3 @@
 #else
 #define REQD_SUB_GROUP_SIZE(sg_size)
 #endif
-
-float convert_bf16_to_float(const ushort in){
-    uint u = 0;
-    //sign
-    if ( (in>>15) ) { 
-        u = 1 << 31;
-    }
-    //exponent
-    u += ( ( (in >> 7) & 0b11111111)) << 23;
-    //fraction 
-    u += (in & 0b1111111) << 16;
-    float* f = &u;
-    printf("I ret %f %e u is  %u in is %u or %x\n", *f, *f, u, in, in);
-    return *f;
-}
-
-ushort convert_bf16(const float in_f){
-    uint* in = &in_f;
-    ushort u = 0;
-    if ( (*in>>31) ) { 
-        u = 1 << 15;
-    }
-    //exponent
-    u += ( ( (*in >> 23) & 0b11111111)) << 7;
-    //fraction
-    u += (*in >> 16) & 0b1111111;
-    return u;
-}
