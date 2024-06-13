@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
+#include "comparator.hpp"
 
+#include <algorithm>
 #include <openvino/runtime/make_tensor.hpp>
 
 #include "../logging.hpp"
 #include "../util.hpp"
 
-#include "comparator.hpp"
-
-ov::npuw::metrics::NRMSE::NRMSE(double threshold): m_threshold(threshold) {
-}
+ov::npuw::metrics::NRMSE::NRMSE(double threshold) : m_threshold(threshold) {}
 
 bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
                                           const ov::SoPtr<ov::ITensor>& reference) const {
@@ -28,8 +26,7 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
 
     if (ov::element::Type_t::f32 == actual->get_element_type()) {
         actual_f32 = ov::make_tensor(actual);
-    }
-    else {
+    } else {
         ov::Tensor dst(ov::element::Type_t::f32, actual->get_shape());
         ov::npuw::util::to_f32(ov::make_tensor(actual), dst);
         actual_f32 = dst;
@@ -43,8 +40,8 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
         reference_f32 = dst;
     }
 
-    float *actual_data = actual_f32.data<float>();
-    float *reference_data = reference_f32.data<float>();
+    float* actual_data = actual_f32.data<float>();
+    float* reference_data = reference_f32.data<float>();
     const std::size_t size = actual_f32.get_size();
 
     double squared_error{};
@@ -64,11 +61,9 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
 
     auto actual_min_max = std::minmax_element(actual_data, actual_data + size);
     auto reference_min_max = std::minmax_element(reference_data, reference_data + size);
-    double den = std::max({
-        0.001f,
-        std::max(0.f, *reference_min_max.second) - std::min(0.f, *reference_min_max.first),
-        std::max(0.f, *actual_min_max.second) - std::min(0.f, *actual_min_max.first)
-                          });
+    double den = std::max({0.001f,
+                           std::max(0.f, *reference_min_max.second) - std::min(0.f, *reference_min_max.first),
+                           std::max(0.f, *actual_min_max.second) - std::min(0.f, *actual_min_max.first)});
 
     double nrmse = rmse / den;
     LOG_INFO("NRMSE loss: " << nrmse << ", threshold: " << m_threshold << ".");

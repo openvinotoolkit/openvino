@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "graph.hpp"
+
 #include <algorithm>
 #include <stack>
-
-#include "graph.hpp"
 
 ade::Nodes ade::Node::srcNodes() const {
     ade::Nodes src_nodes;

@@ -5,23 +5,22 @@
 #pragma once
 
 #include <memory>
-#include <unordered_set>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
-#include "openvino/openvino.hpp"
-
 #include "graph.hpp"
+#include "openvino/openvino.hpp"
 #include "utils/utils.hpp"
 
 namespace ov {
 namespace npuw {
 
-struct Group; // forward declaration
+struct Group;  // forward declaration
 
 namespace online {
 
-class Snapshot; // forward declaration
+class Snapshot;  // forward declaration
 
 // Partitioning operates with groups to prepare graph structure for the plugin
 // Initally we assign each layer (excluding Parameters, Results, Constants and Converts)
@@ -31,8 +30,10 @@ public:
     using GPtr = std::shared_ptr<Group>;
 
     Group() = delete;
-    Group(const std::shared_ptr<ov::Node>& node, size_t gid,
-          ade::NodeHandle nh, const std::shared_ptr<ade::Graph>& g,
+    Group(const std::shared_ptr<ov::Node>& node,
+          size_t gid,
+          ade::NodeHandle nh,
+          const std::shared_ptr<ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
 
     // After we formed a final structure of partitioning,
@@ -82,7 +83,7 @@ private:
     detail::OVNodeSet m_output_layers;
 
     ade::NodeHandle m_nh;
-    size_t m_id; // used for utility prints only
+    size_t m_id;  // used for utility prints only
     std::shared_ptr<ade::Graph> m_graph;
     std::weak_ptr<Snapshot> m_snapshot;
     bool m_frozen = false;
@@ -94,6 +95,6 @@ private:
     detail::ReptrackMap m_reptrack;
 };
 
-} // namespace online
-} // namespace npuw
-} // namespace ov
+}  // namespace online
+}  // namespace npuw
+}  // namespace ov

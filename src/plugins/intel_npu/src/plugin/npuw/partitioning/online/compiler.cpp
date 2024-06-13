@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "compiler.hpp"
+
 #include <iostream>
 #include <sstream>
 
-#include "pugixml.hpp"
-
-#include "compiler.hpp"
-#include "snapshot.hpp"
-#include "group.hpp"
 #include "../../logging.hpp"
 #include "../../util.hpp"
-
+#include "group.hpp"
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/config/npuw.hpp"
+#include "pugixml.hpp"
+#include "snapshot.hpp"
 
 namespace ov {
 namespace npuw {
@@ -22,37 +21,28 @@ namespace online {
 
 namespace detail {
 // For missing declaration warning
-size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model,
-                       ::intel_npu::Config& cfg);
-std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model,
-                             ::intel_npu::Config& cfg);
-void dump_partitioning(const ov::npuw::Ensemble& ens,
-                       const std::shared_ptr<ov::Model>& model,
-                       const std::string& to);
+size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
+std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
+void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::Model>& model, const std::string& to);
 
-size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model,
-                       ::intel_npu::Config& cfg) {
+size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
     std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_MIN_SIZE>();
 
     // Sanity check
     if (min_size < 10) {
-        LOG_WARN("Minimum possible partitioning size is too small: "
-                << min_size << ", using a default value of 10.");
+        LOG_WARN("Minimum possible partitioning size is too small: " << min_size << ", using a default value of 10.");
         min_size = 10;
     }
 
-    LOG_INFO("Online partitioning will continue until there are "
-             << min_size << " or less subgraphs.");
+    LOG_INFO("Online partitioning will continue until there are " << min_size << " or less subgraphs.");
 
     return min_size;
 }
 
-std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model,
-                             ::intel_npu::Config& cfg) {
+std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
     std::vector<Avoid> avoids;
 
-    std::string avoids_opt =
-        cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
+    std::string avoids_opt = cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
     if (avoids_opt.empty()) {
         LOG_WARN(::intel_npu::NPUW_ONLINE_AVOID().key()
                  << " property is not set! NPU device will be prioritized for every subgraph.");
@@ -83,19 +73,18 @@ std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model,
     }
 
     if (!avoids.empty()) {
-        LOG_INFO("Online partitioning will avoid running subgraphs containing specified patterns on their respective devices.");
+        LOG_INFO("Online partitioning will avoid running subgraphs containing specified patterns on their respective "
+                 "devices.");
     } else {
         LOG_WARN("Incorect pattern in OPENVINO_NPUW_AVOID!"
-                << " Please, follow the example: Op:Select/NPU,P:RMSNorm/NPU."
-                << " No avoid rules will be taken into account during execution!");
+                 << " Please, follow the example: Op:Select/NPU,P:RMSNorm/NPU."
+                 << " No avoid rules will be taken into account during execution!");
     }
 
     return avoids;
 }
 
-void dump_partitioning(const ov::npuw::Ensemble& ens,
-                       const std::shared_ptr<ov::Model>& model,
-                       const std::string& to) {
+void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::Model>& model, const std::string& to) {
     pugi::xml_document doc;
 
     pugi::xml_node node = doc.append_child("ensemble");
@@ -151,20 +140,19 @@ void dump_partitioning(const ov::npuw::Ensemble& ens,
 
     doc.save_file(to.data());
 }
-} // namespace detail
+}  // namespace detail
 
 // Interface to get online partitioning from the model
 class Compiler {
     enum class Pipeline {
-        NONE, // Do nothing, partitioning will be empty
-        INIT, // Initialize only. The hardest mode, every group has just 1 layer inside
-        JUST, // "justParitioning" - combination of LHF + Remnants
-        REP,  // Repeated blocks pipeline - combination of repeatedBlocks and Remnants - default configuration
+        NONE,  // Do nothing, partitioning will be empty
+        INIT,  // Initialize only. The hardest mode, every group has just 1 layer inside
+        JUST,  // "justParitioning" - combination of LHF + Remnants
+        REP,   // Repeated blocks pipeline - combination of repeatedBlocks and Remnants - default configuration
     };
 
-    Pipeline currentPipeline(const std::shared_ptr<ov::Model> &model) {
-        std::string pipeline_opt =
-            m_cfg.getString<::intel_npu::NPUW_ONLINE_PIPELINE>();
+    Pipeline currentPipeline(const std::shared_ptr<ov::Model>& model) {
+        std::string pipeline_opt = m_cfg.getString<::intel_npu::NPUW_ONLINE_PIPELINE>();
         if (pipeline_opt == "NONE") {
             return Pipeline::NONE;
         } else if (pipeline_opt == "INIT") {
@@ -174,8 +162,7 @@ class Compiler {
         } else if (pipeline_opt == "REP") {
             return Pipeline::REP;
         } else {
-            LOG_WARN("Unknown partitioning compiler pipeline "
-                     << pipeline_opt << ", switching to REP");
+            LOG_WARN("Unknown partitioning compiler pipeline " << pipeline_opt << ", switching to REP");
             return Pipeline::REP;
         }
     }
@@ -194,8 +181,12 @@ class Compiler {
         LOG_INFO("Online partitioning: compiling fixed pipeline...");
         LOG_BLOCK();
 
-        m_snapshot->repeat([&]{m_snapshot->collectLHF();});
-        m_snapshot->repeat([&]{m_snapshot->fuseRemnants();});
+        m_snapshot->repeat([&] {
+            m_snapshot->collectLHF();
+        });
+        m_snapshot->repeat([&] {
+            m_snapshot->fuseRemnants();
+        });
 
         LOG_INFO("Done");
     }
@@ -206,15 +197,17 @@ class Compiler {
 
         m_snapshot->earlyAvoids();
         m_snapshot->repeatedBlocks();
-        m_snapshot->repeat([&]{m_snapshot->fuseRemnantsExtended();});
+        m_snapshot->repeat([&] {
+            m_snapshot->fuseRemnantsExtended();
+        });
 
         LOG_INFO("Done");
     }
 
 public:
-    explicit Compiler(const std::shared_ptr<ov::Model>& model,
-                      ::intel_npu::Config& cfg)
-        : m_model(model), m_snapshot(std::make_shared<Snapshot>(model)),
+    explicit Compiler(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg)
+        : m_model(model),
+          m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
         if (currentPipeline(model) == Pipeline::NONE) {
             LOG_INFO("NPUW_ONLINE_PIPELINE is set to NONE. No online partitioning is done.");
@@ -234,10 +227,17 @@ public:
         m_snapshot->setCtx(ctx);
 
         switch (currentPipeline(model)) {
-        case Pipeline::NONE: break; // unreachable
-        case Pipeline::INIT: init(); break;
-        case Pipeline::JUST: just(); break;
-        case Pipeline::REP: rep(); break;
+        case Pipeline::NONE:
+            break;  // unreachable
+        case Pipeline::INIT:
+            init();
+            break;
+        case Pipeline::JUST:
+            just();
+            break;
+        case Pipeline::REP:
+            rep();
+            break;
         }
 
         LOG_DEBUG("Online partitioning: group sizes after compilation:");
@@ -255,7 +255,7 @@ public:
         LOG_BLOCK();
 
         ov::npuw::Ensemble ens;
-        ens.gflops = 1.; // FIXME: calculate proper flops
+        ens.gflops = 1.;  // FIXME: calculate proper flops
 
         auto graph = m_snapshot->getGraph();
         // Iterate in topological order
@@ -268,13 +268,13 @@ public:
         for (const auto& reptag_and_matches : m_snapshot->getMatches()) {
             LOG_BLOCK();
             ov::npuw::RepeatedBlock block;
-            block.matches = reptag_and_matches.second; // Other fields are filled inside the plugin
+            block.matches = reptag_and_matches.second;  // Other fields are filled inside the plugin
             repeated.insert({reptag_and_matches.first, block});
             LOG_INFO("Got " << block.matches.at(0).size() << " repeated blocks of size " << block.matches.size());
         }
         ens.repeated = repeated;
 
-        std::string dump_plan_path = m_cfg.get<::intel_npu::NPUW_ONLINE_DUMP_PLAN>(); 
+        std::string dump_plan_path = m_cfg.get<::intel_npu::NPUW_ONLINE_DUMP_PLAN>();
         if (!dump_plan_path.empty()) {
             detail::dump_partitioning(ens, m_model, dump_plan_path);
             LOG_INFO("Dumped online partitioning to " << dump_plan_path << ".");
@@ -291,9 +291,9 @@ private:
     ::intel_npu::Config& m_cfg;
 };
 
-} // namespace online
-} // namespace npuw
-} // namespace ov
+}  // namespace online
+}  // namespace npuw
+}  // namespace ov
 
 // TODO: decouple configuration for partitioning from the plugin's cfg.
 ov::npuw::Ensemble ov::npuw::online::buildPartitioning(const std::shared_ptr<ov::Model>& model,
