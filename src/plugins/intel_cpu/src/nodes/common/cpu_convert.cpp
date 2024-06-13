@@ -589,9 +589,9 @@ struct ConvertFromBinPrecision {
 
 #define INTEL_CPU_CVT_FROM_4BIT(DT) OV_CASE(ov::element::DT, PrecisionInfo<ov::element::DT>::value_type)
 
-#define INTEL_CPU_CVT_FROM_4BIT_LIST                                                          \
-    INTEL_CPU_CVT_FROM_4BIT(f32), INTEL_CPU_CVT_FROM_4BIT(bf16), INTEL_CPU_CVT_FROM_4BIT(i8), \
-        INTEL_CPU_CVT_FROM_4BIT(u8)
+#define INTEL_CPU_CVT_FROM_4BIT_LIST                                                           \
+    INTEL_CPU_CVT_FROM_4BIT(f32), INTEL_CPU_CVT_FROM_4BIT(bf16), INTEL_CPU_CVT_FROM_4BIT(f16), \
+        INTEL_CPU_CVT_FROM_4BIT(i8), INTEL_CPU_CVT_FROM_4BIT(u8)
 
 struct ConvertFrom4BitContext {
     ov::element::Type_t inType;

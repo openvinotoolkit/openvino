@@ -306,9 +306,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*FQLayerDQBias.smoke_CompareWithRefs.*)",
         R"(.*smoke_matmulBrgemmInt8/MatmulBrgemmInt8Test.CompareWithRefs.*MatMul.*InputType=i8_OutputType=i8.*)",
         R"(.*smoke_Snippets_MHAWOTransposeOnInputs_4D/MHAWOTransposeOnInputs.CompareWithRefImpl.*)",
-        // Issue: 123274 (Dynamic Softmax aren't supported)
-        R"(smoke_Snippets_(Softmax|AddSoftmax|Reduce).*\[.*\?.*\].*)",
-        R"(smoke_Snippets_BroadcastSelect_Dynamic.*)"
+        // Issue: 142448
+        R"(smoke_Snippets_BroadcastSelect_Dynamic.*)",
         // Issue: 141705
         R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/.*trip_count=5_exec_cond=1_netType=i8.*)",
         R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/Input0_IS=\[\?.1.\?\]_TS=\(10.1.10\)_\(1.1.1\)_\(1.1.1\)_\(5.1.3\)_Input1_IS=\[\?.\?.\?\]_TS=.*_Input2_IS=\[\?.1.\?\]_.*_types=0_0_1_trip_count_type=.*_trip_count=(1|5)_exec_cond=1_netType=i8.*)",

@@ -605,17 +605,17 @@ Again, the explicit operations are needed to emit appropriate instructions later
 As mentioned above the `op::Buffer` operations are managed by the pass `AllocateBuffers`.
 Before describing the algorithm, it is necessary to briefly consider the structure of `Buffer`:
 * All `Buffers` represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing).
-* Each `Buffer` has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`) and `ID` (the `Buffers` with the same `ID` have the same assigned register).
+* Each `Buffer` has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`), `RegGroup` (the `Buffers` with the same `RegGroup` have the same assigned register) and `ClusterID` (the buffers from the same cluster refer to the same memory area - they have the same `offset` relative to the `Buffer scratchpad` data pointer).
 
 The algorithm supports two modes: optimized and non-optimized.
-The optimized one calculates minimal memory size and minimal unique `ID` count required to handle all the buffers.
-The non-optimized version assigns each buffer an unique `ID` and `offset`.
+The optimized one calculates minimal memory size and minimal unique `RegGroup` count required to handle all the buffers.
+The non-optimized version assigns each buffer an unique `RegGroup`, `ClusterID` and `offset`.
 The first mode is the default one, while the second one might be used for debugging the optimized version.
 The optimized algorithm `AllocateBuffers` has the main following steps:
-1. `IdentifyBuffers` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
-2. `DefineBufferClusters` - creates sets of `Buffer` ops - `BufferClusters`.
-`Buffers` from one `BufferCluster` refer to the same memory area (they have the same `offset` relative to the `Buffer scratchpad` data pointer).
-For example, there is a loop with `Buffer` ops on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one `BufferCluster`.
+1. `SetBufferRegGroup` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
+2. `DefineBufferClusters` - creates sets of `Buffer` ops (buffer clusters) and set `ClusterID` value to `Buffer` ops.
+As noticed above, `Buffers` from one cluster refer to the same memory area.
+For example, there is a loop with `Buffer` ops on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one cluster.
 3. `SolveBufferMemory` - calculate the most optimal memory size of `Buffer scratchpad` based on `BufferClusters` and life time of `Buffers`.
 
 More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
