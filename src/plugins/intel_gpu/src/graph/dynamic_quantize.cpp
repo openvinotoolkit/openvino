@@ -25,7 +25,6 @@ template<typename ShapeType>
 std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<dynamic_quantize>();
     auto input_layout = impl_param.get_input_layout();
-    auto output_type = data_types::i8;
     auto output_format = input_layout.format;
 
     ov::intel_gpu::op::DynamicQuantize op;
@@ -36,7 +35,9 @@ std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
-    return { layout(output_shapes[0], output_type, output_format) };
+    // return { layout(output_shapes[0], data_types::i8, output_format), layout(output_shapes[1], data_types::f16, output_format) };
+
+    return { layout(output_shapes[0], data_types::i8, output_format) };
 }
 
 template std::vector<layout> dynamic_quantize_inst::calc_output_layouts<ov::PartialShape>(dynamic_quantize_node const& node,

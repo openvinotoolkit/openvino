@@ -76,58 +76,24 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             variable_initializer = past_node->get_input_node_shared_ptr(0);
         }
 
-        static int count = 0;
-        if (getenv("KV_CACHE_COMP") != nullptr && concat_node->get_friendly_name().find("__module.model.transformer.h.0.attn/aten::cat/Concat_4") != std::string::npos) {
-            if (count++ < 3) {
-                std::cout << "KV_CACHE_COMP " << concat_node->get_friendly_name() << std::endl;
-            }
-            auto new_dyn_quan = std::make_shared<op::DynamicQuantize>(concat_node->get_input_node_shared_ptr(1));
-            new_dyn_quan->set_friendly_name(concat_node->get_friendly_name() + "_compressed");
-
-            // Replace common ReadValue op with a custom one as common one expects paired Assign operation which is removed by this transform
-            auto new_read_value_node = variable_initializer ? std::make_shared<ov::intel_gpu::op::ReadValue>(variable_initializer, variable)
-                                                            : std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
-            new_read_value_node->set_friendly_name(past_node->get_friendly_name());
-            ov::copy_runtime_info(past_node, new_read_value_node);
-            ov::replace_node(past_node, new_read_value_node);
-
-            // XXX: Need to change precision for sdpa output and new_read_value_node also.
-            if (pattern_map.count(gather_past) > 0) {
-                kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
-                                                            new_dyn_quan,
-                                                            variable,
-                                                            concat_axis,
-                                                            new_read_value_node->get_output_element_type(0));
-            } else {
-                kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
-                                                            new_dyn_quan,
-                                                            variable,
-                                                            concat_axis,
-                                                            new_read_value_node->get_output_element_type(0));
-            }
+        // Replace common ReadValue op with a custom one as common one expects paired Assign operation which is removed by this transform
+        auto new_read_value_node = variable_initializer ? std::make_shared<ov::intel_gpu::op::ReadValue>(variable_initializer, variable)
+                                                        : std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
+        new_read_value_node->set_friendly_name(past_node->get_friendly_name());
+        ov::copy_runtime_info(past_node, new_read_value_node);
+        ov::replace_node(past_node, new_read_value_node);
+        if (pattern_map.count(gather_past) > 0) {
+            kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
+                                                        concat_node->get_input_node_shared_ptr(1),
+                                                        variable,
+                                                        concat_axis,
+                                                        new_read_value_node->get_output_element_type(0));
         } else {
-            // if (count++ < 3)
-            //     printf("NO KV_CACHE_COMP\n");
-            // Replace common ReadValue op with a custom one as common one expects paired Assign operation which is removed by this transform
-            auto new_read_value_node = variable_initializer ? std::make_shared<ov::intel_gpu::op::ReadValue>(variable_initializer, variable)
-                                                            : std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
-            new_read_value_node->set_friendly_name(past_node->get_friendly_name());
-            ov::copy_runtime_info(past_node, new_read_value_node);
-            ov::replace_node(past_node, new_read_value_node);
-
-            if (pattern_map.count(gather_past) > 0) {
-                kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
-                                                            concat_node->get_input_node_shared_ptr(1),
-                                                            variable,
-                                                            concat_axis,
-                                                            new_read_value_node->get_output_element_type(0));
-            } else {
-                kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
-                                                            concat_node->get_input_node_shared_ptr(1),
-                                                            variable,
-                                                            concat_axis,
-                                                            new_read_value_node->get_output_element_type(0));
-            }
+            kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
+                                                        concat_node->get_input_node_shared_ptr(1),
+                                                        variable,
+                                                        concat_axis,
+                                                        new_read_value_node->get_output_element_type(0));
         }
         kv_cache_node->set_friendly_name(concat_node->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), kv_cache_node);

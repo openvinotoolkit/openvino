@@ -64,6 +64,7 @@
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
+#include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
@@ -810,6 +811,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
+        manager.register_pass<ov::intel_gpu::KVCacheCompression>();
+
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;

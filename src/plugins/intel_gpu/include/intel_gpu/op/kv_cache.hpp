@@ -34,6 +34,15 @@ public:
             int64_t concat_axis,
             const ov::element::Type output_type = ov::element::undefined);
 
+    KVCache(const Output<Node>& past,
+            const Output<Node>& new_token_data,
+            const Output<Node>& new_token_scale,
+            const Output<Node>& beam_idx,
+            const std::shared_ptr<ov::op::util::Variable>& past_values,
+            int64_t concat_axis,
+            int64_t gather_axis,
+            const ov::element::Type output_type = ov::element::undefined);
+
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
@@ -52,11 +61,13 @@ public:
     void set_gather_axis(int64_t axis) { m_gather_axis = axis; }
 
     bool get_indirect() const { return m_indirect; }
+    bool get_compressed() const { return m_compressed; }
 
 private:
     int64_t m_concat_axis = 0;
     int64_t m_gather_axis = 0;
     bool m_indirect = false;
+    bool m_compressed = false;
     ov::element::Type m_output_type;
 };
 

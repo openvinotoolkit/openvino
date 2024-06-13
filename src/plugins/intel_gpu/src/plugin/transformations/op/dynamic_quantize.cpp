@@ -14,17 +14,18 @@ namespace op {
 
 DynamicQuantize::DynamicQuantize(const Output<Node>& data)
     : Op({data}) {
+    set_output_size(1);  // FIXME: it should be 2
     validate_and_infer_types();
 }
 
 void DynamicQuantize::validate_and_infer_types() {
-    auto output_type = ov::element::Type_t::i8;
-
     std::vector<ov::PartialShape> input_shapes = {
         get_input_partial_shape(0)
     };
 
-    set_output_type(0, output_type, shape_infer(this, input_shapes)[0]);
+    auto out_shapes = shape_infer(this, input_shapes);
+    set_output_type(0, ov::element::Type_t::i8, out_shapes[0]);
+    // set_output_type(1, ov::element::Type_t::f16, out_shapes[1]);
 }
 
 std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVector& new_args) const {
@@ -33,7 +34,14 @@ std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVec
 }
 
 std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op, std::vector<ov::PartialShape> input_shapes) {
-    return {input_shapes[0]};
+    std::vector<ov::PartialShape> out_shapes;
+    out_shapes.push_back(input_shapes[0]);
+    // FIXME: generalize to N-dim case
+    // auto scale_shape = input_shapes[0];
+    // scale_shape[2] = 1;
+    // scale_shape[3] = 1;
+    // out_shapes.push_back(scale_shape);
+    return out_shapes;
 }
 
 
