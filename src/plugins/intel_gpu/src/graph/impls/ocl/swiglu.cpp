@@ -40,7 +40,7 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
         params.axis = ov::util::normalize(primitive->axis, rank.get_length());
         params.split_length = primitive->split_lengths;
         params.glu_type = primitive->glu_type;
-        params.split_to_glu_idx = primitive->split_to_glu_idx;
+        params.split_to_glu_idx = static_cast<int32_t>(primitive->split_to_glu_idx);
 
         return params;
     }
