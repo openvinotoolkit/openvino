@@ -463,6 +463,7 @@ void primitive_inst::update_shape() {
         std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
         cldnn::create_onednn_primitive_attributes(get_node(),
                                                     _impl_params->fused_desc,
+                                                    *_impl_params,
                                                     attrs_onednn,
                                                     fused_desc_onednn);
         _impl_params->attrs_onednn = attrs_onednn;
