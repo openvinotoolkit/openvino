@@ -79,7 +79,7 @@ ov::npuw::Group Group::toGroup() const {
     for (auto &&node : input_copy) { g.input_layers.push_back(node->get_friendly_name()); }
     for (auto &&node : output_copy) { g.output_layers.push_back(node->get_friendly_name()); }
     for (auto &&node : content_copy) { g.all_layers.push_back(node->get_friendly_name()); }
-    g.gflops = 0.0001; // FIXME: calculate proper flops
+    g.gflops = 0.0001f; // FIXME: calculate proper flops
 
     if (m_repeated) {
         g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);

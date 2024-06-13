@@ -625,8 +625,8 @@ const std::map<std::string, std::vector<std::set<std::string>>>& Snapshot::getMa
 
 void Snapshot::repeat(detail::Pass&& pass) {
 
-    auto prev_graph_size = 0;
-    auto curr_graph_size = graphSize();
+    size_t prev_graph_size = 0;
+    size_t curr_graph_size = graphSize();
 
     while (graphSize() > m_ctx.min_graph_size && curr_graph_size != prev_graph_size) {
         prev_graph_size = graphSize();

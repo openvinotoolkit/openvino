@@ -28,10 +28,10 @@ bool isOp(const std::shared_ptr<ov::Node>& node);
 // Core part of the partitioning algorithm which implements a list of graph passes.
 class Snapshot : public std::enable_shared_from_this<Snapshot> {
 public:
-    Snapshot(const std::shared_ptr<ov::Model>& model) : m_graph(std::make_shared<ade::Graph>()),
+    Snapshot(const std::shared_ptr<ov::Model>& model) : m_model(model),
+                                                        m_graph(std::make_shared<ade::Graph>()),
                                                         m_node_to_prod_cons(std::make_shared<detail::OVNodeMap>()),
-                                                        m_node_to_gr(std::make_shared<detail::OVNodeToGroupMap>()),
-                                                        m_model(model) {}
+                                                        m_node_to_gr(std::make_shared<detail::OVNodeToGroupMap>()) {}
 
     // Initial OV model traversal to prepare initial groups of 1 layer each
     void buildGraph();

@@ -20,7 +20,16 @@ namespace ov {
 namespace npuw {
 namespace online {
 
-namespace detail{
+namespace detail {
+// For missing declaration warning
+size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model,
+                       ::intel_npu::Config& cfg);
+std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model,
+                             ::intel_npu::Config& cfg);
+void dump_partitioning(const ov::npuw::Ensemble& ens,
+                       const std::shared_ptr<ov::Model>& model,
+                       const std::string& to);
+
 size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model,
                        ::intel_npu::Config& cfg) {
     std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_MIN_SIZE>();
@@ -225,6 +234,7 @@ public:
         m_snapshot->setCtx(ctx);
 
         switch (currentPipeline(model)) {
+        case Pipeline::NONE: break; // unreachable
         case Pipeline::INIT: init(); break;
         case Pipeline::JUST: just(); break;
         case Pipeline::REP: rep(); break;
@@ -276,8 +286,8 @@ public:
     }
 
 private:
-    std::shared_ptr<Snapshot> m_snapshot;
     std::shared_ptr<ov::Model> m_model;
+    std::shared_ptr<Snapshot> m_snapshot;
     ::intel_npu::Config& m_cfg;
 };
 
