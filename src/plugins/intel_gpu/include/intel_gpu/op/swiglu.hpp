@@ -28,9 +28,9 @@ public:
     /// \param data Input tensor with data
     /// \param axis The index of an axis in "data" along which to perform the split
     /// \param split_lenghts A list containing the sizes of each output tensor along the split "axis"
-    /// \param output_type Output element type
-    /// \param glu_type GLU type, one of Swish, Gelu
+    /// \param glu_type GLU type, one of Swish, Gelu and Gelu_Tanh
     /// \param split_to_glu_idx Output index of variadic split, which is connected to GLU
+    /// \param output_type Output element type
     SwiGLU(const Output<Node>& data,
            int64_t axis,
            int64_t split_lengths,
