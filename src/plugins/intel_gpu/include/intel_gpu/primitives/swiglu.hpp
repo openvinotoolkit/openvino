@@ -9,7 +9,7 @@
 namespace cldnn {
 
 /// @brief Swish Gated Linear Unit Activation primitive
-/// @details Performs gated linear unit activation that combines swish activation function
+/// @details Performs gated linear unit activation that combines swish or gelu activation function
 struct swiglu : public primitive_base<swiglu> {
     CLDNN_DECLARE_PRIMITIVE(swiglu);
 

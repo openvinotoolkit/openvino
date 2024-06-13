@@ -11,7 +11,7 @@ namespace intel_gpu {
 namespace op {
 
 /// \brief Operator performing Swish Gated Linear Unit Activation
-/// This operation performs gated linear unit activation that combines swish activation function
+/// This operation performs gated linear unit activation that combines swish or gelu activation function
 class SwiGLU : public ov::op::Op {
 public:
     OPENVINO_OP("SwiGLU", "gpu_opset");
