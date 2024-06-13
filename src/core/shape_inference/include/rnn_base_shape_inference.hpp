@@ -144,9 +144,6 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
     const auto num_inputs = 5 + num_state_nodes;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
 
-    // std::vector<TRShape> output_shapes;
-    // output_shapes.reserve(1 + num_state_nodes);
-
     std::vector<Rank> expected_in_ranks;
     expected_in_ranks.reserve(num_inputs);
     expected_in_ranks.insert(expected_in_ranks.end(), 1 + num_state_nodes, Rank(3));
@@ -162,6 +159,7 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
     const auto& b_pshape = input_shapes[4 + num_state_nodes];
 
     using DimType = typename TShape::value_type;
+    // Y output
     auto output_shapes = std::vector<TRShape>{{x_pshape.rank().is_static() ? x_pshape[0] : DimType(),
                                                DimType(),
                                                x_pshape.rank().is_static() ? x_pshape[1] : DimType(),
@@ -267,11 +265,6 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
         }
     }
 
-    // Y output
-    // output_shapes.push_back(TRShape{merged_batch_size,
-    //                                 merged_num_directions,
-    //                                 x_pshape.rank().is_static() ? x_pshape[1] : DimType(),
-    //                                 merged_hidden_size});
     // Ho, Co outputs
     output_shapes.insert(output_shapes.end(),
                          num_state_nodes,

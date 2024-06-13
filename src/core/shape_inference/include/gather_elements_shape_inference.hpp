@@ -22,7 +22,6 @@ std::vector<TRShape> shape_infer(const GatherElements* op, const std::vector<T>&
     auto output_shapes = std::vector<TRShape>();
 
     if (data_rank.is_dynamic()) {
-        // output_shapes.push_back(indices_rank.is_dynamic() ? PartialShape::dynamic() : indices_pshape);
         output_shapes.push_back(indices_pshape);
         return output_shapes;
     } else {
