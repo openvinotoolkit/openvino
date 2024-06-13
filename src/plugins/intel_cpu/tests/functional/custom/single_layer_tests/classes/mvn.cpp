@@ -5,8 +5,10 @@
 #include "mvn.hpp"
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
+using namespace ov::intel_cpu;
 
 namespace ov {
 namespace test {
@@ -117,7 +119,7 @@ void MvnLayerCPUTest::SetUp() {
     }
 
     rel_threshold = 5e-4;
-    if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
+    if (one_of(additionalConfig[ov::hint::inference_precision.name()], ov::element::f16, ov::element::bf16)) {
         rel_threshold = 1e-2;
         abs_threshold = .03f;
     }
