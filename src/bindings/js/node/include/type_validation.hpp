@@ -10,6 +10,8 @@
 #include "openvino/openvino.hpp"
 #include "openvino/util/common_util.hpp"
 
+namespace ov {
+namespace js {
 namespace NapiTypename {
 static const char UNDEFINED_STR[] = "undefined";
 static const char NULL_STR[] = "null";
@@ -35,12 +37,11 @@ namespace NapiArg {
 const char* get_type_name(napi_valuetype type);
 }  // namespace NapiArg
 
-namespace js {
 std::string get_current_signature(const Napi::CallbackInfo& info);
 
 template <typename T>
 const char* get_attr_type() {
-    throw std::runtime_error("get_attr_type 123 is not implemented for passed type!");
+    throw std::runtime_error("get_attr_type is not implemented for passed type!");
 };
 
 template <>
@@ -144,3 +145,4 @@ bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& checked_
 
 std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector<std::string>& checked_signatures);
 }  // namespace js
+}  // namespace ov

@@ -3,6 +3,8 @@
 
 #include "node/include/type_validation.hpp"
 
+namespace ov {
+namespace js {
 namespace NapiArg {
 const char* get_type_name(napi_valuetype type) {
     switch (type) {
@@ -42,7 +44,6 @@ const char* get_type_name(napi_valuetype type) {
 }
 }  // namespace NapiArg
 
-namespace js {
 std::string get_current_signature(const Napi::CallbackInfo& info) {
     std::vector<std::string> signature_attributes;
     size_t attrs_length = info.Length();
@@ -130,3 +131,4 @@ std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector
            js::get_current_signature(info) + " \nAllowed signatures:\n- " + ov::util::join(checked_signatures, "\n- ");
 }
 }  // namespace js
+}  // namespace ov
