@@ -4,7 +4,7 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   workflow_dispatch:
-  # pull_request:
+  pull_request:
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -135,7 +135,7 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_TBB=ON \
+            -DENABLE_SYSTEM_TBB=OFF \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
@@ -263,7 +263,7 @@ jobs:
       - name: Install dependencies (Linux)
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-          apt update && apt --assume-yes install clang lld libtbb2
+          apt update && apt --assume-yes install clang lld
 
       - name: Fetch Sanitizer Suppression Lists
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
