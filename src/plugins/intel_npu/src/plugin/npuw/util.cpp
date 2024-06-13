@@ -686,8 +686,8 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
                     reinterpret_cast<__m128i*>(pDstLocal + 32), reinterpret_cast<__m128i*>(pDstLocal + 40),
                     reinterpret_cast<__m128i*>(pDstLocal + 48), reinterpret_cast<__m128i*>(pDstLocal + 56),
                 };
-                __m256i himask  = _mm256_set1_epi8(0xF0);
-                __m256i lomask  = _mm256_set1_epi8(0x0F);
+                __m256i himask  = _mm256_set1_epi8(static_cast<char>(0xF0));
+                __m256i lomask  = _mm256_set1_epi8(static_cast<char>(0x0F));
 
                 // loading 256 bit u4 into unalligned memory , so 64 elements
                 // cannot use aligned version here like _mm256_load_si256 - segfault even on unit tests

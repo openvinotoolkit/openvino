@@ -17,7 +17,7 @@
 namespace ov {
 namespace npuw {
 
-class Group; // forward declaration
+struct Group; // forward declaration
 
 namespace online {
 

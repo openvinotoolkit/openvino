@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 #include <optional>
+#include <limits>
 
 #include "base_sync_infer_request.hpp"
 
@@ -47,6 +48,8 @@ private:
     void connect_subrequests();
 
     void recreate_subrequests(std::size_t idx);
+
+    static constexpr const std::size_t INVALID_IDX = std::numeric_limits<std::size_t>::max();
 
     using LinkFrom = std::pair
         < std::size_t /* Subrequest index */

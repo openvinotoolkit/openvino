@@ -53,9 +53,9 @@ namespace SymmNoZP {
 
 class DCOFFPassBase: public ov::pass::MatcherPass {
 protected:
+    DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
-    DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
 
     std::shared_ptr<ov::Node> paramA, paramB, toFP32, mulply;
     bool matcher_callback(ov::pass::pattern::Matcher &m);
@@ -93,9 +93,9 @@ namespace SymmZP { // TODO: Not sure if it is actually Symm..
 
 class DCOFFPassBase: public ov::pass::MatcherPass {
 protected:
+    DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
-    DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
 
     std::shared_ptr<ov::Node> paramA, constB, paramC, cvtA, cvtB, subtr, mulply;
     bool matcher_callback(ov::pass::pattern::Matcher &m);

@@ -285,7 +285,6 @@ void Partitioner::identifySubgraphs() {
     // Apply partitioning changes to the original model
     // but first cache all nodes to identify by name
     using NodeSPtr = std::shared_ptr<ov::Node>;
-    using ParamSPtr = std::shared_ptr<ov::op::v0::Parameter>;
     std::unordered_map<NodeSPtr, LinkPtrFrom> result_cache;
     std::unordered_map<std::string, NodeSPtr> node_id_cache;
     for (auto &&node_ptr : model->get_ordered_ops()) {
@@ -647,7 +646,7 @@ void Partitioner::propagate(const std::string &func_name,
     // here as `bank' argument),
     // and Writers are subjects to this propagation process
     // (e.g. Convert! -> Op, Const! -> Convert)
-    using ProtoReader = std::pair<std::string, int>;
+    using ProtoReader = std::pair<std::string, size_t>;
     using ProtoReaders = std::set<ProtoReader>;
     auto dump_readers = [](const ProtoReaders &readers) {
         LOG_BLOCK();
@@ -871,15 +870,10 @@ void Partitioner::propagateScalars(const std::string &func_name) {
     // from funcall to funcall (= add it to the matched bank).
 
     // the saveRepeatedConstants() will then take care of them.
-    auto &func_ggg    = all_functions.at(func_name);
-    auto &model_group = func_ggg.mdls;
-    auto &func_group  = func_ggg.refs;
 
     // See explanation in propagateConverts().
     // The propagation procedure is generic, but the matching isn't.
-    auto &const_bank = ens.repeated.at(func_name).consts;
     auto &scalar_bank = ens.repeated.at(func_name).scalars;
-    auto &layer_bank = ens.repeated.at(func_name).matches;
     auto match_fcn = [&](const std::shared_ptr<ov::Node> &node_ptr) -> bool {
         const auto &this_layer_name = node_ptr->get_friendly_name();
         auto res = ov::is_type<ov::op::v0::Constant>(node_ptr)
@@ -1015,7 +1009,6 @@ void Partitioner::saveTinyConstants(const std::string &func_name) {
 
     auto &func_group  = all_functions.at(func_name);
     auto &model_group = func_group.mdls;
-    auto &subgr_group = func_group.refs;
 
     using CT = ov::op::v0::Constant;
 
@@ -1026,7 +1019,7 @@ void Partitioner::saveTinyConstants(const std::string &func_name) {
                 auto shape = node->output(0).get_shape();
                 auto total = std::accumulate(shape.begin(),
                                              shape.end(),
-                                             1,
+                                             std::size_t{1},
                                              std::multiplies<std::size_t>());
                 if (    (shape.size() == 0
                      || (shape.size() == 1 && shape[0] <= 10))
@@ -1053,7 +1046,6 @@ void Partitioner::saveScaleFactors(const std::string &func_name) {
 
     auto &func_group  = all_functions.at(func_name);
     auto &model_group = func_group.mdls;
-    auto &subgr_group = func_group.refs;
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::vector<CPtr> to_keep;
@@ -1156,11 +1148,12 @@ void Partitioner::saveRepeatedConstants(const std::string &func_name) {
         LOG_BLOCK();
 
 
-        if (((proto_shape.size() == 0
+        if ((((proto_shape.size() == 0
               || (proto_shape.size() == 1 && proto_shape[0] <= 10))
               && proto_node->output(0).get_element_type().is_integral())
             || (proto_node->output(0).get_element_type() == ov::element::f32
-                && std::accumulate(proto_shape.begin(), proto_shape.end(), 1, std::multiplies<int>()) == 1)
+                && std::accumulate(proto_shape.begin(), proto_shape.end(),
+                                   size_t{1}, std::multiplies<std::size_t>()) == 1))
             && std::all_of(instances.begin(),
                            instances.end(),
                            [&](const CTPtr &other_node) -> bool {
@@ -1427,7 +1420,6 @@ void Partitioner::matchRepeatedSubgraphs(const std::string &func_name) {
     auto &func_ggg    = all_functions.at(func_name);
     auto &model_group = func_ggg.mdls;
     auto &func_group  = func_ggg.refs;
-    auto &rep_block   = ens.repeated.at(func_name);
 
     // First create a function body - take the first subgraph from
     // the funcall group as a prototype. This operation is identical
