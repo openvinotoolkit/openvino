@@ -200,8 +200,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             process_params(orderedSubgraphs[id]._parameters);
             process_results(orderedSubgraphs[id]._results);
         } else {
-            auto &f = partitioning.functions.at(orderedSubgraphs[id]._funcall);
-            // Don't use f but match via the original parameters to generate indices
+            // Match via the original parameters to generate indices
             process_params(orderedSubgraphs[id]._parameters);
             process_results(orderedSubgraphs[id]._results);
 
@@ -367,7 +366,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (par_opt) {
         ov::parallel_for(orderedSubgraphs.size(), compile);
     } else {
-        // TODO: Introduce npuw::serial(i, f) instead
+        // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
         for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
             compile(i);
         }
@@ -702,7 +701,7 @@ void ov::npuw::CompiledModel::implement_properties() {
           {ov::PropertyMutability::RO,
           [&](const ::intel_npu::Config&) {
             ov::AnyMap all_devices = {};
-            for (auto i = 0; i < m_compiled_submodels.size(); ++i) {
+            for (size_t i = 0; i < m_compiled_submodels.size(); ++i) {
                 auto comp_model_desc = m_compiled_submodels[i];
                 if (!comp_model_desc.compiled_model) // Handle if optimized out
                     continue;
@@ -740,7 +739,7 @@ void ov::npuw::CompiledModel::implement_properties() {
           [&](const ::intel_npu::Config&) {
             std::vector<std::string> device_names;
             std::set<std::string> s;
-            for (auto i = 0; i < m_compiled_submodels.size(); ++i) {
+            for (size_t i = 0; i < m_compiled_submodels.size(); ++i) {
                 const auto& comp_model_desc = m_compiled_submodels[i];
                 if (!comp_model_desc.compiled_model) // handle optimized out
                     continue;

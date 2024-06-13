@@ -1148,12 +1148,12 @@ void Partitioner::saveRepeatedConstants(const std::string &func_name) {
         LOG_BLOCK();
 
 
-        if (((proto_shape.size() == 0
+        if ((((proto_shape.size() == 0
               || (proto_shape.size() == 1 && proto_shape[0] <= 10))
               && proto_node->output(0).get_element_type().is_integral())
             || (proto_node->output(0).get_element_type() == ov::element::f32
                 && std::accumulate(proto_shape.begin(), proto_shape.end(),
-                                   size_t{1}, std::multiplies<std::size_t>()) == 1)
+                                   size_t{1}, std::multiplies<std::size_t>()) == 1))
             && std::all_of(instances.begin(),
                            instances.end(),
                            [&](const CTPtr &other_node) -> bool {
@@ -1420,7 +1420,6 @@ void Partitioner::matchRepeatedSubgraphs(const std::string &func_name) {
     auto &func_ggg    = all_functions.at(func_name);
     auto &model_group = func_ggg.mdls;
     auto &func_group  = func_ggg.refs;
-    auto &rep_block   = ens.repeated.at(func_name);
 
     // First create a function body - take the first subgraph from
     // the funcall group as a prototype. This operation is identical
