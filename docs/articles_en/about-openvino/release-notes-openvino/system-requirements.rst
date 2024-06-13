@@ -193,7 +193,7 @@ OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Kh
 
 Other names and brands may be claimed as the property of others.
 
-Copyright © 2023, Intel Corporation. All rights reserved.
+Copyright © 2024, Intel Corporation. All rights reserved.
 
 For more complete information about compiler optimizations, see our Optimization Notice.
 
