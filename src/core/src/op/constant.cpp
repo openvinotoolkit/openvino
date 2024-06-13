@@ -492,10 +492,12 @@ void Constant::update_identical_flags(bool is_checked, bool identical_value) con
 
 void Constant::validate_and_infer_types() {
     set_output_type(0, m_element_type, m_shape);
-    auto& output_tensor = get_output_tensor(0);
-    const auto tensor = Tensor(m_element_type, m_shape, get_data_ptr_nc(), m_byte_strides);
-    output_tensor.set_lower_value(tensor);
-    output_tensor.set_upper_value(tensor);
+    if (auto ptr = get_data_ptr_nc()) {
+        auto& output_tensor = get_output_tensor(0);
+        const auto tensor = Tensor(m_element_type, m_shape, ptr, m_byte_strides);
+        output_tensor.set_lower_value(tensor);
+        output_tensor.set_upper_value(tensor);
+    }
 }
 
 bool Constant::visit_attributes(AttributeVisitor& visitor) {

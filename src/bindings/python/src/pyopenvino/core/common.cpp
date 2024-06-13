@@ -376,19 +376,17 @@ std::vector<size_t> _get_byte_strides(const ov::Shape& s, const size_t element_b
 }
 
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
-    const auto& element_type = self.get_element_type();
-    const auto& shape = self.get_shape();
-
     using namespace ov::element;
-    switch (element_type) {
+    switch (self.get_element_type()) {
     case i4:
     case u1:
     case u4:
     case nf4:
     case f4e2m1:
-        return _get_byte_strides(shape, 8);
+        return _get_byte_strides(self.get_shape(), 8);
     default:
-        return self.get_output_tensor(0).get_lower_value().get_strides();
+        const auto& t = self.get_output_tensor(0).get_lower_value();
+        return t ? t.get_strides() : std::vector<size_t>{};
     }
 }
 };  // namespace constant_helpers
