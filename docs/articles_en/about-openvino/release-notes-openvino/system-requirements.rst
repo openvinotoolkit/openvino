@@ -38,7 +38,7 @@ CPU
       * CentOS 7
       * Red Hat Enterprise Linux 8, 64-bit
       * openSUSE Tumbleweed, 64-bit and ARM64
-      * Ubuntu 18 ARM64
+      * Ubuntu 20.04 ARM64
 
 GPU
 ##########
