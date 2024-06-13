@@ -21,6 +21,7 @@ const char* get_env(const std::vector<std::string> &list_to_try) {
 
 ov::npuw::LogLevel ov::npuw::get_log_level() {
     static LogLevel log_level = LogLevel::None;
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     static std::once_flag flag;
 
     std::call_once(flag, [](){
@@ -35,13 +36,13 @@ ov::npuw::LogLevel ov::npuw::get_log_level() {
             log_level = ov::npuw::LogLevel::Warning;
         } else if (log_opt == std::string("INFO")) {
             log_level = ov::npuw::LogLevel::Info;
-        } else if (log_opt == std::string("DEBUG") ||
-                   log_opt == std::string("YES")) {
-            // YES is the most verbose option for now
+        } else if (log_opt == std::string("VERBOSE")) {
+            log_level = ov::npuw::LogLevel::Verbose;
+        } else if (log_opt == std::string("DEBUG")) {
             log_level = LogLevel::Debug;
         }
     });
-
+#endif
     return log_level;
 }
 

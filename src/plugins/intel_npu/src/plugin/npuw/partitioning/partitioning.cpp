@@ -32,8 +32,8 @@ class FuncallEverywhere {
 public:
     explicit FuncallEverywhere(const std::shared_ptr<ov::Model> &model,
                                ::intel_npu::Config& cfg)
-        : m_model(model),
-          m_cfg(cfg) {
+        : m_model(model)
+        , m_cfg(cfg) {
     }
 
     void register_known(const std::string fcn_id) {
@@ -161,7 +161,7 @@ private:
     LinkPtrs subgraph_ptr_links;
 
     // Internal state - not exposed anywhere
-    struct Uzhas {
+    struct FunctionPipeline {
         using VM = std::vector<std::shared_ptr<ov::Model> >;
         using VS = std::vector<ov::npuw::Subgraph::Ref>;
         VM mdls;
@@ -173,7 +173,7 @@ private:
         std::unordered_map<PPtr, PPtr> param_call_to_proto;
         std::unordered_map<RPtr, RPtr> result_call_to_proto;
     };
-    std::map<std::string, Uzhas> all_functions;
+    std::map<std::string, FunctionPipeline> all_functions;
 
     // NB(dm): Sort of warning here that this mapping is used
     // across all functions. Probably it would be easier and
@@ -190,7 +190,7 @@ private:
                    const Match &test,
                    ov::npuw::RepeatedBlock::MatchedBank &bank);
 
-    void createFunction(Uzhas &func_ggg);
+    void createFunction(FunctionPipeline &func_ggg);
 
     template<typename T, typename M>
     void rearrange_to_function_protocol(const std::vector<T> &protocol,
@@ -233,7 +233,7 @@ public:
         : model(_model)
         , ens(_ens)
         , P(_P)
-        , uzhas_type(UzhasType::FOLD)
+        , func_pipeline_type(FunctionPipelineType::FOLD)
         , cfg(cfg) {
     }
 
@@ -244,11 +244,11 @@ public:
     void identifySubgraphs();
 
     // Function folding subroutines
-    enum class UzhasType {
+    enum class FunctionPipelineType {
         FOLD,
         CWAI
     };
-    std::vector<std::string> initUzhas(UzhasType utype);
+    std::vector<std::string> initFunctionPipeline(FunctionPipelineType utype);
 
     // this implicit shared state can be lifted to some new
     // kind of object
@@ -270,7 +270,7 @@ public:
     void finalizeLinks();
 
 private:
-    UzhasType uzhas_type;
+    FunctionPipelineType func_pipeline_type;
     ::intel_npu::Config& cfg;
 };
 
@@ -362,7 +362,7 @@ void Partitioner::identifySubgraphs() {
                 // if has_and_set_bound() == true, lower/upper values are the same tensor.
                 auto new_const = std::make_shared<ov::op::v0::Constant>(output_tensor.get_upper_value());
                 result = std::static_pointer_cast<ov::Node>(new_const);
-                LOG_INFO("Found bound value in " << output << ", substituting it with " << new_const);
+                LOG_VERB("Found bound value in " << output << ", substituting it with " << new_const);
             } else {
                 // OK, actually introduce a parameter, cache it, and return.
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(output.get_element_type(),
@@ -373,7 +373,7 @@ void Partitioner::identifySubgraphs() {
             return result;
         };
         for (auto &&input_layer_name : group.input_layers) {
-            LOG_INFO("Processing group's input layer " << input_layer_name);
+            LOG_VERB("Processing group's input layer " << input_layer_name);
             auto input_layer_ptr = node_id_cache.at(input_layer_name);
             if (input_layer_ptr->inputs().empty()) {
                 OPENVINO_THROW("The group's input layer ",
@@ -439,7 +439,7 @@ void Partitioner::identifySubgraphs() {
         } // for (input_layers)
         // Transform the accumulated parameters to the subgraph model's input parameter vector
         // Also track the connectivity
-        LOG_INFO("Populating _parameters...");
+        LOG_VERB("Populating _parameters...");
         group.sg._parameters.clear();
         for (auto &&im: input_mapping) {
             LOG_BLOCK();
@@ -466,10 +466,10 @@ void Partitioner::identifySubgraphs() {
         // The same logic for group's final layers: replace their direct
         // connections with Result stubs (but remember where these outputs
         // were going to).
-        LOG_INFO("Populating _results...");
+        LOG_VERB("Populating _results...");
         std::size_t num_optimized_out_layers = 0u;
         for (auto &&output_layer_name : group.output_layers) {
-            LOG_INFO("Processing group's output layer " << output_layer_name);
+            LOG_VERB("Processing group's output layer " << output_layer_name);
             LOG_BLOCK();
             auto output_layer_ptr = node_id_cache.at(output_layer_name);
             if (output_layer_ptr->inputs().empty()) {
@@ -495,7 +495,7 @@ void Partitioner::identifySubgraphs() {
                 auto readers = output_desc.get_target_inputs();
                 // This is possible then some of layer's outputs are not used in the model.
                 if (readers.empty()) {
-                    LOG_INFO("Output layer " << output_desc.get_node()->get_friendly_name() << " was OPTIMIZED OUT since it has no readers.");
+                    LOG_VERB("Output layer " << output_desc.get_node()->get_friendly_name() << " was OPTIMIZED OUT since it has no readers.");
                     num_optimized_out++;
                     continue;
                 }
@@ -529,7 +529,7 @@ void Partitioner::identifySubgraphs() {
                         // foldable, no need to introduce Result too.
                         // Actually it is OK for CPU and GPU, but it breaks the NPU plugin.
                         num_optimized_out++;
-                        LOG_INFO("Discarding " << output_desc << " -- optimized out!");
+                        LOG_VERB("Discarding " << output_desc << " -- optimized out!");
                     } else {
                         auto new_result = std::make_shared<ov::op::v0::Result>(output_desc);
                         result_cache[output_layer_ptr] = LinkPtrFrom{this_group_idx, new_result};
@@ -543,7 +543,7 @@ void Partitioner::identifySubgraphs() {
                 num_optimized_out_layers++;
             }
             const auto new_results_size = group.sg._results.size();
-            LOG_INFO("Note: Processing the group " << this_group_idx
+            LOG_VERB("Note: Processing the group " << this_group_idx
                      << " output layer " << output_layer_name
                      << " added " << new_results_size - old_results_size
                      << " new Result node(s)");
@@ -552,7 +552,7 @@ void Partitioner::identifySubgraphs() {
             if (num_optimized_out_layers != group.output_layers.size()) {
                 OPENVINO_THROW("NPUW Fatal: No Results registered for group ", this_group_idx);
             } else {
-                LOG_INFO("Completely optimize out group " << this_group_idx);
+                LOG_VERB("Completely optimize out group " << this_group_idx);
                 group.sg._optimized_out = true;
             }
         }
@@ -567,15 +567,15 @@ void Partitioner::identifySubgraphs() {
     }
 }
 
-std::vector<std::string> Partitioner::initUzhas(UzhasType utype) {
-    uzhas_type = utype;
+std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType utype) {
+    func_pipeline_type = utype;
 
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto &&part_sg : P.subgraphs) {
         if (!part_sg._repeated_id.empty()) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
-            auto fcid = uzhas_type == UzhasType::FOLD
+            auto fcid = func_pipeline_type == FunctionPipelineType::FOLD
                 ? part_sg._repeated_id             // with folding, functions of the
                                                    // same group have the same id
                 : part_sg._repeated_id + pfix;     // with CWAI (which is not checked here)
@@ -590,7 +590,7 @@ std::vector<std::string> Partitioner::initUzhas(UzhasType utype) {
         }
     }
 
-    if (uzhas_type == UzhasType::CWAI) {
+    if (func_pipeline_type == FunctionPipelineType::CWAI) {
         // Early return - don't do anything else here.
         // Also update repeated_ids to uniques
         std::vector<std::string> functions;
@@ -603,12 +603,12 @@ std::vector<std::string> Partitioner::initUzhas(UzhasType utype) {
 
     // Then, populate a list of functions and the early layer_to_prototype mapping.
     // The latter will be refined in the following passes.
-    LOG_INFO("Initialize layer banks...");
+    LOG_VERB("Initialize layer banks...");
     std::vector<std::string> functions;
     for (auto &&p : all_functions) {
         LOG_BLOCK();
         functions.push_back(p.first);
-        LOG_INFO("Processing function group " << p.first);
+        LOG_VERB("Processing function group " << p.first);
 
         auto &rep_block = ens.repeated.at(p.first);
 
@@ -627,7 +627,7 @@ std::vector<std::string> Partitioner::initUzhas(UzhasType utype) {
             }
         }
     }
-    LOG_INFO("Done");
+    LOG_VERB("Done");
     return functions;
 }
 
@@ -731,7 +731,7 @@ void Partitioner::propagate(const std::string &func_name,
 } // propagate
 
 void Partitioner::propagateSlices(const std::string &func_name) {
-    LOG_INFO("Propagate Slice nodes to matching banks for model "
+    LOG_VERB("Propagate Slice nodes to matching banks for model "
              << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -771,12 +771,12 @@ void Partitioner::propagateSlices(const std::string &func_name) {
             } (node_ptr->output(0).get_target_inputs());
     };
     propagate(func_name, match_fcn, bank);
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 
 void Partitioner::propagateConverts(const std::string &func_name) {
-    LOG_INFO("Propagate Convert nodes to matching banks for model "
+    LOG_VERB("Propagate Convert nodes to matching banks for model "
              << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -819,11 +819,11 @@ void Partitioner::propagateConverts(const std::string &func_name) {
                                                        ->get_friendly_name()}); // (3)
     };
     propagate(func_name, match_fcn, bank);
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::propagateWeights(const std::string &func_name) {
-    LOG_INFO("Propagate Const Weights to matching banks for model "
+    LOG_VERB("Propagate Const Weights to matching banks for model "
              << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -853,11 +853,11 @@ void Partitioner::propagateWeights(const std::string &func_name) {
                                                              ->get_friendly_name()});
     };
     propagate(func_name, match_fcn, const_bank);
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::propagateScalars(const std::string &func_name) {
-    LOG_INFO("Propagate Const Scalars to matching banks for model "
+    LOG_VERB("Propagate Const Scalars to matching banks for model "
              << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -898,11 +898,11 @@ void Partitioner::propagateScalars(const std::string &func_name) {
     };
     propagate(func_name, match_fcn, scalar_bank);
 
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::sanityCheck(const std::string &func_name) {
-    LOG_INFO("Sanity check function " << func_name
+    LOG_VERB("Sanity check function " << func_name
              << " in model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1002,13 +1002,13 @@ void Partitioner::sanityCheck(const std::string &func_name) {
         }
     }
     NPUW_ASSERT(all_ok);
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::saveTinyConstants(const std::string &func_name) {
     // A simplified version of saveRepeatedConstants()
 
-    LOG_INFO("Preserve tiny constants for " << func_name
+    LOG_VERB("Preserve tiny constants for " << func_name
              << " in model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1039,14 +1039,14 @@ void Partitioner::saveTinyConstants(const std::string &func_name) {
             }
         }
     } // for(n)
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::saveScaleFactors(const std::string &func_name) {
     // A special step in the CWAI pipeline - mark the Scale
     // tensors to be preserved in the function bodies
 
-    LOG_INFO("Preserve scale factors for " << func_name
+    LOG_VERB("Preserve scale factors for " << func_name
              << " in model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1067,7 +1067,7 @@ void Partitioner::saveScaleFactors(const std::string &func_name) {
         LOG_DEBUG("[KEEP] " << const_to_keep);
         func_group.consts_to_keep.insert(const_to_keep);
     }
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::saveRepeatedConstants(const std::string &func_name) {
@@ -1093,7 +1093,7 @@ void Partitioner::saveRepeatedConstants(const std::string &func_name) {
     // objects directly (instead of their std::string identifiers),
     // the algorithm won't change much but will speed-up dramatically.
 
-    LOG_INFO("Identify constants to save for function " << func_name
+    LOG_VERB("Identify constants to save for function " << func_name
              << " in model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1106,7 +1106,7 @@ void Partitioner::saveRepeatedConstants(const std::string &func_name) {
     if (subgr_group.size() == 1) {
         // This is not a repeating block but a subgraph which is forced
         // to be function - run a simpler procedure here
-        LOG_INFO("A FCEW function - switch to a simpler path...");
+        LOG_VERB("A FCEW function - switch to a simpler path...");
         LOG_BLOCK();
         saveTinyConstants(func_name);
         return;
@@ -1194,7 +1194,7 @@ void Partitioner::saveRepeatedConstants(const std::string &func_name) {
 }
 
 void Partitioner::matchParameters(const std::string &func_name) {
-    LOG_INFO("Matching parameters for function " << func_name
+    LOG_VERB("Matching parameters for function " << func_name
              << " in model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1265,11 +1265,11 @@ void Partitioner::matchParameters(const std::string &func_name) {
             }
         }
     }
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::matchResults(const std::string &func_name) {
-    LOG_INFO("Matching results for function " << func_name
+    LOG_VERB("Matching results for function " << func_name
              << " in model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1318,14 +1318,14 @@ void Partitioner::matchResults(const std::string &func_name) {
             }
         }
     }
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
-void Partitioner::createFunction(Uzhas &func_ggg) {
+void Partitioner::createFunction(FunctionPipeline &func_ggg) {
     ov::npuw::Subgraph &body_sg = func_ggg.refs.front();
     const std::string func_name = body_sg._repeated_id;
 
-    LOG_INFO("Registering a new function " << func_name << "...");
+    LOG_VERB("Registering a new function " << func_name << "...");
     LOG_BLOCK();
 
     ov::npuw::Subgraph funcall{};
@@ -1411,7 +1411,7 @@ void Partitioner::createFunction(Uzhas &func_ggg) {
 
     // Write down the funcall to the list of subgraphs
     std::swap(funcall, body_sg);
-    LOG_INFO("Done: " << func_name);
+    LOG_VERB("Done: " << func_name);
 }
 
 void Partitioner::createFunction(const std::string &func_name) {
@@ -1419,7 +1419,7 @@ void Partitioner::createFunction(const std::string &func_name) {
 }
 
 void Partitioner::matchRepeatedSubgraphs(const std::string &func_name) {
-    LOG_INFO("Process function " << func_name
+    LOG_VERB("Process function " << func_name
              << " in model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1499,11 +1499,11 @@ void Partitioner::matchRepeatedSubgraphs(const std::string &func_name) {
         LOG_DEBUG("Done: funcall(" << func_name << ")");
     } // for(rest of models)
 
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::decompressionCutOff(const std::string &func_name) {
-    LOG_INFO("Decompression cut-off for function " << func_name
+    LOG_VERB("Decompression cut-off for function " << func_name
              << " in model " << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1521,7 +1521,7 @@ void Partitioner::decompressionCutOff(const std::string &func_name) {
             OPENVINO_THROW("Unknwon dcoff type: ", dcoff_type_opt);
         }
     } else {
-        LOG_INFO("Cancelled - no dcoff type specified via "
+        LOG_VERB("Cancelled - no dcoff type specified via "
                  << ::intel_npu::NPUW_DCOFF_TYPE().key()
                  << " property.");
         return;
@@ -1536,7 +1536,7 @@ void Partitioner::decompressionCutOff(const std::string &func_name) {
                      << ::intel_npu::NPUW_DCOFF_TYPE().key()
                      << " is not f16 - ignoring");
         } else {
-            LOG_INFO("Decompression cut-off: Weight scaling will be moved off the model");
+            LOG_VERB("Decompression cut-off: Weight scaling will be moved off the model");
             dcoff_mode = ov::npuw::DCOffMode::CAST_SCALE;
         }
     }
@@ -1581,7 +1581,7 @@ void Partitioner::decompressionCutOff(const std::string &func_name) {
         val.run_on_model(f._model);
 
         if (!params_to.scales.empty()) {
-            LOG_INFO("Weight scaling was removed from the function body"
+            LOG_VERB("Weight scaling was removed from the function body"
                      " -- updating the function closure");
             LOG_BLOCK();
 
@@ -1606,11 +1606,11 @@ void Partitioner::decompressionCutOff(const std::string &func_name) {
         LOG_BLOCK();
         LOG_DEBUG(input);
     }
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 void Partitioner::finalizeLinks() {
-    LOG_INFO("Finalizing links in model "
+    LOG_VERB("Finalizing links in model "
              << model->get_friendly_name()
              << "...");
     LOG_BLOCK();
@@ -1632,7 +1632,7 @@ void Partitioner::finalizeLinks() {
             } else {
                 // A function call: find in the prototype subgraph
                 auto &params    = P.functions.at(sg_desc._funcall)._model->get_parameters();
-                auto &proto     = uzhas_type == UzhasType::CWAI
+                auto &proto     = func_pipeline_type == FunctionPipelineType::CWAI
                     ? ptr // no protos in the CWAI case..
                     : all_functions.at(sg_desc._funcall).param_call_to_proto.at(ptr);
                 auto param_iter = std::find(params.begin(), params.end(), proto);
@@ -1654,7 +1654,7 @@ void Partitioner::finalizeLinks() {
             } else {
                 // A function call: find in the prototype subgraph
                 auto &results = P.functions.at(sg_desc._funcall)._model->get_results();
-                auto &proto   = uzhas_type == UzhasType::CWAI
+                auto &proto   = func_pipeline_type == FunctionPipelineType::CWAI
                     ? ptr // no protos in the CWAI case...
                     : all_functions.at(sg_desc._funcall).result_call_to_proto.at(ptr);
                 auto result_iter = std::find(results.begin(), results.end(), proto);
@@ -1689,7 +1689,7 @@ void Partitioner::finalizeLinks() {
         LOG_DEBUG("Record link [" << subgraph_idx_to << "]:" << param_idx
                  << "  <---  [" << subgraph_idx_from << "]/" << result_idx);
     }
-    LOG_INFO("Done");
+    LOG_VERB("Done");
 }
 
 } // namespace
@@ -1763,7 +1763,7 @@ ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model,
     if (!ens.repeated.empty()) {
         if (cfg.get<::intel_npu::NPUW_FOLD>()) {
             // Do full-featured folding
-            auto all_functions = p.initUzhas(Partitioner::UzhasType::FOLD);
+            auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
             for (auto &&func_group : all_functions) {
                 LOG_INFO("FOLD: Process function " << func_group << "...");
                 LOG_BLOCK();
@@ -1784,7 +1784,7 @@ ov::npuw::getPartitioning(const std::shared_ptr<ov::Model> &model,
             // This path is likely to be removed soon (is here for
             // debug purposes only, but doesn't have much practical
             // sense).
-            auto all_functions = p.initUzhas(Partitioner::UzhasType::CWAI);
+            auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::CWAI);
             for (auto &&func_group : all_functions) {
                 LOG_INFO("CWAI: Process function " << func_group << "...");
                 LOG_BLOCK();

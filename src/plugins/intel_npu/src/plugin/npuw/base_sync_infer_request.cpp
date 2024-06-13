@@ -200,7 +200,6 @@ void ov::npuw::IBaseInferRequest::infer() {
             failover_happened |= failover;
         }
     }
-    // std::cout << m_ms_unpack << std::endl;
 
     // Increment counter regardless if dumps etc are enabled or not.
     m_run_iter++;

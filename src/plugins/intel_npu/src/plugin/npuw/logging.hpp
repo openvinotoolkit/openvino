@@ -19,7 +19,8 @@ enum class LogLevel {
     Error = 1,
     Warning = 2,
     Info = 3,
-    Debug = 4
+    Verbose = 4,
+    Debug = 5
 };
 
 LogLevel get_log_level();
@@ -59,6 +60,7 @@ void dump_failure(const std::shared_ptr<ov::Model> &model,
 #define LOG_WARN(str)  LOG_IMPL(str, Warning, "WARN")
 #define LOG_ERROR(str) LOG_IMPL(str, Error,   " ERR")
 #define LOG_DEBUG(str) LOG_IMPL(str, Debug,   " DBG")
+#define LOG_VERB(str)  LOG_IMPL(str, Verbose, "VERB")
 
 #define LOG_BLOCK() \
     ov::npuw::__logging_indent__ object_you_should_never_use__##__LINE__
