@@ -39,7 +39,7 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
         return true;
     }
 
-    OPENVINO_THROW("Invalid option value: ", opt);
+    return false;
 }
 
 ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node> &node) {
