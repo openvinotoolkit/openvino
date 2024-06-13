@@ -547,12 +547,5 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
     }
 
-    if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
-        // Issue 131632
-       retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)");
-       retVector.emplace_back(R"(nightly_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)");
-       retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_Dynamic_FP16/.*brgemm_avx512_amx.*)");
-    }
-
     return retVector;
 }
