@@ -44,9 +44,9 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
     } else {
         // normal values
         const auto input_mantissa_bits = input.bits & f32_mantissa_bits_mask;
-        return input_exponent_bits + static_cast<uint8_t>((input_mantissa_bits > round_even) ||  // round to nearest
-                                                          (input_mantissa_bits == round_even) && // round to even
-                                                              (input_exponent_bits & 0x1));
+        return input_exponent_bits + static_cast<uint8_t>((input_mantissa_bits > round_even) ||    // round to nearest
+                                                          ((input_mantissa_bits == round_even) &&  // round to even
+                                                           (input_exponent_bits & 0x1)));
     }
 }
 }  // namespace
@@ -54,13 +54,16 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
 float8_e8m0::float8_e8m0(const float value) : m_value(f32_to_f8e8m0_bits(value)){};
 
 float8_e8m0::operator float() const {
-    if (to_bits() == 0xff) {
+    constexpr auto f8e8m0_2_power_negative_127 = std::numeric_limits<ov::float8_e8m0>::min();
+    constexpr auto float_2_power_negative_127 = std::numeric_limits<float>::min() / 2;
+
+    if (to_bits() == std::numeric_limits<ov::float8_e8m0>::quiet_NaN().to_bits()) {
         return std::numeric_limits<float>::quiet_NaN();
-    } else if (to_bits() == 0x00) {
-        return std::numeric_limits<float>::min() / 2;
+    } else if (to_bits() == f8e8m0_2_power_negative_127.to_bits()) {
+        return float_2_power_negative_127;
     }
 
-    return f32_t{static_cast<uint32_t>(m_value & byte_mask) << f32_mantissa_bits}.value;
+    return f32_t{static_cast<uint32_t>(m_value) << f32_mantissa_bits}.value;
 }
 
 uint8_t float8_e8m0::to_bits() const {
