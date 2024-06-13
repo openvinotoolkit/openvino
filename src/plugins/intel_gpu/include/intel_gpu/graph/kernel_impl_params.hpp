@@ -44,7 +44,7 @@ struct kernel_impl_params final {
     std::vector<cldnn::fused_primitive_desc> fused_desc;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
-    std::shared_ptr<dnnl::primitive_attr> attrs_onednn;
+    std::shared_ptr<dnnl::primitive_attr> attrs_onednn = std::make_shared<dnnl::primitive_attr>();
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     optional_layout weights_layout = optional_layout();

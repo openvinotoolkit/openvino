@@ -142,8 +142,8 @@ public:
             }
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        params->fused_desc_onednn   = this->fused_prims_onednn;
-        params->attrs_onednn        = this->onednn_attrs;
+        params->fused_desc_onednn   = get_fused_primitives_onednn();
+        params->attrs_onednn        = get_onednn_primitive_attributes();
 #endif // ENABLE_ONEDNN_FOR_GPU
         return params;
     }
@@ -570,9 +570,9 @@ struct typed_program_node : public typed_program_node_base<PType> {
 void create_onednn_primitive_attributes(
                             const cldnn::program_node& node,
                             const std::vector<fused_primitive_desc>& cldnn_post_ops,
-                            const kernel_impl_params& impl_params,
                             std::shared_ptr<dnnl::primitive_attr>& attrs,
-                            std::vector<fused_primitive_desc_onednn>& fused_ops);
+                            std::vector<fused_primitive_desc_onednn>& fused_ops,
+                            kernel_impl_params* impl_params);
 
 #endif
 
