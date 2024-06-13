@@ -8,17 +8,7 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "npu_private_properties.hpp"
 
-namespace ov {
-namespace test {
-namespace behavior {
-
-template <typename T>
-constexpr std::vector<T> operator+(const std::vector<T>& vector1, const std::vector<T>& vector2) {
-    std::vector<T> result;
-    result.insert(std::end(result), std::begin(vector1), std::end(vector1));
-    result.insert(std::end(result), std::begin(vector2), std::end(vector2));
-    return result;
-}
+namespace ov::test::behavior {
 
 std::string OVPropertiesTestsNPU::getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj) {
     std::string target_device;
@@ -121,7 +111,6 @@ TEST_P(OVPropertiesIncorrectTestsNPU, SetPropertiesWithIncorrectKey) {
     }
 }
 
-// check if property is not supported -> set property -> check if property was set
 TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
@@ -192,6 +181,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(CorrectPluginMutableProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTestsNPU>));
 
-}  // namespace behavior
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::behavior

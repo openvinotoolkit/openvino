@@ -13,9 +13,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 
-namespace ov {
-namespace test {
-namespace behavior {
+namespace ov::test::behavior {
 
 using PropertiesParamsNPU = std::tuple<std::string, AnyMap>;
 
@@ -32,9 +30,8 @@ using OVPropertiesIncorrectTestsNPU = OVPropertiesTestsNPU;
 
 using CompileModelPropertiesParamsNPU = std::tuple<std::string, AnyMap>;
 
-class OVPropertiesTestsWithCompileModelPropsNPU :
-        public testing::WithParamInterface<PropertiesParamsNPU>,
-        public OVPropertiesBase {
+class OVPropertiesTestsWithCompileModelPropsNPU : public testing::WithParamInterface<PropertiesParamsNPU>,
+                                                  public OVPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj);
 
@@ -47,6 +44,4 @@ public:
 
 using OVCheckSetSupportedRWMetricsPropsTestsNPU = OVPropertiesTestsWithCompileModelPropsNPU;
 
-}  // namespace behavior
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::behavior
