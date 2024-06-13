@@ -199,15 +199,6 @@ connection is dedicated only to measuring performance.
 You can also test performance for your system yourself, following the guide on
 :doc:`getting performance numbers <performance-benchmarks/getting-performance-numbers>`.
 
-Performance of a particular application can also be evaluated virtually using
-`Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__.
-It is a remote development environment with access to Intel® hardware and the latest versions
-of the Intel® Distribution of the OpenVINO™ Toolkit. To learn more about it, visit
-`the website <https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html>`__
-or
-`create an account <https://www.intel.com/content/www/us/en/secure/forms/devcloud-enrollment/account-provisioning.html>`__.
-
-
 .. raw:: html
 
    <h2>Disclaimers</h2>

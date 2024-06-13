@@ -107,14 +107,6 @@ Discontinued:
                :language: cpp
                :fragment: [export_compiled_model]
 
-.. dropdown:: DL Workbench
-
-   |   *New solution:* DevCloud version
-   |   *Old solution:* local distribution discontinued in OpenVINO 2022.3
-   |      The stand-alone version of DL Workbench, a GUI tool for previewing and benchmarking
-          deep learning models, has been discontinued. You can use its cloud version:
-   |      `Intel® Developer Cloud for the Edge <https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html>`__.
-
 .. dropdown:: TensorFlow integration (OVTF)
 
    |   *New solution:* Direct model support and OpenVINO Converter (OVC)
