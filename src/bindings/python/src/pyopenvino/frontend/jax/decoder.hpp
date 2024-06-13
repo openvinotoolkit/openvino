@@ -16,7 +16,7 @@
 
 namespace py = pybind11;
 
-/// Trampoline class to support inheritence from TorchDecoder in Python
+/// Trampoline class to support inheritence from JaxDecoder in Python
 class PyDecoder : public ov::frontend::jax::JaxDecoder {
     using ov::frontend::jax::JaxDecoder::JaxDecoder;
 
