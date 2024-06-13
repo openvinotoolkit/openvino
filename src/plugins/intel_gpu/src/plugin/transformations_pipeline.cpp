@@ -789,17 +789,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
-        if (getenv("FC_FUSION") != nullptr)
+
+        bool disable_horizontal_fc_fusion = false;
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->disable_horizontal_fc_fusion == 1)
+            disable_horizontal_fc_fusion = true;
+
+        if (!disable_horizontal_fc_fusion)
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
         if (device_info.supports_immad) {
             // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
             // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
             manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
-            if (getenv("FC_FUSION") == nullptr)
+            if (disable_horizontal_fc_fusion)
                 manager.register_pass<ov::pass::ConstantFolding>();
         }
-        if (getenv("FC_FUSION") != nullptr)
+        if (!disable_horizontal_fc_fusion)
             manager.register_pass<ov::pass::ConstantFolding>();
+
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
         pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {

@@ -82,7 +82,7 @@ public:
         result << "has_bias=" << has_bias;
 
         return result.str();
-    };
+    }
 
 protected:
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& weights_shape,
@@ -266,7 +266,7 @@ protected:
             auto bias3_const = std::make_shared<ov::op::v0::Constant>(bias3_tensor);
             auto bias_add3 = std::make_shared<ov::op::v1::Add>(matmul3, bias3_const);
             bias_add3->set_friendly_name("add3");
- 
+
             auto matmul4 = std::make_shared<ov::op::v0::MatMul>(bias_add1, bias_add2, true, false);
             matmul4->set_friendly_name("gemm1");
             auto matmul5 = std::make_shared<ov::op::v0::MatMul>(matmul4, bias_add3, true, true);

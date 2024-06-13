@@ -98,14 +98,12 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         auto weight_dtype = fc_nodes[0]->get_input_element_type(1);
         auto k_size = fc_nodes[0]->get_input_shape(1)[fc_nodes[0]->get_input_shape(1).size() - 1];
         std::vector<int64_t> orig_n_sizes;
-        auto new_n_size = 0;
         // merge weights, scale, zp
         for (auto fc : fc_nodes) {
             if (k_size != fc->get_input_shape(1)[fc->get_input_shape(1).size() - 1])
                 return false;
             if (weight_dtype != fc->get_input_element_type(1))
                 return false;
-            new_n_size += fc->get_input_shape(1)[fc->get_input_shape(1).size() - 2];
             orig_n_sizes.push_back(fc->get_input_shape(1)[fc->get_input_shape(1).size() - 2]);
         }
         auto weight_nodes_as_output_vector = ov::OutputVector{weight_nodes[0], weight_nodes[1], weight_nodes[2]};
@@ -149,13 +147,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
                     if (!current_is_scalar)
                         return false;
                     // validate all zp values are same
-                    int32_t cur_zp_val;
+                    int32_t cur_zp_val = 0;
                     if (auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_nodes[i])) {
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
                     } else if (auto zp_convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(zp_nodes[i])) {
                         auto zp_const =
                             std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
+                    } else {
+                        OPENVINO_ASSERT("Unsupported zp input node for FC horizontal fusion");
                     }
                     if (cur_zp_val != scalar_zp_val)
                         return false;
@@ -195,7 +195,6 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
             }
             org_fc->clear_control_dependencies();
         }
-        std::cout << "Fusing done" << std::endl;
         return true;
     };
 
