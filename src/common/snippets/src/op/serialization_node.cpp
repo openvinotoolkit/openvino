@@ -40,22 +40,58 @@ std::shared_ptr<Node> SerializationNode::clone_with_new_inputs(const OutputVecto
 }
 
 bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
+    auto is_planar_layout = [](const std::vector<size_t>& layout) {
+        for (size_t i = 0; i < layout.size(); ++i)
+            if (layout[i] != i) return false;
+        return true;
+    };
+    auto subtensor2str = [](const VectorDims& subtensor) {
+        std::stringstream ss;
+        for (size_t i = 0; i < subtensor.size(); ++i) {
+            const auto& v = subtensor[i];
+            const auto v_str = (v == lowered::PortDescriptor::ServiceDimensions::FULL_DIM) ? "FULL_DIM" : std::to_string(v);
+            const auto del = i < subtensor.size() - 1 ? ", " : "";
+            ss << v_str << del;
+        }
+        return ss.str();
+    };
+
     std::vector<size_t> in_regs, out_regs;
     std::vector<std::string> in_reg_types, out_reg_types;
-    std::vector<std::pair<std::string, std::vector<size_t>>> shapes;
+    std::vector<std::pair<std::string, ov::PartialShape>> shapes;
+    std::vector<std::pair<std::string, std::string>> subtensors;
+    std::vector<std::pair<std::string, std::vector<size_t>>> layouts;
     for (size_t i = 0; i < m_expr->get_input_count(); i++) {
         const auto& desc = m_expr->get_input_port_descriptor(i);
-        const auto &shape = desc->get_shape();
+        const auto& shape = desc->get_shape();
         if (!shape.empty())
-            shapes.emplace_back("in_shape_" + std::to_string(i), shape);
+            shapes.emplace_back("in_shape_" + std::to_string(i), ov::PartialShape(shape));
+
+        const auto& subtensor = desc->get_subtensor();
+        if (!subtensor.empty())
+            subtensors.emplace_back("in_subtensor_" + std::to_string(i), subtensor2str(subtensor));
+
+        const auto& layout = desc->get_layout();
+        if (!layout.empty() && !is_planar_layout(layout))
+            layouts.emplace_back("in_layout_" + std::to_string(i), layout);
+
         in_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
         in_regs.emplace_back(desc->get_reg().idx);
     }
     for (size_t i = 0; i < m_expr->get_output_count(); i++) {
         const auto& desc = m_expr->get_output_port_descriptor(i);
-        const auto &shape = desc->get_shape();
+        const auto& shape = desc->get_shape();
         if (!shape.empty())
-            shapes.emplace_back("out_shape_" + std::to_string(i), shape);
+            shapes.emplace_back("out_shape_" + std::to_string(i), ov::PartialShape(shape));
+
+        const auto& subtensor = desc->get_subtensor();
+        if (!subtensor.empty())
+            subtensors.emplace_back("out_subtensor_" + std::to_string(i), subtensor2str(subtensor));
+
+        const auto& layout = desc->get_layout();
+        if (!layout.empty() && !is_planar_layout(layout))
+            layouts.emplace_back("out_layout_" + std::to_string(i), layout);
+
         out_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
         out_regs.emplace_back(desc->get_reg().idx);
     }
@@ -69,6 +105,10 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
         visitor.on_attribute("out_reg_types", out_reg_types);
     }
     for (auto& s : shapes)
+        visitor.on_attribute(s.first, s.second);
+    for (auto& s : subtensors)
+        visitor.on_attribute(s.first, s.second);
+    for (auto& s : layouts)
         visitor.on_attribute(s.first, s.second);
 
     auto loop_ids = m_expr->get_loop_ids();

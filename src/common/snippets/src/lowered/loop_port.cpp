@@ -27,10 +27,6 @@ std::shared_ptr<LoopPort> LoopPort::clone_with_new_expr(const ExpressionPtr& new
     return new_loop_port;
 }
 
-bool LoopPort::is_dynamic() const {
-    return utils::is_dynamic_value(ptr_increment) || utils::is_dynamic_value(finalization_offset);
-}
-
 bool operator==(const LoopPort& lhs, const LoopPort& rhs) {
     if (&lhs == &rhs)
         return true;

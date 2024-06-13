@@ -116,6 +116,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Slice", Type::StridedSlice},
         {"Tile", Type::Tile},
         {"ROIAlign", Type::ROIAlign},
+        {"ROIAlignRotated", Type::ROIAlignRotated},
         {"ROIPooling", Type::ROIPooling},
         {"PSROIPooling", Type::PSROIPooling},
         {"DeformablePSROIPooling", Type::PSROIPooling},
@@ -162,8 +163,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ReduceSumSquare", Type::Reduce},
         {"Broadcast", Type::Broadcast},
         {"EmbeddingSegmentsSum", Type::EmbeddingSegmentsSum},
-        {"EmbeddingBagPackedSum", Type::EmbeddingBagPackedSum},
-        {"EmbeddingBagOffsetsSum", Type::EmbeddingBagOffsetsSum},
+        {"EmbeddingBagPackedSum", Type::EmbeddingBagPacked},
+        {"EmbeddingBagOffsetsSum", Type::EmbeddingBagOffsets},
         {"Gather", Type::Gather},
         {"GatherElements", Type::GatherElements},
         {"GatherND", Type::GatherND},
@@ -186,7 +187,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ceiling", Type::Math},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
-        {"Floor", Type::Math},
+        {"Floor", Type::Eltwise},
         {"HardSigmoid", Type::Math},
         {"If", Type::If},
         {"Neg", Type::Math},
@@ -237,10 +238,14 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ngram", Type::Ngram},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
-        {"PagedAttentionExtension", Type::ScaledDotProductAttention},
+        {"PagedAttentionExtension", Type::PagedAttention},
         {"RoPE", Type::RoPE},
         {"GatherCompressed", Type::Gather},
         {"CausalMaskPreprocess", Type::CausalMaskPreprocess},
+        {"EmbeddingBagPacked", Type::EmbeddingBagPacked},
+        {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
+        {"LLMMLP", Type::LLMMLP},
+        {"QKVProjection", Type::QKVProjection},
     };
     return type_to_name_tbl;
 }
@@ -280,6 +285,7 @@ std::string NameFromType(const Type type) {
         CASE(NonZero);
         CASE(Tile);
         CASE(ROIAlign);
+        CASE(ROIAlignRotated);
         CASE(ROIPooling);
         CASE(PSROIPooling);
         CASE(DepthToSpace);
@@ -309,6 +315,8 @@ std::string NameFromType(const Type type) {
         CASE(Reduce);
         CASE(Broadcast);
         CASE(EmbeddingSegmentsSum);
+        CASE(EmbeddingBagPacked);
+        CASE(EmbeddingBagOffsets);
         CASE(EmbeddingBagPackedSum);
         CASE(EmbeddingBagOffsetsSum);
         CASE(Gather);
@@ -358,8 +366,11 @@ std::string NameFromType(const Type type) {
         CASE(Unique);
         CASE(Ngram);
         CASE(ScaledDotProductAttention);
+        CASE(PagedAttention);
         CASE(RoPE);
         CASE(CausalMaskPreprocess);
+        CASE(LLMMLP);
+        CASE(QKVProjection);
         CASE(Unknown);
     }
 #undef CASE
@@ -387,6 +398,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseMultiply);
         CASE(EltwiseSubtract);
         CASE(EltwiseDivide);
+        CASE(EltwiseFloor);
         CASE(EltwiseFloorMod);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);

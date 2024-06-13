@@ -8,7 +8,7 @@ Tokenizers convert the input text into a sequence of tokens with corresponding I
 the model can understand and process it during inference. The transformation of a sequence of numbers into a
 string is called detokenization.
 
-.. image:: ../../_static/images/tokenization.svg
+.. image:: ../../assets/images/tokenization.svg
    :align: center
 
 There are two important points in the tokenizer-model relation:
@@ -25,7 +25,7 @@ tokenizer conversion for seamless integration into your project. With OpenVINO T
 
 * Convert Hugging Face tokenizers into OpenVINO tokenizer and detokenizer for efficient deployment across different environments. See the `conversion example <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#convert-huggingface-tokenizer>`__ for more details.
 
-* Combine OpenVINO models into a single model. Recommended for specific models, like classifiers or RAG Embedders, where both tokenizer and a model are used once in each pipeline inference. For more information, see the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/128-openvino-tokenizers>`__.
+* Combine OpenVINO models into a single model. Recommended for specific models, like classifiers or RAG Embedders, where both tokenizer and a model are used once in each pipeline inference. For more information, see the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-tokenizers>`__.
 
 * Add greedy decoding pipeline to text generation models.
 
@@ -273,7 +273,7 @@ Convert Tokenizers:
          tokenizer, detokenizer = compile_model(ov_tokenizer), compile_model(ov_detokenizer)
 
 The result is two OpenVINO models: ``ov_tokenizer`` and ``ov_detokenizer``.
-You can find more information and code snippets in the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/128-openvino-tokenizers>`__.
+You can find more information and code snippets in the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-tokenizers>`__.
 
 2. Tokenize and Prepare Inputs
 +++++++++++++++++++++++++++++++
@@ -337,7 +337,7 @@ Additional Resources
 ####################
 
 * `OpenVINO Tokenizers repo <https://github.com/openvinotoolkit/openvino_tokenizers>`__
-* `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/128-openvino-tokenizers>`__
+* `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-tokenizers>`__
 * `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 

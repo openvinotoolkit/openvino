@@ -31,6 +31,7 @@ public:
     std::string getBackendName() const;
     uint32_t getDriverVersion() const;
     uint32_t getDriverExtVersion() const;
+    bool isBatchingSupported() const;
     void registerOptions(OptionsDesc& options) const;
     std::string getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;
 

@@ -23,18 +23,13 @@ std::shared_ptr<ov::Model> GetDefaultGraph() {
     size_t spatialDims = 2;
     std::vector<ptrdiff_t> padBegin(spatialDims, 0), padEnd(spatialDims, 0);
     ov::Shape strides(spatialDims, 1);
-    auto weights = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64, 3, 7, 7}, {},
-            true);
+    auto weights = ov::test::utils::make_constant(ov::element::f32, {64, 3, 7, 7});
     auto conv1 = std::make_shared<ov::op::v1::Convolution>(input, weights, strides,
             padBegin, padEnd, strides);
-    auto gamma = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
-            true);
-    auto beta = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
-            true);
-    auto mean = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
-            true);
-    auto variance = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
-            true);
+    auto gamma = ov::test::utils::make_constant(ov::element::f32, {64});
+    auto beta = ov::test::utils::make_constant(ov::element::f32, {64});
+    auto mean = ov::test::utils::make_constant(ov::element::f32, {64});
+    auto variance = ov::test::utils::make_constant(ov::element::f32, {64});
     auto batchNorm1 = std::make_shared<ov::op::v0::BatchNormInference>(conv1, gamma,
             beta, mean, variance, 1e-5);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(batchNorm1);

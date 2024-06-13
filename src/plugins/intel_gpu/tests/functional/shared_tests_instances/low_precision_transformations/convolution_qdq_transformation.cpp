@@ -85,6 +85,60 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
     //  |FP32                  |FP32
     //  |                      |
     // Convert    Constant    Convert
+    //  |U8         |U8        |U8
+    //  |           |          |
+    // Convert    Convert     Convert  Constant
+    //   \FP32    /FP32        |FP32   /U8
+    //    \      /             |      /
+    //    Subtract  Constant  Subtract  Constant
+    //      \FP32   /FP32      |FP32   /FP32
+    //       \     /           |      /
+    //       Multiply         Multiply
+    //         \FP32         /FP32
+    //          \           /
+    //           Convolution
+    //
+    // Transformed:
+    //
+    // Parameter  Constant  Constant
+    //   \U8      /U8      /U8
+    //    \      /        /
+    //    Subtract   Subtract
+    //      \FP32    /FP32
+    //       \      /
+    //       Convolution  Constant
+    //         \FP32      /FP32
+    //          \        /
+    //           Multiply
+    {
+        { 256ul, {{ 1, 1, 1, 1 }}, { -12.8f }, { 12.7f }, { 0.f }, { 255.f }, ov::element::f32 },
+        { ov::element::u8, false },
+        {
+            {ov::element::f32},
+            { {128.f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
+            { {0.1f}, ov::element::f32, {}, false }
+        },
+        { std::vector<float>{ 15.f }, ov::element::f32},
+        { 256ul, ov::Shape({ 1, 1, 1, 1 }), { 0.f }, { 25.5f }, { 0.f }, { 255.f }, ov::element::f32 },
+        { ov::element::u8, false },
+        {
+            { ov::element::f32, false },
+            { {0.3f}, ov::element::f32, {}, false, 1ul, ov::element::u8, true },
+            { {0.2f}, ov::element::f32, {}, false }
+        },
+        "Convolution",
+        ov::element::u8.get_type_name()
+    },
+
+    // Actual:
+    //
+    //                        Constant
+    //                         |      Constant Constant Constant Constant
+    //                         |      /FP32    /FP32    /FP32    /FP32
+    // FakeQuantize           FakeQuantize
+    //  |FP32                  |FP32
+    //  |                      |
+    // Convert    Constant    Convert
     //  |U8         |U8        |I8
     //  |           |          |
     // Convert    Convert     Convert

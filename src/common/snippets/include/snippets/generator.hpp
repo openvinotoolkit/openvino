@@ -23,7 +23,6 @@ class Generator;
  * @interface LoweringResult
  * @brief Holds all relevant information produced during lowering
  * @param compiled_snippet pointer to interface class that encapsulates compiled binary code
- * @param buffer_scratchpad_size the amount of additional memory required by the binary code to execute.
  * Must be allocated and freed by the backend.
  */
 class LoweringResult {
@@ -34,7 +33,6 @@ class LoweringResult {
 
 public:
     std::shared_ptr<CompiledSnippet> compiled_snippet = nullptr;
-    size_t buffer_scratchpad_size = 0;
 };
 
 /**
@@ -47,11 +45,9 @@ public:
     Schedule() = default;
     /**
      * @brief Create schedule out of specific parameters
-     * @param domain work domain for kernel execution
      * @param lr lowering result produced during code generation
      */
-    Schedule(std::vector<size_t>&& domain, LoweringResult&& lr) : parallel_exec_domain(domain), lowering_result(lr) {}
-    Schedule(std::vector<size_t> domain, LoweringResult&& lr) : parallel_exec_domain(std::move(domain)), lowering_result(lr) {}
+    Schedule(LoweringResult&& lr) : lowering_result(lr) {}
     /**
      * @brief Returns callable instanse of code pointer
      */
@@ -59,7 +55,6 @@ public:
         return reinterpret_cast<K>(const_cast<unsigned char*>(lowering_result.compiled_snippet->get_code()));
     }
 
-    VectorDims parallel_exec_domain {};
     LoweringResult lowering_result {};
 };
 
@@ -79,17 +74,12 @@ public:
      */
     virtual ~Generator() = default;
     /**
-    * @interface GeneratorConfig
-    * @brief Allows to tweak the lowering process.
-    */
-    /**
      * @brief generates executable code
      * @param linear_ir lowered IR for code generation
-     * @param result variable to hande the result, only compiled_snippet and m_saved_emitters field will be modified
      * @param compile_params compile-time parameters used for code generation
-     * @return void
+     * @return variable to handle the result
      */
-    void generate(lowered::LinearIR& linear_ir, LoweringResult& result, const void* compile_params = nullptr) const;
+    LoweringResult generate(lowered::LinearIR& linear_ir, const void* compile_params = nullptr) const;
 
     /**
      * @brief gets target machine

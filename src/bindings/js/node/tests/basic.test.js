@@ -77,14 +77,14 @@ describe('Core.compileModelSync()', () => {
   it('compileModelSync(model, device, config) throws when config is a string', () => {
     assert.throws(
       () => core.compileModelSync(model, 'CPU', 'string'),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      "Argument #3 must be an Object."
     );
   });
 
   it('compileModelSync(model, device, config) throws when config value is not a string', () => {
     assert.throws(
       () => core.compileModelSync(model, 'CPU', { 'PERFORMANCE_HINT': tput }),
-      /Cannot convert Napi::Value to ov::Any/
+      /Cannot convert to ov::Any/
     );
   });
 
@@ -124,14 +124,14 @@ describe('Core.compileModel()', () => {
   it('compileModel(model, device, config) throws when config isn\'t an object', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', 'string').then(),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      "Argument #3 must be an Object."
     );
   });
 
   it('compileModel(model, device, config) throws when config value is not a string', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', { 'PERFORMANCE_HINT': tput }).then(),
-      /Cannot convert Napi::Value to ov::Any/
+      /Cannot convert to ov::Any/
     );
   });
 

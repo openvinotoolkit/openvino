@@ -314,8 +314,8 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
             std::vector<Dimension> dims(new_rank);
             bool success = true;
             for (int64_t i = 0; i < new_rank; i++) {
-                auto dsti = i < (new_rank - dst_rank) ? Dimension(1) : dst[i - (new_rank - dst_rank)];
-                auto srci = i < (new_rank - src_rank) ? Dimension(1) : src[i - (new_rank - src_rank)];
+                const auto& dsti = i < (new_rank - dst_rank) ? Dimension(1) : dst[i - (new_rank - dst_rank)];
+                const auto& srci = i < (new_rank - src_rank) ? Dimension(1) : src[i - (new_rank - src_rank)];
                 success &= Dimension::broadcast_merge(dims[i], dsti, srci);
             }
             dst = PartialShape(std::move(dims));

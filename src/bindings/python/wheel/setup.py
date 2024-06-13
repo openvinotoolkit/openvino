@@ -621,6 +621,7 @@ def find_entry_points(install_cfg):
     """Creates a list of entry points for OpenVINO runtime package."""
     entry_points = {
         "console_scripts": [],
+        "torch_dynamo_backends": ["openvino=openvino.frontend.pytorch.torchdynamo.backend:openvino"],
     }
     for comp_info in install_cfg.values():
         empty_point = comp_info.get("entry_point")

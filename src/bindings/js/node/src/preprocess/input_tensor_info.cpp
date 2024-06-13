@@ -21,7 +21,7 @@ Napi::Function InputTensorInfo::get_class_constructor(Napi::Env env) {
 Napi::Value InputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {
-            auto layout = js_to_cpp<ov::Layout>(info, 0, {napi_string});
+            const auto& layout = js_to_cpp<ov::Layout>(info, 0);
             _tensor_info->set_layout(layout);
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
@@ -35,7 +35,7 @@ Napi::Value InputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
 Napi::Value InputTensorInfo::set_shape(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {
-            auto shape = js_to_cpp<ov::Shape>(info, 0, {napi_int32_array, js_array});
+            const auto& shape = js_to_cpp<ov::Shape>(info, 0);
             _tensor_info->set_shape(shape);
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
@@ -47,16 +47,18 @@ Napi::Value InputTensorInfo::set_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value InputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1) {
-        try {
-            auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
-            _tensor_info->set_element_type(type);
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-        }
-    } else {
-        reportError(info.Env(), "Error in setElementType(). Wrong number of parameters.");
+    try {
+        OPENVINO_ASSERT(info.Length() == 1, "Error in setElementType(). Wrong number of parameters.");
+
+        const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
+
+        OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
+
+        _tensor_info->set_element_type(type);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
     }
+
     return info.This();
 }
 

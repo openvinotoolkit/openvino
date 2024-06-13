@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_from_archive_linux}
-
 Install OpenVINO™ Runtime on Linux from an Archive File
 =========================================================
 
@@ -30,9 +28,9 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        Ubuntu18 x86_64       V      V     n/a
        Ubuntu20 x86_64       V      V      V
        Ubuntu22 x86_64       V      V      V
+       Ubuntu24 x86_64       V      V      V
        RHEL8 x86_64          V      V     n/a
       ===================  =====  =====  =====
-
 
 .. tab-set::
 
@@ -95,8 +93,6 @@ Install OpenVINO™ Runtime on Linux from an Archive File
 
 
 
-
-
 Installing OpenVINO Runtime
 ############################################################
 
@@ -129,6 +125,16 @@ Step 1: Download and Install the OpenVINO Core Components
          :sync: x86-64
 
          .. tab-set::
+
+            .. tab-item:: Ubuntu 24.04
+               :sync: ubuntu-24
+
+               .. code-block:: sh
+
+
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_ubuntu22_2024.1.0.15008.f4afc983258_x86_64.tgz --output openvino_2024.1.0.tgz
+                  tar -xf openvino_2024.1.0.tgz
+                  sudo mv l_openvino_toolkit_ubuntu24_2024.1.0.15008.f4afc983258_x86_64 /opt/intel/openvino_2024.1.0
 
             .. tab-item:: Ubuntu 22.04
                :sync: ubuntu-22
@@ -283,7 +289,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
    .. tab-item:: Get started with Python
       :sync: get-started-py
 
-      Try the `Python Quick Start Example <../../notebooks/201-vision-monodepth-with-output.html>`__
+      Try the `Python Quick Start Example <../../notebooks/vision-monodepth-with-output.html>`__
       to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
@@ -291,9 +297,9 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 
       Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-      * `OpenVINO Python API Tutorial <../../notebooks/002-openvino-api-with-output.html>`__
-      * `Basic image classification program with Hello Image Classification <../../notebooks/001-hello-world-with-output.html>`__
-      * `Convert a PyTorch model and use it for image background removal <../../notebooks/205-vision-background-removal-with-output.html>`__
+      * `OpenVINO Python API Tutorial <../../notebooks/openvino-api-with-output.html>`__
+      * `Basic image classification program with Hello Image Classification <../../notebooks/hello-world-with-output.html>`__
+      * `Convert a PyTorch model and use it for image background removal <../../notebooks/vision-background-removal-with-output.html>`__
 
 
    .. tab-item:: Get started with C++

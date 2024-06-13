@@ -256,7 +256,9 @@ KERNEL (fully_connected_gpu_xb_xb_block_fp16)(
 #if LAST_RG_SIZE > 0
     else
     {
+#if BIAS_TERM
         CHUNK_TYPE bias_val = BIAS_READ(bias, bias_base + sg_elem_offset);
+#endif
 
         uint output_offset = output_base;
         __attribute__((opencl_unroll_hint(LAST_RG_SIZE)))

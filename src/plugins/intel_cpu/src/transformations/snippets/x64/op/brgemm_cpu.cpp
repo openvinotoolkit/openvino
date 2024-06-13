@@ -5,6 +5,7 @@
 #include "brgemm_cpu.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "utils/general_utils.h"
 #include "snippets/utils.hpp"
@@ -90,7 +91,7 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
     set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
 
     // Additional check for 3rd input
-    validate_with_scratchpad(planar_input_shapes[1].get_shape());
+    validate_with_scratchpad();
 }
 
 void BrgemmCPU::validate_and_infer_types() {
@@ -103,10 +104,10 @@ void BrgemmCPU::validate_and_infer_types() {
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 
     // Additional check for 3rd input
-    validate_with_scratchpad(planar_input_shapes[1].get_shape());
+    validate_with_scratchpad();
 }
 
-void BrgemmCPU::validate_with_scratchpad(const ov::Shape& shape_b) const {
+void BrgemmCPU::validate_with_scratchpad() const {
     // Additional check for 3rd input
     if (one_of(m_type, Type::WithCompensations, Type::AMX)) {
         const auto& pshape = get_input_partial_shape(2);
@@ -169,8 +170,19 @@ size_t BrgemmCPU::get_offset_scratch() const {
 
 bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     Brgemm::visit_attributes(visitor);
+    visitor.on_attribute("type", m_type);
     return true;
 }
-
 } // namespace intel_cpu
+
+template <>
+EnumNames<intel_cpu::BrgemmCPU::Type>& EnumNames<intel_cpu::BrgemmCPU::Type>::get() {
+    static auto enum_names =
+        EnumNames<intel_cpu::BrgemmCPU::Type>("ov::intel_cpu::BrgemmCPU::Type",
+                                              {{"floating", intel_cpu::BrgemmCPU::Type::Floating},
+                                               {"with_data_repacking", intel_cpu::BrgemmCPU::Type::WithDataRepacking},
+                                               {"with_compensations", intel_cpu::BrgemmCPU::Type::WithCompensations},
+                                               {"amx", intel_cpu::BrgemmCPU::Type::AMX}});
+    return enum_names;
+}
 } // namespace ov

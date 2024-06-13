@@ -1,5 +1,3 @@
-.. {#openvino_docs_performance_benchmarks_faq}
-
 Performance Information F.A.Q.
 ==============================
 
@@ -32,7 +30,6 @@ Performance Information F.A.Q.
    All of the performance benchmarks are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
    called :doc:`benchmark_app <../../learn-openvino/openvino-samples/benchmark-tool>`.
-   This tool is available for Python and C++ apps.
 
    For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <getting-performance-numbers>`.
 
@@ -53,6 +50,10 @@ Performance Information F.A.Q.
         - THUDM
         - Transformer
         - 32K
+      * - `Falcon-7b-instruct <https://huggingface.co/tiiuae/falcon-7b-instruct>`__
+        - Hugginface
+        - Causal Decoder-only
+        - 2048
       * - `Llama-2-7b-chat <https://ai.meta.com/llama/>`__
         - Meta AI
         - Auto regressive language
@@ -115,8 +116,9 @@ Performance Information F.A.Q.
 
    Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the
    `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__.
-   Before purchasing any hardware, you can test and run models remotely, using
-   `Intel® DevCloud for the Edge <http://devcloud.intel.com/edge/>`__.
+   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>`.
+   documentation. Before purchasing any hardware, you can test and run
+   models remotely, using `Intel® DevCloud for the Edge <http://devcloud.intel.com/edge/>`__.
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 

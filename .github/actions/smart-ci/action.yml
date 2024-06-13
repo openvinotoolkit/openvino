@@ -51,6 +51,9 @@ outputs:
   affected_components:
     description: "Affected components to run validation for and their validation scope"
     value: ${{ steps.smart_ci.outputs.affected_components }}
+  changed_components:
+    description: "Actually changed components (for push events everything is marked as changed)"
+    value: ${{ steps.smart_ci.outputs.changed_components }}
   skip_workflow:
     description: "Whether the workflow should be run with Smart CI rules applied or skipped completely"
     value: ${{ steps.smart_ci.outputs.skip_workflow }}

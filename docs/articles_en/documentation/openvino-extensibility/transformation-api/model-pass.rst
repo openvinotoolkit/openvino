@@ -13,11 +13,11 @@ OpenVINO Model Pass
 
 Template for ModelPass transformation class
 
-.. doxygensnippet:: docs/snippets/template_model_transformation.hpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/template_model_transformation.hpp
    :language: cpp
    :fragment: [model_pass:template_transformation_hpp]
 
-.. doxygensnippet:: docs/snippets/template_model_transformation.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/template_model_transformation.cpp
    :language: cpp
    :fragment: [model_pass:template_transformation_cpp]
 

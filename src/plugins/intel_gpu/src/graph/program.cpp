@@ -207,6 +207,7 @@ program::program(engine& engine,
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
+    new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
 }
 
 program::~program() {
@@ -217,6 +218,7 @@ void program::init_program() {
     set_options();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+    new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
 
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
@@ -505,7 +507,7 @@ void program::build_program(bool is_internal) {
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
+        if (get_engine().get_device_info().has_separate_cache)
             transfer_memory_to_device();
     }
 }
@@ -1418,9 +1420,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
-
-            if (conv.get_primitive()->deformable_mode)
-                lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
             if (!conv.is_dynamic()) {
                 // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16

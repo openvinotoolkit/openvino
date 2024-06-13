@@ -272,6 +272,9 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     gemm_info.add("transpose_input1", transpose_input1);
     gemm_info.add("indirect_input0", indirect_input0);
     gemm_info.add("indirect_input1", indirect_input1);
+    gemm_info.add("trasnpose_order_input0", desc->input0_transpose_order);
+    gemm_info.add("trasnpose_order_input1", desc->input1_transpose_order);
+    gemm_info.add("trasnpose_order_output", desc->output_transpose_order);
     node_info->add("gemm info", gemm_info);
     node_info->dump(primitive_description);
 

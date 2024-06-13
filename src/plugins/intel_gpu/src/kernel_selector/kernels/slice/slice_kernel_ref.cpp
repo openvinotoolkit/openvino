@@ -122,7 +122,7 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
 
     // Define axes size as constant:
     if (params.compile_time_axes.empty()) {
-        kernel_selector::DimensionAccessHelper dims(params.inputs.back());
+        kernel_selector::DimensionAccessHelperJit dims(params.inputs.back());
         jit.AddConstant(MakeJitConstant(JIT_AXES_BUFF_SIZE_NAME,
                                         toVectorMulString({dims.b(), dims.f(), dims.x(), dims.y(), dims.z()})));
     } else {

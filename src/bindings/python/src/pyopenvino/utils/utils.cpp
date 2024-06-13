@@ -199,6 +199,8 @@ py::object from_ov_any(const ov::Any& any) {
         std::stringstream luid_stream;
         luid_stream << any.as<ov::device::LUID>();
         return py::cast(luid_stream.str());
+    } else if (any.is<ov::device::PCIInfo>()) {
+        return py::cast(any.as<ov::device::PCIInfo>());
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
@@ -416,6 +418,13 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj;
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
+}
+std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
+    auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
+        py::gil_scoped_acquire acquire;
+        delete c;
+    });
+    return callback_sp;
 }
 };  // namespace utils
 };  // namespace Common
