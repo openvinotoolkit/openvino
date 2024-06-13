@@ -183,9 +183,7 @@ interface Core {
     deviceName: string,
     properties: { [key: string]: string | number | boolean },
   ): void;
-}
-interface CoreConstructor {
-  new(): Core;
+  queryModel(model: Model, deviceName: string, properties?: { [key: string]: string | number | boolean }): {[key: string]: string | number | boolean};
 }
 
 /**

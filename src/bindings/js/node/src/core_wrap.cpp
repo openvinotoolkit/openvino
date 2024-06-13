@@ -54,7 +54,8 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
                         InstanceMethod("getProperty", &CoreWrap::get_property),
-                        InstanceMethod("addExtension", &CoreWrap::add_extension)});
+                        InstanceMethod("addExtension", &CoreWrap::add_extension),
+                        InstanceMethod("queryModel", &CoreWrap::query_model)});
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
