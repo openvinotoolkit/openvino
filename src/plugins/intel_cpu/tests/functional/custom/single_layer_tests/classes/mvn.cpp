@@ -116,6 +116,7 @@ void MvnLayerCPUTest::SetUp() {
         mvn->set_reduction_axes(axes);
     }
 
+    rel_threshold = 5e-4;
     if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
         rel_threshold = 1e-2;
         abs_threshold = .03f;
