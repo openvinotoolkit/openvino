@@ -37,7 +37,7 @@ the table for more information.
      - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
      - F1
      - 0.19%
-     - -0.06%
+     - 0.06%
      - 0.03%
      - 0.11%
    * - efficientdet-d0
@@ -104,18 +104,18 @@ the table for more information.
      - 0.04%
      - -0.08%
    * - chatGLM2-6b
-     - lambada openai
+     - Ceval-valid-high_school_history
      - ppl
      -
      - 0.75
      - 0.75
      -
    * - Llama-2-7b-chat
-     - Wiki, StackExch, Crawl
+     - Ceval-valid-high_school_history
      - ppl
      -
-     - 3.38
-     - 3.27
+     - 0.55
+     - 0.25
      -
    * - Stable-Diffusion-V2-1
      - LIAON-5B
@@ -125,18 +125,18 @@ the table for more information.
      -
      -
    * - Mistral-7b
-     - proprietary Mistral.ai
+     - Wikitext
      - ppl
      -
-     - 3.49
-     - 3.19
+     - 8.10
+     - 8.10
      -
    * - Falcon-7b-instruct
-     - Bai Ze (65%), GPT4All (25%), GPTeacher (5%), RefinedWeb-english (5%)
+     - Wikitext
      - ppl
      -
-     -
-     -
+     - 14.54
+     - 14.55
      -
 
 .. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Flex-170 only. BF16: Xeon(R) 8490H only)
@@ -239,7 +239,7 @@ the table for more information.
      - 0.04%
      - -0.02%
    * - chatGLM2-6b
-     - lambada openai
+     - Ceval-valid-high_school_history
      - ppl
      -
      - 0.75
@@ -247,11 +247,11 @@ the table for more information.
      -
      -
    * - Llama-2-7b-chat
-     - Wiki, StackExch, Crawl
+     - Wikitext
      - ppl
      -
-     - 3.26
-     - 3.26
+     - 0.30
+     - 0.55
      -
      -
    * - Stable-Diffusion-V2-1
@@ -263,19 +263,19 @@ the table for more information.
      -
      -
    * - Mistral-7b
-     - proprietary Mistral.ai
+     - Wikitext
      - ppl
      -
-     - 3.18
-     - 3.19
+     - 8.09
+     - 8.09
      -
      -
    * - Falcon-7b-instruct
-     - Bai Ze (65%), GPT4All (25%), GPTeacher (5%), RefinedWeb-english (5%)
+     - Wikitext
      - ppl
      -
-     -
-     -
+     - 14.51
+     - 14.51
      -
      -
 
