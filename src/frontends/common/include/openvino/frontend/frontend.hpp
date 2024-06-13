@@ -152,6 +152,12 @@ protected:
 
     virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
 
+    static void throw_path_error(const std::string& path);
+    static void validate_file_stream(const std::ifstream& stream, const std::string& path);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    static void validate_file_stream(const std::ifstream& stream, const std::wstring& path);
+#endif
+
     std::vector<ov::Extension::Ptr> m_extensions;
 
 private:

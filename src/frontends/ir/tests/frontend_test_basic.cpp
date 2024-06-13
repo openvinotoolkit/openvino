@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "frontend_test.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
+#include "utils.hpp"
 
 class IRFrontendTests : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
@@ -1399,4 +1401,38 @@ TEST_F(IRFrontendTests, DetectionOutput) {
 
     ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
     ASSERT_TRUE(!!model);
+}
+
+TEST_F(IRFrontendTests, load_model_not_exists_at_path) {
+    const auto model_name = "not_existing_model";
+    const auto error_msg = std::string("Could not open the file: ");
+    auto model_file_path = FrontEndTestUtils::make_model_path(model_name);
+
+    auto fem = ov::frontend::FrontEndManager();
+    auto fe = fem.load_by_framework("ir");
+
+    OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::HasSubstr(error_msg + model_file_path));
+    OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::HasSubstr(error_msg + model_file_path));
+}
+
+TEST_F(IRFrontendTests, load_model_weights_not_exist_at_path) {
+    const auto error_msg = std::string(" cannot be opened");
+    const auto name_prefix = ov::test::utils::generateTestFilePrefix();
+    const auto model_file_path = name_prefix + "existing_model.xml";
+    const auto weights_file_path = name_prefix + "not_existing_weights.bin";
+
+    {
+        std::ofstream model_file;
+        model_file.open(model_file_path);
+        model_file.close();
+    }
+
+    auto fem = ov::frontend::FrontEndManager();
+    auto fe = fem.load_by_framework("ir");
+
+    OV_EXPECT_THROW(fe->load(model_file_path, weights_file_path),
+                    ov::Exception,
+                    testing::HasSubstr(weights_file_path + error_msg));
+
+    std::remove(model_file_path.c_str());
 }

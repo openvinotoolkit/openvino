@@ -382,6 +382,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             model_path += paddle::get_path_sep<char>() + "__model__";
         }
         std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
+        validate_file_stream(model_str, model_path);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
@@ -394,6 +395,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
         std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        validate_file_stream(model_str, model_path);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();

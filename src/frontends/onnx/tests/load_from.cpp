@@ -7,6 +7,7 @@
 
 #include <fstream>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "onnx_utils.hpp"
 #include "utils.hpp"
 
@@ -41,6 +42,18 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
     std::shared_ptr<ov::Model> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
     ASSERT_NE(function, nullptr);
+}
+
+TEST_P(FrontEndLoadFromTest, load_model_not_exists_at_path) {
+    const auto model_name = "not_existing_model";
+    const auto error_msg = std::string("Could not open the file: ");
+    auto model_file_path = FrontEndTestUtils::make_model_path(model_name);
+
+    auto fem = ov::frontend::FrontEndManager();
+    auto fe = fem.load_by_framework("ir");
+
+    OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::HasSubstr(error_msg + model_file_path));
+    OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::HasSubstr(error_msg + model_file_path));
 }
 
 INSTANTIATE_TEST_SUITE_P(ONNXLoadTest,

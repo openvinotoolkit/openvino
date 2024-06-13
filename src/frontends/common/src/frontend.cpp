@@ -108,3 +108,19 @@ std::string FrontEnd::get_name() const {
     }
     FRONTEND_RETURN_STATEMENT("Getting frontend name", m_actual->get_name();)
 }
+
+void FrontEnd::throw_path_error(const std::string& model_path) {
+    FRONT_END_GENERAL_CHECK(false, "Could not open the file: ", model_path);
+}
+
+void FrontEnd::validate_file_stream(const std::ifstream& stream, const std::string& model_path) {
+    if (!stream.is_open()) {
+        throw_path_error(model_path);
+    }
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+void FrontEnd::validate_file_stream(const std::ifstream& stream, const std::wstring& model_paths) {
+    validate_file_stream(ov::util::wstring_to_string(model_path), stream);
+}
+#endif

@@ -146,6 +146,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
             return true;
+        } else {
+            throw_path_error(model_path);
         }
     } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
         // here, we assume to get the input model path and checkpoints directory
@@ -161,6 +163,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             // saved model format with tagged metagraphs
             return true;
+        } else {
+            throw_path_error(model_path);
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -178,6 +182,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
             return true;
+        } else {
+            throw_path_error(ov::util::wstring_to_string(model_path));
         }
     } else if (variants[0].is<std::vector<std::wstring>>() && variants[0].as<std::vector<std::wstring>>().size() == 2) {
         // here, we assume to get the input model path and checkpoints directory
@@ -193,6 +199,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             // saved model format with tagged metagraphs
             return true;
+        } else {
+            throw_path_error(model_path);
         }
     }
 #endif
@@ -246,6 +254,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
+        } else {
+            throw_path_error(model_path);
         }
     } else if (variants[0].is<std::vector<std::string>>()) {
         // here, we assume to get the input model path and checkpoints directory
@@ -280,9 +290,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
-        }
-        auto saved_model_tags = paths[1];
-        if (GraphIteratorSavedModel::is_supported(model_path)) {
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            auto saved_model_tags = paths[1];
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
             graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
@@ -294,6 +303,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
+        } else {
+            throw_path_error(model_path);
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -330,6 +341,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // handle text protobuf format with a path in Unicode
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
+        } else {
+            throw_path_error(ov::util::wstring_to_string(model_path));
         }
     } else if (variants[0].is<std::vector<std::wstring>>()) {
         // here, we assume to get the input model path and checkpoints directory
@@ -378,6 +391,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
+        } else {
+            throw_path_error(model_path);
         }
     }
 #endif
