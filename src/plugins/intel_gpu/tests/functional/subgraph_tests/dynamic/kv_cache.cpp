@@ -264,6 +264,7 @@ class KVCacheTests: public ::testing::Test {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         auto core = ov::test::utils::PluginCache::get().core();
 
         ov::AnyMap properties = {
