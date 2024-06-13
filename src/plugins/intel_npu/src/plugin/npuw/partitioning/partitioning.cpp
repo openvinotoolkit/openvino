@@ -1019,7 +1019,7 @@ void Partitioner::saveTinyConstants(const std::string &func_name) {
                 auto shape = node->output(0).get_shape();
                 auto total = std::accumulate(shape.begin(),
                                              shape.end(),
-                                             1u,
+                                             std::size_t{1},
                                              std::multiplies<std::size_t>());
                 if (    (shape.size() == 0
                      || (shape.size() == 1 && shape[0] <= 10))
