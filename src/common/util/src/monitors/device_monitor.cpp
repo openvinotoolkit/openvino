@@ -7,9 +7,22 @@
 #include <algorithm>
 #include <iostream>
 
+#include "openvino/util/monitors/cpu_performance_counter.hpp"
+#include "openvino/util/monitors/gpu_performance_counter.hpp"
+
 namespace ov {
 namespace util {
 namespace monitor {
+
+DeviceMonitor::DeviceMonitor(unsigned historySize) : samplesNumber{0}, historySize{historySize > 0 ? historySize : 1} {
+    for (auto& device : supportedDevices) {
+        if (device == "CPU")
+            devicesPerformanceCounters[device] = std::make_shared<ov::util::monitor::CpuPerformanceCounter>();
+        if (device == "GPU")
+            devicesPerformanceCounters[device] = std::make_shared<ov::util::monitor::GpuPerformanceCounter>();
+        collectData(device);
+    }
+}
 DeviceMonitor::DeviceMonitor(const std::shared_ptr<ov::util::monitor::PerformanceCounter>& performanceCounter,
                              unsigned historySize)
     : samplesNumber{0},
@@ -31,20 +44,41 @@ void DeviceMonitor::collectData() {
     samplesNumber = 0;
     deviceLoadHistory.clear();
     while (deviceLoadHistory.size() < historySize) {
-        std::vector<double> deviceLoad = performanceCounter->getLoad();
-        if (deviceLoadSum.empty())
-            deviceLoadSum.resize(deviceLoad.size(), 0.0);
-        if (!deviceLoad.empty()) {
-            for (std::size_t i = 0; i < deviceLoad.size(); ++i) {
+        auto devicesLoad = performanceCounter->getLoad();
+        if (!devicesLoad.empty()) {
+            for (auto item : devicesLoad) {
                 if (deviceLoadHistory.size() == 0)
-                    deviceLoadSum[i] = 0.0;
+                    deviceLoadSum[item.first] = 0.0;
                 if (historySize > 1)
-                    deviceLoadSum[i] += deviceLoad[i];
+                    deviceLoadSum[item.first] += devicesLoad[item.first];
                 else
-                    deviceLoadSum[i] = deviceLoad[i];
+                    deviceLoadSum[item.first] = devicesLoad[item.first];
             }
             ++samplesNumber;
-            deviceLoadHistory.push_back(std::move(deviceLoad));
+            deviceLoadHistory.push_back(std::move(devicesLoad));
+        }
+    }
+}
+
+void DeviceMonitor::collectData(const std::string& deviceName) {
+    samplesNumber = 0;
+    deviceLoadHistory.clear();
+    deviceLoadSum.clear();
+    if (devicesPerformanceCounters.count(deviceName) == 0)
+        return;
+    while (deviceLoadHistory.size() < historySize) {
+        auto devicesLoad = devicesPerformanceCounters[deviceName]->getLoad();
+        if (!devicesLoad.empty()) {
+            for (auto item : devicesLoad) {
+                if (deviceLoadHistory.size() == 0)
+                    deviceLoadSum[item.first] = 0.0;
+                if (historySize > 1)
+                    deviceLoadSum[item.first] += devicesLoad[item.first];
+                else
+                    deviceLoadSum[item.first] = devicesLoad[item.first];
+            }
+            ++samplesNumber;
+            deviceLoadHistory.push_back(std::move(devicesLoad));
         }
     }
 }
@@ -53,15 +87,23 @@ std::size_t DeviceMonitor::getHistorySize() const {
     return historySize;
 }
 
-std::deque<std::vector<double>> DeviceMonitor::getLastHistory() const {
+std::deque<std::map<std::string, double>> DeviceMonitor::getLastHistory() const {
     return deviceLoadHistory;
 }
 
-std::vector<double> DeviceMonitor::getMeanDeviceLoad() const {
-    std::vector<double> meanDeviceLoad;
-    meanDeviceLoad.reserve(deviceLoadSum.size());
-    for (double coreLoad : deviceLoadSum) {
-        meanDeviceLoad.push_back(samplesNumber ? coreLoad / samplesNumber : 0);
+std::map<std::string, double> DeviceMonitor::getMeanDeviceLoad() const {
+    std::map<std::string, double> meanDeviceLoad;
+    for (auto item : deviceLoadSum) {
+        meanDeviceLoad[item.first] = (samplesNumber ? item.second / samplesNumber : 0) * 100;
+    }
+    return meanDeviceLoad;
+}
+
+std::map<std::string, double> DeviceMonitor::getMeanDeviceLoad(const std::string& deviceName) {
+    collectData(deviceName);
+    std::map<std::string, double> meanDeviceLoad;
+    for (auto item : deviceLoadSum) {
+        meanDeviceLoad[item.first] = (samplesNumber ? item.second / samplesNumber : 0) * 100;
     }
     return meanDeviceLoad;
 }

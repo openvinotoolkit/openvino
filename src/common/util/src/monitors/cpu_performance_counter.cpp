@@ -6,18 +6,20 @@
 
 #include <algorithm>
 #include <iostream>
+#include <map>
 
 #ifdef _WIN32
 #    define NOMINMAX
-#    include "query_wrapper.hpp"
 #    include <pdh.h>
 #    include <pdhmsg.h>
 #    include <windows.h>
+
 #    include <chrono>
 #    include <string>
 #    include <system_error>
 #    include <thread>
 
+#    include "query_wrapper.hpp"
 
 namespace ov {
 namespace util {
@@ -59,7 +61,7 @@ public:
         }
     }
 
-    std::vector<double> getLoad() {
+    std::map<std::string, double> getLoad() {
         PDH_STATUS status;
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {
@@ -93,7 +95,15 @@ public:
 
             cpuLoad[i] = displayValue.doubleValue;
         }
-        return cpuLoad;
+        std::map<std::string, double> cpusUtilization;
+        if (cpuLoad.size() == 1) {
+            cpusUtilization["Total"] = cpuLoad.at(0);
+            return cpusUtilization;
+        }
+        for (int index = 0; index < cpuLoad.size(); index++) {
+            cpusUtilization[std::to_string(index)] = cpuLoad.at(index);
+        }
+        return cpusUtilization;
     }
 
     int getNumberOfCores() {
@@ -152,24 +162,24 @@ class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() : prevIdleCpuStat{getIdleCpuStat()}, prevTimePoint{std::chrono::steady_clock::now()} {}
 
-    std::vector<double> getLoad() {
-        std::vector<unsigned long> idleCpuStat = getIdleCpuStat();
-        auto timePoint = std::chrono::steady_clock::now();
-        // don't update data too frequently which may result in negative values for cpuLoad.
-        // It may happen when collectData() is called just after setHistorySize().
-        if (timePoint - prevTimePoint > std::chrono::milliseconds{300}) {
-            std::vector<double> cpuLoad(numCores);
-            for (std::size_t i = 0; i < idleCpuStat.size(); ++i) {
-                double idleDiff = idleCpuStat[i] - prevIdleCpuStat[i];
-                typedef std::chrono::duration<double, std::chrono::seconds::period> Sec;
-                cpuLoad[i] =
-                    1.0 - idleDiff / clockTicks / std::chrono::duration_cast<Sec>(timePoint - prevTimePoint).count();
-            }
-            prevIdleCpuStat = std::move(idleCpuStat);
-            prevTimePoint = timePoint;
-            return cpuLoad;
-        }
-        return {};
+    std::map<std::string, double> getLoad() {
+        //std::vector<unsigned long> idleCpuStat = getIdleCpuStat();
+        //auto timePoint = std::chrono::steady_clock::now();
+        //// don't update data too frequently which may result in negative values for cpuLoad.
+        //// It may happen when collectData() is called just after setHistorySize().
+        //if (timePoint - prevTimePoint > std::chrono::milliseconds{300}) {
+        //    std::map<std::string, double> cpuLoad;
+        //    for (std::size_t i = 0; i < idleCpuStat.size(); ++i) {
+        //        double idleDiff = idleCpuStat[i] - prevIdleCpuStat[i];
+        //        typedef std::chrono::duration<double, std::chrono::seconds::period> Sec;
+        //        cpuLoad[std::to_string(i)] =
+        //            1.0 - idleDiff / clockTicks / std::chrono::duration_cast<Sec>(timePoint - prevTimePoint).count();
+        //    }
+        //    prevIdleCpuStat = std::move(idleCpuStat);
+        //    prevTimePoint = timePoint;
+        //    return cpuLoad;
+        //}
+        return {{"Total", 0.0}};
     }
 
 private:
@@ -185,7 +195,7 @@ const std::size_t nCores{0};
 
 class CpuMonitor::PerformanceCounterImpl {
 public:
-    std::vector<double> getCpuLoad() {
+    std::vector<double> getLoad() {
         return {};
     };
 };
@@ -196,7 +206,7 @@ CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
 CpuPerformanceCounter::~CpuPerformanceCounter() {
     delete performanceCounter;
 }
-std::vector<double> CpuPerformanceCounter::getLoad() {
+std::map<std::string, double> CpuPerformanceCounter::getLoad() {
     if (!performanceCounter)
         performanceCounter = new PerformanceCounterImpl();
     return performanceCounter->getLoad();

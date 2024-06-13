@@ -4,6 +4,7 @@
 
 #pragma once
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -13,7 +14,7 @@ namespace monitor {
 class PerformanceCounter {
 public:
     PerformanceCounter(std::string deviceName) {}
-    virtual std::vector<double> getLoad() = 0;
+    virtual std::map<std::string, double> getLoad() = 0;
     std::string name() {
         return deviceName;
     }

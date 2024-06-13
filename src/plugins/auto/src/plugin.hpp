@@ -5,16 +5,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <map>
-#include <vector>
-#include <string>
 #include <list>
+#include <map>
+#include <string>
+#include <vector>
 
-#include "openvino/runtime/iplugin.hpp"
-#include "utils/log_util.hpp"
 #include "common.hpp"
-#include "plugin_config.hpp"
 #include "compiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "plugin_config.hpp"
+#include "utils/log_util.hpp"
 
 namespace ov {
 namespace auto_plugin {

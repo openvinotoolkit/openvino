@@ -74,5 +74,10 @@ inline std::istream& operator>>(std::istream& is, SchedulePolicy& policy) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<SchedulePolicy> schedule_policy{"SCHEDULE_POLICY"};
+
+/**
+ * @brief setting the target device utilization threshold used for hw selection logic hw in AUTO
+ */
+static constexpr Property<uint8_t> device_utilization_threshold{"DEVICE_UTILIZATION_THRESHOLD"};
 }  // namespace intel_auto
 }  // namespace ov

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "query_wrapper.h"
+#include "query_wrapper.hpp"
 
 #define NOMINMAX
 #include <windows.h>

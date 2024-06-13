@@ -5,21 +5,26 @@
 #include "openvino/util/monitors/gpu_performance_counter.hpp"
 
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
+#include <map>
 #include <sstream>
+#include <string>
 
 #include "openvino/util/monitors/performance_counter.hpp"
 #ifdef _WIN32
 #    define NOMINMAX
-#    include <chrono>
-#    include <string>
-#    include <system_error>
-#    include <thread>
-#    include "query_wrapper.hpp"
 #    include <dxgi.h>
 #    include <pdh.h>
 #    include <pdhmsg.h>
 #    include <windows.h>
+
+#    include <chrono>
+#    include <string>
+#    include <system_error>
+#    include <thread>
+
+#    include "query_wrapper.hpp"
 #    define RENDER_ENGINE_COUNTER_INDEX  0
 #    define COMPUTE_ENGINE_COUNTER_INDEX 1
 #    define MAX_COUNTER_INDEX            2
@@ -31,51 +36,67 @@ class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() {
         auto devices = getNumberOfCores();
-        coreTimeCounters.resize(devices.size());
-        for (std::size_t i = 0; i < devices.size(); ++i) {
-            coreTimeCounters[i].resize(MAX_COUNTER_INDEX);
+        int gpuIndex = 0;
+        for (auto item : devices) {
+            coreTimeCounters[item.first] = {};
+            coreTimeCounters[item.first].resize(MAX_COUNTER_INDEX);
         }
         initCoreCounters(devices);
-        std::cout << "Device: " << "GPU" << "\tNumber of cores: " << devices.size() << std::endl;
     }
 
-    std::vector<LUID> getNumberOfCores() {
+    std::map<std::string, LUID> getNumberOfCores() {
+        auto LuidToString = [](LUID luid) -> std::string {
+            uint8_t highBytes[sizeof(luid.HighPart)] = {0};
+            uint8_t lowBytes[sizeof(luid.LowPart)] = {0};
+            std::stringstream ss;
+            for (int index = 0; index < sizeof(luid.LowPart); index++) {
+                lowBytes[sizeof(luid.LowPart) - 1 - index] = (luid.LowPart >> index * 8) & 0xFF;
+                ss << std::hex << std::setw(2) << std::setfill('0')
+                   << static_cast<int>(lowBytes[sizeof(luid.LowPart) - 1 - index]);
+            }
+            for (int index = 0; index < sizeof(luid.HighPart); index++) {
+                highBytes[index] = (luid.HighPart >> index * 8) & 0xFF;
+                ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(highBytes[index]);
+            }
+            return ss.str();
+        };
         IDXGIFactory* pFactory;
         HRESULT hr = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)(&pFactory));
         if (FAILED(hr))
             return {};
         int gpuIndex = 0;
-        std::vector<LUID> gpuCores;
+        std::map<std::string, LUID> gpuCores;
         IDXGIAdapter* pAdapter;
         while (pFactory->EnumAdapters(gpuIndex, &pAdapter) != DXGI_ERROR_NOT_FOUND) {
             DXGI_ADAPTER_DESC desc;
             pAdapter->GetDesc(&desc);
             if (wcscmp(desc.Description, L"Microsoft Basic Render Driver") != 0 && desc.VendorId == 0x8086) {
-                gpuCores.push_back(desc.AdapterLuid);
-                wprintf(L"GPU Name: \n\t%s\nLUID: \n", desc.Description);
-                std::cout << "\t" << std::hex << desc.AdapterLuid.HighPart << "-" << desc.AdapterLuid.LowPart
-                          << std::endl;
+                auto luidStr = LuidToString(desc.AdapterLuid);
+                gpuCores[luidStr] = desc.AdapterLuid;
+                wprintf(L"GPU Name: \n\t%sLUID: ", desc.Description);
+                std::cout << "\t" << std::hex << desc.AdapterLuid.HighPart << "-" << desc.AdapterLuid.LowPart;
+                std::cout << "\t LUID string: " << luidStr << std::endl;
             }
             gpuIndex++;
         }
         return gpuCores;
     }
 
-    void initCoreCounters(const std::vector<LUID>& devices) {
+    void initCoreCounters(const std::map<std::string, LUID>& devices) {
         auto LuidToString = [](LUID luid) -> std::string {
             std::stringstream ss;
             ss << std::hex << ((long long)luid.HighPart << 32 | luid.LowPart);
             return ss.str();
         };
-        for (int i = 0; i < devices.size(); i++) {
-            std::cout << "device index: " << i << "\tluid: " << LuidToString(devices.at(i)) << std::endl;
-            std::string full3DCounterPath = std::string("\\GPU Engine(*_luid_*" + LuidToString(devices.at(i)) +
+        int gpuIndex = 0;
+        for (auto item : devices) {
+            std::string full3DCounterPath = std::string("\\GPU Engine(*_luid_*" + LuidToString(item.second) +
                                                         "_phys*engtype_3D)\\Utilization Percentage");
-            std::string fullComputeCounterPath = std::string("\\GPU Engine(*_luid_*" + LuidToString(devices.at(i)) +
+            std::string fullComputeCounterPath = std::string("\\GPU Engine(*_luid_*" + LuidToString(item.second) +
                                                              "_phys*engtype_Compute)\\Utilization Percentage");
-            coreTimeCounters[i][RENDER_ENGINE_COUNTER_INDEX] =
+            coreTimeCounters[item.first][RENDER_ENGINE_COUNTER_INDEX] =
                 addCounter(query, expandWildCardPath(full3DCounterPath.c_str()));
-            coreTimeCounters[i][COMPUTE_ENGINE_COUNTER_INDEX] =
+            coreTimeCounters[item.first][COMPUTE_ENGINE_COUNTER_INDEX] =
                 addCounter(query, expandWildCardPath(fullComputeCounterPath.c_str()));
         }
         auto status = PdhCollectQueryData(query);
@@ -97,7 +118,7 @@ public:
             free(ExpandedPathList);
             return pathList;
         }
-        for (int i = 0; i < PathListLength;) {
+        for (size_t i = 0; i < PathListLength;) {
             std::string path(ExpandedPathList + i);
             if (path.length() > 0) {
                 // std::cout << path << std::endl;
@@ -129,7 +150,7 @@ public:
         return CounterList;
     }
 
-    std::vector<double> getLoad() {
+    std::map<std::string, double> getLoad() {
         PDH_STATUS status;
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {
@@ -142,11 +163,10 @@ public:
         lastTimeStamp = std::chrono::system_clock::now();
         status = PdhCollectQueryData(query);
         PDH_FMT_COUNTERVALUE displayValue;
-        std::vector<double> gpuLoad;
-        gpuLoad.resize(coreTimeCounters.size(), 0.0);
-        for (std::size_t coreIndex = 0; coreIndex < coreTimeCounters.size(); ++coreIndex) {
+        std::map<std::string, double> gpuLoad;
+        for (auto item : coreTimeCounters) {
             double value = 0;
-            auto coreCounters = coreTimeCounters[coreIndex];
+            auto coreCounters = item.second;
             for (int counterIndex = 0; counterIndex < MAX_COUNTER_INDEX; counterIndex++) {
                 auto countersList = coreCounters[counterIndex];
                 for (auto counter : countersList) {
@@ -157,14 +177,14 @@ public:
                     value += displayValue.doubleValue;
                 }
             }
-            gpuLoad[coreIndex] = value;
+            gpuLoad[item.first] = value;
         }
         return gpuLoad;
     }
 
 private:
     QueryWrapper query;
-    std::vector<std::vector<std::vector<PDH_HCOUNTER>>> coreTimeCounters;
+    std::map<std::string, std::vector<std::vector<PDH_HCOUNTER>>> coreTimeCounters;
     std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
 };
 
@@ -183,8 +203,8 @@ class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() {}
 
-    std::vector<double> getGpuLoad() {
-        return {0};
+    std::map<std::string, double> getLoad() {
+        return {{"0", 0}};
     }
 };
 
@@ -196,16 +216,15 @@ const std::size_t nCores{0};
 
 class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    std::vector<double> getGpuLoad() {
-        return {};
-    };
+    std::map<std::string, double> getLoad() {
+        return {{"0", 0}};
 };
 #endif
 GpuPerformanceCounter::GpuPerformanceCounter() : PerformanceCounter("GPU") {}
 GpuPerformanceCounter::~GpuPerformanceCounter() {
     delete performanceCounter;
 }
-std::vector<double> GpuPerformanceCounter::getLoad() {
+std::map<std::string, double> GpuPerformanceCounter::getLoad() {
     if (!performanceCounter)
         performanceCounter = new PerformanceCounterImpl();
     return performanceCounter->getLoad();

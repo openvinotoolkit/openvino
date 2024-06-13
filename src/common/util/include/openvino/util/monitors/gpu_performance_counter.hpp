@@ -5,7 +5,9 @@
 #pragma once
 
 #include <deque>
+#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "openvino/util/monitors/performance_counter.hpp"
@@ -17,7 +19,7 @@ class GpuPerformanceCounter : public ov::util::monitor::PerformanceCounter {
 public:
     GpuPerformanceCounter();
     ~GpuPerformanceCounter();
-    std::vector<double> getLoad() override;
+    std::map<std::string, double> getLoad() override;
 
 private:
     class PerformanceCounterImpl;
