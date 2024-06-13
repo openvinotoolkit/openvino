@@ -35,9 +35,7 @@ std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
-    // return { layout(output_shapes[0], data_types::i8, output_format), layout(output_shapes[1], data_types::f16, output_format) };
-
-    return { layout(output_shapes[0], data_types::i8, output_format) };
+    return { layout(output_shapes[0], data_types::i8, output_format), layout(output_shapes[1], data_types::f16, output_format) };
 }
 
 template std::vector<layout> dynamic_quantize_inst::calc_output_layouts<ov::PartialShape>(dynamic_quantize_node const& node,

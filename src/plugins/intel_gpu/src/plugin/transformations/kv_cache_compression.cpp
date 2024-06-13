@@ -74,10 +74,9 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher() {
             auto new_dyn_quan = std::make_shared<op::DynamicQuantize>(key_node->get_input_node_shared_ptr(1));
             // FIXME: need to tell whether it is direct KV cache or indirect kv cache
             auto new_kv_cache_k = std::make_shared<op::KVCache>(key_node->get_input_node_shared_ptr(0),
-                                                                // key_node->get_input_node_shared_ptr(1),
                                                                 new_dyn_quan->output(0),
-                                                                // new_dyn_quan->output(1),
                                                                 key_node->get_input_node_shared_ptr(2),
+                                                                new_dyn_quan->output(1),
                                                                 key_node->get_variable(),
                                                                 key_node->get_concat_axis(),
                                                                 key_node->get_gather_axis(),

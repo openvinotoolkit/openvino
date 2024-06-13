@@ -23,17 +23,11 @@ static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<op:
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
 
-    if (p.use_new_shape_infer()) {
-        auto prim = cldnn::dynamic_quantize(primitive_name,
-                                  inputs[0]);
-        prim.output_data_types = get_output_data_types(op);
-        p.add_primitive(*op, prim);
-    } else {
-        auto prim = cldnn::dynamic_quantize(primitive_name,
-                                  inputs[0]);
-        prim.output_data_types = get_output_data_types(op);
-        p.add_primitive(*op, prim);
-    }
+    auto prim = cldnn::dynamic_quantize(primitive_name,
+                                inputs[0]);
+    prim.output_data_types = get_output_data_types(op);
+    prim.num_outputs = op->get_output_size();
+    p.add_primitive(*op, prim);
 }
 
 REGISTER_FACTORY_IMPL(internal, DynamicQuantize);
