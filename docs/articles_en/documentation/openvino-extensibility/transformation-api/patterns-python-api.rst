@@ -13,13 +13,21 @@ creation using OpenVINO™ API and helpful utilities to facilitate working with 
 Before proceeding further, it is necessary to add some imports. These imports include the operations to be used and additional utilities described in this guide.
 Add the following lines to your file:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:imports]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:imports]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:imports]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:imports]
 
 Pattern Creation
 +++++++++++++++++++++
@@ -32,26 +40,42 @@ Consider a straightforward pattern consisting of three nodes to be found in a gi
 
 Let's create the model and the pattern:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:create_simple_model_and_pattern]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:create_simple_model_and_pattern]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:create_simple_model_and_pattern]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:create_simple_model_and_pattern]
 
 .. note:: This example uses testing utilities that directly compare given sequences of nodes. In reality, the process of finding a pattern within a model is more complicated. However, to focus only on patterns and their functionality, these details are intentionally omitted.
 
 Although the code is functional, in OpenVINO, patterns are typically not created using the same nodes as those used for creating the model. Instead, wrappers are preferred, providing additional functionality.
 For the given case, ``WrapType`` is used and the code looks as following:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:create_simple_model_and_pattern_wrap_type]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:create_simple_model_and_pattern_wrap_type]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:create_simple_model_and_pattern_wrap_type]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:create_simple_model_and_pattern_wrap_type]
 
 1. WrapType
 ++++++++++++++++++++++++++++++++++++++++
@@ -59,48 +83,80 @@ For the given case, ``WrapType`` is used and the code looks as following:
 ``WrapType`` is a wrapper used to store one or many types to match them. As demonstrated earlier, it is possible to specify a single type in ``WrapType`` and use it for matching.
 However, you can also list all possible types for a given node, for example:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:wrap_type_list]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:wrap_type_list]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:wrap_type_list]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:wrap_type_list]
 
 Note that ``pattern_sig`` is created with the list ``["opset13.Relu", "opset13.Sigmoid"]``, meaning it can be either a ``Relu`` or a ``Sigmoid``.
 This feature enables matching the same pattern against different nodes. Essentially, ``WrapType`` can represent "one of listed" types. ``WrapType`` supports specifying more than two types.
 
 To add additional checks for your node, create a predicate by providing a function or a lambda. This function will be executed during matching, performing the additional validation specified in the logic of the function. For example, you might want to check the consumers count of a given node:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:wrap_type_predicate]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:wrap_type_predicate]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:wrap_type_predicate]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:wrap_type_predicate]
 
 2. AnyInput
 ++++++++++++++++++++++++++++++++++++++++
 ``AnyInput`` is used when there is no need to specify a particular input for a given node.
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:any_input]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:any_input]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:any_input]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:any_input]
 
 You can also create ``AnyInput()`` with a predicate, if you want additional checks for you input. It will look similar to ``WrapType`` with a lambda or a function. For example, to ensure that the input has a rank of 4:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:any_input_predicate]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:any_input_predicate]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:any_input_predicate]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:any_input_predicate]
 
 3. Or
 ++++++++++++++++++++++++++++++++++++++++
@@ -113,13 +169,21 @@ facilitates this by creating two different branches (``Or`` supports more than t
 The red branch will not match, but it will work perfectly for the blue one.
 Here is how it looks in code:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:pattern_or]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:pattern_or]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:pattern_or]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:pattern_or]
 
 Note that matching will succeed for the first matching branch and the remaining ones will not be checked.
 
@@ -133,43 +197,75 @@ unfolding into two branches:
 
 The code for our model looks as follows:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:pattern_optional_middle]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:pattern_optional_middle]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:pattern_optional_middle]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:pattern_optional_middle]
 
 The ``Optional`` does not necessarily have to be in the middle of the pattern. It can be a top node and a root node.
 
 
 Top node:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:pattern_optional_top]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:pattern_optional_top]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:pattern_optional_top]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:pattern_optional_top]
 
 Root node:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:pattern_optional_root]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:pattern_optional_root]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:pattern_optional_root]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:pattern_optional_root]
 
 ``Optional`` also supports adding a predicate the same way ``WrapType`` and ``AnyInput`` do:
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.py
-   :language: python
-   :fragment: [ov:optional_predicate]
+.. tab-set::
 
-.. doxygensnippet:: ../../../assets/snippets/ov_patterns.cpp
-   :language: cpp
-   :fragment: [ov:optional_predicate]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.py
+         :language: python
+         :fragment: [ov:optional_predicate]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_patterns.cpp
+         :language: cpp
+         :fragment: [ov:optional_predicate]
