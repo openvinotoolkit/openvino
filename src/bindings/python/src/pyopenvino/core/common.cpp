@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common.hpp"
+
 #include <unordered_map>
 
 #include "Python.h"
-#include "common.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
