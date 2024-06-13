@@ -7,8 +7,7 @@
 import jax
 import numpy as np
 
-from openvino.runtime import op, Type as OVType, Shape, Tensor
-from openvino.runtime import opset11 as ops
+from openvino.runtime import op, Type as OVType
 
 def jax_array_to_ov_const(arr: np.ndarray, shared_memory=True):
     # TODO: deal with bfloat16 dtype here.

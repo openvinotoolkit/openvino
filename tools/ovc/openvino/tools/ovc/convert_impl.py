@@ -36,7 +36,10 @@ from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion
     init_mo_telemetry
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.tools.ovc.moc_frontend.jax_frontend_utils import get_jax_decoder
+try:
+    from openvino.tools.ovc.moc_frontend.jax_frontend_utils import get_jax_decoder
+except:
+    get_jax_decoder = None
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
@@ -469,7 +472,10 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
             if model_framework == "jax":
-                get_jax_decoder(args['input_model'], args)
+                if get_jax_decoder is not None:
+                    get_jax_decoder(args['input_model'], args)
+                else:
+                    raise Error("JAX decoder is not available.")
                 
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
