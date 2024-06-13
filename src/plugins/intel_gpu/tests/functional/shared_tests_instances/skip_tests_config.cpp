@@ -207,7 +207,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_RemoteTensor/OVRemoteTensorBatched_Test.NV12toBGR_buffer/(num_batch_4|num_batch_2).*)",
             R"(.*smoke_Check/ConstantResultSubgraphTest.Inference/SubgraphType=SINGLE_COMPONENT_IS=\[1,3,10,10\]_IT=i16_Device=GPU.*)",
             // TODO: Issue: 142899
-            R"(.*smoke_multipleIterations_stateful_gather_with_initializer.*)",
+            R"(.*smoke_multipleIterations_stateful_gather_with_initializer_(batch_1_3|batch_1_5).*)",
 #endif
     };
 }
