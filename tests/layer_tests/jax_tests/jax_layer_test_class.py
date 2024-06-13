@@ -15,9 +15,9 @@ class JaxLayerTest:
     
     @staticmethod
     def use_jaxpr_tracing():
-        torch_compile_env = os.getenv("JAX_TRACE_MODE")
-        if torch_compile_env is not None:
-            return torch_compile_env == "JAXPR"
+        jax_compile_env = os.getenv("JAX_TRACE_MODE")
+        if jax_compile_env is not None:
+            return jax_compile_env == "JAXPR"
         return False
     
     def _test(self, model, ref_net, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
