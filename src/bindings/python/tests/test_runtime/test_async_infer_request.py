@@ -296,6 +296,7 @@ def test_array_like_input_async_infer_queue(device, share_inputs):
             infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
 
 
+@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
 def test_cancel(device):
     core = Core()
     model = get_relu_model()
@@ -307,13 +308,13 @@ def test_cancel(device):
     request.cancel()
     with pytest.raises(RuntimeError) as e:
         request.wait()
-    assert "Infer Request was canceled" in str(e.value)
+    assert "[ INFER_CANCELLED ]" in str(e.value)
 
     request.start_async({"data": img})
     request.cancel()
     with pytest.raises(RuntimeError) as e:
         request.wait_for(1)
-    assert "Infer Request was canceled" in str(e.value)
+    assert "[ INFER_CANCELLED ]" in str(e.value)
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])

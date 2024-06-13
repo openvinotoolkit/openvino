@@ -84,7 +84,6 @@ Prerequisites
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-    WARNING: typer 0.12.3 does not provide the extra 'all'
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -106,9 +105,9 @@ Prerequisites
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
     remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 24.49 MiB/s, done.
+    Receiving objects: 100% (424/424), 262.14 MiB | 26.65 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
 
 
 Load PyTorch model
@@ -363,23 +362,23 @@ disk using ``openvino.save_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       size = int(math.sqrt(xy_num))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert size * size == xy_num
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if size != h or size != w:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[2] == num_patches
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_pts > self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif num_pts < self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if output_w > 0 and output_h > 0:
 
 
@@ -643,10 +642,10 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 .. parsed-literal::
 
-    2024-05-07 00:01:29.399785: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-07 00:01:29.433596: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 00:16:32.701538: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 00:16:32.734051: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-07 00:01:30.076398: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:16:33.371409: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -840,26 +839,26 @@ models, we use ``bencmark_app``.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 40.36 ms
+    [ INFO ] Read model took 29.27 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
@@ -868,10 +867,10 @@ models, we use ``bencmark_app``.
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1355.34 ms
+    [ INFO ] Compile model took 1448.36 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -912,17 +911,17 @@ models, we use ``bencmark_app``.
     [ INFO ] Fill input 'batched_point_labels' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-    [ INFO ] First inference took 645.58 ms
+    [ INFO ] First inference took 677.52 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            49 iterations
-    [ INFO ] Duration:         15813.12 ms
+    [ INFO ] Duration:         15956.35 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1908.46 ms
-    [ INFO ]    Average:       1882.77 ms
-    [ INFO ]    Min:           609.20 ms
-    [ INFO ]    Max:           1971.02 ms
-    [ INFO ] Throughput:   3.10 FPS
+    [ INFO ]    Median:        1926.16 ms
+    [ INFO ]    Average:       1900.48 ms
+    [ INFO ]    Min:           644.61 ms
+    [ INFO ]    Max:           1989.53 ms
+    [ INFO ] Throughput:   3.07 FPS
 
 
 .. code:: ipython3
@@ -937,26 +936,26 @@ models, we use ``bencmark_app``.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 53.68 ms
+    [ INFO ] Read model took 42.94 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
@@ -965,10 +964,10 @@ models, we use ``bencmark_app``.
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1854.44 ms
+    [ INFO ] Compile model took 1975.21 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -1009,17 +1008,17 @@ models, we use ``bencmark_app``.
     [ INFO ] Fill input 'batched_point_labels' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-    [ INFO ] First inference took 596.95 ms
+    [ INFO ] First inference took 609.28 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            55 iterations
-    [ INFO ] Duration:         16443.47 ms
+    [ INFO ] Duration:         16666.59 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1775.29 ms
-    [ INFO ]    Average:       1756.44 ms
-    [ INFO ]    Min:           630.26 ms
-    [ INFO ]    Max:           1849.40 ms
-    [ INFO ] Throughput:   3.34 FPS
+    [ INFO ]    Median:        1799.56 ms
+    [ INFO ]    Average:       1780.10 ms
+    [ INFO ]    Min:           641.70 ms
+    [ INFO ]    Max:           1867.14 ms
+    [ INFO ] Throughput:   3.30 FPS
 
 
 Interactive segmentation demo

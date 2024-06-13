@@ -27,3 +27,7 @@ endif()
 add_subdirectory(thirdparty EXCLUDE_FROM_ALL)
 
 add_subdirectory(src)
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

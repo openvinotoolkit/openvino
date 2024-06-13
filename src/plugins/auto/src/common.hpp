@@ -207,7 +207,6 @@ public:
     bool                                           m_need_perf_counters;
     bool                                           m_batching_disabled = false;
     bool                                           m_startup_fallback = true;
-    bool                                           m_is_set_startup_fallback = false;
     bool                                           m_runtime_fallback = true;
     bool                                           m_bind_buffer = false;
     std::shared_ptr<ov::Model>                     m_model;
