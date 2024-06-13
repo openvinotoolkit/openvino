@@ -116,7 +116,7 @@ OutputVector translate_tensor_list_get_item_op(const NodeContext& node) {
 
     // make index be a scalar
     if (index.get_partial_shape() != PartialShape{}) {
-        auto new_index_shape = make_shared<v0::Constant>(element::i32, Shape{}, vector<int32_t>{});
+        auto new_index_shape = make_shared<v0::Constant>(element::i32, Shape{0}, vector<int32_t>{});
         index = make_shared<v1::Reshape>(index, new_index_shape, false);
     }
 
@@ -135,9 +135,9 @@ OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
     auto index = node.get_input(1);
     auto item = node.get_input(2);
 
-    // make index be a scalar
-    if (index.get_partial_shape() != PartialShape{}) {
-        auto new_index_shape = make_shared<v0::Constant>(element::i32, Shape{}, vector<int32_t>{});
+    // make index be of a shape [1]
+    if (index.get_partial_shape() != PartialShape{1}) {
+        auto new_index_shape = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int32_t>{1});
         index = make_shared<v1::Reshape>(index, new_index_shape, false);
     }
 
@@ -154,6 +154,9 @@ OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
     // since the initial state has shape [num_elements, 1, ..., 1]
     auto target_shape = make_shared<v0::Concat>(OutputVector{list_length, item_shape}, 0);
     input_handle = make_shared<v1::Broadcast>(input_handle, target_shape);
+
+    // reshape item before insertion to source tensor
+    item = make_shared<v0::Unsqueeze>(item, zero_const);
 
     // update the resulted tensor using ScatterUpdate
     auto scatter_update = make_shared<v3::ScatterUpdate>(input_handle, index, item, zero_const);
