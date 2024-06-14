@@ -312,7 +312,7 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
 
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
-    if (params.engineInfo.arch < gpu_arch::xe_hpg)
+    if (params.engineInfo.arch < gpu_arch::xe_hpg || !params.engineInfo.supports_microkernels)
         return false;
 
     if (params.conf.is_causal)

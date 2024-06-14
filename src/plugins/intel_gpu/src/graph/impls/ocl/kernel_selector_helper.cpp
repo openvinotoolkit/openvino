@@ -119,6 +119,48 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
 
 namespace cldnn {
 
+bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    auto device = e.get_device().get();
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    // This program check that all required vISA features are supported by current IGC version
+    const char* kernel_code = R""""(
+        kernel void igc_check() {
+            __asm__ volatile(
+                    ".decl AA0 v_type=G type=ud num_elts=1\n"
+                    ".decl AA1 v_type=G type=ud num_elts=1\n"
+                    ".implicit_PSEUDO_INPUT AA0 offset=256 size=4\n"
+                    ".implicit_PSEUDO_INPUT AA1 offset=256 size=4\n"
+                    "mov (M1_NM,1) AA0(0,0)<1> AA1(0,0)<0;1,0>\n"
+            );
+        }
+        )"""";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "";
+    kernel_string->entry_point = "igc_check";
+    kernel_string->batch_compilation = true;
+
+    try {
+        cldnn::kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
+        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
+        _kernels_cache_device_query->build_all();
+        cache[device] = true;
+    } catch (std::exception&) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
         case cldnn::data_types::i4:
@@ -1081,6 +1123,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.bLocalBlockIOSupport = query_local_block_io_supported(engine, config);
+    params.engineInfo.supports_microkernels = query_microkernels_supported(engine, config);
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;

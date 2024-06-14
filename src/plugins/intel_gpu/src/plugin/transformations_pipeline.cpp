@@ -188,6 +188,10 @@ static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::No
 }
 }  // namespace
 
+namespace cldnn {
+extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+}  // namespace cldnn
+
 namespace ov {
 namespace intel_gpu {
 
@@ -317,7 +321,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
 
             // For platforms with DPAS support we don't have any shape-based limitations
-            if (device_info.supports_immad)
+            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config))
                 return true;
 
             auto sdpa = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(node);

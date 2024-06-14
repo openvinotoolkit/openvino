@@ -392,6 +392,7 @@ struct EngineInfo {
     bool enable_sub_groups_emulation = false;
     bool bOptHintsSupport = false;
     bool bLocalBlockIOSupport = false;
+    bool supports_microkernels = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;

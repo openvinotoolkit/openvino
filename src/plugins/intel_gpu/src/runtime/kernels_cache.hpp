@@ -54,21 +54,34 @@ public:
         size_t hash_value;
         uint32_t kernels_counter;
         source_code source;
+        source_code micro_headers;
         std::string options;
         bool dump_custom_program;
         bool has_microkernels;
         std::map<std::string, std::pair<kernel_impl_params, size_t>> entry_point_to_id;
 
-        explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::vector<std::string>& batch_header_str)
+        explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::map<std::string, std::string>& batch_headers)
             : bucket_id(_bucket_id),
               batch_id(_batch_id),
               hash_value(0),
               kernels_counter(0),
-              source(std::move(batch_header_str)),
+              source({}),
               options(_options),
               dump_custom_program(false),
               has_microkernels(false),
               entry_point_to_id({}) {
+            static const std::vector<std::string> micro_kernel_include_names {
+                "generic_vector_ops",
+                "tile_ops",
+                "sdpa_utils"
+            };
+            for (const auto& kv : batch_headers) {
+                if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), kv.first) == micro_kernel_include_names.end()) {
+                    source.push_back(kv.second);
+                } else {
+                    micro_headers.push_back(kv.second);
+                }
+            }
         }
     };
 
@@ -85,7 +98,7 @@ private:
     compiled_kernels _kernels;
     std::map<std::vector<unsigned char>, uint32_t> _cached_binaries;
     std::unordered_map<std::string, kernel::ptr> _cached_kernels;
-    std::vector<std::string> batch_header_str;
+    std::map<std::string, std::string> batch_headers;
     std::unordered_map<kernel_impl_params, size_t, impl_hasher> _kernel_batch_hash;
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const engine& build_engine, const batch_program& batch, compiled_kernels& compiled_kernels);
@@ -99,12 +112,9 @@ public:
                            const ExecutionConfig& config,
                            uint32_t prog_id,
                            std::shared_ptr<ov::threading::ITaskExecutor> task_executor = nullptr,
-                           const std::vector<std::string>& batch_header_str = {});
+                           const std::map<std::string, std::string>& batch_headers = {});
     kernel::ptr get_kernel_from_cached_kernels(std::string id) const;
     std::vector<kernel::ptr> get_kernels(kernel_impl_params params) const;
-    void set_batch_header_str(const std::vector<std::string> &batch_headers) {
-        batch_header_str = std::move(batch_headers);
-    }
 
     bool validate_simple_kernel_execution(kernel::ptr kernel);
 
