@@ -43,10 +43,12 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     auto layerName = layer_type_name_ID(op);
 
     bool is_causal = op->get_causal();
+    bool is_kv_compressed = op->get_kv_compressed();
     int64_t indirect_axis = -1;
     auto sdpa_prim = cldnn::scaled_dot_product_attention(layerName,
                                                          inputs,
                                                          is_causal,
+                                                         is_kv_compressed,
                                                          indirect_axis,
                                                          op->get_input0_transpose_order(),
                                                          op->get_input1_transpose_order(),
@@ -57,15 +59,18 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
 }
 
 static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::IndirectSDPA>& op) {
-    validate_inputs_count(op, {4, 5, 6});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 
     bool is_causal = op->get_causal();
+    bool is_kv_compressed = op->get_kv_compressed();
+    size_t scale_input_cnt = is_kv_compressed ? 1 : 0;
+    validate_inputs_count(op, {4 + scale_input_cnt, 5 + scale_input_cnt, 6 + scale_input_cnt});
     int64_t indirect_axis = op->get_indirect_axis();
     auto sdpa_prim = cldnn::scaled_dot_product_attention(layerName,
                                                          inputs,
                                                          is_causal,
+                                                         is_kv_compressed,
                                                          indirect_axis,
                                                          op->get_input0_transpose_order(),
                                                          op->get_input1_transpose_order(),

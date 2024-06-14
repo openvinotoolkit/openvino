@@ -16,6 +16,7 @@ ParamsKey SDPAKernelRef::GetSupportedKey() const {
     // beam table input
     k.EnableInputDataType(Datatype::INT32);
 
+    // FIXME: support for compressed KV cache
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
 

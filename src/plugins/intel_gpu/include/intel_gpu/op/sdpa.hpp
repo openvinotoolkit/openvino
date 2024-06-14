@@ -21,6 +21,7 @@ public:
 
     SDPA(const OutputVector& inputs,
          const bool is_causal,
+         const bool is_kv_compressed,
          const std::vector<int64_t>& order_q,
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
@@ -34,6 +35,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
     bool get_causal() const { return m_is_causal; }
+    bool get_kv_compressed() const { return m_is_kv_compressed; }
 
     std::vector<int64_t> get_input0_transpose_order() const { return m_order_q; }
     std::vector<int64_t> get_input1_transpose_order() const { return m_order_k; }
@@ -49,6 +51,7 @@ public:
 
 protected:
     bool m_is_causal;
+    bool m_is_kv_compressed;
     std::vector<int64_t> m_order_q;
     std::vector<int64_t> m_order_k;
     std::vector<int64_t> m_order_v;

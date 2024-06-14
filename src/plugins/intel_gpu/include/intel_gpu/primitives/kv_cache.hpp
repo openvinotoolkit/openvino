@@ -22,23 +22,27 @@ struct kv_cache : public primitive_base<kv_cache> {
              const int64_t concat_axis,
              const int64_t gather_axis,
              const bool indirect,
+             const bool compressed,
              const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding})
         , variable_info(variable_info)
         , concat_axis(concat_axis)
         , gather_axis(gather_axis)
-        , indirect(indirect) {}
+        , indirect(indirect)
+        , compressed(compressed) {}
 
     ov::op::util::VariableInfo variable_info;
     int64_t concat_axis = 0;
     int64_t gather_axis = 0;
     bool indirect = false;
+    bool compressed = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, concat_axis);
         seed = hash_combine(seed, gather_axis);
         seed = hash_combine(seed, indirect);
+        seed = hash_combine(seed, compressed);
         return seed;
     }
 
@@ -51,7 +55,8 @@ struct kv_cache : public primitive_base<kv_cache> {
         return variable_info == rhs_casted.variable_info &&
                concat_axis == rhs_casted.concat_axis &&
                gather_axis == rhs_casted.gather_axis &&
-               indirect == rhs_casted.indirect;
+               indirect == rhs_casted.indirect &&
+               compressed == rhs_casted.compressed;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -63,6 +68,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         ob << concat_axis;
         ob << gather_axis;
         ob << indirect;
+        ob << compressed;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -77,6 +83,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         ib >> concat_axis;
         ib >> gather_axis;
         ib >> indirect;
+        ib >> compressed;
     }
 };
 }  // namespace cldnn

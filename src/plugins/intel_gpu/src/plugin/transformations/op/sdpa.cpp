@@ -16,12 +16,14 @@ namespace op {
 
 SDPA::SDPA(const OutputVector& inputs,
            const bool is_causal,
+           const bool is_kv_compressed,
            const std::vector<int64_t>& order_q,
            const std::vector<int64_t>& order_k,
            const std::vector<int64_t>& order_v,
            const std::vector<int64_t>& order_out,
            const ov::element::Type output_type)
     : m_is_causal(is_causal)
+    , m_is_kv_compressed(is_kv_compressed)
     , m_order_q(order_q)
     , m_order_k(order_k)
     , m_order_v(order_v)
@@ -37,6 +39,7 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
 
     return std::make_shared<SDPA>(new_args,
                                   m_is_causal,
+                                  m_is_kv_compressed,
                                   m_order_q,
                                   m_order_k,
                                   m_order_v,
@@ -47,10 +50,10 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
 void SDPA::validate_and_infer_types() {
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
-        input_size == 3 || input_size == 4 || input_size == 5,
+        input_size == 3 || input_size == 4 || input_size == 5 || input_size == 6,
         "Number of inputs is incorrect. Current value is: ",
         input_size,
-        ", expected 3, 4 or 5.");
+        ", expected 3, 4, 5 or 6.");
 
     std::vector<ov::PartialShape> input_shapes;
     for (size_t i = 0; i < input_size; i++) {

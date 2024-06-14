@@ -51,7 +51,7 @@ static std::string GetKernelName(std::string base_name, KernelsTypes type, bool 
 
 ParamsKey SDPAKernelOpt::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::INT8);  // For KV cache compression
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
 
@@ -98,14 +98,6 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
 
     auto sdpa_stage = kernel_idx == KernelsTypes::FINALIZATION ? 1 : 0;
     jit.AddConstant(MakeJitConstant("SDPA_STAGE_" + std::to_string(sdpa_stage), 1));
-
-    auto& input1 = params.inputs[1];
-    if (input1.GetDType() == Datatype::INT8) {
-        jit.AddConstant(MakeJitConstant("KV_CACHE_COMP", 1));
-        std::cout << params.layerID << "  use int8 " << std::endl;
-    }
-
-    // if (getenv("KV_CACHE_COMP") != nullptr)
 
     return jit;
 }

@@ -305,6 +305,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             auto& bt_update_kernel_selector = bt_kernel_selector_t::Instance();
             kernels_data.push_back(bt_update_kernel_selector.get_best_kernel(bt_update_kernel_params));
         }
+        // FIXME: need to create additional concat to handle scale value
         return cldnn::make_unique<kv_cache_impl>(kernels_data);
     }
 

@@ -59,7 +59,7 @@ KVCache::KVCache(const Output<Node>& past,
     , m_concat_axis(concat_axis)
     , m_gather_axis(gather_axis)
     , m_indirect(true)
-    , m_compressed(false)  // XXX: need to change this to true
+    , m_compressed(true)
     , m_output_type(output_type) {
     m_variable = past_variable;
     std::cout << "mingyuki: KV cache compression" << std::endl;
@@ -86,13 +86,14 @@ void KVCache::validate_and_infer_types() {
     if (m_indirect)
         input_shapes.push_back(get_input_partial_shape(2));
     auto shapes = shape_infer(this, input_shapes);
-    set_output_type(0, output_type, shapes[0]);
+    size_t out_ports = 0;
+    set_output_type(out_ports++, output_type, shapes[0]);
     // TODO: kv-cache compression is not supported for indirect kv cache
     if (m_indirect) {
-        set_output_type(1, get_input_element_type(2), shapes[1]);
+        set_output_type(out_ports++, get_input_element_type(2), shapes[1]);
     }
     if (m_compressed) {
-        set_output_type(1, get_input_element_type(2), shapes[1]);
+        set_output_type(out_ports++, get_input_element_type(2), shapes[1]);
     }
 }
 
@@ -105,10 +106,19 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_concat_axis,
                                          m_output_type);
 
+    } else if (new_args.size() == 3) {
+        return std::make_shared<KVCache>(new_args.at(0),
+                                         new_args.at(1),
+                                         new_args.at(2),
+                                         m_variable,
+                                         m_concat_axis,
+                                         m_gather_axis,
+                                         m_output_type);
     } else {
         return std::make_shared<KVCache>(new_args.at(0),
                                          new_args.at(1),
                                          new_args.at(2),
+                                         new_args.at(3),
                                          m_variable,
                                          m_concat_axis,
                                          m_gather_axis,
@@ -122,7 +132,7 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::Par
     std::vector<ov::PartialShape> out_shapes;
 
     // std::cout << "shape_infer " << op->get_friendly_name() << std::endl;
-    if (op->get_output_size() >= 2 && !op->get_compressed()) {
+    if (op->get_output_size() >= 2) {
         // std::cout << "  indirect! " << op->get_friendly_name() << std::endl;
         ov::op::v8::Gather gather;
         int64_t gather_axis = ov::util::normalize(op->get_gather_axis(), input_shapes[0].size());
@@ -137,13 +147,14 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::Par
         beam_table_shape[gather_axis] = out_shapes[0][gather_axis];
         beam_table_shape[concat_axis] = out_shapes[0][concat_axis];
         out_shapes.push_back(beam_table_shape);
-    } else if (op->get_compressed()){
-        std::vector<ov::PartialShape> concat_shapes = {input_shapes[0], input_shapes[1]};
-        out_shapes = ov::op::v0::shape_infer(&concat, concat_shapes);
-        ov::PartialShape scale_shape = concat_shapes[0];
-        scale_shape[2] = 1;
-        scale_shape[3] = 1;        
-        out_shapes.push_back(scale_shape);
+        // FIXME: indirect kv cache and compression are orthogonal feature. it can be selective.
+        // If KV cache is compressed
+        if (op->get_output_size() == 3){
+            ov::PartialShape scale_shape(std::vector<size_t>(out_shapes[0].size(), 1));
+            scale_shape[0] = out_shapes[0][0];
+            scale_shape[1] = out_shapes[0][1];
+            out_shapes.push_back(scale_shape);
+        }
     } else {
         std::vector<ov::PartialShape> concat_shapes = {input_shapes[0], input_shapes[1]};
         out_shapes = ov::op::v0::shape_infer(&concat, concat_shapes);

@@ -75,8 +75,10 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     }
 
     jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
-    jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
-    jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
+    jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
+    size_t port_for_kv_scale = params.conf.is_kv_compressed ? 1 : 0;
+    jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3 + port_for_kv_scale));
+    jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4 + port_for_kv_scale));
 
     auto is_default_order = [](const std::vector<int64_t>& order) {
         for (size_t i = 0; i < order.size(); i++)
@@ -135,6 +137,7 @@ bool SDPAKernelBase::Validate(const Params& p) const {
     if (params.outputs[0].Dimentions() != 4)
         return false;
 
+    // FIXME: i8 input is supported only when kv cache is compressed
     return true;
 }
 }  // namespace kernel_selector

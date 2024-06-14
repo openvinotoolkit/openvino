@@ -205,6 +205,7 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         auto indirect_sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(data_inputs,
                                                                                indirect_kv_cache_0->output(1), // beam table
                                                                                is_causal,
+                                                                               false,   // kv_compressed
                                                                                gather_axis_1,
                                                                                order_in0,
                                                                                order_in1,

@@ -67,9 +67,9 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher() {
         
         auto k_new_token_node = pattern_map.at(k_new_token).get_node_shared_ptr();
         auto key_node = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(key).get_node_shared_ptr());
-        auto present_node = std::dynamic_pointer_cast<ov::intel_gpu::op::IndirectSDPA>(pattern_map.at(present).get_node_shared_ptr());
+        auto org_sdpa = std::dynamic_pointer_cast<ov::intel_gpu::op::IndirectSDPA>(pattern_map.at(present).get_node_shared_ptr());
         
-        if (present_node->get_friendly_name().find("__module.model.transformer.h.0.attn/aten::scaled_dot_product_attention/ScaledDotProductAttention") != std::string::npos) {
+        if (org_sdpa->get_friendly_name().find("__module.model.transformer.h.0.attn/aten::scaled_dot_product_attention/ScaledDotProductAttention") != std::string::npos) {
             std::cout << "pattern matched! " << key_node->get_friendly_name() << std::endl;   
             auto new_dyn_quan = std::make_shared<op::DynamicQuantize>(key_node->get_input_node_shared_ptr(1));
             // FIXME: need to tell whether it is direct KV cache or indirect kv cache
@@ -81,9 +81,39 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher() {
                                                                 key_node->get_concat_axis(),
                                                                 key_node->get_gather_axis(),
                                                                 key_node->get_output_element_type(0));
+
             new_kv_cache_k->set_friendly_name(key_node->get_friendly_name());
             ov::copy_runtime_info(key_node, new_kv_cache_k);
-            ov::replace_node(key_node, new_kv_cache_k);
+
+            // FIXME: output port from new_kv_cache_k is fixed. compression and indirectness is orthogonal.
+            OutputVector sdpa_inputs;
+            // QKV -- attention_mask -- input_scale -- key_scale -- beam_idx
+            for (size_t i = 0; i < org_sdpa->get_input_size() - 1; i++)
+                sdpa_inputs.push_back(org_sdpa->get_input_node_shared_ptr(i));
+            sdpa_inputs[1] = new_kv_cache_k->output(0);         // compressed K
+            sdpa_inputs.push_back(new_kv_cache_k->output(2));   // scale for compressed K
+            std::cout << "org_sdpa input size " << org_sdpa->get_input_size() 
+                        << "   new_sdpa input size " << sdpa_inputs.size() << std::endl;
+
+            // auto new_sdpa = org_sdpa->clone_with_new_inputs(sdpa_inputs);
+            auto new_sdpa = std::make_shared<op::IndirectSDPA>(sdpa_inputs,
+                                                               new_kv_cache_k->output(1),
+                                                               org_sdpa->get_causal(),
+                                                               true /* kv_compressed */,
+                                                               org_sdpa->get_indirect_axis(),
+                                                               org_sdpa->get_input0_transpose_order(),
+                                                               org_sdpa->get_input1_transpose_order(),
+                                                               org_sdpa->get_input2_transpose_order(),
+                                                               org_sdpa->get_output_transpose_order(),
+                                                               org_sdpa->get_output_type());
+
+            new_kv_cache_k->set_friendly_name(key_node->get_friendly_name());
+            ov::copy_runtime_info(key_node, new_kv_cache_k);
+
+            new_sdpa->set_friendly_name(org_sdpa->get_friendly_name());
+            ov::copy_runtime_info(org_sdpa, new_sdpa);
+
+            ov::replace_node(org_sdpa, new_sdpa);
             return true;
         }
         return false;

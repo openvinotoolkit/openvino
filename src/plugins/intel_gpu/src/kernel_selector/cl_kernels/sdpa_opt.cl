@@ -135,6 +135,13 @@ KERNEL(sdpa_opt)(
 #endif
 #if HAS_SCALE_INPUT
     const __global INPUT4_TYPE* scale,
+#if IS_KV_COMPRESSED
+    const __global INPUT5_TYPE* key_scale,
+#endif
+#else  /* !HAS_SCALE_INPUT */
+#if IS_KV_COMPRESSED
+    const __global INPUT4_TYPE* key_scale,
+#endif
 #endif
     __global OUTPUT_TYPE* output,
 #ifdef BEAM_TABLE_TYPE
@@ -235,7 +242,7 @@ KERNEL(sdpa_opt)(
                 uint head_idx_index = 0;
                 #define KEY_BLOCK_SIZE 8
                 for (; head_idx_index + (KEY_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * KEY_BLOCK_SIZE) {
-#ifdef KV_CACHE_COMP
+#if IS_KV_COMPRESSED
 #define TO_KEY_VEC_TYPE(x) CAT(convert_, MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE))(x)
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(char, KEY_BLOCK_SIZE, ptr, offset);
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(char, KEY_BLOCK_SIZE)
@@ -273,7 +280,7 @@ KERNEL(sdpa_opt)(
 
                 #define KEY_BLOCK_SIZE 4
                 for (; head_idx_index + (KEY_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * KEY_BLOCK_SIZE) {
-#ifdef KV_CACHE_COMP
+#if IS_KV_COMPRESSED
 #define TO_KEY_VEC_TYPE(x) CAT(convert_, MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE))(x)
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(char, KEY_BLOCK_SIZE, ptr, offset);
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(char, KEY_BLOCK_SIZE)
@@ -611,6 +618,13 @@ KERNEL(sdpa_opt)(
 #endif
 #if HAS_SCALE_INPUT
     const __global INPUT4_TYPE* scale,
+#if IS_KV_COMPRESSED
+    const __global INPUT5_TYPE* key_scale,
+#endif
+#else  /* !HAS_SCALE_INPUT */
+#if IS_KV_COMPRESSED
+    const __global INPUT4_TYPE* key_scale,
+#endif
 #endif
     __global OUTPUT_TYPE* output,
 #ifdef BEAM_TABLE_TYPE
@@ -736,7 +750,7 @@ KERNEL(sdpa_opt)(
                     }
 
                     unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
-#ifdef KV_CACHE_COMP
+#if IS_KV_COMPRESSED
 #ifdef BEAM_TABLE_TYPE
                         INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index);
 #else
@@ -1048,7 +1062,7 @@ KERNEL(sdpa_opt)(
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
                 }
-#ifdef KV_CACHE_COMP
+#if IS_KV_COMPRESSED
                 // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
                 //     printf("value %d - %f, acc[seq_idx] = %f\n", __value_val, value_val, acc[0]);
 #endif
@@ -1061,7 +1075,7 @@ KERNEL(sdpa_opt)(
 
         // If the number of partitions is greater than 1, save results to the temporary buffer;
         // otherwise, save results directly to the main output.
-#ifdef KV_CACHE_COMP
+#if IS_KV_COMPRESSED
         // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
         //     printf("num_of_partitions %d\n", num_of_partitions);
 #endif
@@ -1080,7 +1094,7 @@ KERNEL(sdpa_opt)(
                                             head_size_idx;
                 tmp_out[tmp_out_offset] = acc[seq_idx];
                 // tmp_out[tmp_out_offset] = 0.0h;
-#ifdef KV_CACHE_COMP
+#if IS_KV_COMPRESSED
                 // if (tmp_out_offset >= 200 && tmp_out_offset <= 300)
                 //     printf("tmp_out[%d]=%f  acc[%d]=%f\n", tmp_out_offset, tmp_out[tmp_out_offset], seq_idx, acc[seq_idx]);
 #endif
@@ -1188,7 +1202,7 @@ KERNEL(sdpa_opt_finalization_stage)(
                                             partition_idx * (HEAD_SIZE) +
                                             (head_size_idx * SUBGROUP_SIZE + sglid);
                 OUTPUT_TYPE out_val = tmp_out[tmp_out_offset];
-#ifdef KV_CACHE_COMP
+#if IS_KV_COMPRESSED
                 // if (tmp_out_offset > 200 && tmp_out_offset < 300)
                 //     printf("out_val %f at %d\n", out_val, tmp_out_offset);
 #endif
