@@ -9,6 +9,10 @@ namespace kernel_selector {
 ParamsKey ReorderWeightsBF16::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputWeightsType(WeightsType::BF16);
+    k.EnableOutputWeightsType(WeightsType::INT8);
+    k.EnableOutputWeightsType(WeightsType::F16);
+    k.EnableOutputWeightsType(WeightsType::F32);
+    k.EnableOutputWeightsType(WeightsType::INT32);
     k.EnableAllInputWeightsLayout();
     k.EnableAllOutputWeightsLayout();
     k.EnableDifferentTypes();

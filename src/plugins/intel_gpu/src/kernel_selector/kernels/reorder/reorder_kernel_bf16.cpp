@@ -1,0 +1,61 @@
+﻿// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "reorder_kernel_bf16.h"
+#include "kernel_selector_utils.h"
+
+namespace kernel_selector {
+ParamsKey ReorderKernelBF16::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::INT32);
+    k.EnableOutputDataType(Datatype::INT64);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableSurfaceInputSupport();
+    k.EnableDifferentTypes();
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBatching();
+    k.EnableDynamicShapesSupport();
+    return k;
+}
+
+JitConstants ReorderKernelBF16::GetJitConstants(const reorder_params& params) const {
+    auto jit = ReorderKernelBase::GetJitConstants(params);
+    if (params.truncate) {
+        jit.AddConstant(MakeJitConstant("CONVERT_TRUNCATE", true));
+    }
+    jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
+
+    if (params.surface_input)
+        jit.AddConstant(MakeJitConstant("SURFACE_INPUT", true));
+
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
+            idx_order = {"b", "f", "y", "x"};
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
+            idx_order = {"b", "f", "z", "y", "x"};
+        }
+        FusedOpsConfiguration conf = {"", idx_order, "res", GetUnitType(params), 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    return jit;
+}
+
+KernelsData ReorderKernelBF16::GetKernelsData(const Params& params) const {
+    const reorder_params& orgParams = static_cast<const reorder_params&>(params);
+    return GetCommonKernelsData(orgParams);
+}
+
+KernelsPriority ReorderKernelBF16::GetKernelsPriority(const Params& /*params*/) const {
+    return FORCE_PRIORITY_3;
+}
+}  // namespace kernel_selector

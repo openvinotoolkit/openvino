@@ -80,6 +80,9 @@ void ParamsKey::EnableInputDataType(Datatype dt) {
         case Datatype::F32:
             key.inputType.val.F32 = 1;
             break;
+        case Datatype::BF16:
+            key.inputType.val.BF16 = 1;
+            break;
         default:
             break;
     }
