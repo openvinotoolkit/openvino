@@ -66,7 +66,7 @@ Install requirements
 
 .. code:: ipython3
 
-    %pip install -q "ultralytics==8.1.42" onnx tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "ultralytics==8.2.24" onnx tqdm --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino-dev>=2024.0.0"
     %pip install -q "nncf>=2.9.0"
     %pip install -q "gradio>=4.13"
@@ -140,12 +140,12 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    Downloading https://github.com/ultralytics/assets/releases/download/v8.1.0/FastSAM-x.pt to 'FastSAM-x.pt'...
+    Downloading https://github.com/ultralytics/assets/releases/download/v8.2.0/FastSAM-x.pt to 'FastSAM-x.pt'...
 
 
 .. parsed-literal::
 
-    100%|██████████| 138M/138M [00:01<00:00, 95.8MB/s]
+    100%|██████████| 138M/138M [00:01<00:00, 100MB/s]
 
 
 
@@ -157,8 +157,8 @@ model and generate a segmentation map.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 628.0ms
-    Speed: 3.4ms preprocess, 628.0ms inference, 27.9ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 658.4ms
+    Speed: 4.0ms preprocess, 658.4ms inference, 586.5ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -196,15 +196,15 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.1.42 🚀 Python-3.8.10 torch-2.3.0+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.3.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.2 MB)
     
     OpenVINO: starting export with openvino 2024.1.0-15008-f4afc983258-releases/2024/1...
-    OpenVINO: export success ✅ 6.1s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
+    OpenVINO: export success ✅ 6.2s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
     
-    Export complete (9.0s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
+    Export complete (9.2s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
     Visualize:       https://netron.app
@@ -313,8 +313,8 @@ pipeline.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 510.3ms
-    Speed: 6.8ms preprocess, 510.3ms inference, 34.2ms postprocess per image at shape (1, 3, 1024, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 503.6ms
+    Speed: 7.6ms preprocess, 503.6ms inference, 38.0ms postprocess per image at shape (1, 3, 1024, 1024)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -515,6 +515,11 @@ repo <../yolov8-optimization/>`__.
 
 .. parsed-literal::
 
+    <string>:7: TqdmExperimentalWarning: Using `tqdm.autonotebook.tqdm` in notebook mode. Use `tqdm.tqdm` instead to force console mode (e.g. in jupyter console)
+
+
+.. parsed-literal::
+
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
@@ -651,9 +656,9 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 22 seconds
-    Resulting in 5.82 fps
-    That is 3.09 times faster!
+    Segmented in 23 seconds
+    Resulting in 5.57 fps
+    That is 2.96 times faster!
 
 
 Try out the converted pipeline

@@ -180,7 +180,7 @@ ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialS
     auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
     auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
     OPENVINO_ASSERT(DimType::merge(merged_dimension, arg0_col_dim, arg1_row_dim) || arg0_col_dim.is_dynamic() || arg1_row_dim.is_dynamic(),
-                    "Incompatible Brgemm matrix dimension");
+                    "Incompatible Brgemm matrix dimension. arg0_col_dim = ", arg0_col_dim, ", arg1_row_dim = ", arg1_row_dim);
 
     // add 1 to begin to align shape ranks if needed
     if (arg0_rank < arg1_rank)
