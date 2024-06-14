@@ -173,10 +173,8 @@ std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequ
     std::string targetDevice;
     ov::AnyMap configuration;
     std::tie(targetDevice, configuration) = obj.param;
-    std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
-    targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << "_";
+    result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
     if (!configuration.empty()) {
         for (auto& configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
@@ -194,10 +192,9 @@ std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::tie(targetDevice, configuration) = obj.param;
-    std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
-    targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << "_";
+    result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
+    result << "targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
     if (!configuration.empty()) {
         for (auto& configItem : configuration) {
             result << "configItem=" << configItem.first << "_" << configItem.second << "_";

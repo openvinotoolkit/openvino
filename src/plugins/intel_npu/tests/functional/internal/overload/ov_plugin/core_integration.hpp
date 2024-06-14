@@ -45,11 +45,9 @@ public:
         std::string target_device;
         ov::AnyMap configuration;
         std::tie(target_device, configuration) = obj.param;
-        std::replace(target_device.begin(), target_device.end(), ':', '.');
-
         std::ostringstream result;
-        result << "OVClassNetworkTestName_";
-        result << "targetDevice=" << target_device << "_";
+        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
+        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";

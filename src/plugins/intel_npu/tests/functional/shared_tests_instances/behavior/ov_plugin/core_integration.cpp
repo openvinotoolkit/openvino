@@ -34,8 +34,8 @@ namespace OVClassBasicTestName {
 static std::string getTestCaseName(testing::TestParamInfo<std::pair<std::string, std::string>> obj) {
     std::ostringstream result;
     result << "OVClassBasicTestName_" << obj.param.first << "_" << obj.param.second;
-    result << "_targetDevice=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
-
+    result << "_targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+    result << "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
     return result.str();
 }
 }  // namespace OVClassBasicTestName
@@ -44,8 +44,8 @@ namespace OVClassNetworkTestName {
 static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
     result << "OVClassNetworkTestName_" << obj.param;
-    result << "_targetDevice=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
-
+    result << "_targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+    result << "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
     return result.str();
 }
 }  // namespace OVClassNetworkTestName

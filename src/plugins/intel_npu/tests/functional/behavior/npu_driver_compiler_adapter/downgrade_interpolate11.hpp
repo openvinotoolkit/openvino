@@ -30,10 +30,8 @@ public:
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
-        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
-
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
+        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         result << "model="
                << "Interpolate11Model"

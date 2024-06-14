@@ -31,10 +31,8 @@ public:
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
-        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
-
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
+        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         if (!configuration.empty()) {
             using namespace ov::test::utils;
@@ -107,7 +105,7 @@ TEST_P(TestCompileModelWithoutDeviceNPU, NoThrowIfNoDeviceAndButPlatformPassed) 
 
 const std::map<std::string_view, std::array<std::string_view, 2>> wrongDevice = {
         // {orig, {wrong for MLIR}}
-        {"VPU3700", {"VPU0000"}}, {"VPU3720", {"VPU0000"}},
+        {"NPU3700", {"NPU0000"}}, {"NPU3720", {"NPU0000"}},
 };
 
 std::string getWrongDevice(const std::string_view platform, const CompilerType&) {
@@ -122,7 +120,7 @@ std::string getWrongDevice(const std::string_view platform, const CompilerType&)
 
 const std::map<std::string_view, std::array<std::string_view, 2>> validDevice = {
         // {orig, {valid for MLIR}}
-        {"VPU3700", {"VPU3700"}}, {"VPU3720", {"VPU3720"}}
+        {"NPU3700", {"NPU3700"}}, {"NPU3720", {"NPU3720"}}
 };
 
 std::string getValidDevice(const std::string_view platform, const CompilerType&) {
