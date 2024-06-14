@@ -26,12 +26,11 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        Ubuntu20 arm64        V     n/a    n/a
        CentOS7 x86_64        V      V     n/a
        Ubuntu18 x86_64       V      V     n/a
-       Ubuntu20 x86_64       V      V      V
+       Ubuntu20 x86_64       V      V     n/a
        Ubuntu22 x86_64       V      V      V
        Ubuntu24 x86_64       V      V      V
        RHEL8 x86_64          V      V     n/a
       ===================  =====  =====  =====
-
 
 .. tab-set::
 
@@ -90,8 +89,6 @@ Install OpenVINO™ Runtime on Linux from an Archive File
 
                source /opt/rh/devtoolset-8/enable
                gcc -v
-
-
 
 
 
