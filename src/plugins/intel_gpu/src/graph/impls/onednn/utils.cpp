@@ -208,9 +208,9 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     ov::Shape new_shape{1, 1};
     for (size_t i = 0; i < pshape.size(); ++i) {
         if (i < 2) {
-            new_shape[0] *= pshape[i].is_dynamic() ? -1 : pshape[i].get_length();
+            new_shape[0] *= pshape[i].is_dynamic() ? 1 : pshape[i].get_length();
         } else {
-            new_shape[1] *= pshape[i].is_dynamic() ? -1 : pshape[i].get_length();
+            new_shape[1] *= pshape[i].is_dynamic() ? 1 : pshape[i].get_length();
         }
     }
     l.set_partial_shape(new_shape);
