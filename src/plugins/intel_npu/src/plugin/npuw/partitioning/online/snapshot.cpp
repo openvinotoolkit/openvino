@@ -401,7 +401,8 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
 
     // FIXME: this was introduced to make the partitioning
     // the same every run when created the same way.
-    std::sort(repeating_groups_sorted.begin(), repeating_groups_sorted.end(),
+    std::sort(repeating_groups_sorted.begin(),
+              repeating_groups_sorted.end(),
               [&](const Group::GPtr& gptr_a, const Group::GPtr& gptr_b) {
                   return gptr_a->getId() < gptr_b->getId();
               });

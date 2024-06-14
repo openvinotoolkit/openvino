@@ -17,12 +17,11 @@ ade::Nodes ade::Node::srcNodes() const {
     // FIXME: this was introduced to make the graph
     // the same every run when created the same way.
     // FIXME: cache this information
-    std::sort(src_nodes.begin(), src_nodes.end(),
-              [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
-                  auto locked_graph = m_graph.lock();
-                  return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
-                         locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
-              });
+    std::sort(src_nodes.begin(), src_nodes.end(), [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
+        auto locked_graph = m_graph.lock();
+        return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
+               locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
+    });
     return src_nodes;
 }
 
@@ -35,12 +34,11 @@ ade::Nodes ade::Node::dstNodes() const {
     // FIXME: this was introduced to make the graph
     // the same every run when created the same way.
     // FIXME: cache this information
-    std::sort(dst_nodes.begin(), dst_nodes.end(),
-              [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
-                  auto locked_graph = m_graph.lock();
-                  return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
-                         locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
-              });
+    std::sort(dst_nodes.begin(), dst_nodes.end(), [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
+        auto locked_graph = m_graph.lock();
+        return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
+               locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
+    });
     return dst_nodes;
 }
 
@@ -134,17 +132,17 @@ std::vector<ade::NodeHandle> ade::Graph::nodes() const {
     return ret;
 }
 
-void ade::Graph::dfs(ade::NodeHandle& nh, std::unordered_set<ade::NodeHandle>& visited,
+void ade::Graph::dfs(ade::NodeHandle& nh,
+                     std::unordered_set<ade::NodeHandle>& visited,
                      std::stack<ade::NodeHandle>& stack) const {
     visited.insert(nh);
     auto dst_nodes = nh->dstNodes();
 
     // FIXME: this was introduced to make the graph
     // the same every run when created the same way.
-    std::sort(dst_nodes.begin(), dst_nodes.end(),
-              [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
-                  return this->meta(a).get<detail::CreateIdx>().m_idx < this->meta(b).get<detail::CreateIdx>().m_idx;
-              });
+    std::sort(dst_nodes.begin(), dst_nodes.end(), [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
+        return this->meta(a).get<detail::CreateIdx>().m_idx < this->meta(b).get<detail::CreateIdx>().m_idx;
+    });
 
     for (auto dst_nh : dst_nodes) {
         auto it = visited.find(dst_nh);
@@ -162,10 +160,9 @@ std::vector<ade::NodeHandle> ade::Graph::sorted() const {
 
     // FIXME: this was introduced to make the graph
     // the same every run when created the same way.
-    std::sort(nodes.begin(), nodes.end(),
-              [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
-                  return this->meta(a).get<detail::CreateIdx>().m_idx < this->meta(b).get<detail::CreateIdx>().m_idx;
-              });
+    std::sort(nodes.begin(), nodes.end(), [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
+        return this->meta(a).get<detail::CreateIdx>().m_idx < this->meta(b).get<detail::CreateIdx>().m_idx;
+    });
 
     for (auto nh : nodes) {
         auto it = visited.find(nh);
