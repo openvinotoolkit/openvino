@@ -2,34 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
-#include <iomanip>
-#include <ctime>
-#include <mutex>
-
 #include "logging.hpp"
+
+#include <ctime>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
 
 namespace {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-const char* get_env(const std::vector<std::string> &list_to_try) {
-    for (auto &&key : list_to_try) {
-        const char *pstr = std::getenv(key.c_str());
-        if (pstr) return pstr;
+const char* get_env(const std::vector<std::string>& list_to_try) {
+    for (auto&& key : list_to_try) {
+        const char* pstr = std::getenv(key.c_str());
+        if (pstr)
+            return pstr;
     }
     return nullptr;
 }
 #endif
-} // anonymous namespace
+}  // anonymous namespace
 
 ov::npuw::LogLevel ov::npuw::get_log_level() {
     static LogLevel log_level = LogLevel::None;
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     static std::once_flag flag;
 
-    std::call_once(flag, [](){
-        const auto *log_opt = get_env({
-                "OPENVINO_NPUW_LOG_LEVEL",
-                "OPENVINO_NPUW_LOG"});
+    std::call_once(flag, []() {
+        const auto* log_opt = get_env({"OPENVINO_NPUW_LOG_LEVEL", "OPENVINO_NPUW_LOG"});
         if (!log_opt) {
             return;
         } else if (log_opt == std::string("ERROR")) {
@@ -62,7 +61,7 @@ int ov::npuw::__logging_indent__::__level__() {
     return this_indent;
 }
 
-void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor> &tensor, const std::string &base_path) {
+void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& base_path) {
     if (!tensor->is_continuous()) {
         LOG_ERROR("Failed to dump blob " << base_path << ": it is not continuous");
         return;
@@ -71,8 +70,7 @@ void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor> &tensor, const std::stri
     const auto bin_path = base_path + ".bin";
     {
         std::ofstream bin_file(bin_path, std::ios_base::out | std::ios_base::binary);
-        bin_file.write(static_cast<const char*>(tensor->data()),
-                       static_cast<std::streamsize>(tensor->get_byte_size()));
+        bin_file.write(static_cast<const char*>(tensor->data()), static_cast<std::streamsize>(tensor->get_byte_size()));
         LOG_INFO("Wrote file " << bin_path << "...");
     }
     const auto meta_path = base_path + ".txt";
@@ -83,12 +81,11 @@ void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor> &tensor, const std::stri
     }
 }
 
-static void dump_file_list(const std::string list_path,
-                           const std::vector<std::string> &base_names) {
+static void dump_file_list(const std::string list_path, const std::vector<std::string>& base_names) {
     std::ofstream list_file(list_path);
 
     if (base_names.empty()) {
-        return; // That's it. But create file anyway!
+        return;  // That's it. But create file anyway!
     }
 
     auto iter = base_names.begin();
@@ -98,8 +95,7 @@ static void dump_file_list(const std::string list_path,
     }
 }
 
-void ov::npuw::dump_input_list(const std::string base_name,
-                               const std::vector<std::string> &base_input_names) {
+void ov::npuw::dump_input_list(const std::string base_name, const std::vector<std::string>& base_input_names) {
     // dump a list of input/output files for sit.py's --inputs argument
     // note the file has no newline to allow use like
     //
@@ -109,16 +105,13 @@ void ov::npuw::dump_input_list(const std::string base_name,
     LOG_INFO("Wrote input list " << ilist_path << "...");
 }
 
-void ov::npuw::dump_output_list(const std::string base_name,
-                                const std::vector<std::string> &base_output_names) {
+void ov::npuw::dump_output_list(const std::string base_name, const std::vector<std::string>& base_output_names) {
     const auto olist_path = base_name + "_olist.txt";
     dump_file_list(olist_path, base_output_names);
     LOG_INFO("Wrote output list " << olist_path << "...");
 }
 
-void ov::npuw::dump_failure(const std::shared_ptr<ov::Model> &model,
-                            const std::string &device,
-                            const char *extra) {
+void ov::npuw::dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& device, const char* extra) {
     const auto model_path = "failed_" + model->get_friendly_name() + ".xml";
     const auto extra_path = "failed_" + model->get_friendly_name() + ".txt";
 
@@ -127,10 +120,8 @@ void ov::npuw::dump_failure(const std::shared_ptr<ov::Model> &model,
     std::ofstream details(extra_path, std::ios_base::app);
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
-    details << std::put_time(&tm, "%d-%m-%Y %H:%M:%S") << ": Failed to compile submodel for "
-            << device << ", error:\n"
-            << extra
-            << "\n"
+    details << std::put_time(&tm, "%d-%m-%Y %H:%M:%S") << ": Failed to compile submodel for " << device << ", error:\n"
+            << extra << "\n"
             << std::endl;
 
     LOG_INFO("Saved model to " << model_path << " with details in " << extra_path);

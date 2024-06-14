@@ -384,8 +384,7 @@ public:
     using ConfigMap = std::map<std::string, std::string>;
     using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
 
-    explicit Config(const std::shared_ptr<const OptionsDesc>& desc,
-                    const std::string_view& name);
+    explicit Config(const std::shared_ptr<const OptionsDesc>& desc, const std::string_view& name);
 
     void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
 

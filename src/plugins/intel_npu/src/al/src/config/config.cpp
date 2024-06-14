@@ -192,8 +192,9 @@ void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) co
 // Config
 //
 
-Config::Config(const std::shared_ptr<const OptionsDesc>& desc,
-               const std::string_view& name) : _desc(desc), _name(name) {
+Config::Config(const std::shared_ptr<const OptionsDesc>& desc, const std::string_view& name)
+    : _desc(desc),
+      _name(name) {
     OPENVINO_ASSERT(_desc != nullptr, "Got NULL OptionsDesc");
 }
 

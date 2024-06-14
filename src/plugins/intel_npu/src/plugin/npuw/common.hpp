@@ -6,6 +6,7 @@
 
 #include <string>
 #include <unordered_map>
+
 #include "openvino/openvino.hpp"
 
 namespace ov {
@@ -13,6 +14,5 @@ namespace npuw {
 
 using DeviceProperties = std::unordered_map<std::string, ov::AnyMap>;
 
-} // namespace npuw
-} // namespace ov
-    
+}  // namespace npuw
+}  // namespace ov

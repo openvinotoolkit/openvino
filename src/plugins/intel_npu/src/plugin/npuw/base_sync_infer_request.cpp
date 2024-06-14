@@ -3,17 +3,16 @@
 //
 
 #include "base_sync_infer_request.hpp"
+
 #include "compiled_model.hpp"
+#include "intel_npu/al/config/npuw.hpp"
 #include "logging.hpp"
 #include "util.hpp"
 
-#include "intel_npu/al/config/npuw.hpp"
-
-ov::npuw::IBaseInferRequest::IBaseInferRequest(
-    const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
-    : ov::ISyncInferRequest(compiled_model)
-    , m_npuw_model(compiled_model)
-    , m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
+ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
+    : ov::ISyncInferRequest(compiled_model),
+      m_npuw_model(compiled_model),
+      m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
     m_subrequests.resize(m_num_submodels, {});
     m_subrequest_devices.resize(m_num_submodels, {});
     m_completion_cbs.resize(m_num_submodels, {});
@@ -22,10 +21,9 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(
     }
 }
 
-ov::npuw::IBaseInferRequest::RqPtrs
-ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
-                                                   std::size_t nireq,
-                                                   bool *recompiled) {
+ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
+                                                                                       std::size_t nireq,
+                                                                                       bool* recompiled) {
     NPUW_ASSERT(nireq > 0);
     RqPtrs rqs;
     rqs.reserve(nireq);
@@ -49,11 +47,11 @@ ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
                 rqs.emplace_back(comp_model->create_infer_request(), comp_model._so);
             }
             successful = true;
-        } catch (const std::exception &ex) {
-            LOG_WARN("Subgraph ["<< id << "] - Failed to create infer request:" << std::endl << ex.what());
+        } catch (const std::exception& ex) {
+            LOG_WARN("Subgraph [" << id << "] - Failed to create infer request:" << std::endl << ex.what());
             should_recompile = true;
         } catch (...) {
-            LOG_WARN("Subgraph ["<< id << "] - Failed to create infer request: REASON UNKNOWN");
+            LOG_WARN("Subgraph [" << id << "] - Failed to create infer request: REASON UNKNOWN");
             should_recompile = true;
         }
         if (should_recompile) {
@@ -61,15 +59,16 @@ ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
             comp_model_desc.device_it++;
             can_try_again = m_npuw_model->compile_for_success(id);
             if (can_try_again) {
-                if (recompiled) *recompiled = true;
+                if (recompiled)
+                    *recompiled = true;
                 // Probably shouldn't be called all the time, but only if
                 // I/O submodel is affected
                 m_npuw_model->reset_io();
             }
         }
-    } // while(!new_ireq && can_try_again)
+    }  // while(!new_ireq && can_try_again)
     if (!successful) {
-        OPENVINO_THROW("NPUW: Fatal - couldn't create infer request for Subgraph[",id,"]");
+        OPENVINO_THROW("NPUW: Fatal - couldn't create infer request for Subgraph[", id, "]");
     }
     NPUW_ASSERT(rqs.size() == nireq);
 
@@ -79,22 +78,20 @@ ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
             OPENVINO_THROW("NPUW: TEMPORARY LIMITATION: Couldn't create reference infer "
                            "requests if 'nireq' is set to > 1!");
         }
-        LOG_INFO("Create reference subrequest for submodel [" << id << "] on "
-                << m_npuw_model->m_ref_device << "...");
+        LOG_INFO("Create reference subrequest for submodel [" << id << "] on " << m_npuw_model->m_ref_device << "...");
         LOG_BLOCK();
         if (m_npuw_model->submodel_device(id) != m_npuw_model->m_ref_device) {
             auto& ref_submodel = m_npuw_model->m_compiled_submodels.at(id).ref_compiled_model;
-            ov::SoPtr<ov::IAsyncInferRequest> ref_infer_request = {
-                    ref_submodel->create_infer_request(),
-                    ref_submodel._so};
+            ov::SoPtr<ov::IAsyncInferRequest> ref_infer_request = {ref_submodel->create_infer_request(),
+                                                                   ref_submodel._so};
             NPUW_ASSERT(ref_infer_request);
             m_ref_subrequests.at(id) = std::move(ref_infer_request);
             LOG_INFO("Done");
         } else {
             LOG_INFO("Skip creation of reference subrequest for submodule["
-                    << id << "] on reference device: "<< m_npuw_model->m_ref_device
-                    << ", as actual subrequest [" << id << "] has been already created on "
-                    << "it .");
+                     << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
+                     << id << "] has been already created on "
+                     << "it .");
         }
     }
 
@@ -105,8 +102,7 @@ void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx,
     LOG_INFO("Check if subrequest[" << idx << "] is accurate...");
     LOG_BLOCK();
     failover = false;
-    if (m_ref_subrequests.at(idx) != nullptr &&
-        m_subrequests.at(idx)._ptr != m_ref_subrequests.at(idx)._ptr) {
+    if (m_ref_subrequests.at(idx) != nullptr && m_subrequests.at(idx)._ptr != m_ref_subrequests.at(idx)._ptr) {
         NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref == false);
         NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).replaced_by.value_or(idx) == idx);
 
@@ -154,8 +150,7 @@ void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx,
     }
 }
 
-ov::SoPtr<ov::ITensor>
-ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     // assert(persistent)
     return m_port_to_tensor.at(port).tensor;
 }
@@ -167,9 +162,9 @@ void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& p
     m_port_to_tensor.at(port).tensor = tensor;
 }
 
-std::vector<ov::SoPtr<ov::ITensor>>
-ov::npuw::IBaseInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
-    return {}; // NB: Comment why it is empty, and not { get_tensor(port); }
+std::vector<ov::SoPtr<ov::ITensor>> ov::npuw::IBaseInferRequest::get_tensors(
+    const ov::Output<const ov::Node>& port) const {
+    return {};  // NB: Comment why it is empty, and not { get_tensor(port); }
 }
 
 void ov::npuw::IBaseInferRequest::set_tensors(const ov::Output<const ov::Node>&,
@@ -190,7 +185,7 @@ void ov::npuw::IBaseInferRequest::infer() {
         if (!valid_subrequest(idx)) {
             continue;
         }
-        subscribe_subrequest(idx, [](std::exception_ptr){});
+        subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
         run_subrequest_for_success(idx, failover);
         failover_happened |= failover;
@@ -212,28 +207,23 @@ void ov::npuw::IBaseInferRequest::infer() {
 }
 
 void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
-    auto        real_idx      = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
-    const auto &comp_submodel = m_npuw_model->m_compiled_submodels[real_idx].compiled_model;
+    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+    const auto& comp_submodel = m_npuw_model->m_compiled_submodels[real_idx].compiled_model;
 
     // Note: keep using the absolute `idx` for identififaction and printing
     // Note:
     // - _name is used for the user option (no leading 00s for indices)
     // - _path is used for disk dump (will have leading 00s for indices)
-    const auto  comp_submodel_name = subgr_name(idx);
-    const auto  comp_submodel_path = m_npuw_model->m_name
-        + subgr_path_suffix(idx)
-        + iter_path_suffix(idx);
+    const auto comp_submodel_name = subgr_name(idx);
+    const auto comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
 
-    const std::string dump_ios_opt =
-        m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
+    const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     if (ov::npuw::util::is_set(idx, dump_ios_opt)) {
         std::vector<std::string> in_base_names;
         for (std::size_t i = 0u, num_inputs = comp_submodel->inputs().size(); i < num_inputs; i++) {
-            const auto &port = comp_submodel->inputs()[i];
-            const auto &tnsr = m_subrequests[real_idx]->get_tensor(port);
-            std::string in_base_name = comp_submodel_path
-                + "_input_"
-                + ov::npuw::util::fmt(i, num_inputs);
+            const auto& port = comp_submodel->inputs()[i];
+            const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
+            std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(i, num_inputs);
             ov::npuw::dump_tensor(tnsr, in_base_name);
             in_base_names.push_back(std::move(in_base_name));
         }
@@ -242,29 +232,24 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
 }
 
 void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
-    auto        real_idx      = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
-    const auto &comp_submodel = m_npuw_model->m_compiled_submodels[real_idx].compiled_model;
+    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+    const auto& comp_submodel = m_npuw_model->m_compiled_submodels[real_idx].compiled_model;
 
     // Note: keep using the absolute `idx` for identififaction and printing
     // Note:
     // - _name is used for the user option (no leading 00s for indices)
     // - _path is used for disk dump (will have leading 00s for indices)
     // FIXME: Duplication is evil
-    const auto  comp_submodel_name = subgr_name(idx);
-    const auto  comp_submodel_path = m_npuw_model->m_name
-        + subgr_path_suffix(idx)
-        + iter_path_suffix(idx);
+    const auto comp_submodel_name = subgr_name(idx);
+    const auto comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
 
-    const std::string dump_ios_opt =
-        m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
+    const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     if (ov::npuw::util::is_set(idx, dump_ios_opt)) {
         std::vector<std::string> out_base_names;
         for (std::size_t i = 0u, num_outputs = comp_submodel->outputs().size(); i < num_outputs; i++) {
-            const auto &port = comp_submodel->outputs()[i];
-            const auto &tnsr = m_subrequests[real_idx]->get_tensor(port);
-            std::string out_base_name = comp_submodel_path
-                + "_output_"
-                + ov::npuw::util::fmt(i, num_outputs);
+            const auto& port = comp_submodel->outputs()[i];
+            const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
+            std::string out_base_name = comp_submodel_path + "_output_" + ov::npuw::util::fmt(i, num_outputs);
             ov::npuw::dump_tensor(tnsr, out_base_name);
             out_base_names.push_back(std::move(out_base_name));
         }
@@ -287,7 +272,7 @@ std::string ov::npuw::IBaseInferRequest::iter_path_suffix(std::size_t idx) const
     }
 
     if (!m_iter_suffix_required.value()) {
-        return ""; // no need to dump individual iterations - keep suffix empty
+        return "";  // no need to dump individual iterations - keep suffix empty
     }
 
     // Hope alignment to 4 digits is fine to this case (no problem if this number

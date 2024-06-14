@@ -4,24 +4,20 @@
 
 #pragma once
 
-#include <sstream>
-#include <unordered_map>
+#include <functional>
 #include <memory>
 #include <optional>
-#include <functional>
-
-#include "openvino/openvino.hpp"
+#include <sstream>
+#include <unordered_map>
 
 #include "attribute_visitor.hpp"
+#include "openvino/openvino.hpp"
 
 namespace ov {
 namespace npuw {
 namespace online {
 
-enum class AvoidType {
-    OP = 0,
-    PATTERN = 1
-};
+enum class AvoidType { OP = 0, PATTERN = 1 };
 
 struct Avoid {
     AvoidType type;
@@ -54,14 +50,14 @@ using Reptrack = std::vector<std::shared_ptr<Repeated>>;
 using ReptrackMap = std::unordered_map<OVNodePtr, Reptrack>;
 using Uniques = std::unordered_map<std::pair<std::string, std::set<std::string>>, GPtrSet>;
 using Pass = std::function<void(void)>;
-} // namespace detail
+}  // namespace detail
 
 namespace util {
 // FIXME: metadesc should be hash of layer's meta, not string
 std::string getMetaDesc(const std::shared_ptr<ov::Node>& ov_node);
 std::string repeated_id(const std::shared_ptr<Repeated>& ptr);
 std::optional<Avoid> parseAvoid(const std::string& s);
-} // namespace util
+}  // namespace util
 
 }  // namespace online
 }  // namespace npuw

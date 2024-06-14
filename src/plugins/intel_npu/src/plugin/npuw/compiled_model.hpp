@@ -7,13 +7,11 @@
 #include <optional>
 
 #include "common.hpp"
-#include "openvino/runtime/icompiled_model.hpp"
-#include "openvino/runtime/so_ptr.hpp"
-#include "openvino/openvino.hpp"
-
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/config/npuw.hpp"
-
+#include "openvino/openvino.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "partitioning/partitioning.hpp"
 
 namespace intel_npu {
@@ -27,9 +25,9 @@ class InferRequest;
 
 class CompiledModel : public ov::ICompiledModel {
     using DevList = std::vector<std::string>;
-    using GetPropertiesMap = std::map<std::string,
-        std::tuple<ov::PropertyMutability,
-                   std::function<ov::Any(const ::intel_npu::Config&)>>>;
+    using GetPropertiesMap =
+        std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
+
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -49,11 +47,11 @@ private:
     friend class JustInferRequest;
 
     bool compile_for_success(std::size_t id);
-    bool compile_for_device(std::size_t id, const std::string &device_to_try);
+    bool compile_for_device(std::size_t id, const std::string& device_to_try);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
 
-    void dump_on_fail(std::size_t id, const std::string &device_to_stry, const char *extra);
+    void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
     bool m_finalized = false;
     void reset_io();
@@ -71,7 +69,7 @@ private:
     void log_device_dist() const;
 
     void implement_properties();
-   
+
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;
@@ -81,19 +79,19 @@ private:
     std::string m_name;
     const bool m_loaded_from_cache;
 
-    using ToSubmodel = std::pair
-        < size_t /* submodel_idx */
-        , size_t /* port_idx     */
-        >;
-    static const constexpr auto NO_LINK = ToSubmodel{-1,-1};
+    using ToSubmodel = std::pair<size_t /* submodel_idx */
+                                 ,
+                                 size_t /* port_idx     */
+                                 >;
+    static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
 
     // In the below vector, index == compiled model's input/output port idex.
     std::vector<ToSubmodel> m_inputs_to_submodels_inputs, m_outputs_to_submodels_outputs;
 
-    std::map< std::size_t, std::vector<ToSubmodel> > m_param_subscribers;
+    std::map<std::size_t, std::vector<ToSubmodel>> m_param_subscribers;
 
-    std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>, // input ("to")
-             std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>> // output ("from")
+    std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,  // input ("to")
+             std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>  // output ("from")
         m_submodels_input_to_prev_output;
 
     DeviceProperties m_meta_devices;
@@ -129,8 +127,7 @@ private:
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
-    std::function<bool(const ov::SoPtr<ov::ITensor>&,
-                       const ov::SoPtr<ov::ITensor>&)> m_acc_check;
+    std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;
 
     execution_stats m_total_stat;

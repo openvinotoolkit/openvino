@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
 #include <map>
+#include <string>
 #include <variant>
-
-#include "openvino/openvino.hpp"
+#include <vector>
 
 #include "intel_npu/al/config/config.hpp"
+#include "openvino/openvino.hpp"
 
 namespace ov {
 namespace npuw {
@@ -52,7 +51,7 @@ struct Function {
 
     // Mapping: from a prototype {Layer/input_idx} to {param_idx}
     // NOTE: it seems it is required only for `matchRepeatedSubgraphs()'
-    std::map< std::pair<std::string, std::size_t>, std::size_t > _param_mapping;
+    std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
 };
 
 struct Group {
@@ -85,14 +84,14 @@ struct Ensemble {
     std::map<std::string, RepeatedBlock> repeated;
 };
 
-using LinkTo = std::pair
-    < size_t /*submodel_idx*/
-    , size_t /*param_idx*/
-    >;
-using LinkFrom = std::pair
-    < size_t /*submodel_idx*/
-    , size_t /*result_idx*/
-    >;
+using LinkTo = std::pair<size_t /*submodel_idx*/
+                         ,
+                         size_t /*param_idx*/
+                         >;
+using LinkFrom = std::pair<size_t /*submodel_idx*/
+                           ,
+                           size_t /*result_idx*/
+                           >;
 using Links = std::map<LinkTo, LinkFrom>;
 
 struct Partitioning {
@@ -106,8 +105,7 @@ struct Partitioning {
     float total_gflops = 0.f;
 };
 
-Partitioning getPartitioning(const std::shared_ptr<ov::Model> &model,
-                             ::intel_npu::Config& config);
+Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& config);
 
-} // namespace npuw
-} // namespace ov
+}  // namespace npuw
+}  // namespace ov
