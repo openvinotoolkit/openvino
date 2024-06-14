@@ -30,8 +30,8 @@ void MessageManager::send_message(const MessageInfo& msg_info) {
 
 void MessageManager::infer_wait() {
     std::unique_lock<std::mutex> lock(_inferMutex);
-    _inferCondVar.wait(lock, [&] {
-        return call_back_count >= _num_sub_streams;
+    _inferCondVar.wait(lock, [&]{
+        return call_back_count.load() >= _num_sub_streams;
     });
     call_back_count = 0;
 }
@@ -59,12 +59,11 @@ void MessageManager::server_wait() {
                         Task task = std::move(rec_info.task);
                         task();
                     } else if (msg_type == CALL_BACK) {  // CALL_BACK
-                        {
-                            std::lock_guard<std::mutex> lock(_inferMutex);
-                            call_back_count++;
-                            // std::cout << "server_wait CALL_BACK: " << call_back_count << "/" << _num_sub_streams << "\n";
+                        call_back_count++;
+                        // std::cout << "server_wait CALL_BACK: " << call_back_count << "/" << _num_sub_streams << "\n";
+                        if (call_back_count.load() == _num_sub_streams) {
+                            _inferCondVar.notify_one();
                         }
-                        _inferCondVar.notify_all();
                     } else if (msg_type == QUIT) {
                         _isServerStopped = true;
                     }

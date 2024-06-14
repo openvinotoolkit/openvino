@@ -59,7 +59,7 @@ private:
     std::mutex _inferMutex;
     std::condition_variable _msgCondVar;
     std::condition_variable _inferCondVar;
-    int call_back_count = 0;
+    std::atomic<int> call_back_count;
 };
 
 OPENVINO_RUNTIME_API std::shared_ptr<MessageManager> message_manager();
