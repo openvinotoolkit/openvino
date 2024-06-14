@@ -6739,8 +6739,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_20_boolean) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_string_input) {
     const auto model = convert_model("string_input.onnx");
     auto test_case = test::TestCase(model);
-    test_case.add_input<std::string>({"string1", "string2"});
+    test_case.add_input<std::string>({"strinpt1", "strinpt2"});
     test_case.add_expected_output<int64_t>({2});
+    test_case.add_expected_output<std::string>({"strinpt1", "strinpt2"});
 
     test_case.run();
 }
@@ -6749,6 +6750,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_string_constant) {
     const auto model = convert_model("string_constant.onnx");
     auto test_case = test::TestCase(model);
     test_case.add_expected_output<int64_t>({2});
+    test_case.add_expected_output<std::string>({"string1", "string2"});
 
     test_case.run();
 }

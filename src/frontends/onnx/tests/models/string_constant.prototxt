@@ -22,6 +22,11 @@ graph {
     output: "O"
     op_type: "Shape"
   }
+  node {
+    input: "Y"
+    output: "V"
+    op_type: "Identity"
+  }
   output {
     name: "O"
     type {
@@ -30,6 +35,19 @@ graph {
         shape {
           dim {
             dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "V"
+    type {
+      tensor_type {
+        elem_type: 8
+        shape {
+          dim {
+            dim_value: 2
           }
         }
       }

@@ -7,6 +7,11 @@ graph {
     output: "O"
     op_type: "Shape"
   }
+  node {
+    input: "I"
+    output: "V"
+    op_type: "Identity"
+  }
   input {
     name: "I"
     type {
@@ -28,6 +33,19 @@ graph {
         shape {
           dim {
             dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "V"
+    type {
+      tensor_type {
+        elem_type: 8
+        shape {
+          dim {
+            dim_value: 2
           }
         }
       }
