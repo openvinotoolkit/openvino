@@ -10,6 +10,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <stack>
 #include <typeindex>
 #include <unordered_map>
 #include <unordered_set>
@@ -65,6 +66,11 @@ public:
 private:
     std::weak_ptr<T> m_obj;
 };
+
+struct CreateIdx {
+    size_t m_idx = 0;
+};
+
 }  // namespace detail
 }  // namespace ade
 
@@ -87,7 +93,6 @@ using NodeHandle = detail::WeakHandle<Node>;
 using EdgeHandle = detail::WeakHandle<Edge>;
 using Nodes = std::vector<NodeHandle>;
 using Edges = std::vector<EdgeHandle>;
-using NodeSet = std::unordered_set<NodeHandle>;
 using EdgeSet = std::unordered_set<EdgeHandle>;
 
 class Node {
@@ -95,6 +100,8 @@ class Node {
     using Ptr = std::shared_ptr<Node>;
 
 public:
+    explicit Node() = delete;
+    explicit Node(const std::weak_ptr<Graph>& graph) : m_graph(graph){};
     Nodes srcNodes() const;
     Nodes dstNodes() const;
     Edges srcEdges() const;
@@ -103,6 +110,7 @@ public:
 private:
     EdgeSet m_src_edges;
     EdgeSet m_dst_edges;
+    std::weak_ptr<Graph> m_graph;
 };
 
 class Edge {
@@ -166,7 +174,7 @@ T& Meta::get() {
     return *std::any_cast<T>(&it->second);
 }
 
-class Graph {
+class Graph : public std::enable_shared_from_this<Graph> {
 public:
     NodeHandle create();
     void remove(NodeHandle nh);
@@ -192,6 +200,8 @@ public:
     std::vector<NodeHandle> sorted() const;
 
 private:
+    void dfs(NodeHandle& nh, std::unordered_set<NodeHandle>& visited, std::stack<NodeHandle>& stack) const;
+
     template <typename T>
     struct MetaPtr {
         std::shared_ptr<T> ptr;
@@ -203,6 +213,7 @@ private:
     Meta m_graph_meta;
     MetaMap<Node> m_nodes;
     MetaMap<Edge> m_edges;
+    size_t m_create_idx = 0;
 };
 
 }  // namespace ade
