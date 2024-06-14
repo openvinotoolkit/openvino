@@ -382,17 +382,14 @@ pass::EliminatePad::EliminatePad() {
 
 pass::EliminateConvert::EliminateConvert() {
     MATCHER_SCOPE(EliminateConvert);
-    auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>();
+    auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>([](const Output<Node>& output) -> bool {
+        return output.get_element_type() == output.get_node()->get_input_element_type(0);
+    });
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto convert = dynamic_pointer_cast<ov::op::v0::Convert>(m.get_match_root());
-        if (!convert) {
-            return false;
-        }
-        if (convert->get_input_element_type(0) == convert->get_element_type()) {
-            return replace_output_update_name(convert->output(0), convert->input_value(0));
-        }
-        return false;
+        auto convert = m.get_match_root();
+
+        return replace_output_update_name(convert->output(0), convert->input_value(0));
     };
 
     auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);
@@ -420,14 +417,13 @@ pass::EliminateConvertNonZero::EliminateConvertNonZero() {
 
 pass::EliminateConcat::EliminateConcat() {
     MATCHER_SCOPE(EliminateConcat);
-    auto convert_pattern = pattern::wrap_type<ov::op::v0::Concat>();
+    auto convert_pattern = pattern::wrap_type<ov::op::v0::Concat>([](const Output<Node>& output) -> bool {
+        return output.get_node()->inputs().size() == 1;
+    });
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto concat = m.get_match_root();
-        if (concat->inputs().size() == 1) {
-            return replace_output_update_name(concat->output(0), concat->input_value(0));
-        }
-        return false;
+        return replace_output_update_name(concat->output(0), concat->input_value(0));
     };
 
     auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);
@@ -436,13 +432,12 @@ pass::EliminateConcat::EliminateConcat() {
 
 pass::EliminateSplit::EliminateSplit() {
     MATCHER_SCOPE(EliminateSplit);
-    auto convert_pattern = pattern::wrap_type<ov::op::v1::Split>();
+    auto convert_pattern = pattern::wrap_type<ov::op::v1::Split>([](const Output<Node>& output) -> bool {
+        return dynamic_cast<ov::op::v1::Split*>(output.get_node())->get_num_splits() == 1;
+    });
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto split = dynamic_pointer_cast<ov::op::v1::Split>(m.get_match_root());
-        if (!split || split->get_num_splits() != 1) {
-            return false;
-        }
+        auto split = m.get_match_root();
         return replace_output_update_name(split->output(0), split->input_value(0));
     };
 
