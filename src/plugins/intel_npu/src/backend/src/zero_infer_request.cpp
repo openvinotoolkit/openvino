@@ -425,7 +425,7 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     }
 
     auto compilerType = compilerConfig.get<COMPILER_TYPE>();
-    if (compilerType == ov::intel_npu::CompilerType::MLIR) {
+    if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
         // For plugin compiler retreive raw profiling data from backend and delegate
         // processing to the compiler
         const auto& networkDesc = compiledModel.get_network_description();

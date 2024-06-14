@@ -61,7 +61,7 @@ ov::SoPtr<ICompiler> createCompilerAdapter(const Logger& log) {
 }
 
 ov::SoPtr<ICompiler> createNPUCompiler(const Logger& log) {
-    log.info("MLIR compiler will be used.");
+    log.info("PLUGIN compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     return loadCompiler(libPath);
@@ -69,7 +69,7 @@ ov::SoPtr<ICompiler> createNPUCompiler(const Logger& log) {
 
 ov::SoPtr<ICompiler> createCompilerImpl(ov::intel_npu::CompilerType compilerType, const Logger& log) {
     switch (compilerType) {
-    case ov::intel_npu::CompilerType::MLIR:
+    case ov::intel_npu::CompilerType::PLUGIN:
         return createNPUCompiler(log);
     case ov::intel_npu::CompilerType::DRIVER:
         return createCompilerAdapter(log);

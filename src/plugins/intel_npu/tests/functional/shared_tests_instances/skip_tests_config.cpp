@@ -512,7 +512,7 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(!(devices.has3720()), "Runs only on NPU3720 with Level Zero enabled #85493",
                                   {".*InferRequestRunTests.MultipleExecutorStreamsTestsSyncInfers.*"});
 
-        _skipRegistry.addPatterns("Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + MLIR is not supported",
+        _skipRegistry.addPatterns("Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + PLUGIN compiler is not supported",
                                   {".*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.*"});
 
         _skipRegistry.addPatterns("OpenVINO issues when using caching mechanism",
@@ -857,7 +857,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Tracking number: E#118348]
         _skipRegistry.addPatterns(devices.has3700() && backendName.isZero(),
-                "Failing infer request tests on dKMB using MLIR", {
+                "Failing infer request tests on dKMB using PLUGIN compiler", {
                 ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_QueryState.*",
                 ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_SetState.*",
                 ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_Reset.*",

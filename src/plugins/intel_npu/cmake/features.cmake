@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-ov_option(ENABLE_MLIR_COMPILER "Enable compilation of npu_mlir_compiler libraries" ON)
+ov_option(ENABLE_PLUGIN_COMPILER "Enable compilation of npu_mlir_compiler libraries" ON)
 
 ov_option(BUILD_COMPILER_FOR_DRIVER "Enable build of npu_driver_compiler" OFF)
 
 ov_dependent_option(ENABLE_DRIVER_COMPILER_ADAPTER "Enable NPU Compiler inside driver" ON "NOT BUILD_COMPILER_FOR_DRIVER" OFF)
 
-if(NOT BUILD_SHARED_LIBS AND NOT ENABLE_MLIR_COMPILER AND NOT ENABLE_DRIVER_COMPILER_ADAPTER)
+if(NOT BUILD_SHARED_LIBS AND NOT ENABLE_PLUGIN_COMPILER AND NOT ENABLE_DRIVER_COMPILER_ADAPTER)
     message(FATAL_ERROR "No compiler found for static build!")
 endif()
 

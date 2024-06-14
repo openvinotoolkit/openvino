@@ -16,8 +16,8 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-if(ENABLE_MLIR_COMPILER)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_MLIR_COMPILER)
+if(ENABLE_PLUGIN_COMPILER)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_PLUGIN_COMPILER)
 endif()
 
 target_link_libraries(${TARGET_NAME}

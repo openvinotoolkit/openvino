@@ -137,7 +137,7 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = 
 std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
         {ov::intel_npu::compilation_mode_params.name(), ov::Any("use-user-precision=false propagate-quant-dequant=0")},
         {ov::intel_npu::dma_engines.name(), ov::Any(1)},
-        {ov::intel_npu::compiler_type.name(), ov::Any(ov::intel_npu::CompilerType::MLIR)},
+        {ov::intel_npu::compiler_type.name(), ov::Any(ov::intel_npu::CompilerType::PLUGIN)},
         {ov::intel_npu::platform.name(), ov::Any(ov::intel_npu::Platform::AUTO_DETECT)},
         {ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")},
         {ov::intel_npu::max_tiles.name(), ov::Any(8)},
