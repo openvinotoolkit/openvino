@@ -16,6 +16,7 @@ ade::Nodes ade::Node::srcNodes() const {
     });
     // FIXME: this was introduced to make the graph
     // the same every run when created the same way.
+    // FIXME: cache this information
     std::sort(src_nodes.begin(), src_nodes.end(),
               [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
                   auto locked_graph = m_graph.lock();
@@ -33,6 +34,7 @@ ade::Nodes ade::Node::dstNodes() const {
     });
     // FIXME: this was introduced to make the graph
     // the same every run when created the same way.
+    // FIXME: cache this information
     std::sort(dst_nodes.begin(), dst_nodes.end(),
               [&](const ade::NodeHandle& a, const ade::NodeHandle& b) {
                   auto locked_graph = m_graph.lock();

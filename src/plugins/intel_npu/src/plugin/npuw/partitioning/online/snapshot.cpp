@@ -397,11 +397,7 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
 
     std::unordered_map<std::vector<MetaInterconnect>, std::vector<std::pair<Group::GPtr, Group::GPtr>>> mics;
 
-    std::vector<Group::GPtr> repeating_groups_sorted;
-    std::transform(repeating_groups.begin(), repeating_groups.end(),
-                   std::back_inserter(repeating_groups_sorted), [](const Group::GPtr& gptr) {
-                                                                    return gptr;
-                                                                });
+    std::vector<Group::GPtr> repeating_groups_sorted(repeating_groups.begin(), repeating_groups.end());
 
     // FIXME: this was introduced to make the partitioning
     // the same every run when created the same way.
