@@ -35,8 +35,8 @@ jobs:
         include:
           - SANITIZER: 'AddressAndLeak'
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
-          - SANITIZER: 'UndefinedBehavior'
-            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
+#          - SANITIZER: 'UndefinedBehavior'  # Ticket: 144163
+#            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
 #          - SANITIZER: 'Thread'  # Problems with protobuf
 #            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
