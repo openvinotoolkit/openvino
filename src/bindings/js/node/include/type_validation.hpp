@@ -86,61 +86,63 @@ bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value);
 template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value);
 
-template <typename Arg>
-std::vector<std::string> get_signature() {
-    std::vector<std::string> attributes;
-
-    attributes.push_back(get_attr_type<Arg>());
-
-    return attributes;
+template <typename T>
+void get_signature_impl(std::vector<std::string>& attributes) {
+    attributes.push_back(get_attr_type<T>());
 };
-template <typename Arg, typename Arg1>
-std::vector<std::string> get_signature() {
-    std::vector<std::string> attributes;
 
-    attributes.push_back(get_attr_type<Arg>());
-    attributes.push_back(get_attr_type<Arg1>());
+template <typename T0, typename T1, typename... Ts>
+void get_signature_impl(std::vector<std::string>& attributes) {
+    attributes.push_back(get_attr_type<T0>());
 
-    return attributes;
+    get_signature_impl<T1, Ts...>(attributes);
 };
-template <typename Arg, typename Arg1, typename Arg2>
+
+template <typename... Ts>
 std::vector<std::string> get_signature() {
     std::vector<std::string> attributes;
 
-    attributes.push_back(get_attr_type<Arg>());
-    attributes.push_back(get_attr_type<Arg1>());
-    attributes.push_back(get_attr_type<Arg2>());
+    get_signature_impl<Ts...>(attributes);
 
     return attributes;
 };
 
-template <typename Arg, typename Arg1, typename Arg2>
-bool validate_detail(const Napi::CallbackInfo& info) {
-    return info.Length() == 3 && validate_value<Arg>(info.Env(), info[0]) &&
-           validate_value<Arg1>(info.Env(), info[1]) && validate_value<Arg2>(info.Env(), info[2]);
+template <typename T>
+bool validate_impl(const Napi::CallbackInfo& info, size_t depth) {
+    return validate_value<T>(info.Env(), info[depth]);
 };
 
-template <typename Arg, typename Arg1>
-bool validate_detail(const Napi::CallbackInfo& info) {
-    return info.Length() == 2 && validate_value<Arg>(info.Env(), info[0]) && validate_value<Arg1>(info.Env(), info[1]);
+template <typename T0, typename T1, typename... Ts>
+bool validate_impl(const Napi::CallbackInfo& info, size_t depth) {
+    bool is_passed = validate_value<T0>(info.Env(), info[depth]);
+
+    if (!is_passed)
+        return false;
+
+    return validate_impl<T1, Ts...>(info, depth + 1);
 };
 
-template <typename Arg>
+template <typename... Ts>
 bool validate_detail(const Napi::CallbackInfo& info) {
-    return info.Length() == 1 && validate_value<Arg>(info.Env(), info[0]);
+    const size_t attrs_length = info.Length();
+
+    if (attrs_length != sizeof...(Ts))
+        return false;
+
+    return validate_impl<Ts...>(info, 0);
 };
 
-template <typename T, typename... Ts>
+template <typename... Ts>
 bool validate(const Napi::CallbackInfo& info) {
-    return validate_detail<T, Ts...>(info);
+    return validate_detail<Ts...>(info);
 };
 
-template <typename T, typename... Ts>
+template <typename... Ts>
 bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& checked_signatures) {
-    std::vector<std::string> signature_attributes = get_signature<T, Ts...>();
+    std::vector<std::string> signature_attributes = get_signature<Ts...>();
     checked_signatures.push_back(std::string("(" + ov::util::join(signature_attributes) + ")"));
 
-    return validate_detail<T, Ts...>(info);
+    return validate_detail<Ts...>(info);
 };
 
 std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector<std::string>& checked_signatures);
