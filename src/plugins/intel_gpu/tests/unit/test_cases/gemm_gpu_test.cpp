@@ -1563,6 +1563,8 @@ TEST_F(gemm_gpu_tests, transpose_matmul_transpose_static_3d) {
     this->test_transpose_matmul_transpose(3, false, false);
 }
 
+#ifndef ENABLE_ONEDNN_FOR_GPU
+// Disable onednn test because onednn does not support format_tag::cbda, format_tag::badc.
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d) {
     this->test_transpose_matmul_transpose(4, true, false);
 }
@@ -1570,6 +1572,7 @@ TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d) {
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_static_4d) {
     this->test_transpose_matmul_transpose(4, false, false);
 }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_t1t2,
@@ -3224,7 +3227,10 @@ TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_cached) {
     this->test_transpose_matmul_f16(4, true, true, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
 }
 
+#ifndef ENABLE_ONEDNN_FOR_GPU
+// Disable onednn test because onednn does not support format_tag::cbda, format_tag::badc.
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d_cached) {
     this->test_transpose_matmul_transpose(4, true, true);
 }
+#endif
 } // namespace

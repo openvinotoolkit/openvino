@@ -39,6 +39,7 @@ public:
 
     static bool is_fusable_permute_input_order_onednn(const std::vector<size_t>& permute_order, format& fmt) {
         const std::vector<format> gemm_in_format_white_list = {format::bfyx,
+                                                               format::bfxy,
                                                                format::fyxb,
                                                                format::byfx,
                                                                format::bxfy,
@@ -62,10 +63,11 @@ public:
 
     static bool is_fusable_permute_output_order_onednn(const std::vector<size_t>& target_order, format& fmt) {
         const std::vector<format> gemm_out_format_white_list = {format::bfyx,
-                                                               format::fyxb,
-                                                               format::fybx,
-                                                               format::byfx,
-                                                               format::ybfx};
+                                                                format::bfxy,
+                                                                format::fyxb,
+                                                                format::fybx,
+                                                                format::byfx,
+                                                                format::ybfx};
 
         for (const auto& cand_format : gemm_out_format_white_list) {
             const auto cand_format_order = format::traits(static_cast<format::type>(cand_format))._order;

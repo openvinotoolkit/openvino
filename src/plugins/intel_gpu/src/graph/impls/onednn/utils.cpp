@@ -144,6 +144,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::g_os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::gIOdhw16i16o },
 
         { cldnn::format::bfyx,  dnnl::memory::format_tag::nchw },
+        { cldnn::format::bfxy,  dnnl::memory::format_tag::abdc },
         { cldnn::format::byxf,  dnnl::memory::format_tag::nhwc },
         { cldnn::format::byfx,  dnnl::memory::format_tag::acbd },
         { cldnn::format::bxfy,  dnnl::memory::format_tag::adbc },
