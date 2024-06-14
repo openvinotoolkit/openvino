@@ -92,6 +92,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_1x1::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
+    // k.EnableDynamicShapesSupport();
     return k;
 }
 

@@ -70,6 +70,27 @@ void compile_graph::run(program& p) {
                         change_initial_impl = false;
                 }
             }
+            // if (node->is_type<convolution>()) {
+            //     std::vector<std::string> conv_list = {
+            //         "__module.conv_in/aten::_convolution/Convolution",
+            //         "__module.down_blocks.0.resnets.0.conv1/aten::_convolution/Convolution",
+            //         "__module.down_blocks.0.resnets.0.conv2/aten::_convolution/Convolution",
+            //         "__module.down_blocks.0.attentions.0.proj_in/aten::_convolution/Convolution",
+            //         "__module.down_blocks.0.attentions.0.proj_out/aten::_convolution/Convolution",
+            //         "__module.down_blocks.0.resnets.1.conv1/aten::_convolution/Convolution",
+            //         "__module.down_blocks.0.resnets.1.conv2/aten::_convolution/Convolution",
+            //     };
+            //     bool is_hit = false;
+            //     for (auto conv_id : conv_list) {
+            //         if (node->id().find(conv_id) != std::string::npos) {
+            //             is_hit = true;
+            //             break;
+            //         }
+            //     }
+            //     if (!is_hit) {
+            //         change_initial_impl = false;
+            //     }
+            // }
         }
 
         if (change_initial_impl)
@@ -100,7 +121,7 @@ void compile_graph::run(program& p) {
 
         bool is_planar = format::is_default_format(node->get_output_layout().format);
 
-        if (node->is_dynamic() && !is_planar)
+        if (!node->is_type<convolution>() && node->is_dynamic() && !is_planar)
             can_select_impl = false;
 
         if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())

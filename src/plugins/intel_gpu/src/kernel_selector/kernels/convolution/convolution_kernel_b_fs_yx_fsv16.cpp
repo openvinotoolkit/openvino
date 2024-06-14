@@ -120,6 +120,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableGroupedConvolution();
+    // k.EnableDynamicShapesSupport();
     return k;
 }
 

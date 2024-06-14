@@ -35,6 +35,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     k.EnableGroupedConvolution();
     k.EnableDilation();
     k.EnableDifferentTypes();
+    // k.EnableDynamicShapesSupport();
     return k;
 }
 
