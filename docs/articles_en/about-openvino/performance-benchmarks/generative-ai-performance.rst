@@ -5,9 +5,8 @@ This page is regularly updated to help you identify the best-performing LLMs on 
 
 The table below lists the key performance indicators for a selection of Large Language Models running on an Intel® Core™ Ultra 7-165H based system.
 
-.. raw:: html
+For complete information on the system config, see: `Hardware Platforms [PDF] <https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.2-platform_list.pdf>`__
 
-   For complete information on the system config, see: <a href="https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.1-platform_list.pdf">Hardware Platforms [PDF]</a>
 
 .. raw:: html
 
@@ -53,7 +52,7 @@ The table below lists the key performance indicators for a selection of Large La
        <input type="checkbox" checked id="framework" name="framework" value="framework" data-column="9" class="toggle-vis"/>
        <label for="framework" class="checkmark"></label>
     </label>
-    
+
 
 .. csv-table::
    :class: modeldata stripe

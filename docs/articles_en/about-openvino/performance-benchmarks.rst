@@ -127,21 +127,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.2-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.2-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.1-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.2-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -199,25 +199,16 @@ connection is dedicated only to measuring performance.
 You can also test performance for your system yourself, following the guide on
 :doc:`getting performance numbers <performance-benchmarks/getting-performance-numbers>`.
 
-Performance of a particular application can also be evaluated virtually using
-`Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__.
-It is a remote development environment with access to Intel® hardware and the latest versions
-of the Intel® Distribution of the OpenVINO™ Toolkit. To learn more about it, visit
-`the website <https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html>`__
-or
-`create an account <https://www.intel.com/content/www/us/en/secure/forms/devcloud-enrollment/account-provisioning.html>`__.
-
-
 .. raw:: html
 
    <h2>Disclaimers</h2>
 
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.1, as of April 17, 2024.
+  2024.2, as of June 17, 2024.
 
 * OpenVINO Model Server performance results are based on release
-  2024.0, as of March 15, 2024.
+  2024.1, as of April 26, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service
