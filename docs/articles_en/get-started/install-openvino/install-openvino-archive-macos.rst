@@ -73,9 +73,9 @@ Step 1: Install OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/macos/m_openvino_toolkit_macos_12_6_2024.1.0.15008.f4afc983258_x86_64.tgz --output openvino_2024.2.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/macos/m_openvino_toolkit_macos_12_6_2024.2.0.15519.5c0f38f83f6_x86_64.tgz --output openvino_2024.2.0.tgz
             tar -xf openvino_2024.2.0.tgz
-            sudo mv m_openvino_toolkit_macos_12_6_2024.1.0.15008.f4afc983258_x86_64 /opt/intel/openvino_2024.2.0
+            sudo mv m_openvino_toolkit_macos_12_6_2024.2.0.15519.5c0f38f83f6_x86_64 /opt/intel/openvino_2024.2.0
 
       .. tab-item:: ARM, 64-bit
          :sync: arm-64
@@ -83,9 +83,9 @@ Step 1: Install OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/macos/m_openvino_toolkit_macos_12_6_2024.1.0.15008.f4afc983258_arm64.tgz --output openvino_2024.2.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/macos/m_openvino_toolkit_macos_12_6_2024.2.0.15519.5c0f38f83f6_arm64.tgz --output openvino_2024.2.0.tgz
             tar -xf openvino_2024.2.0.tgz
-            sudo mv m_openvino_toolkit_macos_12_6_2024.1.0.15008.f4afc983258_arm64 /opt/intel/openvino_2024.2.0
+            sudo mv m_openvino_toolkit_macos_12_6_2024.2.0.15519.5c0f38f83f6_arm64 /opt/intel/openvino_2024.2.0
 
 
 5. (Optional) Install *numpy* Python Library:
