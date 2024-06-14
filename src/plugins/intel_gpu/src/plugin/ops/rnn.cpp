@@ -125,11 +125,20 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
 
         cldnn::primitive_id outputHiddenCropID = layerName + "_hc";
         cldnn::primitive_id outputHiddenID = layerName + ".out0";
+        cldnn::primitive_id outputDataID = layerName + "_data";
 
+        cldnn::layout constLayout = cldnn::layout({}, cldnn::data_types::i64, cldnn::format::bfyx);
+        cldnn::memory::ptr data_mem = p.get_engine().allocate_memory(constLayout, false);
+        auto& stream = p.get_engine().get_service_stream();
+        cldnn::mem_lock<char> lock{data_mem, stream};
+        auto buf = lock.data();
         const int64_t axis = 1;
+        std::memcpy(&buf[0], &axis, constLayout.bytes_count());
+        p.add_primitive(*op,  cldnn::data(outputDataID, data_mem));
+
         p.add_primitive(*op,
                         cldnn::crop(outputHiddenCropID,
-                        {cldnn::input_info(lstm_elt_id)},
+                        {cldnn::input_info(lstm_elt_id), cldnn::input_info(outputDataID)},
                         hiddenSz,
                         cldnn::tensor{0, 0, 0, 0},
                         op_mode, 0, axis, num_splits));
@@ -140,7 +149,7 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
         cldnn::primitive_id outputCellID = layerName + ".out1";
         p.add_primitive(*op,
                         cldnn::crop(outputCellCropID,
-                        {cldnn::input_info(lstm_elt_id)},
+                        {cldnn::input_info(lstm_elt_id), cldnn::input_info(outputDataID)},
                         hiddenSz,
                         cldnn::tensor{0, 1, 0, 0},
                         op_mode, 1, axis, num_splits));

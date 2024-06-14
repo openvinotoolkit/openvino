@@ -44,17 +44,18 @@ TEST_P(crop_si_test, shape_infer) {
         input_prim_ids.push_back(input_info(prim_id));
     }
 
+    for (size_t i = 1; i < p.input_layouts.size(); i++) {
+        auto prim_id = "const::data"+std::to_string(i);
+        auto prim_mem = engine.allocate_memory(p.input_layouts[i]);
+        set_values(prim_mem, p.const_values[i-1]);
+        auto const_data_prim = std::make_shared<data>(prim_id, prim_mem);
+        input_prims.push_back(const_data_prim);
+        input_prim_ids.push_back(input_info(prim_id));
+    }
+
     crop_ngraph_op_mode op_mode = crop_ngraph_op_mode::none;
     if (p.const_values.size() == 2) {
         op_mode = crop_ngraph_op_mode::variadic_split;
-        {
-            auto prim_id = "const::data"+std::to_string(2);
-            auto prim_mem = engine.allocate_memory(p.input_layouts[2]);
-            set_values(prim_mem, p.const_values[1]);
-            auto const_data_prim = std::make_shared<data>(prim_id, prim_mem);
-            input_prims.push_back(const_data_prim);
-            input_prim_ids.push_back(input_info(prim_id));
-        }
     } else if (p.const_values.size() == 1) {
         op_mode = crop_ngraph_op_mode::split;
     }
