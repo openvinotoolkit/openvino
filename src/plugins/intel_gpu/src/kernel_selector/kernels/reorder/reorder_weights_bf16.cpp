@@ -13,6 +13,7 @@ ParamsKey ReorderWeightsBF16::GetSupportedKey() const {
     k.EnableOutputWeightsType(WeightsType::F16);
     k.EnableOutputWeightsType(WeightsType::F32);
     k.EnableOutputWeightsType(WeightsType::INT32);
+    k.EnableOutputWeightsType(WeightsType::BF16);
     k.EnableAllInputWeightsLayout();
     k.EnableAllOutputWeightsLayout();
     k.EnableDifferentTypes();
@@ -28,6 +29,6 @@ KernelsData ReorderWeightsBF16::GetKernelsData(const Params& params) const {
 }
 
 KernelsPriority ReorderWeightsBF16::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_3;
+    return TUTORIAL_PRIORITY;
 }
 }  // namespace kernel_selector
