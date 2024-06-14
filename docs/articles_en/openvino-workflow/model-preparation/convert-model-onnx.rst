@@ -11,18 +11,30 @@ Converting an ONNX Model
 Introduction to ONNX
 ####################
 
-`ONNX <https://github.com/onnx/onnx>`__ is a representation format for deep learning models that enables AI developers to easily transfer models between different frameworks.
+`ONNX <https://github.com/onnx/onnx>`__ is a representation format for deep learning models
+that enables AI developers to easily transfer models between different frameworks.
 
-.. note:: An ONNX model file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without the need to prepare an OpenVINO IR first. Refer to the :doc:`inference example <../running-inference/integrate-openvino-with-your-application>` for more details. Using ``openvino.convert_model`` is still recommended if the model load latency is important for the inference application.
+.. note::
+
+   An ONNX model file can be loaded by ``openvino.Core.read_model`` or
+   ``openvino.Core.compile_model`` methods by OpenVINO runtime API without the need to
+   prepare an OpenVINO IR first. Refer to the
+   :doc:`inference example <../running-inference/integrate-openvino-with-your-application>`
+   for more details. Using ``openvino.convert_model`` is still recommended if the model
+   load latency is important for the inference application.
 
 Converting an ONNX Model
 ########################
 
-This page provides instructions on model conversion from the ONNX format to the OpenVINO IR format.
+This page provides instructions on model conversion from the ONNX format to the
+OpenVINO IR format.
 
-For model conversion, you need an ONNX model either directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
+For model conversion, you need an ONNX model either directly downloaded from
+an online database, for example `Hugging Face <https://huggingface.co/models>`__ , or
+converted from any framework that supports exporting to the ONNX format.
 
-To convert an ONNX model, run model conversion with the path to the input model ``.onnx`` file:
+To convert an ONNX model, run model conversion with the path to the input
+model ``.onnx`` file:
 
 .. tab-set::
 

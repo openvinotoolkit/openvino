@@ -8,16 +8,31 @@ Converting a PaddlePaddle Model
    :description: Learn how to convert a model from the
                  PaddlePaddle format to the OpenVINO Model.
 
-This page provides general instructions on how to convert a model from the PaddlePaddle format to the OpenVINO IR format using OpenVINO model conversion API. The instructions are different depending on the PaddlePaddle model format.
+This page provides general instructions on how to convert a model from the PaddlePaddle
+format to the OpenVINO IR format using OpenVINO model conversion API. The instructions
+are different depending on the PaddlePaddle model format.
 
-.. note:: PaddlePaddle model serialized in a file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <../running-inference/integrate-openvino-with-your-application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
+.. note::
+
+   PaddlePaddle model serialized in a file can be loaded by ``openvino.Core.read_model``
+   or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing
+   OpenVINO IR first. Refer to the
+   :doc:`inference example <../running-inference/integrate-openvino-with-your-application>`
+   for more details. Using ``openvino.convert_model`` is still recommended if model load
+   latency matters for the inference application.
 
 Converting PaddlePaddle Model Files
 ###################################
 
-PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For details on how to export a PaddlePaddle inference model, refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
+PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and
+``.pdiparams`` (storing model weight). For details on how to export a PaddlePaddle
+inference model, refer to the
+`Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__
+Chinese guide.
 
-To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` and specify the path to the input ``.pdmodel`` model file:
+You can download a PaddlePaddle model from `Hugging Face <https://huggingface.co/models>`__.
+To convert the model, use the ``ovc`` or ``openvino.convert_model``
+and specify the path to the input ``.pdmodel`` model file:
 
 
 .. tab-set::

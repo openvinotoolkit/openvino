@@ -59,6 +59,9 @@ offering.
     until they are fully removed.
 |   :doc:`See the Open Model ZOO documentation <legacy-features/model-zoo>`
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
+|   As for public model databases, `Hugging Face <https://huggingface.co/OpenVINO>`__ has
+    become the recommended model source for OpenVINO.
+
 
 
 
