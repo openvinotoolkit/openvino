@@ -7,13 +7,13 @@
 
 #include <any>
 #include <functional>
+#include <iostream>
 #include <memory>
+#include <sstream>
 #include <typeindex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <sstream>
-#include <iostream>
 
 namespace {
 namespace detail {
@@ -29,21 +29,21 @@ namespace detail {
     ss << "An exception thrown! " << str << std::flush;
     throw std::logic_error(ss.str());
 }
-} // namespace detail
+}  // namespace detail
 
-#define ASSERT(expr)                                                      \
-    {                                                                     \
-        if (!(expr))                                                      \
-            ::detail::assert_abort(#expr, __LINE__, __FILE__, __func__);  \
+#define ASSERT(expr)                                                     \
+    {                                                                    \
+        if (!(expr))                                                     \
+            ::detail::assert_abort(#expr, __LINE__, __FILE__, __func__); \
     }
 
-#define THROW_ERROR(msg)                          \
-    {                                             \
-        std::ostringstream os;                    \
-        os << msg;                                \
-        ::detail::throw_error(os.str().c_str());  \
+#define THROW_ERROR(msg)                         \
+    {                                            \
+        std::ostringstream os;                   \
+        os << msg;                               \
+        ::detail::throw_error(os.str().c_str()); \
     }
-} // anonymous namespace
+}  // anonymous namespace
 
 namespace ade {
 
@@ -51,8 +51,7 @@ namespace detail {
 template <typename T>
 class WeakHandle {
 public:
-    explicit WeakHandle(std::shared_ptr<T> obj): m_obj(obj) {
-    }
+    explicit WeakHandle(std::shared_ptr<T> obj) : m_obj(obj) {}
     T* get() const {
         return m_obj.lock().get();
     }
@@ -70,8 +69,9 @@ private:
 struct CreateIdx {
     size_t m_idx = 0;
 };
-} // namespace detail
-} // namespace ade
+
+}  // namespace detail
+}  // namespace ade
 
 namespace std {
 template <typename T>
@@ -118,8 +118,7 @@ class Edge {
     using Ptr = std::shared_ptr<Edge>;
 
 public:
-    Edge(NodeHandle src, NodeHandle dst): m_src(src), m_dst(dst) {
-    }
+    Edge(NodeHandle src, NodeHandle dst) : m_src(src), m_dst(dst) {}
     NodeHandle srcNode() const {
         return m_src;
     }
@@ -217,4 +216,4 @@ private:
     size_t m_create_idx = 0;
 };
 
-} // namespace ade
+}  // namespace ade

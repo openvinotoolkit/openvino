@@ -79,7 +79,7 @@ static constexpr ov::Property<std::size_t> min_size{"NPUW_ONLINE_MIN_SIZE"};
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> dump_plan{"NPUW_ONLINE_DUMP_PLAN"};
-} // namespace online
+}  // namespace online
 
 /**
  * @brief
@@ -137,12 +137,12 @@ static constexpr ov::Property<bool> dcoff_with_scale{"NPUW_DCOFF_SCALE"};
  * Default value: false.
  */
 static constexpr ov::Property<bool> funcall_for_all{"NPUW_FUNCALL_FOR_ALL"};
-} // namespace partitioning
+}  // namespace partitioning
 
 /**
  * @brief
  * Type: bool.
- * Employ parallel subgraph compilation. Disabled by default due to instaibilities.             
+ * Employ parallel subgraph compilation. Disabled by default due to instaibilities.
  * Possible values: true, false.
  * Default value: false.
  */
@@ -187,7 +187,7 @@ static constexpr ov::Property<std::size_t> threshold{"NPUW_ACC_THRESH"};
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> reference_device{"NPUW_ACC_DEVICE"};
-} // namespace accuracy
+}  // namespace accuracy
 
 namespace dump {
 /**
@@ -238,7 +238,7 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
  * Default value: false.
  */
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
-} // namespace dump
+}  // namespace dump
 
 }  // namespace npuw
 }  // namespace intel_npu

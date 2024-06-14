@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/common_util.hpp"
-#include "openvino/op/util/op_types.hpp"
+#include "dcoff.hpp"
+
+#include "../../logging.hpp"
+#include "../../util.hpp"
+#include "../partitioning.hpp"  // Subgraph
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/label.hpp" // any_input
-
-#include "../../logging.hpp"
-#include "../../util.hpp"
-
-#include "../partitioning.hpp" // Subgraph
-
-#include "dcoff.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace npuw {
@@ -49,11 +47,11 @@ namespace opp = ov::pass::pattern;
 //      Const tensor will be taken from [i-base]'th closure in the
 //      updated closure tensor.
 
-ClosureRemap build_remap(const Function &fbody, const DCOFFParams &params_to) {
+ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
     LOG_DEBUG("Creating a closure remap for " << fbody._model->get_friendly_name());
     LOG_BLOCK();
 
-    const auto &body_params = fbody._model->get_parameters();
+    const auto& body_params = fbody._model->get_parameters();
     LOG_DEBUG("There is " << body_params.size() << " parameters for this function");
 
     ClosureRemap m;
@@ -67,9 +65,9 @@ ClosureRemap build_remap(const Function &fbody, const DCOFFParams &params_to) {
         auto pscale_iter = params_to.scales.find(body_params[i]);
         if (pscale_iter != params_to.scales.end()) {
             LOG_DEBUG("This is a Scale factor parameter, will be removed");
-            auto &pscale_weight_param  = pscale_iter->second;
-            auto  pscale_weight_pindex = fbody._model->get_parameter_index(pscale_weight_param);
-            auto  pscale_weight_cindex = pscale_weight_pindex - fbody._param_offset;
+            auto& pscale_weight_param = pscale_iter->second;
+            auto pscale_weight_pindex = fbody._model->get_parameter_index(pscale_weight_param);
+            auto pscale_weight_cindex = pscale_weight_pindex - fbody._param_offset;
             m.scale_remap[pscale_weight_cindex] = i - fbody._param_offset;
             m.params_to_remove.push_back(body_params[i]);
         } else {
@@ -87,16 +85,14 @@ ClosureRemap build_remap(const Function &fbody, const DCOFFParams &params_to) {
             m.zero_points.push_back(ov::Tensor());
         }
     }
-    NPUW_ASSERT((body_params.size() - fbody._param_offset) ==
-                (m.scale_remap.size() + m.closure_remap.size()));
-    NPUW_ASSERT((body_params.size() - fbody._param_offset) ==
-                m.zero_points.size());
+    NPUW_ASSERT((body_params.size() - fbody._param_offset) == (m.scale_remap.size() + m.closure_remap.size()));
+    NPUW_ASSERT((body_params.size() - fbody._param_offset) == m.zero_points.size());
 
     LOG_DEBUG("DONE");
     return m;
 }
 
-void apply_remap(Subgraph &fcall, const ClosureRemap &m) {
+void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     std::vector<ov::Tensor> new_closure;
     std::vector<ov::Tensor> new_scales;
     std::vector<ov::Tensor> new_zerops;
@@ -104,24 +100,22 @@ void apply_remap(Subgraph &fcall, const ClosureRemap &m) {
     // For a new_closure vector by rearranging the old one.  Also
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
-    for (auto &&i : m.closure_remap) {
+    for (auto&& i : m.closure_remap) {
         new_closure.push_back(fcall._closure[i]);
 
         auto scale_iter = m.scale_remap.find(i);
-        new_scales.push_back(scale_iter != m.scale_remap.end()
-                             ? fcall._closure[scale_iter->second]
-                             : ov::Tensor());
+        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
         new_zerops.push_back(m.zero_points[i]);
     }
     fcall._closure = std::move(new_closure);
-    fcall._scales  = std::move(new_scales);
-    fcall._zerops  = std::move(new_zerops);
+    fcall._scales = std::move(new_scales);
+    fcall._zerops = std::move(new_zerops);
 }
 
-void finalize_remap(Function &fbody, const ClosureRemap &m) {
+void finalize_remap(Function& fbody, const ClosureRemap& m) {
     LOG_DEBUG("Removing retired parameters...");
     LOG_BLOCK();
-    for (auto &&p : m.params_to_remove) {
+    for (auto&& p : m.params_to_remove) {
         LOG_DEBUG("Removing parameter " << p);
         LOG_BLOCK();
         fbody._model->remove_parameter(p);
@@ -129,7 +123,6 @@ void finalize_remap(Function &fbody, const ClosureRemap &m) {
     fbody._model->validate_nodes_and_infer_types();
     LOG_DEBUG("DONE");
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -175,13 +168,10 @@ void finalize_remap(Function &fbody, const ClosureRemap &m) {
 // its Parameter B).
 namespace SymmNoZP {
 
-DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode,
-                             ov::element::Type dcoff_type,
-                             DCOFFParamRef pref)
-    : m_dcoff_mode(dcoff_mode)
-    , m_dcoff_type(dcoff_type)
-    , m_params_to(pref) {
-}
+DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref)
+    : m_dcoff_mode(dcoff_mode),
+      m_dcoff_type(dcoff_type),
+      m_params_to(pref) {}
 
 void DCOFFPassBase::build() {
     paramA = opp::wrap_type<ov::op::v0::Parameter>();
@@ -190,13 +180,13 @@ void DCOFFPassBase::build() {
     mulply = opp::wrap_type<ov::op::v1::Multiply>({toFP32, paramB});
 }
 
-bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher &m) {
+bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     auto& node_to_output = m.get_pattern_value_map();
-    auto  matched_nodeA  = node_to_output.at(paramA).get_node_shared_ptr();
+    auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
 
-    auto  matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
-    auto  element_type   = matched_paramA->get_element_type();
+    auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+    auto element_type = matched_paramA->get_element_type();
     if (element_type == ov::element::i4 || element_type == ov::element::i8) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
@@ -210,7 +200,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher &m) {
             // Extra transformation here: remove multiply, mark paramB for removal
             // MatMul/Gather will be reconnected to Convert directly
 
-            auto matched_nodeB  = node_to_output.at(paramB).get_node_shared_ptr();
+            auto matched_nodeB = node_to_output.at(paramB).get_node_shared_ptr();
             NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeB));
 
             auto matched_paramB = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeB);
@@ -223,8 +213,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher &m) {
             auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
             auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
-                for (auto &&node_outputs : node->outputs()) {
-                    for (auto &&node_reader_port : node_outputs.get_target_inputs()) {
+                for (auto&& node_outputs : node->outputs()) {
+                    for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
                         node_outputs.remove_target_input(node_reader_port);
                     }
                 }
@@ -239,7 +229,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher &m) {
             LOG_DEBUG("Done");
         }
     }
-    return false; // root node hasn't changed
+    return false;  // root node hasn't changed
 }
 
 void DCOFFPassMatMul::build() {
@@ -250,7 +240,7 @@ void DCOFFPassMatMul::build() {
                      std::bind(&DCOFFPassMatMul::matcher_callback, this, std::placeholders::_1));
 }
 
-void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher &m) {
+void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
     // In this pattern, Convert goes to the MatMul's (root) 1st (0-based) input
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
@@ -260,14 +250,14 @@ void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher &m) {
 
 void DCOFFPassGather::build() {
     DCOFFPassBase::build();
-    auto _gin2  = opp::any_input();
-    auto _gin3  = opp::any_input();
+    auto _gin2 = opp::any_input();
+    auto _gin3 = opp::any_input();
     gather = opp::wrap_type<ov::op::v8::Gather>({mulply, _gin2, _gin3});
     register_matcher(std::make_shared<opp::Matcher>(gather, "TagDCOFFGather"),
                      std::bind(&DCOFFPassGather::matcher_callback, this, std::placeholders::_1));
 }
 
-void DCOFFPassGather::reconnect_root_to_convert(ov::pass::pattern::Matcher &m) {
+void DCOFFPassGather::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
     // In this pattern, Convert goes to the Gathers's (root) 0's input
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
@@ -275,7 +265,7 @@ void DCOFFPassGather::reconnect_root_to_convert(ov::pass::pattern::Matcher &m) {
     matched_gather->input(0).replace_source_output(matched_convrt);
 }
 
-} // SymmNoZP
+}  // namespace SymmNoZP
 
 //------------------------------------------------------------------------------
 // Pattern: SymmZP, and in fact is used for GPTQ.
@@ -313,13 +303,10 @@ namespace SymmZP {
 //                    V                     >
 //
 
-DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode,
-                             ov::element::Type dcoff_type,
-                             DCOFFParamRef pref)
-    : m_dcoff_mode(dcoff_mode)
-    , m_dcoff_type(dcoff_type)
-    , m_params_to(pref) {
-}
+DCOFFPassBase::DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref)
+    : m_dcoff_mode(dcoff_mode),
+      m_dcoff_type(dcoff_type),
+      m_params_to(pref) {}
 
 void DCOFFPassBase::build() {
     paramA = opp::wrap_type<ov::op::v0::Parameter>();
@@ -327,26 +314,26 @@ void DCOFFPassBase::build() {
     paramC = opp::wrap_type<ov::op::v0::Parameter>();
     cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
     cvtB = opp::wrap_type<ov::op::v0::Convert>({constB});
-    subtr  = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
+    subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
     mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
 }
 
-bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher &m) {
+bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     auto& node_to_output = m.get_pattern_value_map();
-    auto  matched_nodeA  = node_to_output.at(paramA).get_node_shared_ptr();
-    auto  matched_nodeB  = node_to_output.at(constB).get_node_shared_ptr();
-    auto  matched_nodeC  = node_to_output.at(paramC).get_node_shared_ptr();
+    auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
+    auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
+    auto matched_nodeC = node_to_output.at(paramC).get_node_shared_ptr();
 
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
-    NPUW_ASSERT(ov::op::util::is_constant (matched_nodeB));
+    NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
 
-    auto  matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
-    auto  matched_valueB = std::static_pointer_cast<ov::op::v0::Constant> (matched_nodeB);
-    auto  matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
+    auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+    auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
+    auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
-    if (ov::element::u4  == matched_paramA->get_element_type() &&
-        ov::element::u4  == matched_valueB->get_element_type() &&
+    if (ov::element::u4 == matched_paramA->get_element_type() &&
+        ov::element::u4 == matched_valueB->get_element_type() &&
         ov::element::f16 == matched_paramC->get_element_type()) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
@@ -372,8 +359,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher &m) {
             auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
             auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
-                for (auto &&node_outputs : node->outputs()) {
-                    for (auto &&node_reader_port : node_outputs.get_target_inputs()) {
+                for (auto&& node_outputs : node->outputs()) {
+                    for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
                         node_outputs.remove_target_input(node_reader_port);
                     }
                 }
@@ -387,7 +374,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher &m) {
         }
         LOG_DEBUG("Done");
     }
-    return false; // root node hasn't changed
+    return false;  // root node hasn't changed
 }
 
 void DCOFFPassReshape1::build() {
@@ -398,7 +385,7 @@ void DCOFFPassReshape1::build() {
                      std::bind(&DCOFFPassReshape1::matcher_callback, this, std::placeholders::_1));
 }
 
-void DCOFFPassReshape1::reconnect_root(ov::pass::pattern::Matcher &m) {
+void DCOFFPassReshape1::reconnect_root(ov::pass::pattern::Matcher& m) {
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
     auto matched_reshpe = node_to_output.at(reshpe).get_node_shared_ptr();
@@ -412,7 +399,7 @@ void DCOFFPassConvert1::build() {
                      std::bind(&DCOFFPassConvert1::matcher_callback, this, std::placeholders::_1));
 }
 
-void DCOFFPassConvert1::reconnect_root(ov::pass::pattern::Matcher &m) {
+void DCOFFPassConvert1::reconnect_root(ov::pass::pattern::Matcher& m) {
     // FIXME: Two converts can be further squashed into one!
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
@@ -453,35 +440,33 @@ void DCOFFPassConvert1::reconnect_root(ov::pass::pattern::Matcher &m) {
 //                      V                   >
 //
 
-DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode,
-                                     ov::element::Type dcoff_type,
-                                     DCOFFParamRef pref) {
+DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
     auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
     auto constB = opp::wrap_type<ov::op::v0::Constant>();
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
-    auto subtr  = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
+    auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, paramC});
 
     auto scalar = opp::wrap_type<ov::op::v0::Constant>();
     auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
-    auto callback = [=](ov::pass::pattern::Matcher &m) {
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto  matched_nodeA  = node_to_output.at(paramA).get_node_shared_ptr();
-        auto  matched_nodeB  = node_to_output.at(constB).get_node_shared_ptr();
-        auto  matched_nodeC  = node_to_output.at(paramC).get_node_shared_ptr();
+        auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(paramC).get_node_shared_ptr();
 
         NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
-        NPUW_ASSERT(ov::op::util::is_constant (matched_nodeB));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
         NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
 
-        auto  matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
-        auto  matched_valueB = std::static_pointer_cast<ov::op::v0::Constant> (matched_nodeB);
-        auto  matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
+        auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+        auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
+        auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
-        if (ov::element::u4  == matched_paramA->get_element_type() &&
+        if (ov::element::u4 == matched_paramA->get_element_type() &&
             ov::element::f32 == matched_valueB->get_element_type() &&
             ov::element::f32 == matched_paramC->get_element_type()) {
             LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << dcoff_type);
@@ -507,8 +492,8 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode,
                 auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
                 auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
                 auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
-                    for (auto &&node_outputs : node->outputs()) {
-                        for (auto &&node_reader_port : node_outputs.get_target_inputs()) {
+                    for (auto&& node_outputs : node->outputs()) {
+                        for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
                             node_outputs.remove_target_input(node_reader_port);
                         }
                     }
@@ -523,11 +508,10 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode,
             }
             LOG_DEBUG("Done");
         }
-        return false; // root node hasn't changed
+        return false;  // root node hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape2"), callback);
 }
-
 
 //------------------------------------------------------------------------------
 // Pattern: 4SymW16A for CWAI
@@ -561,34 +545,33 @@ CWAI1::CWAI1(CWAI1::Results scales) {
     auto constC = opp::wrap_type<ov::op::v0::Constant>();
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({constA});
     auto cvtB = opp::wrap_type<ov::op::v0::Convert>({constB});
-    auto subtr  = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
+    auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
 
-    auto matcher_callback = [=](ov::pass::pattern::Matcher &m) {
+    auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto  matched_nodeA  = node_to_output.at(constA).get_node_shared_ptr();
-        auto  matched_nodeB  = node_to_output.at(constB).get_node_shared_ptr();
-        auto  matched_nodeC  = node_to_output.at(constC).get_node_shared_ptr();
+        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
 
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeC));
 
-        auto  matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
-        auto  matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
-        auto  matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
+        auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
+        auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
+        auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
 
-        if (ov::element::u4  == matched_valueA->get_element_type() &&
-            (ov::element::u4  == matched_valueB->get_element_type() ||
+        if (ov::element::u4 == matched_valueA->get_element_type() &&
+            (ov::element::u4 == matched_valueB->get_element_type() ||
              ov::element::f32 == matched_valueB->get_element_type()) &&
             (ov::element::f16 == matched_valueC->get_element_type() ||
              ov::element::f32 == matched_valueC->get_element_type())) {
-
             LOG_DEBUG("Matched: " << matched_valueC);
             scales.get().push_back(matched_valueC);
         }
         return true;
-    }; // matcher_callback
+    };  // matcher_callback
 
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI1"), matcher_callback);
 }
@@ -616,24 +599,24 @@ CWAI2::CWAI2(CWAI2::Results scales) {
     auto constB = opp::wrap_type<ov::op::v0::Constant>();
     auto constC = opp::wrap_type<ov::op::v0::Constant>();
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({constA});
-    auto subtr  = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
+    auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
 
-    auto matcher_callback = [=](ov::pass::pattern::Matcher &m) {
+    auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto  matched_nodeA  = node_to_output.at(constA).get_node_shared_ptr();
-        auto  matched_nodeB  = node_to_output.at(constB).get_node_shared_ptr();
-        auto  matched_nodeC  = node_to_output.at(constC).get_node_shared_ptr();
+        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
 
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeC));
 
-        auto  matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
-        auto  matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
-        auto  matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
+        auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
+        auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
+        auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
 
-        if (ov::element::u4  == matched_valueA->get_element_type() &&
+        if (ov::element::u4 == matched_valueA->get_element_type() &&
             ov::element::f32 == matched_valueB->get_element_type() &&
             (ov::element::f16 == matched_valueC->get_element_type() ||
              ov::element::f32 == matched_valueC->get_element_type())) {
@@ -641,7 +624,7 @@ CWAI2::CWAI2(CWAI2::Results scales) {
             scales.get().push_back(matched_valueC);
         }
         return true;
-    }; // matcher_callback
+    };  // matcher_callback
 
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI2"), matcher_callback);
 }
@@ -679,7 +662,7 @@ CWAI2::CWAI2(CWAI2::Results scales) {
 
 // Implementation TBD
 
-} // namespace SymmZP
-} // namespace patterns
-} // namespace npuw
-} // namespace ov
+}  // namespace SymmZP
+}  // namespace patterns
+}  // namespace npuw
+}  // namespace ov

@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <limits>
 #include <map>
-#include <vector>
 #include <optional>
+#include <vector>
 
 #include "base_sync_infer_request.hpp"
 
@@ -48,24 +49,27 @@ private:
 
     void recreate_subrequests(std::size_t idx);
 
-    using LinkFrom = std::pair
-        < std::size_t /* Subrequest index */
-        , std::size_t /* Subrequest output index */
-        >; // FIXME: This is a third, if not fourth, definitiion of such structure
+    static constexpr const std::size_t INVALID_IDX = std::numeric_limits<std::size_t>::max();
+
+    using LinkFrom = std::pair<std::size_t /* Subrequest index */
+                               ,
+                               std::size_t /* Subrequest output index */
+                               >;          // FIXME: This is a third, if not fourth, definitiion of such structure
     using TensorPtr = ov::SoPtr<ov::ITensor>;
     std::map<LinkFrom, TensorPtr> m_funcall_result;
 
-    using ToSubmodel = std::pair
-        < std::size_t /* Subrequest index */
-        , std::size_t /* Subrequest input index */
-        >; // Fixme: fourth installment?
-    std::map<ToSubmodel, ov::Output<const ov::Node> > m_reader_to_orig_port;
+    using ToSubmodel = std::pair<std::size_t /* Subrequest index */
+                                 ,
+                                 std::size_t /* Subrequest input index */
+                                 >;          // Fixme: fourth installment?
+    std::map<ToSubmodel, ov::Output<const ov::Node>> m_reader_to_orig_port;
 
     // FIXME: STOP USING ov::Output<> AT ALL! It is a weak feature
     // These objects get discarded on occasional model recompilation
     std::map<ov::Output<const ov::Node>, size_t> m_port_to_subrequest_idx;
     std::map<ov::Output<const ov::Node>,
-             ov::Output<const ov::Node> > m_port_orig_to_sub; // FIXME: this one likely replaces `m_port_to_subrequest_idx'
+             ov::Output<const ov::Node>>
+        m_port_orig_to_sub;  // FIXME: this one likely replaces `m_port_to_subrequest_idx'
 
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {

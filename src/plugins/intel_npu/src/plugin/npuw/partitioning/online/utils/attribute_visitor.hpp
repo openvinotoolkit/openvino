@@ -9,11 +9,11 @@
 
 #include <map>
 
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/enum_names.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/enum_names.hpp"
 
 namespace ov {
 namespace npuw {
@@ -43,38 +43,40 @@ class ReadAttributes : public ov::AttributeVisitor {
 public:
     ReadAttributes() = default;
 
-    std::map<std::string, std::string> get_attributes_map() { return attributes_map; }
+    std::map<std::string, std::string> get_attributes_map() {
+        return attributes_map;
+    }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
-        attributes_map.insert({ name, "" });
+        attributes_map.insert({name, ""});
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
-        attributes_map.insert({ name, std::to_string(adapter.get()) });
+        attributes_map.insert({name, std::to_string(adapter.get())});
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
-        attributes_map.insert({ name, adapter.get() });
+        attributes_map.insert({name, adapter.get()});
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
-        attributes_map.insert({ name, std::to_string(adapter.get()) });
+        attributes_map.insert({name, std::to_string(adapter.get())});
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
-        attributes_map.insert({ name, std::to_string(adapter.get()) });
+        attributes_map.insert({name, std::to_string(adapter.get())});
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int>>& adapter) override {
-        attributes_map.insert({ name, create_atribute_list(adapter) });
+        attributes_map.insert({name, create_atribute_list(adapter)});
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
-        attributes_map.insert({ name, create_atribute_list(adapter) });
+        attributes_map.insert({name, create_atribute_list(adapter)});
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
-        attributes_map.insert({ name, create_atribute_list(adapter) });
+        attributes_map.insert({name, create_atribute_list(adapter)});
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
-        attributes_map.insert({ name, create_atribute_list(adapter) });
+        attributes_map.insert({name, create_atribute_list(adapter)});
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
-        attributes_map.insert({ name, create_atribute_list(adapter) });
+        attributes_map.insert({name, create_atribute_list(adapter)});
     }
 };
 

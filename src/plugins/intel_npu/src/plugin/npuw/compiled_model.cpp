@@ -3,11 +3,14 @@
 //
 #include "compiled_model.hpp"
 
-#include <memory>
 #include <iostream>
+#include <memory>
 
+#include "accuracy/comparator.hpp"
 #include "just_sync_infer_request.hpp"
-
+#include "logging.hpp"
+#include "npu_private_properties.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -15,22 +18,17 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "openvino/core/parallel.hpp"
 #include "plugin.hpp"
-
-#include "npu_private_properties.hpp"
-#include "logging.hpp"
 #include "util.hpp"
-#include "accuracy/comparator.hpp"
 
 // required for get_properties_per_device()
+#include <intel_npu/al/config/config.hpp>
+#include <intel_npu/al/config/npuw.hpp>
+#include <npuw_private_properties.hpp>
+
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-
-#include <npuw_private_properties.hpp>
-#include <intel_npu/al/config/npuw.hpp>
-#include <intel_npu/al/config/config.hpp>
 
 namespace {
 void split_properties(const ov::AnyMap& properties,
@@ -52,7 +50,7 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
-} // anonymous namespace
+}  // anonymous namespace
 
 namespace ov {
 namespace npuw {
@@ -70,19 +68,19 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 
             // Do extra handling for the private NPU options
             if (ov::npuw::util::starts_with(device_name, "NPU")) {
-                for (auto &&opt : properties) {
+                for (auto&& opt : properties) {
                     if (ov::npuw::util::starts_with(opt.first, "NPU")) {
                         device_properties[device_name][opt.first] = opt.second;
                     }
                 }
-            } // if(NPU)
+            }  // if(NPU)
         }
     }
     return device_properties;
 }
-} // anonymous namespace
-} // namespace npuw
-} // namespace ov
+}  // anonymous namespace
+}  // namespace npuw
+}  // namespace ov
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -92,7 +90,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg(m_options_desc, "NpuwConfig"),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
-
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_props;
@@ -103,26 +100,30 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     const std::string dev_list_str = m_cfg.get<::intel_npu::NPUW_DEVICES>();
     m_dev_list = ov::DeviceIDParser::get_hetero_devices(dev_list_str);
-    m_meta_devices = ov::npuw::get_properties_per_device(plugin,
-                                                         dev_list_str,
-                                                         m_non_npuw_props);
+    m_meta_devices = ov::npuw::get_properties_per_device(plugin, dev_list_str, m_non_npuw_props);
 
     const bool acc_check_opt = m_cfg.get<::intel_npu::NPUW_ACC_CHECK>();
     if (acc_check_opt) {
-        const double threshold_opt =
-            m_cfg.get<::intel_npu::NPUW_ACC_THRESH>();
+        const double threshold_opt = m_cfg.get<::intel_npu::NPUW_ACC_THRESH>();
 
         m_acc_check = metrics::NRMSE(threshold_opt);
-        m_ref_device =
-            m_cfg.getString<::intel_npu::NPUW_ACC_DEVICE>();
+        m_ref_device = m_cfg.getString<::intel_npu::NPUW_ACC_DEVICE>();
         LOG_INFO("Accuracy check is enabled.");
     }
 
     LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
-    { LOG_BLOCK(); for (auto &&p : orig_parameters) LOG_VERB(p); }
+    {
+        LOG_BLOCK();
+        for (auto&& p : orig_parameters)
+            LOG_VERB(p);
+    }
     const auto& orig_results = model->get_results();
-    { LOG_BLOCK(); for (auto &&r: orig_results) LOG_VERB(r); }
+    {
+        LOG_BLOCK();
+        for (auto&& r : orig_results)
+            LOG_VERB(r);
+    }
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
@@ -154,7 +155,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_VERB("OPTIMIZED OUT");
             continue;
         }
-        auto process_params = [&](const ov::ParameterVector &_parameters) {
+        auto process_params = [&](const ov::ParameterVector& _parameters) {
             for (size_t i = 0; i < _parameters.size(); i++) {
                 LOG_VERB(_parameters[i]);
                 for (size_t j = 0; j < orig_parameters.size(); j++) {
@@ -171,14 +172,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                             // sync_infer_request.cpp
                             LOG_VERB("Subscribe this parameter to tensor");
                             m_param_subscribers[j].push_back(ToSubmodel{id, i});
-                        } // if(NO_LINK)
+                        }  // if(NO_LINK)
                         // Regardless of the order, if the reader is a function,
                         // remember that to avoid confusion in function prologue
-                    } // if(param == orig_param)
-                } // for(orig_params)
-            } // for(subgraph_params)
+                    }  // if(param == orig_param)
+                }      // for(orig_params)
+            }          // for(subgraph_params)
         };
-        auto process_results = [&](const ov::ResultVector &_results) {
+        auto process_results = [&](const ov::ResultVector& _results) {
             for (size_t i = 0; i < _results.size(); i++) {
                 if (!_results[i]) {
                     // See the rearrange_to_function_protocol<>()...
@@ -193,15 +194,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                         m_outputs_to_submodels_outputs[j] = {id, i};
                     }
                 }
-            } // for(results)
+            }  // for(results)
         };
         // Sheer ugliness here again
         if (orderedSubgraphs[id]._funcall.empty()) {
             process_params(orderedSubgraphs[id]._parameters);
             process_results(orderedSubgraphs[id]._results);
         } else {
-            auto &f = partitioning.functions.at(orderedSubgraphs[id]._funcall);
-            // Don't use f but match via the original parameters to generate indices
+            // Match via the original parameters to generate indices
             process_params(orderedSubgraphs[id]._parameters);
             process_results(orderedSubgraphs[id]._results);
 
@@ -210,7 +210,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             // produces its own result), its result(s) will be matched
             // with _all_ instances of the result (see pic).
         }
-    } // for(ordered_subgraphs)
+    }  // for(ordered_subgraphs)
     // NOTE(dm): there's a better way to do it, like we do in G-API backends.
 
     // Store mapping between manually splitted inputs/outputs
@@ -223,8 +223,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::map<std::string, std::size_t> compiledFunctions;
     m_compiled_submodels.resize(orderedSubgraphs.size());
 
-    const std::string dump_sub_opt =
-        m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
+    const std::string dump_sub_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
 
     LOG_INFO("Creating submodels...");
     for (std::size_t id = 0u; id < orderedSubgraphs.size(); id++) {
@@ -243,33 +242,30 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         LOG_INFO("Creating Subgraph[" << id << "]...");
         if (subgraph._funcall.empty()) {
             // NOT a function call - an easy case!
-            m_compiled_submodels[id].model =
-                std::make_shared<ov::Model>(subgraph._results,
-                                            subgraph._sinks,
-                                            subgraph._parameters,
-                                            m_name + '_' + std::to_string(id));
+            m_compiled_submodels[id].model = std::make_shared<ov::Model>(subgraph._results,
+                                                                         subgraph._sinks,
+                                                                         subgraph._parameters,
+                                                                         m_name + '_' + std::to_string(id));
         } else {
             LOG_BLOCK();
-            auto &fcn_template = partitioning.functions.at(subgraph._funcall);
+            auto& fcn_template = partitioning.functions.at(subgraph._funcall);
             auto compiled_fcn_iter = compiledFunctions.find(subgraph._funcall);
             if (compiled_fcn_iter == compiledFunctions.end()) {
                 // A function call: store the model for function call only once...
                 compiledFunctions.insert({subgraph._funcall, id});
                 m_compiled_submodels[id].model = fcn_template._model;
-                m_compiled_submodels[id].replaced_by = id; // FIXME: UGLY
-                LOG_INFO("Subgraph[" << id << "] is a function body for "
-                         << subgraph._funcall);
+                m_compiled_submodels[id].replaced_by = id;  // FIXME: UGLY
+                LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
                 m_compiled_submodels[id].replaced_by = compiled_fcn_iter->second;
-                LOG_INFO("Subgraph[" << id << "] is a function call to ["
-                         << compiled_fcn_iter->second << "]");
+                LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
             m_compiled_submodels[id].closure = subgraph._closure;
-            m_compiled_submodels[id].scales  = subgraph._scales;
-            m_compiled_submodels[id].zerops  = subgraph._zerops;
-        } // if(!funcall)
+            m_compiled_submodels[id].scales = subgraph._scales;
+            m_compiled_submodels[id].zerops = subgraph._zerops;
+        }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
             OPENVINO_THROW("Fatal: submodel ", id, " is neither a model nor a function call!");
@@ -287,23 +283,20 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_BLOCK();
             if (real_id != id) {
                 LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]"
-                         << " as it is a function body for Subgraph[" << id << "]");
+                                                   << " as it is a function body for Subgraph[" << id << "]");
             }
             const auto model_to_dump = m_compiled_submodels[real_id].model;
-            std::string model_dump_path = m_name
-                + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size())
-                + (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall)
-                + ".xml";
+            std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
+                                          (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + ".xml";
             ov::save_model(model_to_dump, model_dump_path);
             LOG_INFO("Wrote " << model_dump_path);
             // Note: keep here naming as it would be the subgraph
-        } // if(dump)
-    } // for(orderedSubgraphs)
+        }  // if(dump)
+    }      // for(orderedSubgraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     const std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
-    forced_sub_devices = ::intel_npu
-        ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
+    forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
     // Compile submodels. Some of them can be functions: track which model will be
     // used as function(s): function name -> index of the compiled subgraph
     auto compile = [&](size_t id) {
@@ -314,9 +307,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
         if (!orderedSubgraphs[real_id]._avoid_list.empty()) {
-            const auto devices_to_avoid = ov::DeviceIDParser::get_hetero_devices
-                (orderedSubgraphs[real_id]._avoid_list);
-            for (auto &&d : devices_to_avoid) {
+            const auto devices_to_avoid = ov::DeviceIDParser::get_hetero_devices(orderedSubgraphs[real_id]._avoid_list);
+            for (auto&& d : devices_to_avoid) {
                 m_compiled_submodels[real_id].devices_to_avoid.insert(std::move(d));
             }
         }
@@ -326,48 +318,48 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             std::string forced_device = forced_sub_devices[id];
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
             if (forced_dev_it == m_dev_list.end()) {
-                LOG_WARN("Target device for Subgraph[" << id << "] was set to "
-                         << forced_device << ", but was not found in the device list: "
-                         << "[" << dev_list_str << "] -- ignoring");
+                LOG_WARN("Target device for Subgraph[" << id << "] was set to " << forced_device
+                                                       << ", but was not found in the device list: "
+                                                       << "[" << dev_list_str << "] -- ignoring");
             } else {
                 // FIXME: This is not really a device enforcement as the fallback
                 // procedure will be in place still
                 LOG_INFO("Force Subgraph[" << id << "] target device to " << *forced_dev_it);
                 m_compiled_submodels[real_id].device_it = forced_dev_it;
             }
-        } // if(forced_device_opt)
+        }  // if(forced_device_opt)
 
-        LOG_INFO("Compiling Subgraph[" << id << "]: "
-                 << m_compiled_submodels[real_id].model->get_friendly_name() << "...");
+        LOG_INFO("Compiling Subgraph[" << id << "]: " << m_compiled_submodels[real_id].model->get_friendly_name()
+                                       << "...");
         if (!compile_for_success(id)) {
             OPENVINO_THROW("Failed to compile ",
                            m_compiled_submodels[real_id].model->get_friendly_name(),
-                           " for all devices in [", dev_list_str, "]");
+                           " for all devices in [",
+                           dev_list_str,
+                           "]");
         }
 
         if (m_acc_check) {
             if (submodel_device(real_id) != m_ref_device) {
-                LOG_INFO("Compile Subgraph[" << real_id << "] for reference device: "
-                         << m_ref_device << ".");
+                LOG_INFO("Compile Subgraph[" << real_id << "] for reference device: " << m_ref_device << ".");
                 LOG_BLOCK();
                 m_compiled_submodels.at(real_id).ref_compiled_model =
                     compile_submodel(m_compiled_submodels.at(real_id).model, m_ref_device);
                 LOG_INFO("Done (reference)");
             } else {
-                LOG_INFO("Skip compilation of submodel[" << real_id << "] for reference device: "
-                         << m_ref_device << ", as original submodel[" << real_id <<
-                         "] has been already compiled for it.");
+                LOG_INFO("Skip compilation of submodel[" << real_id << "] for reference device: " << m_ref_device
+                                                         << ", as original submodel[" << real_id
+                                                         << "] has been already compiled for it.");
             }
         }
-    }; // compile
+    };  // compile
 
     // Parallel compilation is unstable so is disabled by default.
-    const bool par_opt =
-        m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
+    const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
         ov::parallel_for(orderedSubgraphs.size(), compile);
     } else {
-        // TODO: Introduce npuw::serial(i, f) instead
+        // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
         for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
             compile(i);
         }
@@ -390,7 +382,7 @@ void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov:
     NPUW_ASSERT(model.get() != nullptr);
     for (auto& output : model->outputs()) {
         auto tensor_names = output.get_tensor().get_names();
-        if (tensor_names.size() > 32) { // maximum supported
+        if (tensor_names.size() > 32) {  // maximum supported
             output.get_tensor().set_names({});
             LOG_INFO("Removed output tensor names for " << model->get_friendly_name());
             LOG_BLOCK();
@@ -404,7 +396,7 @@ void ov::npuw::CompiledModel::reset_io() {
     // which is called in the CompiledModel(). So this method executes even before it
     // is called for the right thing from the ctor directly.
     if (!m_finalized)
-        return; // avoid getting called before it is really the time
+        return;  // avoid getting called before it is really the time
 
     // Don't be like HETERO here - don't override the inputs/outputs(),
     // as the ICompiledModel already creates one for us.
@@ -412,29 +404,27 @@ void ov::npuw::CompiledModel::reset_io() {
     // to the Subgraph's input/output ports.
 
     LOG_VERB("*** Partition graph ***");
-    int idx_in = 0, idx_out = 0; // FIXME: use indexed()
+    int idx_in = 0, idx_out = 0;  // FIXME: use indexed()
     for (const auto& to_submodel : m_inputs_to_submodels_inputs) {
         LOG_BLOCK();
         if (to_submodel == NO_LINK) {
-            LOG_WARN("Input (Parameter) " << inputs()[idx_in] <<
-                     " is not used by any subgraph. It happens sometimes,"
-                     " but better check your model");
-            idx_in++; // FIXME: PLEASE use indexed() here
+            LOG_WARN("Input (Parameter) " << inputs()[idx_in]
+                                          << " is not used by any subgraph. It happens sometimes,"
+                                             " but better check your model");
+            idx_in++;  // FIXME: PLEASE use indexed() here
             continue;
         }
         const auto& submodel_idx = to_submodel.first;
-        const auto& input_idx    = to_submodel.second;
-        LOG_VERB("Input (Parameter) " << inputs()[idx_in]
-                 << " from Subgraph[" << submodel_idx << "]/" << input_idx);
+        const auto& input_idx = to_submodel.second;
+        LOG_VERB("Input (Parameter) " << inputs()[idx_in] << " from Subgraph[" << submodel_idx << "]/" << input_idx);
         idx_in++;
     }
     for (const auto& to_submodel : m_outputs_to_submodels_outputs) {
         NPUW_ASSERT(to_submodel != NO_LINK);
-        LOG_BLOCK(); // in fact, to_submodel <is> from_submodel here, but who cares
+        LOG_BLOCK();  // in fact, to_submodel <is> from_submodel here, but who cares
         const auto& submodel_idx = to_submodel.first;
-        const auto& output_idx   = to_submodel.second;
-        LOG_VERB("Output (Result) " << outputs()[idx_out]
-                 << " from Subgraph[" << submodel_idx << "]/" << output_idx);
+        const auto& output_idx = to_submodel.second;
+        LOG_VERB("Output (Result) " << outputs()[idx_out] << " from Subgraph[" << submodel_idx << "]/" << output_idx);
         idx_out++;
     }
 }
@@ -442,28 +432,28 @@ void ov::npuw::CompiledModel::reset_io() {
 bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
     // Assume device_it is some always-valid starting point.
     // FIXME: And who guarantees it? Abstraction leaks are everywhere
-    if (m_compiled_submodels[id].replaced_by
-        && m_compiled_submodels[id].replaced_by != id) {
+    if (m_compiled_submodels[id].replaced_by && m_compiled_submodels[id].replaced_by != id) {
         LOG_BLOCK();
-        LOG_INFO("Skip compilation for Subgraph[" << id << "] "
-                 "as it was already compiled (function)");
+        LOG_INFO("Skip compilation for Subgraph[" << id
+                                                  << "] "
+                                                     "as it was already compiled (function)");
         return true;
     }
 
     for (auto iter = m_compiled_submodels[id].device_it; iter != m_dev_list.cend(); ++iter) {
         LOG_BLOCK();
-        const auto &device_name = *iter;
+        const auto& device_name = *iter;
         if (m_compiled_submodels[id].devices_to_avoid.count(device_name) > 0) {
             LOG_INFO(device_name << " was found in the 'Avoid' list for this subgraph, skipping...");
         } else if (compile_for_device(id, device_name)) {
             m_compiled_submodels[id].device_it = iter;
-            return true; // success!
+            return true;  // success!
         }
     }
     return false;
 }
 
-bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::string &device_to_try) {
+bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::string& device_to_try) {
     // The API of this method is ugly but it is what it is
     // NOTE(dm): Hetero plugin disables caching here, but we'll keep this to be done
     // at the individual plugins level.
@@ -480,24 +470,20 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     // eliminated with constant folding, but with offline partitioning
     // it is not possible + not clear what to do with dynamic shapes.
     // So for now, skip this case explicitly.
-    if (npuw::util::starts_with(device_to_try, "NPU") &&
-        m_compiled_submodels[id].model->inputs().empty()) {
-        LOG_INFO("Avoid compilation for "
-                 << device_to_try
-                 << " as the model should be constant-folded");
+    if (npuw::util::starts_with(device_to_try, "NPU") && m_compiled_submodels[id].model->inputs().empty()) {
+        LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
         dump_on_fail(id, device_to_try, "Avoided due to workaround");
         return false;
     }
 
     try {
-        m_compiled_submodels[id].compiled_model =
-            compile_submodel(m_compiled_submodels[id].model, device_to_try);
+        m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
     } catch (const std::exception& ex) {
-        LOG_ERROR("Subgraph ["<< id << "] Failed to compile: " << std::endl << ex.what());
+        LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
         return false;
     } catch (...) {
-        LOG_ERROR("Subgraph ["<< id << "] Failed to compile: Unknown error");
+        LOG_ERROR("Subgraph [" << id << "] Failed to compile: Unknown error");
         dump_on_fail(id, device_to_try, "Unknown error");
         return false;
     }
@@ -506,9 +492,8 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     return true;
 }
 
-ov::SoPtr<ov::ICompiledModel>
-ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,
-                                          const std::string& device) {
+ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& submodel,
+                                                                        const std::string& device) {
     auto plugin = get_npuw_plugin();
     auto core = plugin->get_core();
     // set exclusive_async_requests in case when model is split
@@ -516,8 +501,9 @@ ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& subm
     auto& device_config = m_meta_devices[device];
     if (m_compiled_submodels.size() > 1) {
         auto supported_internal_properties =
-                plugin->get_core()->get_property(device, ov::internal::supported_properties);
-        if (std::find(supported_internal_properties.begin(), supported_internal_properties.end(),
+            plugin->get_core()->get_property(device, ov::internal::supported_properties);
+        if (std::find(supported_internal_properties.begin(),
+                      supported_internal_properties.end(),
                       ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
             // adds property if it is not set yet
             device_config.insert(ov::internal::exclusive_async_requests(true));
@@ -526,11 +512,8 @@ ov::npuw::CompiledModel::compile_submodel(const std::shared_ptr<ov::Model>& subm
     return core->compile_model(submodel, device, device_config);
 }
 
-void ov::npuw::CompiledModel::dump_on_fail(std::size_t id,
-                                           const std::string &device_to_try,
-                                           const char *extra) {
-    const std::string dof_opt =
-        m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_ON_FAIL>();
+void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
+    const std::string dof_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_ON_FAIL>();
 
     if (ov::npuw::util::is_set(id, dof_opt)) {
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
@@ -545,7 +528,7 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_just_sync
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
     // Synchronous infer request implementation may vary based on the
     // selected strategy
-    auto *non_const_this = const_cast<ov::npuw::CompiledModel*>(this); // because of const in API
+    auto* non_const_this = const_cast<ov::npuw::CompiledModel*>(this);  // because of const in API
     return non_const_this->create_just_sync_infer_request();
 }
 
@@ -590,8 +573,7 @@ void ov::npuw::CompiledModel::export_model(std::ostream& model_stream) const {
 }
 
 std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) const {
-    std::size_t real_idx = m_compiled_submodels[idx]
-                            .replaced_by.value_or(idx);
+    std::size_t real_idx = m_compiled_submodels[idx].replaced_by.value_or(idx);
     auto comp_subm_desc = m_compiled_submodels[real_idx];
 
     if (!comp_subm_desc.compiled_model) {
@@ -614,25 +596,23 @@ void ov::npuw::CompiledModel::log_device_dist() const {
         auto real_id = m_compiled_submodels[id].replaced_by.value_or(id);
         auto& real_cm = m_compiled_submodels.at(real_id);
 
-        execution_stats& stat = real_cm.compiled_model ?
-            stats_for_devices[submodel_device(real_id)] :
-            stats_for_optimized_out;
+        execution_stats& stat =
+            real_cm.compiled_model ? stats_for_devices[submodel_device(real_id)] : stats_for_optimized_out;
 
         stat.gflops += real_cm.stat.gflops;
         stat.ops += real_cm.stat.ops;
     }
 
-    auto print_stats = [this](const std::string &device, const execution_stats &stat) {
+    auto print_stats = [this](const std::string& device, const execution_stats& stat) {
         float flops_prcnt = 100.f;
         float ops_prcnt = 100.f;
         if (m_total_stat.gflops > 0 && m_total_stat.ops > 0) {
             flops_prcnt = stat.gflops / static_cast<float>(m_total_stat.gflops) * 100;
             ops_prcnt = stat.ops / static_cast<float>(m_total_stat.ops) * 100;
         }
-        LOG_INFO(device << ": " << flops_prcnt << "% FLOPS, "
-                                << ops_prcnt << "% Layers");
+        LOG_INFO(device << ": " << flops_prcnt << "% FLOPS, " << ops_prcnt << "% Layers");
     };
-    for (auto &&device_st : stats_for_devices) {
+    for (auto&& device_st : stats_for_devices) {
         LOG_BLOCK();
         print_stats(device_st.first, device_st.second);
     }
@@ -654,113 +634,111 @@ void ov::npuw::CompiledModel::implement_properties() {
     // 3. Fill `m_all_supported_props` with all properties, mentioned above.
 
     // 1.
-#define BIND(N,T) \
-        {ov::intel_npu::N.name(), \
-         {ov::PropertyMutability::RW, \
-          [](const ::intel_npu::Config& config) -> ov::Any \
-            { return config.get<::intel_npu::T>(); } \
-         } \
-        } 
+#define BIND(N, T)                                                                         \
+    {                                                                                      \
+        ov::intel_npu::N.name(), {                                                         \
+            ov::PropertyMutability::RW, [](const ::intel_npu::Config& config) -> ov::Any { \
+                return config.get<::intel_npu::T>();                                       \
+            }                                                                              \
+        }                                                                                  \
+    }
 
-    m_prop_to_opt = {
-        BIND(use_npuw, NPU_USE_NPUW),
-        BIND(npuw::devices, NPUW_DEVICES),
-        BIND(npuw::submodel_device, NPUW_SUBMODEL_DEVICE),
-        BIND(npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE),
-        BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
-        BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
-        BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
-        BIND(npuw::partitioning::plan, NPUW_PLAN),
-        BIND(npuw::partitioning::fold, NPUW_FOLD),
-        BIND(npuw::partitioning::cwai, NPUW_CWAI),
-        BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
-        BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
-        BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
-        BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
-        BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
-        BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
-        BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
-        BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
-        BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
+    m_prop_to_opt = {BIND(use_npuw, NPU_USE_NPUW),
+                     BIND(npuw::devices, NPUW_DEVICES),
+                     BIND(npuw::submodel_device, NPUW_SUBMODEL_DEVICE),
+                     BIND(npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE),
+                     BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
+                     BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
+                     BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
+                     BIND(npuw::partitioning::plan, NPUW_PLAN),
+                     BIND(npuw::partitioning::fold, NPUW_FOLD),
+                     BIND(npuw::partitioning::cwai, NPUW_CWAI),
+                     BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
+                     BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
+                     BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
+                     BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
+                     BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
+                     BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                     BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
+                     BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
+                     BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-        BIND(npuw::dump::full, NPUW_DUMP_FULL),
-        BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
-        BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
-        BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
-        BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
+                     BIND(npuw::dump::full, NPUW_DUMP_FULL),
+                     BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
+                     BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
+                     BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
+                     BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
 #endif
     };
 #undef BIND
     // 2.
-    m_prop_to_opt.insert({
-        {ov::supported_properties.name(),
+    m_prop_to_opt.insert(
+        {{ov::supported_properties.name(),
           {ov::PropertyMutability::RO,
-          [&](const ::intel_npu::Config&) {
-            return m_all_supported_props;
-          }}},
-        {ov::device::properties.name(),
+           [&](const ::intel_npu::Config&) {
+               return m_all_supported_props;
+           }}},
+         {ov::device::properties.name(),
           {ov::PropertyMutability::RO,
-          [&](const ::intel_npu::Config&) {
-            ov::AnyMap all_devices = {};
-            for (auto i = 0; i < m_compiled_submodels.size(); ++i) {
-                auto comp_model_desc = m_compiled_submodels[i];
-                if (!comp_model_desc.compiled_model) // Handle if optimized out
-                    continue;
-                ov::AnyMap device_properties = {};
-                if (all_devices.count(submodel_device(i)) == 0) {
-                    auto device_supported_props =
-                        comp_model_desc.compiled_model->get_property(ov::supported_properties.name());
-                    for (auto&& property_name : device_supported_props.as<std::vector<ov::PropertyName>>())
-                        device_properties[property_name] = comp_model_desc.compiled_model->get_property(property_name);
-                    all_devices[submodel_device(i)] = device_properties;
-                }
-            }
-            return all_devices;
-          }}},
-        {ov::model_name.name(),
+           [&](const ::intel_npu::Config&) {
+               ov::AnyMap all_devices = {};
+               for (size_t i = 0; i < m_compiled_submodels.size(); ++i) {
+                   auto comp_model_desc = m_compiled_submodels[i];
+                   if (!comp_model_desc.compiled_model)  // Handle if optimized out
+                       continue;
+                   ov::AnyMap device_properties = {};
+                   if (all_devices.count(submodel_device(i)) == 0) {
+                       auto device_supported_props =
+                           comp_model_desc.compiled_model->get_property(ov::supported_properties.name());
+                       for (auto&& property_name : device_supported_props.as<std::vector<ov::PropertyName>>())
+                           device_properties[property_name] =
+                               comp_model_desc.compiled_model->get_property(property_name);
+                       all_devices[submodel_device(i)] = device_properties;
+                   }
+               }
+               return all_devices;
+           }}},
+         {ov::model_name.name(),
           {ov::PropertyMutability::RO,
-          [&](const ::intel_npu::Config&) {
-              return m_name;
-          }}},
-        {ov::optimal_number_of_infer_requests.name(),
-         {ov::PropertyMutability::RO,
-          [&](const ::intel_npu::Config&) {
-            unsigned int value = 0u;
-            for (const auto& comp_model_desc : m_compiled_submodels) {
-                if (comp_model_desc.compiled_model) { // Some models may be optimized out
-                    value = std::max(value,
-                                    comp_model_desc.compiled_model->get_property(ov::optimal_number_of_infer_requests.name())
-                                    .as<unsigned int>());
-                }
-            }
-            return value;
-          }}},
-        {ov::execution_devices.name(),
-         {ov::PropertyMutability::RO,
-          [&](const ::intel_npu::Config&) {
-            std::vector<std::string> device_names;
-            std::set<std::string> s;
-            for (auto i = 0; i < m_compiled_submodels.size(); ++i) {
-                const auto& comp_model_desc = m_compiled_submodels[i];
-                if (!comp_model_desc.compiled_model) // handle optimized out
-                    continue;
-                if (s.count(submodel_device(i)) != 0)
-                    continue;
-                s.insert(submodel_device(i));
-                device_names.push_back(submodel_device(i));
-            }
-            return decltype(ov::execution_devices)::value_type{device_names};
-          }}},
-        {ov::loaded_from_cache.name(),
-         {ov::PropertyMutability::RO,
-          [&](const ::intel_npu::Config&) {
-              return m_loaded_from_cache;
-          }}}
-    });
+           [&](const ::intel_npu::Config&) {
+               return m_name;
+           }}},
+         {ov::optimal_number_of_infer_requests.name(),
+          {ov::PropertyMutability::RO,
+           [&](const ::intel_npu::Config&) {
+               unsigned int value = 0u;
+               for (const auto& comp_model_desc : m_compiled_submodels) {
+                   if (comp_model_desc.compiled_model) {  // Some models may be optimized out
+                       value = std::max(
+                           value,
+                           comp_model_desc.compiled_model->get_property(ov::optimal_number_of_infer_requests.name())
+                               .as<unsigned int>());
+                   }
+               }
+               return value;
+           }}},
+         {ov::execution_devices.name(),
+          {ov::PropertyMutability::RO,
+           [&](const ::intel_npu::Config&) {
+               std::vector<std::string> device_names;
+               std::set<std::string> s;
+               for (size_t i = 0; i < m_compiled_submodels.size(); ++i) {
+                   const auto& comp_model_desc = m_compiled_submodels[i];
+                   if (!comp_model_desc.compiled_model)  // handle optimized out
+                       continue;
+                   if (s.count(submodel_device(i)) != 0)
+                       continue;
+                   s.insert(submodel_device(i));
+                   device_names.push_back(submodel_device(i));
+               }
+               return decltype(ov::execution_devices)::value_type{device_names};
+           }}},
+         {ov::loaded_from_cache.name(), {ov::PropertyMutability::RO, [&](const ::intel_npu::Config&) {
+                                             return m_loaded_from_cache;
+                                         }}}});
 
     // 3.
     for (auto& p : m_prop_to_opt) {
-        m_all_supported_props
-            .emplace_back(ov::PropertyName(p.first, std::get<0>(p.second)));
+        m_all_supported_props.emplace_back(ov::PropertyName(p.first, std::get<0>(p.second)));
     }
 }

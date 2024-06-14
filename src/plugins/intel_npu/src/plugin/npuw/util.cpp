@@ -2,28 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <immintrin.h>
-#include <openvino/core/type/float16.hpp>
-#include <openvino/core/type/bfloat16.hpp>
-#include <openvino/core/parallel.hpp>
-
-#include <sstream>
-#include <iomanip>
-
-#include "openvino/op/util/op_types.hpp"
-#include "openvino/op/constant.hpp"
-
-#include <intel_npu/al/config/config.hpp>
-
-#include "logging.hpp"
 #include "util.hpp"
 
+#include <immintrin.h>
+
+#include <intel_npu/al/config/config.hpp>
+#include <iomanip>
+#include <openvino/core/parallel.hpp>
+#include <openvino/core/type/bfloat16.hpp>
+#include <openvino/core/type/float16.hpp>
+#include <sstream>
+
+#include "logging.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
+
 #ifdef UNPACK_PROFILING
-# include "tbb/concurrent_unordered_map.h"
+#    include "tbb/concurrent_unordered_map.h"
 #endif
 
-bool ov::npuw::util::is_set(const std::size_t sub_idx,
-                            const std::string& opt) {
+bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
     if (opt.empty()) {
         return false;
     }
@@ -32,26 +30,23 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
     }
 
     std::vector<std::size_t> sub_inds{};
-    sub_inds = ::intel_npu
-        ::OptionParser<std::vector<std::size_t>>::parse(opt);
-    if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx)
-        != sub_inds.end()) {
+    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(opt);
+    if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx) != sub_inds.end()) {
         return true;
     }
 
-    OPENVINO_THROW("Invalid option value: ", opt);
+    return false;
 }
 
-ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node> &node) {
+ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& node) {
     NPUW_ASSERT(ov::op::util::is_constant(node));
     NPUW_ASSERT(node->outputs().size() == 1);
     const auto port = node->output(0);
     auto cnst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-    return ov::Tensor(port.get_element_type(), port.get_shape(),
-                      const_cast<void*>(cnst_node->get_data_ptr()));
+    return ov::Tensor(port.get_element_type(), port.get_shape(), const_cast<void*>(cnst_node->get_data_ptr()));
 }
 
-bool ov::npuw::util::starts_with(const std::string &str, const std::string &prefix) {
+bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {
     return str.substr(0, prefix.size()) == prefix;
 }
 
@@ -68,17 +63,11 @@ std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
 namespace {
 
 inline int8_t hi4(int8_t x) {
-    return ((x & (1 << 7)) >> 4)
-        |  ((x & (1 << 6)) >> 4)
-        |  ((x & (1 << 5)) >> 4)
-        |  ((x & (1 << 4)) >> 4);
+    return ((x & (1 << 7)) >> 4) | ((x & (1 << 6)) >> 4) | ((x & (1 << 5)) >> 4) | ((x & (1 << 4)) >> 4);
 }
 
 inline int8_t lo4(int8_t x) {
-    return (x & (1 << 3))
-        |  (x & (1 << 2))
-        |  (x & (1 << 1))
-        |  (x & (1 << 0));
+    return (x & (1 << 3)) | (x & (1 << 2)) | (x & (1 << 1)) | (x & (1 << 0));
 }
 
 inline uint8_t hi4(uint8_t x) {
@@ -93,49 +82,50 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
-#define avx2_i4toi8(vinput, vout0, vout1){\
-    __m256i himask  = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));\
-    __m256i lomask  = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));\
-    __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1<<3));\
-    __m256i vzero   = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));\
-    __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));\
-\
-    __m256i vht     = _mm256_and_si256(vinput, himask);\
-    __m256i vhi     = _mm256_srli_epi16(vht, 4);\
-    __m256i vlo     = _mm256_and_si256(vinput, lomask);\
-\
-    __m256i vsghi   = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);\
-    __m256i vsglo   = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);\
-    __m256i vsubhi  = _mm256_sub_epi8(vzero, vsghi);\
-    __m256i vsublo  = _mm256_sub_epi8(vzero, vsglo);\
-    __m256i vhires  = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend));\
-    __m256i vlores  = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend));\
-\
-    __m256i vunlo   = _mm256_unpacklo_epi8(vhires, vlores);\
-    __m256i vunhi   = _mm256_unpackhi_epi8(vhires, vlores);\
-    *vout0          = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);\
-    *vout1          = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);\
-}
+#define avx2_i4toi8(vinput, vout0, vout1)                                         \
+    {                                                                             \
+        __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
+        __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
+        __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
+        __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
+        __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
+                                                                                  \
+        __m256i vht = _mm256_and_si256(vinput, himask);                           \
+        __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
+        __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
+                                                                                  \
+        __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
+        __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
+        __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
+        __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
+        __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
+        __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
+                                                                                  \
+        __m256i vunlo = _mm256_unpacklo_epi8(vhires, vlores);                     \
+        __m256i vunhi = _mm256_unpackhi_epi8(vhires, vlores);                     \
+        *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
+        *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
+    }
 
 inline __m128i avx2_i8tof16(__m128i vi8) {
-    __m256i i32vec = _mm256_cvtepi8_epi32(vi8);   // extend:  8 x i8  -> 8 x i32 [256b of 256b]
-    __m256  f32vec = _mm256_cvtepi32_ps(i32vec);  // convert: 8 x i32 -> 8 x f32 [256b of 256b]
-    return _mm256_cvtps_ph(f32vec, _MM_FROUND_TO_NEAREST_INT); // convert: 8 x f32 -> 8 x f16 [128b]
+    __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
+    __m256 f32vec = _mm256_cvtepi32_ps(i32vec);                 // convert: 8 x i32 -> 8 x f32 [256b of 256b]
+    return _mm256_cvtps_ph(f32vec, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
 }
 
 inline __m128i avx2_i8tof16(__m128i vi8, __m256 s) {
-    __m256i i32vec = _mm256_cvtepi8_epi32(vi8);   // extend:  8 x i8  -> 8 x i32 [256b of 256b]
-    __m256  f32vec = _mm256_cvtepi32_ps(i32vec);  // convert: 8 x i32 -> 8 x f32 [256b of 256b]
-    __m256  f32scl = _mm256_mul_ps(f32vec, s);    // scale:   8 x f32 -> 8 x f32 [256b of 256b]
-    return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT); // convert: 8 x f32 -> 8 x f16 [128b]
+    __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
+    __m256 f32vec = _mm256_cvtepi32_ps(i32vec);                 // convert: 8 x i32 -> 8 x f32 [256b of 256b]
+    __m256 f32scl = _mm256_mul_ps(f32vec, s);                   // scale:   8 x f32 -> 8 x f32 [256b of 256b]
+    return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
 }
 
 inline __m128i avx2_u8tof16_hi(__m128i vu8, __m256 z, __m256 s) {
-    __m256i u32vec = _mm256_cvtepu8_epi32(vu8);  // extend:   8 x u8  -> 8 x i32 [256b of 256b]
-    __m256 f32vec = _mm256_cvtepi32_ps(u32vec);  // convert:  8 x i32 -> 8 x f32 [256b of 256b]
-    __m256 f32sub = _mm256_sub_ps(f32vec, z);  // subtract: 8 x f32 -> 8 x f32 [256b of 256b]
-    __m256 f32scl = _mm256_mul_ps(f32sub, s);  // scale:    8 x f32 -> 8 x f32 [256b of 256b]
-    return  _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
+    __m256i u32vec = _mm256_cvtepu8_epi32(vu8);                 // extend:   8 x u8  -> 8 x i32 [256b of 256b]
+    __m256 f32vec = _mm256_cvtepi32_ps(u32vec);                 // convert:  8 x i32 -> 8 x f32 [256b of 256b]
+    __m256 f32sub = _mm256_sub_ps(f32vec, z);                   // subtract: 8 x f32 -> 8 x f32 [256b of 256b]
+    __m256 f32scl = _mm256_mul_ps(f32sub, s);                   // scale:    8 x f32 -> 8 x f32 [256b of 256b]
+    return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
 }
 
 inline __m128i avx2_u8tof16_lo(__m128i vu8, __m256 z, __m256 s) {
@@ -147,7 +137,7 @@ inline __m128i avx2_f32tof16(__m256 f32vec) {
     return _mm256_cvtps_ph(f32vec, _MM_FROUND_TO_NEAREST_INT);
 }
 
-inline __m256 avx2_load_scale(const int8_t *data, ov::element::Type type) {
+inline __m256 avx2_load_scale(const int8_t* data, ov::element::Type type) {
     if (type == ov::element::f32) {
         return _mm256_set1_ps(*reinterpret_cast<const float*>(data));
     } else {
@@ -158,7 +148,7 @@ inline __m256 avx2_load_scale(const int8_t *data, ov::element::Type type) {
     }
 }
 
-inline float avx2_load_f32(const int8_t *data, ov::element::Type type) {
+inline float avx2_load_f32(const int8_t* data, ov::element::Type type) {
     if (type == ov::element::f32) {
         return *reinterpret_cast<const float*>(data);
     } else {
@@ -172,15 +162,15 @@ inline float avx2_load_f32(const int8_t *data, ov::element::Type type) {
 #ifdef UNPACK_PROFILING
 class UnpackStat {
     tbb::concurrent_unordered_map<size_t, std::pair<size_t, uint64_t>> inferenceTimes;
+
 public:
-    UnpackStat() {
-    }
+    UnpackStat() {}
     void addRecord(size_t sz, size_t time) {
         inferenceTimes[sz].first++;
         inferenceTimes[sz].second += time;
     }
     ~UnpackStat() {
-        for(auto &&r : inferenceTimes) {
+        for (auto&& r : inferenceTimes) {
             std::cout << "work: " << r.first  //<< ", stride: " << stride
                       << " overall_time = " << r.second.second / 1000 << " [ms]"
                       << " avg_atime = " << r.second.second / r.second.first << " [µs]\n";
@@ -189,19 +179,18 @@ public:
 };
 
 static UnpackStat ustat;
-#define UNPACK_START_TICK() std::chrono::steady_clock::time_point _begin_tick = std::chrono::steady_clock::now();
-#define UNPACK_SAVE_TICK() \
-    std::chrono::steady_clock::time_point _end_tick = std::chrono::steady_clock::now();\
-    ustat.addRecord(total, std::chrono::duration_cast<std::chrono::microseconds>(_end_tick - _begin_tick).count());
+#    define UNPACK_START_TICK() std::chrono::steady_clock::time_point _begin_tick = std::chrono::steady_clock::now();
+#    define UNPACK_SAVE_TICK()                                                              \
+        std::chrono::steady_clock::time_point _end_tick = std::chrono::steady_clock::now(); \
+        ustat.addRecord(total, std::chrono::duration_cast<std::chrono::microseconds>(_end_tick - _begin_tick).count());
 #else
-#define UNPACK_START_TICK()
-#define UNPACK_SAVE_TICK()
+#    define UNPACK_START_TICK()
+#    define UNPACK_SAVE_TICK()
 #endif
 
-void unpack_i4i8(const ov::SoPtr<ov::ITensor> &from,
-                 const ov::SoPtr<ov::ITensor> &to,
-                 const ov::npuw::util::UnpackOptions & unpack_options) {
-
+void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
+                 const ov::SoPtr<ov::ITensor>& to,
+                 const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -212,11 +201,11 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor> &from,
     // per every iteration, what translates to (from->size() / 64) iterations
 
     const std::size_t total = from->get_size();
-    int8_t  const *pSrc = static_cast<int8_t*>(from->data()); // 2 x i4 elements
-    int8_t        *pDst = static_cast<int8_t*>(to->data());   // 1 x i8 element
+    int8_t const* pSrc = static_cast<int8_t*>(from->data());  // 2 x i4 elements
+    int8_t* pDst = static_cast<int8_t*>(to->data());          // 1 x i8 element
     size_t stride = 64;
 
-    auto unpack_body = [pSrc, pDst] ( size_t index, size_t stride) {
+    auto unpack_body = [pSrc, pDst](size_t index, size_t stride) {
         size_t halfStride = stride >> 1;
         int8_t const* pSrcLocal = pSrc + halfStride * index;
         int8_t* pDstLocal = pDst + stride * index;
@@ -236,7 +225,7 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor> &from,
             pDstLocal += 64;
         }
     };
-    //ov work index / 64
+    // ov work index / 64
     if (unpack_options.nPartitions) {
         std::size_t minPartitions;
         if (!unpack_options.bStrictPartitioning) {
@@ -265,7 +254,7 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor> &from,
             unpack_body(index, stride);
         });
     } else {
-        for (std::size_t index = 0; index < total / stride; index ++) {
+        for (std::size_t index = 0; index < total / stride; index++) {
             unpack_body(index, stride);
         }
     }
@@ -274,36 +263,36 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor> &from,
     pSrc = static_cast<int8_t*>(from->data()) + (tailOffset >> 1);
     pDst = static_cast<int8_t*>(to->data()) + tailOffset;
 
-    for (std::size_t index = 0; index < ((total % 64) >> 1); index ++) {
+    for (std::size_t index = 0; index < ((total % 64) >> 1); index++) {
         *(pDst++) = upc(hi4(*(pSrc)));
         *(pDst++) = upc(lo4(*(pSrc)));
-        pSrc ++;
+        pSrc++;
     }
     UNPACK_SAVE_TICK();
 }
 
-void unpack_u4i8(const ov::SoPtr<ov::ITensor> &from,
-                 const ov::SoPtr<ov::ITensor> &to,
-                 const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_u4i8(const ov::SoPtr<ov::ITensor>& from,
+                 const ov::SoPtr<ov::ITensor>& to,
+                 const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
-    uint8_t const *pSrc = static_cast<uint8_t*>(from->data()); // 2 x u4 elements
-    int8_t        *pDst = static_cast< int8_t*> (to->data());   // 1 x i8 element
+    uint8_t const* pSrc = static_cast<uint8_t*>(from->data());  // 2 x u4 elements
+    int8_t* pDst = static_cast<int8_t*>(to->data());            // 1 x i8 element
 
     const std::size_t total = from->get_size();
     for (std::size_t index = 0; index < total; index += 2) {
         pDst[0] = static_cast<int8_t>(lo4(*pSrc));  // LSB is [0] -- since OpenVINO 24.0!
         pDst[1] = static_cast<int8_t>(hi4(*pSrc));  // MSB is [1] -- since OpenVINO 24.0!
-        pSrc ++;
+        pSrc++;
         pDst += 2;
     }
 }
 
-void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
-                  const ov::SoPtr<ov::ITensor> &to,
-                  const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -314,20 +303,24 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
     // per every iteration, what translates to (from->size() / 64) iterations
 
     std::size_t total = to->get_size();
-    int8_t  const *pSrc = static_cast<int8_t*>(from->data()); // 2 x i4  elements
-    int16_t       *pDst = static_cast<int16_t*>(to->data());  // 1 x f16 element
-    //bool tailOnly = total < 64;
+    int8_t const* pSrc = static_cast<int8_t*>(from->data());  // 2 x i4  elements
+    int16_t* pDst = static_cast<int16_t*>(to->data());        // 1 x f16 element
+    // bool tailOnly = total < 64;
 
-    auto unpack_body = [pSrc, pDst] (size_t index) {
+    auto unpack_body = [pSrc, pDst](size_t index) {
         int8_t const* pSrcLocal = pSrc + 32 * index;
-        int16_t* pDstLocal      = pDst + 64 * index;
+        int16_t* pDstLocal = pDst + 64 * index;
 
         __m256i inv = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
         __m128i* outv[8] = {
-                reinterpret_cast<__m128i*>(pDstLocal),      reinterpret_cast<__m128i*>(pDstLocal + 8),
-                reinterpret_cast<__m128i*>(pDstLocal + 16), reinterpret_cast<__m128i*>(pDstLocal + 24),
-                reinterpret_cast<__m128i*>(pDstLocal + 32), reinterpret_cast<__m128i*>(pDstLocal + 40),
-                reinterpret_cast<__m128i*>(pDstLocal + 48), reinterpret_cast<__m128i*>(pDstLocal + 56),
+            reinterpret_cast<__m128i*>(pDstLocal),
+            reinterpret_cast<__m128i*>(pDstLocal + 8),
+            reinterpret_cast<__m128i*>(pDstLocal + 16),
+            reinterpret_cast<__m128i*>(pDstLocal + 24),
+            reinterpret_cast<__m128i*>(pDstLocal + 32),
+            reinterpret_cast<__m128i*>(pDstLocal + 40),
+            reinterpret_cast<__m128i*>(pDstLocal + 48),
+            reinterpret_cast<__m128i*>(pDstLocal + 56),
         };
 
         __m256i vout0, vout1;
@@ -340,14 +333,14 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
         _mm256_storeu_si256(tmpv1, vout1);
 
         __m128i i8vecs[8] = {
-                _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
-                _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8)),
-                _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16)),
-                _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24)),
-                _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32)),
-                _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
-                _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
-                _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
+            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8)),
+            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16)),
+            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24)),
+            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32)),
+            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
+            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
+            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
         };
 
         __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
@@ -369,18 +362,18 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
         _mm_storeu_si128(outv[7], vresults[7]);
     };
 
-    if ( unpack_options.bUseOvParallelFor) {
+    if (unpack_options.bUseOvParallelFor) {
         ov::parallel_for(total / 64, [&unpack_body](size_t index) {
             unpack_body(index);
         });
     } else {
-        for (std::size_t index = 0; index < total / 64 ; index ++) {
+        for (std::size_t index = 0; index < total / 64; index++) {
             unpack_body(index);
         }
     }
 
     // handle tail that is < 64 elements
-    size_t tailOffset = ((total >> 6)<<6);
+    size_t tailOffset = ((total >> 6) << 6);
     pSrc = static_cast<int8_t*>(from->data()) + (tailOffset >> 1);
     pDst = static_cast<int16_t*>(to->data()) + tailOffset;
 
@@ -389,11 +382,11 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
     total = ((total % 64) >> 1);
     int8_t unpackedToI8[VECSIZE] = {0};
     size_t unpackedIdx = 0;
-    for (std::size_t index = 0; index < total; index ++) {
+    for (std::size_t index = 0; index < total; index++) {
         unpackedToI8[unpackedIdx++] = upc(hi4(*(pSrc)));
         unpackedToI8[unpackedIdx++] = upc(lo4(*(pSrc)));
         if (unpackedIdx == VECSIZE) {
-            __m128i i8vec = _mm_loadu_si64 (reinterpret_cast<__m128i*>(unpackedToI8));
+            __m128i i8vec = _mm_loadu_si64(reinterpret_cast<__m128i*>(unpackedToI8));
             __m128i f16vec = avx2_i8tof16(i8vec);
             _mm_storeu_si128(reinterpret_cast<__m128i*>(pDst), f16vec);
             pDst += VECSIZE;
@@ -405,71 +398,75 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
     // handle tail that is < 8
     if (unpackedIdx != 0) {
         int16_t tmp[VECSIZE];
-        __m128i i8vec = _mm_loadu_si64 (reinterpret_cast<__m128i*>(unpackedToI8));
+        __m128i i8vec = _mm_loadu_si64(reinterpret_cast<__m128i*>(unpackedToI8));
         __m128i f16vec = avx2_i8tof16(i8vec);
         _mm_storeu_si128(reinterpret_cast<__m128i*>(tmp), f16vec);
         for (size_t i = 0; i != unpackedIdx; i++) {
-            pDst[i] = tmp [i];
+            pDst[i] = tmp[i];
         }
     }
 }
 
-void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
-                  const ov::SoPtr<ov::ITensor> &scale,
-                  const ov::SoPtr<ov::ITensor> &to,
-                  const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& scale,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
-    //TODO: force 2d shapes for now
+    // TODO: force 2d shapes for now
     NPUW_ASSERT(scale->get_shape().size() == 2);
 
     NPUW_ASSERT(scale->get_shape()[0] == from->get_shape()[0]);
     NPUW_ASSERT(scale->get_shape()[1] == 1);
 
     const auto scale_elem_type = scale->get_element_type();
-    NPUW_ASSERT(scale_elem_type == ov::element::f32 ||
-                scale_elem_type == ov::element::f16);
+    NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
 
     // This conversion combines i4toi8 (above) and i8tof16 (below). Here we
     // - read    256  bits (= 32  bytes, = 64  i4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
     // per every iteration, what translates to (from->size() / 64) iterations
 
-    const std::size_t total  = to->get_size();
+    const std::size_t total = to->get_size();
     const std::size_t stotal = scale->get_size();
     const std::size_t elementsPerScale = total / stotal;
 
     // TODO: handle tails
     NPUW_ASSERT(elementsPerScale % 64 == 0);
 
-    const int8_t  *const pSrc = static_cast<int8_t*>(from->data()); // 2 x i4  elements
-    const int8_t  *const pScl = static_cast<int8_t*>(scale->data());// either f16 or f32
-    const int16_t       *pDst = static_cast<int16_t*>(to->data());  // 1 x f16 element
+    const int8_t* const pSrc = static_cast<int8_t*>(from->data());   // 2 x i4  elements
+    const int8_t* const pScl = static_cast<int8_t*>(scale->data());  // either f16 or f32
+    const int16_t* pDst = static_cast<int16_t*>(to->data());         // 1 x f16 element
 
-    auto unpack_body = [pSrc, pDst, pScl, elementsPerScale, scale_elem_type, stotal](std::size_t sindex, std::size_t stride) {
+    auto unpack_body = [pSrc, pDst, pScl, elementsPerScale, scale_elem_type, stotal](std::size_t sindex,
+                                                                                     std::size_t stride) {
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
-        int8_t  const *pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
-        int8_t  const *pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
-        int16_t       *pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
+        int8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
         sindex *= stride;
         const auto jobFinish = std::min(sindex + stride, stotal);
 
-        for (; sindex != jobFinish; sindex ++) {
+        for (; sindex != jobFinish; sindex++) {
             __m256 svec = avx2_load_scale(pSclLocal, scale_elem_type);
             for (std::size_t index = 0; index < elementsPerScale; index += 64) {
                 __m256i inv = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
                 __m128i* outv[8] = {
-                        reinterpret_cast<__m128i*>(pDstLocal),      reinterpret_cast<__m128i*>(pDstLocal + 8),
-                        reinterpret_cast<__m128i*>(pDstLocal + 16), reinterpret_cast<__m128i*>(pDstLocal + 24),
-                        reinterpret_cast<__m128i*>(pDstLocal + 32), reinterpret_cast<__m128i*>(pDstLocal + 40),
-                        reinterpret_cast<__m128i*>(pDstLocal + 48), reinterpret_cast<__m128i*>(pDstLocal + 56),
+                    reinterpret_cast<__m128i*>(pDstLocal),
+                    reinterpret_cast<__m128i*>(pDstLocal + 8),
+                    reinterpret_cast<__m128i*>(pDstLocal + 16),
+                    reinterpret_cast<__m128i*>(pDstLocal + 24),
+                    reinterpret_cast<__m128i*>(pDstLocal + 32),
+                    reinterpret_cast<__m128i*>(pDstLocal + 40),
+                    reinterpret_cast<__m128i*>(pDstLocal + 48),
+                    reinterpret_cast<__m128i*>(pDstLocal + 56),
                 };
 
                 __m256i vout0, vout1;
@@ -482,20 +479,24 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
                 _mm256_storeu_si256(tmpv1, vout1);
 
                 __m128i i8vecs[8] = {
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
+                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8)),
+                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16)),
+                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24)),
+                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32)),
+                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
+                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
+                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
                 };
 
-                __m128i vresults[8] = {avx2_i8tof16(i8vecs[0], svec), avx2_i8tof16(i8vecs[1], svec),
-                                       avx2_i8tof16(i8vecs[2], svec), avx2_i8tof16(i8vecs[3], svec),
-                                       avx2_i8tof16(i8vecs[4], svec), avx2_i8tof16(i8vecs[5], svec),
-                                       avx2_i8tof16(i8vecs[6], svec), avx2_i8tof16(i8vecs[7], svec)};
+                __m128i vresults[8] = {avx2_i8tof16(i8vecs[0], svec),
+                                       avx2_i8tof16(i8vecs[1], svec),
+                                       avx2_i8tof16(i8vecs[2], svec),
+                                       avx2_i8tof16(i8vecs[3], svec),
+                                       avx2_i8tof16(i8vecs[4], svec),
+                                       avx2_i8tof16(i8vecs[5], svec),
+                                       avx2_i8tof16(i8vecs[6], svec),
+                                       avx2_i8tof16(i8vecs[7], svec)};
 
                 _mm_storeu_si128(outv[0], vresults[0]);
                 _mm_storeu_si128(outv[1], vresults[1]);
@@ -509,48 +510,47 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor> &from,
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x i4
                 pDstLocal += 64;  // note pDst is int16_t
             }
-             pSclLocal += scale_elem_type.size();
+            pSclLocal += scale_elem_type.size();
+        }
+    };
+    size_t stride{1};
+
+    // since scaling is always 64 elements aligned operations, lets partition only in scale shape
+    if (unpack_options.nPartitions) {
+        std::size_t minPartitions;
+        if (!unpack_options.bStrictPartitioning) {
+            // some heuristics that every tbb thread workload has to have 2048 x intrinsics operations at least,
+            // so in terms of stride, it should be nElementsPerscale/64 * 2048
+            const auto nIntrinsicsPerScale = elementsPerScale / 64u;
+            auto minScaleStride = 2048u / nIntrinsicsPerScale;
+            minScaleStride = std::max<std::size_t>(1u, minScaleStride);
+            minPartitions = stotal / minScaleStride;
+            minPartitions = std::max<std::size_t>(1u, minPartitions);
+            minPartitions = std::min(minPartitions, unpack_options.nPartitions);
+        } else {
+            minPartitions = unpack_options.nPartitions;
         }
 
-    };
-   size_t stride{1};
+        // calculating stride in scale elements space
+        stride = static_cast<size_t>(stotal / minPartitions);
+    }
 
-   // since scaling is always 64 elements aligned operations, lets partition only in scale shape
-   if (unpack_options.nPartitions) {
-       std::size_t minPartitions;
-       if (!unpack_options.bStrictPartitioning) {
-           // some heuristics that every tbb thread workload has to have 2048 x intrinsics operations at least,
-           // so in terms of stride, it should be nElementsPerscale/64 * 2048
-           const auto nIntrinsicsPerScale = elementsPerScale / 64u;
-           auto minScaleStride = 2048u / nIntrinsicsPerScale;
-           minScaleStride = std::max<std::size_t>(1u, minScaleStride);
-           minPartitions = stotal  / minScaleStride;
-           minPartitions = std::max<std::size_t>(1u, minPartitions);
-           minPartitions = std::min(minPartitions, unpack_options.nPartitions);
-       } else {
-           minPartitions = unpack_options.nPartitions;
-       }
-
-       // calculating stride in scale elements space
-       stride = static_cast<size_t>(stotal / minPartitions);
-   }
-
-   const size_t numWork = (stotal + stride -1 ) / stride;
+    const size_t numWork = (stotal + stride - 1) / stride;
 
     if (unpack_options.bUseOvParallelFor) {
         ov::parallel_for(numWork, [unpack_body, stride](size_t index) {
             unpack_body(index, stride);
         });
     } else {
-        for (std::size_t index = 0; index <numWork; index ++) {
+        for (std::size_t index = 0; index < numWork; index++) {
             unpack_body(index, stride);
         }
     }
 }
 
-void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
-                  const ov::SoPtr<ov::ITensor> &to,
-                  const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -562,36 +562,36 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
     // per every iteration, what translates to (from->size() / 64) iterations
 
     const std::size_t total = to->get_size();
-    int8_t  const *pSrc = static_cast<int8_t*>(from->data()); // 2 x i4  elements
-    int16_t       *pDst = static_cast<int16_t*>(to->data());  // 1 x f16 element
+    int8_t const* pSrc = static_cast<int8_t*>(from->data());  // 2 x i4  elements
+    int16_t* pDst = static_cast<int16_t*>(to->data());        // 1 x f16 element
 
     for (std::size_t index = 0; index < total; index += 64) {
-        __m128i *outv[8] = {
-            reinterpret_cast<__m128i *>(pDst),
-            reinterpret_cast<__m128i *>(pDst + 8),
-            reinterpret_cast<__m128i *>(pDst + 16),
-            reinterpret_cast<__m128i *>(pDst + 24),
-            reinterpret_cast<__m128i *>(pDst + 32),
-            reinterpret_cast<__m128i *>(pDst + 40),
-            reinterpret_cast<__m128i *>(pDst + 48),
-            reinterpret_cast<__m128i *>(pDst + 56),
+        __m128i* outv[8] = {
+            reinterpret_cast<__m128i*>(pDst),
+            reinterpret_cast<__m128i*>(pDst + 8),
+            reinterpret_cast<__m128i*>(pDst + 16),
+            reinterpret_cast<__m128i*>(pDst + 24),
+            reinterpret_cast<__m128i*>(pDst + 32),
+            reinterpret_cast<__m128i*>(pDst + 40),
+            reinterpret_cast<__m128i*>(pDst + 48),
+            reinterpret_cast<__m128i*>(pDst + 56),
         };
 
-        int8_t tmp[64]; // FIXME: Avoid it
+        int8_t tmp[64];  // FIXME: Avoid it
         for (std::size_t ii = 0; ii < 32; ii++) {
-            tmp[ii*2    ] = static_cast<int8_t>(lo4(pSrc[ii]));  // LSB is [0] -- since OpenVINO 24.0!
-            tmp[ii*2 + 1] = static_cast<int8_t>(hi4(pSrc[ii]));  // MSB is [1] -- since OpenVINO 24.0!
+            tmp[ii * 2] = static_cast<int8_t>(lo4(pSrc[ii]));      // LSB is [0] -- since OpenVINO 24.0!
+            tmp[ii * 2 + 1] = static_cast<int8_t>(hi4(pSrc[ii]));  // MSB is [1] -- since OpenVINO 24.0!
         }
 
         __m128i vresults[8] = {
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i *>(tmp))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i *>(tmp + 8))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i *>(tmp + 16))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i *>(tmp + 24))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i *>(tmp + 32))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i *>(tmp + 40))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i *>(tmp + 48))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i *>(tmp + 56))),
+            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp))),
+            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8))),
+            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16))),
+            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24))),
+            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32))),
+            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40))),
+            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48))),
+            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56))),
         };
 
         _mm_storeu_si128(outv[0], vresults[0]);
@@ -603,16 +603,16 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
         _mm_storeu_si128(outv[6], vresults[6]);
         _mm_storeu_si128(outv[7], vresults[7]);
 
-        pSrc += 32; // shift pSrc only by 32 since it is 64 x i4
-        pDst += 64; // note pDst is int16_t
+        pSrc += 32;  // shift pSrc only by 32 since it is 64 x i4
+        pDst += 64;  // note pDst is int16_t
     }
 }
 
-void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
-                  const ov::SoPtr<ov::ITensor> &zerop,
-                  const ov::SoPtr<ov::ITensor> &scale,
-                  const ov::SoPtr<ov::ITensor> &to,
-                  const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& zerop,
+                  const ov::SoPtr<ov::ITensor>& scale,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
@@ -630,8 +630,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
     // iteration is based on stotal, so should work for
     // both cases.
     const auto scale_shape = scale->get_shape();
-    NPUW_ASSERT(scale_shape.size() == 3 ||
-                scale_shape.size() == 2);
+    NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
     if (scale_shape.size() == 3) {
         NPUW_ASSERT(scale_shape[0] == from_shape[0]);
         NPUW_ASSERT(scale_shape[1] == from_shape[1]);
@@ -651,25 +650,26 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
     // per every iteration, what translates to (from->size() / 64) iterations
 
-    const std::size_t total  = to->get_size();
+    const std::size_t total = to->get_size();
     const std::size_t stotal = scale->get_size();
     const std::size_t elementsPerScale = total / stotal;
 
-    const uint8_t *const pSrc = static_cast<uint8_t*>(from->data());  // 2 x u4  elements
-    const uint8_t *const pZer = static_cast<uint8_t*>(zerop->data()); // 1 x u4  element
-    const int8_t  *const pScl = static_cast<int8_t*> (scale->data()); // 1 x f16 element
-    const int16_t       *pDst = static_cast<int16_t*>(to->data());    // 1 x f16 element
+    const uint8_t* const pSrc = static_cast<uint8_t*>(from->data());   // 2 x u4  elements
+    const uint8_t* const pZer = static_cast<uint8_t*>(zerop->data());  // 1 x u4  element
+    const int8_t* const pScl = static_cast<int8_t*>(scale->data());    // 1 x f16 element
+    const int16_t* pDst = static_cast<int16_t*>(to->data());           // 1 x f16 element
 
-    const float zval = static_cast<float>(lo4(*pZer)); // MSB - since OpenVINO 24.0!
+    const float zval = static_cast<float>(lo4(*pZer));  // MSB - since OpenVINO 24.0!
 
     __m256 zvalVec = _mm256_set1_ps(zval);
 
-    auto unpack_body = [pSrc, pDst, pScl, zvalVec, elementsPerScale, scale_elem_type, stotal](std::size_t sindex, std::size_t stride) {
+    auto unpack_body = [pSrc, pDst, pScl, zvalVec, elementsPerScale, scale_elem_type, stotal](std::size_t sindex,
+                                                                                              std::size_t stride) {
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
         uint8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
-        int8_t const*  pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
@@ -681,22 +681,26 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
 
             for (std::size_t index = 0; index < elementsPerScale; index += 64) {
                 __m128i* outv[] = {
-                    reinterpret_cast<__m128i*>(pDstLocal),      reinterpret_cast<__m128i*>(pDstLocal + 8),
-                    reinterpret_cast<__m128i*>(pDstLocal + 16), reinterpret_cast<__m128i*>(pDstLocal + 24),
-                    reinterpret_cast<__m128i*>(pDstLocal + 32), reinterpret_cast<__m128i*>(pDstLocal + 40),
-                    reinterpret_cast<__m128i*>(pDstLocal + 48), reinterpret_cast<__m128i*>(pDstLocal + 56),
+                    reinterpret_cast<__m128i*>(pDstLocal),
+                    reinterpret_cast<__m128i*>(pDstLocal + 8),
+                    reinterpret_cast<__m128i*>(pDstLocal + 16),
+                    reinterpret_cast<__m128i*>(pDstLocal + 24),
+                    reinterpret_cast<__m128i*>(pDstLocal + 32),
+                    reinterpret_cast<__m128i*>(pDstLocal + 40),
+                    reinterpret_cast<__m128i*>(pDstLocal + 48),
+                    reinterpret_cast<__m128i*>(pDstLocal + 56),
                 };
-                __m256i himask  = _mm256_set1_epi8(0xF0);
-                __m256i lomask  = _mm256_set1_epi8(0x0F);
+                __m256i himask = _mm256_set1_epi8(static_cast<char>(0xF0));
+                __m256i lomask = _mm256_set1_epi8(static_cast<char>(0x0F));
 
                 // loading 256 bit u4 into unalligned memory , so 64 elements
                 // cannot use aligned version here like _mm256_load_si256 - segfault even on unit tests
                 __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<__m256i const*>(pSrcLocal));
 
                 // unpacking with interleaving
-                __m256i vht               = _mm256_and_si256(xmmData, himask);
-                __m256i xmmUnpackedLo     = _mm256_srli_epi16(vht, 4);              // 32 x i8
-                __m256i xmmUnpackedHi     = _mm256_and_si256(xmmData, lomask);      // 32 x i8
+                __m256i vht = _mm256_and_si256(xmmData, himask);
+                __m256i xmmUnpackedLo = _mm256_srli_epi16(vht, 4);          // 32 x i8
+                __m256i xmmUnpackedHi = _mm256_and_si256(xmmData, lomask);  // 32 x i8
 
                 // need 4 portions of 8 x i8 elements
                 __m128i unpacked32LoHi = _mm256_castsi256_si128(xmmUnpackedLo);       //  lower  16 x i8
@@ -706,36 +710,28 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
                 __m128i unpacked32HiLo = _mm256_extractf128_si256(xmmUnpackedHi, 1);  //  higher 16 x i8
 
                 // converting to 32 x f16
-                __m128i f16LoLo[] = {
-                       avx2_u8tof16_hi(unpacked32LoLo, zvalVec, svalVec),
-                       avx2_u8tof16_lo(unpacked32LoLo, zvalVec, svalVec)
+                __m128i f16LoLo[] = {avx2_u8tof16_hi(unpacked32LoLo, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32LoLo, zvalVec, svalVec)};
+
+                __m128i f16LoHi[] = {
+                    avx2_u8tof16_hi(unpacked32LoHi, zvalVec, svalVec),
+                    avx2_u8tof16_lo(unpacked32LoHi, zvalVec, svalVec),
                 };
 
-                __m128i f16LoHi [] = {
-                        avx2_u8tof16_hi(unpacked32LoHi, zvalVec, svalVec),
-                        avx2_u8tof16_lo(unpacked32LoHi, zvalVec, svalVec),
-                };
-
-                __m128i f16HiLo [] = {
-                        avx2_u8tof16_hi(unpacked32HiLo, zvalVec, svalVec),
-                        avx2_u8tof16_lo(unpacked32HiLo, zvalVec, svalVec)
-                };
-                __m128i f16HiHi [] = {
-                        avx2_u8tof16_hi(unpacked32HiHi, zvalVec, svalVec),
-                        avx2_u8tof16_lo(unpacked32HiHi, zvalVec, svalVec)
-                };
+                __m128i f16HiLo[] = {avx2_u8tof16_hi(unpacked32HiLo, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32HiLo, zvalVec, svalVec)};
+                __m128i f16HiHi[] = {avx2_u8tof16_hi(unpacked32HiHi, zvalVec, svalVec),
+                                     avx2_u8tof16_lo(unpacked32HiHi, zvalVec, svalVec)};
 
                 // interleaving back
-                __m128i interleaved[] = {
-                    _mm_unpacklo_epi16(f16HiHi[0], f16LoHi[0]),
-                    _mm_unpackhi_epi16(f16HiHi[0], f16LoHi[0]),
-                    _mm_unpacklo_epi16(f16HiHi[1], f16LoHi[1]),
-                    _mm_unpackhi_epi16(f16HiHi[1], f16LoHi[1]),
-                    _mm_unpacklo_epi16(f16HiLo[0], f16LoLo[0]),
-                    _mm_unpackhi_epi16(f16HiLo[0], f16LoLo[0]),
-                    _mm_unpacklo_epi16(f16HiLo[1], f16LoLo[1]),
-                    _mm_unpackhi_epi16(f16HiLo[1], f16LoLo[1])
-                };
+                __m128i interleaved[] = {_mm_unpacklo_epi16(f16HiHi[0], f16LoHi[0]),
+                                         _mm_unpackhi_epi16(f16HiHi[0], f16LoHi[0]),
+                                         _mm_unpacklo_epi16(f16HiHi[1], f16LoHi[1]),
+                                         _mm_unpackhi_epi16(f16HiHi[1], f16LoHi[1]),
+                                         _mm_unpacklo_epi16(f16HiLo[0], f16LoLo[0]),
+                                         _mm_unpackhi_epi16(f16HiLo[0], f16LoLo[0]),
+                                         _mm_unpacklo_epi16(f16HiLo[1], f16LoLo[1]),
+                                         _mm_unpackhi_epi16(f16HiLo[1], f16LoLo[1])};
 
                 // store the results
                 _mm_storeu_si128(outv[0], interleaved[0]);
@@ -749,7 +745,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }  // for(index)
+            }                     // for(index)
             pSclLocal += scale_elem_type.size();
         }  // for(sindex)
     };
@@ -765,7 +761,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
             const auto nIntrinsicsPerScale = elementsPerScale / 64u;
             auto minScaleStride = 2048u / nIntrinsicsPerScale;
             minScaleStride = std::max<std::size_t>(1u, minScaleStride);
-            minPartitions = stotal  / minScaleStride;
+            minPartitions = stotal / minScaleStride;
             minPartitions = std::max<std::size_t>(1u, minPartitions);
             minPartitions = std::min(minPartitions, unpack_options.nPartitions);
         } else {
@@ -776,24 +772,24 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor> &from,
         stride = static_cast<size_t>(stotal / minPartitions);
     }
 
-    const size_t numWork = (stotal + stride -1 ) / stride;
+    const size_t numWork = (stotal + stride - 1) / stride;
 
     if (unpack_options.bUseOvParallelFor) {
         ov::parallel_for(numWork, [unpack_body, stride](size_t index) {
             unpack_body(index, stride);
         });
     } else {
-        for (std::size_t index = 0; index < numWork; index ++) {
+        for (std::size_t index = 0; index < numWork; index++) {
             unpack_body(index, stride);
         }
     }
 }
 
-void unpack_u4f16_z(const ov::SoPtr<ov::ITensor> &from,
-                    const ov::SoPtr<ov::ITensor> &zerop,
-                    const ov::SoPtr<ov::ITensor> &scale,
-                    const ov::SoPtr<ov::ITensor> &to,
-                    const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
+                    const ov::SoPtr<ov::ITensor>& zerop,
+                    const ov::SoPtr<ov::ITensor>& scale,
+                    const ov::SoPtr<ov::ITensor>& to,
+                    const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
@@ -817,7 +813,7 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor> &from,
     NPUW_ASSERT(zerop_elem_type == ov::element::f32);
     NPUW_ASSERT(scale_elem_type == ov::element::f32);
 
-   // This conversion combines u4tof32 and f32tof16. Here we
+    // This conversion combines u4tof32 and f32tof16. Here we
     // - read    256  bits (= 32  bytes, = 64  u4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
     // per every iteration, what translates to (from->size() / 64) iterations
@@ -826,29 +822,29 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor> &from,
     const size_t H = from_shape[from_shape.size() - 2];
     const size_t W = from_shape[from_shape.size() - 1];
 
-    const uint8_t *const pSrc = static_cast<uint8_t*>(from->data()); // 2 x u4  elements
-    const float   *const pScl = static_cast<float*>  (scale->data());// 1 x f32 element
-    const int16_t       *pDst = static_cast<int16_t*>(to->data());   // 1 x f16 element
+    const uint8_t* const pSrc = static_cast<uint8_t*>(from->data());  // 2 x u4  elements
+    const float* const pScl = static_cast<float*>(scale->data());     // 1 x f32 element
+    const int16_t* pDst = static_cast<int16_t*>(to->data());          // 1 x f16 element
 
-    const float zval = avx2_load_f32(reinterpret_cast<const int8_t*>(zerop->data()), zerop_elem_type);;
+    const float zval = avx2_load_f32(reinterpret_cast<const int8_t*>(zerop->data()), zerop_elem_type);
+    ;
 
     auto unpack_body = [&](size_t job_index, size_t stride) {
-
         size_t start_c = job_index * stride;
-        size_t end_c   = std::min(C, start_c + stride);
+        size_t end_c = std::min(C, start_c + stride);
 
         for (size_t c = start_c; c < end_c; ++c) {
             for (size_t h = 0; h < H; ++h) {
                 for (size_t w = 0; w < W; w += 64) {
                     float tmp[64];
                     for (size_t i = 0; i < 32; ++i) {
-                        size_t input_index    = w + i * 2 + W * h + W * H * c;
+                        size_t input_index = w + i * 2 + W * h + W * H * c;
                         uint8_t packed_val = pSrc[input_index / 2];
-                        float f0           = static_cast<float>(lo4(packed_val));
-                        float f1           = static_cast<float>(hi4(packed_val));
-                        size_t scale_index    = w + i * 2 + W * c;
-                        tmp[i * 2]         = (f0 - zval) * pScl[scale_index];
-                        tmp[i * 2 + 1]     = (f1 - zval) * pScl[scale_index + 1];
+                        float f0 = static_cast<float>(lo4(packed_val));
+                        float f1 = static_cast<float>(hi4(packed_val));
+                        size_t scale_index = w + i * 2 + W * c;
+                        tmp[i * 2] = (f0 - zval) * pScl[scale_index];
+                        tmp[i * 2 + 1] = (f1 - zval) * pScl[scale_index + 1];
                     }
                     __m128i vresults[8];
                     for (int i = 0; i < 8; ++i) {
@@ -863,16 +859,16 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor> &from,
         }
     };
 
-    size_t stride   = C;
+    size_t stride = C;
     size_t num_jobs = 1;
 
     if (unpack_options.nPartitions) {
         if (unpack_options.bStrictPartitioning) {
-            stride   = (C + unpack_options.nPartitions - 1) / unpack_options.nPartitions;
+            stride = (C + unpack_options.nPartitions - 1) / unpack_options.nPartitions;
             num_jobs = unpack_options.nPartitions;
         } else {
-            stride   = std::max<size_t>(1, C / unpack_options.nPartitions);
-            num_jobs = (C + stride - 1)  / stride;
+            stride = std::max<size_t>(1, C / unpack_options.nPartitions);
+            num_jobs = (C + stride - 1) / stride;
         }
     }
 
@@ -887,28 +883,28 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor> &from,
     }
 }
 
-void unpack_u4f32(const ov::SoPtr<ov::ITensor> &from,
-                  const ov::SoPtr<ov::ITensor> &to,
-                  const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_u4f32(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
-    uint8_t const *pSrc = static_cast<uint8_t*>(from->data()); // 2 x u4 elements
-    float         *pDst = static_cast< float*> (to->data());   // 1 x f32 element
+    uint8_t const* pSrc = static_cast<uint8_t*>(from->data());  // 2 x u4 elements
+    float* pDst = static_cast<float*>(to->data());              // 1 x f32 element
 
     const std::size_t total = from->get_size();
     for (std::size_t index = 0; index < total; index += 2) {
         pDst[0] = static_cast<float>(lo4(*pSrc));  // LSB is [0] - since OpenVINO 2024.0!
         pDst[1] = static_cast<float>(hi4(*pSrc));  // MSB is [1] - since OpenVINO 2024.0!
-        pSrc ++;
+        pSrc++;
         pDst += 2;
     }
 }
 
-void unpack_i8f16(const ov::SoPtr<ov::ITensor> &from,
-                  const ov::SoPtr<ov::ITensor> &to,
-                  const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -917,24 +913,24 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor> &from,
     constexpr std::size_t VECSIZE = 8;
 
     const std::size_t total = from->get_size();
-    int8_t const *pSrc = from->data<int8_t>();
-    int16_t      *pDst = static_cast<int16_t*>(to->data());
+    int8_t const* pSrc = from->data<int8_t>();
+    int16_t* pDst = static_cast<int16_t*>(to->data());
 
     for (std::size_t index = 0; index < total; index += VECSIZE) {
-        const __m128i *pSrcV = reinterpret_cast<const __m128i *>(pSrc);
-              __m128i *pDstV = reinterpret_cast<      __m128i *>(pDst);
-        __m128i i8vec  = _mm_loadl_epi64(pSrcV);      // load:    8 x i8  [ 64b of 128b]
+        const __m128i* pSrcV = reinterpret_cast<const __m128i*>(pSrc);
+        __m128i* pDstV = reinterpret_cast<__m128i*>(pDst);
+        __m128i i8vec = _mm_loadl_epi64(pSrcV);  // load:    8 x i8  [ 64b of 128b]
         __m128i f16vec = avx2_i8tof16(i8vec);
-        _mm_store_si128(pDstV, f16vec);               // store:   8 x f16 [128b]
+        _mm_store_si128(pDstV, f16vec);  // store:   8 x f16 [128b]
         pSrc += 8;
         pDst += 8;
     }
 }
 
-void unpack_i8f16(const ov::SoPtr<ov::ITensor> &from,
-                  const ov::SoPtr<ov::ITensor> &scale,
-                  const ov::SoPtr<ov::ITensor> &to,
-                  const ov::npuw::util::UnpackOptions & unpack_options) {
+void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& scale,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(to->is_continuous());
@@ -944,45 +940,47 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor> &from,
     NPUW_ASSERT(scale->get_shape()[1] == 1);
 
     const auto scale_elem_type = scale->get_element_type();
-    NPUW_ASSERT(scale_elem_type == ov::element::f32 ||
-                scale_elem_type == ov::element::f16);
+    NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
 
     constexpr std::size_t VECSIZE = 8;
 
-    const std::size_t total  = from->get_size();
+    const std::size_t total = from->get_size();
     const std::size_t stotal = scale->get_size();
-    int8_t const *pSrc = from->data<int8_t>();
-    int8_t const *pScl = static_cast<int8_t*>(scale->data());
-    int16_t      *pDst = static_cast<int16_t*>(to->data());
+    int8_t const* pSrc = from->data<int8_t>();
+    int8_t const* pScl = static_cast<int8_t*>(scale->data());
+    int16_t* pDst = static_cast<int16_t*>(to->data());
 
     for (std::size_t sindex = 0u; sindex < stotal; sindex++) {
         __m256 svec = avx2_load_scale(pScl, scale_elem_type);
         for (std::size_t index = 0u; index < (total / stotal); index += VECSIZE) {
-            __m128i const *pSrcV = reinterpret_cast<const __m128i *>(pSrc);
-            __m128i       *pDstV = reinterpret_cast<      __m128i *>(pDst);
-            __m128i i8vec  = _mm_loadl_epi64(pSrcV);      // load:    8 x i8  [ 64b of 128b]
-            __m128i f16vec = avx2_i8tof16(i8vec,  svec);  // convert & scale
-            _mm_store_si128(pDstV, f16vec);               // store:   8 x f16 [128b]
+            __m128i const* pSrcV = reinterpret_cast<const __m128i*>(pSrc);
+            __m128i* pDstV = reinterpret_cast<__m128i*>(pDst);
+            __m128i i8vec = _mm_loadl_epi64(pSrcV);      // load:    8 x i8  [ 64b of 128b]
+            __m128i f16vec = avx2_i8tof16(i8vec, svec);  // convert & scale
+            _mm_store_si128(pDstV, f16vec);              // store:   8 x f16 [128b]
             pSrc += 8;
             pDst += 8;
-        } // index
+        }  // index
         pScl += scale_elem_type.size();
-    } // sindex
+    }  // sindex
 }
 
-} // namespace
+}  // namespace
 
-void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor> &from,
-                            const ov::SoPtr<ov::ITensor> &to,
-                            const UnpackOptions & unpack_options) {
+void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
+                            const ov::SoPtr<ov::ITensor>& to,
+                            const UnpackOptions& unpack_options) {
     // This is in fact a weight decompression procedure
     auto type_from = from->get_element_type();
-    auto type_to   = to->get_element_type();
+    auto type_to = to->get_element_type();
 
     namespace ove = ov::element;
-#define CAST(x)   static_cast<int>((x).operator ove::Type_t())
-#define PAIR(f,t) (CAST(f)<<16|CAST(t))
-#define HNDL(f,t) case PAIR(ove::f, ove::t): unpack_##f##t(from, to, unpack_options); break;
+#define CAST(x)    static_cast<int>((x).operator ove::Type_t())
+#define PAIR(f, t) (CAST(f) << 16 | CAST(t))
+#define HNDL(f, t)                               \
+    case PAIR(ove::f, ove::t):                   \
+        unpack_##f##t(from, to, unpack_options); \
+        break;
     switch (PAIR(type_from, type_to)) {
         HNDL(i4, i8);
         HNDL(i4, f16);
@@ -998,17 +996,20 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor> &from,
 #undef CAST
 }
 
-void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor> &from,
-                            const ov::SoPtr<ov::ITensor> &scale,
-                            const ov::SoPtr<ov::ITensor> &to,
-                            const UnpackOptions & unpack_options) {
+void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
+                            const ov::SoPtr<ov::ITensor>& scale,
+                            const ov::SoPtr<ov::ITensor>& to,
+                            const UnpackOptions& unpack_options) {
     // This is in fact a weight decompression procedure
     const auto type_from = from->get_element_type();
-    const auto type_to   = to->get_element_type();
+    const auto type_to = to->get_element_type();
     namespace ove = ov::element;
-#define CAST(x)   static_cast<int>((x).operator ove::Type_t())
-#define PAIR(f,t) (CAST(f)<<16|CAST(t))
-#define HNDL(f,t) case PAIR(ove::f, ove::t): unpack_##f##t(from, scale, to, unpack_options); break;
+#define CAST(x)    static_cast<int>((x).operator ove::Type_t())
+#define PAIR(f, t) (CAST(f) << 16 | CAST(t))
+#define HNDL(f, t)                                      \
+    case PAIR(ove::f, ove::t):                          \
+        unpack_##f##t(from, scale, to, unpack_options); \
+        break;
     switch (PAIR(type_from, type_to)) {
         HNDL(i4, f16);
         HNDL(i8, f16);
@@ -1020,23 +1021,20 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor> &from,
 #undef CAST
 }
 
-void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor> &from,
-                            const ov::SoPtr<ov::ITensor> &zerop,
-                            const ov::SoPtr<ov::ITensor> &scale,
-                            const ov::SoPtr<ov::ITensor> &to,
-                            const UnpackOptions & unpack_options) {
-    const auto type_from  = from->get_element_type();
+void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
+                            const ov::SoPtr<ov::ITensor>& zerop,
+                            const ov::SoPtr<ov::ITensor>& scale,
+                            const ov::SoPtr<ov::ITensor>& to,
+                            const UnpackOptions& unpack_options) {
+    const auto type_from = from->get_element_type();
     const auto type_zerop = zerop->get_element_type();
     const auto type_scale = scale->get_element_type();
-    const auto type_to    = to->get_element_type();
+    const auto type_to = to->get_element_type();
 
     NPUW_ASSERT(type_from == ov::element::u4);
-    NPUW_ASSERT(type_zerop == ov::element::u4  ||
-                type_zerop == ov::element::f16 ||
-                type_zerop == ov::element::f32);
-    NPUW_ASSERT(type_scale == ov::element::f16 || 
-                type_scale == ov::element::f32);
-    NPUW_ASSERT(type_to   == ov::element::f16);
+    NPUW_ASSERT(type_zerop == ov::element::u4 || type_zerop == ov::element::f16 || type_zerop == ov::element::f32);
+    NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
+    NPUW_ASSERT(type_to == ov::element::f16);
 
     // This function determines the appropriate unpacking strategy for tensor multiplication
     // based on the 'scale' shape and 'from' shape.
@@ -1051,28 +1049,21 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor> &from,
     //     - [86, 1, 4096].*[86, 128, 4096]
     // Unsupported Case for scale tensor:
     //     - [s1, 1, s2, 1, s3]
-    
+
     const auto from_shape = from->get_shape();
     const auto scale_shape = scale->get_shape();
-    
-    if (scale_shape.size() == 3
-        && scale_shape[0] == from_shape[0]
-        && scale_shape[1] == 1
-        && scale_shape[2] == from_shape[2]) {
+
+    if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1 &&
+        scale_shape[2] == from_shape[2]) {
         unpack_u4f16_z(from, zerop, scale, to, unpack_options);
-    } else if (scale_shape.size() == 3
-               && scale_shape[0] == from_shape[0]
-               && scale_shape[1] == from_shape[1]
-               && scale_shape[2] == 1) {
+    } else if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == from_shape[1] &&
+               scale_shape[2] == 1) {
         unpack_u4f16(from, zerop, scale, to, unpack_options);
-    } else if (scale_shape.size() == 2
-               && scale_shape[0] == from_shape[0]
-               && scale_shape[1] == 1) {
+    } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
         unpack_u4f16(from, zerop, scale, to, unpack_options);
     } else {
         NPUW_ASSERT(false);
     }
-
 }
 
 template <typename InT>

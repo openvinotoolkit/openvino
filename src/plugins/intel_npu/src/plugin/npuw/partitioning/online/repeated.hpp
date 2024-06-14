@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "openvino/openvino.hpp"
-
 #include "utils/utils.hpp"
 
 namespace ov {
@@ -52,82 +51,81 @@ struct MetaInterconnect {
     bool operator<(const MetaInterconnect& other) const;
 };
 
-} // namespace online
-} // namespace npuw
-} // namespace ov
+}  // namespace online
+}  // namespace npuw
+}  // namespace ov
 
 namespace std {
-template<>
+template <>
 struct hash<std::pair<ov::npuw::online::detail::OVNodePtr, ov::npuw::online::detail::OVNodePtr>> {
-    inline size_t operator()(const std::pair<ov::npuw::online::detail::OVNodePtr,
-                                             ov::npuw::online::detail::OVNodePtr>& p) const {
-        return (std::hash<ov::npuw::online::detail::OVNodePtr>()(p.first) + 0x9e3779b9)
-               ^ (std::hash<ov::npuw::online::detail::OVNodePtr>()(p.second) + 0x9e3779b9);
+    inline size_t operator()(
+        const std::pair<ov::npuw::online::detail::OVNodePtr, ov::npuw::online::detail::OVNodePtr>& p) const {
+        return (std::hash<ov::npuw::online::detail::OVNodePtr>()(p.first) + 0x9e3779b9) ^
+               (std::hash<ov::npuw::online::detail::OVNodePtr>()(p.second) + 0x9e3779b9);
     }
 };
 
-template<>
+template <>
 struct hash<std::pair<std::string, std::set<std::string>>> {
     inline size_t operator()(const std::pair<std::string, std::set<std::string>>& p) const {
         std::size_t seed = std::hash<std::string>()(p.first) + 0x9e3779b9;
-        for(const auto& s : p.second) {
+        for (const auto& s : p.second) {
             seed ^= std::hash<std::string>()(s) + 0x9e3779b9;
         }
         return seed;
     }
 };
 
-template<>
+template <>
 struct hash<ov::npuw::online::detail::Reptrack> {
     inline size_t operator()(const ov::npuw::online::detail::Reptrack& vec) const {
         std::size_t seed = vec.size();
-        for(const auto& rep : vec) {
-            seed ^= std::hash<std::shared_ptr<ov::npuw::online::Repeated>>()(rep) + 0x9e3779b9 +
-                    (seed << 6) + (seed >> 2);
+        for (const auto& rep : vec) {
+            seed ^=
+                std::hash<std::shared_ptr<ov::npuw::online::Repeated>>()(rep) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
         return seed;
     }
 };
 
-template<>
+template <>
 struct hash<ov::npuw::online::Repeated::Archetype> {
-    inline size_t operator()(const ov::npuw::online::Repeated::Archetype& act) const { 
-        return (std::hash<std::string>()(act.metadesc) + 0x9e3779b9)
-               ^ (std::hash<ov::npuw::online::detail::Reptrack>()(act.reptrack) + 0x9e3779b9);
+    inline size_t operator()(const ov::npuw::online::Repeated::Archetype& act) const {
+        return (std::hash<std::string>()(act.metadesc) + 0x9e3779b9) ^
+               (std::hash<ov::npuw::online::detail::Reptrack>()(act.reptrack) + 0x9e3779b9);
     }
 };
 
-template<>
+template <>
 struct hash<ov::npuw::online::Interconnect> {
     inline size_t operator()(const ov::npuw::online::Interconnect& mic) const {
-        return (std::hash<ov::npuw::online::detail::OVNodePtr>()(mic.input_node) + 0x9e3779b9)
-               ^ (std::hash<ov::npuw::online::detail::OVNodePtr>()(mic.output_node) + 0x9e3779b9)
-               ^ (std::hash<size_t>()(mic.input_port) + 0x9e3779b9)
-               ^ (std::hash<size_t>()(mic.output_port) + 0x9e3779b9);
+        return (std::hash<ov::npuw::online::detail::OVNodePtr>()(mic.input_node) + 0x9e3779b9) ^
+               (std::hash<ov::npuw::online::detail::OVNodePtr>()(mic.output_node) + 0x9e3779b9) ^
+               (std::hash<size_t>()(mic.input_port) + 0x9e3779b9) ^ (std::hash<size_t>()(mic.output_port) + 0x9e3779b9);
     }
 };
 
-template<>
+template <>
 struct hash<ov::npuw::online::MetaInterconnect> {
     inline size_t operator()(const ov::npuw::online::MetaInterconnect& mic) const {
-        return (std::hash<std::string>()(mic.input_meta) + 0x9e3779b9)
-               ^ (std::hash<std::string>()(mic.output_meta) + 0x9e3779b9)
-               ^ (std::hash<size_t>()(mic.input_port) + 0x9e3779b9)
-               ^ (std::hash<size_t>()(mic.output_port) + 0x9e3779b9)
-               ^ (std::hash<ov::npuw::online::detail::Reptrack>()(mic.input_reptrack) + 0x9e3779b9)
-               ^ (std::hash<ov::npuw::online::detail::Reptrack>()(mic.output_reptrack) + 0x9e3779b9);
+        return (std::hash<std::string>()(mic.input_meta) + 0x9e3779b9) ^
+               (std::hash<std::string>()(mic.output_meta) + 0x9e3779b9) ^
+               (std::hash<size_t>()(mic.input_port) + 0x9e3779b9) ^
+               (std::hash<size_t>()(mic.output_port) + 0x9e3779b9) ^
+               (std::hash<ov::npuw::online::detail::Reptrack>()(mic.input_reptrack) + 0x9e3779b9) ^
+               (std::hash<ov::npuw::online::detail::Reptrack>()(mic.output_reptrack) + 0x9e3779b9);
     }
 };
 
 // FIXME: hash<MetaInterconnect> defined above. This hash should be available by default
-template<>
+template <>
 struct hash<std::vector<ov::npuw::online::MetaInterconnect>> {
     inline size_t operator()(const std::vector<ov::npuw::online::MetaInterconnect>& vec) const {
         std::size_t seed = vec.size();
-        for(const auto& mic : vec) {
+        for (const auto& mic : vec) {
             seed ^= std::hash<ov::npuw::online::MetaInterconnect>()(mic) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
         return seed;
     }
 };
-} // namespace std
+}  // namespace std

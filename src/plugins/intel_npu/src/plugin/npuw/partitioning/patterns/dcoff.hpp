@@ -7,15 +7,14 @@
 #include <map>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
-
 #include "openvino/openvino.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace npuw {
 
-struct Subgraph; // Forward declaration
-struct Function; // Forward declaration
+struct Subgraph;  // Forward declaration
+struct Function;  // Forward declaration
 
 enum class DCOffMode : int {
     CAST_ONLY,
@@ -29,128 +28,125 @@ namespace patterns {
 struct DCOFFParams {
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
-    std::unordered_map<PPtr, PPtr> scales; // Closures: a scaling factor -> orig tensor
-    std::unordered_map<PPtr, CPtr> zerops; // Closures: orig tensor -> a zero point (yes, a reverse...)
+    std::unordered_map<PPtr, PPtr> scales;  // Closures: a scaling factor -> orig tensor
+    std::unordered_map<PPtr, CPtr> zerops;  // Closures: orig tensor -> a zero point (yes, a reverse...)
 };
 
 using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
 
 struct ClosureRemap {
-    std::vector<std::size_t>           closure_remap; // [new closure index] -> orig closure idx
-    std::map<std::size_t, std::size_t> scale_remap;   // orig closure idx -> orig scale idx
-    ov::ParameterVector                params_to_remove;
+    std::vector<std::size_t> closure_remap;          // [new closure index] -> orig closure idx
+    std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
+    ov::ParameterVector params_to_remove;
 
-    std::vector<ov::Tensor>            zero_points;   // zero points for closures, if needed
+    std::vector<ov::Tensor> zero_points;  // zero points for closures, if needed
 };
 
-ClosureRemap build_remap(const Function &fbody, const DCOFFParams &p);
-void apply_remap(Subgraph &fcall, const ClosureRemap &m);
-void finalize_remap(Function &fbody, const ClosureRemap &m);
+ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p);
+void apply_remap(Subgraph& fcall, const ClosureRemap& m);
+void finalize_remap(Function& fbody, const ClosureRemap& m);
 
 // Various patterns here
 
 namespace SymmNoZP {
 
-class DCOFFPassBase: public ov::pass::MatcherPass {
+class DCOFFPassBase : public ov::pass::MatcherPass {
 protected:
+    DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
-    DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
 
     std::shared_ptr<ov::Node> paramA, paramB, toFP32, mulply;
-    bool matcher_callback(ov::pass::pattern::Matcher &m);
+    bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
-    DCOFFPassBase(DCOffMode dcoff_mode,
-                  ov::element::Type dcoff_type,
-                  DCOFFParamRef pref);
+    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 
     virtual void build();
-    virtual void reconnect_root_to_convert(ov::pass::pattern::Matcher &m) = 0;
+    virtual void reconnect_root_to_convert(ov::pass::pattern::Matcher& m) = 0;
 };
 
-class DCOFFPassMatMul final: public DCOFFPassBase {
+class DCOFFPassMatMul final : public DCOFFPassBase {
     std::shared_ptr<ov::Node> matmul;
+
 public:
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
-    void reconnect_root_to_convert(ov::pass::pattern::Matcher &m) override;
+    void reconnect_root_to_convert(ov::pass::pattern::Matcher& m) override;
 };
 
-class DCOFFPassGather final: public DCOFFPassBase {
+class DCOFFPassGather final : public DCOFFPassBase {
     std::shared_ptr<ov::Node> gather;
+
 public:
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
-    void reconnect_root_to_convert(ov::pass::pattern::Matcher &m) override;
+    void reconnect_root_to_convert(ov::pass::pattern::Matcher& m) override;
 };
 // FIXME: The above two can probably be replaced with a more genering pattern
 // (ending at Multiply but with more connection constraints)
 
-} // namespace SymmNoZP
+}  // namespace SymmNoZP
 
-namespace SymmZP { // TODO: Not sure if it is actually Symm..
+namespace SymmZP {  // TODO: Not sure if it is actually Symm..
 
-class DCOFFPassBase: public ov::pass::MatcherPass {
+class DCOFFPassBase : public ov::pass::MatcherPass {
 protected:
+    DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
-    DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
 
     std::shared_ptr<ov::Node> paramA, constB, paramC, cvtA, cvtB, subtr, mulply;
-    bool matcher_callback(ov::pass::pattern::Matcher &m);
+    bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
-    DCOFFPassBase(DCOffMode dcoff_mode,
-                  ov::element::Type dcoff_type,
-                  DCOFFParamRef pref);
+    DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 
     virtual void build();
-    virtual void reconnect_root(ov::pass::pattern::Matcher &m) = 0;
+    virtual void reconnect_root(ov::pass::pattern::Matcher& m) = 0;
 };
 
-class DCOFFPassReshape1 final: public DCOFFPassBase {
+class DCOFFPassReshape1 final : public DCOFFPassBase {
     std::shared_ptr<ov::Node> reshpe;
+
 public:
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
-    void reconnect_root(ov::pass::pattern::Matcher &m) override;
+    void reconnect_root(ov::pass::pattern::Matcher& m) override;
 };
 
-class DCOFFPassConvert1 final: public DCOFFPassBase {
+class DCOFFPassConvert1 final : public DCOFFPassBase {
     std::shared_ptr<ov::Node> cvtEnd;
+
 public:
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
-    void reconnect_root(ov::pass::pattern::Matcher &m) override;
+    void reconnect_root(ov::pass::pattern::Matcher& m) override;
 };
 
-class DCOFFPassReshape2: public ov::pass::MatcherPass {
-
+class DCOFFPassReshape2 : public ov::pass::MatcherPass {
 public:
-    DCOFFPassReshape2(DCOffMode dcoff_mode,
-                      ov::element::Type dcoff_type,
-                      DCOFFParamRef pref);
+    DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
-class CWAI1: public ov::pass::MatcherPass {
+class CWAI1 : public ov::pass::MatcherPass {
 public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
-    using Results = std::reference_wrapper<std::vector<CPtr> >;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
 
     explicit CWAI1(Results scales);
 };
 
-class CWAI2: public ov::pass::MatcherPass {
+class CWAI2 : public ov::pass::MatcherPass {
 public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
-    using Results = std::reference_wrapper<std::vector<CPtr> >;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
 
     explicit CWAI2(Results scales);
 };
 
-} // namespace SymmZP
+}  // namespace SymmZP
 
-} // namespace patterns
-} // namespace npuw
-} // namespace ov
+}  // namespace patterns
+}  // namespace npuw
+}  // namespace ov

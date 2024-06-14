@@ -5,18 +5,17 @@
 #pragma once
 
 #include <memory>
-#include "openvino/openvino.hpp"
-#include "../partitioning.hpp" // ov::npuw::Ensemble
 
+#include "../partitioning.hpp"  // ov::npuw::Ensemble
 #include "intel_npu/al/config/config.hpp"
+#include "openvino/openvino.hpp"
 
 namespace ov {
 namespace npuw {
 namespace online {
 
-ov::npuw::Ensemble buildPartitioning(const std::shared_ptr<ov::Model>& model,
-                                     ::intel_npu::Config& cfg);
+ov::npuw::Ensemble buildPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
 
-} // namespace online
-} // namespace npuw
-} // namespace ov
+}  // namespace online
+}  // namespace npuw
+}  // namespace ov

@@ -174,7 +174,7 @@ Plugin::Plugin()
 
     registerCommonOptions(*_options);
     registerCompilerOptions(*_options);
-    registerRunTimeOptions(*_options);;
+    registerRunTimeOptions(*_options);
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();

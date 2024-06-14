@@ -2,28 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "group.hpp"
+
 #include <sstream>
 
 #include "../../logging.hpp"
-#include "group.hpp"
-#include "snapshot.hpp"
-#include "repeated.hpp"
-#include "../partitioning.hpp" // ov::npuw::Group
-
-#include "openvino/util/common_util.hpp"
+#include "../partitioning.hpp"  // ov::npuw::Group
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/util/common_util.hpp"
+#include "repeated.hpp"
+#include "snapshot.hpp"
 
 using ov::npuw::online::Group;
-using ov::npuw::online::detail::isOp;
-using ov::npuw::online::Repeated;
 using ov::npuw::online::Interconnect;
 using ov::npuw::online::MetaInterconnect;
+using ov::npuw::online::Repeated;
+using ov::npuw::online::detail::isOp;
 
-Group::Group(const std::shared_ptr<ov::Node>& node, size_t gid,
-             ade::NodeHandle nh, const std::shared_ptr<ade::Graph>& g,
-             const std::weak_ptr<Snapshot>& snapshot) :
-        m_nh(nh), m_id(gid), m_graph(g), m_snapshot(snapshot) {
+Group::Group(const std::shared_ptr<ov::Node>& node,
+             size_t gid,
+             ade::NodeHandle nh,
+             const std::shared_ptr<ade::Graph>& g,
+             const std::weak_ptr<Snapshot>& snapshot)
+    : m_nh(nh),
+      m_id(gid),
+      m_graph(g),
+      m_snapshot(snapshot) {
     m_input_layers.insert(node);
     m_output_layers.insert(node);
     m_content.insert(node);
@@ -44,8 +49,7 @@ void Group::includeExtraLayers(detail::OVNodeSet& input_layers,
             }
             // Also include Converts
             if (!isOp(layer_parent)) {
-                if (!ov::op::util::is_constant(layer_parent) &&
-                    !ov::op::util::is_parameter(layer_parent) &&
+                if (!ov::op::util::is_constant(layer_parent) && !ov::op::util::is_parameter(layer_parent) &&
                     !ov::op::util::is_output(layer_parent)) {
                     NPUW_ASSERT(ov::is_type<ov::op::v0::Convert>(layer_parent));
                     extra_content.insert(layer_parent);
@@ -76,10 +80,16 @@ ov::npuw::Group Group::toGroup() const {
     includeExtraLayers(input_copy, output_copy, content_copy);
 
     ov::npuw::Group g;
-    for (auto &&node : input_copy) { g.input_layers.push_back(node->get_friendly_name()); }
-    for (auto &&node : output_copy) { g.output_layers.push_back(node->get_friendly_name()); }
-    for (auto &&node : content_copy) { g.all_layers.push_back(node->get_friendly_name()); }
-    g.gflops = 0.0001; // FIXME: calculate proper flops
+    for (auto&& node : input_copy) {
+        g.input_layers.push_back(node->get_friendly_name());
+    }
+    for (auto&& node : output_copy) {
+        g.output_layers.push_back(node->get_friendly_name());
+    }
+    for (auto&& node : content_copy) {
+        g.all_layers.push_back(node->get_friendly_name());
+    }
+    g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
     if (m_repeated) {
         g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
@@ -88,7 +98,9 @@ ov::npuw::Group Group::toGroup() const {
     if (!m_avoided_devices.empty()) {
         auto iter = m_avoided_devices.begin();
         g.avoid_list += *iter;
-        while (++iter != m_avoided_devices.end()) { g.avoid_list += ',' + *iter; }
+        while (++iter != m_avoided_devices.end()) {
+            g.avoid_list += ',' + *iter;
+        }
     }
 
     return g;
@@ -97,7 +109,7 @@ ov::npuw::Group Group::toGroup() const {
 // Note: can only be used after initial group initialization
 std::shared_ptr<ov::Node> Group::getInitialNode() const {
     if (m_content.size() != 1) {
-        OPENVINO_THROW("Online partitioning initial group ", m_id , " doesn't consist of exactly 1 layer!");
+        OPENVINO_THROW("Online partitioning initial group ", m_id, " doesn't consist of exactly 1 layer!");
     }
 
     return *(m_content.begin());
@@ -144,7 +156,8 @@ void Group::updateInputLayers(const Group::GPtr& gptr_other) {
     }
 }
 
- // Not every output should be included - those layers which are consumed _ONLY_ by the merged group are not outputs anymore
+// Not every output should be included - those layers which are consumed _ONLY_ by the merged group are not outputs
+// anymore
 void Group::updateOutputLayers(const Group::GPtr& gptr_other) {
     detail::OVNodeSet combined_output;
     combined_output.insert(m_output_layers.begin(), m_output_layers.end());
@@ -204,7 +217,7 @@ void Group::fuseWith(const Group::GPtr& gptr_cons) {
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {
-        node_to_gr->at(layer) = shared_from_this(); // layers of consumer group are assigned to this group
+        node_to_gr->at(layer) = shared_from_this();  // layers of consumer group are assigned to this group
     }
 
     // Merge 2 contents together
@@ -304,7 +317,8 @@ const ov::npuw::online::detail::OVNodeSet& Group::getContent() const {
     return m_content;
 }
 
-const ov::npuw::online::detail::Reptrack& Group::getReptrack(const ov::npuw::online::detail::OVNodePtr& node_ptr) const {
+const ov::npuw::online::detail::Reptrack& Group::getReptrack(
+    const ov::npuw::online::detail::OVNodePtr& node_ptr) const {
     if (m_reptrack.find(node_ptr) == m_reptrack.end()) {
         OPENVINO_THROW("Online partitioning repeated track doesn't contain ", node_ptr->get_friendly_name());
     }
