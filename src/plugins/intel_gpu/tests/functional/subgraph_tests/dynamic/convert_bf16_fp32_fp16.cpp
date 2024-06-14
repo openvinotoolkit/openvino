@@ -164,7 +164,7 @@ TEST_F(BF16WeightsDecompression, Inference_input_3_without_convert) {
     request.infer();
     auto out_tensor = request.get_output_tensor();
     for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
-        ASSERT_NEAR(reinterpret_cast<ushort*>(out_tensor.data())[i], 16704, 0.2f);
+        ASSERT_NEAR(reinterpret_cast<unsigned short*>(out_tensor.data())[i], 16704, 0.2f);
     }
 }
 
@@ -173,7 +173,7 @@ TEST_F(BF16WeightsDecompression, Inference_input_Add_without_convert) {
     request.infer();
     auto out_tensor = request.get_output_tensor();
     for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
-        ASSERT_NEAR(reinterpret_cast<ushort*>(out_tensor.data())[i], 16544, 0.2f);
+        ASSERT_NEAR(reinterpret_cast<unsigned short*>(out_tensor.data())[i], 16544, 0.2f);
     }
 }
 } // namespace
