@@ -31,7 +31,7 @@ void MessageManager::send_message(const MessageInfo& msg_info) {
 
 void MessageManager::infer_wait() {
     std::unique_lock<std::mutex> lock(_inferMutex);
-    _inferCondVar.wait(lock, [&]{
+    _inferCondVar.wait(lock, [&] {
         return call_back_count.load() >= _num_sub_streams;
     });
     call_back_count = 0;
@@ -42,6 +42,7 @@ void MessageManager::server_wait() {
         assert(_num_sub_streams);
         MsgType msg_type;
         _serverThread = std::thread([&]() {
+            int count = 0;
             while (!_isServerStopped) {
                 std::vector<MessageInfo> msgQueue;
                 {
@@ -60,9 +61,11 @@ void MessageManager::server_wait() {
                         Task task = std::move(rec_info.task);
                         task();
                     } else if (msg_type == CALL_BACK) {  // CALL_BACK
-                        call_back_count++;
+                        count++;
                         // std::cout << "server_wait CALL_BACK: " << call_back_count << "/" << _num_sub_streams << "\n";
-                        if (call_back_count.load() == _num_sub_streams) {
+                        if (count == _num_sub_streams) {
+                            call_back_count = count;
+                            count = 0;
                             _inferCondVar.notify_one();
                         }
                     } else if (msg_type == QUIT) {
