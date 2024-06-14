@@ -35,6 +35,10 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_Int32_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 3}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_Int32_Prod_dyn = {
+    {{{{1, 5}, 2, {1, 5}, {1, 10}}, {{2, 2, 2, 2}, {2, 2, 2, 3}}}},
+};
+
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel_dyn = {
     {{{{1, 5}, 3, {1, 5}, {1, 10}}, {{2, 3, 2, 2}, {2, 3, 2, 9}}}},
 };
@@ -255,6 +259,20 @@ const auto params_Int32 = testing::Combine(
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
 
+const auto params_Int32_Prod = testing::Combine(
+        testing::Combine(
+            testing::ValuesIn(axes()),
+            testing::Values(ov::test::utils::OpType::VECTOR),
+            testing::ValuesIn(keepDims()),
+            testing::Values(ov::test::utils::ReductionType::Prod),
+            testing::Values(ElementType::i32),
+            testing::Values(ElementType::undefined),
+            testing::Values(ElementType::undefined),
+            testing::ValuesIn(inputShapes_Int32_Prod_dyn)),
+        testing::Values(emptyCPUSpec),
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfigFP32()));
+
 const auto params_NHWC_SmallChannel = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesHW),
@@ -329,6 +347,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Int32_CPU,
         ReduceCPULayerTest,
         params_Int32,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_Int32_Prod_CPU,
+        ReduceCPULayerTest,
+        params_Int32_Prod,
         ReduceCPULayerTest::getTestCaseName
 );
 

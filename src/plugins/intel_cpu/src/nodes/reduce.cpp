@@ -653,7 +653,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt))
+        if (!isFloatCompatible(src_dt) && jcp_.reduce_mode != Algorithm::ReduceProd)
             uni_vcvtdq2ps(vmm_val, vmm_val);
         add(rsp, vlen);
     }
@@ -818,7 +818,11 @@ private:
                 uni_vorps(vmm_dst, vmm_dst, vmm_src);
                 break;
             case Algorithm::ReduceProd:
-                uni_vmulps(vmm_dst, vmm_dst, vmm_src);
+                if (isFloatCompatible(jcp_.dst_dt)) {
+                    uni_vmulps(vmm_dst, vmm_dst, vmm_src);
+                } else {
+                    uni_vpmulld(vmm_dst, vmm_dst, vmm_src);
+                }
                 break;
             default:
                 assert(!"unsupported reduce mode");
@@ -859,7 +863,11 @@ private:
                 uni_vorps(xmm_dst, xmm_dst, xmm_src);
                 break;
             case Algorithm::ReduceProd:
-                uni_vmulps(xmm_dst, xmm_dst, xmm_src);
+                if (isFloatCompatible(jcp_.dst_dt)) {
+                    uni_vmulps(xmm_dst, xmm_dst, xmm_src);
+                } else {
+                    uni_vpmulld(vmm_dst, vmm_dst, vmm_src);
+                }
                 break;
             default:
                 assert(!"unsupported reduce mode");
@@ -910,7 +918,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt))
+        if (!isFloatCompatible(src_dt) && jcp_.reduce_mode != Algorithm::ReduceProd)
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -939,7 +947,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt)) {
+        if (!isFloatCompatible(src_dt) && jcp_.reduce_mode != Algorithm::ReduceProd) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
@@ -948,7 +956,7 @@ private:
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
-        if (!isFloatCompatible(dst_dt)) {
+        if (!isFloatCompatible(dst_dt) && jcp_.reduce_mode != Algorithm::ReduceProd) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
@@ -999,7 +1007,7 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (!isFloatCompatible(dst_dt)) {
+        if (!isFloatCompatible(dst_dt) && jcp_.reduce_mode != Algorithm::ReduceProd) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
