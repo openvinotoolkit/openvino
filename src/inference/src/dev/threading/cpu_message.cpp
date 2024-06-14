@@ -15,6 +15,7 @@ namespace threading {
 
 MessageManager::MessageManager() {
     _num_sub_streams = 0;
+    call_back_count = 0;
 }
 
 MessageManager::~MessageManager() {}
