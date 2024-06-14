@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "quantization_info.hpp"
+#include "openvino/frontend/tensorflow_lite/quantization_info.hpp"
 
 bool ov::frontend::tensorflow_lite::QuantizationInfo::is_copyable() const {
     return false;

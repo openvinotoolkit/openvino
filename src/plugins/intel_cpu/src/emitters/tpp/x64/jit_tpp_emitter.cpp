@@ -104,21 +104,10 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     for (int i = 0; i < num_kernel_args; i++)
         data_ptr_reg(Xmm(i), abi_params[i + 1], io_offsets[i]);
 
-#ifdef _WIN32
-    // Before function call we should allocate stack area for
-    //  - register parameters - ABI parameters (shadow space)
-    //  - stack parameters - remaining parameters
-    // Since we currently have <= 4 args (kernel_ptr, in0, in1, out0), then nothing is passed on stack
-    h->sub(h->rsp, (num_kernel_args + 1) * gpr_size);
-#endif
-
     internal_call_rsp_align();
     h->call(h->rbp);
     internal_call_rsp_restore();
 
-#ifdef _WIN32
-    h->add(h->rsp, (num_kernel_args + 1) * gpr_size);
-#endif
     internal_call_postamble();
 }
 

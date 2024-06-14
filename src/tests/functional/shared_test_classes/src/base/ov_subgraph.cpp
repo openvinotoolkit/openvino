@@ -29,10 +29,10 @@
 #include "functional_test_utils/crash_handler.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include "shared_test_classes/base/utils/calculate_thresholds.hpp"
 
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
 namespace test {
@@ -224,15 +224,7 @@ void SubgraphBaseTest::import_export() {
             ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
             const auto importedFunction = importedModel.get_runtime_model()->clone();
             const auto runtimeModel = compiledModel.get_runtime_model()->clone();
-
-            auto comparator = FunctionsComparator::with_default()
-                        .enable(FunctionsComparator::ATTRIBUTES)
-                        .enable(FunctionsComparator::NAMES)
-                        .enable(FunctionsComparator::CONST_VALUES);
-            auto res = comparator.compare(importedFunction, runtimeModel);
-            if (!res.valid) {
-                throw std::runtime_error(res.message);
-            }
+            compare_models_param_res(importedFunction, runtimeModel);
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
             status = ov::test::utils::PassRate::Statuses::FAILED;
@@ -320,18 +312,18 @@ void SubgraphBaseTest::compile_model() {
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
-    auto inputMap = utils::getInputMap();
+    ov::test::utils::ModelRange modelRange;
+    modelRange.find_mode_ranges(function);
+
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {
         std::shared_ptr<ov::Node> inputNode = param;
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                auto it = inputMap.find(nodePtr->get_type_info());
-                ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
+                        inputs.insert({param, modelRange.generate_input(nodePtr, port, *itTargetShape)});
                         break;
                     }
                 }
@@ -390,10 +382,8 @@ void SubgraphBaseTest::update_ref_model() {
     functionRefs = p.build();
 }
 
-void SubgraphBaseTest::match_parameters() {
+void SubgraphBaseTest::match_parameters(const ov::ParameterVector& params, const ov::ParameterVector& ref_params) {
     matched_parameters.clear();
-    const auto& ref_params = functionRefs->get_parameters();
-    const auto& params = function->get_parameters();
     size_t param_size = params.size(), ref_param_size = ref_params.size();
     if (params.size() < ref_params.size()) {
         throw std::runtime_error("Incompatible parameters in original and reference model!");
@@ -436,7 +426,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     auto start_time = std::chrono::system_clock::now();
 
     update_ref_model();
-    match_parameters();
+    match_parameters(function->get_parameters(), functionRefs->get_parameters());
 
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs_ref;
     for (const auto& param : functionRefs->get_parameters()) {
@@ -561,5 +551,95 @@ void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) 
         }
     }
 }
+
+void SubgraphBaseTest::compare_nodes(const std::shared_ptr<ov::Node>& node1, const std::shared_ptr<ov::Node>& node2, std::ostream& err_log) {
+    // compare inputs size, element_type and constant's values
+    if (node1->get_input_size() != node2->get_input_size()) {
+        err_log << "Number of inputs is different: " << to_str(node1->get_input_size()) << " for "
+                << node1->get_friendly_name() << " and " << to_str(node2->get_input_size()) << " for " + node2->get_friendly_name();
+    }
+
+    for (size_t i = 0; i < node1->get_input_size(); ++i) {
+        if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
+            err_log << "Different element type detected\n"
+                    << node1->get_friendly_name() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
+                    << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
+        }
+
+        const auto const_in_1 = ov::as_type_ptr<ov::op::v0::Constant>(node1->get_input_node_shared_ptr(i));
+        const auto const_in_2 = ov::as_type_ptr<ov::op::v0::Constant>(node2->get_input_node_shared_ptr(i));
+        const auto equal_value = ::attributes::detail::equal::Equal<std::shared_ptr<ov::op::v0::Constant>>::equal_value;
+        if (const_in_1 && const_in_2 && !equal_value(const_in_1, const_in_2)) {
+            err_log << "Different Constant values detected\n"
+                    << const_in_1->get_friendly_name() << " & " << const_in_2->get_friendly_name() << "\n"
+                    << node1->description() << " Input(" << i << ") and " << node2->description() << " Input(" << i
+                    << ")" << std::endl;
+        }
+    }
+
+    // compare outputs size, shape, element_type
+    if (node1->get_output_size() != node2->get_output_size()) {
+        err_log << "Number of outputs is different: " << to_str(node1->get_output_size()) << " for "
+                << node1->get_friendly_name() << " and " << to_str(node2->get_output_size()) << " for " << node2->get_friendly_name();
+    }
+
+    for (int i = 0; i < node1->get_output_size(); ++i) {
+        if (!node1->output(i).get_partial_shape().same_scheme(node2->output(i).get_partial_shape())) {
+            err_log << "Different shape detected\n"
+                    << node1->get_friendly_name() << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
+                    << node2->get_friendly_name() << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
+        }
+
+        if (node1->output(i).get_element_type() != node2->output(i).get_element_type()) {
+            err_log << "Different element type detected\n"
+                    << node1->get_friendly_name() << " Input(" << i << ") " << node1->output(i).get_element_type() << " and "
+                    << node2->get_friendly_name() << " Input(" << i << ") " << node2->output(i).get_element_type() << std::endl;
+        }
+    }
+}
+
+void SubgraphBaseTest::compare_models_param_res(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) {
+    if (is_report_stages) {
+        std::cout << "[ COMPARATION ] `compare_models_param_res(f, ref_f)` is started"<< std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
+
+    std::queue<std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>> queue;
+    auto parameters = f->get_parameters();
+    auto ref_parameters = f_ref->get_parameters();
+    match_parameters(parameters, ref_parameters);
+
+    for (auto& matched : matched_parameters) {
+        queue.push({matched.first, matched.second});
+    }
+
+    auto f_results = f->get_results();
+    auto f_ref_results = f_ref->get_results();
+    if (f_results.size() != f_ref_results.size()) {
+        throw std::runtime_error("Number of results is different: " + to_str(f_results.size()) + " and " +
+                                to_str(f_ref_results.size()));
+    }
+
+    for (size_t i = 0; i < f_results.size(); ++i) {
+        queue.push({f_results[i], f_ref_results[i]});
+    }
+
+    std::stringstream errors;
+    while (!queue.empty()) {
+        auto nodes = queue.front();
+        compare_nodes(nodes.first, nodes.second, errors);
+        queue.pop();
+    }
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ COMPARATION ] `compare_models_param_res(f, ref_f)` is finished. Duration is " << duration.count() << "s" << std::endl;
+    }
+
+    if (!errors.str().empty()) {
+        throw std::runtime_error(errors.str());
+    }
+}
+
 }  // namespace test
 }  // namespace ov

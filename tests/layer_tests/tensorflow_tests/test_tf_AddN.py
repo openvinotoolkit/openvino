@@ -27,7 +27,7 @@ class TestAddN(CommonTFLayerTest):
         if len(input_shapes) == 0:
             raise RuntimeError("Input list couldn't be empty")
 
-        if len(input_shapes) == 1 and not use_legacy_frontend:
+        if len(input_shapes) == 1 and use_legacy_frontend:
             pytest.xfail(reason="96687")
 
         tf.compat.v1.reset_default_graph()

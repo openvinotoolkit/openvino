@@ -21,7 +21,7 @@ using namespace ov::op;
 
 bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
     bool changed = false;
-    const auto& parameters = model->get_parameters();
+    const auto parameters = model->get_parameters();
     ParameterVector new_params;
 
     for (const auto& p : parameters) {

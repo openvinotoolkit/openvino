@@ -54,7 +54,11 @@ def openvino(subgraph, example_inputs, options=None):
     if (_get_aot_autograd(options)):
         global openvino_options
         openvino_options = options
-        return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino)(subgraph, example_inputs)
+        decompositions = _get_decompositions(options) + get_inf_decomposition_list()
+        decompositions = decompositions + get_aot_decomposition_list()
+        return aot_autograd(fw_compiler=fx_openvino, 
+                            bw_compiler=fx_openvino, 
+                            decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
 def fx_openvino(subgraph, example_inputs, options=None):
@@ -82,15 +86,17 @@ def fx_openvino(subgraph, example_inputs, options=None):
         if inputs_reversed:
             example_inputs.reverse()
 
-        from torch._subclasses.fake_tensor import FakeTensorMode
-        decompositions = _get_decompositions(options) + get_inf_decomposition_list()
         if (_get_aot_autograd(options)):
-            decompositions = decompositions + get_aot_decomposition_list()
-        with FakeTensorMode(allow_non_fake_inputs=True):
-            model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
+            model = subgraph
+        else:
+            from torch._subclasses.fake_tensor import FakeTensorMode
+            decompositions = _get_decompositions(options) + get_inf_decomposition_list()
+            with FakeTensorMode(allow_non_fake_inputs=True):
+                model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
 
-        with torch.no_grad():
-            model.eval()
+            with torch.no_grad():
+                model.eval()
+
         partitioner = Partitioner(options)
         compiled_model = partitioner.make_partitions(model, options)
 

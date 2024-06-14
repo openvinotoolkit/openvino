@@ -55,7 +55,7 @@ describe('InferRequest', () => {
   it('Test infer(TypedArray) throws', () => {
     assert.throws(
       () => inferRequest.infer(tensorData),
-      {message: 'TypedArray cannot be passed directly into infer() method.'});
+      {message: /TypedArray cannot be passed directly into infer\(\) method./});
   });
 
   const buffer = new ArrayBuffer(tensorData.length);

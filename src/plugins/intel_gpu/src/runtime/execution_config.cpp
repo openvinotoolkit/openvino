@@ -50,6 +50,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_priority, ov::hint::Priority::MEDIUM),
+        std::make_tuple(ov::intel_gpu::hint::enable_sdpa_optimization, true),
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
         std::make_tuple(ov::intel_gpu::disable_winograd_convolution, false),
         std::make_tuple(ov::internal::exclusive_async_requests, false),
@@ -73,7 +74,8 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
         std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
-        std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f));
+        std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f),
+        std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {

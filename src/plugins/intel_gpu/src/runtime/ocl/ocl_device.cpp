@@ -119,12 +119,31 @@ device_type get_device_type(const cl::Device& device) {
     return unified_mem ? device_type::integrated_gpu : device_type::discrete_gpu;
 }
 
-gfx_version parse_version(cl_uint ver) {
-    uint16_t major = ver >> 16;
-    uint8_t minor = (ver >> 8) & 0xFF;
-    uint8_t revision = ver & 0xFF;
 
-    return {major, minor, revision};
+gfx_version parse_version(cl_uint gmdid) {
+    union GMDID {
+        uint32_t value;
+        struct {
+            uint32_t revision : 6;
+            uint32_t reserved : 8;
+            uint32_t release : 8;
+            uint32_t architecture : 10;
+        };
+    };
+
+    GMDID gmd_id = {gmdid};
+    if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
+        // New format
+        return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
+    } else {
+        // Old format
+        cl_uint ver = gmdid;
+        uint16_t major = ver >> 16;
+        uint8_t minor = (ver >> 8) & 0xFF;
+        uint8_t revision = ver & 0xFF;
+
+        return {major, minor, revision};
+    }
 }
 
 bool get_imad_support(const cl::Device& device) {
@@ -229,6 +248,7 @@ device_info init_device_info(const cl::Device& device) {
 
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
     bool nv_device_attr_supported = extensions.find("cl_nv_device_attribute_query") != std::string::npos;
+    info.has_separate_cache = false;
     if (device_attr_supported) {
         info.gfx_ver = parse_version(device.getInfo<CL_DEVICE_IP_VERSION_INTEL>());
         info.device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
@@ -240,6 +260,13 @@ device_info init_device_info(const cl::Device& device) {
 
         info.supports_imad = info.supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
         info.supports_immad = info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
+        if (info.dev_type == device_type::discrete_gpu ||
+            info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
+            info.has_separate_cache = true;
+        }
+        GPU_DEBUG_INFO << "GPU version: "
+            << static_cast<int>(info.gfx_ver.major) << "." << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
+            << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_onednn)
             info.supports_immad = false;

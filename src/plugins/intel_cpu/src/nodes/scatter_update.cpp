@@ -403,11 +403,12 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     const auto& indices_shape = mem_indices->getStaticDims();
     const size_t updates_rank = indices_shape.size();
 
-    const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
-    const auto index_dim_size = indices_shape[axis];
-
     if (axis < 0)
         axis += updates_rank;
+    OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+
+    const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
+    const auto index_dim_size = indices_shape[axis];
 
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
@@ -516,11 +517,12 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     const auto& indices_shape = mem_indices->getStaticDims();
     size_t updates_rank = indices_shape.size();
 
-    const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
-    const auto index_dim_size = indices_shape[axis];
-
     if (axis < 0)
         axis += updates_rank;
+    OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+
+    const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
+    const auto index_dim_size = indices_shape[axis];
 
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;

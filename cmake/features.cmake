@@ -162,11 +162,11 @@ else()
     set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT ON)
 endif()
 
-# users wants to use his own TBB version, specific either via env vars or cmake options
-if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
-    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
-else()
+# use system TBB only for Debian / RPM packages
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
     set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
 
 ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}

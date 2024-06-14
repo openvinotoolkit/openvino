@@ -4,7 +4,7 @@
 
 #include "tensor_lite_place.hpp"
 
-#include "quantization_info.hpp"
+#include "openvino/frontend/tensorflow_lite/quantization_info.hpp"
 #include "utils.hpp"
 
 void ov::frontend::tensorflow_lite::TensorLitePlace::translate(ov::Output<ov::Node>& output,

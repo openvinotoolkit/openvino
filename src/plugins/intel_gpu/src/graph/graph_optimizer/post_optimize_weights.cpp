@@ -8,7 +8,6 @@
 
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
-#include "deformable_convolution_inst.h"
 #include "fully_connected_inst.h"
 #include "intel_gpu/runtime/format.hpp"
 
@@ -124,8 +123,6 @@ void post_optimize_weights::run(program& p) {
             optimize_weights(node->as<convolution>(), p);
         } else if (node->is_type<deconvolution>()) {
             optimize_weights(node->as<deconvolution>(), p);
-        } else if (node->is_type<deformable_conv>()) {
-            optimize_weights(node->as<deformable_conv>(), p);
         } else if (node->is_type<fully_connected>()) {
             optimize_weights(node->as<fully_connected>(), p);
         }

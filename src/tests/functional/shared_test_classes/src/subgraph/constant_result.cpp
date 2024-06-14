@@ -47,14 +47,14 @@ void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type,
     ResultVector results;
     switch (type) {
     case ConstantSubgraphType::SINGLE_COMPONENT: {
-        auto input = ov::test::utils::deprecated::make_constant<float>(input_type, input_shape, {}, true);
+        auto input = ov::test::utils::make_constant(input_type, input_shape);
         results.push_back(std::make_shared<ov::op::v0::Result>(input));
         break;
     }
     case ConstantSubgraphType::SEVERAL_COMPONENT: {
-        auto input1 = ov::test::utils::deprecated::make_constant<float>(input_type, input_shape, {}, true);
+        auto input1 = ov::test::utils::make_constant(input_type, input_shape);
         results.push_back(std::make_shared<ov::op::v0::Result>(input1));
-        auto input2 = ov::test::utils::deprecated::make_constant<float>(input_type, input_shape, {}, true);
+        auto input2 = ov::test::utils::make_constant(input_type, input_shape);
         results.push_back(std::make_shared<ov::op::v0::Result>(input2));
         break;
     }

@@ -120,7 +120,7 @@ void ShapeOf::validate_and_infer_types() {
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
     set_input_is_relevant_to_value(0, false);
-    const auto input_partial_shape = get_input_partial_shape(0);
+    const auto& input_partial_shape = get_input_partial_shape(0);
     set_output_type(0, m_output_type, PartialShape{input_partial_shape.rank()});
 }
 

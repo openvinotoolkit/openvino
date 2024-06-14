@@ -17,6 +17,8 @@ on:
         type: string
         required: true
 
+permissions: read-all
+
 jobs:
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests
@@ -34,33 +36,20 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       NUMBER_OF_REPLICAS: 2
     steps:
-      - name: Check sudo
-        if: ${{ runner.os == 'Linux' }}
-        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
-
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: |
-          if [ "$(id -u)" -eq 0 ]; then
-            echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-          else
-            sudo sh -c "echo 'Acquire::Retries \"10\";' >> /etc/apt/apt.conf.d/80-retries"
-          fi
-
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tokenizers extension
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -88,18 +77,12 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
-
-      - name: Install dependencies
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-          # install git (required to build pip deps from the sources)
-          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates wget
 
       - name: Setup Python 3.11
         uses: ./openvino/.github/actions/setup_python
@@ -131,7 +114,7 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ !cancelled() }}
         with:
           name: test-results-tensorflow-models-${{ inputs.model_scope }}

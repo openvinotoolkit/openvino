@@ -18,7 +18,8 @@ Convert to OpenVINO IR
    Convert from PaddlePaddle <convert-model-paddle>
 
 
-:doc:`IR (Intermediate Representation) <../../documentation/openvino-ir-format>` is OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
+:doc:`IR (Intermediate Representation) <../../documentation/openvino-ir-format>` is
+OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
 Convert the model into OpenVINO IR for `better performance <#ir-conversion-benefits>`__.
 
 Convert Models
@@ -61,7 +62,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <convert-model-pytorch>`
-              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/102-pytorch-to-openvino/102-pytorch-onnx-to-openvino.ipynb>`__
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/pytorch-to-openvino/pytorch-onnx-to-openvino.ipynb>`__
               on this topic.
 
    .. tab-item:: TensorFlow
@@ -105,7 +106,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <convert-model-tensorflow>`
-              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/101-tensorflow-classification-to-openvino>`__
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-classification-to-openvino>`__
               on this topic.
 
             * The ``read_model()`` and ``compile_model()`` methods:
@@ -211,7 +212,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <convert-model-tensorflow-lite>`
-              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/119-tflite-to-openvino/119-tflite-to-openvino.ipynb>`__
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/tflite-to-openvino/tflite-to-openvino.ipynb>`__
               on this topic.
 
 
@@ -336,7 +337,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <convert-model-onnx>`
-              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/102-pytorch-to-openvino/102-pytorch-onnx-to-openvino.ipynb>`__
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/pytorch-to-openvino/pytorch-onnx-to-openvino.ipynb>`__
               on this topic.
 
 
@@ -464,7 +465,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <convert-model-paddle>`
-              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/103-paddle-to-openvino/103-paddle-to-openvino-classification.ipynb>`__
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/paddle-to-openvino/paddle-to-openvino-classification.ipynb>`__
               on this topic.
 
             * The ``read_model()`` method:
@@ -616,4 +617,5 @@ Additional Resources
 ####################
 
 * :doc:`Transition guide from the legacy to new conversion API <../../documentation/legacy-features/transition-legacy-conversion-api>`
+* `Download models from Hugging Face <https://huggingface.co/models>`__.
 

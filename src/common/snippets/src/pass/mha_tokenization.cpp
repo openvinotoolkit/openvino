@@ -16,7 +16,7 @@
 
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {
-    return t.get_partial_shape().is_static() && ov::snippets::utils::one_of(t.get_shape().size(), 3lu, 4lu);
+    return t.get_partial_shape().rank().is_static() && ov::snippets::utils::one_of(t.get_partial_shape().size(), 3lu, 4lu);
 }
 
 bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
@@ -68,6 +68,10 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
         // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
         if (broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY &&
             broadcast->get_output_target_inputs(0).size() == 1) {
+            // TODO: Add support of Broadcast with ShapeOf subgraph on second input
+            if (!ov::is_type<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr()))
+                continue;
+
             broadcast_nodes.push_back(broadcast);
 
             const auto pshape = broadcast->get_input_partial_shape(0);
@@ -96,10 +100,17 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
 bool tokenize_reshape_around_softmax(std::shared_ptr<ov::Node>& interm_op, std::shared_ptr<ov::opset1::Reshape>& reshape, ov::NodeVector& ordered_ops) {
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(interm_op);
     if (reshape) {
-        const auto in_shape = reshape->get_input_shape(0);
-        const auto out_shape = reshape->get_output_shape(0);
-        if (in_shape.back() != out_shape.back() || reshape->get_output_target_inputs(0).size() != 1)
+        // TODO: Add support of Reshape with ShapeOf subgraph on second input
+        if (!ov::is_type<ov::op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr()))
             return false;
+
+        const auto in_shape = reshape->get_input_partial_shape(0);
+        const auto out_shape = reshape->get_output_partial_shape(0);
+        const auto in_last_dim = *in_shape.crbegin();
+        const auto out_last_dim = *out_shape.crbegin();
+        if (in_last_dim.is_dynamic() || out_last_dim.is_dynamic() || in_last_dim != out_last_dim || reshape->get_output_target_inputs(0).size() != 1)
+            return false;
+
         ordered_ops.push_back(reshape);
         interm_op = reshape->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
     }
@@ -204,8 +215,7 @@ bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::sh
 ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(TokenizeMHASnippets);
 
-    auto m_matmul0 = std::make_shared<ov::opset1::MatMul>(ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
-                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()));
+    auto m_matmul0 = std::make_shared<ov::opset1::MatMul>(ov::pass::pattern::any_input(), ov::pass::pattern::any_input());
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
         [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher &m) {
@@ -224,20 +234,14 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         // Example:
         //     Buffer - i32 [32, 128] -> ~ Loop ~ -> Buffer - i8 [32, 128]
         //     After each Loop iteration we should increment pointers of Buffers: accordingly on 4 byte and 1 byte for scalar case.
-        //     It means that these Buffers cannot be inplace => Each Buffer should have the own register
+        //     It means that these increments are not proportional => Each Buffer should have the own register
         // For that we can just check the following "branches":
         //  - Between MatMul0 and MatMul1 - Softmax is sync point. The operations between MatMul0 -> Softmax and Softmax -> MatMul1
         //                                  will be fused into one loop after conversion to snippet dialect (Because it's just FQ, Eltwise nodes)
-        //  - Between MatMul0 and Transpose1 - At the moment operations after Transpose1 cannot be fused in Transpose Loop (to avoid performance regressions).
+        //  - Between MatMul0 and Transpose1 - At the moment operations after Transpose1 cannot be fused in inner Transpose Loop
+        //                                     (to avoid performance regressions due to scalar calculations).
         //                                     But operations after Transpose1 and before MatMul0  will be fused into one loop as well (look at first point)
-        // Note: If the pass is updated, need to check the new possible branches for potential non-inplace Buffers!
-        // Default value is 2 because
-        //  - Firstly, Softmax always needs Buffers
-        //  - Secondly, Softmax needs 2 Buffers but they can be inplace - One virtual port is enough for Softmax => buffer_count = 1
-        //  - Thirdly, MatMul requires unique Buffers on inputs and outputs because blocking implementation increments input/output pointers during computations
-        //    However, all of the Buffers are usually reused by the next MatMul and Softmax.
-        //    So on sufficiently large subgraphs we use only one additional unique buffer => buffer_count increments by 1
-        size_t buffer_count = 2;
+        size_t uniqie_buffer_reg_group_count = 1;  // After MatMul0 there is always one Buffer
         std::string fused_names;
         ov::NodeVector ordered_ops;
 
@@ -260,23 +264,19 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         if (!is_matmul0_supported(matmul0))
             return false;
 
-        const auto matmul0_prc = op::Brgemm::get_output_type(matmul0->get_input_element_type(0), matmul0->get_input_element_type(1));
-        // Between MatMul0 and Softmax will be the one Loop because of LoopFusing optimization.
-        // The Loop will have one Buffer with the same shape both on input and output.
-        // Need to check for precision to get if we need one more register for Buffer
-        if (matmul0_prc.size() != ov::element::f32.size()) {
-            if (buffer_count < 2)
-                buffer_count++;
-        }
-
         ordered_ops.push_back(matmul0);
 
         const auto pattern_rank = matmul0->get_output_partial_shape(0).size();
 
+        const auto ops_count_before_softmax = ordered_ops.size();
         auto interm_op = matmul0->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
         // Add supported operations which are between MatMul0 and Softmax to ordered_ops
         if (!update_intermediate_supported_ops(interm_op, ordered_ops, hidden_virtual_ports_count, potential_body_params_count))
             return false;
+
+        // If before Softmax there is Eltwise ops, there will be one more Buffer
+        if (ops_count_before_softmax != ordered_ops.size() && interm_op->get_output_partial_shape(0).rbegin()->is_dynamic())
+            uniqie_buffer_reg_group_count++;
 
         std::shared_ptr<ov::opset1::Reshape> reshape0 = nullptr;
         if (!tokenize_reshape_around_softmax(interm_op, reshape0, ordered_ops))
@@ -294,6 +294,11 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         if (axis != rank.get_length() - 1 || interm_op->get_output_target_inputs(0).size() != 1)
             return false;
+
+        // Softmax need one buffer at least
+        if (interm_op->get_output_partial_shape(0).rbegin()->is_dynamic())
+            uniqie_buffer_reg_group_count++;
+
         ordered_ops.push_back(interm_op);
 
         interm_op = interm_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
@@ -302,7 +307,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             return false;
 
         if (((reshape0 == nullptr) != (reshape1 == nullptr)) ||
-             (reshape0 && reshape1 && (reshape0->get_input_shape(0) != reshape1->get_output_shape(0))))
+             (reshape0 && reshape1 && (reshape0->get_input_partial_shape(0) != reshape1->get_output_partial_shape(0))))
             return false;
 
         // Add supported operations which are between Softmax and MatMul1 to ordered_ops
@@ -310,8 +315,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             return false;
 
         const auto matmul1 = ov::as_type_ptr<ov::opset1::MatMul>(interm_op);
-        if (!matmul1 || matmul1->get_output_target_inputs(0).size() != 1 ||
-            matmul1->get_transpose_a() || matmul1->get_transpose_b())
+        if (!matmul1 || matmul1->get_transpose_a() || matmul1->get_transpose_b())
             return false;
 
         const auto matmul1_out_type = op::Brgemm::get_output_type(matmul1->get_input_element_type(0),
@@ -328,8 +332,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         // Between Softmax and MatMul1 will be the one Loop because of LoopFusing optimization.
         // The Loop will have one Buffer with the same shape both on input and output.
         // Need to check for precision to get if we need one more register for Buffer
-        if (matmul1->get_input_element_type(0).size() != ov::element::f32.size()) {
-            buffer_count++;
+        const auto matmul0_prc = op::Brgemm::get_output_type(matmul0->get_input_element_type(0), matmul0->get_input_element_type(1));
+        if (matmul1->get_input_element_type(0).size() != matmul0_prc.size() || matmul1->get_input_partial_shape(0).is_dynamic()) {
+            uniqie_buffer_reg_group_count++;
         }
 
         /***********************/
@@ -358,6 +363,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         // There is transformation ExplicitTransposeMatMulInputs that set supported order and transposed_b(false).
         // We can allow to call this pass only if ops have scalar shapes to avoid shape mismatching
         const auto is_transposed_b_0 = matmul0->get_transpose_b();
+        bool has_matmul0_has_ops_on_input = false;
         while (is_supported_intermediate_op(parent)) {
             // All supported ops have only one output port
             if (parent->get_output_target_inputs(0).size() != 1)
@@ -379,6 +385,11 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             ordered_ops.insert(ordered_ops.begin(), parent);
             // [107731] To go always through 0-th port - is it safe?
             parent = parent->get_input_node_shared_ptr(0);
+            has_matmul0_has_ops_on_input = true;
+        }
+        // If there are ops on second input of MatMul0 -> there always will be unique Buffer
+        if (has_matmul0_has_ops_on_input) {
+            uniqie_buffer_reg_group_count++;
         }
 
         auto tokenize_transpose = [&](const std::shared_ptr<ov::opset1::Transpose>& transpose,
@@ -387,7 +398,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             // If Transpose has valid order for the Transpose fusing (ExplicitTransposeMatMulInputs pass call), tokenize him.
             // Otherwise, skip the Transpose.
             if (!is_input_transposed) {
-                if (is_valid_transpose(transpose, config.mha_supported_transpose_ranks, order)) {
+                if (is_valid_transpose(transpose, config.get_mha_supported_transpose_ranks(), order)) {
                     ordered_ops.insert(pos, transpose);
                 }
                 return;
@@ -397,7 +408,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             if (rank < 2)
                 return;
             std::swap(transposed_order[rank - 1], transposed_order[rank - 2]);
-            if (is_valid_transpose(transpose, config.mha_supported_transpose_ranks, transposed_order)) {
+            if (is_valid_transpose(transpose, config.get_mha_supported_transpose_ranks(), transposed_order)) {
                 ordered_ops.insert(pos, transpose);
             }
         };
@@ -412,7 +423,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         bool are_ops_after_matmul1 = false;
         auto child = matmul1->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        while (is_supported_intermediate_op(child)) {
+        const auto can_be_ops_after_matmul1_tokenized = matmul1->get_output_target_inputs(0).size() == 1;
+        bool has_matmul1_has_ops_on_output = false;
+        while (can_be_ops_after_matmul1_tokenized && is_supported_intermediate_op(child)) {
             are_ops_after_matmul1 = true;
             // All supported ops have only one output port
             if (child->get_output_target_inputs(0).size() != 1)
@@ -427,21 +440,25 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
             // TODO [75567]: move this plugin-specific constraint to the plugin callback
             //               We cannot collapse op to Subgraph if count of potential Parameter and Result count is higher 12
-            if (potential_body_params_count + child->get_output_target_inputs(0).size() + hidden_virtual_ports_count + buffer_count > 12) {
+            if (potential_body_params_count + child->get_output_target_inputs(0).size() + hidden_virtual_ports_count + uniqie_buffer_reg_group_count > 12) {
                 break;
             }
 
             ordered_ops.push_back(child);
             child = child->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            has_matmul1_has_ops_on_output = true;
+        }
+        if (has_matmul1_has_ops_on_output) {
+            uniqie_buffer_reg_group_count++;
         }
 
         // At the moment Snippets don't support nodes between MatMul1 and Transpose3 due to Loop and strided calculations limitations
         //     MatMul1
         //  <Supported ops>
         //    Transpose3
-        if (!are_ops_after_matmul1) {
-            auto transpose3 = config.mha_token_enable_transpose_on_output ? ov::as_type_ptr<ov::opset1::Transpose>(child) : nullptr;
-            if (is_valid_transpose(transpose3, config.mha_supported_transpose_ranks, get_fusion_transpose_order(pattern_rank)) &&
+        if (can_be_ops_after_matmul1_tokenized && !are_ops_after_matmul1) {
+            auto transpose3 = config.get_mha_token_enable_transpose_on_output() ? ov::as_type_ptr<ov::opset1::Transpose>(child) : nullptr;
+            if (is_valid_transpose(transpose3, config.get_mha_supported_transpose_ranks(), get_fusion_transpose_order(pattern_rank)) &&
                 transpose3->get_input_element_type(0) == matmul1_out_type) {  // To avoid Convert between MatMul1 and Transpose3
                 ordered_ops.push_back(transpose3);
             }
@@ -455,7 +472,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto last_node = ordered_ops.back();
-        if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + buffer_count > 11) {
+        if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + uniqie_buffer_reg_group_count > 11) {
             return false;
         }
 

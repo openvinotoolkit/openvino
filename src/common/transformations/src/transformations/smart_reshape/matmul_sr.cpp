@@ -36,7 +36,12 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
         // avoiding loop creation
         return false;
 
-    const auto idx = reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
+    bool is_1d = ov::pass::pattern::rank_equals(1)(shape_source);
+    int64_t idx = -1;
+    if (!is_1d) {
+        idx = reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
+    }
+
     const auto in_C_0 = std::make_shared<ov::op::v3::ShapeOf>(shape_source);
     const auto in_C_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {idx});
     const auto in_C_2 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
@@ -53,7 +58,6 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
 
     auto reshape_input = pattern_to_output.at(reshape_label).get_node_shared_ptr()->input(1);
     reshape_input.replace_source_output(new_reshape_pattern);
-
     return true;
 }
 
@@ -61,7 +65,7 @@ bool relax_hc_reshape_followed_by_matmul(const ov::pass::pattern::PatternValueMa
 
 ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
     MATCHER_SCOPE(ReshapeAMatMul);
-    auto other_input_label = pattern::any_input();
+    auto other_input_label = pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {
@@ -86,7 +90,7 @@ ov::pass::ReshapeAMatMul::ReshapeAMatMul() {
 
 ov::pass::ReshapeBMatMul::ReshapeBMatMul() {
     MATCHER_SCOPE(ReshapeBMatMul);
-    auto other_input_label = pattern::any_input();
+    auto other_input_label = pattern::any_input(ov::pass::pattern::has_static_rank());
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
     auto reshape_predicate = [](ov::Output<ov::Node> output) -> bool {

@@ -57,10 +57,10 @@ void MultipleLSTMCellTest::SetUp() {
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
     input_parameter[0]->set_friendly_name("Parameter_1");
 
-    auto input_add_const = ov::test::utils::deprecated::make_constant(element_type, input_dims, input_bias);
+    auto input_add_const = ov::op::v0::Constant::create(element_type, input_dims, input_bias);
     auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
-    auto input_mul_const = ov::test::utils::deprecated::make_constant(element_type, input_dims, input_weights);
+    auto input_mul_const = ov::op::v0::Constant::create(element_type, input_dims, input_weights);
     auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -69,7 +69,7 @@ void MultipleLSTMCellTest::SetUp() {
     auto permute_in_params = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(unsqueeze_input, permute_in_params);
 
-    auto cell_memory_constant = ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant = ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
     auto var_cell = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "cell_state_1"});
     auto var_hidden = std::make_shared<ov::op::util::Variable>(
@@ -78,7 +78,7 @@ void MultipleLSTMCellTest::SetUp() {
     cell_memory_read->set_friendly_name("cell_memory");
 
     auto hidden_memory_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
     auto hidden_memory_read = std::make_shared<ov::op::v6::ReadValue>(hidden_memory_constant, var_hidden);
     hidden_memory_read->set_friendly_name("hidden_memory");
 
@@ -90,10 +90,10 @@ void MultipleLSTMCellTest::SetUp() {
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(X, squeeze_const);
 
-    auto weightsNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto weightsNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize, inputSize}, weights_vals);
     auto reccurrenceWeightsNode =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        H_t,
                                                        C_t,
@@ -139,12 +139,12 @@ void MultipleLSTMCellTest::SetUp() {
     auto var_hidden_2 = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "hidden_state_2"});
     auto cell_memory_2_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+        ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
     auto cell_memory_2_read = std::make_shared<ov::op::v6::ReadValue>(cell_memory_2_constant, var_cell_2);
     cell_memory_2_read->set_friendly_name("cell_memory_2");
 
     auto hidden_memory_2_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
     auto hidden_memory_2_read = std::make_shared<ov::op::v6::ReadValue>(hidden_memory_2_constant, var_hidden_2);
     hidden_memory_2_read->set_friendly_name("hidden_memory_2");
 
@@ -157,10 +157,10 @@ void MultipleLSTMCellTest::SetUp() {
     auto squeeze_2 = std::make_shared<ov::op::v0::Squeeze>(X_2, squeeze_2_const);
 
     auto weightsNode_2 =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, weights_2_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, weights_2_vals);
     auto reccurrenceWeightsNode_2 =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode_2 = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode_2 = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm_2 = std::make_shared<ov::op::v0::LSTMCell>(squeeze_2,
                                                          H_t_2,
                                                          C_t_2,
@@ -224,28 +224,28 @@ void MultipleLSTMCellTest::switch_to_friendly_model() {
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
     input_parameter[0]->set_friendly_name("Parameter_1");
 
-    auto input_add_const = ov::test::utils::deprecated::make_constant(element_type, input_dims, input_bias);
+    auto input_add_const = ov::op::v0::Constant::create(element_type, input_dims, input_bias);
     auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
-    auto input_mul_const = ov::test::utils::deprecated::make_constant(element_type, input_dims, input_weights);
+    auto input_mul_const = ov::op::v0::Constant::create(element_type, input_dims, input_weights);
     auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
 
     // Body 1 - layers
-    auto cell_memory_constant = ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant = ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
 
     auto hidden_memory_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
 
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(unsqueeze_input, squeeze_const);
 
-    auto weightsNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto weightsNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize, inputSize}, weights_vals);
     auto reccurrenceWeightsNode =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        hidden_memory_constant,
                                                        cell_memory_constant,
@@ -268,19 +268,19 @@ void MultipleLSTMCellTest::switch_to_friendly_model() {
 
     // Body 2 - layers
     auto cell_memory_2_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+        ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
 
     auto hidden_memory_2_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
 
     auto squeeze_2_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze_2 = std::make_shared<ov::op::v0::Squeeze>(inbetween_squeeze, squeeze_2_const);
 
     auto weightsNode_2 =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, weights_2_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, weights_2_vals);
     auto reccurrenceWeightsNode_2 =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode_2 = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode_2 = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm_2 = std::make_shared<ov::op::v0::LSTMCell>(squeeze_2,
                                                          hidden_memory_2_constant,
                                                          cell_memory_2_constant,
@@ -316,10 +316,10 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
     input_parameter[0]->set_friendly_name("Parameter_1");
 
-    auto input_add_const = ov::test::utils::deprecated::make_constant(element_type, input_dims, input_bias);
+    auto input_add_const = ov::op::v0::Constant::create(element_type, input_dims, input_bias);
     auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
-    auto input_mul_const = ov::test::utils::deprecated::make_constant(element_type, input_dims, input_weights);
+    auto input_mul_const = ov::op::v0::Constant::create(element_type, input_dims, input_weights);
     auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -328,10 +328,10 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     auto permute_in_params = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(unsqueeze_input, permute_in_params);
 
-    auto cell_memory_constant = ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant = ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
 
     auto hidden_memory_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
 
     // Body - inputs
     auto X = std::make_shared<ov::op::v0::Parameter>(element_type, Shape{1, 1, inputSize});
@@ -343,10 +343,10 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(X, squeeze_const);
 
-    auto weightsNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto weightsNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize, inputSize}, weights_vals);
     auto reccurrenceWeightsNode =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        H_t,
                                                        C_t,
@@ -387,10 +387,10 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
 
     // Second TI
     auto cell_memory_2_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+        ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
 
     auto hidden_memory_2_constant =
-        ov::test::utils::deprecated::make_constant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
 
     // Body - inputs
     auto X_2 = std::make_shared<ov::op::v0::Parameter>(element_type, Shape{1, 1, hiddenSize});
@@ -403,10 +403,10 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     auto squeeze_2 = std::make_shared<ov::op::v0::Squeeze>(X_2, squeeze_2_const);
 
     auto weightsNode_2 =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, weights_2_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, weights_2_vals);
     auto reccurrenceWeightsNode_2 =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode_2 = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode_2 = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm_2 = std::make_shared<ov::op::v0::LSTMCell>(squeeze_2,
                                                          H_t_2,
                                                          C_t_2,

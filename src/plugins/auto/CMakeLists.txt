@@ -10,6 +10,11 @@ set (TARGET_NAME "openvino_auto_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.cpp)
 
+# WA for issue 141313
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+    ov_add_compiler_flags(-Wno-stringop-overflow)
+endif()
+
 if(ENABLE_AUTO AND ENABLE_MULTI)
     ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "MULTI"

@@ -176,3 +176,12 @@
 'category: licensing':
 - 'licensing/**/*'
 - 'LICENSE'
+
+'category: docker_env':
+- '.dockerignore'
+- 'install_build_dependencies.sh'
+- '**/install_openvino_dependencies.sh'
+- '.github/actions/handle_docker/**/*'
+
+'category: dockerfiles':
+- '.github/dockerfiles/**/*'

@@ -33,21 +33,21 @@ to set a new batch size with the ``reshape`` method:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ShapeInference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.py
          :language: Python
          :fragment: picture_snippet
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
          :language: cpp
          :fragment: picture_snippet
 
 The diagram below presents the results of using the method, where the size of
 model input is changed with an image input:
 
-.. image:: ../../_static/images/original_vs_reshaped_model.svg
+.. image:: ../../assets/images/original_vs_reshaped_model.svg
 
 When using the ``reshape`` method, you may take one of the approaches:
 
@@ -62,14 +62,14 @@ When using the ``reshape`` method, you may take one of the approaches:
       .. tab-item:: Python
          :sync: py
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.py
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.py
             :language: python
             :fragment: simple_spatials_change
 
       .. tab-item:: C++
          :sync: cpp
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
             :language: cpp
             :fragment: spatial_reshape
 
@@ -92,7 +92,7 @@ When using the ``reshape`` method, you may take one of the approaches:
                ``openvino.runtime.Output`` dictionary key specifies input by passing actual input object.
                Dictionary values representing new shapes could be ``PartialShape``:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.py
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.py
                   :language: python
                   :fragment: [obj_to_shape]
 
@@ -101,7 +101,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
                ``map<ov::Output<ov::Node>, ov::PartialShape`` specifies input by passing actual input port:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
                   :language: cpp
                   :fragment: [obj_to_shape]
 
@@ -115,7 +115,7 @@ When using the ``reshape`` method, you may take one of the approaches:
                ``int`` dictionary key specifies input by its index.
                Dictionary values representing new shapes could be ``tuple``:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.py
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.py
                   :language: python
                   :fragment: [idx_to_shape]
 
@@ -124,7 +124,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
                ``map<size_t, ov::PartialShape>`` specifies input by its index:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
                   :language: cpp
                   :fragment: [idx_to_shape]
 
@@ -138,7 +138,7 @@ When using the ``reshape`` method, you may take one of the approaches:
                ``str`` dictionary key specifies input by its name.
                Dictionary values representing new shapes could be ``str``:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.py
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.py
                   :language: python
                   :fragment: [name_to_shape]
 
@@ -147,7 +147,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
                ``map<string, ov::PartialShape>`` specifies input by its name:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
                   :language: cpp
                   :fragment: [name_to_shape]
 
@@ -172,14 +172,14 @@ To change the batch dimension of the model, :ref:`set the layout <declare_model_
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ShapeInference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.py
          :language: Python
          :fragment: set_batch
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
          :language: cpp
          :fragment: set_batch
 

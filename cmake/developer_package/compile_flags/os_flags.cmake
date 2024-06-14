@@ -255,7 +255,10 @@ function(ov_abi_free_target target)
     # To guarantee OpenVINO can be used with gcc versions 7 through 12.2
     # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
     # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
-    if(CMAKE_COMPILER_IS_GNUCXX AND NOT MINGW64)
+    # Since gcc 13.0 abi=18
+    # Version 18, which first appeard in G++ 13, fixes manglings of lambdas that have additional context.
+    # which means we became not compatible
+    if(CMAKE_COMPILER_IS_GNUCXX AND NOT MINGW64 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wabi=11>)
     endif()
 endfunction()

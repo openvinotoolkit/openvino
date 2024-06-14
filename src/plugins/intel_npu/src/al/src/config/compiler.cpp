@@ -24,6 +24,7 @@ void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<DMA_ENGINES>();
     desc.add<USE_ELF_COMPILER_BACKEND>();
     desc.add<DYNAMIC_SHAPE_TO_STATIC>();
+    desc.add<EXECUTION_MODE_HINT>();
 }
 
 //

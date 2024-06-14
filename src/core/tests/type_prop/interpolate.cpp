@@ -487,8 +487,8 @@ TEST(type_prop, interpolate_v11_default_ctor) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {1, 0, 0, 0};
-    attrs.pads_end = {0, 1, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{1, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 1, 0, 0};
 
     auto interp = std::make_shared<op::v11::Interpolate>();
     interp->set_arguments(OutputVector{image, scales, axes});
@@ -611,8 +611,8 @@ TEST(type_prop, interpolate_v11_sizes_with_shapeof) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs);
 
     EXPECT_EQ(interp->get_output_partial_shape(0), (PartialShape{{1, 3}, {0, 21}, {12, 37}, {10, -1}}));
@@ -630,8 +630,8 @@ TEST(type_prop, interpolate_v11_non_constant_axes_scales) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     auto interp = std::make_shared<op::v11::Interpolate>(image, scales, axes, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f16);
@@ -646,8 +646,8 @@ TEST(type_prop, interpolate_v11_scales_incorrect_et) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs),
                     ov::NodeValidationFailure,
@@ -661,9 +661,9 @@ TEST(type_prop, interpolate_v11_sizes_incorrect_et) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
-    ;
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
+
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Sizes element type must be i32, i64, u32 or u64"));
@@ -675,8 +675,8 @@ TEST(type_prop, interpolate_v11_scales_incorrect_number) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("The number of elements in the 'scales' input does not match the number of axes"));
@@ -688,8 +688,8 @@ TEST(type_prop, interpolate_v11_sizes_incorrect_number) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("The number of elements in the 'sizes' input does not match the number of axes"));
@@ -701,8 +701,8 @@ TEST(type_prop, interpolate_v11_scales_not_1d) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v11::Interpolate>(
                         image,
@@ -728,8 +728,8 @@ TEST(type_prop, interpolate_v11_axes_not_1d) {
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
     attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::NEAREST;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v11::Interpolate>(
                         image,
