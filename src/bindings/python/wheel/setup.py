@@ -49,15 +49,14 @@ OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 CONFIG = os.getenv("BUILD_TYPE", "Release")
-OV_RUNTIME_LIBS_DIR = "libs"
+OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", "python")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 PYTHON_EXTENSIONS_ONLY = True if os.getenv("PYTHON_EXTENSIONS_ONLY") is not None else False
 SKIP_RPATH = True if os.getenv("SKIP_RPATH") is not None else False
-CPACK_GENERATOR = os.getenv("CPACK_GENERATOR", "WHEEL")
-ENABLE_WHEEL = os.getenv("ENABLE_WHEEL", "ON")
+CPACK_GENERATOR = os.getenv("CPACK_GENERATOR", "TGZ")
 
 LIB_INSTALL_CFG = {
     "ie_libs": {
@@ -177,7 +176,7 @@ DATA_INSTALL_CFG = {
     "core_dev": {
         "name": "core_dev",
         "prefix": f"{BUILD_BASE}/libs.dev",
-        "install_dir": "",
+        "install_dir": "runtime",
         "binary_dir": OPENVINO_BINARY_DIR,
         "source_dir": OPENVINO_SOURCE_DIR
     }
@@ -302,20 +301,6 @@ class CustomBuild(build):
 
     def run(self):
         if not PYTHON_EXTENSIONS_ONLY:
-            self.announce(f"reset cpack_generator {CPACK_GENERATOR}", level=3)
-            self.spawn(["cmake",
-                    f"-DCPACK_GENERATOR=WHEEL",
-                    "-DENABLE_WHEEL=OFF",
-                    f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                    "-S", OPENVINO_SOURCE_DIR,
-                    "-B", OPENVINO_BINARY_DIR])
-
-            self.announce(f"Rebuilding project", level=3)
-            self.spawn(["cmake",
-                        "--build", OPENVINO_BINARY_DIR,
-                        "--config", CONFIG,
-                        "--parallel", str(self.jobs)])
-
             # build and install clib into temporary directories
             self.cmake_build_and_install(LIB_INSTALL_CFG)
             # build and install additional files into temporary directories
@@ -327,21 +312,6 @@ class CustomBuild(build):
         # install clibs into a temporary directory (site-packages)
         if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
-
-            self.announce(f"revert cpack_generator {CPACK_GENERATOR}", level=3)
-            self.spawn(["cmake",
-                        f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
-                        f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                        f"-DENABLE_WHEEL={ENABLE_WHEEL}",
-                        "-S", OPENVINO_SOURCE_DIR,
-                        "-B", OPENVINO_BINARY_DIR])
-
-            self.announce(f"Rebuilding project", level=3)
-            self.spawn(["cmake",
-                        "--build", OPENVINO_BINARY_DIR,
-                        "--config", CONFIG,
-                        "--parallel", str(self.jobs)])
-
 
         # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
@@ -483,10 +453,21 @@ class PrepareLibs(build_clib):
         package_dir = os.path.join(PACKAGE_DIR, WHEEL_PACKAGE_DIR)
         os.makedirs(package_dir, exist_ok=True)
 
+        replacements = {
+            '{CMAKE_CURRENT_LIST_DIR}/../../' : '{CMAKE_CURRENT_LIST_DIR}/../',
+            f'{OV_RUNTIME_LIBS_DIR}' : f'{WHEEL_LIBS_INSTALL_DIR}',
+            f'{DATA_INSTALL_CFG["core_dev"].get("install_dir")}/include' : f'{WHEEL_PACKAGE_DIR}/include',
+            r'(.so).(\d\d)(\d\d).(\d+).(\d+)': r'\1.\3\4\5' # changed the lib version 2024.3.0 -> 2430
+        }
+
         for src_dir in src_dirs:
             src, dst = Path(src_dir), Path(package_dir)
             shutil.copytree(src, dst, dirs_exist_ok=True)
 
+            # patch cmake configurations
+            for file_path in Path(dst).rglob("*.cmake"):
+                if file_path.is_file():
+                    replace_strings_in_file(file_path, replacements)
 
 def copy_file(src, dst, verbose=False, dry_run=False):
     """Custom file copy."""
@@ -497,6 +478,22 @@ def copy_file(src, dst, verbose=False, dry_run=False):
         if verbose:
             log.info(f"Copied '{src}' to '{dst}'")
 
+def replace_strings_in_file(file_path, replacements):
+    """
+    Replace strings in a text file.
+
+    :param file_path: Path to the source file.
+    :param replacements: A dictionary where keys are strings or regex patterns to be replaced and values are the new strings.
+    """
+    # Read the content of the file
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    for pattern, new_string in replacements.items():
+        content = re.sub(pattern, new_string, content)
+
+    with open(file_path, 'w', encoding='utf-8') as file:
+        file.write(content)
 
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
