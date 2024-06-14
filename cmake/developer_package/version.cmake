@@ -202,15 +202,9 @@ function(ov_add_library_version library)
         message(FATAL_ERROR "Internal error: OpenVINO_SOVERSION is not defined")
     endif()
 
-    if(CPACK_GENERATOR STREQUAL "WHEEL")
-        set(LIB_VERSION ${OpenVINO_SOVERSION})
-    else()
-        set(LIB_VERSION ${OpenVINO_VERSION})
-    endif()
-
     if(ENABLE_LIBRARY_VERSIONING)
         set_target_properties(${library} PROPERTIES
             SOVERSION ${OpenVINO_SOVERSION}
-            VERSION ${LIB_VERSION})
+            VERSION ${OpenVINO_VERSION})
     endif()
 endfunction()
