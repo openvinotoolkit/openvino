@@ -79,6 +79,10 @@ void MessageManager::set_num_sub_streams(int num_sub_streams) {
     _num_sub_streams = num_sub_streams;
 }
 
+int MessageManager::get_num_sub_streams() {
+    return _num_sub_streams;
+}
+
 void MessageManager::stop_server_thread() {
     MessageInfo msg_info;
     msg_info.msg_type = ov::threading::MsgType::QUIT;
