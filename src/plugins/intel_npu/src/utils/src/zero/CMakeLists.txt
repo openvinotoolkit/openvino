@@ -1,4 +1,5 @@
-# Copyright (C) 2018-2024 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME openvino_npu_zero_result_parser)
