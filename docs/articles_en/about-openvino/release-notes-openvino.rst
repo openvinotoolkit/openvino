@@ -64,6 +64,7 @@ What's new
   * Addition of the Generate API, a simplified API for text generation using large language
     models with only a few lines of code. The API is available through the newly launched
     OpenVINO GenAI package.
+  * Support for Intel Atom® Processor X Series. For more details, see :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
   * Preview: Support for Intel® Xeon® 6 processor.
 
 
@@ -77,8 +78,6 @@ Common
   efficient LLM weight compression.
 * Common OV headers have been optimized, improving binary compilation time and reducing binary
   size.
-* Support for Intel Atom® Processor X Series has been added. For more details, see
-  :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
 
 
 AUTO Inference Mode
@@ -115,13 +114,14 @@ GPU Device Plugin
 * Stable Diffusion FP16 performance improved on Core Ultra platforms, with significant pipeline
   improvement for models with dynamic-shaped input. Memory usage of the pipeline has been reduced,
   as well.
-* Improved performance of optimized permute_f_y kernel.
+* Optimized permute_f_y kernel performance has been improved.
 
 
 NPU Device Plugin
 -----------------------------
 
-* TBD
+* A new set of configuration options is now available.
+* Performance increase has been unlocked, with the new `2408 NPU driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 
 
 OpenVINO Python API

@@ -1,0 +1,1210 @@
+Model,Framework,Precision,AI PC CPU,AI PC GPU,AI PC NPU
+Denoise,tf,FP16,v,,
+Denoise,tf,FP32,v,,
+Denoise,tf,FP16,,v,v
+Denoise,tf,FP32,,,v
+GPT-2,onnx,FP16,v,,
+GPT-2,onnx,FP32,v,,
+GPT-2,onnx,FP16,,v,
+GPT-2,onnx,FP32,,v,
+Sharpen-LensBlur,tf,FP16,v,,
+Sharpen-LensBlur,tf,FP32,v,,
+Sharpen-LensBlur,tf,FP16,,v,v
+Sharpen-LensBlur,tf,FP16-INT8,,v,
+Sharpen-LensBlur,tf,FP32,,v,v
+Sharpen-MotionBlur,tf,FP16,v,,
+Sharpen-MotionBlur,tf,FP16-INT8,v,,
+Sharpen-MotionBlur,tf,FP32,v,,
+Sharpen-MotionBlur,tf,FP16,,v,v
+Sharpen-MotionBlur,tf,FP16-INT8,,v,v
+Sharpen-MotionBlur,tf,FP32,,v,v
+Sharpen-Sharpen,tf,FP16,v,,
+Sharpen-Sharpen,tf,FP16-INT8,v,,
+Sharpen-Sharpen,tf,FP32,v,,
+Sharpen-Sharpen,tf,FP16,,v,v
+Sharpen-Sharpen,tf,FP16-INT8,,v,
+Sharpen-Sharpen,tf,FP32,,v,v
+Sphereface,caffe,FP16,v,,
+Sphereface,caffe,FP32,v,,
+Sphereface,caffe,FP16,,v,v
+Sphereface,caffe,FP32,,v,v
+aclnet,onnx,FP16,v,,
+aclnet,onnx,FP16-INT8,v,,
+aclnet,onnx,FP32,v,,
+aclnet,onnx,FP16,,v,v
+aclnet,onnx,FP16-INT8,,v,v
+aclnet,onnx,FP32,,v,v
+aclnet-int8,onnx,FP16-INT8,,,v
+alexnet-caffe,caffe,FP16,v,,
+alexnet-caffe,caffe,FP32,v,,
+alexnet-caffe,caffe,FP16,,v,
+alexnet-caffe,caffe,FP32,,v,
+alexnet-onnx,onnx,FP16,v,,
+alexnet-onnx,onnx,FP16-INT8,v,,
+alexnet-onnx,onnx,FP32,v,,
+alexnet-onnx,onnx,FP16,,v,v
+alexnet-onnx,onnx,FP16-INT8,,v,
+alexnet-onnx,onnx,FP32,,v,v
+began,onnx,FP16,v,,
+began,onnx,FP32,v,,
+began,onnx,FP16,,v,v
+began,onnx,FP32,,v,v
+bert-base-cased-onnx,onnx,FP16,v,,
+bert-base-cased-onnx,onnx,FP16-INT8,v,,
+bert-base-cased-onnx,onnx,FP32,v,,
+bert-base-cased-onnx,onnx,FP16,,v,v
+bert-base-cased-onnx,onnx,FP16-INT8,,v,v
+bert-base-cased-onnx,onnx,FP32,,,v
+bert-base-cased-paddle,paddle,FP16,v,,
+bert-base-cased-paddle,paddle,FP16-INT8,v,,
+bert-base-cased-paddle,paddle,FP32,v,,
+bert-base-cased-paddle,paddle,FP16,,v,
+bert-base-cased-paddle,paddle,FP16-INT8,,v,
+bert-base-cased-squad2,onnx,FP16,v,,
+bert-base-cased-squad2,onnx,FP32,v,,
+bert-base-cased-squad2,onnx,FP16,,v,
+bert-base-chinese-xnli-zh,tf,FP16,,,v
+bert-base-chinese-xnli-zh,tf,FP32,,,v
+bert-base-ner,onnx,FP16,v,,
+bert-base-ner,onnx,FP16-INT8,v,,
+bert-base-ner,onnx,FP32,v,,
+bert-base-ner,onnx,FP16,,v,v
+bert-base-ner,onnx,FP16-INT8,,v,v
+bert-base-uncased-mrpc,onnx,FP16,,,v
+bert-base-uncased-mrpc,onnx,FP16-INT8,,,v
+bert-base-uncased-mrpc,onnx,FP32,,,v
+bert-large-uncased-whole-word-masking-squad-0001,onnx,FP16,v,,
+bert-large-uncased-whole-word-masking-squad-0001,onnx,FP32,v,,
+bert-large-uncased-whole-word-masking-squad-0001,onnx,FP16,,v,v
+bert-large-uncased-whole-word-masking-squad-0001,onnx,FP32,,v,v
+bert-large-uncased-whole-word-masking-squad-int8-0001,onnx,FP16-INT8,v,,
+bert-large-uncased-whole-word-masking-squad-int8-0001,onnx,FP16-INT8,,v,v
+bisenet-v2,paddle,FP16,v,,
+bisenet-v2,paddle,FP32,v,,
+bisenet-v2,paddle,FP16,,v,v
+brain-tumor-segmentation-0002,onnx,FP16,v,,
+brain-tumor-segmentation-0002,onnx,FP16-INT8,v,,
+colorization-siggraph,onnx,FP16,v,,
+colorization-siggraph,onnx,FP32,v,,
+colorization-siggraph,onnx,FP16,,v,v
+colorization-siggraph,onnx,FP32,,,v
+colorization-v2,onnx,FP16-INT8,,,v
+common-sign-language-0001,onnx,FP16,v,,
+common-sign-language-0001,onnx,FP32,v,,
+common-sign-language-0001,onnx,FP16,,v,v
+common-sign-language-0001,onnx,FP32,,v,v
+crnn-tf,tf,FP16,v,,
+crnn-tf,tf,FP32,v,,
+crnn-tf,tf,FP16,,v,
+darknet19,tf,FP16,v,,
+darknet19,tf,FP16-INT8,v,,
+darknet19,tf,FP32,v,,
+darknet19,tf,FP16,,v,v
+darknet19,tf,FP16-INT8,,v,v
+darknet19,tf,FP32,,v,
+deeplab-v3p-resnet50-os8,paddle,FP16,v,,
+deeplab-v3p-resnet50-os8,paddle,FP16-INT8,v,,
+deeplab-v3p-resnet50-os8,paddle,FP32,v,,
+deeplab-v3p-resnet50-os8,paddle,FP16,,v,
+deeplab-v3p-resnet50-os8,paddle,FP16-INT8,,v,
+deeplab-v3p-resnet50-os8,paddle,FP32,,v,
+deeplabv3,tf,FP16,v,,
+deeplabv3,tf,FP16-INT8,v,,
+deeplabv3,tf,FP32,v,,
+deeplabv3,tf,FP16,,v,
+deeplabv3,tf,FP16-INT8,,v,
+deeplabv3,tf,FP32,,v,
+densenet-121-caffe,caffe,FP16,v,,
+densenet-121-caffe,caffe,FP16,,v,v
+densenet-121-caffe,caffe,FP32,,,v
+densenet-121-onnx,onnx,FP16,v,,
+densenet-121-onnx,onnx,FP16-INT8,v,,
+densenet-121-onnx,onnx,FP32,v,,
+densenet-121-onnx,onnx,FP16,,v,v
+densenet-121-onnx,onnx,FP16-INT8,,v,
+densenet-121-tf,tf,FP16,v,,
+densenet-121-tf,tf,FP32,v,,
+densenet-121-tf,tf,FP16,,v,v
+densenet-121-tf,tf,FP32,,v,
+densenet-121-tf2,tf2,FP16,v,,
+densenet-121-tf2,tf2,FP32,v,,
+densenet-121-tf2,tf2,FP16,,v,v
+densenet-121-tf2,tf2,FP32,,v,v
+detr_resnet50,onnx,FP16,v,,
+detr_resnet50,onnx,FP32,v,,
+detr_resnet50,onnx,FP16,,v,
+dien_alibaba,tf,FP16,v,,
+dien_alibaba,tf,FP32,v,,
+dien_alibaba,tf,FP16,,v,
+distilbert-base-cased,onnx,FP16,v,,
+distilbert-base-cased,onnx,FP32,v,,
+distilbert-base-cased,onnx,FP16,,v,v
+distilbert-base-cased,onnx,FP32,,v,v
+distilbert-base-uncased,onnx,FP16,,,v
+distilbert-base-uncased,onnx,FP16-INT8,,,v
+distilbert-base-uncased-sst-2,onnx,FP16,v,,
+distilbert-base-uncased-sst-2,onnx,FP16-INT8,v,,
+distilbert-base-uncased-sst-2,onnx,FP32,v,,
+distilbert-base-uncased-sst-2,onnx,FP16,,v,v
+distilbert-base-uncased-sst-2,onnx,FP16-INT8,,v,
+distilbert-base-uncased-sst-2,onnx,FP32,,,v
+dna_r9.4.1@v3,onnx,FP16,v,,
+dna_r9.4.1@v3,onnx,FP32,v,,
+dpn-68,onnx,FP16,v,,
+dpn-68,onnx,FP16-INT8,v,,
+dpn-68,onnx,FP32,v,,
+dpn-68,onnx,FP16,,v,v
+dpn-68,onnx,FP32,,v,v
+east_resnet_v1_50,tf,FP16,v,,
+east_resnet_v1_50,tf,FP16-INT8,v,,
+east_resnet_v1_50,tf,FP32,v,,
+east_resnet_v1_50,tf,FP16,,v,v
+east_resnet_v1_50,tf,FP16-INT8,,v,
+east_resnet_v1_50,tf,FP32,,v,
+ebgan,onnx,FP16,v,,
+ebgan,onnx,FP32,v,,
+ebgan,onnx,FP16,,v,v
+ebgan,onnx,FP32,,,v
+edsr3-nas,onnx,FP16,v,,
+edsr3-nas,onnx,FP32,v,,
+edsr3-nas,onnx,FP16,,v,v
+edsr3-nas,onnx,FP32,,v,v
+edsr3_super_resolution,tf,FP16,v,,
+edsr3_super_resolution,tf,FP32,v,,
+edsr3_super_resolution,tf,FP16,,v,v
+edsr3_super_resolution,tf,FP32,,v,v
+efficientdet-d0-tf,tf,FP16,v,,
+efficientdet-d0-tf,tf,FP16-INT8,v,,
+efficientdet-d0-tf,tf,FP16,,v,v
+efficientdet-d0-tf,tf,FP16-INT8,,v,v
+efficientnet-b0-onnx,onnx,FP16,v,,
+efficientnet-b0-onnx,onnx,FP16-INT8,v,,
+efficientnet-b0-onnx,onnx,FP32,v,,
+efficientnet-b0-onnx,onnx,FP16,,v,v
+efficientnet-b0-onnx,onnx,FP16-INT8,,v,v
+efficientnet-b0-onnx,onnx,FP32,,v,v
+efficientnet-b0-tf,tf,FP16,v,,
+efficientnet-b0-tf,tf,FP16-INT8,v,,
+efficientnet-b0-tf,tf,FP32,v,,
+efficientnet-b0-tf,tf,FP16,,v,v
+efficientnet-b0-tf,tf,FP16-INT8,,v,v
+efficientnet-b0-tf,tf,FP32,,v,
+efficientnet-v2-m,onnx,FP16,v,,
+efficientnet-v2-m,onnx,FP16-INT8,v,,
+efficientnet-v2-m,onnx,FP32,v,,
+efficientnet-v2-m,onnx,FP16,,v,v
+efficientnet-v2-m,onnx,FP16-INT8,,v,v
+efficientnet-v2-m,onnx,FP32,,v,v
+emotions-recognition-retail-0003,caffe,FP16,,,v
+emotions-recognition-retail-0003,caffe,FP16-INT8,,,v
+esrgan,onnx,FP16,v,,
+esrgan,onnx,FP32,v,,
+esrgan,onnx,FP16,,,v
+f3net,onnx,FP16,,,v
+f3net,onnx,FP16-INT8,,,v
+f3net,onnx,FP32,,,v
+face-detection-0200,onnx,FP16,,,v
+face-detection-0202,onnx,FP16,,,v
+face-detection-0202,onnx,FP32,,,v
+face-detection-0204,onnx,FP16,,,v
+face-detection-adas-0001,caffe,FP16,,,v
+face-detection-adas-0001,caffe,FP32,,,v
+face-detection-retail-0004,caffe,FP16,,,v
+face-detection-retail-0004,caffe,FP32,,,v
+face-detection-retail-0044,caffe,FP16,,,v
+face-detection-retail-0044,caffe,FP32,,,v
+face-recognition-mobilefacenet-arcface,mxnet,FP16,,,v
+face-recognition-mobilefacenet-arcface,mxnet,FP16-INT8,,,v
+face-recognition-resnet50-arcface,mxnet,FP16,v,,
+face-recognition-resnet50-arcface,mxnet,FP16,,v,v
+face-recognition-resnet50-aws,mxnet,FP16,,,v
+face-recognition-resnet50-aws,mxnet,FP32,,,v
+face-reidentification-retail-0095,onnx,FP16,,,v
+face-reidentification-retail-0095,onnx,FP16-INT8,,,v
+faceboxes-caffe,caffe,FP16,v,,
+faceboxes-caffe,caffe,FP32,v,,
+faceboxes-caffe,caffe,FP16,,v,v
+faceboxes-caffe,caffe,FP32,,v,
+faceboxes-onnx,onnx,FP16,v,,
+faceboxes-onnx,onnx,FP16-INT8,v,,
+faceboxes-onnx,onnx,FP32,v,,
+faceboxes-onnx,onnx,FP16,,v,v
+faceboxes-onnx,onnx,FP16-INT8,,v,v
+faceboxes-onnx,onnx,FP32,,v,v
+facenet,onnx,FP16,,,v
+facenet,onnx,FP16-INT8,,,v
+facenet-20180408-102900,tf,FP16,v,,
+facenet-20180408-102900,tf,FP32,v,,
+facenet-20180408-102900,tf,FP16,,v,v
+facenet-20180408-102900,tf,FP32,,v,
+facial-landmarks-35-adas-0002,caffe,FP16,,,v
+facial-landmarks-35-adas-0002,caffe,FP16-INT8,,,v
+facial-landmarks-98-detection-0001,onnx,FP16,v,,
+facial-landmarks-98-detection-0001,onnx,FP32,v,,
+facial-landmarks-98-detection-0001,onnx,FP16,,v,v
+facial-landmarks-98-detection-0001,onnx,FP32,,v,v
+faster-rcnn-resnet101-coco-sparse-60-0001,tf,FP16,v,,
+faster-rcnn-resnet101-coco-sparse-60-0001,tf,FP32,v,,
+faster-rcnn-resnet101-coco-sparse-60-0001,tf,FP16,,v,
+faster-rcnn-resnet101-coco-sparse-60-0001,tf,FP32,,v,
+faster_rcnn_inception_resnet_v2_atrous_coco,tf,FP16,v,,
+faster_rcnn_inception_resnet_v2_atrous_coco,tf,FP32,v,,
+faster_rcnn_inception_resnet_v2_atrous_coco,tf,FP16,,v,
+faster_rcnn_inception_v2_coco,tf,FP16,v,,
+faster_rcnn_inception_v2_coco,tf,FP32,v,,
+faster_rcnn_inception_v2_coco,tf,FP16,,v,
+faster_rcnn_resnet101_coco,tf,FP16,v,,
+faster_rcnn_resnet101_coco,tf,FP16,,v,
+faster_rcnn_resnet101_coco,tf,FP32,,v,
+faster_rcnn_resnet101_kitti,tf,FP16,v,,
+faster_rcnn_resnet101_kitti,tf,FP32,v,,
+faster_rcnn_resnet101_kitti,tf,FP16,,v,
+faster_rcnn_resnet50_coco,tf,FP16,v,,
+faster_rcnn_resnet50_coco,tf,FP16-INT8,v,,
+faster_rcnn_resnet50_coco,tf,FP32,v,,
+faster_rcnn_resnet50_coco,tf,FP16,,v,
+faster_rcnn_resnet50_coco,tf,FP16-INT8,,v,
+faster_rcnn_resnet50_fpn_coco,onnx,FP16,v,,
+fastscnn,paddle,FP16,v,,
+fastscnn,paddle,FP32,v,,
+fastscnn,paddle,FP16,,v,v
+fastseg-small,onnx,FP16,v,,
+fastseg-small,onnx,FP16-INT8,v,,
+fastseg-small,onnx,FP32,v,,
+fastseg-small,onnx,FP16,,v,
+fastseg-small,onnx,FP16-INT8,,v,
+fastseg-small,onnx,FP32,,v,
+fcrn-dp-nyu-depth-v2-tf,tf,FP16,,,v
+fcrn-dp-nyu-depth-v2-tf,tf,FP16-INT8,,,v
+fcrn-dp-nyu-depth-v2-tf,tf,FP32,,,v
+forward-tacotron-duration-prediction,onnx,FP16,v,,
+forward-tacotron-duration-prediction,onnx,FP32,v,,
+forward-tacotron-duration-prediction,onnx,FP16,,,v
+forward-tacotron-duration-prediction,onnx,FP32,,,v
+fsrcnn-x4,tf,FP16,v,,
+fsrcnn-x4,tf,FP32,v,,
+fsrcnn-x4,tf,FP16,,v,v
+gaze-estimation-adas-0002,onnx,FP16,,,v
+googlenet-v4-caffe,caffe,FP16,v,,
+googlenet-v4-caffe,caffe,FP32,v,,
+googlenet-v4-caffe,caffe,FP16,,v,v
+googlenet-v4-tf,tf,FP16,v,,
+googlenet-v4-tf,tf,FP16-INT8,v,,
+googlenet-v4-tf,tf,FP32,v,,
+googlenet-v4-tf,tf,FP16,,v,
+googlenet-v4-tf,tf,FP16-INT8,,v,
+handwritten-japanese-recognition-0001,onnx,FP16-INT8,,,v
+hg-s8-b1-mpii,onnx,FP16,v,,
+hg-s8-b1-mpii,onnx,FP16-INT8,v,,
+hg-s8-b1-mpii,onnx,FP16,,v,v
+hg-s8-b1-mpii,onnx,FP16-INT8,,v,
+higher-hrnet-w32-512,onnx,FP16,v,,
+higher-hrnet-w32-512,onnx,FP32,v,,
+higher-hrnet-w32-512,onnx,FP16,,v,
+horizontal-text-detection-0001,onnx,FP16,v,,
+horizontal-text-detection-0001,onnx,FP16-INT8,v,,
+horizontal-text-detection-0001,onnx,FP32,v,,
+horizontal-text-detection-0001,onnx,FP16,,v,
+horizontal-text-detection-0001,onnx,FP16-INT8,,v,
+horizontal-text-detection-0001,onnx,FP32,,v,
+human-pose-estimation-3d-0001,onnx,FP16,v,,
+human-pose-estimation-3d-0001,onnx,FP32,v,,
+human-pose-estimation-3d-0001,onnx,FP16,,v,v
+human-pose-estimation-3d-0001,onnx,FP32,,v,v
+hybrid-cs-model-mri,tf2,FP16,,,v
+hybrid-cs-model-mri,tf2,FP32,,,v
+i3d-flow,tf,FP16,v,,
+i3d-flow,tf,FP16-INT8,v,,
+i3d-flow,tf,FP32,v,,
+i3d-flow,tf,FP16,,v,
+i3d-flow,tf,FP32,,v,
+instance-segmentation-security-0002,onnx,FP16,v,,
+instance-segmentation-security-0002,onnx,FP32,v,,
+instance-segmentation-security-0010,onnx,FP16,v,,
+instance-segmentation-security-0010,onnx,FP32,v,,
+mask_rcnn_inception_resnet_v2_atrous_coco,tf,FP16,v,,
+mask_rcnn_inception_resnet_v2_atrous_coco,tf,FP32,v,,
+mask_rcnn_inception_resnet_v2_atrous_coco,tf,FP16,,v,
+mask_rcnn_inception_resnet_v2_atrous_coco,tf,FP32,,v,
+mask_rcnn_inception_v2_coco,tf,FP16,v,,
+mask_rcnn_inception_v2_coco,tf,FP16-INT8,v,,
+mask_rcnn_inception_v2_coco,tf,FP32,v,,
+mask_rcnn_inception_v2_coco,tf,FP16,,v,
+mask_rcnn_inception_v2_coco,tf,FP16-INT8,,v,
+mask_rcnn_inception_v2_coco,tf,FP32,,v,
+mask_rcnn_resnet101_atrous_coco,tf,FP16,v,,
+mask_rcnn_resnet101_atrous_coco,tf,FP16-INT8,v,,
+mask_rcnn_resnet101_atrous_coco,tf,FP16,,v,
+mask_rcnn_resnet101_atrous_coco,tf,FP16-INT8,,v,
+mask_rcnn_resnet50_atrous_coco,tf,FP16,v,,
+mask_rcnn_resnet50_atrous_coco,tf,FP16-INT8,v,,
+mask_rcnn_resnet50_atrous_coco,tf,FP32,v,,
+mask_rcnn_resnet50_atrous_coco,tf,FP16,,v,
+mask_rcnn_resnet50_atrous_coco,tf,FP16-INT8,,v,
+mask_rcnn_resnet50_atrous_coco,tf,FP32,,v,
+midasnet,onnx,FP16,,,v
+midasnet,onnx,FP16-INT8,,,v
+midasnet,onnx,FP32,,,v
+mobilebert,onnx,FP16-INT8,v,,
+mobilebert,onnx,FP16-INT8,,v,
+mobilenet-ssd,caffe,FP16,v,,
+mobilenet-ssd,caffe,FP32,v,,
+mobilenet-ssd,caffe,FP16,,v,v
+mobilenet-v2-caffe,caffe,FP16,v,,
+mobilenet-v2-caffe,caffe,FP32,v,,
+mobilenet-v2-caffe,caffe,FP16,,v,v
+mobilenet-v2-onnx,onnx,FP16,v,,
+mobilenet-v2-onnx,onnx,FP16-INT8,v,,
+mobilenet-v2-onnx,onnx,FP32,v,,
+mobilenet-v2-onnx,onnx,FP16,,v,v
+mobilenet-v2-onnx,onnx,FP16-INT8,,v,v
+mobilenet-v2-paddle,paddle,FP16,v,,
+mobilenet-v2-paddle,paddle,FP16-INT8,v,,
+mobilenet-v2-paddle,paddle,FP32,v,,
+mobilenet-v2-paddle,paddle,FP16,,v,v
+mobilenet-v2-paddle,paddle,FP16-INT8,,v,v
+mobilenet-v2-paddle,paddle,FP32,,v,v
+mobilenet-v2-1.0-224-tf,tf,FP16,v,,
+mobilenet-v2-1.0-224-tf,tf,FP16-INT8,v,,
+mobilenet-v2-1.0-224-tf,tf,FP32,v,,
+mobilenet-v2-1.0-224-tf,tf,FP16,,v,v
+mobilenet-v2-1.0-224-tf,tf,FP16-INT8,,v,v
+mobilenet-v2-1.0-224-tf2,tf2,FP16,v,,
+mobilenet-v2-1.0-224-tf2,tf2,FP16-INT8,v,,
+mobilenet-v2-1.0-224-tf2,tf2,FP32,v,,
+mobilenet-v2-1.0-224-tf2,tf2,FP16,,v,v
+mobilenet-v2-1.0-224-tf2,tf2,FP16-INT8,,v,v
+mobilenet-v3-large-1.0-224-onnx,onnx,FP16,v,,
+mobilenet-v3-large-1.0-224-onnx,onnx,FP16-INT8,v,,
+mobilenet-v3-large-1.0-224-onnx,onnx,FP32,v,,
+mobilenet-v3-large-1.0-224-onnx,onnx,FP16,,v,v
+mobilenet-v3-large-1.0-224-onnx,onnx,FP16-INT8,,v,v
+mobilenet-v3-large-1.0-224-onnx,onnx,FP32,,,v
+mobilenet-v3-large-1.0-224-paddle,paddle,FP16,v,,
+mobilenet-v3-large-1.0-224-paddle,paddle,FP16-INT8,v,,
+mobilenet-v3-large-1.0-224-paddle,paddle,FP32,v,,
+mobilenet-v3-large-1.0-224-paddle,paddle,FP16,,v,v
+mobilenet-v3-large-1.0-224-paddle,paddle,FP16-INT8,,v,v
+mobilenet-v3-large-1.0-224-paddle,paddle,FP32,,v,v
+mobilenet-v3-large-1.0-224-tf,tf,FP16,v,,
+mobilenet-v3-large-1.0-224-tf,tf,FP32,v,,
+mobilenet-v3-large-1.0-224-tf,tf,FP16,,v,v
+mobilenet-v3-large-1.0-224-tf,tf,FP32,,v,v
+mobilenet-v3-large-1.0-224-tf2,tf2,FP16,v,,
+mobilenet-v3-large-1.0-224-tf2,tf2,FP16-INT8,v,,
+mobilenet-v3-large-1.0-224-tf2,tf2,FP32,v,,
+mobilenet-v3-large-1.0-224-tf2,tf2,FP16,,v,v
+mobilenet-v3-large-1.0-224-tf2,tf2,FP16-INT8,,v,v
+mobilenet-v3-large-1.0-224-tf2,tf2,FP32,,,v
+mobilenet-yolo-v4-syg,tf,FP16,,,v
+mobilenet-yolo-v4-syg,tf,FP16-INT8,,,v
+mobilenet-yolo-v4-syg,tf,FP32,,,v
+modnet_webcam_portrait_matting,onnx,FP16-INT8,,,v
+mozilla-deepspeech-0.8.2,tf,FP16,v,,
+mozilla-deepspeech-0.8.2,tf,FP16-INT8,v,,
+mozilla-deepspeech-0.8.2,tf,FP32,v,,
+mozilla-deepspeech-0.8.2,tf,FP16-INT8,,,v
+mozilla-deepspeech-0.8.2,tf,FP32,,,v
+ocrnet-hrnet-w18,paddle,FP16,v,,
+ocrnet-hrnet-w18,paddle,FP16-INT8,v,,
+ocrnet-hrnet-w18,paddle,FP32,v,,
+ocrnet-hrnet-w18,paddle,FP16,,v,v
+ocrnet-hrnet-w18,paddle,FP16-INT8,,v,
+ocrnet-hrnet-w48,paddle,FP16,v,,
+ocrnet-hrnet-w48,paddle,FP32,v,,
+octave-resnext-101-0.25,mxnet,FP16,v,,
+octave-resnext-101-0.25,mxnet,FP32,v,,
+octave-resnext-101-0.25,mxnet,FP16,,v,v
+open-closed-eye-0001,onnx,FP16,,,v
+open-closed-eye-0001,onnx,FP16-INT8,,,v
+open-closed-eye-0001,onnx,FP32,,,v
+pedestrian-detection-adas-0002,caffe,FP16,,,v
+pedestrian-detection-adas-0002,caffe,FP16-INT8,,,v
+pedestrian-detection-adas-0002,caffe,FP32,,,v
+person-detection-0100,onnx,FP16,,,v
+person-detection-0101,onnx,FP16,,,v
+person-detection-0201,onnx,FP16,,,v
+person-detection-0201,onnx,FP32,,,v
+person-vehicle-bike-detection-crossroad-0078,caffe,FP16,v,,
+person-vehicle-bike-detection-crossroad-0078,caffe,FP16-INT8,v,,
+person-vehicle-bike-detection-crossroad-0078,caffe,FP16,,v,v
+person-vehicle-bike-detection-crossroad-0078,caffe,FP16-INT8,,v,v
+person-vehicle-bike-detection-crossroad-0078,caffe,FP32,,v,
+pp-ocr-det,paddle,FP16,v,,
+pp-ocr-det,paddle,FP16-INT8,v,,
+pp-ocr-det,paddle,FP32,v,,
+pp-ocr-det,paddle,FP16-INT8,,v,v
+pp-ocr-rec,paddle,FP16,v,,
+pp-ocr-rec,paddle,FP32,v,,
+pp-yolo,paddle,FP16,v,,
+pp-yolo,paddle,FP32,v,,
+prnet,tf,FP16,,,v
+prnet,tf,FP16-INT8,,,v
+prnet,tf,FP32,,,v
+product-detection-0001,onnx,FP16,,,v
+product-detection-0001,onnx,FP16-INT8,,,v
+product-detection-0001,onnx,FP32,,,v
+quartznet-15x5-en,onnx,FP16,v,,
+quartznet-15x5-en,onnx,FP16-INT8,v,,
+quartznet-15x5-en,onnx,FP32,v,,
+resnet-18,onnx,FP16,v,,
+resnet-18,onnx,FP16-INT8,v,,
+resnet-18,onnx,FP32,v,,
+resnet-18,onnx,FP16,,v,v
+resnet-18,onnx,FP16-INT8,,v,v
+resnet-18,onnx,FP32,,,v
+resnet-50-onnx,onnx,FP16,v,,
+resnet-50-onnx,onnx,FP16-INT8,v,,
+resnet-50-onnx,onnx,FP32,v,,
+resnet-50-onnx,onnx,FP16,,v,v
+resnet-50-onnx,onnx,FP16-INT8,,v,v
+resnet-50-onnx,onnx,FP32,,v,v
+resnet-50-paddle,paddle,FP16,v,,
+resnet-50-paddle,paddle,FP16-INT8,v,,
+resnet-50-paddle,paddle,FP32,v,,
+resnet-50-paddle,paddle,FP16,,v,v
+resnet-50-paddle,paddle,FP16-INT8,,v,v
+resnet-50-paddle,paddle,FP32,,v,
+resnet-50-tf,tf,FP16,v,,
+resnet-50-tf,tf,FP16-INT8,v,,
+resnet-50-tf,tf,FP32,v,,
+resnet-50-tf,tf,FP16,,v,v
+resnet-50-tf,tf,FP16-INT8,,v,v
+resnet-50-tf,tf,FP32,,,v
+resnet-50-pytorch,onnx,FP16,v,,
+resnet-50-pytorch,onnx,FP16-INT8,v,,
+resnet-50-pytorch,onnx,FP32,v,,
+resnet-50-pytorch,onnx,FP16,,v,v
+resnet-50-pytorch,onnx,FP16-INT8,,v,v
+resnet-50-pytorch,onnx,FP32,,v,v
+resnext-101-32x8d,onnx,FP16,v,,
+resnext-101-32x8d,onnx,FP32,v,,
+resnext-101-32x8d,onnx,FP16,,v,
+resnext101-32x16d-swsl,onnx,FP16,v,,
+resnext101-32x16d-swsl,onnx,FP16-INT8,v,,
+resnext101-32x16d-swsl,onnx,FP32,v,,
+resnext101-32x16d-swsl,onnx,FP16,,v,
+resnext101-32x16d-swsl,onnx,FP16-INT8,,v,v
+retinanet,tf2,FP16,v,,
+retinanet,tf2,FP32,v,,
+retinanet,tf2,FP16,,v,v
+retinanet,tf2,FP32,,v,v
+retinanet_resnet34,onnx,FP16,,,v
+retinanet_resnet34,onnx,FP16-INT8,,,v
+retinanet_resnet34,onnx,FP32,,,v
+rnnt,onnx,FP16,v,,
+rnnt,onnx,FP32,v,,
+road-segmentation-adas-0001,caffe,FP16,,,v
+roberta-base,onnx,FP16,v,,
+roberta-base,onnx,FP16-INT8,v,,
+roberta-base,onnx,FP32,v,,
+roberta-base,onnx,FP16,,v,
+roberta-base,onnx,FP16-INT8,,v,
+roberta-base-mrpc,onnx,FP16-INT8,v,,
+roberta-base-mrpc,onnx,FP16-INT8,,v,v
+roberta-large,onnx,FP16,v,,
+roberta-large,onnx,FP32,v,,
+roberta-large,onnx,FP16,,v,
+roberta-large,onnx,FP32,,v,
+sbert-base-mean-tokens,onnx,FP16,,,v
+sbert-base-mean-tokens,onnx,FP16-INT8,,,v
+sbert-base-mean-tokens,onnx,FP32,,,v
+se-resnet-50,caffe,FP16,v,,
+se-resnet-50,caffe,FP32,v,,
+se-resnet-50,caffe,FP16,,v,v
+se-resnet-50,caffe,FP32,,,v
+se-resnext-101,caffe,FP16,v,,
+se-resnext-101,caffe,FP16,,v,v
+se-resnext-101,caffe,FP32,,v,
+se-resnext-50-caffe,caffe,FP16,v,,
+se-resnext-50-caffe,caffe,FP32,v,,
+se-resnext-50-caffe,caffe,FP16,,v,v
+se-resnext-50-caffe,caffe,FP32,,v,
+se-resnext-50-onnx,onnx,FP16,v,,
+se-resnext-50-onnx,onnx,FP16-INT8,v,,
+se-resnext-50-onnx,onnx,FP32,v,,
+se-resnext-50-onnx,onnx,FP16,,v,v
+se-resnext-50-onnx,onnx,FP32,,v,v
+se-resnext-50-tf,tf,FP16,v,,
+se-resnext-50-tf,tf,FP32,v,,
+se-resnext-50-tf,tf,FP16,,v,v
+se-resnext-50-tf,tf,FP32,,v,
+semantic-segmentation-adas-0001,caffe,FP16,v,,
+semantic-segmentation-adas-0001,caffe,FP16-INT8,v,,
+semantic-segmentation-adas-0001,caffe,FP32,v,,
+semantic-segmentation-adas-0001,caffe,FP16,,v,
+shufflenet-v2-x1.0-onnx,onnx,FP16,v,,
+shufflenet-v2-x1.0-onnx,onnx,FP16-INT8,v,,
+shufflenet-v2-x1.0-onnx,onnx,FP32,v,,
+shufflenet-v2-x1.0-onnx,onnx,FP16,,v,v
+shufflenet-v2-x1.0-onnx,onnx,FP16-INT8,,v,v
+shufflenet-v2-x1.0-tf,tf,FP16,v,,
+shufflenet-v2-x1.0-tf,tf,FP16-INT8,v,,
+shufflenet-v2-x1.0-tf,tf,FP32,v,,
+shufflenet-v2-x1.0-tf,tf,FP16,,v,v
+shufflenet-v2-x1.0-tf,tf,FP16-INT8,,v,v
+shufflenet-v2-x1.0-tf,tf,FP32,,v,
+single-image-super-resolution-1032,onnx,FP16,v,,
+single-image-super-resolution-1032,onnx,FP16,,v,v
+squeezenet1.1-caffe,caffe,FP16,v,,
+squeezenet1.1-caffe,caffe,FP32,v,,
+squeezenet1.1-caffe,caffe,FP16,,v,v
+squeezenet1.1-caffe,caffe,FP32,,v,v
+squeezenet1.1-mxnet,mxnet,FP16,v,,
+squeezenet1.1-mxnet,mxnet,FP32,v,,
+squeezenet1.1-mxnet,mxnet,FP16,,v,v
+squeezenet1.1-mxnet,mxnet,FP32,,v,v
+squeezenet1.1-onnx,onnx,FP16,v,,
+squeezenet1.1-onnx,onnx,FP32,v,,
+squeezenet1.1-onnx,onnx,FP16,,v,v
+srgan-onnx,onnx,FP16,v,,
+srgan-onnx,onnx,FP16,,,v
+srgan-tf,tf,FP16,v,,
+srgan-tf,tf,FP16-INT8,v,,
+srgan-tf,tf,FP32,v,,
+srgan-tf,tf,FP16,,v,
+srgan-tf,tf,FP16-INT8,,v,v
+ssd-resnet34-1200,onnx,FP16,v,,
+ssd-resnet34-1200,onnx,FP16-INT8,v,,
+ssd-resnet34-1200,onnx,FP32,v,,
+ssd-resnet34-1200,onnx,FP16,,v,
+ssd-resnet34-1200,onnx,FP16-INT8,,v,
+ssd300-onnx-0001,onnx,FP16,,,v
+ssd300-onnx-0001,onnx,FP16-INT8,,,v
+ssd_mobilenet_v1_coco,tf,FP16,v,,
+ssd_mobilenet_v1_coco,tf,FP16-INT8,v,,
+ssd_mobilenet_v1_coco,tf,FP32,v,,
+ssd_mobilenet_v1_coco,tf,FP16,,v,v
+ssd_mobilenet_v1_coco,tf,FP16-INT8,,v,v
+ssd_mobilenet_v1_coco,tf,FP32,,v,v
+ssdlite-mobilenet-v3-small-320-coco,paddle,FP16,v,,
+ssdlite-mobilenet-v3-small-320-coco,paddle,FP32,v,,
+ssdlite_mobilenet_v2,tf,FP16,v,,
+ssdlite_mobilenet_v2,tf,FP16-INT8,v,,
+ssdlite_mobilenet_v2,tf,FP32,v,,
+ssdlite_mobilenet_v2,tf,FP16,,v,v
+ssdlite_mobilenet_v2,tf,FP16-INT8,,v,
+ssdlite_mobilenet_v2,tf,FP32,,v,v
+style_transfer,onnx,FP16,v,,
+style_transfer,onnx,FP16-INT8,v,,
+style_transfer,onnx,FP32,v,,
+style_transfer,onnx,FP16,,v,v
+style_transfer,onnx,FP16-INT8,,v,v
+style_transfer,onnx,FP32,,v,v
+stylegan2,tf,FP16,v,,
+stylegan2,tf,FP32,v,,
+stylegan2,tf,FP16,,v,
+swin-tiny-patch4-window7-224,onnx,FP16,v,,
+swin-tiny-patch4-window7-224,onnx,FP16-INT8,v,,
+swin-tiny-patch4-window7-224,onnx,FP32,v,,
+swin-tiny-patch4-window7-224,onnx,FP16,,v,
+swin-tiny-patch4-window7-224,onnx,FP16-INT8,,v,v
+swin-tiny-patch4-window7-224,onnx,FP32,,v,
+t2t-vit-7,onnx,FP16,v,,
+t2t-vit-7,onnx,FP16-INT8,v,,
+t2t-vit-7,onnx,FP32,v,,
+t2t-vit-7,onnx,FP16,,v,
+t2t-vit-7,onnx,FP16-INT8,,v,
+t2t-vit-7,onnx,FP32,,v,
+tedlium_dnn4_smbr,kaldi,FP16,v,,
+tedlium_dnn4_smbr,kaldi,FP16-INT8,v,,
+tedlium_dnn4_smbr,kaldi,FP32,v,,
+tedlium_dnn4_smbr,kaldi,FP16,,v,v
+tedlium_dnn4_smbr,kaldi,FP16-INT8,,v,
+text-image-super-resolution-0001,onnx,FP16,v,,
+text-image-super-resolution-0001,onnx,FP16-INT8,v,,
+text-image-super-resolution-0001,onnx,FP32,v,,
+text-image-super-resolution-0001,onnx,FP16,,v,v
+text-image-super-resolution-0001,onnx,FP16-INT8,,v,v
+text-image-super-resolution-0001,onnx,FP32,,v,v
+text-recognition-0012,tf,FP16,v,,
+text-recognition-0012,tf,FP32,v,,
+text-recognition-0012,tf,FP16,,v,v
+text-recognition-0012,tf,FP32,,v,
+text-recognition-0013,onnx,FP16,,,v
+text-recognition-0013,onnx,FP32,,,v
+text-recognition-0014,onnx,FP16,,,v
+text-recognition-0014,onnx,FP16-INT8,,,v
+text-recognition-0014,onnx,FP32,,,v
+text-to-speech-en-multi-0001,null,FP32,v,,
+tiny_yolo_v2,onnx,FP16,,,v
+tiny_yolo_v2,onnx,FP32,,,v
+tinybert_6layer_768dim_cola,onnx,FP16,,,v
+tinybert_6layer_768dim_cola,onnx,FP16-INT8,,,v
+tinybert_6layer_768dim_cola,onnx,FP32,,,v
+tiramisu-fc-densenet-103,tf2,FP16,,,v
+tiramisu-fc-densenet-103,tf2,FP16-INT8,,,v
+tiramisu-fc-densenet-103,tf2,FP32,,,v
+topaz_video_super_resolution,tf,FP16,v,,
+topaz_video_super_resolution,tf,FP32,v,,
+topaz_video_super_resolution,tf,FP16,,v,v
+topaz_video_super_resolution,tf,FP32,,v,v
+ultra-lightweight-face-detection-rfb-320,onnx,FP16,,,v
+ultra-lightweight-face-detection-slim-320,onnx,FP16,,,v
+unet-2d,onnx,FP16,,,v
+unet-camvid-onnx-0001,onnx,FP16,v,,
+unet-camvid-onnx-0001,onnx,FP16-INT8,v,,
+unet-camvid-onnx-0001,onnx,FP32,v,,
+unet-camvid-onnx-0001,onnx,FP16,,v,v
+unet-camvid-onnx-0001,onnx,FP16-INT8,,v,v
+unet3d_mlperf-onnx,onnx,FP16,v,,
+unet3d_mlperf-onnx,onnx,FP16-INT8,v,,
+unet3d_mlperf-onnx,onnx,FP32,v,,
+unet3d_mlperf-onnx,onnx,FP16,,v,
+unet3d_mlperf-onnx,onnx,FP16-INT8,,v,
+unet3d_mlperf-onnx,onnx,FP32,,v,
+unet3d_mlperf-tf,tf,FP16,v,,
+unet3d_mlperf-tf,tf,FP16-INT8,v,,
+unet3d_mlperf-tf,tf,FP16,,v,
+unet3d_mlperf-tf,tf,FP16-INT8,,v,
+urlnet,tf2,FP16,v,,
+urlnet,tf2,FP32,v,,
+urlnet,tf2,FP16,,v,v
+urlnet,tf2,FP32,,v,v
+vehicle-detection-adas-0002,caffe,FP16,,,v
+vitstr-small-patch16-224,onnx,FP16,,,v
+vitstr-small-patch16-224,onnx,FP32,,,v
+wav2vec2-base,onnx,FP16,v,,
+wav2vec2-base,onnx,FP16-INT8,v,,
+wav2vec2-base,onnx,FP32,v,,
+wavernn-rnn,onnx,FP16,,,v
+wavernn-rnn,onnx,FP32,,,v
+wavernn-upsampler,onnx,FP16,v,,
+wavernn-upsampler,onnx,FP32,v,,
+wavernn-upsampler,onnx,FP16,,v,v
+wavernn-upsampler,onnx,FP32,,,v
+wdsr-small-x4,onnx,FP16,v,,
+wdsr-small-x4,onnx,FP16-INT8,v,,
+wdsr-small-x4,onnx,FP32,v,,
+wdsr-small-x4,onnx,FP16,,v,v
+wdsr-small-x4,onnx,FP16-INT8,,,v
+wdsr-small-x4,onnx,FP32,,v,
+weld-porosity-detection-0001,onnx,FP16,,,v
+weld-porosity-detection-0001,onnx,FP32,,,v
+xlm-roberta-base,onnx,FP16,v,,
+xlm-roberta-base,onnx,FP32,v,,
+xlm-roberta-base,onnx,FP16,,v,
+yolo-v2-ava-0001,tf,FP16,v,,
+yolo-v2-ava-0001,tf,FP16-INT8,v,,
+yolo-v2-ava-0001,tf,FP32,v,,
+yolo-v2-ava-0001,tf,FP16,,v,v
+yolo-v2-ava-0001,tf,FP16-INT8,,v,v
+yolo-v2-ava-0001,tf,FP32,,v,v
+yolo-v2-ava-sparse-70-0001,tf,FP16,,,v
+yolo-v2-ava-sparse-70-0001,tf,FP16-INT8,,,v
+yolo-v2-ava-sparse-70-0001,tf,FP32,,,v
+yolo-v3-caffe,caffe,FP16,v,,
+yolo-v3-caffe,caffe,FP32,v,,
+yolo-v3-caffe,caffe,FP16,,v,
+yolo-v3-caffe,caffe,FP32,,v,
+yolo-v3-tf,tf,FP16,v,,
+yolo-v3-tf,tf,FP32,v,,
+yolo-v3-tf,tf,FP16,,v,v
+yolo-v3-tf,tf,FP32,,v,v
+yolo_v3-onnx,onnx,FP16,v,,
+yolo_v3-onnx,onnx,FP16,,v,
+yolo_v3_tiny,onnx,FP16,v,,
+yolo_v3_tiny-onnx,onnx,FP16-INT8,v,,
+yolo_v3_tiny-onnx,onnx,FP32,v,,
+yolo_v3_tiny-onnx,onnx,FP16,,v,
+yolo_v3_tiny-onnx,onnx,FP16-INT8,,v,
+yolo_v3_tiny-tf,tf,FP16,v,,
+yolo_v3_tiny-tf,tf,FP16-INT8,v,,
+yolo_v3_tiny-tf,tf,FP32,v,,
+yolo_v3_tiny-tf,tf,FP16,,v,v
+yolo_v3_tiny-tf,tf,FP16-INT8,,v,v
+yolo_v4-tf,tf,FP16,v,,
+yolo_v4-tf,tf,FP16-INT8,v,,
+yolo_v4-tf,tf,FP32,v,,
+yolo_v4-tf,tf,FP16,,v,
+yolo_v4-tf,tf,FP16-INT8,,v,v
+yolo_v4-tf2,tf2,FP16,v,,
+yolo_v4-tf2,tf2,FP16-INT8,v,,
+yolo_v4-tf2,tf2,FP16,,v,
+yolo_v4-tf2,tf2,FP16-INT8,,v,v
+yolo_v5l,onnx,FP16,v,,
+yolo_v5l,onnx,FP16-INT8,v,,
+yolo_v5l,onnx,FP32,v,,
+yolo_v5l,onnx,FP16,,v,
+yolo_v5l,onnx,FP16-INT8,,v,v
+yolo_v5m,onnx,FP16,v,,
+yolo_v5m,onnx,FP16-INT8,v,,
+yolo_v5m,onnx,FP32,v,,
+yolo_v5m,onnx,FP16,,v,v
+yolo_v5m,onnx,FP16-INT8,,v,v
+yolo_v5m,onnx,FP32,,,v
+yolo_v5m-v6,onnx,FP16,v,,
+yolo_v5m-v6,onnx,FP16-INT8,v,,
+yolo_v5m-v6,onnx,FP32,v,,
+yolo_v5m-v6,onnx,FP16,,v,v
+yolo_v5m-v6,onnx,FP16-INT8,,v,v
+yolo_v5m-v6,onnx,FP32,,v,v
+yolo_v5s,onnx,FP16,v,,
+yolo_v5s,onnx,FP16-INT8,v,,
+yolo_v5s,onnx,FP32,v,,
+yolo_v5s,onnx,FP16,,v,v
+yolo_v5s,onnx,FP16-INT8,,v,v
+yolo_v5s,onnx,FP32,,v,v
+yolo_v5s-v6,onnx,FP16,v,,
+yolo_v5s-v6,onnx,FP16-INT8,v,,
+yolo_v5s-v6,onnx,FP32,v,,
+yolo_v5s-v6,onnx,FP16,,v,v
+yolo_v5s-v6,onnx,FP16-INT8,,v,v
+yolo_v5s-v6,onnx,FP32,,,v
+yolo_v5x,onnx,FP16,v,,
+yolo_v5x,onnx,FP32,v,,
+yolo_v5x,onnx,FP16,,v,v
+yolo_v8n,onnx,FP16,v,,
+yolo_v8n,onnx,FP16-INT8,v,,
+yolo_v8n,onnx,FP32,v,,
+yolo_v8n,onnx,FP16,,v,v
+yolo_v8n,onnx,FP16-INT8,,v,v
+yolof,onnx,FP16,v,,
+yolof,onnx,FP16-INT8,v,,
+yolof,onnx,FP32,v,,
+yolof,onnx,FP16,,v,
+yolof,onnx,FP16-INT8,,v,
+yolor_p6,onnx,FP16,v,,
+yolor_p6,onnx,FP32,v,,
+yolor_p6,onnx,FP16,,v,v
+yolor_p6,onnx,FP16-INT8,,,v
+arcfaceresnet100-8_resnet100,onnx,FP32,v,v,v
+bertsquad-12,onnx,FP32,v,v,v
+bvlcalexnet-12,onnx,FP32,v,v,v
+caffenet-12,onnx,FP32,v,v,v
+candy-8_candy,onnx,FP32,v,v,v
+efficientnet-lite4-11_efficientnet-lite4,onnx,FP32,v,v,v
+emotion-ferplus-8_model,onnx,FP32,v,v,v
+fcn-resnet101-11,onnx,FP32,v,v,v
+fcn-resnet50-11,onnx,FP32,v,v,v
+googlenet-12,onnx,FP32,v,v,v
+gpt2-lm-head-10_GPT-2-LM-HEAD,onnx,FP32,v,v,v
+inception-v1-12,onnx,FP32,v,v,v
+inception-v2-7_model,onnx,FP32,v,v,v
+MaskRCNN-12,onnx,FP32,v,v,v
+mnist-12,onnx,FP32,v,v,v
+mosaic-8_mosaic,onnx,FP32,v,v,v
+pointilism-8_pointilism,onnx,FP32,v,v,v
+rain-princess-8_rain_princess,onnx,FP32,v,v,v
+rcnn-ilsvrc13-7_model,onnx,FP32,v,v,v
+ResNet101-DUC-12,onnx,FP32,v,v,v
+resnet101-v1-7,onnx,FP32,v,v,v
+resnet101-v2-7,onnx,FP32,v,v,v
+resnet152-v1-7,onnx,FP32,v,v,v
+resnet152-v2-7,onnx,FP32,v,v,v
+resnet18-v1-7,onnx,FP32,v,v,v
+resnet18-v2-7,onnx,FP32,v,v,v
+resnet34-v1-7,onnx,FP32,v,v,v
+resnet34-v2-7,onnx,FP32,v,v,v
+resnet50-caffe2-v1-7_model,onnx,FP32,v,v,v
+resnet50-v2-7,onnx,FP32,v,v,v
+retinanet-9_test_retinanet_resnet101,onnx,FP32,v,v,v
+shufflenet-7_model,onnx,FP32,v,v,v
+squeezenet1.0-12,onnx,FP32,v,v,v
+ssd-10,onnx,FP32,v,v,v
+super-resolution-10_super_resolution,onnx,FP32,v,v,v
+t5-decoder-with-lm-head-12_t5-decoder-with-lm-head,onnx,FP32,v,v,v
+t5-encoder-12_t5-encoder,onnx,FP32,v,v,v
+udnie-8_udnie,onnx,FP32,v,v,v
+version-RFB-320,onnx,FP32,v,v,v
+version-RFB-640,onnx,FP32,v,v,v
+vgg16-12,onnx,FP32,v,v,v
+vgg19-7_vgg19,onnx,FP32,v,v,v
+vgg19-caffe2-7_model,onnx,FP32,v,v,v
+yolov2-coco-9,onnx,FP32,v,v,v
+yolov4,onnx,FP32,v,v,v
+zfnet512-12,onnx,FP32,v,v,v
+arcfaceresnet100-8_resnet100,onnx,FP16,,,v
+bertsquad-12,onnx,FP16,,,v
+bvlcalexnet-12,onnx,FP16,,,v
+caffenet-12,onnx,FP16,,,v
+candy-8_candy,onnx,FP16,,,v
+efficientnet-lite4-11_efficientnet-lite4,onnx,FP16,,,v
+emotion-ferplus-8_model,onnx,FP16,,,v
+fcn-resnet101-11,onnx,FP16,,,v
+fcn-resnet50-11,onnx,FP16,,,v
+googlenet-12,onnx,FP16,,,v
+gpt2-lm-head-10_GPT-2-LM-HEAD,onnx,FP16,,,v
+inception-v1-12,onnx,FP16,,,v
+inception-v2-7_model,onnx,FP16,,,v
+MaskRCNN-12,onnx,FP16,,,v
+mnist-12,onnx,FP16,,,v
+mosaic-8_mosaic,onnx,FP16,,,v
+pointilism-8_pointilism,onnx,FP16,,,v
+rain-princess-8_rain_princess,onnx,FP16,,,v
+rcnn-ilsvrc13-7_model,onnx,FP16,,,v
+ResNet101-DUC-12,onnx,FP16,,,v
+resnet101-v1-7,onnx,FP16,,,v
+resnet101-v2-7,onnx,FP16,,,v
+resnet152-v1-7,onnx,FP16,,,v
+resnet152-v2-7,onnx,FP16,,,v
+resnet18-v1-7,onnx,FP16,,,v
+resnet18-v2-7,onnx,FP16,,,v
+resnet34-v1-7,onnx,FP16,,,v
+resnet34-v2-7,onnx,FP16,,,v
+resnet50-caffe2-v1-7_model,onnx,FP16,,,v
+resnet50-v2-7,onnx,FP16,,,v
+retinanet-9_test_retinanet_resnet101,onnx,FP16,,,v
+shufflenet-7_model,onnx,FP16,,,v
+squeezenet1.0-12,onnx,FP16,,,v
+ssd_mobilenet_v1_10_ssd_mobilenet_v1,onnx,FP16,,,v
+ssd-10,onnx,FP16,,,v
+super-resolution-10_super_resolution,onnx,FP16,,,v
+t5-decoder-with-lm-head-12_t5-decoder-with-lm-head,onnx,FP16,,,v
+t5-encoder-12_t5-encoder,onnx,FP16,,,v
+udnie-8_udnie,onnx,FP16,,,v
+version-RFB-320,onnx,FP16,,,v
+version-RFB-640,onnx,FP16,,,v
+vgg16-12,onnx,FP16,,,v
+vgg19-7_vgg19,onnx,FP16,,,v
+vgg19-caffe2-7_model,onnx,FP16,,,v
+yolov2-coco-9,onnx,FP16,,,v
+yolov4,onnx,FP16,,,v
+zfnet512-12,onnx,FP16,,,v
+adv_inception_v3,pytorch,FP32,v,,
+beit_base_patch16_224,pytorch,FP32,v,,
+botnet26t_256,pytorch,FP32,v,,
+cait_m36_384,pytorch,FP32,v,,
+coat_lite_mini,pytorch,FP32,v,,
+convit_base,pytorch,FP32,v,,
+convmixer_768_32,pytorch,FP32,v,,
+convnext_base,pytorch,FP32,v,,
+crossvit_9_240,pytorch,FP32,v,,
+cspdarknet53,pytorch,FP32,v,,
+deit_base_distilled_patch16_224,pytorch,FP32,v,,
+dla102,pytorch,FP32,v,,
+dm_nfnet_f0,pytorch,FP32,v,,
+dpn107,pytorch,FP32,v,,
+eca_botnext26ts_256,pytorch,FP32,v,,
+eca_halonext26ts,pytorch,FP32,v,,
+ese_vovnet19b_dw,pytorch,FP32,v,,
+fbnetc_100,pytorch,FP32,v,,
+fbnetv3_b,pytorch,FP32,v,,
+gernet_l,pytorch,FP32,v,,
+ghostnet_100,pytorch,FP32,v,,
+gluon_inception_v3,pytorch,FP32,v,,
+gmixer_24_224,pytorch,FP32,v,,
+gmlp_s16_224,pytorch,FP32,v,,
+hrnet_w18,pytorch,FP32,v,,
+inception_v3,pytorch,FP32,v,,
+jx_nest_base,pytorch,FP32,v,,
+lcnet_050,pytorch,FP32,v,,
+levit_128,pytorch,FP32,v,,
+mixer_b16_224,pytorch,FP32,v,,
+mixnet_l,pytorch,FP32,v,,
+mnasnet_100,pytorch,FP32,v,,
+mobilenetv2_100,pytorch,FP32,v,,
+mobilenetv3_large_100,pytorch,FP32,v,,
+mobilevit_s,pytorch,FP32,v,,
+nfnet_l0,pytorch,FP32,v,,
+pit_b_224,pytorch,FP32,v,,
+pnasnet5large,pytorch,FP32,v,,
+poolformer_m36,pytorch,FP32,v,,
+regnety_002,pytorch,FP32,v,,
+repvgg_a2,pytorch,FP32,v,,
+res2net101_26w_4s,pytorch,FP32,v,,
+res2net50_14w_8s,pytorch,FP32,v,,
+res2next50,pytorch,FP32,v,,
+resmlp_12_224,pytorch,FP32,v,,
+resnest101e,pytorch,FP32,v,,
+rexnet_100,pytorch,FP32,v,,
+sebotnet33ts_256,pytorch,FP32,v,,
+selecsls42b,pytorch,FP32,v,,
+spnasnet_100,pytorch,FP32,v,,
+swin_base_patch4_window7_224,pytorch,FP32,v,,
+swsl_resnext101_32x16d,pytorch,FP32,v,,
+tf_efficientnet_b0,pytorch,FP32,v,,
+tf_mixnet_l,pytorch,FP32,v,,
+tinynet_a,pytorch,FP32,v,,
+tnt_s_patch16_224,pytorch,FP32,v,,
+twins_pcpvt_base,pytorch,FP32,v,,
+visformer_small,pytorch,FP32,v,,
+vit_base_patch16_224,pytorch,FP32,v,,
+volo_d1_224,pytorch,FP32,v,,
+xcit_large_24_p8_224,pytorch,FP32,v,,
+albert-base-v2,pytorch,intel-optimum default,,v,
+albert-base-v2-sst2,pytorch,intel-optimum default,,v,
+albert-large-v2,pytorch,intel-optimum default,,v,
+albert-large-v2-finetuned-mnli,pytorch,intel-optimum default,,v,
+Aquila2-7B,pytorch,intel-optimum default,,v,
+Aquila-7B,pytorch,intel-optimum default,,v,
+AquilaChat2-7B,pytorch,intel-optimum default,,v,
+AquilaChat-7B,pytorch,intel-optimum default,,v,
+ast-finetuned-speech-commands-v2,pytorch,intel-optimum default,,v,
+Baichuan2-13B-Chat,pytorch,intel-optimum default,,v,
+Baichuan2-7B-Base,pytorch,intel-optimum default,,v,
+Baichuan2-7B-Chat,pytorch,intel-optimum default,,v,
+bart-base-japanese,pytorch,intel-optimum default,,v,
+beit-base-patch16-224-pt22k-ft22k,pytorch,intel-optimum default,,v,
+bert-base-cased-conversational,pytorch,intel-optimum default,,v,
+bert-base-NER,pytorch,intel-optimum default,,v,
+bert-base-uncased,pytorch,intel-optimum default,,v,
+bert-base-uncased-yelp-polarity,pytorch,intel-optimum default,,v,
+BERT-Large-CT-STSb,pytorch,intel-optimum default,,v,
+bert-large-NER,pytorch,intel-optimum default,,v,
+bert-large-uncased,pytorch,intel-optimum default,,v,
+bert-large-uncased-whole-word-masking-finetuned-sst-2,pytorch,intel-optimum default,,v,
+bert-small-finetuned-squadv2,pytorch,intel-optimum default,,v,
+bge-base-en-v1.5,pytorch,intel-optimum default,,v,
+bge-large-en-v1.5,pytorch,intel-optimum default,,v,
+bge-reranker-base,pytorch,intel-optimum default,,v,
+bge-reranker-large,pytorch,intel-optimum default,,v,
+BioMedLM,pytorch,intel-optimum default,,v,
+blenderbot-400M-distill,pytorch,intel-optimum default,,v,
+bloom-560m,pytorch,intel-optimum default,,v,
+bloomz-1b1,pytorch,intel-optimum default,,v,
+bloomz-3b,pytorch,intel-optimum default,,v,
+bloomz-7b1-mt,pytorch,intel-optimum default,,v,
+codegemma-1.1-2b,pytorch,intel-optimum default,,v,
+codegemma-1.1-7b-it,pytorch,intel-optimum default,,v,
+codegemma-2b,pytorch,intel-optimum default,,v,
+codegemma-7b,pytorch,intel-optimum default,,v,
+codegen2-1B_P,pytorch,intel-optimum default,,v,
+codegen2-3_7B_P,pytorch,intel-optimum default,,v,
+codegen2-7B_P,pytorch,intel-optimum default,,v,
+codegen-2B-multi,pytorch,intel-optimum default,,v,
+codegen-350M-mono,pytorch,intel-optimum default,,v,
+codegen-6B-multi,pytorch,intel-optimum default,,v,
+CodeQwen1.5-7B-Chat,pytorch,intel-optimum default,,v,
+convbert-base-turkish-mc4-toxicity-uncased,pytorch,intel-optimum default,,v,
+convnext-base-224,pytorch,intel-optimum default,,v,
+deberta-v3-large,pytorch,intel-optimum default,,v,
+distilbert-base-nli-mean-tokens,pytorch,intel-optimum default,,v,
+distilbert-base-uncased-distilled-squad,pytorch,intel-optimum default,,v,
+distilbert-NER,pytorch,intel-optimum default,,v,
+distil-large-v3,pytorch,intel-optimum default,,v,
+distil-medium.en,pytorch,intel-optimum default,,v,
+electra-base-french-europeana-cased-generator,pytorch,intel-optimum default,,v,
+electra-large-discriminator-nli-efl-tweeteval,pytorch,intel-optimum default,,v,
+falcon-11B,pytorch,intel-optimum default,,v,
+falcon-7b,pytorch,intel-optimum default,,v,
+falcon-7b-instruct,pytorch,intel-optimum default,,v,
+flaubert_base_cased,pytorch,intel-optimum default,,v,
+flaubert-base-uncased-finetuned-cooking,pytorch,intel-optimum default,,v,
+gemma-1.1-2b-it,pytorch,intel-optimum default,,v,
+gemma-1.1-7b-it,pytorch,intel-optimum default,,v,
+gemma-2b,pytorch,intel-optimum default,,v,
+gemma-2b-it,pytorch,intel-optimum default,,v,
+gemma-7b,pytorch,intel-optimum default,,v,
+gemma-7b-it,pytorch,intel-optimum default,,v,
+GPT2Neo1.3BPoints,pytorch,intel-optimum default,,v,
+granite-3b-code-base,pytorch,intel-optimum default,,v,
+granite-3b-code-instruct,pytorch,intel-optimum default,,v,
+granite-8b-code-base,pytorch,intel-optimum default,,v,
+granite-8b-code-instruct,pytorch,intel-optimum default,,v,
+hubert-large-ls960-ft,pytorch,intel-optimum default,,v,
+ibert-roberta-base,pytorch,intel-optimum default,,v,
+ibert-roberta-base-finetuned-mrpc,pytorch,intel-optimum default,,v,
+internlm2-1_8b,pytorch,intel-optimum default,,v,
+internlm2-7b,pytorch,intel-optimum default,,v,
+internlm2-chat-1_8b,pytorch,intel-optimum default,,v,
+internlm2-chat-7b,pytorch,intel-optimum default,,v,
+internlm2-chat-7b-sft,pytorch,intel-optimum default,,v,
+internlm2-math-7b,pytorch,intel-optimum default,,v,
+internlm2-math-base-7b,pytorch,intel-optimum default,,v,
+klue-roberta-base-ner,pytorch,intel-optimum default,,v,
+LCM_Dreamshaper_v7,pytorch,intel-optimum default,,v,
+levit-256,pytorch,intel-optimum default,,v,
+Llama-2-13b-chat-hf,pytorch,intel-optimum default,,v,
+Llama-2-13b-hf,pytorch,intel-optimum default,,v,
+Llama-2-7b-chat-hf,pytorch,intel-optimum default,,v,
+Llama-2-7b-hf,pytorch,intel-optimum default,,v,
+m2m100_418M,pytorch,intel-optimum default,,v,
+Magicoder-CL-7B,pytorch,intel-optimum default,,v,
+Magicoder-DS-6.7B,pytorch,intel-optimum default,,v,
+Magicoder-S-CL-7B,pytorch,intel-optimum default,,v,
+Magicoder-S-DS-6.7B,pytorch,intel-optimum default,,v,
+MarianCausalLM,pytorch,intel-optimum default,,v,
+marian-finetuned-kde4-en-to-cn-accelerate,pytorch,intel-optimum default,,v,
+mbart-large-50-many-to-one-mmt,pytorch,intel-optimum default,,v,
+Meta-Llama-3-8B,pytorch,intel-optimum default,,v,
+Meta-Llama-3-8B-Instruct,pytorch,intel-optimum default,,v,
+Meta-Llama-Guard-2-8B,pytorch,intel-optimum default,,v,
+MindChat-Qwen2-4B,pytorch,intel-optimum default,,v,
+MiniCPM-2B-sft-bf16,pytorch,intel-optimum default,,v,
+Mistral-7B-Instruct-v0.2,pytorch,intel-optimum default,,v,
+Mistral-7B-Instruct-v0.3,pytorch,intel-optimum default,,v,
+Mistral-7B-v0.3,pytorch,intel-optimum default,,v,
+mobilevit-xx-small,pytorch,intel-optimum default,,v,
+mpt-7b,pytorch,intel-optimum default,,v,
+mpt-7b-8k,pytorch,intel-optimum default,,v,
+mpt-7b-8k-chat,pytorch,intel-optimum default,,v,
+mpt-7b-chat,pytorch,intel-optimum default,,v,
+mpt-7b-instruct,pytorch,intel-optimum default,,v,
+mpt-7b-storywriter,pytorch,intel-optimum default,,v,
+ms-marco-electra-base,pytorch,intel-optimum default,,v,
+mt5-base,pytorch,intel-optimum default,,v,
+mt5-large,pytorch,intel-optimum default,,v,
+mt5-small,pytorch,intel-optimum default,,v,
+neural-chat-7b-v1-1,pytorch,intel-optimum default,,v,
+neural-chat-7b-v3-3,pytorch,intel-optimum default,,v,
+openchat-3.6-8b-20240522,pytorch,intel-optimum default,,v,
+opt-1.3b,pytorch,intel-optimum default,,v,
+opt-125m,pytorch,intel-optimum default,,v,
+opt-13b,pytorch,intel-optimum default,,v,
+opt-2.7b,pytorch,intel-optimum default,,v,
+opt-350m,pytorch,intel-optimum default,,v,
+opt-6.7b,pytorch,intel-optimum default,,v,
+opt-iml-1.3b,pytorch,intel-optimum default,,v,
+Pegasus-7b-slerp,pytorch,intel-optimum default,,v,
+pegasus-samsum,pytorch,intel-optimum default,,v,
+persimmon-8b-chat,pytorch,intel-optimum default,,v,
+phi-2,pytorch,intel-optimum default,,v,
+Phi-3-medium-4k-instruct,pytorch,intel-optimum default,,v,
+Phi-3-mini-128k-instruct,pytorch,intel-optimum default,,v,
+pix2struct-base,pytorch,intel-optimum default,,v,
+Polish_RoBERTa_large_OPI,pytorch,intel-optimum default,,v,
+pythia-1.4b,pytorch,intel-optimum default,,v,
+pythia-12b,pytorch,intel-optimum default,,v,
+pythia-14m,pytorch,intel-optimum default,,v,
+pythia-160m,pytorch,intel-optimum default,,v,
+pythia-1b,pytorch,intel-optimum default,,v,
+pythia-2.8b,pytorch,intel-optimum default,,v,
+pythia-410m,pytorch,intel-optimum default,,v,
+pythia-6.9b,pytorch,intel-optimum default,,v,
+pythia-70m,pytorch,intel-optimum default,,v,
+Pythia-Chat-Base-7B,pytorch,intel-optimum default,,v,
+Qwen1.5-0.5B,pytorch,intel-optimum default,,v,
+Qwen1.5-0.5B-Chat,pytorch,intel-optimum default,,v,
+Qwen1.5-1.8B,pytorch,intel-optimum default,,v,
+Qwen1.5-1.8B-Chat,pytorch,intel-optimum default,,v,
+Qwen1.5-4B,pytorch,intel-optimum default,,v,
+Qwen1.5-4B-Chat,pytorch,intel-optimum default,,v,
+Qwen1.5-7B,pytorch,intel-optimum default,,v,
+Qwen1.5-7B-Chat,pytorch,intel-optimum default,,v,
+Qwen-1_8B,pytorch,intel-optimum default,,v,
+Qwen-1_8B-Chat,pytorch,intel-optimum default,,v,
+Qwen-7B,pytorch,intel-optimum default,,v,
+Qwen-7B-Chat,pytorch,intel-optimum default,,v,
+RedPajama-INCITE-7B-Base,pytorch,intel-optimum default,,v,
+RedPajama-INCITE-7B-Chat,pytorch,intel-optimum default,,v,
+RedPajama-INCITE-7B-Instruct,pytorch,intel-optimum default,,v,
+RedPajama-INCITE-Chat-3B-v1,pytorch,intel-optimum default,,v,
+roberta-base-squad2,pytorch,intel-optimum default,,v,
+roberta-large-mnli,pytorch,intel-optimum default,,v,
+roberta-large-ner-english,pytorch,intel-optimum default,,v,
+roberta-large-squadv2,pytorch,intel-optimum default,,v,
+roformer_small_generator,pytorch,intel-optimum default,,v,
+stable-diffusion-2-1,pytorch,intel-optimum default,,v,
+stable-diffusion-v1-4,pytorch,intel-optimum default,,v,
+stable-diffusion-v1-5,pytorch,intel-optimum default,,v,
+stable-diffusion-xl-base-1.0,pytorch,intel-optimum default,,v,
+stablelm-2-1_6b,pytorch,intel-optimum default,,v,
+stablelm-2-1_6b-chat,pytorch,intel-optimum default,,v,
+stablelm-2-12b,pytorch,intel-optimum default,,v,
+stablelm-2-12b-chat,pytorch,intel-optimum default,,v,
+stablelm-2-zephyr-1_6b,pytorch,intel-optimum default,,v,
+stablelm-3b-4e1t,pytorch,intel-optimum default,,v,
+stablelm-base-alpha-3b,pytorch,intel-optimum default,,v,
+stablelm-tuned-alpha-7b,pytorch,intel-optimum default,,v,
+stablelm-zephyr-3b,pytorch,intel-optimum default,,v,
+sup-simcse-roberta-base,pytorch,intel-optimum default,,v,
+t5-base,pytorch,intel-optimum default,,v,
+t5-large,pytorch,intel-optimum default,,v,
+t5-small,pytorch,intel-optimum default,,v,
+trocr-base-handwritten,pytorch,intel-optimum default,,v,
+twitter-roberta-base-sentiment-latest,pytorch,intel-optimum default,,v,
+unispeech-1350-en-90-it-ft-1h,pytorch,intel-optimum default,,v,
+unispeech-sat-base-plus-sd,pytorch,intel-optimum default,,v,
+unispeech-sat-base-sv,pytorch,intel-optimum default,,v,
+unispeech-sat-large-sv,pytorch,intel-optimum default,,v,
+wav2vec2-base-superb-sd,pytorch,intel-optimum default,,v,
+wav2vec2-base-superb-sid,pytorch,intel-optimum default,,v,
+wav2vec2-base-superb-sv,pytorch,intel-optimum default,,v,
+whisper-base,pytorch,intel-optimum default,,v,
+whisper-large-v2,pytorch,intel-optimum default,,v,
+whisper-medium,pytorch,intel-optimum default,,v,
+whisper-small,pytorch,intel-optimum default,,v,
+WizardMath-7B-V1.1,pytorch,intel-optimum default,,v,
+xlm-clm-ende-1024,pytorch,intel-optimum default,,v,
+xlm-roberta-base-language-detection,pytorch,intel-optimum default,,v,
+xlm-roberta-base-uncased-conll2003,pytorch,intel-optimum default,,v,
+xlm-roberta-large,pytorch,intel-optimum default,,v,
+xlm-roberta-large-en-ru-mnli,pytorch,intel-optimum default,,v,
+xlm-roberta-large-finetuned-conll03-english,pytorch,intel-optimum default,,v,
+XVERSE-7B-Chat,pytorch,intel-optimum default,,v,
+zephyr-7b-beta,pytorch,intel-optimum default,,v,
+tiny-random-albert,pytorch,intel-optimum default,v,,
+tiny-random-bert,pytorch,intel-optimum default,v,,
+tiny-random-ConvBertForSequenceClassification,pytorch,intel-optimum default,v,,
+tiny-random-distilbert,pytorch,intel-optimum default,v,,
+tiny-random-electra,pytorch,intel-optimum default,v,,
+tiny-random-flaubert,pytorch,intel-optimum default,v,,
+tiny-random-ibert,pytorch,intel-optimum default,v,,
+tiny-random-roberta,pytorch,intel-optimum default,v,,
+tiny-random-roformer,pytorch,intel-optimum default,v,,
+tiny-random-squeezebert,pytorch,intel-optimum default,v,,
+tiny-random-xlm,pytorch,intel-optimum default,v,,
+stsb-bert-tiny-safetensors,pytorch,intel-optimum default,v,,
+tiny-random-bart,pytorch,INT4,v,,
+tiny-random-baichuan2,pytorch,INT4,v,,
+tiny-random-baichuan2-13b,pytorch,INT4,v,,
+tiny-random-BlenderbotModel,pytorch,INT4,v,,
+tiny-random-BloomModel,pytorch,INT4,v,,
+tiny-random-chatglm2,pytorch,INT4,v,,
+tiny-random-CodeGenForCausalLM,pytorch,INT4,v,,
+tiny-random-codegen2,pytorch,INT4,v,,
+tiny-random-GemmaForCausalLM,pytorch,INT4,v,,
+tiny-random-gpt2,pytorch,INT4,v,,
+tiny-random-GPTNeoModel,pytorch,INT4,v,,
+tiny-random-GPTNeoXForCausalLM,pytorch,INT4,v,,
+tiny-llama-fast-tokenizer,pytorch,INT4,v,,
+tiny-marian-en-de,pytorch,INT4,v,,
+tiny-random-minicpm,pytorch,INT4,v,,
+tiny-random-mistral,pytorch,INT4,v,,
+tiny-mixtral,pytorch,INT4,v,,
+tiny-random-MptForCausalLM,pytorch,INT4,v,,
+tiny-random-olmo-hf,pytorch,INT4,v,,
+tiny-random-OPTModel,pytorch,INT4,v,,
+tiny-random-pegasus,pytorch,INT4,v,,
+tiny-random-qwen,pytorch,INT4,v,,
+tiny-random-StableLmForCausalLM,pytorch,INT4,v,,
+tiny-random-Starcoder2ForCausalLM,pytorch,INT4,v,,
+tiny-random-PhiForCausalLM,pytorch,INT4,v,,
+tiny-random-phi3,pytorch,INT4,v,,
+tiny-random-internlm2,pytorch,INT4,v,,
+tiny-random-orion,pytorch,INT4,v,,
+really-tiny-falcon-testing,pytorch,INT4,v,,
+tiny-random-falcon-40b,pytorch,INT4,v,,
+tiny-random-PersimmonForCausalLM,pytorch,INT4,v,,
+tiny-random-CohereForCausalLM,pytorch,INT4,v,,
+tiny-random-aquilachat,pytorch,INT4,v,,
+tiny-random-aquila2,pytorch,INT4,v,,
+tiny-random-xverse,pytorch,INT4,v,,
+tiny-random-internlm,pytorch,INT4,v,,
+tiny-random-dbrx,pytorch,INT4,v,,
+tiny-random-qwen1.5-moe,pytorch,INT4,v,,
+tiny-random-deberta,pytorch,intel-optimum default,v,,
+tiny-xlm-roberta,pytorch,intel-optimum default,v,,
+tiny-random-BeitForImageClassification,pytorch,intel-optimum default,v,,
+tiny-random-convnext,pytorch,intel-optimum default,v,,
+tiny-random-LevitModel,pytorch,intel-optimum default,v,,
+tiny-random-MobileNetV2Model,pytorch,intel-optimum default,v,,
+tiny-random-mobilevit,pytorch,intel-optimum default,v,,
+tiny-random-resnet,pytorch,intel-optimum default,v,,
+tiny-random-vit,pytorch,intel-optimum default,v,,
+tiny-random-m2m_100,pytorch,intel-optimum default,v,,
+tiny-random-mbart,pytorch,intel-optimum default,v,,
+mt5-tiny-random,pytorch,intel-optimum default,v,,
+tiny-random-t5,pytorch,intel-optimum default,v,,
+tiny-random-unispeech,pytorch,intel-optimum default,v,,
+wav2vec2-random-tiny-classifier,pytorch,intel-optimum default,v,,
+tiny-random-Data2VecAudioModel,pytorch,intel-optimum default,v,,
+tiny-random-HubertModel,pytorch,intel-optimum default,v,,
+tiny-random-SEWModel,pytorch,intel-optimum default,v,,
+sew-d-tiny-100k-ft-ls100h,pytorch,intel-optimum default,v,,
+tiny-random-UnispeechSatModel,pytorch,intel-optimum default,v,,
+tiny-random-WavlmModel,pytorch,intel-optimum default,v,,
+tiny-random-Wav2Vec2Model,pytorch,intel-optimum default,v,,
+tiny-random-wav2vec2-conformer,pytorch,intel-optimum default,v,,
+pix2struct-tiny-random,pytorch,intel-optimum default,v,,
+whisper-tiny.en,pytorch,intel-optimum default,v,,
+tiny-random-VisionEncoderDecoderModel-vit-gpt2,pytorch,intel-optimum default,v,,
+trocr-small-handwritten,pytorch,intel-optimum default,v,,
+tiny-doc-qa-vision-encoder-decoder,pytorch,intel-optimum default,v,,
+vit-with-attentions,pytorch,intel-optimum default,v,,
+vit-with-hidden_states,pytorch,intel-optimum default,v,,
+tiny-stable-diffusion-torch,pytorch,intel-optimum default,v,,
+tiny-random-stable-diffusion-xl,pytorch,intel-optimum default,v,,
+tiny-random-stable-diffusion-xl-refiner,pytorch,intel-optimum default,v,,
+tiny-random-latent-consistency,pytorch,intel-optimum default,v,,

@@ -50,7 +50,7 @@ All currently supported versions are:
       | \* **Of the Linux systems, version 22.04 includes drivers for NPU.**
       |  **For Windows, CPU inference on ARM64 is not supported.**
 
-.. dropdown:: Effortless GenAI integration with OpenVINO GenAI Flavor**
+.. dropdown:: Effortless GenAI integration with OpenVINO GenAI Flavor
 
    A new OpenVINO GenAI Flavor streamlines application development by providing
    LLM-specific interfaces for easy integration of language models, handling tokenization and
