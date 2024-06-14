@@ -201,12 +201,12 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     switch (params.engineInfo.arch) {
         case gpu_arch::xe_hpg: {
-            config = choose_config_xehpg(head_size, n_keys.v, thin_q);
+            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q);
             break;
         }
         case gpu_arch::xe_hpc:
         case gpu_arch::xe2: {
-            config = choose_config_xehpc(head_size, n_keys.v, thin_q);
+            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q);
             break;
         }
         default: break;
@@ -233,14 +233,14 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     problem_kq.B.setAlignment(64); // Q is packed in VNNI format in SLM
     problem_kq.B.crosspack = 2;
     problem_kq.B.tileR = d_max;
-    problem_kq.B.tileC = subgroup_size(params.engineInfo.arch);
+    problem_kq.B.tileC = static_cast<uint16_t>(subgroup_size(params.engineInfo.arch));
 
     /* Set up problem size information */
     micro::SizeParams sizes;
-    sizes.m = n_keys.v;
-    sizes.n = n_queries.v;
-    sizes.k = head_size;
-    sizes.batch = batch;
+    sizes.m = static_cast<int64_t>(n_keys.v);
+    sizes.n = static_cast<int64_t>(n_queries.v);
+    sizes.k = static_cast<int64_t>(head_size);
+    sizes.batch = static_cast<int64_t>(batch);
 
     /* Set up microkernel requirements */
     std::vector<micro::StrategyRequirement> reqs_kq;
@@ -266,7 +266,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     problem_vs.A.setAlignment(micro::alignment_for_ld(head_size * problem.Ta));
     problem_vs.B.setAlignment(64); // S is packed in SLM
     problem_vs.B.crosspack = 16;
-    sizes.m = n_values.v;
+    sizes.m = static_cast<int64_t>(n_values.v);
     sizes.n = gemm_kq.getSetting("wg_tile_n");
     sizes.k = gemm_kq.getSetting("wg_tile_m");
 
@@ -520,7 +520,7 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
 
     /* Generate microkernel shims */
     micro::ShimOptions shim_options;
-    shim_options.subgroupSize = subgroup_size(params.engineInfo.arch);
+    shim_options.subgroupSize = static_cast<int32_t>(subgroup_size(params.engineInfo.arch));
     shim_options.useTileOps = true;
     shim_options.decorator = "kq";
 
