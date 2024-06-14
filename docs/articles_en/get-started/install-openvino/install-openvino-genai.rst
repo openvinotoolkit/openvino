@@ -26,8 +26,7 @@ but use the *openvino-genai* package instead of *openvino*:
 Archive Installation
 ###############################
 
-The OpenVINO GenAI archive package includes the OpenVINO™ Runtime and Tokenizers.
-
+The OpenVINO GenAI archive package includes the OpenVINO™ Runtime and :doc:`Tokenizers <../learn-openvino/llm_inference_guide/ov-tokenizers>`.
 To install the GenAI flavor of OpenVINO from an archive file, follow the standard installation steps for your system
 but instead of using the vanilla package file, download the one with OpenVINO GenAI:
 
