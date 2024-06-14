@@ -190,6 +190,29 @@ class TestCatAlignTypesPT(PytorchLayerTest):
         if in_count == 3:
             return aten_align_types_cat_three_args()
 
+    def create_model_param_mid(self, in_types):
+        class aten_align_types_cat_three_args(torch.nn.Module):
+            def __init__(self):
+                super(aten_align_types_cat_three_args, self).__init__()
+                self.x = torch.randn(2, 1, 3).to(in_types[1])
+                self.z = torch.randn(2, 1, 3).to(in_types[2])
+
+            def forward(self, y):
+                ins = [self.x, y, self.z]
+                return torch.cat(ins, 1)
+        return aten_align_types_cat_three_args()
+
+    def create_model_param_last(self, in_types):
+        class aten_align_types_cat_three_args(torch.nn.Module):
+            def __init__(self):
+                super(aten_align_types_cat_three_args, self).__init__()
+                self.x = torch.randn(2, 1, 3).to(in_types[1])
+                self.y = torch.randn(2, 1, 3).to(in_types[2])
+
+            def forward(self, z):
+                ins = [self.x, self.y, z]
+                return torch.cat(ins, 1)
+        return aten_align_types_cat_three_args()
 
     @pytest.mark.parametrize(("in_types"), [
         # Two inputs (param, const)
@@ -218,4 +241,32 @@ class TestCatAlignTypesPT(PytorchLayerTest):
     @pytest.mark.precommit
     def test_align_types_cat(self, ie_device, precision, ir_version, in_types):
         self._test(self.create_model_param_first(in_types), None, ["aten::cat", "prim::ListConstruct"],
+                   ie_device, precision, ir_version, kwargs_to_prepare_input={"in_types": in_types})
+
+    @pytest.mark.parametrize(("in_types"), [
+        # Three inputs (param, const, const)
+        (np.float16, torch.int32, torch.int16),
+        (np.int16, torch.float16, torch.int16),
+        (np.float16, torch.bfloat16, torch.float32),
+        (np.float16, torch.float32, torch.bfloat16),
+        (np.float32, torch.bfloat16, torch.bfloat16),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_align_types_cat_param_mid(self, ie_device, precision, ir_version, in_types):
+        self._test(self.create_model_param_mid(in_types), None, ["aten::cat", "prim::ListConstruct"],
+                   ie_device, precision, ir_version, kwargs_to_prepare_input={"in_types": in_types})
+
+    @pytest.mark.parametrize(("in_types"), [
+        # Three inputs (param, const, const)
+        (np.float16, torch.int32, torch.int16),
+        (np.int16, torch.float16, torch.int16),
+        (np.float16, torch.bfloat16, torch.float32),
+        (np.float16, torch.float32, torch.bfloat16),
+        (np.float32, torch.bfloat16, torch.bfloat16),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_align_types_cat_param_last(self, ie_device, precision, ir_version, in_types):
+        self._test(self.create_model_param_last(in_types), None, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version, kwargs_to_prepare_input={"in_types": in_types})
