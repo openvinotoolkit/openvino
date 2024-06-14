@@ -11,9 +11,7 @@ namespace kernel_selector {
 // dynamic_quantize_params
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct dynamic_quantize_params : public base_params {
-    dynamic_quantize_params() : base_params(KernelType::DYNAMIC_QUANTIZE), axis(0), split_length(0) {}
-    int32_t axis;
-    int32_t split_length;
+    dynamic_quantize_params() : base_params(KernelType::DYNAMIC_QUANTIZE) {}
 };
 
 class DynamicQuantizeKernelRef : public KernelBaseOpenCL {

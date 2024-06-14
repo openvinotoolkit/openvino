@@ -77,13 +77,13 @@ KernelsData DynamicQuantizeKernelRef::GetKernelsData(const Params& params) const
     if (!Validate(params))
         return {};
 
-    const dynamic_quantize_params& orgParams = static_cast<const dynamic_quantize_params&>(params);
-    auto dispatchData = SetDefault(orgParams);
+    const dynamic_quantize_params& prim_params = static_cast<const dynamic_quantize_params&>(params);
+    auto dispatchData = SetDefault(prim_params);
 
     KernelData kd = KernelData::Default<dynamic_quantize_params>(params);
 
-    auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
+    auto cldnn_jit = GetJitConstants(prim_params);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     GetUpdateDispatchDataFunc(kd);
@@ -100,8 +100,8 @@ KernelsData DynamicQuantizeKernelRef::GetKernelsData(const Params& params) const
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params),
-                     1,
-                     orgParams.is_shape_agnostic);
+                     static_cast<int>(prim_params.outputs.size()),
+                     prim_params.is_shape_agnostic);
 
     return {kd};
 }

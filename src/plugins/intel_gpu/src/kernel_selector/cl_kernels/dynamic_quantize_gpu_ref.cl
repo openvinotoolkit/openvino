@@ -12,7 +12,8 @@
 KERNEL(dynamic_quantize_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
-    __global OUTPUT_TYPE* output)
+    __global OUTPUT_TYPE* output,
+    __global OUTPUT1_TYPE* output_scale)
 {
     /* static_quantize version */
     // XXX: need to handle two outputs
