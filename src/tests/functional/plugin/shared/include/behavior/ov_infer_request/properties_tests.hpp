@@ -121,7 +121,7 @@ TEST_P(InferRequestPropertiesTest, ReusableCPUStreamsExecutor) {
         // Load CNNNetwork to target plugins
         execNet = core->compile_model(function, target_device, config);
         auto req = execNet.create_infer_request();
-        if (target_device == ov::test::utils::DEVICE_KEEMBAY) {
+        if (target_device == ov::test::utils::DEVICE_NPU) {
             ASSERT_EQ(1u, ov::threading::executor_manager()->get_executors_number());
             ASSERT_EQ(0u, ov::threading::executor_manager()->get_idle_cpu_streams_executors_number());
         } else if ((target_device == ov::test::utils::DEVICE_AUTO) ||

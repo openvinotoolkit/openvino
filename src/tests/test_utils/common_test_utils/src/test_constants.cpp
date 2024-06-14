@@ -11,7 +11,7 @@ namespace utils {
 const char* DEVICE_AUTO = "AUTO";
 const char* DEVICE_CPU = "CPU";
 const char* DEVICE_GPU = "GPU";
-const char* DEVICE_KEEMBAY = "NPU";
+const char* DEVICE_NPU = "NPU";
 const char* DEVICE_BATCH = "BATCH";
 const char* DEVICE_MULTI = "MULTI";
 const char* DEVICE_TEMPLATE = "TEMPLATE";

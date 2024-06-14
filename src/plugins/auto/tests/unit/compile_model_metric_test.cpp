@@ -172,7 +172,7 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
             .WillByDefault(RETURN_MOCK_VALUE(actualOptimalNum));
         ON_CALL(
             *core,
-            get_property(StrEq(ov::test::utils::DEVICE_KEEMBAY), StrEq(ov::optimal_number_of_infer_requests.name()), _))
+            get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::optimal_number_of_infer_requests.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(actualOptimalNum));
     }
     if (isSupportNumRequests)
@@ -196,7 +196,7 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
         std::tuple<unsigned int, unsigned int> rangeOfStreams = std::make_tuple<unsigned int, unsigned int>(1, 3);
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_GPU), StrEq(ov::optimal_batch_size.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(gpuOptimalBatchNum));
-        ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_KEEMBAY), StrEq(ov::optimal_batch_size.name()), _))
+        ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::optimal_batch_size.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(npuOptimalBatchNum));
         ON_CALL(*core, get_property(_, StrEq(ov::range_for_streams.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
@@ -330,28 +330,28 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{false, 3, 5, false, 0, 5, true, ov::test::utils::DEVICE_GPU, 1, 6, true, true},
     ConfigParams{true, 3, 5, false, 6, 5, true, ov::test::utils::DEVICE_GPU, 6, 6, true, true},
     ConfigParams{false, 3, 5, false, 6, 5, true, ov::test::utils::DEVICE_GPU, 6, 6, true, true},
-    ConfigParams{false, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 1, 0, false, true},
-    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 8, 0, false, true},
-    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 8, 0, false, false},
-    ConfigParams{true, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_KEEMBAY, 8, 0, true, false},
-    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 2, 0, true, false},
-    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 2, 1, true, false},
-    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 6, 6, false, false},
-    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 8, 10, false, false},
-    ConfigParams{true, 3, -1, false, 4, -1, true, ov::test::utils::DEVICE_KEEMBAY, 4, 6, true, true},
-    ConfigParams{true, 3, -1, false, 4, -1, true, ov::test::utils::DEVICE_KEEMBAY, 2, 2, true, true},
-    ConfigParams{true, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_KEEMBAY, 8, 10, true, true},
-    ConfigParams{true, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_KEEMBAY, 6, 6, true, true},
-    ConfigParams{false, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_KEEMBAY, 1, 0, true, true},
-    ConfigParams{true, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_KEEMBAY, 8, 0, true, true},
-    ConfigParams{false, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 2, 0, true, true},
-    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY, 2, 0, true, true},
-    ConfigParams{false, 3, -1, true, 2, -1, false, ov::test::utils::DEVICE_KEEMBAY, 2, 0, false, true},
-    ConfigParams{true, 3, -1, true, 2, -1, false, ov::test::utils::DEVICE_KEEMBAY, 2, 0, false, true},
-    ConfigParams{false, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_KEEMBAY, 1, 0, false, true},
-    ConfigParams{true, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_KEEMBAY, 8, 0, false, true},
-    ConfigParams{false, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_KEEMBAY, 2, 0, false, true},
-    ConfigParams{true, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_KEEMBAY, 2, 0, false, true},
+    ConfigParams{false, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 1, 0, false, true},
+    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 8, 0, false, true},
+    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 8, 0, false, false},
+    ConfigParams{true, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_NPU, 8, 0, true, false},
+    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 2, 0, true, false},
+    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 2, 1, true, false},
+    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 6, 6, false, false},
+    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 8, 10, false, false},
+    ConfigParams{true, 3, -1, false, 4, -1, true, ov::test::utils::DEVICE_NPU, 4, 6, true, true},
+    ConfigParams{true, 3, -1, false, 4, -1, true, ov::test::utils::DEVICE_NPU, 2, 2, true, true},
+    ConfigParams{true, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_NPU, 8, 10, true, true},
+    ConfigParams{true, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_NPU, 6, 6, true, true},
+    ConfigParams{false, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_NPU, 1, 0, true, true},
+    ConfigParams{true, 3, -1, false, 0, -1, true, ov::test::utils::DEVICE_NPU, 8, 0, true, true},
+    ConfigParams{false, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 2, 0, true, true},
+    ConfigParams{true, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_NPU, 2, 0, true, true},
+    ConfigParams{false, 3, -1, true, 2, -1, false, ov::test::utils::DEVICE_NPU, 2, 0, false, true},
+    ConfigParams{true, 3, -1, true, 2, -1, false, ov::test::utils::DEVICE_NPU, 2, 0, false, true},
+    ConfigParams{false, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_NPU, 1, 0, false, true},
+    ConfigParams{true, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_NPU, 8, 0, false, true},
+    ConfigParams{false, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_NPU, 2, 0, false, true},
+    ConfigParams{true, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_NPU, 2, 0, false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
