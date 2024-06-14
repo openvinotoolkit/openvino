@@ -6,7 +6,6 @@ include(options)
 include(target_flags)
 
 set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
-list (APPEND OV_OPTIONS CPACK_GENERATOR)
 
 ov_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT ARM;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
