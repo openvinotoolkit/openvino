@@ -35,6 +35,10 @@ public:
             res.push_back(layout(ov::PartialShape::dynamic(4), data_types::i32, format::bfyx));
         }
 
+        if (get_primitive()->compressed) { // insert an additional input with compressed_scale past layout
+            res.push_back(layout(ov::PartialShape::dynamic(4), data_types::f16, format::bfyx));
+        }
+
         return res;
     }
 };

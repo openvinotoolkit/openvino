@@ -34,14 +34,27 @@ VariableStateIndirectKVCache::VariableStateIndirectKVCache(const VariableStateIn
                                                            RemoteContextImpl::Ptr context,
                                                            std::shared_ptr<cldnn::ShapePredictor> shape_predictor,
                                                            size_t beam_axis,
-                                                           size_t concat_axis)
+                                                           size_t concat_axis,
+                                                           bool has_compression_scale)
     : MultiTensorState { {info}, context, shape_predictor}
     , m_beam_axis(beam_axis)
-    , m_concat_axis(concat_axis) {
+    , m_concat_axis(concat_axis)
+    , m_has_compression_scale(has_compression_scale) {
+
     cldnn::layout beam_table_layout(get_beam_table_shape(info.m_layout.get_partial_shape()), ov::element::i32, cldnn::format::bfyx);
     VariableStateInfo beam_table_state_info(info.m_id + "/beam_table", beam_table_layout);
     m_hidden_states.push_back(std::make_shared<VariableState>(beam_table_state_info, context, shape_predictor));
-    OPENVINO_ASSERT(m_hidden_states.size() == 2, "[GPU] VariableStateIndirectKVCache expects 2 internal states to be initialized");
+
+    if (has_compression_scale) {
+        cldnn::layout compression_scale_layout(get_compression_scale_shape(info.m_layout.get_partial_shape()), ov::element::i8, cldnn::format::bfyx);
+        VariableStateInfo compression_scale_state_info(info.m_id + "/comp_scale", compression_scale_layout);
+        m_hidden_states.push_back(std::make_shared<VariableState>(compression_scale_state_info, context, shape_predictor));
+    }
+
+    OPENVINO_ASSERT((!has_compression_scale && m_hidden_states.size() == 2) ||
+                    (has_compression_scale && m_hidden_states.size() == 3)
+                    , "[GPU] VariableStateIndirectKVCache expects 2 or 3 internal states to be initialized: "
+                    "has_compression_scale=", has_compression_scale, " internal_states=", m_hidden_states.size());
 }
 
 void VariableStateIndirectKVCache::reset() {
@@ -60,6 +73,7 @@ const cldnn::layout& VariableStateIndirectKVCache::get_layout() const {
 }
 
 void VariableStateIndirectKVCache::set_state(const ov::SoPtr<ov::ITensor>& state) {
+    OPENVINO_ASSERT(!m_has_compression_scale, "[GPU] set_state API is supported only when KVcache compression is disabled");
     OPENVINO_ASSERT(m_hidden_states.size() == 2, "[GPU] Corrupted VariableStateIndirectKVCache. Expected 2 internal states. Got: ", m_hidden_states.size());
     m_hidden_states[0]->set_state(state); // user can set only KV cache
 
@@ -109,6 +123,8 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
 }
 
 ov::SoPtr<ov::ITensor> VariableStateIndirectKVCache::get_state() const {
+    OPENVINO_ASSERT(!m_has_compression_scale, "[GPU] get_state API is supported only when KVcache compression is disabled");
+
     auto kv_layout = m_hidden_states[0]->get_layout();
     auto bt_mem = m_hidden_states[1]->get_memory();
     if (kv_layout.get_partial_shape()[m_beam_axis].get_length() > 1 && bt_mem) {
@@ -150,6 +166,19 @@ ov::PartialShape VariableStateIndirectKVCache::get_beam_table_shape(const ov::Pa
 
 VariableState::Ptr VariableStateIndirectKVCache::get_beam_table_state() const {
     return m_hidden_states[1];
+}
+
+ov::PartialShape VariableStateIndirectKVCache::get_compression_scale_shape(const ov::PartialShape& kv_cache_shape) {
+    // FIXME: add assert to confirm that it is compressed
+    auto rank = kv_cache_shape.size();
+    ov::PartialShape compression_scale_shape(std::vector<size_t>(rank, 1));
+    compression_scale_shape[0] = kv_cache_shape[0];
+    compression_scale_shape[1] = kv_cache_shape[1];
+    return compression_scale_shape;
+}
+
+VariableState::Ptr VariableStateIndirectKVCache::get_compression_scale_state() const {
+    return m_hidden_states[2];
 }
 
 }  // namespace intel_gpu
