@@ -7,7 +7,8 @@
 import jax.core
 from openvino.frontend.jax.py_jax_frontend import _FrontEndJaxDecoder as Decoder
 from openvino.runtime import PartialShape, Type as OVType, OVAny
-from openvino.frontend.jax.utils import jax_to_ov_type_map, jax_array_to_ov_const
+from openvino.frontend.jax.utils import jax_to_ov_type_map, jax_array_to_ov_const, \
+    basic_to_ov_type_map, numpy_to_ov_type_map
 
 import jax
 
@@ -176,7 +177,12 @@ class JaxprPythonDecoder (Decoder):
     @staticmethod
     def get_type_for_value(value):
         if isinstance(value, (jax.core.Var, jax.core.Literal)):
-            for k, v in jax_to_ov_type_map.items():
+            if value.aval.dtype in jax_to_ov_type_map:
+                return OVAny(jax_to_ov_type_map[value.aval.dtype])
+            for k, v in numpy_to_ov_type_map.items():
+                if isinstance(value.aval.dtype, k):
+                    return OVAny(v)
+            for k, v in basic_to_ov_type_map.items():
                 if isinstance(value.aval.dtype, k):
                     return OVAny(v)
         elif isinstance(value, (int, float, bool)):
