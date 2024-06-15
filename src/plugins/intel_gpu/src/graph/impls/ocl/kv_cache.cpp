@@ -222,8 +222,8 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 }
             }
 
-            instance.set_output_memory(scale_new, false, 1);
-            comp_scale_state->set_memory(scale_new, instance.get_impl_params()->output_layouts[1]);
+            instance.set_output_memory(scale_new, false, 2);
+            comp_scale_state->set_memory(scale_new, instance.get_impl_params()->output_layouts[2]);
 
             auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, comp_scale_state->is_set());
             (_kernels_data[scale_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[scale_stage]);

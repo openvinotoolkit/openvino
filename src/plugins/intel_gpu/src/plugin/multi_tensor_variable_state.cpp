@@ -46,7 +46,7 @@ VariableStateIndirectKVCache::VariableStateIndirectKVCache(const VariableStateIn
     m_hidden_states.push_back(std::make_shared<VariableState>(beam_table_state_info, context, shape_predictor));
 
     if (has_compression_scale) {
-        cldnn::layout compression_scale_layout(get_compression_scale_shape(info.m_layout.get_partial_shape()), ov::element::i8, cldnn::format::bfyx);
+        cldnn::layout compression_scale_layout(get_compression_scale_shape(info.m_layout.get_partial_shape()), ov::element::f16, cldnn::format::bfyx);
         VariableStateInfo compression_scale_state_info(info.m_id + "/comp_scale", compression_scale_layout);
         m_hidden_states.push_back(std::make_shared<VariableState>(compression_scale_state_info, context, shape_predictor));
     }
