@@ -171,6 +171,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
     uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
 
+    uint left_batch = TILE_B;
+    uint last_batch_mega_block = (get_num_groups(0) - 1) / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint last_batch_mini_block = (get_num_groups(0) - 1) / DISPATCH_FSV % DISPATCH_BSV;
+    if (batch_mega_block == last_batch_mega_block && batch_mini_block == last_batch_mini_block){
+        left_batch = INPUT0_BATCH_NUM % TILE_B;
+    }
 #if USE_SLM
     uint out_f = gid * (TILE_OFM * SIMD);
     uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
@@ -641,7 +647,13 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 output_offset += TILE_OUT_B_PITCH;                          \
             } while (false)
 #endif
-        CONST_LOOP(TILE_B, WRITE_OUTPUT);
+        if(left_batch == TILE_B) {
+            CONST_LOOP(TILE_B, WRITE_OUTPUT);
+        } else {
+            unroll_for (uint bi = 0; bi < left_batch; ++bi) {
+                CONST_LOOP(1, WRITE_OUTPUT);
+            }
+        }
         #undef WRITE_OUTPUT
     } else {
         output_offset += sglid;
@@ -667,7 +679,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         //#undef WRITE_OUTPUT
         //#undef WRITE_OUTPUT_FEATURE
 
-        for (uint bi = 0; bi < TILE_B; ++bi) {
+        for (uint bi = 0; bi < left_batch; ++bi) {
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
 #if IS_DYNAMIC
