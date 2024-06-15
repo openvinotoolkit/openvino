@@ -36,7 +36,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
 
     half scale = 127.0h / max_val;
-    scale = 16.0h;
+    scale = 8.0h; // FIXME: it is fixed now
     for (int y = 0; y < INPUT0_SIZE_Y; y++) {
         const uint in_offset = INPUT0_GET_INDEX(b, f, y, 0);
         const uint out_offset = OUTPUT_GET_INDEX(b, f, y, 0);

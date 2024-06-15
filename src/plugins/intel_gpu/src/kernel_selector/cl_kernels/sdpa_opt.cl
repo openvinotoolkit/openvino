@@ -17,8 +17,22 @@
 // max_logits    [batch, heads_num, q_len, partition_idx]
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
 
-#define SCALE_KEY 16.0h
 #define SCALE_VAL 128.0h
+
+// FIXME: generate this index from jitter
+#if HAS_SCALE_INPUT
+    #if IS_KV_COMPRESSED
+        #define SCALE_KEY_GET_INDEX(b, f, y, x) INPUT5_GET_INDEX(b, f, y, x)
+    #else
+        #define SCALE_KEY_GET_INDEX(b, f, y, x) 0
+    #endif
+#else  /* !HAS_SCALE_INPUT */
+    #if IS_KV_COMPRESSED
+        #define SCALE_KEY_GET_INDEX(b, f, y, x) INPUT4_GET_INDEX(b, f, y, x)
+    #else
+        #define SCALE_KEY_GET_INDEX(b, f, y, x) 0
+    #endif
+#endif
 
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_SIMPLE
@@ -233,8 +247,10 @@ KERNEL(sdpa_opt)(
                 const uint b_idx = b0_idx;
 #endif
                 const uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
+                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b_idx, b1_idx, 0, 0);
 #else
                 const uint key_offset = INPUT1_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, 0);
+                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b0_idx, b1_idx, 0, 0);
 #endif
 
                 INPUT0_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {INPUT0_VAL_ZERO};
@@ -251,10 +267,10 @@ KERNEL(sdpa_opt)(
                     KEY_BLOCK __key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
                     MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE) key_vals;
                     key_vals = TO_KEY_VEC_TYPE(__key_vals);
-                    key_vals /= SCALE_KEY;
+                    key_vals *= key_scale[scale_key_offset];
                     // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
                     //     printf("val %d -> %f\n", __key_vals[0], key_vals[0]);
-                    
+
 #else
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
@@ -289,7 +305,7 @@ KERNEL(sdpa_opt)(
                     KEY_BLOCK __key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
                     MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE) key_vals;
                     key_vals = TO_KEY_VEC_TYPE(__key_vals);
-                    key_vals /= SCALE_KEY;
+                    // key_vals *= SCALE_KEY;
 #else
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
@@ -725,6 +741,7 @@ KERNEL(sdpa_opt)(
 #ifdef BEAM_TABLE_TYPE
                 const uint b_idx = beam_table[FUNC_CALL(get_bt_index_key)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len + sglid, 0)];
                 const uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len + sglid, 0);
+                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b_idx, b1_idx, 0, 0);
 #else
 #ifdef INPUT1_DIMS_ORDER
                 uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
@@ -734,6 +751,7 @@ KERNEL(sdpa_opt)(
                 uint key_offset = INPUT1_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, 0);
                 const uint key_pitch = HEAD_SIZE;
 #endif
+                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b0_idx, b1_idx, 0, 0);
 #endif
 
                 INPUT0_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {INPUT0_VAL_ZERO};
@@ -757,7 +775,7 @@ KERNEL(sdpa_opt)(
                         INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
 #endif
                         half key_vals = __key_vals;
-                        key_vals /= SCALE_KEY;
+                        key_vals *= key_scale[scale_key_offset];;
                         // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
                         //     printf("key_vals %d - %f\n", __key_vals, key_vals);
 #else
