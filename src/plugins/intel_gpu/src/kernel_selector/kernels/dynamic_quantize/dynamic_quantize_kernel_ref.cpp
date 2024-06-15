@@ -54,8 +54,8 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
 CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_params& params) const {
     CommonDispatchData dispatchData;
 
-    dispatchData.gws = GetTensorFriendlyWorkGroups(params.outputs[0]);
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.gws = {params.outputs[0].Batch().v * params.outputs[0].Feature().v, 1, 1};
+    dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
 }
@@ -67,7 +67,7 @@ void DynamicQuantizeKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        kd.kernels[0].skip_execution = false;
     };
 }
 
