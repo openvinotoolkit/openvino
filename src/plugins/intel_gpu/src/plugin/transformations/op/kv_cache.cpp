@@ -62,7 +62,6 @@ KVCache::KVCache(const Output<Node>& past,
     , m_compressed(true)
     , m_output_type(output_type) {
     m_variable = past_variable;
-    std::cout << "mingyuki: KV cache compression" << std::endl;
     size_t out_ports = 1;
     if (m_indirect)
         set_output_size(++out_ports);
