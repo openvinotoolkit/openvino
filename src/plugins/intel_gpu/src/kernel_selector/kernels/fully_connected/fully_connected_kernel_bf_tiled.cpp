@@ -168,11 +168,12 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
-        bool is_odd = (output_b > 1) && (output_b % 2 == 1);
-        // If batch_size is unaligned with tile_b, params can use dispatch_bsv==1 in case of odd batch_size to avoid
-        // performance drop.
-        if ((tparams.dispatch_bsv != 1) || !is_odd)
+        size_t tile = simd;
+        while (batch_size % tile != 0)
+            tile--;
+        if ((tparams.dispatch_bsv != 1) || (tile > 1) || batch_size == 1)
             return false;
+        std::cout << "batch_size = " << batch_size << ", output_b = " << output_b << std::endl << std::endl;
     }
 
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
