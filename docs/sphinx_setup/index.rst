@@ -14,6 +14,7 @@ and on-device, in the browser or in the cloud.
 Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
 
 
+
 .. container::
    :name: ov-homepage-banner
 
