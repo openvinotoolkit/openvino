@@ -92,8 +92,6 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher() {
                 sdpa_inputs.push_back(org_sdpa->get_input_node_shared_ptr(i));
             sdpa_inputs[1] = new_kv_cache_k->output(0);         // compressed K
             sdpa_inputs.push_back(new_kv_cache_k->output(2));   // scale for compressed K
-            std::cout << "org_sdpa input size " << org_sdpa->get_input_size() 
-                        << "   new_sdpa input size " << sdpa_inputs.size() << std::endl;
 
             // auto new_sdpa = org_sdpa->clone_with_new_inputs(sdpa_inputs);
             auto new_sdpa = std::make_shared<op::IndirectSDPA>(sdpa_inputs,
