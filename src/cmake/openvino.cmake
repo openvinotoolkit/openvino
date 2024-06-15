@@ -49,11 +49,31 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow_lite/include>)
 
+find_package(MLIR REQUIRED CONFIG)
+
+set(MLIR_OPENVINO_LIBS
+        MLIRAnalysis
+        MLIRExecutionEngine
+        MLIRIR
+        MLIRJitRunner
+        MLIRLLVMDialect
+        MLIRLLVMToLLVMIRTranslation
+        MLIRToLLVMIRTranslationRegistration
+        MLIRParser
+        MLIRTargetLLVMIRExport
+        MLIRSupport
+        MLIROptLib
+        LLVMX86AsmParser
+        MLIRFuncDialect
+        MLIRFuncAllExtensions
+        MLIRUBToLLVM)
+
 target_link_libraries(${TARGET_NAME}
     PRIVATE openvino::reference
     openvino::shape_inference
     openvino::pugixml
     ${CMAKE_DL_LIBS}
+    ${MLIR_OPENVINO_LIBS}
     Threads::Threads
     PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)

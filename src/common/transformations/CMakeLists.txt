@@ -9,6 +9,8 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp)
 
+find_package(MLIR REQUIRED CONFIG)
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -24,10 +26,14 @@ ov_build_target_faster(${TARGET_NAME}_obj
     PCH_HEADER "src/precomp.hpp"
 )
 
+target_compile_features(${TARGET_NAME}_obj PUBLIC cxx_std_17)
+
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::itt openvino::core::dev openvino::shape_inference)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${PUBLIC_HEADERS_DIR}"
-                                                      "${CMAKE_CURRENT_SOURCE_DIR}/src")
+                                                      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+                                                      "${MLIR_INCLUDE_DIRS}"
+                                                      "${LLVM_INCLUDE_DIRS}")
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
