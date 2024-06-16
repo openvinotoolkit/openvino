@@ -172,10 +172,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
 
     uint left_batch = TILE_B;
-    uint last_batch_mega_block = (get_num_groups(0) - 1) / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
-    uint last_batch_mini_block = (get_num_groups(0) - 1) / DISPATCH_FSV % DISPATCH_BSV;
-    if (batch_mega_block == last_batch_mega_block && batch_mini_block == last_batch_mini_block){
-        left_batch = INPUT0_BATCH_NUM % TILE_B;
+    if((OUTPUT_BATCH_NUM * OUTPUT_FEATURE_NUM) % TILE_B != 0) {
+        uint last_batch_mega_block = (get_num_groups(0) - 1) / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
+        uint last_batch_mini_block = (get_num_groups(0) - 1) / DISPATCH_FSV % DISPATCH_BSV;
+        if (batch_mega_block == last_batch_mega_block && batch_mini_block == last_batch_mini_block){
+            left_batch = (OUTPUT_BATCH_NUM * OUTPUT_FEATURE_NUM) % TILE_B;
+        }
     }
 #if USE_SLM
     uint out_f = gid * (TILE_OFM * SIMD);
