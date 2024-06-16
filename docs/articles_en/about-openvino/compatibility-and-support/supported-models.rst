@@ -35,6 +35,8 @@ by OpenVINO may also work properly.
 
 
 | Note:
+| The results as of June 17 2024, for OpenVINO version 2024.2.
+
 | The validation process involves using OpenVINO, natively or as a backend, to load each model
   onto the designated hardware and execute inference. If no errors are reported and inference
   finishes, the model receives the **passed** status (indicated by a check mark in the table).
@@ -43,5 +45,5 @@ by OpenVINO may also work properly.
 | The models come from different public model repositories, such as, OpenVINO Model Zoo,
   ONNX Model Zoo, Pytorch Model Zoo, and HuggingFace.
 
-| In the precision column, optimum-intel default corresponds to FP32 for small models and INT8
-  for models greater than 1B parameters.
+| In the precision column, the "optimum-intel default" label corresponds to FP32 for small
+  models and INT8 for models greater than 1B parameters.
