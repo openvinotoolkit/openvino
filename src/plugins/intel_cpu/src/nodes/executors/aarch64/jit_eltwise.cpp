@@ -28,6 +28,7 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseFloor,
                                      Algorithm::EltwiseGeluErf,
                                      Algorithm::EltwiseGeluTanh,
+                                     Algorithm::EltwiseGreater,
                                      Algorithm::EltwiseHswish,
                                      Algorithm::EltwiseIsInf,
                                      Algorithm::EltwiseMaximum,

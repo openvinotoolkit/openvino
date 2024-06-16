@@ -54,6 +54,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {ActivationTypes::RoundHalfAwayFromZero, {}},
         {ActivationTypes::GeluErf,               {}},
         {ActivationTypes::GeluTanh,              {}},
+        {ActivationTypes::Greater,                {}},
         {ActivationTypes::Swish,                 {{0.4f}}},
         {ActivationTypes::IsInf,                 {}}
 };

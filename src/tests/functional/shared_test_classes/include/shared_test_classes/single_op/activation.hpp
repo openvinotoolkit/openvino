@@ -66,6 +66,7 @@ static std::map<ActivationTypes, std::string> activationNames = {
         {ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"},
         {ActivationTypes::GeluErf,               "GeluErf"},
         {ActivationTypes::GeluTanh,              "GeluTanh"},
+        {ActivationTypes::Greater,               "Greater"},
         {ActivationTypes::SoftSign,              "SoftSign"},
         {ActivationTypes::IsInf,                 "IsInf"},
 };

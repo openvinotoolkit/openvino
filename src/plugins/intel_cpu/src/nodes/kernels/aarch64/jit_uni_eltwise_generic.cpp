@@ -596,6 +596,15 @@ struct EltwiseEmitter<jit_elu_emitter> {
 };
 
 template<>
+struct EltwiseEmitter<jit_greater_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_greater_emitter>(ctx.host,
+                                                                 ctx.host_isa,
+                                                                 ctx.exec_prc);
+    }
+};
+
+template<>
 struct EltwiseEmitter<jit_clamp_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host,
@@ -655,6 +664,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     OV_CASE(Algorithm::EltwiseMish, ov::intel_cpu::aarch64::jit_mish_emitter),
     OV_CASE(Algorithm::EltwiseGeluErf, ov::intel_cpu::aarch64::jit_gelu_erf_emitter),
     OV_CASE(Algorithm::EltwiseGeluTanh, ov::intel_cpu::aarch64::jit_gelu_tanh_emitter),
+    OV_CASE(Algorithm::EltwiseGreater, ov::intel_cpu::aarch64::jit_greater_emitter),
     OV_CASE(Algorithm::EltwiseMulAdd, ov::intel_cpu::aarch64::jit_mul_add_emitter),
     OV_CASE(Algorithm::EltwiseMod, ov::intel_cpu::aarch64::jit_mod_emitter),
     OV_CASE(Algorithm::EltwiseMultiply, ov::intel_cpu::aarch64::jit_multiply_emitter),
@@ -821,6 +831,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
         OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
         OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
+        OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
         OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),

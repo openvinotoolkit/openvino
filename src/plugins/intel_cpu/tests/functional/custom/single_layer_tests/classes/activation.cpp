@@ -166,6 +166,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Mish) ||
         (activation_type == utils::ActivationTypes::GeluErf) ||
         (activation_type == utils::ActivationTypes::GeluTanh) ||
+        (activation_type == utils::ActivationTypes::Greater) ||
         (activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
         (activation_type == utils::ActivationTypes::Swish) ||

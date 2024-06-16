@@ -121,6 +121,7 @@ enum ActivationTypes {
     RoundHalfAwayFromZero,
     GeluErf,
     GeluTanh,
+    Greater,
     SoftSign,
     IsInf
 };
