@@ -271,6 +271,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Addons>GatherTree", CreatorFunction(translate_gather_tree_op)},
         {"HashTable", CreatorFunction(translate_hash_table_op)},
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
+        {"HSVToRGB", CreatorFunction(translate_hsv_to_rgb_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
         {"IdentityN", CreatorFunction(translate_identity_n_op)},
         {"Inv", CreatorFunction(translate_inv_op)},

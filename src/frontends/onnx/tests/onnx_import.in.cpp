@@ -1182,6 +1182,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_mean) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_mean_18) {
+    auto model = convert_model("reduce_mean_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<uint8_t>> inputs{
+        ov::test::NDArray<uint8_t, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
+            .get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({7, 8, 9, 10}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min) {
     auto model = convert_model("reduce_min.onnx");
 
