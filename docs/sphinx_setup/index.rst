@@ -25,30 +25,20 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
          <section class="splide" aria-label="Splide Banner Carousel">
            <div class="splide__track">
          		<ul class="splide__list">
-                  <li id="ov-homepage-slide1" id class="splide__slide">
-                     <p class="ov-homepage-slide-title">An open-source toolkit for optimizing and deploying deep learning models.</p>
-                     <p class="ov-homepage-slide-subtitle">Boost your AI deep-learning inference performance!</p>
-                     <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/get-started.html">Learn more</a>
+                  <li id="ov-homepage-slide1" class="splide__slide">
+                  <p class="ov-homepage-slide-title">New Generative AI API</p>
+                  <p class="ov-homepage-slide-subtitle">Generate text with LLMs in only a few lines of code!</p>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide2" class="splide__slide">
-                  <p class="ov-homepage-slide-title">Better OpenVINO integration with PyTorch!</p>
-                  <p class="ov-homepage-slide-subtitle">Use PyTorch models directly, without converting them first.</p>
-                     <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html">Learn more</a>
+                  <p class="ov-homepage-slide-title">Python custom operations</p>
+                  <p class="ov-homepage-slide-subtitle">Implement specialized operations for any model out of the box!</p>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html">Learn more</a>
                   </li>
                   <li id="ov-homepage-slide3" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
                   <p class="ov-homepage-slide-subtitle">Use OpenVINO directly in PyTorch-native applications!</p>
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html">Learn more</a>
-                  </li>
-                  <li id="ov-homepage-slide4" class="splide__slide">
-                  <p class="ov-homepage-slide-title">Do you like Generative AI?</p>
-                  <p class="ov-homepage-slide-subtitle">You will love how it performs with OpenVINO!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/interactive-tutorials-python.html">Check out our new notebooks</a>
-                  </li>
-                  <li id="ov-homepage-slide5" id class="splide__slide">
-                     <p class="ov-homepage-slide-title">Boost your AI deep learning interface performance.</p>
-                     <p class="ov-homepage-slide-subtitle">Use Intel's open-source OpenVino toolkit for optimizing and deploying deep learning models.</p>
-                     <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html">Learn more</a>
                   </li>
             </ul>
            </div>
