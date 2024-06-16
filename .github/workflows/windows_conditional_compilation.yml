@@ -166,6 +166,7 @@ jobs:
             -DENABLE_TESTS=ON `
             -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
+            -DENABLE_SYSTEM_OPENCL=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
