@@ -29,9 +29,19 @@ public:
         PYBIND11_OVERRIDE(void, ov::op::Op, validate_and_infer_types);
     }
 
-    bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        // PYBIND11_OVERRIDE(bool, Op, visit_attributes, visitor);
-        return true;
+    bool visit_attributes(ov::AttributeVisitor& value) override {
+        // PYBIND11_OVERRIDE(bool, ov::op::Op, visit_attributes, visitor);
+
+        pybind11::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+        // Try to look up the overridden method on the Python side.
+        pybind11::function override = pybind11::get_override(this, "visit_attributes");
+        if (override) {  // method is found
+            std::cout << "lol";
+            py::bool_ obj = override(&value);  // Call the Python function.
+            std::cout << "lol3";
+            return obj;
+        }
+        return false;  // Alternatively return MyClass::myMethod(value);
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
@@ -67,8 +77,8 @@ void regclass_graph_Op(py::module m) {
         return PyOp(py_obj);
     }));
 
-    op.def("visit_attributes", [](PyOp& self, const py::dict& attributes) {
-        return self.custom_attribute_visitor(attributes);
-    });
+    // op.def("visit_attributes", [](PyOp& self, const py::dict& attributes) {
+    //     return self.custom_attribute_visitor(attributes);
+    // });
 
 }
