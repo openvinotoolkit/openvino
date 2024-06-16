@@ -39,7 +39,7 @@ std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::
     return std::make_tuple(properties, device_name);
 }
 
-CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {} 
+CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
 Napi::Function CoreWrap::get_class(Napi::Env env) {
     return DefineClass(env,

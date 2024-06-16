@@ -68,16 +68,17 @@ public:
     Napi::Value set_property(const Napi::CallbackInfo& info);
     Napi::Value get_property(const Napi::CallbackInfo& info);
 
-     /** @brief Query device if it supports the specified model with specified properties.
-      * @param info contains atleast two passed arguments.
-      * @param info[0] Javascript Model object acquired from CoreWrap::read_model
-      * @param info[1] Name of the device to query
-      * @param info[2] Optional: Map of Properties to query
-      * @return A Javascript Object with the query results.
+    /** @brief Query device if it supports the specified model with specified properties.
+     * @param info contains atleast two passed arguments.
+     * @param info[0] Javascript Model object acquired from CoreWrap::read_model
+     * @param info[1] Name of the device to query
+     * @param info[2] Optional: Map of Properties to query
+     * @return A Javascript Object with the query results.
      */
     Napi::Value query_model(const Napi::CallbackInfo& info);
 
     void add_extension(const Napi::CallbackInfo& info);
+
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
