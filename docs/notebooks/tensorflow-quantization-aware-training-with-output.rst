@@ -58,7 +58,7 @@ models will be stored.
     %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64'"
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64'" # macOS x86
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin'"
-    %pip install -q "tensorflow-datasets>=4.9.0,<4.9.3; latform_system=='Windows'"
+    %pip install -q "tensorflow-datasets>=4.9.0,<4.9.3; platform_system=='Windows'"
     %pip install -q "tensorflow-datasets>=4.9.0"
 
 
@@ -72,34 +72,7 @@ models will be stored.
     Note: you may need to restart the kernel to use updated packages.
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    ERROR: Exception:
-    Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_vendor/packaging/markers.py", line 278, in __init__
-        self._markers = _coerce_parse_result(MARKER.parseString(marker))
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_vendor/pyparsing/util.py", line 256, in _inner
-        return fn(self, *args, **kwargs)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_vendor/pyparsing/core.py", line 1190, in parse_string
-        raise exc.with_traceback(None)
-    pip._vendor.pyparsing.exceptions.ParseException: , found 'latform'  (at char 0), (line:1, col:1)
-    
-    During handling of the above exception, another exception occurred:
-    
-    Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_internal/cli/base_command.py", line 180, in exc_logging_wrapper
-        status = run_func(*args)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_internal/cli/req_command.py", line 245, in wrapper
-        return func(self, options, args)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_internal/commands/install.py", line 342, in run
-        reqs = self.get_requirements(args, options, finder, session)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_internal/cli/req_command.py", line 411, in get_requirements
-        req_to_add = install_req_from_line(
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_internal/req/constructors.py", line 421, in install_req_from_line
-        parts = parse_req_from_line(name, line_source)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_internal/req/constructors.py", line 323, in parse_req_from_line
-        markers = Marker(markers_as_string)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pip/_vendor/packaging/markers.py", line 280, in __init__
-        raise InvalidMarker(
-    pip._vendor.packaging.markers.InvalidMarker: Invalid marker: "latform_system=='Windows'", parse error at 'latform_'
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
@@ -149,19 +122,19 @@ models will be stored.
 
 .. parsed-literal::
 
-    2024-05-16 02:27:47.648435: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 02:27:47.684100: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 03:39:02.561572: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 03:39:02.596425: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 02:27:48.284829: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 03:39:03.197901: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
     Downloading data from https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/305_resnet18_imagenette_fp32_v1.h5
-    134604992/134604992 [==============================] - 3s 0us/step
+    134604992/134604992 [==============================] - 4s 0us/step
     Absolute path where the model weights are saved:
-     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
+     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
 
 
 Dataset Preprocessing
@@ -194,17 +167,17 @@ Download size: 94.18 MiB
 
 .. parsed-literal::
 
-    2024-05-16 02:27:56.353469: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-05-16 02:27:56.353501: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-05-16 02:27:56.353505: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-05-16 02:27:56.353649: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-05-16 02:27:56.353665: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-05-16 02:27:56.353668: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
-    2024-05-16 02:27:56.479232: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
-    	 [[{{node Placeholder/_1}}]]
-    2024-05-16 02:27:56.479556: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_2' with dtype string and shape [1]
-    	 [[{{node Placeholder/_2}}]]
-    2024-05-16 02:27:56.578034: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-06-06 03:39:11.942470: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-06-06 03:39:11.942504: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-06-06 03:39:11.942508: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-06-06 03:39:11.942662: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-06-06 03:39:11.942676: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-06-06 03:39:11.942680: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-06-06 03:39:12.051672: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_3}}]]
+    2024-06-06 03:39:12.051996: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_3}}]]
+    2024-06-06 03:39:12.122902: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 
@@ -348,15 +321,15 @@ model and a training pipeline.
 
 .. parsed-literal::
 
-    2024-05-16 02:27:57.541216: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
-    	 [[{{node Placeholder/_1}}]]
-    2024-05-16 02:27:57.541612: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
+    2024-06-06 03:39:13.292630: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
     	 [[{{node Placeholder/_0}}]]
+    2024-06-06 03:39:13.293394: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_3}}]]
 
 
 .. parsed-literal::
 
-    4/4 [==============================] - 1s 254ms/sample - loss: 0.9807 - acc@1: 0.8220
+    4/4 [==============================] - 1s 243ms/sample - loss: 0.9807 - acc@1: 0.8220
     
     Accuracy of FP32 model: 0.822
 
@@ -402,13 +375,13 @@ scenario and requires only 3 modifications.
 
 .. parsed-literal::
 
-    2024-05-16 02:28:00.405420: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
+    2024-06-06 03:39:15.881712: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
     	 [[{{node Placeholder/_1}}]]
-    2024-05-16 02:28:00.405823: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
+    2024-06-06 03:39:15.882101: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
     	 [[{{node Placeholder/_1}}]]
-    2024-05-16 02:28:01.347152: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
-    2024-05-16 02:28:02.048435: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
-    2024-05-16 02:28:10.299252: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-06-06 03:39:16.811397: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-06-06 03:39:17.409491: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-06-06 03:39:25.687275: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 Evaluate the new model on the validation set after initialization of
@@ -434,7 +407,7 @@ demonstrated here.
 
 .. parsed-literal::
 
-    4/4 [==============================] - 1s 311ms/sample - loss: 0.9766 - acc@1: 0.8120
+    4/4 [==============================] - 1s 304ms/sample - loss: 0.9766 - acc@1: 0.8120
 
 
 Fine-tune the Compressed Model
@@ -469,10 +442,10 @@ training pipeline are required. Here is a simple example.
     
     Accuracy of INT8 model after initialization: 0.812
     Epoch 1/2
-    101/101 [==============================] - 49s 416ms/step - loss: 0.7134 - acc@1: 0.9299
+    101/101 [==============================] - 49s 418ms/step - loss: 0.7134 - acc@1: 0.9299
     Epoch 2/2
     101/101 [==============================] - 42s 417ms/step - loss: 0.6807 - acc@1: 0.9489
-    4/4 [==============================] - 1s 148ms/sample - loss: 0.9760 - acc@1: 0.8160
+    4/4 [==============================] - 1s 143ms/sample - loss: 0.9760 - acc@1: 0.8160
     
     Accuracy of INT8 model after fine-tuning: 0.816
     
@@ -582,10 +555,10 @@ Please select a benchmarking device using the dropdown list:
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2830.17 FPS
+    [ INFO ] Throughput:   2843.86 FPS
     
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   10730.06 FPS
+    [ INFO ] Throughput:   11417.45 FPS
 
 
 Show Device Information for reference.

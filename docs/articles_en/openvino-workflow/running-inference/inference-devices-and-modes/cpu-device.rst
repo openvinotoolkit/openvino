@@ -3,7 +3,11 @@
 CPU Device
 ==========
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
 
+   cpu-device/performance-hint-and-thread-scheduling
 
 .. meta::
    :description: The CPU plugin in the Intel® Distribution of OpenVINO™ toolkit
@@ -230,6 +234,8 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
 
 For more details, see the :doc:`Multi-device execution <multi-device>` article.
 
+.. _multi_stream_execution:
+
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -238,19 +244,13 @@ property is set for CPU plugin, then multiple streams are created for the model.
 host thread, which means that incoming infer requests can be processed simultaneously. Each stream is pinned to its own group of
 physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-For more details, see the :doc:`optimization guide <../optimize-inference>` and :doc:`threads scheduling introduction <cpu-device/performance-hint-and-threads-scheduling>`.
+For more details, see the :doc:`optimization guide <../optimize-inference>` and :doc:`thread scheduling introduction <cpu-device/performance-hint-and-thread-scheduling>`.
 
 .. note::
 
    When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint.
    For more details see the :doc:`performance hints <../optimize-inference/high-level-performance-hints>` overview.
-
- .. toctree::
-    :maxdepth: 1
-    :hidden:
- 
-    cpu-device/performance-hint-and-threads-scheduling
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -392,7 +392,7 @@ Multi-Threading Optimization
 
 CPU inference will infer an input or multiple inputs in parallel on multiple logical processors.
 
-For more details, see the :doc:`threads scheduling introduction <cpu-device/performance-hint-and-threads-scheduling>`.
+For more details, see the :doc:`thread scheduling introduction <cpu-device/performance-hint-and-thread-scheduling>`.
 
 
 Denormals Optimization

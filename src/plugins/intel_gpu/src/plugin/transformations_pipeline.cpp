@@ -62,6 +62,7 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
+#include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
@@ -341,11 +342,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // - The head size should be divisible by 16
+            // - Head size should be static dim
+            const auto head_size_dim = query_ps[query_ps.size() - 1];
+            if (head_size_dim.is_dynamic())
+                return false;
+
+            // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
+            //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
+            //   until the SDPA operation is optimized for these cases
             const auto optimal_subgroup_size = 16;
-            if (query_ps[query_ps.size() - 1].is_dynamic() ||
-                query_ps[query_ps.size() - 1].get_length() != 128 ||
-                query_ps[query_ps.size() - 1].get_length() % optimal_subgroup_size != 0) {
+            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            bool valid_head_size = head_size % optimal_subgroup_size == 0;
+            valid_head_size &= (head_size == 128) || (func->get_variables().size() > 0 && head_size >= 64 && head_size <= 256);
+            if (!valid_head_size) {
                 return false;
             }
 
@@ -800,10 +809,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>();
-        if (device_info.supports_immad) {
-            manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulMatcher>();
-            manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulTransposeMatcher>();
-        }
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
@@ -825,6 +830,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
+        GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->verbose >= 1) {
+            manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
+        }
 
         manager.run_passes(func);
     }

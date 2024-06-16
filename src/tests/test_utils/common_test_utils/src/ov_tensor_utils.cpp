@@ -430,10 +430,6 @@ public:
         mvn_results /= tensor_size ? tensor_size : 1;
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
             incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
-#ifdef NDEBUG
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
-            msg += "  Use DEBUG mode to print `incorrect_values_abs` and get detailed information!";
-#else
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED! incorrect elem counter: ";
             msg += std::to_string(incorrect_values_abs.size());
             msg += " among ";
@@ -441,11 +437,14 @@ public:
             msg += " shapes.";
             for (auto val : incorrect_values_abs) {
                 std::cout << "\nExpected: " << val.expected_value << " Actual: " << val.actual_value
+                          << " Coordinate: " << val.coordinate
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
                           << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
                           << " rel_threshold: " << rel_threshold << "\n";
-            }
+#ifdef NDEBUG
+                break;
 #endif
+            }
             throw std::runtime_error(msg);
         } else if (!less_or_equal(mvn_results, mvn_threshold)) {
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED due to MVN THRESHOLD: ";
