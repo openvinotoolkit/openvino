@@ -456,20 +456,6 @@ void primitive_inst::update_shape() {
         if (var_mem_size < _impl_params->get_output_layout(0).get_buffer_size().count())
             set_shape_change();
     }
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    if (get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::onednn) {
-        auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
-        std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
-        cldnn::create_onednn_primitive_attributes(get_node(),
-                                                    _impl_params->fused_desc,
-                                                    attrs_onednn,
-                                                    fused_desc_onednn,
-                                                    _impl_params.get());
-        _impl_params->attrs_onednn = attrs_onednn;
-        _impl_params->fused_desc_onednn = fused_desc_onednn;
-    }
-#endif
 }
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
@@ -872,6 +858,21 @@ bool primitive_inst::update_impl() {
     }
 
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (get_node().get_preferred_impl_type() == impl_types::onednn
+            && !_impl_params->fused_desc.empty()) {
+            auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
+            std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+            cldnn::create_onednn_primitive_attributes(get_node(),
+                                                        _impl_params->fused_desc,
+                                                        attrs_onednn,
+                                                        fused_desc_onednn,
+                                                        _impl_params.get());
+            _impl_params->attrs_onednn = attrs_onednn;
+            _impl_params->fused_desc_onednn = fused_desc_onednn;
+        }
+#endif
+
         // Update param if fake_alignment is available
         auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
         // Change weights layout of `updated_params` to original one to have valid information

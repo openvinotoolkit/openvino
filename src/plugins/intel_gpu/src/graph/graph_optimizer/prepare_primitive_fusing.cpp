@@ -996,7 +996,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto peer_node = parents[peer_idx].first;
             if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
-                if (eltw_in_size.is_dynamic() && (!parent1.first->is_type<fully_connected>() && !parent2.first->is_type<fully_connected>()))
+                if (eltw_in_size.is_dynamic()
+                    // this whitelist condition is temporarily and to be relaxed soon.
+                    && !fused_node->is_type<fully_connected>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
