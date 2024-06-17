@@ -84,15 +84,23 @@ def unpatch_model(model, orig_forward_name):
 
 def __make_16bit_traceable(model: torch.nn.Module):
     # Replace torch.nn.Linear with ModuleExtension and move other modules to fp32
-    extensions = {torch.nn.Linear: ModuleExtension(
-        torch.nn.Linear,
-        "aten::linear",
-        evaluate=lambda module, *args, **kwargs: torch.ones(
-            list(args[0].shape[:-1]) + [module.out_features], dtype=torch.float32) * 0.5,
-        convert=lambda module, target_op, *args, **kwargs: target_op(args[0], module.weight, module.bias))
+    extensions = {
+        torch.nn.Linear: ModuleExtension(
+            torch.nn.Linear,
+            "aten::linear",
+            evaluate=lambda module, *args, **kwargs: torch.ones(
+                list(args[0].shape[:-1]) + [module.out_features], dtype=torch.float32) * 0.5,
+            convert=lambda module, target_op, *args, **kwargs: target_op(args[0], module.weight, module.bias)),
+        torch.nn.Embedding: ModuleExtension(
+            torch.nn.Embedding,
+            "aten::embedding",
+            evaluate=lambda module, *args, **kwargs: torch.ones(
+                list(args[0].shape) + [module.embedding_dim], dtype=torch.float32) * 0.5,
+            convert=lambda module, target_op, *args, **kwargs: target_op(module.weight, args[0], module.padding_idx, module.scale_grad_by_freq, module.sparse))
     }
     patch_model(model, extensions,
                 "_openvino_module_extension_patch_orig_forward")
-    for _, module in model.named_modules():
+    for name, module in model.named_modules():
         if module.__class__ not in extensions and hasattr(module, "weight") and module.weight.dtype in [torch.float16, torch.bfloat16]:
+            print(f"Module: {name}, {module}, {module.weight.shape} will be converted to fp32.")
             module.float()
