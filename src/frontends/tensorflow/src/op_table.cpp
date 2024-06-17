@@ -205,6 +205,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Separate translators:
         {"AddN", CreatorFunction(translate_add_n_op)},
         {"AdjustContrastv2", CreatorFunction(translate_adjust_contrast_op)},
+        {"AdjustHue", CreatorFunction(translate_adjust_hue_op)},
         {"AdjustSaturation", CreatorFunction(translate_adjust_saturation_op)},
         {"Angle", CreatorFunction(translate_angle_op)},
         {"ArgMax", CreatorFunction(translate_arg_max_op)},
@@ -270,6 +271,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Addons>GatherTree", CreatorFunction(translate_gather_tree_op)},
         {"HashTable", CreatorFunction(translate_hash_table_op)},
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
+        {"HSVToRGB", CreatorFunction(translate_hsv_to_rgb_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
         {"IdentityN", CreatorFunction(translate_identity_n_op)},
         {"Inv", CreatorFunction(translate_inv_op)},
