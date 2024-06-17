@@ -100,7 +100,6 @@ def __make_16bit_traceable(model: torch.nn.Module):
     }
     patch_model(model, extensions,
                 "_openvino_module_extension_patch_orig_forward")
-    for name, module in model.named_modules():
+    for _, module in model.named_modules():
         if module.__class__ not in extensions and hasattr(module, "weight") and module.weight.dtype in [torch.float16, torch.bfloat16]:
-            print(f"Module: {name}, {module}, {module.weight.shape} will be converted to fp32.")
             module.float()
