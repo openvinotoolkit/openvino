@@ -49,11 +49,27 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
 }
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) const {
+    if (tensor_name.empty())
+        return {};
     auto place_it = m_name_to_place.find(tensor_name);
     if (place_it != m_name_to_place.end()) {
         return place_it->second;
+    } else {
+        // Return fake place that can be used to change shape or type of inputs that will exist after conversion
+        auto place = std::make_shared<pytorch::Place>(*this, tensor_name, 0);
+        return place;
     }
-    return nullptr;
+}
+
+Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    const auto& inputs = get_inputs();
+    if (input_idx < inputs.size()) {
+        return inputs.at(input_idx);
+    } else {
+        // Return fake place that can be used to change shape or type of inputs that will exist after conversion
+        auto place = std::make_shared<pytorch::Place>(*this, "", input_idx);
+        return place;
+    }
 }
 
 void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape) {
@@ -62,6 +78,12 @@ void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialSha
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
     pytorch_place->m_pshape = shape;
+    if (pytorch_place->m_is_fake &&
+        std::all_of(m_fake_places.cbegin(), m_fake_places.cend(), [&place](const Place::Ptr& p) {
+            return !p->is_equal(place);
+        })) {
+        m_fake_places.push_back(place);
+    }
 }
 
 ov::PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
@@ -78,6 +100,12 @@ void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Ty
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
     pytorch_place->m_type = type;
+    if (pytorch_place->m_is_fake &&
+        std::all_of(m_fake_places.cbegin(), m_fake_places.cend(), [&place](const Place::Ptr& p) {
+            return !p->is_equal(place);
+        })) {
+        m_fake_places.push_back(place);
+    }
 }
 
 ov::element::Type InputModel::get_element_type(const Place::Ptr& place) const {

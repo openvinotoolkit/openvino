@@ -72,40 +72,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
             input_model.override_all_outputs([x['node'] for x in outputs])
     '''
-    argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
-        input_model, argv.placeholder_shapes, argv.placeholder_data_types)
-
-    user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
-        input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.output, {}, moc_front_end.get_name())
-
-    def check_places_are_same(places_original: List[Place], places_new: List[Place]):
-        """
-        Check if set of new places is same as original or not.
-        :param places_original: List[Place] Original model places
-        :param places_new: List[Place] New list of places
-        :return: True if new list of places is same as original
-        """
-        return len(places_original) == len(places_new) and len(
-            [item for item in places_original if any(
-                [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
-
-    def add_names_to_tensors(model: InputModel, places: List[Place]):
-        """
-        Adds additional names to some model input tensors. This helper should be used
-        when a model modification is going to happen.
-        :param model The input model loaded by a given frontend
-        :param places An object containing Places and names that will be used for model modification
-        """
-        for new_input in places:
-            if 'input_name' not in new_input:
-                continue
-            try:
-                model.add_name_for_tensor(new_input['node'], new_input['input_name'])
-            except NotImplementedFailure as e:
-                # some frontends might not implement this method
-                log.warning('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
-                    new_input['input_name'], str(e)))
 
     enabled_transforms, disabled_transforms = get_enabled_and_disabled_transforms()
     if 'ANALYSIS_JSON_PRINT' in enabled_transforms:
@@ -115,131 +81,194 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         # a model is not processed further in json analysis mode
         sys.exit(0)
 
-    model_inputs = input_model.get_inputs()
-    inputs_equal = True
-    if user_shapes:
-        # TODO: Remove this line when new 'cut' helper is introduced
-        raise_exception_for_input_output_cut(model_inputs, user_shapes, True)
-
-        inputs_equal = check_places_are_same(model_inputs, user_shapes)
-
-    outputs_equal = True
-    if outputs:
-        # TODO: Remove this line when new 'cut' helper is introduced
-        raise_exception_for_input_output_cut(input_model.get_outputs(), outputs, False)
-
-        outputs_equal = check_places_are_same(input_model.get_outputs(), outputs)
-    log.debug('Inputs are same: {}, outputs are same: {}'.format(
-        inputs_equal, outputs_equal))
-
-    def create_target_input_shapes(new_input_places):
-        if isinstance(new_input_places, list) and len(new_input_places) > 1 \
-                and isinstance(new_input_places[0], tuple):
-            return new_input_places
-        new_input_place_names = [x.get_names()[0] for x in new_input_places]
-        shapes = [shape for shape in argv.placeholder_shapes.values()]
-        return dict(zip(new_input_place_names, shapes))
-
-    if not inputs_equal and not outputs_equal:
-        log.debug('Using extract subgraph')
-        new_input_places = [x['node'] for x in user_shapes]
-        new_output_places = [x['node'] for x in outputs]
-        add_names_to_tensors(input_model, user_shapes)
-        input_model.extract_subgraph(new_input_places, new_output_places)
-        # invalidation of existing Place objects could have happened in the operation above
-        if user_shapes:
-            placeholder_shapes = create_target_input_shapes(new_input_places)
-            new_output_places_name = [x.get_names()[0] for x in new_output_places]
-
-            user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, placeholder_shapes, argv.placeholder_data_types,
-                new_output_places_name, {}, moc_front_end.get_name())
-    elif not inputs_equal:
-        log.debug('Using override_all_inputs')
-        add_names_to_tensors(input_model, user_shapes)
-        new_input_places = [x['node'] for x in user_shapes]
-        input_model.override_all_inputs(new_input_places)
-        # invalidation of existing Place objects could have happened in the operation above
-        if user_shapes:
-            placeholder_shapes = create_target_input_shapes(new_input_places)
-
-            user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, placeholder_shapes, argv.placeholder_data_types,
-                argv.output, {}, moc_front_end.get_name())
-    elif not outputs_equal:
-        log.debug('Using override_all_outputs')
-        add_names_to_tensors(input_model, user_shapes)
-        new_output_places = [x['node'] for x in outputs]
-        input_model.override_all_outputs(new_output_places)
-        # invalidation of existing Place objects could have happened in the operation above
-        if user_shapes:
-            model_inputs = input_model.get_inputs()
-
-    if user_shapes:
-        for user_shape in user_shapes:
-            if user_shape.get('shape') is not None:
-                input_model.set_partial_shape(
-                    user_shape['node'], user_shape['shape'])
-            if user_shape.get('data_type') is not None:
-                data_type = user_shape['data_type']
-                log.debug('Set data type: {}'.format(data_type))
-                input_model.set_element_type(user_shape['node'], data_type)
-
-    if freeze_placeholder:
-        for name, value in freeze_placeholder.items():
-            node = None
-            # look for the certain place in user_shapes
-            for node_cur in user_shapes:
-                if node_cur.get('input_name') == name:
-                    node = node_cur
-                    break
-            if node is None:
-                raise Error("Please check correctness of the command-line. "
-                            "Place (operation or tensor) with name {} is not found.".format(name))
-            place = node.get('node')
-
-            if node.get('data_type'):
-                dtype = node['data_type']
-                ov_type = Type(dtype)
+    if getattr(argv, "framework", None) == "pytorch":
+        for idx, input_info in enumerate(argv.input):
+            if getattr(input_info, "name", None):
+                place = input_model.get_place_by_tensor_name(input_info.name)
+                if input_info.shape:
+                    input_model.set_partial_shape(place, input_info.shape)
+                if input_info.type:
+                    input_model.set_element_type(place, input_info.type)
             else:
-                # we need to detect type of Placeholder
+                place = input_model.get_place_by_input_index(idx)
+                if input_info.shape:
+                    input_model.set_partial_shape(place, input_info.shape)
+                if input_info.type:
+                    input_model.set_element_type(place, input_info.type)
+    else:
+        argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
+            input_model, argv.placeholder_shapes, argv.placeholder_data_types)
+
+        user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
+            input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+            argv.output, {}, moc_front_end.get_name())
+
+        def check_places_are_same(places_original: List[Place], places_new: List[Place]):
+            """
+            Check if set of new places is same as original or not.
+            :param places_original: List[Place] Original model places
+            :param places_new: List[Place] New list of places
+            :return: True if new list of places is same as original
+            """
+            return len(places_original) == len(places_new) and len(
+                [item for item in places_original if any(
+                    [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
+
+        def add_names_to_tensors(model: InputModel, places: List[Place]):
+            """
+            Adds additional names to some model input tensors. This helper should be used
+            when a model modification is going to happen.
+            :param model The input model loaded by a given frontend
+            :param places An object containing Places and names that will be used for model modification
+            """
+            for new_input in places:
+                if 'input_name' not in new_input:
+                    continue
                 try:
-                    ov_type = input_model.get_element_type(place)
-                except NotImplementedFailure:
-                    raise Error("Please specify type for value freezing {} node explicitly "
-                                "because the frontend does not support automatic type detection.".format(name))
-                # in case of cutting graph (or using custom inputs) and unspecified or dynamic type,
-                # the default type is fp32
-                if ov_type == Type.undefined or ov_type == Type.dynamic:
-                    ov_type = Type.f32
-                dtype = get_numpy_ctype(ov_type)
+                    model.add_name_for_tensor(
+                        new_input['node'], new_input['input_name'])
+                except NotImplementedFailure as e:
+                    # some frontends might not implement this method
+                    log.warning('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
+                        new_input['input_name'], str(e)))
 
-            input_model.set_element_type(place, ov_type)
-            # prepare and cast value to dtype
-            if isinstance(value, list):
-                casted_list = list()
-                for v in mo_array(value):
-                    casted_list.append(np_map_cast[dtype](v))
-                value = mo_array(casted_list, dtype=dtype)
+        model_inputs = input_model.get_inputs()
+        inputs_equal = True
+        if user_shapes:
+            # TODO: Remove this line when new 'cut' helper is introduced
+            if getattr(argv, "framework", None) != "pytorch":
+                # pytorch may use non-input nodes even when cutting is not used
+                raise_exception_for_input_output_cut(
+                    model_inputs, user_shapes, True)
+                inputs_equal = check_places_are_same(model_inputs, user_shapes)
             else:
-                value = np_map_cast[dtype](value)
-            value = np.array(value, dtype=dtype)
+                inputs_equal = True
 
-            ov_shape = input_model.get_partial_shape(place)
-            if node.get('shape'):
-                # set user defined shape
-                ov_shape = PartialShape(node['shape'])
-                input_model.set_partial_shape(place, ov_shape)
-            elif ov_shape.is_dynamic:
-                # in case of dynamic shape (dynamic rank or dynamic dimension)
-                # deduce it based on the value shape and set it
-                ov_shape = PartialShape(value.shape)
-                input_model.set_partial_shape(place, ov_shape)
+        outputs_equal = True
+        if outputs:
+            # TODO: Remove this line when new 'cut' helper is introduced
+            if getattr(argv, "framework", None) != "pytorch":
+                # pytorch may use non-input nodes even when cutting is not used
+                raise_exception_for_input_output_cut(
+                    input_model.get_outputs(), outputs, False)
+                outputs_equal = check_places_are_same(
+                    input_model.get_outputs(), outputs)
+            else:
+                outputs_equal = True
+        log.debug('Inputs are same: {}, outputs are same: {}'.format(
+            inputs_equal, outputs_equal))
 
-            input_model.set_tensor_value(place, value)
+        def create_target_input_shapes(new_input_places):
+            if isinstance(new_input_places, list) and len(new_input_places) > 1 \
+                    and isinstance(new_input_places[0], tuple):
+                return new_input_places
+            new_input_place_names = [x.get_names()[0]
+                                     for x in new_input_places]
+            shapes = [shape for shape in argv.placeholder_shapes.values()]
+            return dict(zip(new_input_place_names, shapes))
 
-    def shape_to_array(shape: PartialShape):
-        return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
+        if not inputs_equal and not outputs_equal:
+            log.debug('Using extract subgraph')
+            new_input_places = [x['node'] for x in user_shapes]
+            new_output_places = [x['node'] for x in outputs]
+            add_names_to_tensors(input_model, user_shapes)
+            input_model.extract_subgraph(new_input_places, new_output_places)
+            # invalidation of existing Place objects could have happened in the operation above
+            if user_shapes:
+                placeholder_shapes = create_target_input_shapes(
+                    new_input_places)
+                print(f"placeholder_shapes: {placeholder_shapes}")
+                new_output_places_name = [x.get_names()[0]
+                                          for x in new_output_places]
+
+                user_shapes, outputs, _ = fe_user_data_repack(
+                    input_model, placeholder_shapes, argv.placeholder_data_types,
+                    new_output_places_name, {}, moc_front_end.get_name())
+        elif not inputs_equal:
+            log.debug('Using override_all_inputs')
+            add_names_to_tensors(input_model, user_shapes)
+            new_input_places = [x['node'] for x in user_shapes]
+            input_model.override_all_inputs(new_input_places)
+            # invalidation of existing Place objects could have happened in the operation above
+            if user_shapes:
+                placeholder_shapes = create_target_input_shapes(
+                    new_input_places)
+
+                user_shapes, outputs, _ = fe_user_data_repack(
+                    input_model, placeholder_shapes, argv.placeholder_data_types,
+                    argv.output, {}, moc_front_end.get_name())
+        elif not outputs_equal:
+            log.debug('Using override_all_outputs')
+            add_names_to_tensors(input_model, user_shapes)
+            new_output_places = [x['node'] for x in outputs]
+            input_model.override_all_outputs(new_output_places)
+            # invalidation of existing Place objects could have happened in the operation above
+            if user_shapes:
+                model_inputs = input_model.get_inputs()
+
+        if user_shapes:
+            print(f"user_shapes: {user_shapes}")
+            for user_shape in user_shapes:
+                if user_shape.get('shape') is not None:
+                    input_model.set_partial_shape(
+                        user_shape['node'], user_shape['shape'])
+                if user_shape.get('data_type') is not None:
+                    data_type = user_shape['data_type']
+                    log.debug('Set data type: {}'.format(data_type))
+                    input_model.set_element_type(user_shape['node'], data_type)
+
+        if freeze_placeholder:
+            for name, value in freeze_placeholder.items():
+                node = None
+                # look for the certain place in user_shapes
+                for node_cur in user_shapes:
+                    if node_cur.get('input_name') == name:
+                        node = node_cur
+                        break
+                if node is None:
+                    raise Error("Please check correctness of the command-line. "
+                                "Place (operation or tensor) with name {} is not found.".format(name))
+                place = node.get('node')
+
+                if node.get('data_type'):
+                    dtype = node['data_type']
+                    ov_type = Type(dtype)
+                else:
+                    # we need to detect type of Placeholder
+                    try:
+                        ov_type = input_model.get_element_type(place)
+                    except NotImplementedFailure:
+                        raise Error("Please specify type for value freezing {} node explicitly "
+                                    "because the frontend does not support automatic type detection.".format(name))
+                    # in case of cutting graph (or using custom inputs) and unspecified or dynamic type,
+                    # the default type is fp32
+                    if ov_type == Type.undefined or ov_type == Type.dynamic:
+                        ov_type = Type.f32
+                    dtype = get_numpy_ctype(ov_type)
+
+                input_model.set_element_type(place, ov_type)
+                # prepare and cast value to dtype
+                if isinstance(value, list):
+                    casted_list = list()
+                    for v in mo_array(value):
+                        casted_list.append(np_map_cast[dtype](v))
+                    value = mo_array(casted_list, dtype=dtype)
+                else:
+                    value = np_map_cast[dtype](value)
+                value = np.array(value, dtype=dtype)
+
+                ov_shape = input_model.get_partial_shape(place)
+                if node.get('shape'):
+                    # set user defined shape
+                    ov_shape = PartialShape(node['shape'])
+                    input_model.set_partial_shape(place, ov_shape)
+                elif ov_shape.is_dynamic:
+                    # in case of dynamic shape (dynamic rank or dynamic dimension)
+                    # deduce it based on the value shape and set it
+                    ov_shape = PartialShape(value.shape)
+                    input_model.set_partial_shape(place, ov_shape)
+
+                input_model.set_tensor_value(place, value)
 
     ov_model = moc_front_end.convert(input_model)
 

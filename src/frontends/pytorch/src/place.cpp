@@ -55,6 +55,18 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
     }
 }
 
+Place::Place(const ov::frontend::InputModel& input_model, const std::string& name, size_t input_index)
+    : m_input_model(input_model),
+      m_tensor_index(0),
+      m_is_fake(true),
+      m_input_index(input_index),
+      m_pshape(PartialShape::dynamic()),
+      m_type(element::dynamic),
+      m_is_input(true) {
+    if (!name.empty())
+        m_names = {name};
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

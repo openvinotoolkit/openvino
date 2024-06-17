@@ -82,9 +82,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         auto mutated_tensors = std::make_shared<std::set<size_t>>();
         std::vector<size_t> inserted_params;
 
-        if (input_model) {
+        if (input_model && input_model->m_fake_places.size() == 0) {
             // When we have input model we should use its inputs order to create Parameters
             // We use m_inputs instead of get_inputs() because latter doesn't have "self" input
+            // If there are fake places we don't need to use model inputs in that case
             for (auto& input_p : input_model->m_inputs) {
                 auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(input_p);
                 FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
@@ -97,10 +98,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 encode_tensor_name(parameter->output(0), tensor_id);
                 parameters->push_back(parameter);
                 (*tensor_map)[tensor_id] = parameter;
-            }
-            // Add all tensors that were frozen
-            for (auto& desc : input_model->m_descriptors) {
-                (*tensor_map)[desc.first] = desc.second.m_value;
             }
         } else {
             // Go over all pytorch_model inputs and register them in the tensor map:
@@ -118,6 +115,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 encode_tensor_name(parameter->output(0), inputs.at(i), {pytorch_model->get_input_debug_name(i)});
                 parameters->push_back(parameter);
                 (*tensor_map)[inputs.at(i)] = parameter;
+            }
+        }
+        if (input_model) {
+            // Add all tensors that were frozen
+            for (auto& desc : input_model->m_descriptors) {
+                (*tensor_map)[desc.first] = desc.second.m_value;
             }
         }
 
