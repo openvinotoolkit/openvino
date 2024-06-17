@@ -282,7 +282,7 @@ class CustomBuild(build):
                                 f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
                                 f"-DPython3_EXECUTABLE={sys.executable}",
                                 f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                                "-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                                f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
                                 "-DENABLE_WHEEL=OFF",
                                 self.cmake_args,
                                 "-S", source_dir,
