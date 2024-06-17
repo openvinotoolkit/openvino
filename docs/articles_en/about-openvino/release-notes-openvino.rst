@@ -35,7 +35,7 @@ What's new
     Python Custom Operation empowers users to implement their own specialized operations into
     any model.
   * Notebooks expansion to ensure better coverage for new models. Noteworthy notebooks added:
-    DynamiCrafter, YOLOv10, and Chatbot notebook with Phi-3.
+    DynamiCrafter, YOLOv10, Chatbot notebook with Phi-3, and QWEN2.
 
 
 * Broader Large Language Model (LLM) support and more model compression techniques.
@@ -52,7 +52,7 @@ What's new
 
   * Model Serving Enhancements:
 
-    * OpenVINO Model Server (OVMS) now supports OpenAI-compatible API along with Continuous
+    * Preview: OpenVINO Model Server (OVMS) now supports OpenAI-compatible API along with Continuous
       Batching and PagedAttention, enabling significantly higher throughput for parallel
       inferencing, especially on Intel® Xeon® processors, when serving LLMs to many concurrent
       users.
@@ -61,11 +61,12 @@ What's new
     * Integration of TorchServe through torch.compile OpenVINO backend for easy model deployment,
       provisioning to multiple instances, model versioning, and maintenance.
 
-  * Addition of the Generate API, a simplified API for text generation using large language
+  * Preview: addition of the Generate API, a simplified API for text generation using large language
     models with only a few lines of code. The API is available through the newly launched
     OpenVINO GenAI package.
   * Support for Intel Atom® Processor X Series. For more details, see :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
   * Preview: Support for Intel® Xeon® 6 processor.
+
 
 
 OpenVINO™ Runtime
@@ -233,10 +234,10 @@ Known Issues
 | **Component: TBB**
 | ID: TBB-1400/ TBB-1401
 | Description:
-|   In 2024.2, oneTBB 2021.2.x is used for Intel Distribution OpenVINO Ubuntu and Red Hat
-    archives, instead of system TBB/oneTBB, which improved the performance on some platforms
-    (EMR for example), but the latency of some models drop on SPR, user can build OpenVINO with
-    **-DSYSTEM_TBB=ON** to get better latency performance for these models.
+|   In 2024.2, oneTBB 2021.2.x is used for Intel Distribution of OpenVINO Ubuntu and Red Hat
+    archives, instead of system TBB/oneTBB. This improves performance on the new generation of
+    Xeon platforms but may increase latency of some models on the previous generation. You can
+    build OpenVINO with **-DSYSTEM_TBB=ON** to get better latency performance for these models.
 
 | **Component: python API**
 | ID: CVS-141744
