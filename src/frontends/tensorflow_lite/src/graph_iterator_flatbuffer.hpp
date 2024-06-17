@@ -58,7 +58,7 @@ public:
     /// Verifies file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
-        FRONT_END_GENERAL_CHECK(util::file_exists(path), "Could not open the file: ", path);
+        FRONT_END_GENERAL_CHECK(util::file_exists(path), "Could not open the file: \"", path, '"');
         try {
             if (!ov::util::ends_with<T>(path, get_model_extension<T>())) {
                 return false;

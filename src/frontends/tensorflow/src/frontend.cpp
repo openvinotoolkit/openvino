@@ -183,7 +183,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             // handle text protobuf format
             return true;
         } else {
-            throw_path_error(ov::util::wstring_to_string(model_path));
+            throw_path_error(model_path);
         }
     } else if (variants[0].is<std::vector<std::wstring>>() && variants[0].as<std::vector<std::wstring>>().size() == 2) {
         // here, we assume to get the input model path and checkpoints directory
@@ -342,7 +342,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             // handle text protobuf format with a path in Unicode
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
         } else {
-            throw_path_error(ov::util::wstring_to_string(model_path));
+            throw_path_error(model_path);
         }
     } else if (variants[0].is<std::vector<std::wstring>>()) {
         // here, we assume to get the input model path and checkpoints directory

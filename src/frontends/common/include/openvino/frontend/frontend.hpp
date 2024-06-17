@@ -155,6 +155,7 @@ protected:
     static void throw_path_error(const std::string& path);
     static void validate_file_stream(const std::ifstream& stream, const std::string& path);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    static void throw_path_error(const std::wstring& path);
     static void validate_file_stream(const std::ifstream& stream, const std::wstring& path);
 #endif
 
