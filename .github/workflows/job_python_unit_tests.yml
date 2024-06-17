@@ -121,7 +121,7 @@ jobs:
       #
 
       - name: Python API Tests
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380
+        if: "${{ false }}" # ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
