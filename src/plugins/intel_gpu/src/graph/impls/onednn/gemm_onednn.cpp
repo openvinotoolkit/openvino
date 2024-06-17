@@ -114,18 +114,17 @@ protected:
 
         if (in0_l.data_padding) {
             dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_tensor(in0_l.get_buffer_size(), rank, batched_dims_can_be_removed);
-            if (prim->transpose_input0) {
-                std::swap(in0_padded_dims[in0_padded_dims.size() - 1], in0_padded_dims[in0_padded_dims.size() - 2]);
-            }
             in0_strides = onednn::get_strides(in0_padded_dims);
+            if (prim->transpose_input0) {
+                std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
+            }
         }
 
         if (in1_l.data_padding) {
             dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_tensor(in1_l.get_buffer_size(), rank, batched_dims_can_be_removed);
-            if (prim->transpose_input1) {
-                std::swap(in1_padded_dims[in1_padded_dims.size() - 1], in1_padded_dims[in1_padded_dims.size() - 2]);
-            }
             in1_strides = onednn::get_strides(in1_padded_dims);
+            if (prim->transpose_input1)
+                std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
         }
 
         // Check whether transpose_order increase sequential or not.
