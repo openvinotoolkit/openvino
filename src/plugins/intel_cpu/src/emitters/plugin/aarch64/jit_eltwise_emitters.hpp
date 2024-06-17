@@ -214,7 +214,18 @@ private:
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
-class jit_gelu_erf_emitter : public jit_emitter {
+class jit_gelu_base_emitter : public jit_emitter {
+public:
+    jit_gelu_base_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                          const ov::element::Type exec_prc = ov::element::f32);
+
+    jit_gelu_base_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                          const std::shared_ptr<ov::Node>& node);
+};
+
+class jit_gelu_erf_emitter : public jit_gelu_base_emitter {
 public:
     jit_gelu_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -247,7 +258,7 @@ private:
 
 class jit_tanh_emitter;
 
-class jit_gelu_tanh_emitter : public jit_emitter {
+class jit_gelu_tanh_emitter : public jit_gelu_base_emitter {
 public:
     jit_gelu_tanh_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -290,16 +301,12 @@ public:
 
     size_t get_aux_gprs_count() const override;
 
-    void register_table_entries() override;
-
     void emit_data() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    ov::op::GeluApproximationMode approximationMode;
-    std::unique_ptr<jit_gelu_erf_emitter> gelu_erf_emitter;
-    std::unique_ptr<jit_gelu_tanh_emitter> gelu_tanh_emitter;
+    std::shared_ptr<jit_gelu_base_emitter> gelu_emitter;
 
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
 

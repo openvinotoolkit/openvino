@@ -966,14 +966,12 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v4::Swish>(n) ||
                 ov::is_type<ov::op::v0::Tanh>(n));
 #else
-        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
-        auto is_unsupported_swish = [](const std::shared_ptr<const ov::Node> &n) {
-            return ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                   !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
-        };
-        // CPU Plugin does not support the following ops for x64
-        auto is_unsupported_by_x64 = [](const std::shared_ptr<const ov::Node> &n) {
-            return ov::is_type<const ov::op::v4::Mish>(n);
+        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
+        // and CPU Plugin does not support Mish for x64
+        auto is_unsupported = [](const std::shared_ptr<const ov::Node> &n) {
+            return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
+                   !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1))) ||
+                   ov::is_type<const ov::op::v4::Mish>(n);
         };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
@@ -987,7 +985,7 @@ void Transformations::MainSnippets(void) {
                     ov::is_type<const ov::op::v1::ReduceMax>(n) ||
                     ov::is_type<const ov::op::v1::ReduceSum>(n));
         };
-        return !is_unsupported_swish(n) && !is_unsupported_by_x64(n) && !is_unsupported_by_common_tokenization(n);
+        return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
 #endif
     };
 
