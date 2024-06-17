@@ -112,6 +112,14 @@ static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type || memory::data_type::f16 == type;
 }
 
+static bool convert_i32_to_f32(memory::data_type src_dt, bool support_intermediate_int) {
+    return !isFloatCompatible(src_dt) && !support_intermediate_int;
+}
+
+static bool convert_f32_to_i32(memory::data_type dst_dt, bool support_intermediate_int) {
+    return !isFloatCompatible(dst_dt) && !support_intermediate_int;
+}
+
 template <cpu_isa_t isa>
 struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
@@ -135,6 +143,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         this->preamble();
 
         planar_layout = jcp_.layout == ReduceLayoutType::reduce_ncsp || jcp_.layout == ReduceLayoutType::reduce_nspc;
+        support_intermediate_int = jcp_.reduce_mode == Algorithm::ReduceProd;
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
@@ -176,6 +185,7 @@ private:
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
     bool planar_layout = false;
+    bool support_intermediate_int = false;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
 
@@ -653,7 +663,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt) && jcp_.reduce_mode != Algorithm::ReduceProd)
+        if (convert_i32_to_f32(src_dt, support_intermediate_int))
             uni_vcvtdq2ps(vmm_val, vmm_val);
         add(rsp, vlen);
     }
@@ -818,7 +828,7 @@ private:
                 uni_vorps(vmm_dst, vmm_dst, vmm_src);
                 break;
             case Algorithm::ReduceProd:
-                if (isFloatCompatible(jcp_.dst_dt)) {
+                if (isFloatCompatible(jcp_.src_dt)) {
                     uni_vmulps(vmm_dst, vmm_dst, vmm_src);
                 } else {
                     uni_vpmulld(vmm_dst, vmm_dst, vmm_src);
@@ -863,7 +873,7 @@ private:
                 uni_vorps(xmm_dst, xmm_dst, xmm_src);
                 break;
             case Algorithm::ReduceProd:
-                if (isFloatCompatible(jcp_.dst_dt)) {
+                if (isFloatCompatible(jcp_.src_dt)) {
                     uni_vmulps(xmm_dst, xmm_dst, xmm_src);
                 } else {
                     uni_vpmulld(vmm_dst, vmm_dst, vmm_src);
@@ -918,7 +928,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt) && jcp_.reduce_mode != Algorithm::ReduceProd)
+        if (convert_i32_to_f32(src_dt, support_intermediate_int))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -947,7 +957,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt) && jcp_.reduce_mode != Algorithm::ReduceProd) {
+        if (convert_i32_to_f32(src_dt, support_intermediate_int)) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
@@ -956,7 +966,7 @@ private:
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
-        if (!isFloatCompatible(dst_dt) && jcp_.reduce_mode != Algorithm::ReduceProd) {
+        if (convert_f32_to_i32(dst_dt, support_intermediate_int)) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
@@ -1007,7 +1017,7 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (!isFloatCompatible(dst_dt) && jcp_.reduce_mode != Algorithm::ReduceProd) {
+        if (convert_f32_to_i32(dst_dt, support_intermediate_int)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
