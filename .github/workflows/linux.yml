@@ -31,7 +31,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -64,7 +64,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
@@ -128,7 +128,7 @@ jobs:
           git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -383,7 +383,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -477,7 +477,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
-      runner: 'aks-linux-16-cores-32gb'
+      runner: 'aks-linux-16-cores-64gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   CXX_Unit_Tests:
@@ -534,7 +534,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-32gb'
+      runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_tf_hub'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
@@ -544,7 +544,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-32gb'
+      runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_hf'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
@@ -618,7 +618,7 @@ jobs:
           popd
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -652,119 +652,44 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
-  GPU:
-    name: GPU Tests
+  iGPU:
+    name: iGPU Tests
     needs: [ Build, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    timeout-minutes: 80
-    runs-on: [ self-hosted, gpu ]
+    uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
       max-parallel: 2
       fail-fast: false
       matrix:
         TEST_TYPE: ['unit', 'func']
-    container:
-      image: ubuntu:20.04
-      options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
-      volumes:
-        - /dev/dri:/dev/dri
-    defaults:
-      run:
-        shell: bash
-    env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
-    steps:
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
-        with:
-          name: 'openvino_package'
-          path: ${{ env.INSTALL_DIR }}
+    with:
+      device: 'igpu'
+      test_type: ${{ matrix.TEST_TYPE }}
+      runner: "[ 'self-hosted', 'igpu' ]"
+      container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
+        --device /dev/dri:/dev/dri"}'
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
-        with:
-          name: 'openvino_tests'
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "GTEST_PARALLEL_SCRIPT=$GITHUB_WORKSPACE/gtest_parallel.py" >> "$GITHUB_ENV"
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd $INSTALL_DIR
-            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
-          popd
-          pushd $INSTALL_TEST_DIR
-            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
-          popd
-
-      - name: Install dependencies (Linux)
-        run: |
-          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-
-          apt-get update && apt-get install -y wget software-properties-common ca-certificates gpg-agent tzdata
-        env:
-          DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-          TZ: "Europe/London" # to prevent tzdata from waiting user input
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Get gtest-parallel script
-        run: wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py
-
-      - name: Install GPU Drivers
-        run: |
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
-          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
-          dpkg -i *.deb
-
-      #
-      # Tests
-      #
-
-      - name: OpenVINO GPU ${{ matrix.TEST_TYPE }} Tests
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-
-          rm -rf ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests
-
-          test_filter=''
-          if [[ "${{ matrix.TEST_TYPE }}" == "unit" ]]; then
-            # Ticket: 138018
-            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
-          else
-            test_filter='*smoke*'
-          fi
-          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests/ov_gpu_${{ matrix.TEST_TYPE }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
-
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        if: always()
-        with:
-          name: test-results-${{ matrix.TEST_TYPE }}-gpu
-          path: ${{ env.INSTALL_TEST_DIR }}/gpu_${{ matrix.TEST_TYPE }}_tests
-          if-no-files-found: 'error'
+  dGPU:
+    name: dGPU Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: ['unit', 'func']
+    with:
+      device: 'dgpu'
+      test_type: ${{ matrix.TEST_TYPE }}
+      runner: "[ 'self-hosted', 'dgpu' ]"
+      container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
+        --device /dev/dri/card0:/dev/dri/card0  --device /dev/dri/renderD128:/dev/dri/renderD128"}'
+    if: ${{ github.event_name == 'schedule' }}
 
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers, GPU]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers, iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

@@ -14,7 +14,7 @@ using namespace std;
 using namespace ov;
 
 namespace {
-string capitulate(string name) {
+string capitalize(string name) {
     locale loc;
     string munged_name(name);
     if (munged_name.size() >= 2) {
@@ -32,7 +32,7 @@ string capitulate(string name) {
         shared_ptr<Node> op(get_opset1().create(op2::get_type_info_static().name));                          \
         ASSERT_TRUE(op);                                                                                     \
         EXPECT_TRUE(is_type<op2>(op));                                                                       \
-        shared_ptr<Node> opi(get_opset1().create_insensitive(capitulate(op2::get_type_info_static().name))); \
+        shared_ptr<Node> opi(get_opset1().create_insensitive(capitalize(op2::get_type_info_static().name))); \
         ASSERT_TRUE(opi);                                                                                    \
         EXPECT_TRUE(is_type<op2>(opi));                                                                      \
     }
@@ -40,26 +40,21 @@ string capitulate(string name) {
 TEST(opset, check_opset1) {
     CHECK_OPSET(op::v0::Abs, opset1::Abs)
     CHECK_OPSET(op::v0::Acos, opset1::Acos)
-    // TODO: CHECK_OPSET(op::v0::Acosh, opset1::Acosh)
     CHECK_OPSET(op::v1::Add, opset1::Add)
     CHECK_OPSET(op::v0::Asin, opset1::Asin)
-    // TODO: CHECK_OPSET(op::v0::Asinh, opset1::Asinh)
     CHECK_OPSET(op::v1::LogicalAnd, opset1::LogicalAnd)
     CHECK_OPSET(op::v0::Atan, opset1::Atan)
-    // TODO: CHECK_OPSET(op::v0::Atanh, opset1::Atanh)
     CHECK_OPSET(op::v1::AvgPool, opset1::AvgPool)
     CHECK_OPSET(op::v0::BatchNormInference, opset1::BatchNormInference)
     CHECK_OPSET(op::v1::Broadcast, opset1::Broadcast)
     CHECK_OPSET(op::v0::Ceiling, opset1::Ceiling)
     CHECK_OPSET(op::v0::Concat, opset1::Concat)
-    // TODO: CHECK_OPSET(op::v0::Constant, opset1::Constant)
+    CHECK_OPSET(op::v0::Constant, opset1::Constant)
     CHECK_OPSET(op::v0::Convert, opset1::Convert)
-    // TODO: CHECK_OPSET(op::v0::ConvertLike, opset1::ConvertLike)
     CHECK_OPSET(op::v1::Convolution, opset1::Convolution)
     CHECK_OPSET(op::v0::Cos, opset1::Cos)
     CHECK_OPSET(op::v0::Cosh, opset1::Cosh)
     CHECK_OPSET(op::v0::CTCGreedyDecoder, opset1::CTCGreedyDecoder)
-    // TODO: using op::v0::DeformableConvolution
     CHECK_OPSET(op::v1::DeformablePSROIPooling, opset1::DeformablePSROIPooling)
     CHECK_OPSET(op::v0::DepthToSpace, opset1::DepthToSpace)
     CHECK_OPSET(op::v0::DetectionOutput, opset1::DetectionOutput)
@@ -70,16 +65,12 @@ TEST(opset, check_opset1) {
     CHECK_OPSET(op::v0::Exp, opset1::Exp)
     CHECK_OPSET(op::v0::FakeQuantize, opset1::FakeQuantize)
     CHECK_OPSET(op::v0::Floor, opset1::Floor)
-    // TODO: CHECK_OPSET(op::v0::FloorMod, opset1::FloorMod)
     CHECK_OPSET(op::v1::Gather, opset1::Gather)
-    // TODO: CHECK_OPSET(op::v0::GatherTree, opset1::GatherTree)
     CHECK_OPSET(op::v1::Greater, opset1::Greater)
     CHECK_OPSET(op::v1::GreaterEqual, opset1::GreaterEqual)
     CHECK_OPSET(op::v0::GRN, opset1::GRN)
     CHECK_OPSET(op::v1::GroupConvolution, opset1::GroupConvolution)
     CHECK_OPSET(op::v1::GroupConvolutionBackpropData, opset1::GroupConvolutionBackpropData)
-    // CHECK_OPSET(op::v0::GRUCell, opset1::GRUCell)
-    // TODO CHECK_OPSET(op::v0::GRUSequence, opset1::GRUSequence)
     CHECK_OPSET(op::v0::HardSigmoid, opset1::HardSigmoid)
     CHECK_OPSET(op::v0::Interpolate, opset1::Interpolate)
     CHECK_OPSET(op::v1::Less, opset1::Less)
@@ -96,12 +87,11 @@ TEST(opset, check_opset1) {
     CHECK_OPSET(op::v1::Minimum, opset1::Minimum)
     CHECK_OPSET(op::v1::Multiply, opset1::Multiply)
     CHECK_OPSET(op::v0::Negative, opset1::Negative)
-    // TODO using op::v0::NonMaxSuppression
     CHECK_OPSET(op::v0::NormalizeL2, opset1::NormalizeL2)
     CHECK_OPSET(op::v1::NotEqual, opset1::NotEqual)
-    // TODO CHECK_OPSET(op::v1::OneHot, opset1::OneHot)
+    CHECK_OPSET(op::v1::OneHot, opset1::OneHot)
     CHECK_OPSET(op::v1::Pad, opset1::Pad)
-    // TODO: CHECK_OPSET(op::v0::Parameter, opset1::Parameter)
+    CHECK_OPSET(op::v0::Parameter, opset1::Parameter)
     CHECK_OPSET(op::v1::Power, opset1::Power)
     CHECK_OPSET(op::v0::PRelu, opset1::PRelu)
     CHECK_OPSET(op::v0::PriorBox, opset1::PriorBox)
@@ -118,10 +108,10 @@ TEST(opset, check_opset1) {
     CHECK_OPSET(op::v0::RegionYolo, opset1::RegionYolo)
     CHECK_OPSET(op::v0::Relu, opset1::Relu)
     CHECK_OPSET(op::v1::Reshape, opset1::Reshape)
-    // TODO: CHECK_OPSET(op::v0::Result, opset1::Result)
+    CHECK_OPSET(op::v0::Result, opset1::Result)
     CHECK_OPSET(op::v1::Reverse, opset1::Reverse)
     CHECK_OPSET(op::v0::ReverseSequence, opset1::ReverseSequence)
-    // CHECK_OPSET(op::v0::RNNCell, opset1::RNNCell)
+    CHECK_OPSET(op::v0::RNNCell, opset1::RNNCell)
     CHECK_OPSET(op::v1::Select, opset1::Select)
     CHECK_OPSET(op::v0::Selu, opset1::Selu)
     CHECK_OPSET(op::v0::ShapeOf, opset1::ShapeOf)

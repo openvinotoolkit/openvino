@@ -9,6 +9,7 @@
 #include <openvino/op/constant.hpp>
 
 #include "common/cpu_convert.h"
+#include "common/cpu_memcpy.h"
 #include "dnnl_extension_utils.h"
 #include "executors/memory_arguments.hpp"
 #include "graph_context.h"
@@ -19,11 +20,13 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/fullyconnected.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/profiler.hpp"
 
 using namespace dnnl;
 using namespace ov::element;
@@ -59,6 +62,14 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, FCShapeInferFactory(op)),
       errorPrefix("FullyConnected node with name '" + getName() + "'") {
+    // init w_rank and w_size
+    if (!context->getCPUStreamExecutor()->get_rank().empty() && std::getenv("ENABLE_TP")) {
+        enable_tensor_parallel = std::getenv("ENABLE_TP") == nullptr ? false : true;
+        w_rank = context->getCPUStreamExecutor()->get_rank()[0];
+        w_size = 2;
+        // std::cout << "[dbg] w_rank: " << w_rank << ", w_size: " << w_size << "\n";
+        sub_memory = context->getSubMemory();
+    }
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -72,6 +83,12 @@ bool FullyConnected::canBeExecutedInInt8() const {
 }
 
 ExecutorPtr FullyConnected::createExecutor() {
+    if (enable_tensor_parallel) {
+        // must call in dynamic
+        auto dstMemoryBuffer = getDstMemoryAtPort(0);
+        auto select_dst = split_vertical(context->getEngine(), dstMemoryBuffer, -1, w_rank, w_size, false);
+        memory[ARG_DST] = select_dst;
+    }
     const auto& executor = factory->make(memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 
@@ -83,7 +100,95 @@ void FullyConnected::prepareParams() {
 }
 
 void FullyConnected::execute(dnnl::stream strm) {
-    executor->execute(memory);
+    if (enable_tensor_parallel) {
+        PROFILE(_prof1, "fc_sync");
+        id = sub_memory->get_memory_id(w_rank);
+        sub_memory->set_memory_used(id, w_rank);
+        while (true) {
+            std::lock_guard<std::mutex> lock(sub_memory->_flagMutex);
+            if (sub_memory->_use_count[id] == w_size) {
+                sub_memory->_use_count[id] = 0;
+                for (int i = 0; i < w_size; i++) {
+                    sub_memory->_memorys_table[id][i].flag = false;
+                }
+            }
+            if (sub_memory->_use_count[id] == 0) {
+                break;
+            }
+        }
+    }
+
+    {
+        PROFILE(_prof1, "fc_exec");
+        executor->execute(memory);
+    }
+
+    if (enable_tensor_parallel) {
+        PROFILE(_prof1, "fc_post");
+        // dst
+        auto dst = getDstMemoryAtPort(0);
+        auto dst_ptr = static_cast<uint8_t*>(dst->getData());
+
+        // cur dst
+        auto cur_dst = memory[ARG_DST];
+        auto shape = dst->getShape();
+        auto dims = shape.getDims();
+        auto prec = dst->getPrecision();
+        auto mem_size = dst->getSize(); // total bytes
+
+        const int dim = dims.size() - 1;
+        auto channel_size = dims[dim] * prec.size();    // selected dim bytes
+        // const int step = (mem_size / channel_size);     // the steps need to copy.
+        const size_t count = (mem_size / channel_size);     // the steps need to copy.
+
+        const auto copySize = (dims[dim] / w_size) * prec.size();    // bytes of half selected dim.
+        sub_memory->_memorys_table[id][w_rank].send_buf = cur_dst->getData();
+        sub_memory->_memorys_table[id][w_rank].flag = true;
+
+        std::vector<int> wait_list(w_size, 1);
+        while (true) {
+            int wait_size = 0;
+            for (int idx = 0; idx < w_size; idx++) {
+                if (wait_list[idx] > 0 && sub_memory->_memorys_table[id][idx].flag) {
+                    auto new_ptr = static_cast<uint8_t*>(sub_memory->_memorys_table[id][idx].send_buf);
+                    // parallel_for(step, [&](int i) {
+                    //     int src_offset = i * copySize;
+                    //     int dst_offset = i * copySize * 2 + idx * copySize;
+                    //     cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
+                    // });
+                    const size_t unloop = 8;
+                    size_t step = count / unloop;
+                    parallel_for(step, [&](size_t i){
+                        // int src_offset = i * copySize;
+                        // int dst_offset = i * copySize * 2 + idx * copySize;
+                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop)),     new_ptr + copySize * (i * unloop), copySize);
+                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 1)), new_ptr + copySize * (i * unloop + 1), copySize);
+                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 2)), new_ptr + copySize * (i * unloop + 2), copySize);
+                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 3)), new_ptr + copySize * (i * unloop + 3), copySize);
+                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 4)), new_ptr + copySize * (i * unloop + 4), copySize);
+                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 5)), new_ptr + copySize * (i * unloop + 5), copySize);
+                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 6)), new_ptr + copySize * (i * unloop + 6), copySize);
+                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 7)), new_ptr + copySize * (i * unloop + 7), copySize);
+                    });
+                    size_t tail = count & ~(unloop - 1);
+                    for (size_t i = tail; i < count; ++i) {
+                        int src_offset = i * copySize;
+                        int dst_offset = i * copySize * 2 + idx * copySize;
+                        cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
+                    }
+                    wait_list[idx] = 0;
+                }
+                wait_size += wait_list[idx];
+            }
+            if (wait_size == 0) {
+                break;
+            }
+        }
+        {
+            std::lock_guard<std::mutex> lock(sub_memory->_flagMutex);
+            sub_memory->_use_count[id]++;
+        }
+    }
 }
 
 void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
@@ -234,6 +339,11 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         {ARG_DST, dstDescs[0]},
     };
 
+    if (enable_tensor_parallel && cached_scale && cached_zeropoint) {
+        attrs.decompressionMultiplyPtr = cached_scale;
+        attrs.decompressionSubtractPtr = cached_zeropoint;
+    }
+
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     factory = std::make_shared<ExecutorFactory<FCAttrs, node::FullyConnected>>(attrs, postOps, executionContext, descs);
     const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
@@ -250,10 +360,37 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 }
 
 void FullyConnected::createPrimitive() {
-    memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
-    memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
-    memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
-    memory[ARG_DST] = getDstMemoryAtPort(0);
+    auto src = getSrcMemoryAtPort(DATA_ID);
+    auto wgt = getSrcMemoryAtPort(WEIGHTS_ID);
+    auto dst = getDstMemoryAtPort(0);
+    if (enable_tensor_parallel) {
+        // src
+        memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
+        // wgt
+        // split N direction
+        cached_splited_weight = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, w_rank, w_size)
+                                : split_horizontal(context->getEngine(), wgt, 0, w_rank, w_size);
+        memory[ARG_WEI] = cached_splited_weight;
+
+        // bias
+        if (attrs.withBias) {
+            auto bias = getSrcMemoryAtPort(BIAS_ID);
+            auto select_bias = split_horizontal(context->getEngine(), bias, 0, w_rank, w_size);
+            cached_splited_bias = select_bias;
+        } else {
+            cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
+        }
+
+        memory[ARG_BIAS] = cached_splited_bias;
+
+        // dst
+        memory[ARG_DST] = getDstMemoryAtPort(0);
+    } else {
+        memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
+        memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
+        memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
+        memory[ARG_DST] = getDstMemoryAtPort(0);
+    }
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
     factory->preconfigure(memory);
@@ -279,10 +416,25 @@ ov::element::Type FullyConnected::getRuntimePrecision() const {
 
 void FullyConnected::fuseDecompressionMultiply(const MemoryCPtr& memory) {
     attrs.decompressionMultiplyPtr = memory;
+    if (enable_tensor_parallel && !cached_scale) {
+        auto scale_mem = std::const_pointer_cast<IMemory>(memory);
+        cached_scale = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), scale_mem, 0, w_rank, w_size)
+                       : split_horizontal(context->getEngine(), scale_mem, 0, w_rank, w_size);
+    }
 }
 
 void FullyConnected::fuseDecompressionSubtract(const MemoryCPtr& memory) {
     attrs.decompressionSubtractPtr = memory;
+    if (enable_tensor_parallel && !cached_zeropoint) {
+        auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory);
+        auto element_num = memory->getSize() / memory->getPrecision().size();
+        if (element_num == 1) {
+            cached_zeropoint = zeropoint_mem;
+        } else {
+            cached_zeropoint = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), zeropoint_mem, 0, w_rank, w_size)
+                                : split_horizontal(context->getEngine(), zeropoint_mem, 0, w_rank, w_size);
+        }
+    }
 }
 
 }  // namespace node

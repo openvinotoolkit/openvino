@@ -13,7 +13,10 @@
 namespace ov {
 namespace threading {
 
-MessageManager::MessageManager() {}
+MessageManager::MessageManager() {
+    _num_sub_streams = 0;
+    call_back_count = 0;
+}
 
 MessageManager::~MessageManager() {}
 
@@ -21,48 +24,25 @@ void MessageManager::send_message(const MessageInfo& msg_info) {
     {
         std::lock_guard<std::mutex> lock(_msgMutex);
         _messageQueue.push_back(msg_info);
-        // std::cout << "send : " << msg_info.msg_type << ", " << (msg_info.rank.size() > 0 ? msg_info.rank[0] : -1)
-        //           << "\n";
+        // std::cout << "send : " << msg_info.msg_type << "\n";
     }
     _msgCondVar.notify_all();
 }
 
-std::vector<MessageInfo> MessageManager::wait_message(int stream_id) {
-    std::vector<MessageInfo> messages_total;
-    std::unique_lock<std::mutex> lock(_readMutex);
-    _readCondVar.wait(lock, [&] {
-        // std::cout << "wait_" << stream_id << " : " << _readQueue[stream_id].size() << " / " << _num_sub_streams <<
-        // "\n";
-        return static_cast<int>(_readQueue[stream_id].size()) >= _num_sub_streams;
-    });
-    std::swap(_readQueue[stream_id], messages_total);
-    // std::cout << "wait_" << stream_id << " " << _readQueue[stream_id].size() << " end\n";
-    return messages_total;
-}
-
 void MessageManager::infer_wait() {
     std::unique_lock<std::mutex> lock(_inferMutex);
-    _inferCondVar.wait(lock);
-}
-
-void MessageManager::reduce_wait(int stream_id) {
-    std::unique_lock<std::mutex> lock(_reduceMutex);
-    while (_reduceQueue[stream_id] < _num_sub_streams) {
-        // std::cout << "reduce_wait_" << stream_id << " " << _reduceQueue[stream_id] << " end\n";
-        _reduceCondVar.wait(lock);
-    }
-    _reduceQueue[stream_id] = 0;
+    _inferCondVar.wait(lock, [&] {
+        return call_back_count.load() >= _num_sub_streams;
+    });
+    call_back_count = 0;
 }
 
 void MessageManager::server_wait() {
     if (!_serverThread.joinable()) {
         assert(_num_sub_streams);
-        _readQueue.assign(_num_sub_streams, std::vector<MessageInfo>());
-        _reduceQueue.assign(_num_sub_streams, 0);
         MsgType msg_type;
         _serverThread = std::thread([&]() {
             int count = 0;
-            int reduce_count = 0;
             while (!_isServerStopped) {
                 std::vector<MessageInfo> msgQueue;
                 {
@@ -72,9 +52,7 @@ void MessageManager::server_wait() {
                         return !_messageQueue.empty();
                     });
                     std::swap(_messageQueue, msgQueue);
-                    // std::cout << "server_wait receive: " << msgQueue[0].msg_type << " rank:" <<
-                    // msgQueue[0].rank.size()
-                    //           << " / " << msgQueue.size() << "\n";
+                    // std::cout << "server_wait receive: " << msgQueue[0].msg_type << "\n";
                 }
 
                 for (auto rec_info : msgQueue) {
@@ -82,42 +60,13 @@ void MessageManager::server_wait() {
                     if (msg_type == START_INFER) {
                         Task task = std::move(rec_info.task);
                         task();
-                    } else if (msg_type == TENSOR_PARALLEL) {
-                        // Resend _readQueue that failed last time
-                        bool stop = false;
-                        while (!stop) {
-                            stop = true;
-                            for (int i = 0; i < _num_sub_streams; i++) {
-                                if (static_cast<int>(_readQueue[i].size()) == _num_sub_streams) {
-                                    stop = false;
-                                }
-                            }
-                            if (!stop) {
-                                _readCondVar.notify_all();
-                            }
-                        }
-                        for (int i = 0; i < _num_sub_streams; i++) {
-                            std::lock_guard<std::mutex> lock(_readMutex);
-                            _readQueue[i].push_back(rec_info);
-                        }
-                        _readCondVar.notify_all();
                     } else if (msg_type == CALL_BACK) {  // CALL_BACK
                         count++;
-                        // std::cout << "server_wait CALL_BACK: " << count << "/" << _num_sub_streams << "\n";
+                        // std::cout << "server_wait CALL_BACK: " << call_back_count << "/" << _num_sub_streams << "\n";
                         if (count == _num_sub_streams) {
-                            _inferCondVar.notify_one();
+                            call_back_count = count;
                             count = 0;
-                        }
-                    } else if (msg_type == REDUCE) {  // REDUCE
-                        reduce_count++;
-                        // std::cout << "server_wait REDUCE: " << reduce_count << "/" << _num_sub_streams << "\n";
-                        if (reduce_count == _num_sub_streams) {
-                            {
-                                std::lock_guard<std::mutex> lock(_reduceMutex);
-                                _reduceQueue.assign(_num_sub_streams, reduce_count);
-                            }
-                            _reduceCondVar.notify_all();
-                            reduce_count = 0;
+                            _inferCondVar.notify_one();
                         }
                     } else if (msg_type == QUIT) {
                         _isServerStopped = true;
@@ -129,22 +78,8 @@ void MessageManager::server_wait() {
     }
 }
 
-void MessageManager::set_sub_compiled_models(std::vector<std::shared_ptr<ov::ICompiledModel>> models) {
-    _sub_compiled_models = models;
-    _num_sub_streams = static_cast<int>(_sub_compiled_models.size());
-    assert(_num_sub_streams);
-}
-
-std::vector<std::shared_ptr<ov::ICompiledModel>> MessageManager::get_sub_compiled_models() {
-    return _sub_compiled_models;
-}
-
-void MessageManager::set_sub_infer_requests(std::vector<std::shared_ptr<IAsyncInferRequest>> requests) {
-    _sub_infer_requests = requests;
-}
-
-std::vector<std::shared_ptr<ov::IAsyncInferRequest>> MessageManager::get_sub_infer_requests() {
-    return _sub_infer_requests;
+void MessageManager::set_num_sub_streams(int num_sub_streams) {
+    _num_sub_streams = num_sub_streams;
 }
 
 int MessageManager::get_num_sub_streams() {
@@ -158,11 +93,6 @@ void MessageManager::stop_server_thread() {
     if (_serverThread.joinable()) {
         _serverThread.join();
     }
-}
-
-void MessageManager::clear() {
-    _sub_infer_requests.clear();
-    _sub_compiled_models.clear();
 }
 
 namespace {

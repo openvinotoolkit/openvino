@@ -18,11 +18,16 @@ ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
     if (m_has_sub_infers) {
         auto message = ov::threading::message_manager();
         message->stop_server_thread();
-        message->clear();
+        m_sub_infer_requests.clear();
     }
     stop_and_wait();
 }
 
 void ov::intel_cpu::AsyncInferRequest::throw_if_canceled() const {
     check_cancelled_state();
+}
+
+void ov::intel_cpu::AsyncInferRequest::setSubInferRequest(
+    const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests) {
+    m_sub_infer_requests = requests;
 }

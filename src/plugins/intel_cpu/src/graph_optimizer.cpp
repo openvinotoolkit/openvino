@@ -1147,6 +1147,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph &graph) {
+    bool enable_tensor_parallel = std::getenv("ENABLE_TP") == nullptr ? false : true;
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](NodePtr node) {
@@ -1171,7 +1172,7 @@ void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph &graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (childNode->getType() == Type::FakeQuantize || (childNode->getType() == Type::Eltwise && !enable_tensor_parallel)) {
             auto parentEdges = childNode->parentEdges;
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();

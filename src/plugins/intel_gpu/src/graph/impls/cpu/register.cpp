@@ -30,6 +30,7 @@ void register_implementations() {
     REGISTER_CPU(tile);
     REGISTER_CPU(select);
     REGISTER_CPU(sync_tensor);
+    REGISTER_CPU(reduce);
 }
 
 }  // namespace cpu
