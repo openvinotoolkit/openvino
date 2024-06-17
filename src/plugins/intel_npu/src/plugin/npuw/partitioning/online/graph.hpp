@@ -101,7 +101,7 @@ class Node {
 
 public:
     explicit Node() = delete;
-    explicit Node(const std::weak_ptr<Graph>& graph) : m_graph(graph){};
+    explicit Node(const std::weak_ptr<Graph>& graph) : m_graph(graph) {}
     Nodes srcNodes() const;
     Nodes dstNodes() const;
     Edges srcEdges() const;
