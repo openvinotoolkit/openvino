@@ -1378,8 +1378,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                     return;
                 }
 
-                // auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
-                auto crop_axis = 2;
+                auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
                 auto offsets = u->_impl_params->input_offsets[0];
                 if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);

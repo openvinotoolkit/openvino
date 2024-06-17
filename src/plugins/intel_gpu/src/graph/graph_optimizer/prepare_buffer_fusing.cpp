@@ -528,11 +528,9 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
     //  crop output buffer
     //  |_low_pad_|__data_size__|___|<-upper pad
     if (!node.is_dynamic() && can_crop_be_optimized_along_feature(crop_layout, input_layout)) {
-        // update_in_place_crop_padding_along_feature(node, crop_layout, input_layout, crop_params->input_offsets[0], node.get_primitive()->axis, false);
-        update_in_place_crop_padding_along_feature(node, crop_layout, input_layout, crop_params->input_offsets[0], 2, false);
+        update_in_place_crop_padding_along_feature(node, crop_layout, input_layout, crop_params->input_offsets[0], node.get_primitive()->axis, false);
     } else if (can_crop_be_optimized_simple_data_format(crop_layout, input_layout)) {
-        // update_in_place_crop_padding_simple_data_format(crop_layout, input_layout, crop_params->input_offsets[0], node.get_primitive()->axis, false);
-        update_in_place_crop_padding_simple_data_format(crop_layout, input_layout, crop_params->input_offsets[0], 2, false);
+        update_in_place_crop_padding_simple_data_format(crop_layout, input_layout, crop_params->input_offsets[0], node.get_primitive()->axis, false);
     }
     node.set_output_layout(crop_layout);
     node.can_be_optimized(true);
@@ -585,10 +583,11 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
     lower_sizes.push_back(opt_upper_pad);
     lower_sizes.push_back(out_pad.upper_size().spatial[0]);
     lower_sizes.push_back(out_pad.upper_size().spatial[1]);
-    auto dyn_pad_sizes = lower_sizes;
-    dyn_pad_sizes[crop_axis_legacy] = 1;
+
     // set padding
     if (is_runtime) {
+        auto dyn_pad_sizes = lower_sizes;
+        dyn_pad_sizes[crop_axis_legacy] = 1;
         crop_layout.data_padding = padding(lower_sizes, upper_sizes, 0.f, tensor(dyn_pad_sizes));
     } else {
         crop_layout.data_padding = padding(lower_sizes, upper_sizes);
@@ -628,9 +627,10 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
     for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
         upper_sizes.push_back(input_layout.spatial(i) - offsets.spatial[i] - crop_size.spatial[i]);
     }
-    auto dyn_pad_sizes = lower_sizes;
-    dyn_pad_sizes[crop_axis_legacy] = 1;
+
     if (is_runtime) {
+        auto dyn_pad_sizes = lower_sizes;
+        dyn_pad_sizes[crop_axis_legacy] = 1;
         crop_layout.data_padding = padding(lower_sizes, upper_sizes, 0.f, tensor(dyn_pad_sizes));
     } else {
         crop_layout.data_padding = padding(lower_sizes, upper_sizes);

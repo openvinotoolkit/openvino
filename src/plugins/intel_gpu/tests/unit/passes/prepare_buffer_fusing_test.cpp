@@ -710,9 +710,10 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
     auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
     auto splits_length_mem = engine.allocate_memory({ {2}, data_types::i64, format::bfyx });
 
+    int64_t axis = 2;
     set_values(input_mem, { -0.5f,  2.0f,  0.5f,  1.0f,
                              0.5f, -2.0f, -0.5f, -1.0f });
-    set_values<int64_t>(axis_mem, {-1});
+    set_values<int64_t>(axis_mem, {axis});
     set_values<int64_t>(splits_length_mem, { 4, 4 });
     set_values<uint8_t>(weights_mem, { 1,  2,  3,  4,
                                        5,  6,  7,  8,
@@ -740,9 +741,9 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
         data("scale", scale_mem),
         data("zp", zp_mem),
         fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, padding(), 3, 2),
-        crop("crop1", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0),
+        crop("crop1", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
         reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
-        crop("crop2", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1),
+        crop("crop2", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
         reorder("output2", input_info("crop2"), format::bfyx, data_types::f32),
         reorder("output3", input_info("fc"), format::bfyx, data_types::f32)
     );
