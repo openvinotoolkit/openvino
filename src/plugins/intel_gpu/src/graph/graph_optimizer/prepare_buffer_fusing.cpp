@@ -367,18 +367,12 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
                                             const layout& crop_layout,
                                             const layout& input_layout,
                                             const tensor offsets) {
-    // const auto& crop_layout = node.get_output_layout();
-    // auto input_layout = node.get_dependency(0).get_output_layout();
-
     if (input_layout.data_padding.lower_size().batch[0] != 0 || input_layout.data_padding.upper_size().batch[0] != 0 ||
         input_layout.data_padding.lower_size().spatial[0] != 0 || input_layout.data_padding.upper_size().spatial[0] != 0 ||
         input_layout.data_padding.lower_size().spatial[1] != 0 || input_layout.data_padding.upper_size().spatial[1] != 0)
         return false;
 
-    // auto crop_prim = node.get_primitive();
-    // auto opt_lower_pad = crop_prim->offsets.feature[0];
     auto opt_lower_pad = offsets.feature[0];
-    // auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_layout.get_tensor().feature[0];
     auto opt_upper_pad = input_layout.feature() - offsets.feature[0] - crop_layout.get_tensor().feature[0];
 
     // do not optimize crop if paddings are not properly aligned
@@ -398,9 +392,7 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
 
 bool crop_in_place_optimization::can_crop_be_optimized_along_feature(const layout& crop_layout,
                                                                      const layout& input_layout) {
-    // const auto& crop_layout = node.get_output_layout();
     auto format = crop_layout.format;
-    // auto input_layout = node.get_dependency(0).get_output_layout();
     const auto& crop_size = crop_layout.get_tensor();
     const auto& out_pad = crop_layout.data_padding;
 
@@ -419,9 +411,7 @@ bool crop_in_place_optimization::can_crop_be_optimized_along_feature(const layou
 
 bool crop_in_place_optimization::can_crop_be_optimized_simple_data_format(const layout& crop_layout,
                                                                           const layout& input_layout) {
-    // const auto& crop_layout = node.get_output_layout();
     auto format = crop_layout.format;
-    // auto input_layout = node.get_dependency(0).get_output_layout();
     const auto& in_padding = input_layout.data_padding;
     const auto& out_padding = crop_layout.data_padding;
 
@@ -469,7 +459,6 @@ bool crop_in_place_optimization::match(const program_node& node,
                                        bool is_runtime) {
     if (!node.is_valid_output_layout())
         return false;
-    // if (node.is_dynamic() || node.is_output() || crop_params.fused_desc.size() > 0 || node.is_in_shape_of_subgraph())
     if (node.is_output() || crop_params.fused_desc.size() > 0 || node.is_in_shape_of_subgraph())
         return false;
     for (auto user : node.get_users()) {
@@ -487,7 +476,6 @@ bool crop_in_place_optimization::match(const program_node& node,
     }
     if (node.is_constant())
         return false;
-    // if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
     if (node.get_users().size() > 0) {
         if (node.get_program().is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
             return false;
@@ -496,7 +484,6 @@ bool crop_in_place_optimization::match(const program_node& node,
         // if output padding has defined padding across features already it wouldn't
         // work because it expect to have zeros in the padded area.
         const auto& crop_layout = crop_params.get_output_layout();
-        // const auto& input_layout = pred_params[0].get_output_layout();
         if ((!node.is_dynamic() || is_runtime) &&
             !is_optimizable_padding_for_crop(node, crop_layout, input_layout, crop_params.input_offsets[0]))
             return false;
@@ -579,10 +566,10 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
     lower_sizes.push_back(out_pad.lower_size().spatial[0]);
     lower_sizes.push_back(out_pad.lower_size().spatial[1]);
     std::vector<int32_t> upper_sizes;
-    lower_sizes.push_back(out_pad.upper_size().batch[0]);
-    lower_sizes.push_back(opt_upper_pad);
-    lower_sizes.push_back(out_pad.upper_size().spatial[0]);
-    lower_sizes.push_back(out_pad.upper_size().spatial[1]);
+    upper_sizes.push_back(out_pad.upper_size().batch[0]);
+    upper_sizes.push_back(opt_upper_pad);
+    upper_sizes.push_back(out_pad.upper_size().spatial[0]);
+    upper_sizes.push_back(out_pad.upper_size().spatial[1]);
 
     // set padding
     if (is_runtime) {
