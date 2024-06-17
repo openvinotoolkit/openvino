@@ -34,13 +34,15 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const ele
                 is_int8 ?
                     cpu::x64::avx512_core_vnni :
                     cpu::x64::avx512_core;
+    // Note: hash could be initialized only after ias
+    m_hash = compute_hash();
 }
 
 bool BrgemmKernelConfig::is_completed() const {
     return !utils::one_of(0, M, N, K, LDA, LDB, LDC);
 }
 
-size_t BrgemmKernelConfig::hash() const {
+size_t BrgemmKernelConfig::compute_hash() const {
     size_t seed = 0;
 #define HASH(X) seed = hash_combine(seed, X)
     HASH(dt_in0); HASH(dt_in1);
@@ -57,7 +59,7 @@ bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
            EQUAL(is_with_amx)  && EQUAL(is_with_comp) &&
            EQUAL(beta) && EQUAL(isa) &&
            EQUAL(M) && EQUAL(N) && EQUAL(K) &&
-           EQUAL(LDA) && EQUAL(LDB) && EQUAL(LDC);
+           EQUAL(LDA) && EQUAL(LDB) && EQUAL(LDC) && EQUAL(m_hash);
 #undef EQUAL
 }
 bool BrgemmKernelConfig::operator!=(const BrgemmKernelConfig& rhs) const {
@@ -145,13 +147,14 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     config->N = DIM_CAST(*get_projected_input_subtensor(input_pds[1]).rbegin());
     // Matrix C (output)
     config->LDC = DIM_CAST(snippets::utils::get_out_leading_dim(output_pds[0]));
+    config->m_hash = config->compute_hash();
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* args) {
     const auto& kernel = desc->get_kernel();
-    OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr compiler kernel");
+    const auto& config = std::static_pointer_cast<const BrgemmKernelConfig>(desc->get_config());
+    OV_CPU_JIT_EMITTER_ASSERT(kernel && config, "has nullptr compiler kernel or invalid config");
 
-    const auto& config = desc->get_config();
     if (config->is_with_amx) {
         const auto& amx_tile_config = args->amx_tile_config;
         if (config->M != amx_tile_config->M || config->K != amx_tile_config->K || config->N != amx_tile_config->N) {

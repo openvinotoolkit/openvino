@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov {
@@ -42,7 +43,7 @@ public:
     ov::snippets::VectorDims master_shape = {};
 
     size_t buffer_scratchpad_size = 0;
-    std::vector<size_t> buffer_cluster_offsets;
+    std::vector<size_t> buffer_cluster_offsets {};
 };
 
 /**
@@ -61,6 +62,10 @@ public:
      */
     const std::shared_ptr<RuntimeConfig>& get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir);
     const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const { return m_kernel_executor_table; }
+    /**
+    * @brief Update kernel executors that depend on runtime parameters (e.g. shapes)
+    */
+    virtual void update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {}
 
 protected:
     /**
@@ -123,7 +128,7 @@ protected:
     std::map<size_t, std::set<lowered::ExpressionPtr>> m_dynamic_buffer_clusters;
 
     std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
-    std::shared_ptr<KernelExecutorTable> m_kernel_executor_table;
+    std::shared_ptr<KernelExecutorTable> m_kernel_executor_table = nullptr;
 };
 
 } // namespace snippets

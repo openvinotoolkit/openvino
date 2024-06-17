@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/runtime_configurator.hpp"
+#include "snippets/kernel_executor_table.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
@@ -18,6 +19,8 @@ public:
     CPURuntimeConfig() = default;
 
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    snippets::KernelExecutorTable::ExecTableState kernel_exec_table_state = {};
+    std::shared_ptr<snippets::KernelExecutorTable> m_kernel_executor_table = nullptr;
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
@@ -44,7 +47,7 @@ protected:
     /**
     * @brief Update kernel executors that depend on runtime parameters (e.g. shapes)
     */
-    void update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const;
+    void update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
 
     const size_t rank6D = 6;
 };
