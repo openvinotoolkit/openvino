@@ -35,8 +35,8 @@ FrontEnd::~FrontEnd() = default;
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (m_actual) {
-        FRONTEND_RETURN_STATEMENT("Check supported", m_actual->supported_impl(variants))
-    }
+            FRONTEND_RETURN_STATEMENT("Check supported", m_actual->supported_impl(to_wstring_if_needed(variants)))
+        }
     return false;
 }
 
@@ -44,20 +44,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     FRONT_END_CHECK_IMPLEMENTED(m_actual, load_impl);
     auto model = std::make_shared<InputModel>();
     model->m_shared_object = m_shared_object;
-
-    if (variants[0].is<std::string>()) {
-        auto model_path = variants[0].as<std::string>();
-// Fix unicode name
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        std::wstring model_path_wstr = ov::util::string_to_wstring(model_path.c_str());
-#else
-        std::string model_path_wstr = model_path;
-#endif
-        ov::AnyVector params{model_path_wstr};
-        FRONTEND_CALL_STATEMENT("Loading input model", model->m_actual = m_actual->load_impl(params))
-    } else {
-        FRONTEND_CALL_STATEMENT("Loading input model", model->m_actual = m_actual->load_impl(variants))
-    }
+    FRONTEND_CALL_STATEMENT("Loading input model", model->m_actual = m_actual->load_impl(to_wstring_if_needed(variants)))
     return model;
 }
 
