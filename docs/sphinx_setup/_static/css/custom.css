@@ -20,9 +20,9 @@ main  .searchForm {
 pre {
     white-space: pre-wrap;
     word-wrap: break-word;
-    background-color: white;
-    color: red !important;
-}
+    /*background-color: white;
+     color: red !important; */
+}   /*confirm this is not necessary, if so, remove */
 
 button.copybtn {
     opacity: 100;
