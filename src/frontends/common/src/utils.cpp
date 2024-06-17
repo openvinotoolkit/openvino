@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "utils.hpp"
+
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -25,5 +25,5 @@ std::vector<ov::Any> to_wstring_if_needed(const std::vector<ov::Any>& variants) 
     }
 }
 
-}
-}
+}  // namespace frontend
+}  // namespace ov
