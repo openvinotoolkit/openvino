@@ -397,12 +397,14 @@ private:
      *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
      *        This function remove directly without respect ports order, caller is responsible for the order by sort.
      * @param ports need to be removed
+     * @param is_input true if update input port
      */
     void remove_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
     /**
      * @brief Add ports to the current LoopPort.
      *        This function add in back of current LoopPort without respect ports order, caller is responsible for the order by sort.
      * @param ports need to be added
+     * @param is_input true if update input port
      */
     void add_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
 

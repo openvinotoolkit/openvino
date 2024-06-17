@@ -14,7 +14,7 @@ namespace pass {
 
 /**
  * @interface ExtractLoopInvariants
- * @brief Extract the exprs that produce identical result in loop iteration to outside of loop
+ * @brief Extract the exprs that produce identical result in each loop iteration outside the loop
  * @ingroup snippets
  */
 class ExtractLoopInvariants : public RangedPass {

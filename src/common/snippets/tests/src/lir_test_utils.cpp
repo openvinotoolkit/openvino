@@ -91,9 +91,8 @@ void create_and_add_unified_loop_info(const LinearIRPtr& linear_ir,
                                       const std::vector<LoopPort>& entries,
                                       const std::vector<LoopPort>& exits,
                                       bool set_default_handlers) {
-    const auto& loop_manager = linear_ir->get_loop_manager();
     // Equal begin and end iterators are set to avoid expressions marking with new loop id
-    loop_manager->mark_loop(linear_ir->begin(), linear_ir->begin(), work_amount, increment, entries, exits, set_default_handlers);
+    create_and_add_unified_loop_info(linear_ir, linear_ir->begin(), linear_ir->begin(), work_amount, increment, entries, exits, set_default_handlers);
 }
 
 void create_and_add_unified_loop_info(const LinearIRPtr& linear_ir,

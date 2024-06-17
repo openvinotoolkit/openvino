@@ -25,15 +25,12 @@ size_t get_stride_after_move_outer(const LoopPort& loop_port) {
     const auto& expr_port = loop_port.expr_port;
     const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
     size_t shape_dim_idx = utils::get_dim_idx(*expr_port, loop_port.dim_idx);
-
-    size_t stride = 1;
-    for (size_t i = shape_dim_idx; i < shape.size(); ++i) {
-        if (utils::is_dynamic_value(shape[i])) {
-            return utils::get_dynamic_value<size_t>();
-        }
-        stride *= shape[i];
+    size_t stride = utils::get_stride(shape_dim_idx, shape);
+    if (utils::is_dynamic_value(stride) || utils::is_dynamic_value(shape[shape_dim_idx])) {
+        return utils::get_dynamic_value<size_t>();
+    } else {
+        return stride * shape[shape_dim_idx];
     }
-    return stride;
 }
 }  // namespace
 
@@ -44,18 +41,20 @@ bool ExtractLoopInvariants::is_extraction_applicable(const ExpressionPtr& expr,
     if (input_port_size == 0)
         return false;
 
-    for (size_t i = 0; i < input_port_size; ++i) {  // iter expr ports
+    for (size_t i = 0; i < input_port_size; ++i) {
         const auto& parent = expr->get_input_port_connector(i)->get_source().get_expr();
         bool parent_scalar_with_single_consumer = ov::is_type<snippets::op::Scalar>(parent->get_node()) &&
                                                   parent->get_output_port_connector(0)->get_consumers().size() == 1;
         const auto& is_loop_port = inner_loop_info->is_loop_port(expr_input_ports[i]);
-        // expr input port is not a loop input port, then should not extract
-        // expr with single scalar parent could be extracted as well, which is common.
+        // If expr input port is not a loop input port, then should not extract. In this case expr depend on result of another expr in inner loop,
+        // i.e. move expr to top(outside) of inner loop does not keep data dependency.
+        // If expr has parent scalar which has single consumer, expr and parent scalar could be extracted together. If parent scalar has multiple
+        // consumers, the scalar has chance to move with other consumers, which maybe break data dependency as well.
         if (!is_loop_port && !parent_scalar_with_single_consumer) {
             return false;
         }
         if (is_loop_port) {
-            // after move to outside, stride in inner loop is not 1, then should not extract.
+            // stride is not 1 after move to outside, then should not extract.
             const auto& loop_port = inner_loop_info->get_loop_port(expr_input_ports[i]);
             if (get_stride_after_move_outer(loop_port) != 1) {
                 return false;
