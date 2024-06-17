@@ -43,5 +43,4 @@ public:
 };
 
 using OVCheckSetSupportedRWMetricsPropsTestsNPU = OVPropertiesTestsWithCompileModelPropsNPU;
-
 }  // namespace ov::test::behavior
