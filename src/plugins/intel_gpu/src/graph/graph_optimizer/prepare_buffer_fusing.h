@@ -64,8 +64,10 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
     using base = pattern_match_optimization_typed<crop_in_place_optimization, crop>;
     using base::base;
 
-    static bool can_crop_be_optimized_along_feature(const program_node& node);
-    static bool can_crop_be_optimized_simple_data_format(const program_node& node);
+    static bool can_crop_be_optimized_along_feature(const layout& crop_layout,
+                                                    const layout& input_layout);
+    static bool can_crop_be_optimized_simple_data_format(const layout& crop_layout,
+                                                         const layout& input_layout);
     bool match(crop_node& node);
     static bool match(const program_node& node,
                       kernel_impl_params crop_params,
@@ -76,10 +78,12 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
                                                            layout& crop_layout,
                                                            layout& pred_layout,
                                                            const tensor offsets,
+                                                           size_t crop_axis,
                                                            bool is_runtime);
     static void update_in_place_crop_padding_simple_data_format(layout& crop_layout,
                                                                 layout& pred_layout,
                                                                 const tensor offsets,
+                                                                size_t crop_axis,
                                                                 bool is_runtime);
 };
 

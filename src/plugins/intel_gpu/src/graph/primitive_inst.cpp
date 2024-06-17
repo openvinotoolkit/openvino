@@ -1348,6 +1348,52 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
+void primitive_inst::do_runtime_in_place_crop() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_crop: " + id()));
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+        return;
+    }
+
+    for (auto u : get_user_insts()) {
+        if (u->get_node().is_type<crop>()) {
+            if (u->get_node().can_be_optimized()) {
+                GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << u->id() << std::endl;
+                u->update_shape();
+                u->update_shape_done_by_other = true;
+
+                layout crop_layout = u->_impl_params->get_output_layout();
+                std::vector<kernel_impl_params> pred_params;
+                for (auto& pred : u->_deps) {
+                    pred_params.push_back(*pred.first->_impl_params);
+                }
+                auto preds_layout = _impl_params->get_output_layout();
+                if (!crop_in_place_optimization::match(u->get_node(), *u->_impl_params, pred_params, true)) {
+                    u->set_can_be_optimized(false);
+                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                    return;
+                }
+
+                // auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
+                auto crop_axis = 2;
+                auto offsets = u->_impl_params->input_offsets[0];
+                if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, preds_layout)) {
+                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, preds_layout, offsets, crop_axis, true);
+                } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, preds_layout)) {
+                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, preds_layout, offsets, crop_axis, true);
+                } else {
+                    u->set_can_be_optimized(false);
+                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                    return;
+                }
+                u->_impl_params->output_layouts[0] = crop_layout;
+                u->set_can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << ": can_be_optimized " << std::endl;
+            }
+        }
+    }
+}
+
 bool primitive_inst::has_inner_networks() const {
     return (_impl_params->inner_nets.size() > 0);
 }
@@ -1410,6 +1456,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         do_runtime_skip_permute();
         do_runtime_skip_strided_slice();
         do_runtime_skip_broadcast();
+        do_runtime_in_place_crop();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));
