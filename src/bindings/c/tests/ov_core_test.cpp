@@ -586,7 +586,7 @@ TEST_P(ov_core_test, ov_core_import_model) {
 
 static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};
 
-void codec_xor(const char* in, const size_t in_size, char* out, size_t* out_size) {
+static void codec_xor(const char* in, const size_t in_size, char* out, size_t* out_size) {
     if (!out || *out_size < in_size) {
         *out_size = in_size;
         return;
