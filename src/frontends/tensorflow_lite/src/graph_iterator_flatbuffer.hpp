@@ -30,9 +30,22 @@ template <typename T>
 std::basic_string<T> get_model_extension() {}
 template <>
 std::basic_string<char> get_model_extension<char>();
+
+template <typename T>
+std::string path_as_string(const std::basic_string<T>& path);
+template <>
+inline std::string path_as_string(const std::basic_string<char>& path) {
+    return path;
+}
+
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 std::basic_string<wchar_t> get_model_extension<wchar_t>();
+
+template <>
+inline std::string path_as_string(const std::basic_string<wchar_t>& path) {
+    return ov::util::wstring_to_string(path);
+}
 #endif
 
 class GraphIteratorFlatBuffer : public GraphIterator {
@@ -58,7 +71,7 @@ public:
     /// Verifies file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
-        FRONT_END_GENERAL_CHECK(util::file_exists(path), "Could not open the file: \"", path, '"');
+        FRONT_END_GENERAL_CHECK(util::file_exists(path), "Could not open the file: \"", path_as_string(path), '"');
         try {
             if (!ov::util::ends_with<T>(path, get_model_extension<T>())) {
                 return false;

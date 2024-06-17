@@ -114,7 +114,7 @@ void FrontEnd::throw_path_error(const std::string& path) {
 }
 
 void FrontEnd::validate_file_stream(const std::ifstream& stream, const std::string& path) {
-    if (!stream.is_open()) {
+    if (!stream.good()) {
         throw_path_error(path);
     }
 }
