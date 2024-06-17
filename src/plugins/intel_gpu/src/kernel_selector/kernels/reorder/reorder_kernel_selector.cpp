@@ -12,7 +12,6 @@
 #include "reorder_kernel_fs_b_yx_fsv32_to_bfyx.h"
 #include "reorder_kernel_bfyx_to_blocked_format.h"
 #include "reorder_kernel_b_fs_yx_fsv16_fsv32_to_bfyx.h"
-#include "reorder_kernel_bf16.h"
 
 namespace kernel_selector {
 
@@ -26,7 +25,6 @@ reorder_kernel_selector::reorder_kernel_selector() {
     Attach<ReorderKernel_fs_b_yx_fsv32_to_bfyx>();
     Attach<ReorderKernel_bfyx_to_blocked_format>();
     Attach<ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx>();
-    Attach<ReorderKernelBF16>();
 }
 
 KernelsData reorder_kernel_selector::GetBestKernels(const Params& params) const {

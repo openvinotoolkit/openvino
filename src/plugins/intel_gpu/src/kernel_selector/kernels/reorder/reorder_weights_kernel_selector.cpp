@@ -10,7 +10,6 @@
 #include "reorder_weights_image_winograd_6x3_kernel.h"
 #include "reorder_weights_opt.h"
 #include "reorder_weights_int4.h"
-#include "reorder_weights_bf16.h"
 
 namespace kernel_selector {
 
@@ -22,7 +21,6 @@ ReorderWeightsKernelSelector::ReorderWeightsKernelSelector() {
     Attach<ReorderWeightsImageWinograd6x3Kernel>();
     Attach<ReorderWeightsOpt>();
     Attach<ReorderWeightsKernelInt4>();
-    Attach<ReorderWeightsBF16>();
 }
 
 KernelsData ReorderWeightsKernelSelector::GetBestKernels(const Params& params) const {
