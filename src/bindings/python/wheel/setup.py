@@ -262,8 +262,8 @@ class CustomBuild(build):
         # build some components which have not been built yet
         for comp, comp_data in install_cfg.items():
             cpack_comp_name = comp_data.get("name")
-            source_dir = comp_data.get("source_dir", OPENVINO_SOURCE_DIR)
-            binary_dir = comp_data.get("binary_dir", OPENVINO_BINARY_DIR)
+            source_dir = comp_data.get("source_dir")
+            binary_dir = comp_data.get("binary_dir")
             install_dir = comp_data.get("install_dir")
             prefix = comp_data.get("prefix")
 
