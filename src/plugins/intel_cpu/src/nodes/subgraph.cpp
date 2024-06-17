@@ -127,6 +127,8 @@ public:
         OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
         OPENVINO_ASSERT(data_offsets.front().size() == m_parallel_exec_domain.size(), "Data offsets with invalid ranks detected");
 
+        kernel_executor_table->reset_state(kernel_exec_table_state);
+
         std::vector<const uint8_t*> src_ptrs;
         std::vector<uint8_t*> dst_ptrs;
         init_original_ptrs(inMemPtrs, outMemPtrs, src_ptrs, dst_ptrs);
@@ -195,11 +197,15 @@ protected:
         buffer_offsets = snippet_config->buffer_cluster_offsets;
         data_offsets = snippet_config->io_data_offsets;
         loop_args = snippet_config->loop_args;
+        kernel_executor_table = snippet_config->m_kernel_executor_table;
+        kernel_exec_table_state = kernel_executor_table->get_state();
     }
 
     std::vector<size_t> buffer_offsets = {};
     std::vector<std::vector<size_t>> data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    snippets::KernelExecutorTable::ExecTableState kernel_exec_table_state = {};
+    std::shared_ptr<snippets::KernelExecutorTable> kernel_executor_table = nullptr;
 };
 
 struct SubgraphKey {

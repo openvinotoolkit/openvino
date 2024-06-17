@@ -10,7 +10,6 @@
 
 #include "emitter.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "kernel_executor_table.hpp"
 
 namespace ov {
 namespace snippets {

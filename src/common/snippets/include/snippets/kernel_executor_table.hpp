@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #if defined(SNIPPETS_DEBUG_CAPS) && !defined(_WIN32)
 #include <cxxabi.h>
 #endif
@@ -25,6 +25,7 @@ public:
          * while dynamic kernels will be completed only in runtime, when all the shapes are known.
         */
         virtual bool is_completed() const = 0;
+        virtual std::shared_ptr<GenericConfig> clone() const = 0;
 
         virtual ~GenericConfig() = default;
         /** serialize config for debug purposes */
@@ -36,7 +37,10 @@ public:
     * @brief update current kernel config and recompile kernel if necessary.
      * This method should be called to update KernelExecutor based on runtime info (e.g. shapes) available through expression ptr
     */
-    virtual void update(const ov::snippets::lowered::ExpressionPtr& expr) = 0;
+    virtual void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) = 0;
+    virtual void update_by_config(const std::shared_ptr<const GenericConfig>& new_config) = 0;
+
+    virtual std::shared_ptr<const GenericConfig> get_config() const = 0;
     /** serialize for debug purposes */
 #ifdef SNIPPETS_DEBUG_CAPS
     virtual std::string to_string() const = 0;
@@ -56,12 +60,22 @@ public:
     explicit KernelExecutor(std::shared_ptr<Conf> c) : KernelExecutorBase(), m_config{std::move(c)} {}
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
-    void update(const ov::snippets::lowered::ExpressionPtr& expr) override final { // NOLINT
+    void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) override final { // NOLINT
+        //todo: it's a wa
+        m_config = std::static_pointer_cast<Conf>(m_config->clone());
         update_config(expr, m_config);
-        OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config");
+        OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
+    void update_by_config(const std::shared_ptr<const GenericConfig>& new_config) override final { // NOLINT
+        m_config = std::const_pointer_cast<Conf>(std::static_pointer_cast<const Conf>(new_config));
+        OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in get_config");
+        update_kernel(m_config, m_kernel);
+        OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
+    }
+    std::shared_ptr<const GenericConfig> get_config() const override { return m_config; }
+    std::shared_ptr<const KernelType> get_kernel() const { return m_kernel; }
 #ifdef SNIPPETS_DEBUG_CAPS
     std::string to_string() const override {
         std::string type_name = typeid(KernelType).name();
@@ -75,8 +89,6 @@ public:
         return  "KernelExecutorType: " + std::string(type_name) + " KernelConfig: " + m_config->to_string();
     }
 #endif
-    std::shared_ptr<const Conf> get_config() const { return m_config; }
-    std::shared_ptr<const KernelType> get_kernel() const { return m_kernel; }
 
 protected:
     /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */
@@ -94,6 +106,7 @@ private:
 
 class KernelExecutorTable {
 public:
+    typedef std::vector<std::pair<snippets::lowered::ExpressionPtr, std::shared_ptr<const KernelExecutorBase::GenericConfig>>> ExecTableState;
     /*** Register KernelExecutor in the KernelExecutorTable so it can be later updated in runtime. */
     template<typename T, class ...C,
             typename std::enable_if<std::is_base_of<KernelExecutorBase, T>::value, bool>::type = true>
@@ -111,14 +124,29 @@ public:
     * @brief Update KernelExecutor registered in the KernelExecutorTable for a particular expression
      * @return true if a KernelExecutor was updated for the expression, false otherwise
     */
-    bool update_kernel_executor(const snippets::lowered::ExpressionPtr& expr) const {
-        const auto& found = m_table.find(expr);
-        if (found != m_table.end()) {
-            found->second->update(expr);
-            return true;
+    void update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const {
+        for (const auto& expr : *linear_ir) {
+            const auto& found = m_table.find(expr);
+            if (found != m_table.end())
+                found->second->update_by_expression(expr);
         }
-        return false;
     }
+    ExecTableState get_state() const {
+        ExecTableState result;
+        for (const auto& record : m_table)
+            result.emplace_back(std::make_pair(record.first, record.second->get_config()->clone()));
+        return result;
+    }
+    void reset_state(const ExecTableState& state) {
+        OPENVINO_ASSERT(state.size() == m_table.size(), "Invalid state in restore_state: size mismatch");
+        auto state_it = state.begin();
+        for (const auto& table_record : m_table) {
+            const auto& state_record = *state_it++;
+            OPENVINO_ASSERT(table_record.first == state_record.first, "Invalid state in restore_state: expressions mismatch");
+            table_record.second->update_by_config(state_record.second);
+        }
+    }
+
     /**
     * @brief Replace originally registered ExpressionPtr with a new value.
      * Note that code emission is performed on a copy of LIR, so all expression pointers visible from emitters won't

@@ -16,6 +16,7 @@ class BrgemmKernelExecutor;
 
 struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
     friend BrgemmKernelExecutor;
+
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
                        bool is_with_amx, bool is_with_comp,
@@ -23,19 +24,25 @@ public:
                        size_t LDA = 0, size_t LDB = 0, size_t LDC = 0);
     BrgemmKernelConfig() = default;
     bool is_completed() const override;
-    size_t hash() const;
+    size_t hash() const { return m_hash; }
+    std::shared_ptr<GenericConfig> clone() const override {
+        return std::make_shared<BrgemmKernelConfig>(*this);
+    }
     bool operator==(const BrgemmKernelConfig& rhs) const;
     bool operator!=(const BrgemmKernelConfig& rhs) const;
 #ifdef SNIPPETS_DEBUG_CAPS
     std::string to_string() const override;
 #endif
+
 private:
+    size_t compute_hash() const;
     dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
     bool is_with_amx {false};
     bool is_with_comp {false};
     float beta {0};
     dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
     dnnl_dim_t M {0}, N {0}, K {0}, LDA {0}, LDB {0}, LDC {0};
+    size_t m_hash {SIZE_MAX};
 };
 
 struct BrgemmCompiledKernel {

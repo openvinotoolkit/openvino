@@ -548,7 +548,8 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     auto executor_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
     for (const auto& expr : *m_linear_ir)
         executor_table->replace_reference_expression(expression_map.at(expr.get()), expr);
-
+    auto configurator = m_generator->get_target_machine()->get_runtime_configurator();
+    configurator->update_kernel_executors(m_linear_ir);
     return {std::move(lowering_result)};
 }
 
