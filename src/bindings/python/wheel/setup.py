@@ -455,10 +455,10 @@ class PrepareLibs(build_clib):
         os.makedirs(package_dir, exist_ok=True)
 
         replacements = {
-            '{CMAKE_CURRENT_LIST_DIR}/../../' : '{CMAKE_CURRENT_LIST_DIR}/../',
-            f'{OV_RUNTIME_LIBS_DIR}' : f'{WHEEL_LIBS_INSTALL_DIR}',
-            f'{DATA_INSTALL_CFG["core_dev"].get("install_dir")}/include' : f'{WHEEL_PACKAGE_DIR}/include',
-            r'(.so).(\d\d)(\d\d).(\d+).(\d+)': r'\1.\3\4\5' # changed the lib version 2024.3.0 -> 2430
+            "{CMAKE_CURRENT_LIST_DIR}/../../": "{CMAKE_CURRENT_LIST_DIR}/../",
+            f'{OV_RUNTIME_LIBS_DIR}': f'{WHEEL_LIBS_INSTALL_DIR}',
+            f'{DATA_INSTALL_CFG["core_dev"].get("install_dir")}/include': f'{WHEEL_PACKAGE_DIR}/include',
+            r'(.so).(\d\d)(\d\d).(\d+).(\d+)': r'\1.\3\4\5'  # changed the lib version 2024.3.0 -> 2430
         }
 
         for src_dir in src_dirs:
@@ -470,6 +470,7 @@ class PrepareLibs(build_clib):
                 if file_path.is_file():
                     replace_strings_in_file(file_path, replacements)
 
+
 def copy_file(src, dst, verbose=False, dry_run=False):
     """Custom file copy."""
     if dry_run:
@@ -478,6 +479,7 @@ def copy_file(src, dst, verbose=False, dry_run=False):
         shutil.copyfile(src, dst)
         if verbose:
             log.info(f"Copied '{src}' to '{dst}'")
+
 
 def replace_strings_in_file(file_path, replacements):
     """
@@ -495,6 +497,7 @@ def replace_strings_in_file(file_path, replacements):
 
     with open(file_path, 'w', encoding='utf-8') as file:
         file.write(content)
+
 
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
