@@ -28,6 +28,7 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_zero_result_parser
         openvino::runtime
         openvino::runtime::dev
+        ze_loader
 )
 
 #
