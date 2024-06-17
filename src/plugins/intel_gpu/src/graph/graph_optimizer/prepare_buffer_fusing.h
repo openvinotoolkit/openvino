@@ -71,7 +71,7 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
     bool match(crop_node& node);
     static bool match(const program_node& node,
                       kernel_impl_params crop_params,
-                      std::vector<kernel_impl_params> pred_params,
+                      layout& input_layout,
                       bool is_runtime = false);
     bool optimize(crop_node& node);
     static void update_in_place_crop_padding_along_feature(const program_node& node,

@@ -458,16 +458,14 @@ static void propagate_padding_to_opt_out_users(program_node& node, cldnn::paddin
 }
 
 bool crop_in_place_optimization::match(crop_node& node) {
-    std::vector<kernel_impl_params> pred_params;
-    for (auto pred : node.get_dependencies()) {
-        pred_params.push_back(*pred.first->get_kernel_impl_params());
-    }
-    return (match(node, *node.get_kernel_impl_params(), pred_params));
+    auto pred_param = node.get_dependency(0).get_kernel_impl_params();
+    auto pred_layout = pred_param->get_output_layout();
+    return (match(node, *node.get_kernel_impl_params(), pred_layout));
 }
 
 bool crop_in_place_optimization::match(const program_node& node,
                                        kernel_impl_params crop_params,
-                                       std::vector<kernel_impl_params> pred_params,
+                                       layout& input_layout,
                                        bool is_runtime) {
     if (!node.is_valid_output_layout())
         return false;
@@ -498,7 +496,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         // if output padding has defined padding across features already it wouldn't
         // work because it expect to have zeros in the padded area.
         const auto& crop_layout = crop_params.get_output_layout();
-        const auto& input_layout = pred_params[0].get_output_layout();
+        // const auto& input_layout = pred_params[0].get_output_layout();
         if ((!node.is_dynamic() || is_runtime) &&
             !is_optimizable_padding_for_crop(node, crop_layout, input_layout, crop_params.input_offsets[0]))
             return false;

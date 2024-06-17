@@ -511,6 +511,14 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
+    if (_node->is_type<crop>()) {
+        if (can_be_optimized()) {
+            this->_outputs[0] = dep_memory_ptr(0);
+            GPU_DEBUG_TRACE_DETAIL << id() << ": use crop dep's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+            return ev;
+        }
+    }
+
     // Update param if fake_alignment is available
     auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
 
@@ -1363,12 +1371,8 @@ void primitive_inst::do_runtime_in_place_crop() {
                 u->update_shape_done_by_other = true;
 
                 layout crop_layout = u->_impl_params->get_output_layout();
-                std::vector<kernel_impl_params> pred_params;
-                for (auto& pred : u->_deps) {
-                    pred_params.push_back(*pred.first->_impl_params);
-                }
-                auto preds_layout = _impl_params->get_output_layout();
-                if (!crop_in_place_optimization::match(u->get_node(), *u->_impl_params, pred_params, true)) {
+                auto pred_layout = _impl_params->get_output_layout();
+                if (!crop_in_place_optimization::match(u->get_node(), *u->_impl_params, pred_layout, true)) {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
                     return;
@@ -1377,10 +1381,10 @@ void primitive_inst::do_runtime_in_place_crop() {
                 // auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
                 auto crop_axis = 2;
                 auto offsets = u->_impl_params->input_offsets[0];
-                if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, preds_layout)) {
-                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, preds_layout, offsets, crop_axis, true);
-                } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, preds_layout)) {
-                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, preds_layout, offsets, crop_axis, true);
+                if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
+                } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
+                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, offsets, crop_axis, true);
                 } else {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
