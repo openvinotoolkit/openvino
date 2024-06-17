@@ -6,6 +6,7 @@
 
 #include <istream>
 #include <mutex>
+#include <streambuf>
 
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
@@ -14,7 +15,9 @@ namespace intel_npu::driverCompilerAdapter {
 
 IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset)
     : _logger("LevelZeroCompilerAdapter::IR", Logger::global().level()),
-      _isLargeModel(false) {
+      _isLargeModel(false),
+      _xmlStream(&_xmlCache),
+      _weightsStream(&_weightsCache) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
     _model = std::const_pointer_cast<ov::Model>(origModel);
@@ -23,7 +26,7 @@ IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpse
     // Only use fstream for Windows
     if (_model->get_graph_size() > 1024U * 1024 * 1024 * 2) {
         // Force model larger than 2G to use FILE mode
-        _logger.warning("Force large model %s to use FILE mode to do serialize", _model->get_friendly_name());
+        _logger.warning("Force large model %s to use custom stream to do serialize", _model->get_friendly_name());
         _isLargeModel = true;
     }
 #endif
@@ -31,18 +34,7 @@ IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpse
     serializeToIR(supportedOpset);
 }
 
-IR::~IR() {
-    if (_xmlFile) {
-        _xmlFile.close();
-    }
-    if (_weightsFile) {
-        _weightsFile.close();
-    }
-    for (auto& file : _fileToDelete) {
-        _logger.debug("Delete file: %s", file.c_str());
-        std::remove(file.c_str());
-    }
-}
+IR::~IR() {}
 
 void IR::serializeToIR(uint32_t supportedOpset) {
     _logger.debug("serializeToIR");
@@ -56,15 +48,12 @@ void IR::serializeToIR(uint32_t supportedOpset) {
         manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     }
 
-    std::string modelName = _model->get_friendly_name();
-    std::string xmlName = modelName + "_serialized.xml";
-    std::string weightsName = modelName + "_serialized.bin";
     if (_isLargeModel) {
-        manager.register_pass<ov::pass::Serialize>(xmlName, weightsName);
-        _logger.info("Serialize to files with xml: %s and weights: %s", xmlName.c_str(), weightsName.c_str());
+        manager.register_pass<ov::pass::Serialize>(_xmlStream, _weightsStream);
+        _logger.info("Serialize to custom stream");
     } else {
         manager.register_pass<ov::pass::Serialize>(_xml, _weights);
-        _logger.info("Serialize to stream");
+        _logger.info("Serialize to normal stream");
     }
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
@@ -87,15 +76,6 @@ void IR::serializeToIR(uint32_t supportedOpset) {
         rtInfo.erase(new_api_key);
     }
 
-    if (_isLargeModel) {
-        _fileToDelete.push_back(xmlName);
-        _fileToDelete.push_back(weightsName);
-        _xmlFile.open(xmlName, std::ios::binary);
-        _weightsFile.open(weightsName, std::ios::binary);
-        if (!_xmlFile || !_weightsFile) {
-            OPENVINO_THROW("Failed to open serialized files");
-        }
-    }
     _logger.debug("serializeToIR end");
 }
 

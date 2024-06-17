@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "custom_stream_buffer.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -26,7 +27,7 @@ public:
         if (!_isLargeModel) {
             return _xml;
         } else {
-            return _xmlFile;
+            return _xmlStream;
         }
     }
 
@@ -34,7 +35,7 @@ public:
         if (!_isLargeModel) {
             return _weights;
         } else {
-            return _weightsFile;
+            return _weightsStream;
         }
     }
 
@@ -50,12 +51,16 @@ private:
 
     Logger _logger;
     std::shared_ptr<ov::Model> _model;
-    bool _isLargeModel;
+
     std::stringstream _xml;
     std::stringstream _weights;
-    std::ifstream _xmlFile;
-    std::ifstream _weightsFile;
-    std::vector<std::string> _fileToDelete;
+
+    // Streams that use local stream_buf
+    bool _isLargeModel;
+    CustomStreamBuf _xmlCache;
+    CustomStreamBuf _weightsCache;
+    std::iostream _xmlStream;
+    std::iostream _weightsStream;
 };
 
 }  // namespace intel_npu::driverCompilerAdapter
