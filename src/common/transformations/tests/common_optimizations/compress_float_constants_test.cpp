@@ -659,7 +659,8 @@ const std::vector<ov::element::Type> element_types = {ov::element::i4,
                                                       ov::element::u8,
                                                       ov::element::nf4,
                                                       ov::element::f8e4m3,
-                                                      ov::element::f8e5m2};
+                                                      ov::element::f8e5m2,
+                                                      ov::element::f8e8m0};
 }  // namespace
 
 class CheckModelOptimizedTestSuite : public testing::TestWithParam<CheckModelOptimizedParam> {
