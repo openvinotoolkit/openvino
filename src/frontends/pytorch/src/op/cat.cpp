@@ -70,8 +70,7 @@ OutputVector translate_cat_common(const NodeContext& context,
     if (is_mixed_type) {
         auto node_of_type = list_elems[0];
         for (size_t i = 1; i < list_elems.size(); ++i) {
-            node_of_type =
-                std::make_shared<v14::ConvertPromoteTypes>(node_of_type, list_elems[i], true)->output(0);
+            node_of_type = std::make_shared<v14::ConvertPromoteTypes>(node_of_type, list_elems[i], true)->output(0);
             context.mark_node(node_of_type.get_node_shared_ptr());
         }
 
