@@ -807,10 +807,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>();
-        if (device_info.supports_immad) {
-            manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulMatcher>();
-            manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulTransposeMatcher>();
-        }
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
