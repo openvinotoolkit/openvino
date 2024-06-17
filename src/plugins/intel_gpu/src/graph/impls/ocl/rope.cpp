@@ -39,6 +39,7 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.head_cnt = primitive->config.head_cnt;
         params.head_size = primitive->config.head_size;
         params.rotary_ndims = primitive->config.rotary_ndims;
+        params.gather_rank = primitive->gather_rank;
 
         params.slice_start = primitive->config.slice_start;
         params.slice_stop = primitive->config.slice_stop;
@@ -46,13 +47,47 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.axis = primitive->config.is_qwen || primitive->config.is_chatglm ? 2 : 3;
         params.num_of_inputs = primitive->config.is_chatglm || primitive->config.is_interleaved ? 2 : 3;
 
+        if (params.gather_rank > 0) {
+            params.num_of_inputs++;
+        }
+
         params.is_qwen = primitive->config.is_qwen;
         params.is_chatglm = primitive->config.is_chatglm;
+        params.transposed_input = primitive->config.input_trans0213;
 
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
         return params;
+    }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        const auto& primitive = impl_params.typed_desc<rope>();
+
+        if (primitive->config.is_chatglm || primitive->config.is_qwen) {
+            return primitive_impl::static_canonicalize_shapes(impl_params);
+        } else {
+            auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+            std::set<size_t> canonicalize_from_begin = { 1, 2 };
+            for (size_t i = 0; i < updated_impl_params.input_layouts.size(); ++i) {
+                auto& input_layout = updated_impl_params.input_layouts[i];
+                if (canonicalize_from_begin.count(i) != 0) {
+                    input_layout.set_partial_shape(extend_shape_to_rank_from_begin(input_layout.get_partial_shape()));
+                } else {
+                    input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape()));
+                }
+            }
+
+            auto& output_layout = updated_impl_params.output_layouts[0];
+            output_layout.set_partial_shape(extend_shape_to_rank_from_end(output_layout.get_partial_shape()));
+
+            return updated_impl_params;
+        }
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
