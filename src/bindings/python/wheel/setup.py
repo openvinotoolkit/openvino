@@ -456,9 +456,9 @@ class PrepareLibs(build_clib):
 
         replacements = {
             "{CMAKE_CURRENT_LIST_DIR}/../../": "{CMAKE_CURRENT_LIST_DIR}/../",
-            f'{OV_RUNTIME_LIBS_DIR}': f'{WHEEL_LIBS_INSTALL_DIR}',
-            f'{DATA_INSTALL_CFG["core_dev"].get("install_dir")}/include': f'{WHEEL_PACKAGE_DIR}/include',
-            r'(.so).(\d\d)(\d\d).(\d+).(\d+)': r'\1.\3\4\5'  # changed the lib version 2024.3.0 -> 2430
+            f"{OV_RUNTIME_LIBS_DIR}": f"{WHEEL_LIBS_INSTALL_DIR}",
+            f"{DATA_INSTALL_CFG['core_dev'].get('install_dir')}/include": f"{WHEEL_PACKAGE_DIR}/include",
+            r"(.so).(\d\d)(\d\d).(\d+).(\d+)": r"\1.\3\4\5"  # changed the lib version 2024.3.0 -> 2430
         }
 
         for src_dir in src_dirs:
@@ -482,20 +482,18 @@ def copy_file(src, dst, verbose=False, dry_run=False):
 
 
 def replace_strings_in_file(file_path, replacements):
-    """
-    Replace strings in a text file.
-
+    """Replace strings in a text file.
     :param file_path: Path to the source file.
     :param replacements: A dictionary where keys are strings or regex patterns to be replaced and values are the new strings.
     """
     # Read the content of the file
-    with open(file_path, 'r', encoding='utf-8') as file:
+    with open(file_path, "r", encoding="utf-8") as file:
         content = file.read()
 
     for pattern, new_string in replacements.items():
         content = re.sub(pattern, new_string, content)
 
-    with open(file_path, 'w', encoding='utf-8') as file:
+    with open(file_path, "w", encoding="utf-8") as file:
         file.write(content)
 
 
