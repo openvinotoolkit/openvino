@@ -346,7 +346,6 @@ OptionConcept makeOptionModel() {
 
 class OptionsDesc final {
 public:
-    OptionsDesc(const std::string_view& name);
     template <class Opt>
     void add();
 
@@ -358,7 +357,6 @@ public:
 private:
     std::unordered_map<std::string, details::OptionConcept> _impl;
     std::unordered_map<std::string, std::string> _deprecated;
-    std::string_view _name;
 };
 
 template <class Opt>
@@ -384,7 +382,7 @@ public:
     using ConfigMap = std::map<std::string, std::string>;
     using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
 
-    explicit Config(const std::shared_ptr<const OptionsDesc>& desc, const std::string_view& name);
+    explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
     void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
 
@@ -404,7 +402,6 @@ public:
 private:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
-    std::string_view _name;
 };
 
 template <class Opt>
@@ -416,7 +413,7 @@ template <class Opt>
 typename Opt::ValueType Config::get() const {
     using ValueType = typename Opt::ValueType;
 
-    auto log = Logger::global().clone(_name);
+    auto log = Logger::global().clone("Config");
     log.trace("Get value for the option '%s'", Opt::key().data());
 
     const auto it = _impl.find(Opt::key().data());

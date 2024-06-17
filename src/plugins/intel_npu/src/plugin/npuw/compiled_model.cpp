@@ -86,8 +86,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
     : ov::ICompiledModel(model, plugin),
-      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>("NpuwOptionDesc")),
-      m_cfg(m_options_desc, "NpuwConfig"),
+      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
+      m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
     ::intel_npu::registerNPUWOptions(*m_options_desc);
@@ -115,14 +115,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     const auto& orig_parameters = model->get_parameters();
     {
         LOG_BLOCK();
-        for (auto&& p : orig_parameters)
+        for (auto&& p : orig_parameters) {
             LOG_VERB(p);
+        }
     }
     const auto& orig_results = model->get_results();
     {
         LOG_BLOCK();
-        for (auto&& r : orig_results)
+        for (auto&& r : orig_results) {
             LOG_VERB(r);
+        }
     }
 
     auto partitioning = getPartitioning(model, m_cfg);

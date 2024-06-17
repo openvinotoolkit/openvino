@@ -166,8 +166,8 @@ static Config add_platform_to_the_config(Config config, const std::string_view p
 }
 
 Plugin::Plugin()
-    : _options(std::make_shared<OptionsDesc>("OptionDesc")),
-      _globalConfig(_options, "Config"),
+    : _options(std::make_shared<OptionsDesc>()),
+      _globalConfig(_options),
       _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
