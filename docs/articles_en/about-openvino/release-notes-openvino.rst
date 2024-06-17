@@ -35,7 +35,7 @@ What's new
     Python Custom Operation empowers users to implement their own specialized operations into
     any model.
   * Notebooks expansion to ensure better coverage for new models. Noteworthy notebooks added:
-    DynamiCrafter, YOLOv10, and Chatbot notebook with Phi-3.
+    DynamiCrafter, YOLOv10, Chatbot notebook with Phi-3, and QWEN2.
 
 
 * Broader Large Language Model (LLM) support and more model compression techniques.
@@ -52,7 +52,7 @@ What's new
 
   * Model Serving Enhancements:
 
-    * OpenVINO Model Server (OVMS) now supports OpenAI-compatible API along with Continuous
+    * Preview: OpenVINO Model Server (OVMS) now supports OpenAI-compatible API along with Continuous
       Batching and PagedAttention, enabling significantly higher throughput for parallel
       inferencing, especially on Intel® Xeon® processors, when serving LLMs to many concurrent
       users.
@@ -61,10 +61,12 @@ What's new
     * Integration of TorchServe through torch.compile OpenVINO backend for easy model deployment,
       provisioning to multiple instances, model versioning, and maintenance.
 
-  * Addition of the Generate API, a simplified API for text generation using large language
+  * Preview: addition of the Generate API, a simplified API for text generation using large language
     models with only a few lines of code. The API is available through the newly launched
     OpenVINO GenAI package.
+  * Support for Intel Atom® Processor X Series. For more details, see :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
   * Preview: Support for Intel® Xeon® 6 processor.
+
 
 
 OpenVINO™ Runtime
@@ -77,8 +79,6 @@ Common
   efficient LLM weight compression.
 * Common OV headers have been optimized, improving binary compilation time and reducing binary
   size.
-* Support for Intel Atom® Processor X Series has been added. For more details, see
-  :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
 
 
 AUTO Inference Mode
@@ -115,13 +115,14 @@ GPU Device Plugin
 * Stable Diffusion FP16 performance improved on Core Ultra platforms, with significant pipeline
   improvement for models with dynamic-shaped input. Memory usage of the pipeline has been reduced,
   as well.
-* Improved performance of optimized permute_f_y kernel.
+* Optimized permute_f_y kernel performance has been improved.
 
 
 NPU Device Plugin
 -----------------------------
 
-* TBD
+* A new set of configuration options is now available.
+* Performance increase has been unlocked, with the new `2408 NPU driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 
 
 OpenVINO Python API
