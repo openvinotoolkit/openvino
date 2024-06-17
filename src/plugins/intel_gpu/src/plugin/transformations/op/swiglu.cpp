@@ -15,8 +15,11 @@ namespace op {
 SwiGLU::SwiGLU(const Output<Node>& data,
                int64_t axis,
                int64_t split_lengths,
+               const GluType glu_type,
+               const size_t split_to_glu_idx,
                const ov::element::Type output_type)
-    : Op({data}), m_axis(axis), m_split_lengths(split_lengths), m_output_type(output_type) {
+    : Op({data}), m_axis(axis), m_split_lengths(split_lengths),
+      m_glu_type(glu_type), m_split_to_glu_idx(split_to_glu_idx), m_output_type(output_type) {
     validate_and_infer_types();
 }
 
@@ -44,6 +47,8 @@ std::shared_ptr<Node> SwiGLU::clone_with_new_inputs(const ov::OutputVector& new_
     return std::make_shared<SwiGLU>(new_args.at(0),
                                     m_axis,
                                     m_split_lengths,
+                                    m_glu_type,
+                                    m_split_to_glu_idx,
                                     m_output_type);
 }
 
