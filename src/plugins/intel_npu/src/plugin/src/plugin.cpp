@@ -568,16 +568,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // ... 1 - NPUW mode is activated
     // ... 2 - this request is NOT coming from NPUW,
     // activate the NPUW path
-    auto localProperties = properties;
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
-    if (localProperties.count(useNpuwKey) &&
-        localProperties.at(useNpuwKey).as<bool>() == true) {
-            return std::make_shared<ov::npuw::CompiledModel>
-                (model->clone(), shared_from_this(),
-                 localProperties);
+    if (properties.count(useNpuwKey) && properties.at(useNpuwKey).as<bool>()) {
+        return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), properties);
     }
 
-    auto localConfig = merge_configs(_globalConfig, any_copy(localProperties));
+    auto localConfig = merge_configs(_globalConfig, any_copy(properties));
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
