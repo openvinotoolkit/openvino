@@ -3,7 +3,6 @@
 //
 
 #pragma once
-
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 
@@ -277,18 +276,18 @@ public:
     bool reorder_identifiers(const std::map<size_t, size_t>& loop_id_map);
 
     /**
+     * @brief Add new Loop Info to the map
+     * @param loop target loop info
+     * @return the loop ID
+     */
+    size_t add_loop_info(const LoopInfoPtr& loop);
+    /**
      * @brief Remove LoopInfo from the map
      * @param index the target index of Loop
      */
     void remove_loop_info(size_t index);
 
 private:
-    /**
-     * @brief Add new Loop Info to the map
-     * @param loop target loop info
-     * @return the loop ID
-     */
-    size_t add_loop_info(const LoopInfoPtr& loop);
     /**
      * @brief Find expression ports in bounds that are connected to consumers or parent that aren't in these bounds
      * @param loop_begin_pos the first expression iterator of the Loop

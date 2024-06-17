@@ -142,14 +142,14 @@ size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx) {
     return 0;
 }
 
-size_t get_stride(size_t dim_idx, const VectorDims& shape) {
+int64_t get_stride(size_t dim_idx, const VectorDims& shape) {
     OPENVINO_ASSERT(dim_idx < shape.size(), "dim_idx should be in range of [0, shape.size()) in get_stride");
-    size_t stride = 1;
+    int64_t stride = 1;
     for (size_t i = dim_idx + 1; i < shape.size(); ++i) {
         if (utils::is_dynamic_value(shape[i])) {
-            return utils::get_dynamic_value<size_t>();
+            return utils::get_dynamic_value<int64_t>();
         }
-        stride *= shape[i];
+        stride *= static_cast<int64_t>(shape[i]);
     }
     return stride;
 }

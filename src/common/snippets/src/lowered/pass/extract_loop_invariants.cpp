@@ -21,21 +21,19 @@ void remove_last_loop_id(const std::shared_ptr<Expression>& expr) {
     expr->set_loop_ids(loop_ids);
 }
 
-size_t get_stride_after_move_outer(const LoopPort& loop_port) {
+int64_t get_stride_after_move_outer(const LoopPort& loop_port) {
     const auto& expr_port = loop_port.expr_port;
     const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
     size_t shape_dim_idx = utils::get_dim_idx(*expr_port, loop_port.dim_idx);
-    size_t stride = utils::get_stride(shape_dim_idx, shape);
+    int64_t stride = utils::get_stride(shape_dim_idx, shape);
     if (utils::is_dynamic_value(stride) || utils::is_dynamic_value(shape[shape_dim_idx])) {
-        return utils::get_dynamic_value<size_t>();
+        return utils::get_dynamic_value<int64_t>();
     } else {
-        return stride * shape[shape_dim_idx];
+        return stride * static_cast<int64_t>(shape[shape_dim_idx]);
     }
 }
-}  // namespace
 
-bool ExtractLoopInvariants::is_extraction_applicable(const ExpressionPtr& expr,
-                                                     const UnifiedLoopInfoPtr& inner_loop_info) {
+bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info) {
     const auto& expr_input_ports = expr->get_input_ports();
     const auto& input_port_size = expr_input_ports.size();
     if (input_port_size == 0)
@@ -64,10 +62,7 @@ bool ExtractLoopInvariants::is_extraction_applicable(const ExpressionPtr& expr,
     return true;
 }
 
-void ExtractLoopInvariants::extract_expr(const ExpressionPtr& expr,
-                                         LinearIR& linear_ir,
-                                         LinearIR::constExprIt& inner_loop_begin_pos,
-                                         LinearIR::constExprIt& inner_loop_end_pos) {
+void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir, LinearIR::constExprIt& inner_loop_begin_pos, LinearIR::constExprIt& inner_loop_end_pos) {
     // update expr loop id
     remove_last_loop_id(expr);
     // move if it is not the first
@@ -80,8 +75,8 @@ void ExtractLoopInvariants::extract_expr(const ExpressionPtr& expr,
     }
 }
 
-void ExtractLoopInvariants::update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id,
-                                              LinearIR::constExprIt& inner_loop_begin_pos, LinearIR::constExprIt& inner_loop_end_pos) {
+void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id,
+                       LinearIR::constExprIt& inner_loop_begin_pos, LinearIR::constExprIt& inner_loop_end_pos) {
     const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loop_id);
     // delete expr input ports from loop input points, add expr output ports' consumers if
     // consumed in inner loop to loop input ports.
@@ -96,7 +91,7 @@ void ExtractLoopInvariants::update_loop_ports(const ExpressionPtr& expr, const L
         }
     }
     const auto& expr_input_ports = expr->get_input_ports();
-    inner_loop_info->update_loop_ports(expr_input_ports, new_loop_input_ports, true);
+    inner_loop_info->update_loop_ports(expr_input_ports, new_loop_input_ports);
 
     // delete expr out ports from loop out ports directly if it's in loop output ports
     std::vector<ExpressionPort> exp_out_ports;
@@ -108,7 +103,7 @@ void ExtractLoopInvariants::update_loop_ports(const ExpressionPtr& expr, const L
     }
     if (!exp_out_ports.empty()) {
         std::vector<ExpressionPort> new_ports;
-        inner_loop_info->update_loop_ports(exp_out_ports, new_ports, false);
+        inner_loop_info->update_loop_ports(exp_out_ports, new_ports);
     }
     // TODO: 142990.
     // Need sort after update loop ports. There are possibility that all exprs are moved to outer loop.
@@ -117,7 +112,7 @@ void ExtractLoopInvariants::update_loop_ports(const ExpressionPtr& expr, const L
     }
 }
 
-std::set<ExpressionPtr> ExtractLoopInvariants::get_potential_extractable_exprs(const std::vector<LoopPort>& loop_in_ports) {
+std::set<ExpressionPtr> get_loop_input_exprs(const std::vector<LoopPort>& loop_in_ports) {
     std::set<ExpressionPtr> expr_set;
     for (size_t i = 0; i < loop_in_ports.size(); ++i) {
         expr_set.insert(loop_in_ports[i].expr_port->get_expr());
@@ -125,15 +120,15 @@ std::set<ExpressionPtr> ExtractLoopInvariants::get_potential_extractable_exprs(c
     return expr_set;
 }
 
-bool ExtractLoopInvariants::extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
+bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     bool status = false;
-    bool extraction_completed = false;  // true means all extractable exprs are extracted from this loop
+    bool continue_to_extract = true;
     const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loop_id);
-    while (!extraction_completed) {
+    while (continue_to_extract) {
         const auto& inner_loop_input_ports = inner_loop_info->get_input_ports();
-        const auto& potential_extractable_exprs = get_potential_extractable_exprs(inner_loop_input_ports);
-        bool has_been_extraction = false;
+        const auto& potential_extractable_exprs = get_loop_input_exprs(inner_loop_input_ports);
+        bool expr_extracted = false;
         for (const auto& port_expr : potential_extractable_exprs) {
             if (is_extraction_applicable(port_expr, inner_loop_info)) {
                 status = true;
@@ -149,22 +144,23 @@ bool ExtractLoopInvariants::extract_from_loop(const size_t& inner_loop_id, Linea
                 }
                 extract_expr(port_expr, linear_ir, inner_loop_begin_pos, inner_loop_end_pos);
                 update_loop_ports(port_expr, loop_manager, inner_loop_id, inner_loop_begin_pos, inner_loop_end_pos);
-                has_been_extraction = true;
+                expr_extracted = true;
                 break;  // extracted and refreshed loop_input_ports. break potential_extractable_exprs loop, and go while() to start again.
             }
         }
         if (inner_loop_input_ports.size() == 0 && inner_loop_info->get_output_ports().size() == 0) {
             // become a empty(inner_loop_input_ports is ref) loop after extraction, let remove it from loop_manager
             loop_manager->remove_loop_info(inner_loop_id);
-            extraction_completed = true;
+            continue_to_extract = false;
             break;
         }
-        // no more extractable expr in this loop after for() of iter loop ports, done for this loop.
-        if (!has_been_extraction)
-            extraction_completed = true;
+        // no more extractable expr in this loop after go through all potential_extractable_exprs, done for this loop.
+        if (!expr_extracted)
+            continue_to_extract = false;
     }
     return status;
 }
+}  // namespace
 
 bool ExtractLoopInvariants::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractLoopInvariants")

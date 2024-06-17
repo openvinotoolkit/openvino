@@ -336,12 +336,13 @@ public:
 
     /**
      * @brief Remove remove_ports and add add_ports to the current LoopPort.
-     *        This function remove and add directly without respect ports order, caller is responsible for the order by sort.
+     *        This function removes ports directly and adds ports at the end of current LoopPort, caller is responsible to
+     *        sort the LoopPort after LoopPort being updated according to execution order of the expressions.
+     *        Note: all port in remove_ports and add_ports should have the same type.
      * @param remove_ports need to be removed
      * @param add_ports need to be added
-     * @param is_input true if update input port
      */
-    void update_loop_ports(const std::vector<ExpressionPort>& remove_ports, const std::vector<ExpressionPort>& add_ports, bool is_input);
+    void update_loop_ports(const std::vector<ExpressionPort>& remove_ports, const std::vector<ExpressionPort>& add_ports);
     /**
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them
      * @param caller - function that called for each LoopPortDesc
@@ -395,18 +396,20 @@ private:
     /**
      * @brief Remove the current LoopPort that contains ExpressionPort.
      *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
-     *        This function remove directly without respect ports order, caller is responsible for the order by sort.
+     *        This function removes ports directly, caller is responsible to sort the LoopPort after updated
+     *        according to execution order of the expressions.
+     *        Note: all port in ports should have the same type.
      * @param ports need to be removed
-     * @param is_input true if update input port
      */
-    void remove_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
+    void remove_loop_ports(const std::vector<ExpressionPort>& ports);
     /**
      * @brief Add ports to the current LoopPort.
-     *        This function add in back of current LoopPort without respect ports order, caller is responsible for the order by sort.
+     *        This function adds ports in end of current LoopPort vector, caller is responsible to
+     *        sort the LoopPort after updated according to execution order of the expressions.
+     *        Note: all port in ports should have the same type.
      * @param ports need to be added
-     * @param is_input true if update input port
      */
-    void add_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
+    void add_loop_ports(const std::vector<ExpressionPort>& ports);
 
     SpecificIterationHandlers m_handlers = {};
     std::vector<LoopPortDesc> m_input_port_descs = {};

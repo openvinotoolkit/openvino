@@ -325,15 +325,16 @@ void UnifiedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, 
     validate();
 }
 
-void UnifiedLoopInfo::update_loop_ports(const std::vector<ExpressionPort>& actual_ports, const std::vector<ExpressionPort>& target_ports, bool is_input) {
-    if (!target_ports.empty())
-        add_loop_ports(target_ports, is_input);
-    if (!actual_ports.empty())
-        remove_loop_ports(actual_ports, is_input);
+void UnifiedLoopInfo::update_loop_ports(const std::vector<ExpressionPort>& actual_ports, const std::vector<ExpressionPort>& target_ports) {
+    add_loop_ports(target_ports);
+    remove_loop_ports(actual_ports);
     validate();
 }
 
-void UnifiedLoopInfo::remove_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input) {
+void UnifiedLoopInfo::remove_loop_ports(const std::vector<ExpressionPort>& ports) {
+    if (ports.empty())
+        return;
+    bool is_input = ports[0].get_type() == ExpressionPort::Input;
     auto& loop_ports = is_input ? m_input_ports : m_output_ports;
     auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
     for (size_t i = 0; i < ports.size(); i++) {
@@ -348,7 +349,10 @@ void UnifiedLoopInfo::remove_loop_ports(const std::vector<ExpressionPort>& ports
     }
 }
 
-void UnifiedLoopInfo::add_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input) {
+void UnifiedLoopInfo::add_loop_ports(const std::vector<ExpressionPort>& ports) {
+    if (ports.empty())
+        return;
+    bool is_input = ports[0].get_type() == ExpressionPort::Input;
     auto& loop_ports = is_input ? m_input_ports : m_output_ports;
     auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
     size_t loop_dim_idx = get_dim_idx();

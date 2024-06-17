@@ -123,15 +123,8 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
 }
 
 LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) {
-    auto get_loop_port = [&](const std::vector<LoopPort>& ports) {
-        auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LoopPort& p) { return *p.expr_port == expr_port; });
-        if (it == ports.cend())
-            OPENVINO_THROW("Expression has not been found among loop ports. Loop id: " + std::to_string(loop_id));
-        return *it;
-    };
     const auto& loop_info = get_loop_info(loop_id);
-    return expr_port.get_type() == ExpressionPort::Input ? get_loop_port(loop_info->get_input_ports())
-                                                         : get_loop_port(loop_info->get_output_ports());
+    return loop_info->get_loop_port(expr_port);
 }
 
 void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,

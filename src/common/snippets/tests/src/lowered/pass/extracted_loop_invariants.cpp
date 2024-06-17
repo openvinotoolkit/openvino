@@ -6,6 +6,7 @@
 
 #include "openvino/opsets/opset10.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/op/broadcastmove.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/vector_buffer.hpp"
@@ -31,6 +32,7 @@ public:
 
     void SetUp() override {
         pipeline.register_pass<ExtractLoopInvariants>();
+        // pipeline.register_pass<NormalizeLoopIDs>();
     }
 };
 

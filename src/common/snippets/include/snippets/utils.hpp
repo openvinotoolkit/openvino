@@ -133,7 +133,7 @@ size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
 
 // get stride on dimenison of dim_idx
 // given shape [a,b,c,d], the stride is [b*c*d, c*d, d, 1]
-size_t get_stride(size_t dim_idx, const VectorDims& shape);
+int64_t get_stride(size_t dim_idx, const VectorDims& shape);
 
 /* ----- Shape `getters` ----- */
 /**
