@@ -62,7 +62,7 @@ std::shared_ptr<ov::Model> SharedMatmulAndGatherWeightsDecompression::initSubgra
 
     // if dynamic quantization is enabled
     if (group_size != 0) {
-        abs_threshold = 0.1;
+        abs_threshold = 0.15;
     }
 
     return std::make_shared<ov::Model>(last_nodes, params, "SharedMatmulAndGatherWeightsDecompression");

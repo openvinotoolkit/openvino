@@ -206,8 +206,6 @@ std::vector<ov::AnyMap> filter_additional_config_amx() {
     std::vector<ov::AnyMap> additional_config = {};
     if (ov::with_cpu_x86_avx512_core_amx())
         additional_config.push_back({{ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::bf16)}});
-    else
-        additional_config.push_back({{ov::hint::dynamic_quantization_group_size(0)}});
     return additional_config;
 }
 
