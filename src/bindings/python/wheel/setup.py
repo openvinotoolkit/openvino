@@ -332,7 +332,6 @@ class CustomBuild(build):
             self.spawn(["cmake",
                         f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                        f"-DENABLE_WHEEL={ENABLE_WHEEL}",
                         "-S", OPENVINO_SOURCE_DIR,
                         "-B", OPENVINO_BINARY_DIR])
 
@@ -367,7 +366,8 @@ class PrepareLibs(build_clib):
         # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
         self.copy_package_libs(get_install_dirs_list(LIB_INSTALL_CFG))
         # copy package data (everything except python or libraries)
-        self.copy_package_data(get_install_dirs_list(DATA_INSTALL_CFG))
+        if CPACK_GENERATOR == "WHEEL":
+            self.copy_package_data(get_install_dirs_list(DATA_INSTALL_CFG))
 
     def post_install(self, install_cfg):
         """Install prebuilt libraries to the temp directories, set rpath."""
