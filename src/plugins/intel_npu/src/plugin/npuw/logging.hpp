@@ -56,8 +56,6 @@ void dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& de
 
 #define LOG_BLOCK() ov::npuw::__logging_indent__ object_you_should_never_use__##__LINE__
 
-// FIXME: Should go to util too, but again.. too lazy to bring new
-// dependencies there
 #define NPUW_ASSERT(expr)                                       \
     do {                                                        \
         if (!(expr)) {                                          \

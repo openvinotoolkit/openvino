@@ -12,10 +12,9 @@ namespace intel_npu {
  * @brief
  * Type: bool
  * Set this option to true to utilize NPUW extension
- * Possible values: true, false
  * Default value: false
  */
-static constexpr ov::Property<std::string> use_npuw{"NPU_USE_NPUW"};
+static constexpr ov::Property<bool> use_npuw{"NPU_USE_NPUW"};
 
 namespace npuw {
 /**
@@ -94,7 +93,6 @@ static constexpr ov::Property<std::string> plan{"NPUW_PLAN"};
  * @brief
  * Type: bool.
  * Perform function call folding if there are repeating blocks in the graph.
- * Possible values: true, false.
  * Default value: false.
  */
 static constexpr ov::Property<bool> fold{"NPUW_FOLD"};
@@ -102,9 +100,8 @@ static constexpr ov::Property<bool> fold{"NPUW_FOLD"};
 /**
  * @brief
  * Type: bool.
- * Cut-off weighs from repeating blocks, but don't do folding.
+ * Cut-off weights from repeating blocks, but don't do folding.
  * Decompression cut-off may still happen. Conflicts with NPUW_FOLD.
- * Possible values: true, false.
  * Default value: false.
  */
 static constexpr ov::Property<bool> cwai{"NPUW_CWAI"};
@@ -123,7 +120,6 @@ static constexpr ov::Property<std::string> dcoff_type{"NPUW_DCOFF_TYPE"};
  * Type: bool.
  * Include weights scaling into the decompression procedure (and exclude it from function bodies).
  * Works only with function "NPUW_FOLD"ing.
- * Possible values: true, false.
  * Default value: false.
  */
 static constexpr ov::Property<bool> dcoff_with_scale{"NPUW_DCOFF_SCALE"};
@@ -133,7 +129,6 @@ static constexpr ov::Property<bool> dcoff_with_scale{"NPUW_DCOFF_SCALE"};
  * Type: bool.
  * Every subgraph will be turned into a function.
  * Warning: May cause performance issues!
- * Possible values: true, false.
  * Default value: false.
  */
 static constexpr ov::Property<bool> funcall_for_all{"NPUW_FUNCALL_FOR_ALL"};
@@ -142,8 +137,7 @@ static constexpr ov::Property<bool> funcall_for_all{"NPUW_FUNCALL_FOR_ALL"};
 /**
  * @brief
  * Type: bool.
- * Employ parallel subgraph compilation. Disabled by default due to instaibilities.
- * Possible values: true, false.
+ * Employ parallel subgraph compilation. Disabled by default due to instabilities.
  * Default value: false.
  */
 static constexpr ov::Property<bool> parallel_compilation{"NPUW_PARALLEL_COMPILE"};
@@ -153,7 +147,6 @@ static constexpr ov::Property<bool> parallel_compilation{"NPUW_PARALLEL_COMPILE"
  * Type: bool.
  * Pipeline execution of functions (repeating blocks) and their prologues
  * (e.g., where weights decompression may happen).
- * Possible values: true, false.
  * Default value: false.
  */
 static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
@@ -164,7 +157,6 @@ namespace accuracy {
  * Type: bool.
  * Enable accuracy check for inference to make infer requests
  * tolerant to accuracy fails
- * Possible values: true, false.
  * Default value: false.
  */
 static constexpr ov::Property<bool> check{"NPUW_ACC_CHECK"};
@@ -177,7 +169,7 @@ static constexpr ov::Property<bool> check{"NPUW_ACC_CHECK"};
  * Possible values: Double floating-point value from 0.0 to 1.0.
  * Default value: 0.1.
  */
-static constexpr ov::Property<std::size_t> threshold{"NPUW_ACC_THRESH"};
+static constexpr ov::Property<double> threshold{"NPUW_ACC_THRESH"};
 
 /**
  * @brief
@@ -194,7 +186,6 @@ namespace dump {
  * @brief
  * Type: std::string.
  * Dump the whole model in its original form (as plugin gets it, before any partitioning is done).
- * Possible values: true, false.
  * Default value: false.
  */
 static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
@@ -203,7 +194,7 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * @brief
  * Type: std::string.
  * Dump the specified subgraph(s) in OpenVINO IR form in the current directory.
- * Possible values: Comma-separated list of subgraph indices  or "YES" for all
+ * Possible values: Comma-separated list of subgraph indices or "YES" for all
  * subgraphs, e.g. "0,1" or "YES".
  * Default value: empty.
  */
@@ -213,7 +204,7 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
  * @brief
  * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
- * Possible values: Comma-separated list of subgraph indices  or "YES" for all
+ * Possible values: Comma-separated list of subgraph indices or "YES" for all
  * subgraphs, e.g. "0,1" or "YES".
  * Default value: empty.
  */
@@ -223,7 +214,7 @@ static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_
  * @brief
  * Type: std::string.
  * Dump input & output tensors for subgraph(s).
- * Possible values: Comma-separated list of subgraph indices  or "YES" for all
+ * Possible values: Comma-separated list of subgraph indices or "YES" for all
  * subgraphs, e.g. "0,1" or "YES".
  * Default value: empty.
  */
@@ -234,7 +225,6 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
  * Type: std::string.
  * Dump input & output tensors for subgraph(s) for every iteration.
  * WARNING: may exhaust the disk space quickly.
- * Possible values: true, false.
  * Default value: false.
  */
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
