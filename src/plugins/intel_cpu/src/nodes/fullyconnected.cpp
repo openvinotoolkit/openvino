@@ -62,12 +62,11 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, FCShapeInferFactory(op)),
       errorPrefix("FullyConnected node with name '" + getName() + "'") {
-    // init w_rank and w_size
-    if (!context->getCPUStreamExecutor()->get_rank().empty() && std::getenv("ENABLE_TP")) {
-        enable_tensor_parallel = std::getenv("ENABLE_TP") == nullptr ? false : true;
+    if (!context->getCPUStreamExecutor()->get_rank().empty()) {
+        // init w_rank and w_size
         w_rank = context->getCPUStreamExecutor()->get_rank()[0];
-        w_size = 2;
-        // std::cout << "[dbg] w_rank: " << w_rank << ", w_size: " << w_size << "\n";
+        w_size = ov::threading::message_manager()->get_num_sub_streams();
+        enable_tensor_parallel = w_size > 1 ? true : false;
         sub_memory = context->getSubMemory();
     }
     std::string errorMessage;
@@ -136,12 +135,21 @@ void FullyConnected::execute(dnnl::stream strm) {
         auto prec = dst->getPrecision();
         auto mem_size = dst->getSize(); // total bytes
 
+        auto split_parts = [](int len, int n) {
+            int average = len / n;
+            std::vector<int> parts(n, average);
+            parts.back() = len - average * (n - 1);
+            return parts;
+        };
+
         const int dim = dims.size() - 1;
         auto channel_size = dims[dim] * prec.size();    // selected dim bytes
         // const int step = (mem_size / channel_size);     // the steps need to copy.
         const size_t count = (mem_size / channel_size);     // the steps need to copy.
 
-        const auto copySize = (dims[dim] / w_size) * prec.size();    // bytes of half selected dim.
+        auto splited_dim_vec = split_parts(dims[dim], w_size);
+        const auto strideSize = splited_dim_vec[0] * prec.size();
+
         sub_memory->_memorys_table[id][w_rank].send_buf = cur_dst->getData();
         sub_memory->_memorys_table[id][w_rank].flag = true;
 
@@ -151,29 +159,29 @@ void FullyConnected::execute(dnnl::stream strm) {
             for (int idx = 0; idx < w_size; idx++) {
                 if (wait_list[idx] > 0 && sub_memory->_memorys_table[id][idx].flag) {
                     auto new_ptr = static_cast<uint8_t*>(sub_memory->_memorys_table[id][idx].send_buf);
-                    // parallel_for(step, [&](int i) {
+                    const auto copySize = splited_dim_vec[idx] * prec.size();    // bytes of half selected dim.
+                    // size_t step = count;
+                    // parallel_for(step, [&](size_t i){
+                    //     int dst_offset = i * dims[dim] * prec.size() + idx * strideSize;
                     //     int src_offset = i * copySize;
-                    //     int dst_offset = i * copySize * 2 + idx * copySize;
                     //     cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
                     // });
                     const size_t unloop = 8;
                     size_t step = count / unloop;
                     parallel_for(step, [&](size_t i){
-                        // int src_offset = i * copySize;
-                        // int dst_offset = i * copySize * 2 + idx * copySize;
-                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop)),     new_ptr + copySize * (i * unloop), copySize);
-                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 1)), new_ptr + copySize * (i * unloop + 1), copySize);
-                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 2)), new_ptr + copySize * (i * unloop + 2), copySize);
-                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 3)), new_ptr + copySize * (i * unloop + 3), copySize);
-                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 4)), new_ptr + copySize * (i * unloop + 4), copySize);
-                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 5)), new_ptr + copySize * (i * unloop + 5), copySize);
-                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 6)), new_ptr + copySize * (i * unloop + 6), copySize);
-                        cpu_memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 7)), new_ptr + copySize * (i * unloop + 7), copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop) * channel_size, new_ptr + (i * unloop) * copySize, copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 1) * channel_size, new_ptr + (i * unloop + 1) * copySize, copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 2) * channel_size, new_ptr + (i * unloop + 2) * copySize, copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 3) * channel_size, new_ptr + (i * unloop + 3) * copySize, copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 4) * channel_size, new_ptr + (i * unloop + 4) * copySize, copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 5) * channel_size, new_ptr + (i * unloop + 5) * copySize, copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 6) * channel_size, new_ptr + (i * unloop + 6) * copySize, copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 7) * channel_size, new_ptr + (i * unloop + 7) * copySize, copySize);
                     });
                     size_t tail = count & ~(unloop - 1);
                     for (size_t i = tail; i < count; ++i) {
+                        int dst_offset = i * dims[dim] * prec.size() + idx * strideSize;
                         int src_offset = i * copySize;
-                        int dst_offset = i * copySize * 2 + idx * copySize;
                         cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
                     }
                     wait_list[idx] = 0;
