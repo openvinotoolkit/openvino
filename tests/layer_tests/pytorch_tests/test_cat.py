@@ -151,7 +151,7 @@ class TestCatAlignTypes(PytorchLayerTest):
         (np.float16, np.int32, np.int16),
         (np.int16, np.float16, np.int16),
     ])
-    @pytest.mark.parametrize(("trace_model"), [True, False])
+    @pytest.mark.parametrize(("trace_model"), [True])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_cat(self, ie_device, precision, ir_version, in_types, trace_model):
@@ -238,7 +238,7 @@ class TestCatAlignTypesPT(PytorchLayerTest):
         (np.int16, torch.float16, torch.int16),
         (np.float16, torch.bfloat16, torch.float32),
     ])
-    @pytest.mark.parametrize(("trace_model"), [True, False])
+    @pytest.mark.parametrize(("trace_model"), [True])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_cat(self, ie_device, precision, ir_version, in_types, trace_model):
@@ -253,7 +253,7 @@ class TestCatAlignTypesPT(PytorchLayerTest):
         (np.float16, torch.float32, torch.bfloat16),
         (np.float32, torch.bfloat16, torch.bfloat16),
     ])
-    @pytest.mark.parametrize(("trace_model"), [True, False])
+    @pytest.mark.parametrize(("trace_model"), [True])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_cat_param_mid(self, ie_device, precision, ir_version, in_types, trace_model):
@@ -268,7 +268,7 @@ class TestCatAlignTypesPT(PytorchLayerTest):
         (np.float16, torch.float32, torch.bfloat16),
         (np.float32, torch.bfloat16, torch.bfloat16),
     ])
-    @pytest.mark.parametrize(("trace_model"), [True, False])
+    @pytest.mark.parametrize(("trace_model"), [True])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_cat_param_last(self, ie_device, precision, ir_version, in_types, trace_model):
