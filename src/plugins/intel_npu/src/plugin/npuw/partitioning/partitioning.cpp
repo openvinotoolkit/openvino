@@ -92,6 +92,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
     auto root = xml_doc.document_element();
 
     // Load groups first
+    // clang-format off
     std::vector<ov::npuw::Group> partitions;
     auto groups = root.child("partitioning");
     FOREACH_CHILD(group, groups, "group") {
@@ -127,6 +128,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
             repeated[get_str_attr(block, "id")] = std::move(this_block);
         }  // block
     }      // if(reps)
+    // clang-format on
 
     LOG_INFO("Found " << repeated.size() << " different repeated block(s)");
 
