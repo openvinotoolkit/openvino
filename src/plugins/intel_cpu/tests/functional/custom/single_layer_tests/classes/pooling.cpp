@@ -138,7 +138,6 @@ std::string AvgPoolingV14LayerCPUTest::getTestCaseName(const testing::TestParamI
         results << ov::test::utils::vec2str(shape) << "_";
     }
     results << "Prc=" << inPrc << "_";
-    results << "AvgPoolV14_";
     results << "ExcludePad=" << excludePad << "_";
     results << "K" << ov::test::utils::vec2str(kernel) << "_";
     results << "S" << ov::test::utils::vec2str(stride) << "_";
