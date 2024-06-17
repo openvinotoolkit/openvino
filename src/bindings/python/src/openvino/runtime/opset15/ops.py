@@ -4,9 +4,12 @@
 
 """Factory functions for ops added to openvino opset15."""
 from functools import partial
-from typing import Optional, Literal, List
+from typing import List, Literal, Optional
 
+import numpy as np
 from openvino.runtime import Node, Type
+from openvino.runtime.opset1 import convert_like
+from openvino.runtime.opset14 import constant
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import NodeInput, as_nodes
@@ -83,3 +86,60 @@ def col2im(
             "pads_end": pads_end,
         },
     )
+
+
+@nameable_op
+def embedding_bag_offsets(
+    emb_table: NodeInput,
+    indices: NodeInput,
+    offsets: NodeInput,
+    default_index: Optional[NodeInput] = None,
+    per_sample_weights: Optional[NodeInput] = None,
+    reduction: Literal["sum", "mean"] = "sum",
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs sums or means of bags of embeddings without the intermediate embeddings.
+
+    :param emb_table: Tensor containing the embedding lookup table.
+    :param indices: Tensor with indices.
+    :param offsets: Tensor containing the starting index positions of each bag in indices.
+    :param per_sample_weights: Tensor with weights for each sample.
+    :param default_index: Scalar containing default index in embedding table to fill empty bags.
+    :param reduction: String to select algorithm used to perform reduction of elements in bag.
+    :param name: Optional name for output node.
+    :return: The new node which performs EmbeddingBagOffsets
+    """
+
+    inputs = [emb_table, indices, offsets]
+    if default_index is not None:
+        inputs.append(default_index)
+    elif per_sample_weights is not None:
+        inputs.append(convert_like(constant(np.array(-1, np.int32)), inputs[1]), name=name)
+    if per_sample_weights is not None:
+        inputs.append(per_sample_weights)
+
+    return _get_node_factory_opset15().create("EmbeddingBagOffsets", as_nodes(*inputs, name=name), {"reduction": reduction})
+
+
+@nameable_op
+def embedding_bag_packed(
+    emb_table: NodeInput,
+    indices: NodeInput,
+    per_sample_weights: Optional[NodeInput] = None,
+    reduction: Literal["sum", "mean"] = "sum",
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs sums or means of "bags" of embeddings, without the intermediate embeddings.
+
+    :param emb_table: Tensor containing the embedding lookup table.
+    :param indices: Tensor with indices.
+    :param per_sample_weights: Weights to be multiplied with embedding table.
+    :param reduction: Operator to perform reduction of elements in bag.
+    :param name: Optional name for output node.
+    :return: EmbeddingBagPacked node
+    """
+    inputs = [emb_table, indices]
+    if per_sample_weights is not None:
+        inputs.append(per_sample_weights)
+
+    return _get_node_factory_opset15().create("EmbeddingBagPacked", as_nodes(*inputs, name=name), {"reduction": reduction})
