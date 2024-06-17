@@ -588,8 +588,10 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
     TReg dst = TReg(out_vec_idxs[0]);
     TReg aux = TReg(aux_vec_idxs[0]);
 
-    h->ld1r(aux.s, table_val2("nan"));
-    h->fcmeq(dst.s, src.s, aux.s);
+    // According to the IEEE standard, NaN values have the odd property that comparisons involving them are always false.
+    h->fcmeq(dst.s, src.s, src.s);
+    h->ld1r(aux.s, table_val2("zero"));
+    h->fcmeq(dst.s, dst.s, aux.s);
     // Sets elements in 'dst' to 1.0 where the comparison was true.
     h->ld1r(aux.s, table_val2("one"));
     h->and_(dst.b16, dst.b16, aux.b16);
@@ -597,8 +599,8 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
 
 void jit_is_nan_emitter::register_table_entries() {
     // Registers constant values that comply with the IEEE 754 standard.
-    push_arg_entry_of("one", 0x3F800000, true);
-    push_arg_entry_of("nan", 0x7FC00000, true);
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("zero", 0x00000000, true);
 }
 
 /// MAX ///
