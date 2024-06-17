@@ -169,7 +169,13 @@ void SubgraphBaseTest::query_model() {
                 actual.insert(res.first);
             }
             if (expected != actual) {
-                OPENVINO_THROW("Expected and actual are different");
+                std::string expectedStr;
+                for (auto it = expected.begin(); it != expected.end(); it++)
+                    expectedStr += *it;
+                std::string actualStr;
+                for (auto it = actual.begin(); it != actual.end(); it++)
+                    actualStr += *it;
+                OPENVINO_THROW("Expected(" + expectedStr + ") and actual(" + actualStr + ") are different");
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
