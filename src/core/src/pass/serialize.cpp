@@ -871,9 +871,9 @@ public:
             if (pad_agnostic_types.count(op->get_auto_pad())) {
                 clone_op_and_fix_paddings<ov::opset1::BinaryConvolution, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::AvgPool>(node)) {
+        } else if (auto op = ov::as_type<ov::op::util::AvgPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::AvgPool, ov::Shape>(op);
+                clone_op_and_fix_paddings<ov::op::util::AvgPoolBase, ov::Shape>(op);
             }
         } else if (auto op = ov::as_type<ov::op::util::MaxPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {

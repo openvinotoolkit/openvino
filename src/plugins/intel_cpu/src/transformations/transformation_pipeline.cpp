@@ -37,6 +37,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
@@ -47,6 +48,7 @@
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
@@ -459,6 +461,28 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return rank == 4lu || rank == 5lu;
         },
         ov::pass::ConvertBatchToSpace, ov::pass::ConvertSpaceToBatch);
+
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            const auto maxpool = std::dynamic_pointer_cast<const ov::op::v14::MaxPool>(node);
+            if (maxpool && maxpool->get_rounding_type() != ov::op::RoundingType::CEIL_TORCH) {
+                return false;
+            }
+            return true;
+        },
+        ov::pass::ConvertMaxPool14ToMaxPool8);
+
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            const auto avgpool = std::dynamic_pointer_cast<const ov::op::v14::AvgPool>(node);
+            if (avgpool && avgpool->get_rounding_type() != ov::op::RoundingType::CEIL_TORCH) {
+                return false;
+            }
+            return true;
+        },
+        ov::pass::ConvertAvgPool14ToAvgPool1);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
