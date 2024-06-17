@@ -5,9 +5,6 @@
 #pragma once
 
 #include "openvino/frontend/jax/node_context.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/convert_like.hpp"
 
 namespace ov {
 
@@ -51,11 +48,6 @@ void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& rhs,
                                const bool& is_lhs_python_scalar = false,
                                const bool& ir_rhs_python_scalar = false);
-void align_output_types(const NodeContext& context, OutputVector& outputs);
-
-Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
-
-Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
 
 std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
                                                                       size_t lhs_idx,

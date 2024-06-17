@@ -84,34 +84,6 @@ void align_eltwise_input_types(const NodeContext& context,
     return;
 }
 
-void align_output_types(const NodeContext& context, OutputVector& outputs) {
-    for (size_t i = 0; i < outputs.size(); i++) {
-        auto dtype_any = context.get_output_type(i);
-        if (dtype_any.is<element::Type>()) {
-            auto dtype = dtype_any.as<element::Type>();
-            if (dtype.is_static() && dtype != outputs[i].get_element_type()) {
-                outputs[i] = std::make_shared<opset10::Convert>(outputs[i], dtype);
-            }
-        }
-    }
-}
-
-Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx) {
-    auto x = context.get_input(static_cast<int>(idx));
-    // This const only needed for type alignment
-    auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
-    align_eltwise_input_types(context, x, dummy_const, false, true);
-    return x;
-}
-
-Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
-    auto x = context.get_input(static_cast<int>(idx));
-    if (x.get_element_type() != element::i32) {
-        x = context.mark_node(std::make_shared<ov::op::v0::Convert>(x, element::i32));
-    }
-    return x;
-}
-
 std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
                                                                       size_t lhs_idx,
                                                                       size_t rhs_idx) {
