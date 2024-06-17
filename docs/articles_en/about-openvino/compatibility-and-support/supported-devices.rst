@@ -77,14 +77,6 @@ Feature Support and API Coverage
 |                         || as of OpenVINO 2023.3, 08 Jan, 2024.            |
 +-------------------------+-----------+------------------+-------------------+
 
-
-Devices similar to the ones used for benchmarking can be accessed using
-`Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__,
-a remote development environment with access to Intel® hardware and the latest versions
-of the Intel® Distribution of OpenVINO™ Toolkit.
-`Learn more <https://devcloud.intel.com/edge/../../get-started/devcloud/>`__ or
-`Register here <https://inteliot.force.com/DevcloudForEdge/s/>`__.
-
 For setting up a relevant configuration, refer to the
 :doc:`Integrate with Customer Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 topic (step 3 "Configure input and output").
