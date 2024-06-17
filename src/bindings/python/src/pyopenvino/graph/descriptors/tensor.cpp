@@ -113,7 +113,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Returns the lower bound of the tensor.
 
                 :return: Lower bound.
-                :rtype: float
+                :rtype: Tensor
              )");
 
     tensor.def("set_lower_value",
@@ -123,7 +123,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Sets the lower bound of the tensor.
 
                 :param lower_bound: The lower bound value.
-                :type lower_bound: float
+                :type lower_bound: Tensor
              )");
 
     tensor.def("get_upper_value",
@@ -132,7 +132,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Returns the upper bound of the tensor.
 
                 :return: Upper bound.
-                :rtype: float
+                :rtype: Tensor
              )");
 
     tensor.def("set_upper_value",
@@ -141,17 +141,17 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                R"(
                 Sets the upper bound of the tensor.
 
-                :param upper_bound: The upper bound value.
-                :type upper_bound: float
+                :param upper_bound: Sets the upper bound value.
+                :type upper_bound: Tensor
              )");
 
     tensor.def("get_value_symbol",
                &ov::descriptor::Tensor::get_value_symbol,
                R"(
-                Returns the value symbol of the tensor.
+                Returns the List of symbols.
 
-                :return: Value symbol.
-                :rtype: string
+                :return: List of Symbols.
+                :rtype: List
              )");
 
     tensor.def("set_value_symbol",
@@ -160,8 +160,8 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                R"(
                 Sets the value symbol of the tensor.
 
-                :param value_symbol: The value symbol.
-                :type value_symbol: string
+                :param value_symbol: List of Symbols
+                :type value_symbol: List 
              )");
 
     tensor.def_property_readonly("shape", &ov::descriptor::Tensor::get_shape);
