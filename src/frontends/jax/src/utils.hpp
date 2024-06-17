@@ -61,6 +61,8 @@ std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const Node
                                                                       size_t lhs_idx,
                                                                       size_t rhs_idx);
 
+element::Type convert_dtype(int64_t pt_type);
+
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
 OutputVector inplace_op(const NodeContext& context) {

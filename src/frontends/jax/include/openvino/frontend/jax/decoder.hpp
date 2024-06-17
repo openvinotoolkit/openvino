@@ -5,8 +5,11 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
+#include <vector>
 
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/decoder.hpp"
 
 namespace ov {
@@ -28,6 +31,16 @@ public:
     virtual PartialShape get_input_shape(size_t index) const = 0;
 
     virtual Any get_input_type(size_t index) const = 0;
+
+    virtual size_t get_named_param(const std::string& name) const = 0;
+
+    virtual OutputVector get_named_param_as_constant(const std::string& name) const = 0;
+
+    virtual PartialShape get_named_param_shape(const std::string& name) const = 0;
+
+    virtual Any get_named_param_type(const std::string& name) const = 0;
+
+    virtual const std::vector<std::string>& get_param_names() const = 0;
 
     // Return name of the output tensor
     virtual const std::string& get_output_name(size_t index) const = 0;

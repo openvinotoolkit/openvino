@@ -4,8 +4,6 @@
 
 #include "input_model.hpp"
 
-#include <iostream>
-
 #include "place.hpp"
 #include "utils.hpp"
 

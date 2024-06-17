@@ -5,8 +5,9 @@
 #pragma once
 
 #include <functional>
+#include <string>
+#include <unordered_map>
 
-#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/jax/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
 
@@ -23,6 +24,7 @@ public:
     NodeContext(std::shared_ptr<JaxDecoder> decoder,
                 std::shared_ptr<TensorMap> tensor_map,
                 std::shared_ptr<ParameterVector> external_parameters,
+                std::unordered_map<std::string, size_t> param_name_to_id,
                 TranslateSession* translate_session)
         : frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
@@ -30,7 +32,8 @@ public:
           m_external_parameters(external_parameters),
           m_translate_session(translate_session),
           m_decoder_inputs(decoder->inputs()),
-          m_decoder_outputs(decoder->outputs()) {
+          m_decoder_outputs(decoder->outputs()),
+          m_param_name_to_id(param_name_to_id) {
         FRONT_END_GENERAL_CHECK(m_tensor_map != nullptr && m_external_parameters != nullptr &&
                                 m_translate_session != nullptr);
     }
@@ -39,6 +42,9 @@ public:
     // specified type T and return its value
     template <typename T>
     T const_input(size_t index) const;
+
+    template <typename T>
+    T const_named_param(const std::string& name) const;
 
     size_t get_input_size() const override {
         return m_decoder_inputs.size();
@@ -88,6 +94,12 @@ public:
 
     size_t get_output_size() const {
         return m_decoder_outputs.size();
+    }
+
+    Output<Node> get_param(const std::string& name) const {
+        auto id = m_param_name_to_id.at(name);
+        FRONT_END_GENERAL_CHECK(m_tensor_map->count(id), "No tensor corresponding param id: ", id, " exist.");
+        return m_tensor_map->at(id);
     }
 
     std::vector<size_t> outputs() const {
@@ -141,6 +153,7 @@ private:
     TranslateSession* m_translate_session = nullptr;
     const std::vector<size_t> m_decoder_inputs;
     const std::vector<size_t> m_decoder_outputs;
+    std::unordered_map<std::string, size_t> m_param_name_to_id;
 };
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::jax::NodeContext&)>;

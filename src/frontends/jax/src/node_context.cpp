@@ -4,6 +4,8 @@
 
 #include "openvino/frontend/jax/node_context.hpp"
 
+#include <string>
+
 #include "jax_framework_node.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -55,6 +57,13 @@ std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size
     }
     auto constant = ov::util::get_constant_from_source(input_val);
     FRONT_END_GENERAL_CHECK(constant, "Input with index ", index, " cannot be interpreted as Constant: ", input_val);
+    return constant;
+}
+
+std::shared_ptr<v0::Constant> get_constant_from_params(const NodeContext& ctx, const std::string& name) {
+    auto param_val = ctx.get_param(name);
+    auto constant = ov::util::get_constant_from_source(param_val);
+    FRONT_END_GENERAL_CHECK(constant, "Param with name ", name, " cannot be interpreted as Constant: ", param_val);
     return constant;
 }
 }  // namespace
@@ -118,6 +127,11 @@ double NodeContext::const_input<double>(size_t index) const {
 template <>
 float NodeContext::const_input<float>(size_t index) const {
     return get_constant_at_input(*this, index, false)->cast_vector<float>()[0];
+}
+
+template <>
+int64_t NodeContext::const_named_param<int64_t>(const std::string& name) const {
+    return get_constant_from_params(*this, name)->cast_vector<int64_t>()[0];
 }
 
 namespace {

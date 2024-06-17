@@ -133,6 +133,29 @@ void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg
     }
 }
 
+namespace {
+const std::unordered_map<int64_t, element::Type> JAX_TO_OV_TYPE{
+    {0, element::u8},
+    {1, element::i8},
+    {2, element::i16},
+    {3, element::i32},
+    {4, element::i64},
+    {5, element::f16},
+    {6, element::f32},
+    {7, element::f64},
+    {11, element::boolean},
+    {12, element::i8},   // quantized i8
+    {13, element::u8},   // quantized u8
+    {14, element::i32},  // quantized i32
+    {15, element::bf16},
+};
+}  // namespace
+
+element::Type convert_dtype(int64_t pt_type) {
+    FRONT_END_OP_CONVERSION_CHECK(JAX_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
+    return JAX_TO_OV_TYPE.at(pt_type);
+};
+
 }  // namespace jax
 }  // namespace frontend
 }  // namespace ov

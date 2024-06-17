@@ -4,8 +4,13 @@
 
 #include "translate_session.hpp"
 
+#include <cstddef>
+#include <string>
+#include <unordered_map>
+
 #include "input_model.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
@@ -128,7 +133,21 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
                     parameters->push_back(parameter);
                 }
             }
-            auto context = NodeContext(node, tensor_map, parameters, this);
+
+            std::unordered_map<std::string, size_t> param_name_to_id;
+            auto param_names = node->get_param_names();
+            for (auto name : param_names) {
+                auto param_tensor_id = node->get_named_param(name);
+                if (tensor_map->find(param_tensor_id) == tensor_map->end()) {
+                    auto constant = node->get_named_param_as_constant(name);
+                    // TODO: maybe allow list constant here if needed?
+                    FRONT_END_GENERAL_CHECK(constant.size() == 1, "Constant should have only one value yet.");
+                    (*tensor_map)[param_tensor_id] = constant[0];
+                }
+                param_name_to_id[name] = param_tensor_id;
+            }
+
+            auto context = NodeContext(node, tensor_map, parameters, param_name_to_id, this);
             // Add op type in the statistics
             m_op_statistics[context.get_op_type()]++;
             auto converted_outputs = convert_node(context);

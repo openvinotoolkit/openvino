@@ -7,8 +7,8 @@
 import jax.core
 from openvino.frontend.jax.py_jax_frontend import _FrontEndJaxDecoder as Decoder
 from openvino.runtime import PartialShape, Type as OVType, OVAny
-from openvino.frontend.jax.utils import jax_to_ov_type_map, jax_array_to_ov_const, \
-    basic_to_ov_type_map, numpy_to_ov_type_map
+from openvino.frontend.jax.utils import jax_array_to_ov_const, get_ov_type_for_value, \
+    ivalue_to_constant
 
 import jax
 
@@ -62,6 +62,11 @@ class JaxprPythonDecoder (Decoder):
             self.name = "jax_module"
         if literals is not None:
             self.literals = literals
+            
+        self.params = {}
+        if hasattr(self.jaxpr, 'params') and isinstance(self.jaxpr.params, dict):
+            for k in self.jaxpr.params.keys():
+                self.params[k] = self.convert_param_to_constant_node(self.jaxpr, k)
         
         # TODO: this implementation may lead to memory increasing. Any better solution?
         self.m_decoders = []
@@ -70,7 +75,6 @@ class JaxprPythonDecoder (Decoder):
         if isinstance(self.jaxpr, jax.core.Var):
             return []
         else:
-            
             return [id(v) for v in self.jaxpr.invars]
     
     def input(self, idx: int) -> int:
@@ -92,13 +96,28 @@ class JaxprPythonDecoder (Decoder):
         if isinstance(self.jaxpr, jax.core.Var):
             raise IndexError("The jaxpr is a constant, which does not have input type.")
         else:
-            return self.get_type_for_value(self.jaxpr.invars[index])
+            return get_ov_type_for_value(self.jaxpr.invars[index])
+        
+    def get_named_param(self, name):
+        return self.params[name].output(0)
+    
+    def get_named_param_as_constant(self, name):
+        return self.params[name].as_constant()
+    
+    def get_named_param_shape(self, name):
+        return self.params[name].get_output_shape(0)
+    
+    def get_named_param_type(self, name):
+        return self.params[name].get_output_type(0)
+    
+    def get_param_names(self):
+        return list(self.params.keys())
     
     def get_output_type(self, index) -> OVType:
         if isinstance(self.jaxpr, jax.core.Var):
-            return self.get_type_for_value(self.jaxpr)
+            return get_ov_type_for_value(self.jaxpr)
         else:
-            return self.get_type_for_value(self.jaxpr.outvars[index])
+            return get_ov_type_for_value(self.jaxpr.outvars[index])
         
     def get_output_name(self, index) -> str:
         return "jaxpr_outvar_" + str(index)
@@ -112,6 +131,9 @@ class JaxprPythonDecoder (Decoder):
     def visit_subgraph(self, node_visitor) -> None:
         if isinstance(self.jaxpr, jax.core.JaxprEqn):
             return
+        for _, decoder in self.params.items():
+            self.m_decoders.append(decoder)
+            node_visitor(decoder)
         for idx, node in enumerate(self.jaxpr.constvars):
             decoder = JaxprPythonDecoder(node, name=self.name + "/" + f"const({id(node)})", literals=self.literals[idx])
             self.m_decoders.append(decoder)
@@ -173,19 +195,94 @@ class JaxprPythonDecoder (Decoder):
 
     def input_is_none(self, index) -> bool:
         return self.jaxpr.invars[index] is None
-     
+        
     @staticmethod
-    def get_type_for_value(value):
-        if isinstance(value, (jax.core.Var, jax.core.Literal)):
-            if value.aval.dtype in jax_to_ov_type_map:
-                return OVAny(jax_to_ov_type_map[value.aval.dtype])
-            for k, v in numpy_to_ov_type_map.items():
-                if isinstance(value.aval.dtype, k):
-                    return OVAny(v)
-            for k, v in basic_to_ov_type_map.items():
-                if isinstance(value.aval.dtype, k):
-                    return OVAny(v)
-        elif isinstance(value, (int, float, bool)):
-            return OVAny(jax_to_ov_type_map[type(value)])
-        else:
-            raise NotImplementedError(f"dtype for {value} of type {type(value)} has not been supported yet.")
+    def convert_param_to_constant_node(jaxpr, param):
+        assert hasattr(jaxpr, 'params'), "The jaxpr does not have params."
+        dtype, shape, constant = ivalue_to_constant(jaxpr.params[param], shared_memory=False)
+        return _JaxprPythonConstantDecoder(constant=constant, dtype=dtype, shape=shape)
+        
+class _JaxprPythonConstantDecoder (Decoder):
+    def __init__(self, name=None, constant=None, dtype=None, shape=None):
+        '''
+        Inputs: 
+            - jaxpr: for users, `ClosedJaxpr` is expected here. See https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L197
+            - name: the name for the model.
+            - literals: the literals (constants) that are used in the model.
+        '''
+        Decoder.__init__(self)
+        
+        self.name = name
+        self.constant = constant
+        self.dtype = dtype
+        self.shape = shape
+        
+    def inputs(self) -> List[int]:
+        return []
+    
+    def input(self, idx: int) -> int:
+        raise ValueError("This is a constant node so it does not have input.")
+    
+    def get_input_shape(self, index):
+        raise ValueError("This is a constant node so it does not have input shape.")
+    
+    def get_input_signature_name(self, index) -> str:
+        raise ValueError("This is a constant node so it does not have input signature name.")
+    
+    def get_input_type(self, index) -> OVType:
+        raise ValueError("This is a constant node so it does not have input type.")
+        
+    def get_named_param(self, name):
+        raise ValueError("This is a constant node so it does not have named param.")
+    
+    def get_named_param_as_constant(self, name):
+        raise ValueError("This is a constant node so it does not have named param.")
+    
+    def get_named_param_shape(self, name):
+        raise ValueError("This is a constant node so it does not have named param.")
+    
+    def get_named_param_type(self, name):
+        raise ValueError("This is a constant node so it does not have named param.")
+    
+    def get_param_names(self):
+        raise ValueError("This is a constant node so it does not have named param.")
+    
+    def get_output_type(self, index) -> OVType:
+        return OVAny(self.dtype)
+        
+    def get_output_name(self, index) -> str:
+        return "jaxpr_outvar_" + str(index)
+    
+    def get_output_shape(self, index):
+        return PartialShape(self.shape)
+    
+    def visit_subgraph(self, node_visitor) -> None:
+        return
+            
+    def get_op_type(self) -> str:
+        return "constant"
+        
+    def mark_node(self, node):
+        name = self.get_op_type()
+        if "FrameworkNode" not in node.get_type_name():
+            name += "/" + node.get_type_name()
+        node.set_friendly_name(self.name + "/" + name)
+        return node
+    
+    def outputs(self) -> List[int]:
+        return [id(self.constant)]
+    
+    def output(self, idx: int) -> int:
+        return id(self.constant)
+    
+    def num_inputs(self) -> int:
+        return 0
+    
+    def num_outputs(self) -> int:
+        return 1
+    
+    def as_constant(self):
+        return self.constant
+
+    def input_is_none(self, index) -> bool:
+        return self.constant is None

@@ -9,14 +9,15 @@ import jax.numpy as jnp
 
 class TestAdd(JaxLayerTest):
     def _prepare_input(self):
-        lhs = jnp.array(np.random.randint(-10, 10, self.lhs_shape).astype(self.input_type))
-        rhs = jnp.array(np.random.randint(-10, 10, self.rhs_shape).astype(self.input_type))
+        lhs = jnp.array(np.random.randint(-10, 10, self.lhs_shape).astype(self.lhs_type))
+        rhs = jnp.array(np.random.randint(-10, 10, self.rhs_shape).astype(self.rhs_type))
         return (lhs, rhs)
 
-    def create_model(self, lhs_shape, rhs_shape, input_type):
+    def create_model(self, lhs_shape, rhs_shape, lhs_type, rhs_type):
         self.lhs_shape = lhs_shape
         self.rhs_shape = rhs_shape
-        self.input_type = input_type
+        self.lhs_type = lhs_type
+        self.rhs_type = rhs_type
 
         def jax_add(lhs, rhs):
             return lhs + rhs
@@ -28,26 +29,34 @@ class TestAdd(JaxLayerTest):
         dict(lhs_shape=[2, 5], rhs_shape=[2, 5]),
         dict(lhs_shape=[2, 3, 4, 5], rhs_shape=[2, 3, 4, 5]),
     ]
+    
+    input_types = [
+        (np.float32, np.float32),
+        (np.int32, np.float32),
+        (np.float32, np.float16),
+        (np.int32, np.int64),
+    ]
 
     @pytest.mark.nightly
     @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("input_type", [np.float32, np.int32])
+    @pytest.mark.parametrize("input_type", input_types)
     def test_add(self, ie_device, precision, ir_version, params, input_type):
-        self._test(*self.create_model(**params, input_type=input_type), ie_device, precision,
+        self._test(*self.create_model(**params, lhs_type=input_type[0], rhs_type=input_type[1]), ie_device, precision,
                    ir_version)
 
 class TestAddWithConstant(JaxLayerTest):
     def _prepare_input(self):
-        lhs = jnp.array(np.random.randint(-10, 10, self.lhs_shape).astype(self.input_type))
-        rhs = jnp.array(np.random.randint(-10, 10, self.rhs_shape).astype(self.input_type))
+        lhs = jnp.array(np.random.randint(-10, 10, self.lhs_shape).astype(self.lhs_type))
+        rhs = jnp.array(np.random.randint(-10, 10, self.rhs_shape).astype(self.rhs_type))
         return (lhs, rhs)
 
-    def create_model(self, lhs_shape, rhs_shape, input_type):
+    def create_model(self, lhs_shape, rhs_shape, lhs_type, rhs_type):
         self.lhs_shape = lhs_shape
         self.rhs_shape = rhs_shape
-        self.input_type = input_type
-        self.const = jnp.ones(self.lhs_shape, dtype=self.input_type)
+        self.lhs_type = lhs_type
+        self.rhs_type = rhs_type
+        self.const = jnp.ones(self.lhs_shape, dtype=self.lhs_type)
 
         def jax_add_with_constant(lhs, rhs):
             return lhs + rhs + self.const
@@ -59,11 +68,18 @@ class TestAddWithConstant(JaxLayerTest):
         dict(lhs_shape=[2, 5], rhs_shape=[2, 5]),
         dict(lhs_shape=[2, 3, 4, 5], rhs_shape=[2, 3, 4, 5]),
     ]
+    
+    input_types = [
+        (np.float32, np.float32),
+        (np.int32, np.float32),
+        (np.float32, np.float16),
+        (np.int32, np.int64),
+    ]
 
     @pytest.mark.nightly
     @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("input_type", [np.float32, np.int32])
+    @pytest.mark.parametrize("input_type", input_types)
     def test_add_with_constant(self, ie_device, precision, ir_version, params, input_type):
-        self._test(*self.create_model(**params, input_type=input_type), ie_device, precision,
+        self._test(*self.create_model(**params, lhs_type=input_type[0], rhs_type=input_type[1]), ie_device, precision,
                    ir_version)

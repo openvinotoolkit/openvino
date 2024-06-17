@@ -12,6 +12,7 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/frontend/jax/decoder.hpp"
 
 namespace py = pybind11;
@@ -42,6 +43,26 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
 
     ov::Any get_input_type(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(ov::Any, JaxDecoder, get_input_type, index);
+    }
+
+    size_t get_named_param(const std::string& name) const override {
+        PYBIND11_OVERRIDE_PURE(size_t, JaxDecoder, get_named_param, name);
+    }
+
+    ov::OutputVector get_named_param_as_constant(const std::string& name) const override {
+        PYBIND11_OVERRIDE_PURE(ov::OutputVector, JaxDecoder, get_named_param_as_constant, name);
+    }
+
+    ov::PartialShape get_named_param_shape(const std::string& name) const override {
+        PYBIND11_OVERRIDE_PURE(ov::PartialShape, JaxDecoder, get_named_param_shape, name);
+    }
+
+    ov::Any get_named_param_type(const std::string& name) const override {
+        PYBIND11_OVERRIDE_PURE(ov::Any, JaxDecoder, get_named_param_type, name);
+    }
+
+    const std::vector<std::string>& get_param_names() const override {
+        PYBIND11_OVERRIDE_PURE(const std::vector<std::string>&, JaxDecoder, get_param_names);
     }
 
     const std::string& get_output_name(size_t index) const override {
