@@ -483,6 +483,7 @@ def copy_file(src, dst, verbose=False, dry_run=False):
 
 def replace_strings_in_file(file_path, replacements):
     """Replace strings in a text file.
+
     :param file_path: Path to the source file.
     :param replacements: A dictionary where keys are strings or regex patterns to be replaced and values are the new strings.
     """
