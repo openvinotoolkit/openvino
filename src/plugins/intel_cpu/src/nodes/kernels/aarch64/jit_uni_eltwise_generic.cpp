@@ -629,6 +629,15 @@ struct EltwiseEmitter<jit_is_inf_emitter> {
     }
 };
 
+template<>
+struct EltwiseEmitter<jit_less_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_less_emitter>(ctx.host,
+                                                                 ctx.host_isa,
+                                                                 ctx.exec_prc);
+    }
+};
+
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitter(const EltwiseData& data, const ov::element::Type& exec_prec) {
     EltwiseEmitterContext ctx = {
@@ -650,6 +659,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     OV_CASE(Algorithm::EltwiseFloor, ov::intel_cpu::aarch64::jit_floor_emitter),
     OV_CASE(Algorithm::EltwiseHswish, ov::intel_cpu::aarch64::jit_hswish_emitter),
     OV_CASE(Algorithm::EltwiseIsInf, ov::intel_cpu::aarch64::jit_is_inf_emitter),
+    OV_CASE(Algorithm::EltwiseLess, ov::intel_cpu::aarch64::jit_less_emitter),
     OV_CASE(Algorithm::EltwiseMaximum, ov::intel_cpu::aarch64::jit_maximum_emitter),
     OV_CASE(Algorithm::EltwiseMinimum, ov::intel_cpu::aarch64::jit_minimum_emitter),
     OV_CASE(Algorithm::EltwiseMish, ov::intel_cpu::aarch64::jit_mish_emitter),
@@ -823,6 +833,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
         OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
         OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
         OV_CASE(Algorithm::EltwiseMish, jit_mish_emitter),
