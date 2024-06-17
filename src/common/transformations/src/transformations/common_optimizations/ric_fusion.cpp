@@ -455,7 +455,8 @@ public:
 
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
-            const auto& weights_shape = conv->input_value(1).get_shape();
+            const auto& weight = conv->input_value(1);
+            const auto& weights_shape = weight.get_shape();
             const int64_t& group = static_cast<int64_t>(weights_shape.at(0));
             const int64_t& channels = static_cast<int64_t>(weights_shape.at(1));
             const int64_t& in_channels = static_cast<int64_t>(weights_shape.at(2));

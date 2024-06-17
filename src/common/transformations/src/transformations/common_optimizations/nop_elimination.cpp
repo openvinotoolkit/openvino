@@ -277,7 +277,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     };
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
-        const auto& data_shape = squeeze->input_value(0).get_partial_shape();
+        const auto& data = squeeze->input_value(0);
+        const auto& data_shape = data.get_partial_shape();
         if (squeeze->inputs().size() > 1 && ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
                                                                   unsqueeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
@@ -309,7 +310,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     // eliminate redundant unsqueeze->unsqueeze
     auto unsqueeze_i = ov::as_type_ptr<ov::op::v0::Unsqueeze>(input);
     if (unsqueeze_i) {
-        const auto& data_shape = unsqueeze_i->input_value(0).get_partial_shape();
+        const auto& data = unsqueeze_i->input_value(0);
+        const auto& data_shape = data.get_partial_shape();
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
             return false;
         }

@@ -78,7 +78,7 @@ void parse_pre_process(pugi::xml_node& root,
 
     OPENVINO_ASSERT(input_node, "pre-process name ref '", inputName, "' refers to un-existing input");
 
-    const auto& input_shape = input_node->output(0).get_partial_shape();
+    const auto& input_shape = input_node->get_output_partial_shape(0);
     OPENVINO_ASSERT(!input_shape.is_dynamic(), "can not apply pre-process for '", inputName, "' input");
 
     ov::Shape mean_scalar_shape;  // [C, 1 ... 1]

@@ -106,12 +106,13 @@ void op::v0::TensorIterator::validate_and_infer_types() {
 
             auto body_parameter = m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
 
-            const auto& input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            const auto& input = input_value(index);
+            const auto& input_partial_shape = input.get_partial_shape();
             body_parameter->set_partial_shape(input_partial_shape);
         } else if (auto invariant_input_description = ov::as_type_ptr<InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
-
-            const auto& input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            const auto& input = input_value(index);
+            const auto& input_partial_shape = input.get_partial_shape();
             body_parameter->set_partial_shape(input_partial_shape);
         }
     }

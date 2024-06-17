@@ -152,8 +152,9 @@ void Loop::validate_and_infer_types() {
 
         if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(slice_input_description->m_body_parameter_index);
-            const auto& input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            const auto& input_type = inputs().at(index).get_source_output().get_element_type();
+            const auto& input = input_value(index);
+            const auto& input_partial_shape = input.get_partial_shape();
+            const auto& input_type = input.get_element_type();
             body_parameter->set_element_type(input_type);
             if (input_partial_shape.rank().is_dynamic()) {
                 body_parameter->set_partial_shape(PartialShape::dynamic());
