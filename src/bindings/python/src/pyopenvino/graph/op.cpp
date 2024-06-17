@@ -10,7 +10,6 @@
 #include <pybind11/stl_bind.h>
 
 #include <pyopenvino/graph/op.hpp>
-#include <pyopenvino/graph/dict_attribute_visitor.hpp>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
@@ -30,18 +29,14 @@ public:
     }
 
     bool visit_attributes(ov::AttributeVisitor& value) override {
-        // PYBIND11_OVERRIDE(bool, ov::op::Op, visit_attributes, visitor);
-
         pybind11::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
         // Try to look up the overridden method on the Python side.
         pybind11::function override = pybind11::get_override(this, "visit_attributes");
         if (override) {  // method is found
-            std::cout << "lol";
-            py::bool_ obj = override(&value);  // Call the Python function.
-            std::cout << "lol3";
-            return obj;
+            py::bool_ result = override(&value);  // Call the Python function.
+            return result;
         }
-        return false;  // Alternatively return MyClass::myMethod(value);
+        return false;
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
@@ -60,14 +55,8 @@ public:
         PYBIND11_OVERRIDE(bool, ov::op::Op, has_evaluate);
     }
 
-    void custom_attribute_visitor(const py::dict& attributes) {
-        util::DictAttributeDeserializer visitor(attributes, m_variables);
-        this->visit_attributes(visitor);
-    }
-
 private:
     py::object py_handle;  // Holds the Python object to manage its lifetime
-    std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };
 
 void regclass_graph_Op(py::module m) {
@@ -76,9 +65,4 @@ void regclass_graph_Op(py::module m) {
     op.def(py::init([](const py::object& py_obj) {
         return PyOp(py_obj);
     }));
-
-    // op.def("visit_attributes", [](PyOp& self, const py::dict& attributes) {
-    //     return self.custom_attribute_visitor(attributes);
-    // });
-
 }

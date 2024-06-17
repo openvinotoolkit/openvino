@@ -65,17 +65,9 @@ void regclass_graph_AttributeVisitor(py::module m) {
     visitor.def(
         "on_attributes",
         [](ov::AttributeVisitor* self, py::dict& attributes) {
-            std::cout << "hello";
             py::object float_32_type = py::module_::import("numpy").attr("float32");
             for (const auto& attribute : attributes) {
                 std::string name = attribute.first.cast<std::string>();
-
-                // auto visit_attribute = [&](auto attribute) {                    
-                //     self.on_attribute(name, attribute);
-                //     attributes[attribute.first] = attribute;
-                    
-                //     return;
-                // };
 
                 if (py::isinstance<py::bool_>(attribute.second)) {
                     visit_attribute<bool>(attributes, attribute, self);
