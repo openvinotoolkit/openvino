@@ -153,3 +153,15 @@ def test_tensor_bounds_in_model(device):
     tensor.set_upper_value(upper_value_tensor)
     retrieved_upper_value = tensor.get_upper_value().data
     assert np.array_equal(retrieved_lower_value, lower_value_tensor.data) and np.array_equal(retrieved_upper_value, upper_value_tensor.data)
+
+def test_value_symbol_in_model(device):
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    tensor = compiled_model.output(0).get_tensor()
+    partial_shape = tensor.get_partial_shape().to_shape()
+    tensor_size = np.prod(partial_shape)
+    values = [Symbol() for _ in range(tensor_size)]
+    a = tensor.get_value_symbol()
+    tensor.set_value_symbol(values)
+    assert tensor.get_value_symbol() == values

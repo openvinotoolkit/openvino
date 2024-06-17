@@ -4,7 +4,7 @@
 
 
 import openvino.runtime.opset13 as ops
-from openvino import Type, Tensor
+from openvino import Type, Tensor, Symbol
 import numpy as np
 
 def test_output_replace(device):
@@ -39,3 +39,11 @@ def test_tensor_bounds():
     tensor.set_lower_value(values)
     tensor.set_upper_value(values)
     assert np.array_equal(tensor.get_lower_value().data, values.data) and np.array_equal(tensor.get_upper_value().data, values.data)
+
+def test_output_symbol():
+    param = ops.parameter([1,64], Type.f32)
+    tensor = param.output(0).get_tensor()
+    values = [Symbol() for i in range(64)]
+    tensor.set_value_symbol(values)
+    gotten_values = tensor.get_value_symbol()
+    assert gotten_values == values
