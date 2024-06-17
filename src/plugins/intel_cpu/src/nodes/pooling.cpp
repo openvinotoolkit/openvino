@@ -146,7 +146,6 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto is_v14 = ov::is_type<const ov::op::v14::MaxPool>(op) || ov::is_type<const ov::op::v14::AvgPool>(op);
         if ((ov::is_type<const ov::op::v14::MaxPool>(op) || ov::is_type<const ov::op::v14::AvgPool>(op)) && op->is_dynamic()) {
             errorMessage = "ov::op::RoundingType::CEIL_TORCH is not supported with dynamic shapes";
             return false;
