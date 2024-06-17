@@ -8,20 +8,6 @@
 #include <openvino/runtime/core.hpp>
 #include "common_test_utils/unicode_utils.hpp"
 
-namespace ov {
-
-namespace test {
-
-namespace utils {
-
-extern const char* DEVICE_NPU;
-
-}  // namespace utils
-
-}  // namespace test
-
-}  // namespace ov
-
 std::string getBackendName(const ov::Core& core);
 
 std::vector<std::string> getAvailableDevices(const ov::Core& core);
