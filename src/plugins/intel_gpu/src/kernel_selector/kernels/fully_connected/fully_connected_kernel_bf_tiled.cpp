@@ -11,6 +11,7 @@
 static constexpr size_t simd = 16;
 static constexpr size_t quantize_grp_size = 32;
 static constexpr size_t min_slm_size = 256;
+static constexpr size_t min_dyn_quan_size = 8;
 
 namespace kernel_selector {
 
@@ -63,7 +64,7 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
 
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % quantize_grp_size == 0) &&
-        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
+        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_dyn_quan_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
         (params.decompression_zero_point.Feature().v == 1)) {
@@ -458,11 +459,11 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
-    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
-    else
+    } else {
         jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
-
+    }
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
@@ -590,7 +591,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
             // Get index of the added shape-agnostic kernel
             int kernel_offset = 0;
-            if (kd.kernels.size() == 3)
+            if (should_dynamic_quantize(prim_params))
                 kernel_offset = 1;  // quantize kernel exists
 
             // Choose one of the two shape agnostic kernels: N == added kernel number
@@ -606,22 +607,34 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             // Check default or SLM version FC, and disable remain version
             kd.kernels[skip_kernel_idx].skip_execution = true;
 
-            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << " shape-agnostic kernel version "
+            GPU_DEBUG_TRACE_DETAIL << "Update FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << "  shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
 
             auto dispatchData = SetDefault(prim_params, -1, static_cast<int>(execute_type));
             kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
             kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
             kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
+            GPU_DEBUG_TRACE_DETAIL << " Updated kernel " << execute_kernel_idx << " : gws [ " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", "
+                        << dispatchData.gws[2] << " ],  lws [ " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", "
+                        << dispatchData.lws[2] << " ], tile_m size : " << dispatchData.tile_m << std::endl;
 
             if (!kd.internalBufferSizes.empty()) {
+                size_t input_b = get_input_bf_size(prim_params).first;
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
-                if (execute_type == KernelType::DEFAULT) {
+                if (execute_type == KernelType::DEFAULT && input_b < 8) {
+                    // Use common kernel(No dynamic quantization)
                     kd.kernels[0].skip_execution = true;
+                    GPU_DEBUG_TRACE_DETAIL << " Disabled dynamic quantize kernel. batch size : " << input_b << std::endl;
                 } else {
                     kd.kernels[0].skip_execution = false;
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
+                    if (execute_type == KernelType::DEFAULT)
+                        input_size = input_f * Align(input_b, dispatchData.tile_m);
+
+                    // Log
+                    GPU_DEBUG_TRACE_DETAIL << " Enabled dynamic quantize kernel. Try to update intermediate-buffer (pre : " << kd.internalBufferSizes[0]
+                                 << " < update : " << input_size << ")" << std::endl;
 
                     if (kd.internalBufferSizes[0] < input_size) {
                         kd.internalBufferSizes.clear();
@@ -817,6 +830,9 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize());
         kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize() / quantize_grp_size * 2);
         kernel_number++;
+        GPU_DEBUG_TRACE_DETAIL << " Created dynamic-quantize kernel : gws [ " << dyn_quan_dispatch.gws[0] << ", " << dyn_quan_dispatch.gws[1] << ", "
+                    << dyn_quan_dispatch.gws[2] << " ],  lws [ " << dyn_quan_dispatch.lws[0] << ", " << dyn_quan_dispatch.lws[1] << ", "
+                    << dyn_quan_dispatch.lws[2] << " ],  intermediate-buffer size : " << fc_params.inputs[0].PhysicalSize() << std::endl;
     }
     kd.internalBufferDataType = Datatype::F16;
 
