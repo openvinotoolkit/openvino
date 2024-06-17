@@ -42,7 +42,7 @@ bool isOp(const std::shared_ptr<ov::Node>& node) {
         }
     }
     return true;
-};
+}
 }  // namespace detail
 }  // namespace online
 }  // namespace npuw
@@ -605,7 +605,7 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
 
     std::string tag = ov::npuw::online::util::repeated_id(reptag);
     m_layer_matches.insert({tag, layer_matches});
-};
+}
 
 const OVNodeSet& Snapshot::getNodeProducers(const OVNodePtr& node) const {
     return m_node_to_prod_cons->at(node).first;

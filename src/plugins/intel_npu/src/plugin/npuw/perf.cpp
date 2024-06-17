@@ -12,4 +12,4 @@ float ov::npuw::perf::ms_to_run(std::function<void()>&& body) {
     body();
     const auto f = khr::steady_clock::now();
     return khr::duration_cast<khr::microseconds>(f - s).count() / 1000.0f;
-};
+}

@@ -23,7 +23,7 @@ bool Repeated::Archetype::operator==(const Repeated::Archetype& other) const {
     }
 
     return true;
-};
+}
 
 void Repeated::exclude() {
     m_excluded = true;
@@ -31,18 +31,18 @@ void Repeated::exclude() {
 
 bool Repeated::openForMerge() const {
     return !m_excluded;
-};
+}
 
 bool Interconnect::operator==(const Interconnect& other) const {
     return input_port == other.input_port && output_port == other.output_port && input_node == other.input_node &&
            output_node == other.output_node;
-};
+}
 
 bool MetaInterconnect::operator==(const MetaInterconnect& other) const {
     return other.input_meta == input_meta && other.output_meta == output_meta && other.input_port == input_port &&
            other.output_port == output_port && other.input_reptrack == input_reptrack &&
            other.output_reptrack == output_reptrack;
-};
+}
 
 bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
     return std::make_tuple(input_meta, input_port, input_reptrack, output_port, output_meta, output_reptrack) <
@@ -52,4 +52,4 @@ bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
                            other.output_port,
                            other.output_meta,
                            other.output_reptrack);
-};
+}

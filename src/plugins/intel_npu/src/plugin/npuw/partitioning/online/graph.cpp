@@ -59,7 +59,7 @@ void ade::Graph::remove(ade::EdgeHandle eh) {
     src->m_dst_edges.erase(eh);
     dst->m_src_edges.erase(eh);
     m_edges.erase(eh.get());
-};
+}
 
 ade::EdgeHandle ade::Graph::link(ade::NodeHandle src, ade::NodeHandle dst) {
     auto edge = std::make_shared<ade::Edge>(src, dst);
@@ -125,7 +125,7 @@ static void dfs(ade::NodeHandle& nh, std::unordered_set<ade::NodeHandle>& visite
         }
     }
     stack.push(nh);
-};
+}
 
 std::vector<ade::NodeHandle> ade::Graph::sorted() const {
     std::unordered_set<ade::NodeHandle> visited;

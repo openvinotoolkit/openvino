@@ -35,7 +35,7 @@ public:
 
     void register_known(const std::string fcn_id) {
         m_known.insert(fcn_id);
-    };
+    }
 
     std::string register_new() {
         std::string new_fcn = "FCEW" + ov::npuw::util::fmt(m_new_id++, 100);
@@ -44,7 +44,7 @@ public:
         // collisions
         NPUW_ASSERT(m_known.count(new_fcn) == 0);
         return new_fcn;
-    };
+    }
 
     bool enabled() const {
         std::call_once(m_once, [&]() {
@@ -94,19 +94,19 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
     // Load groups first
     std::vector<ov::npuw::Group> partitions;
     auto groups = root.child("partitioning");
-    FOREACH_CHILD (group, groups, "group") {
+    FOREACH_CHILD(group, groups, "group") {
         partitions.push_back(ov::npuw::Group{});
         ov::npuw::Group& this_group = partitions.back();
         this_group.gflops = get_float_attr(group, "gflops");
         this_group.repeated_id = get_str_attr(group, "repeated", "");
         this_group.avoid_list = get_str_attr(group, "avoid", "");
-        FOREACH_CHILD (input, group, "input") {
+        FOREACH_CHILD(input, group, "input") {
             this_group.input_layers.push_back(get_str_attr(input, "name"));
         }
-        FOREACH_CHILD (output, group, "output") {
+        FOREACH_CHILD(output, group, "output") {
             this_group.output_layers.push_back(get_str_attr(output, "name"));
         }
-        FOREACH_CHILD (layer, group, "layer") {
+        FOREACH_CHILD(layer, group, "layer") {
             this_group.all_layers.push_back(get_str_attr(layer, "name"));
         }
     }
@@ -115,11 +115,11 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
     std::map<std::string, ov::npuw::RepeatedBlock> repeated;
     auto reps = root.child("repeated");
     if (reps) {
-        FOREACH_CHILD (block, reps, "block") {
+        FOREACH_CHILD(block, reps, "block") {
             ov::npuw::RepeatedBlock this_block;
-            FOREACH_CHILD (match, block, "match") {
+            FOREACH_CHILD(match, block, "match") {
                 ov::npuw::RepeatedBlock::MatchedLayers mls;
-                FOREACH_CHILD (layer, match, "layer") {
+                FOREACH_CHILD(layer, match, "layer") {
                     mls.insert(get_str_attr(layer, "name"));
                 }
                 this_block.matches.push_back(std::move(mls));
@@ -1576,7 +1576,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     }
 
     const bool dump_full_opt = cfg.get<::intel_npu::NPUW_DUMP_FULL>();
-    ;
+
     if (dump_full_opt) {
         ov::save_model(model, model->get_friendly_name() + ".xml");
         LOG_INFO("Dumped the model in the current directory.");

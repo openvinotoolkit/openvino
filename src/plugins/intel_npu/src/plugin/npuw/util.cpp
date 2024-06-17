@@ -827,7 +827,6 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
     const int16_t* pDst = static_cast<int16_t*>(to->data());          // 1 x f16 element
 
     const float zval = avx2_load_f32(reinterpret_cast<const int8_t*>(zerop->data()), zerop_elem_type);
-    ;
 
     auto unpack_body = [&](size_t job_index, size_t stride) {
         size_t start_c = job_index * stride;
