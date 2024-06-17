@@ -22,8 +22,8 @@ from setuptools.command.install import install
 from setuptools.command.build import build
 from setuptools.errors import SetupError
 
-WHEEL_PACKAGE_DIR = os.path.join("openvino")
-WHEEL_LIBS_INSTALL_DIR = os.path.join(WHEEL_PACKAGE_DIR, "libs")
+WHEEL_PACKAGE_DIR = "openvino"
+WHEEL_LIBS_INSTALL_DIR = f"{WHEEL_PACKAGE_DIR}/libs"
 WHEEL_LIBS_PACKAGE = "openvino.libs"
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
@@ -262,8 +262,8 @@ class CustomBuild(build):
         # build some components which have not been built yet
         for comp, comp_data in install_cfg.items():
             cpack_comp_name = comp_data.get("name")
-            source_dir = comp_data.get("source_dir")
-            binary_dir = comp_data.get("binary_dir")
+            source_dir = comp_data.get("source_dir", OPENVINO_SOURCE_DIR)
+            binary_dir = comp_data.get("binary_dir", OPENVINO_BINARY_DIR)
             install_dir = comp_data.get("install_dir")
             prefix = comp_data.get("prefix")
 
