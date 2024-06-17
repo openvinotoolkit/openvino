@@ -59,6 +59,12 @@ std::shared_ptr<ov::Model> SharedMatmulAndGatherWeightsDecompression::initSubgra
     const auto matmul = std::make_shared<ov::op::v0::MatMul>(fc_data, decompression_subgraph, false, true);
     const ov::OutputVector last_nodes{gather, matmul};
     const ov::ParameterVector params{indices_data, fc_data};
+
+    // if dynamic quantization is enabled
+    if (group_size != 0) {
+        abs_threshold = 0.1;
+    }
+
     return std::make_shared<ov::Model>(last_nodes, params, "SharedMatmulAndGatherWeightsDecompression");
 }
 
