@@ -46,7 +46,7 @@ public:
         ov::AnyMap configuration;
         std::tie(target_device, configuration) = obj.param;
         std::ostringstream result;
-        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
+        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(target_device) << "_";
         result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {

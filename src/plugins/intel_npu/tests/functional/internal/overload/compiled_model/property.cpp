@@ -65,11 +65,10 @@ public:
         std::pair<std::string, ov::Any> compilerType;
         std::tie(targetDevice, configuration, compilerType) = obj.param;
         std::ostringstream result;
-        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
+        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(targetDevice) << "_";
+        result << "targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")_";
-        result << "compilerType=(" << compilerType.first << "=" << compilerType.second.as<std::string>() << ")_";
-        result << "targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
-
+        result << "compilerType=(" << compilerType.first << "=" << compilerType.second.as<std::string>() << ")";
         return result.str();
     }
 };
@@ -183,9 +182,9 @@ public:
         std::pair<std::string, ov::Any> configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::ostringstream result;
-        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
-        result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")_";
-        result << "targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(targetDevice) << "_";
+        result << "targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
+        result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
         return result.str();
     }
 };

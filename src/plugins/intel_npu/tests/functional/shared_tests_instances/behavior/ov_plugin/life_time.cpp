@@ -14,9 +14,8 @@ namespace {
 
 static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::string target_device = obj.param;
-    std::replace(target_device.begin(), target_device.end(), ':', '.');
-    return "target_device=" + target_device +
-           "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) + "_";
+    return "target_device=" + ov::test::utils::getTestsDeviceNameFromEnvironmentOr(target_device) + "_" +
+           "targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) + "_";
 }
 
 const std::vector<ov::AnyMap> configs = {{}};

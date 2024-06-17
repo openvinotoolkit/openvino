@@ -30,11 +30,9 @@ public:
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
-        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
-
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
-        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
+        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(targetDevice) << "_";
+        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         result << "model="
                << "SimpleReluModel"
                << "_";

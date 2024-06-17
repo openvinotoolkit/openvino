@@ -5,6 +5,7 @@
 #include <common_test_utils/test_assertions.hpp>
 #include "base/ov_behavior_test_utils.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "common/npu_test_env_cfg.hpp"
 
 namespace ov {
 namespace test {
@@ -38,9 +39,9 @@ public:
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(model, targetDevice, configuration) = obj.param;
-        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
+        result << "targetDevice=" << ov::test::utils::getTestsDeviceNameFromEnvironmentOr(targetDevice) << "_";
+        result << "targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) << "_";
         if (!configuration.empty()) {
             using namespace ov::test::utils;
             for (auto& configItem : configuration) {
