@@ -44,6 +44,19 @@ describe('Tensor data', () => {
     });
   });
 
+  it(`Create string tensor`, () => {
+    const str_data = ['H', 'e', 'l', 'l', 'o'];
+    const tensor = new ov.Tensor(ov.element.string, [1,1,1,5], str_data);
+    assert.deepStrictEqual(tensor.data, str_data);
+  });
+
+  it(`Set string tensor data`, () => {
+    const str_data = ['H', 'e', 'l', 'l', 'o'];
+    const tensor = new ov.Tensor(ov.element.string, [1,1,1,5]);
+    tensor.data = str_data;
+    assert.deepStrictEqual(tensor.data, str_data);
+  });
+
   it('Test tensor getData()', () => {
     const tensor = new ov.Tensor(ov.element.f32, shape, data);
     assert.deepStrictEqual(tensor.getData(), data);
@@ -67,12 +80,12 @@ describe('Tensor data', () => {
     );
   });
 
-  it('Test tensor.data setter - not TypedArray arg throws', () => {
+  it('Test tensor.data setter', () => {
     const testString = 'test';
     const tensor = new ov.Tensor(ov.element.f64, [1, 2]);
     assert.throws(() => {
       tensor.data = testString;},
-    /Passed argument must be a TypedArray./
+    /Passed argument must be TypedArray, or Array if the tensor type is string./
     );
   });
 
@@ -103,13 +116,13 @@ describe('Tensor data', () => {
   it('Third argument of a tensor cannot be an ArrayBuffer', () => {
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape, new ArrayBuffer(1234)),
-      {message: 'Third argument of a tensor must be of type TypedArray.'});
+      {message: /Third argument of a tensor must be TypedArray, or Array if the tensor type is string./});
   });
 
   it('Third argument of a tensor cannot be an array object', () => {
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape, [1, 2, 3, 4]),
-      {message: 'Third argument of a tensor must be of type TypedArray.'});
+      {message: /Third argument of a tensor must be TypedArray, or Array if the tensor type is string./});
   });
 });
 

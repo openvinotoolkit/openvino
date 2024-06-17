@@ -391,6 +391,12 @@ interface TensorConstructor {
    */
   new(type: element | elementTypeString, shape: number[],
     tensorData: SupportedTypedArray): Tensor;
+  /**
+   * It constructs a tensor using the element type and shape. The strings from 
+   * the array are used to fill the new tensor.
+   */
+  new(type: element | elementTypeString, shape: number[],
+    tensorData: Array<String>): Tensor;
 }
 
 /**

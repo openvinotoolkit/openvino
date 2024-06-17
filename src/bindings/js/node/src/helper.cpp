@@ -317,6 +317,22 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
     return tensor;
 }
 
+void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {
+    if (tensor.get_size() != static_cast<size_t>(arr.Length())) {
+        OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
+    }
+    const auto data = tensor.data<std::string>();
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        data[i] = arr[i].ToString().Utf8Value();
+    }
+}
+
+ov::Tensor cast_to_tensor(const Napi::Array& tokens, const ov::Shape& shape) {
+    auto tensor = ov::Tensor(ov::element::string, shape);
+    fill_tensor_from_strings(tensor, tokens);
+    return tensor;
+}
+
 /**
  * @brief  Template function to convert C++ map into Javascript Object. Map key must be std::string.
  * @tparam MapElementType C++ data type of map elements.
