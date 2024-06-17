@@ -5,19 +5,31 @@
 #include "col2im.h"
 #include "common/cpu_convert.h"
 #include "openvino/reference/col2im.hpp"
-
-#include <openvino/opsets/opset15.hpp>
+#include "openvino/op/col2im.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
-    const auto col2Im = ov::as_type_ptr<const ov::opset15::Col2Im>(op);
+    const auto col2Im = ov::as_type_ptr<const ov::op::v15::Col2Im>(op);
     strides = col2Im->get_strides();
     dilations = col2Im->get_dilations();
     padsBegin = col2Im->get_pads_begin();
     padsEnd = col2Im->get_pads_end();
+}
+
+bool Col2Im::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto col2Im = std::dynamic_pointer_cast<const ov::op::v15::Col2Im>(op);
+        if (!col2Im) {
+            errorMessage = "Only opset15 Col2Im operation is supported";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
 }
 
 void Col2Im::getSupportedDescriptors() {
@@ -104,11 +116,8 @@ void Col2Im::execute(dnnl::stream strm) {
 
     OV_SWITCH(intel_cpu, Col2ImExecute, ctx, std::tie(dataPrecision, indexPrecision),
               OV_CASE2(ov::element::f32, ov::element::i32, float, uint64_t),
-              OV_CASE2(ov::element::f32, ov::element::i64, float, uint64_t),
               OV_CASE2(ov::element::f16, ov::element::i32, float, uint64_t),
-              OV_CASE2(ov::element::f16, ov::element::i64, float, uint64_t),
-              OV_CASE2(ov::element::i32, ov::element::i32, uint32_t, uint64_t),
-              OV_CASE2(ov::element::i32, ov::element::i64, uint32_t, uint64_t))
+              OV_CASE2(ov::element::i32, ov::element::i32, uint32_t, uint64_t))
 }
 }  // namespace node
 }  // namespace intel_cpu

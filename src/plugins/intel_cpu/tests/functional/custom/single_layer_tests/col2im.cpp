@@ -112,7 +112,7 @@ protected:
 
         auto image2DSpatialShape = InputShape{{}, {{2}}};
         init_input_shapes({dataInputShape, image2DSpatialShape, image2DSpatialShape});
-        auto dataParameter = std::make_shared<ov::op::v0::Parameter>(inputPrecision, dataInputShape.second[0]);
+        auto dataParameter = std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]);
         auto outputSizeConst = std::make_shared<ov::op::v0::Constant>(indexPrecision, ov::Shape{ 2 }, outputSize);
         auto kernelSizeConst = std::make_shared<ov::op::v0::Constant>(indexPrecision, ov::Shape{ 2 }, kernelSize);
 
@@ -190,6 +190,15 @@ const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
         InputShape{{}, {{1, 18, 104}}},
         std::vector<int64_t>{16, 16},
         std::vector<int64_t>{2, 3},
+        ov::Strides{2, 1},
+        ov::Strides{2, 2},
+        ov::Shape{1, 0},
+        ov::Shape{0, 1}
+    },
+    Col2ImSpecificParams {
+        InputShape{{-1, -1, -1}, {{1, 12, 120}, {3, 12, 120}}},
+        std::vector<int64_t>{16, 16},
+        std::vector<int64_t>{2, 2},
         ov::Strides{2, 1},
         ov::Strides{2, 2},
         ov::Shape{1, 0},
