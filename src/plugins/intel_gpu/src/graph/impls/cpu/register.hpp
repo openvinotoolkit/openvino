@@ -22,6 +22,7 @@
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/select.hpp"
+#include "intel_gpu/primitives/sync_tensor.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -53,6 +54,7 @@ REGISTER_CPU(reorder);
 REGISTER_CPU(broadcast);
 REGISTER_CPU(tile);
 REGISTER_CPU(select);
+REGISTER_CPU(sync_tensor);
 
 #undef REGISTER_CPU
 

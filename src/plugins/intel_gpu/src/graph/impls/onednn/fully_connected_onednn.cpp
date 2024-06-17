@@ -7,7 +7,7 @@
 #include "implementation_map.hpp"
 
 #include "impls/ocl/kernel_selector_helper.h"
-
+#include "openvino/runtime/threading/cpu_message.hpp"
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include <algorithm>
@@ -48,6 +48,15 @@ protected:
         instance.fill_placeholder();
         auto event = parent::execute_impl(events, instance);
         if (instance.get_impl_params()->w_size != 1) {
+            stream.finish();
+            auto& output_memory = instance.output_memory();
+            auto send_ptr = output_memory.buffer_ptr();
+            auto message = ov::threading::message_manager();
+            ov::threading::MessageInfo send_message;
+            send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
+            send_message.rank = {};
+            send_message.buf = send_ptr;
+            message->send_message(send_message);
             /*auto& network = instance.get_network();
             auto& stream = network.get_stream();
             stream.finish();
@@ -66,11 +75,13 @@ protected:
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
         {
-            auto& input = instance.get_input_rank_placeholder_mem();
+            auto input_ptr = instance.get_input_rank_placeholder();
+            if (!input_ptr)
+                input_ptr = instance.input_memory_ptr();
             // std::cout << input.get_layout().to_short_string() << std::endl;
             auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
             // mapping input memory here
-            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
+            args.insert({DNNL_ARG_SRC, (*input_ptr).get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {

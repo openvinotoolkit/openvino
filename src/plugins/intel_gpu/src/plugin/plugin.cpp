@@ -175,7 +175,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
         config.get_property(ov::hint::model_distribution_policy.name())
             .as<std::set<ov::hint::ModelDistributionPolicy>>();
-    if (model_distribution_policy.count(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
+    if (0) {
         auto get_rank_table = [&]() {
             std::vector<std::vector<int>> rank_table = {};
             for (size_t i = 0; i < config.get_context_for_tp().size(); i++) {

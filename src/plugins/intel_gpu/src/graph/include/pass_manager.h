@@ -57,6 +57,14 @@ private:
     void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
 };
 
+class add_required_all_reduce : public base_pass {
+public:
+    add_required_all_reduce() : base_pass("add_required_all_reduce") {}
+
+private:
+    void run(program& p) override;
+    void add_all_reduce(program& p, program_node* node, program_node* usr);
+};
 class add_reshape_to_primitives : public base_pass {
 public:
     add_reshape_to_primitives() : base_pass("add_reshape_to_primitives_pass") {}
