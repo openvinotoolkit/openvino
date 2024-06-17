@@ -50,7 +50,7 @@ separate snaps. It involves three steps:
 
 1. Configure the OpenVINO snapcraft.yaml.
 
-   * Add the part to build and install OpenVINO as described in the 1st Method:
+   Add the part to build and install OpenVINO as described in the 1st Method:
 
      .. code-block:: sh
 
@@ -72,8 +72,8 @@ separate snaps. It involves three steps:
             - pkg-config
             - gzip
 
-   * Define the slots provided by the OpenVINO Snap. Slots are the interfaces your Snap
-     exposes for other Snaps to connect to:
+   Define the slots provided by the OpenVINO Snap. Slots are the interfaces your Snap
+   exposes for other Snaps to connect to:
 
      .. code-block:: sh
 

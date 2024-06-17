@@ -19,6 +19,7 @@ CPU
 
    .. tab-item:: Supported Hardware
 
+      * Intel® Xeon® 6 processor (preview)
       * Intel Atom® Processor X Series
       * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
@@ -193,7 +194,7 @@ OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Kh
 
 Other names and brands may be claimed as the property of others.
 
-Copyright © 2023, Intel Corporation. All rights reserved.
+Copyright © 2024, Intel Corporation. All rights reserved.
 
 For more complete information about compiler optimizations, see our Optimization Notice.
 
