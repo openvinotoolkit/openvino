@@ -4,6 +4,7 @@
 
 #include "tensor_parallel.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
 #include <memory>
 #include <vector>
 
@@ -30,9 +31,9 @@ TensorParallelFusion::TensorParallelFusion() {
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-        //const auto axis = concat->get_axis();
-        //auto fc_element_type = fc->get_element_type();
-
+        // ignore compressed now
+        if (std::dynamic_pointer_cast<op::FullyConnectedCompressed>(fc))
+            return false;
         auto sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(fc, fc->get_element_type());
         sync_node->set_friendly_name(fc->get_friendly_name()+ "_TP");
 

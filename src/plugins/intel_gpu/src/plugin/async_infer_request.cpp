@@ -39,11 +39,16 @@ void AsyncInferRequest::start_async() {
     Parent::start_async();
 }
 
+void AsyncInferRequest::setSubInferRequest(
+    const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests) {
+    m_sub_infer_requests = requests;
+}
+
 AsyncInferRequest::~AsyncInferRequest() {
-    if (m_sub_infers) {
+    if (m_has_sub_infers) {
         auto message = ov::threading::message_manager();
         message->stop_server_thread();
-        message->clear();
+        m_sub_infer_requests.clear();
     }
     stop_and_wait();
 }

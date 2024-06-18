@@ -35,7 +35,8 @@
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id,
+            const std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
@@ -51,6 +52,7 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
         profilingIDs = program_builder->profiling_ids;
         perfMap = program_builder->perfMap;
         m_input_layouts = program_builder->get_input_layouts();
+        m_sub_memory_manager = sub_memory_manager;
     }
 }
 

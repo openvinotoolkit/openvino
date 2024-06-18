@@ -17,6 +17,7 @@
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/plugin/sub_memory_manager.hpp"
 
 #include <map>
 #include <vector>
@@ -67,22 +68,25 @@ struct network {
 public:
     using ptr = std::shared_ptr<network>;
 
-    explicit network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
+    explicit network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true,
+                    ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager = nullptr);
     network(engine& engine,
             const topology& topo,
             const ExecutionConfig& config = {},
             bool is_internal = false,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr);
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
+            ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager = nullptr);
 
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const ExecutionConfig& config,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-            bool is_internal);
+            bool is_internal,
+            ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager = nullptr);
 
-    network(program::ptr program, uint16_t stream_id = 0);
+    network(program::ptr program, uint16_t stream_id = 0, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager = nullptr);
 
-    network(program::ptr program, stream::ptr stream, uint16_t stream_id);
+    network(program::ptr program, stream::ptr stream, uint16_t stream_id, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager = nullptr);
 
     ~network();
 
@@ -109,6 +113,7 @@ public:
                                 bool is_primary_stream = false);
     program::cptr get_program() const { return _program; }
     program::ptr get_program() { return _program; }
+    ov::intel_gpu::SubMemoryManager::ptr get_sub_mem_mgr() const { return _sub_memory_manager; }
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
@@ -268,7 +273,7 @@ private:
     output_chains_map _output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
-
+    ov::intel_gpu::SubMemoryManager::ptr _sub_memory_manager;
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);

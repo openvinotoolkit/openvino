@@ -47,16 +47,33 @@ protected:
             stream.finish();
         instance.fill_placeholder();
         auto event = parent::execute_impl(events, instance);
-        if (instance.get_impl_params()->w_size != 1) {
+        /*if (instance.get_impl_params()->w_size != 1) {
+            auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
+            auto id = sub_mem_mgr->get_memory_id(instance.get_impl_params()->w_rank);
+            sub_mem_mgr->set_memory_used(id, instance.get_impl_params()->w_rank);
+            while (true) {
+                std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
+                if (sub_mem_mgr->_use_count[id] == instance.get_impl_params()->w_size) {
+                    sub_mem_mgr->_use_count[id] = 0;
+                    for (int i = 0; i < instance.get_impl_params()->w_size; i++) {
+                        sub_mem_mgr->_memorys_table[id][i].flag = false;
+                    }
+                }
+                if (sub_mem_mgr->_use_count[id] == 0) {
+                    break;
+                }
+            }
             stream.finish();
-            auto& output_memory = instance.output_memory();
-            auto send_ptr = output_memory.buffer_ptr();
+            sub_mem_mgr->_memorys_table[id][instance.get_impl_params()->w_rank].send_buf = instance.output_memory().buffer_ptr();
+            sub_mem_mgr->_memorys_table[id][instance.get_impl_params()->w_rank].flag = true;
+            //auto& output_memory = instance.output_memory();
+            //auto send_ptr = output_memory.buffer_ptr();
             auto message = ov::threading::message_manager();
             ov::threading::MessageInfo send_message;
             send_message.msg_type = ov::threading::MsgType::TENSOR_PARALLEL;
             send_message.rank = {};
             send_message.buf = send_ptr;
-            message->send_message(send_message);
+            message->send_message(send_message);*/
             /*auto& network = instance.get_network();
             auto& stream = network.get_stream();
             stream.finish();
@@ -68,7 +85,7 @@ protected:
                 Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory.count());
             else
                 OPENVINO_THROW("not expected!");*/
-        }
+        //}
         return event;
     }
 

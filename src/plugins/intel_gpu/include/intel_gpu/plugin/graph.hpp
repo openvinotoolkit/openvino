@@ -13,6 +13,7 @@
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/sub_memory_manager.hpp"
 
 #include <vector>
 #include <map>
@@ -35,7 +36,8 @@ public:
         POSTPROC = 4
     };
 
-    Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
+    Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0,
+            const std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
     Graph(cldnn::BinaryInputBuffer& ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
     Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
 
@@ -92,7 +94,7 @@ private:
     std::vector<cldnn::primitive_id> profilingIDs;
 
     std::map<size_t, cldnn::layout> m_input_layouts;
-
+    std::shared_ptr<SubMemoryManager> m_sub_memory_manager;
     void build(std::shared_ptr<cldnn::program> program);
     std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi, bool filter_const_primitives = true);
 };

@@ -116,10 +116,9 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
     auto message = ov::threading::message_manager();
-    if (m_asyncRequest->m_sub_infers) {
+    if (m_asyncRequest->m_has_sub_infers) {
         std::cout << "m_asyncRequest->m_sub_infers\n";
         message->server_wait();
-        std::cout << "message->get_sub_infer_requests().size: " << message->get_sub_infer_requests().size() << std::endl;
         ov::threading::MessageInfo msg_info;
         msg_info.msg_type = ov::threading::MsgType::START_INFER;
         ov::threading::Task task = [&] {
@@ -141,7 +140,7 @@ void SyncInferRequest::infer() {
 void SyncInferRequest::sub_streams_infer() {
     // sub streams infer
     auto message = ov::threading::message_manager();
-    auto requests = message->get_sub_infer_requests();
+    auto requests = m_asyncRequest->getSubInferRequest();
     size_t requests_num = requests.size();
     auto inputs = get_inputs();
     auto outputs = get_outputs();

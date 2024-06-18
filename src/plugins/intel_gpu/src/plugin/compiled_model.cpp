@@ -50,7 +50,8 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
 CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
-                             const ExecutionConfig& config)
+                             const ExecutionConfig& config,
+                             const std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : ov::ICompiledModel(model,
                          plugin,
                          context,
@@ -78,6 +79,8 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                 "async compile executor for TP",
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                 0});
+        m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_config.get_context_for_tp().size());
+        message->set_num_sub_streams(m_config.get_context_for_tp().size());
         std::vector<std::shared_ptr<ov::ICompiledModel>> sub_models;
         std::vector<ov::threading::Task> sub_tasks;
         for (size_t i = 0; i < m_config.get_context_for_tp().size(); i++) {
@@ -93,14 +96,14 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                                                                  {},
                                                                  configs_for_tp[i].streamsRankTable[i]};
                 configs_for_tp[i].subStreamExecConfig = std::move(streamExecutorConfig);
-                sub_models.push_back(std::make_shared<CompiledModel>(
-                    model, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i]));
+                m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
+                    model, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
                 GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0] << std::endl;
             };
             sub_tasks.push_back(std::bind(compile_tp_model, i));
         }
-        tp_compile_executor->run_and_wait(std::move(sub_tasks));
-        message->set_sub_compiled_models(sub_models);
+        for (auto & iter : sub_tasks)
+            tp_compile_executor->run_and_wait({std::move(iter)});
 
         // clear up the tp executor for async compile
         get_plugin()->get_executor_manager()->clear("async compile executor for TP");
@@ -209,14 +212,12 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                                                    get_task_executor(),
                                                                    m_wait_executor,
                                                                    get_callback_executor());
-    if (m_subCompileModel) {
-        auto message = ov::threading::message_manager();
-        auto sub_models = message->get_sub_compiled_models();
+     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
-        for (auto model : sub_models) {
+        for (auto model : m_sub_compiled_models) {
             requests.push_back(model->create_infer_request());
         }
-        message->set_sub_infer_requests(requests);
+        async_infer_request->setSubInferRequest(requests);
         async_infer_request->setSubInfer(true);
     }
     return async_infer_request;
@@ -279,8 +280,7 @@ void CompiledModel::export_model(std::ostream& model) const {
 
 CompiledModel::Ptr CompiledModel::get_tp_compiled_model() const {
     auto messenger = ov::threading::message_manager();
-    auto sub_models = messenger->get_sub_compiled_models();
-    for (auto& iter : sub_models) {
+    for (auto& iter : m_sub_compiled_models) {
         if (iter->get_context()->get_device_name() == get_context()->get_device_name())
             return std::dynamic_pointer_cast<CompiledModel>(iter);
     }

@@ -372,7 +372,8 @@ static std::string get_file_path_for_binary_dump(cldnn::layout layout, std::stri
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
 */
-network::network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal, bool is_primary_stream)
+network::network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal, bool is_primary_stream,
+    ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
     : _program(program)
     , _config(config)
     , _engine(program->get_engine())
@@ -382,7 +383,8 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     , _is_primary_stream(is_primary_stream)
     , _enable_profiling(config.get_property(ov::enable_profiling))
     , _reset_arguments(true)
-    , _shape_predictor(new ShapePredictor(&program->get_engine(), config.get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
+    , _shape_predictor(new ShapePredictor(&program->get_engine(), config.get_property(ov::intel_gpu::buffers_preallocation_ratio)))
+    , _sub_memory_manager(sub_memory_manager) {
     if (!_internal) {
         net_id = get_unique_net_id();
     }
@@ -416,21 +418,25 @@ network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
                  bool is_internal,
-                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
-    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                 ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal, true,
+            sub_memory_manager) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal)
-    : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
+                 bool is_internal,
+                 ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal, true,
+            sub_memory_manager) {}
 
-network::network(program::ptr program, uint16_t stream_id)
-    : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
+network::network(program::ptr program, uint16_t stream_id, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0, sub_memory_manager) {}
 
-network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
-    : network(program, program->get_config(), stream, false, stream_id == 0) {}
+network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    : network(program, program->get_config(), stream, false, stream_id == 0, sub_memory_manager) {}
 
 network::~network() {
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
