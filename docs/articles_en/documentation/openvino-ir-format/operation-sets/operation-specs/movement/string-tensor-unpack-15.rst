@@ -20,20 +20,20 @@ Consider an ``input`` string tensor containing values ``["Intel", "OpenVINO"]``.
 
 The operator will transform the tensor into three outputs:
 
-* *word_begins* = [0, 5]
-    * ``word_begins[0]`` is equal to 0, because the first word starts at the beggining index.
-    * ``word_begins[1]`` is equal to 5, because length of the word "Intel" is equal to 5.
-    * ``word_begins.shape`` is equal to [2], because the ``input`` is a batch of 2 words.
+* *begins* = [0, 5]
+    * ``begins[0]`` is equal to 0, because the first string starts at the beggining index.
+    * ``begins[1]`` is equal to 5, because length of the string "Intel" is equal to 5.
+    * ``begins.shape`` is equal to [2], because the ``input`` is a batch of 2 strings.
 
-* *word_ends* = [5, 13]
-    * ``word_ends[0]`` is equal to 5, because length of the word "Intel" is equal to 5.
-    * ``word_ends[1]`` is equal to 13, because length of the word "OpenVINO" is 8, and it needs to be summed up
-    with length of the word "Intel".
-    * ``word_ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 words.
+* *ends* = [5, 13]
+    * ``ends[0]`` is equal to 5, because length of the string "Intel" is equal to 5.
+    * ``ends[1]`` is equal to 13, because length of the string "OpenVINO" is 8, and it needs to be summed up
+    with length of the string "Intel".
+    * ``ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 strings.
 
-* *output_symbols* = "IntelOpenVINO"
-    * ``output_symbols`` contains concatenated string data, interpretable using ``word_begins`` and ``word_ends``.
-    * ``output_symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` words.
+* *symbols* = "IntelOpenVINO"
+    * ``symbols`` contains concatenated string data, interpretable using ``begins`` and ``ends``.
+    * ``symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` strings.
 
 **Inputs**
 
@@ -44,27 +44,27 @@ The operator will transform the tensor into three outputs:
 
 **Outputs**
 
-* **1**: *word_begins*:
+* **1**: *begins*:
 
   * **Description**: Indices of each string's begginings.
   * **Shape**: 1D tensor of shape ``(batch_size)``.
   * **Type**: *T_IDX*
 
-* **2**: *word_ends*:
+* **2**: *ends*:
 
   * **Description**: Indices of each string's endings.
   * **Shape**: 1D tensor of shape ``(batch_size)``.
   * **Type**: *T_IDX*
 
-* **3**: *output_symbols*:
+* **3**: *symbols*:
 
-  * **Description**: Concatenated ``input`` words.
-  * **Shape**: 1D tensor of shape equal to the total length of concatenated words.
+  * **Description**: Concatenated ``input`` strings.
+  * **Shape**: 1D tensor of shape equal to the total length of concatenated string.
   * **Type**: *T*
 
 **Types**
 
-* *T*: ``string``.
+* *T*: ``u8``.
 * *T_IDX*: ``int64``.
 
 **Examples**
@@ -78,19 +78,19 @@ For ``input = ["Intel", "OpenVINO"]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="string">
+            <port id="0" precision="u8">
                 <dim>2</dim>     <!-- batch of strings -->
             </port>
         </input>
         <output>
             <port id="0" precision="I64">
-                <dim>2</dim>     <!-- word_begins = [0, 5] -->
+                <dim>2</dim>     <!-- begins = [0, 5] -->
             </port>
             <port id="1" precision="I64">
-                <dim>2</dim>     <!-- word_ends = [5, 13] -->
+                <dim>2</dim>     <!-- ends = [5, 13] -->
             </port>
-            <port id="2" precision="string">
-                <dim>13</dim>     <!-- output_symbols = "IntelOpenVINO" -->
+            <port id="2" precision="u8">
+                <dim>13</dim>     <!-- symbols = "IntelOpenVINO" -->
             </port>
         </output>
     </layer>
@@ -104,19 +104,19 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="string">
+            <port id="0" precision="u8">
                 <dim>5</dim>     <!-- batch of strings -->
             </port>
         </input>
         <output>
             <port id="0" precision="I64">
-                <dim>2</dim>     <!-- word_begins = [0, 3, 3, 8, 9] -->
+                <dim>2</dim>     <!-- begins = [0, 3, 3, 8, 9] -->
             </port>
             <port id="1" precision="I64">
-                <dim>2</dim>     <!-- word_ends = [3, 3, 8, 9, 13] -->
+                <dim>2</dim>     <!-- ends = [3, 3, 8, 9, 13] -->
             </port>
-            <port id="2" precision="string">
-                <dim>13</dim>    <!-- output_symbols = "OMZGenAI 2024"-->
+            <port id="2" precision="u8">
+                <dim>13</dim>    <!-- symbols = "OMZGenAI 2024"-->
             </port>
         </output>
     </layer>

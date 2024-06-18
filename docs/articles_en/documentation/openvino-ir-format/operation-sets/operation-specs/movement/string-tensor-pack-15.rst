@@ -18,32 +18,32 @@ a string tensor using *begins* and *ends* indices.
 
 Consider inputs:
 
-* *word_begins* = [0, 5]
-* *word_ends* = [5, 13]
-* *output_symbols* = "IntelOpenVINO"
+* *begins* = [0, 5]
+* *ends* = [5, 13]
+* *symbols* = "IntelOpenVINO"
 
-*StringTensorPack* uses indices from ``word_begins`` and ``word_ends`` to transform concatenated string ``output_symbols`` into ``output``, 
-a batched string tensor. The ``output.shape`` (also called ``batch_size``) is equal to ``word_beings.shape`` and ``word_ends.shape``, 
+*StringTensorPack* uses indices from ``begins`` and ``ends`` to transform concatenated string ``symbols`` into ``output``, 
+a batched string tensor. The ``output.shape`` (also called ``batch_size``) is equal to ``begins.shape`` and ``ends.shape``, 
 and in this case holds values ``["Intel", "OpenVINO"]``.
 
 **Inputs**
 
-* **1**: *word_begins*:
+* **1**: *begins*:
 
   * **Description**: Indices of each string's begginings. **Required.**
   * **Shape**: 1D tensor of shape ``(batch_size)``.
   * **Type**: *T_IDX*
 
-* **2**: *word_ends*:
+* **2**: *ends*:
 
   * **Description**: Indices of each string's endings. **Required.**
   * **Shape**: 1D tensor of shape ``(batch_size)``.
   * **Type**: *T_IDX*
 
-* **3**: *output_symbols*:
+* **3**: *symbols*:
 
-  * **Description**: Concatenated ``input`` words. **Required.**
-  * **Shape**: 1D tensor of shape equal to the total length of concatenated words.
+  * **Description**: Concatenated ``input`` strings. **Required.**
+  * **Shape**: 1D tensor of shape equal to the total length of concatenated strings.
   * **Type**: *T*
 
 **Outputs**
@@ -56,7 +56,7 @@ and in this case holds values ``["Intel", "OpenVINO"]``.
 
 **Types**
 
-* *T*: ``string``.
+* *T*: ``u8``.
 * *T_IDX*: ``int64``.
 
 **Examples**
@@ -69,17 +69,17 @@ and in this case holds values ``["Intel", "OpenVINO"]``.
     <layer ... type="StringTensorPack" ... >
         <input>
             <port id="0" precision="I64">
-                <dim>2</dim>     <!-- word_begins = [0, 5] -->
+                <dim>2</dim>     <!-- begins = [0, 5] -->
             </port>
             <port id="1" precision="I64">
-                <dim>2</dim>     <!-- word_ends = [5, 13] -->
+                <dim>2</dim>     <!-- ends = [5, 13] -->
             </port>
-            <port id="2" precision="string">
-                <dim>13</dim>    <!-- output_symbols = "IntelOpenVINO" -->
+            <port id="2" precision="u8">
+                <dim>13</dim>    <!-- symbols = "IntelOpenVINO" -->
             </port>
         </input>
         <output>
-            <port id="0" precision="string">
+            <port id="0" precision="u8">
                 <dim>2</dim>     <!-- output = ["Intel", "OpenVINO"] -->
             </port>
         </output>
@@ -93,18 +93,42 @@ and in this case holds values ``["Intel", "OpenVINO"]``.
     <layer ... type="StringTensorPack" ... >
         <input>
             <port id="0" precision="I64">
-                <dim>2</dim>     <!-- word_begins = [0, 3, 3, 8, 9] -->
+                <dim>2</dim>     <!-- begins = [0, 3, 3, 8, 9] -->
             </port>
             <port id="1" precision="I64">
-                <dim>2</dim>     <!-- word_ends = [3, 3, 8, 9, 13] -->
+                <dim>2</dim>     <!-- ends = [3, 3, 8, 9, 13] -->
             </port>
-            <port id="2" precision="string">
-                <dim>13</dim>    <!-- output_symbols = "OMZGenAI 2024"-->
+            <port id="2" precision="u8">
+                <dim>13</dim>    <!-- symbols = "OMZGenAI 2024"-->
             </port>
         </input>
         <output>
-            <port id="0" precision="string">
+            <port id="0" precision="u8">
                 <dim>5</dim>     <!-- output = ["OMZ", "", "GenAI", " ", "2024"] -->
+            </port>
+        </output>
+    </layer>
+
+*Example 3: skipped symbols*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="StringTensorPack" ... >
+        <input>
+            <port id="0" precision="I64">
+                <dim>2</dim>     <!-- begins = [0, 8] -->
+            </port>
+            <port id="1" precision="I64">
+                <dim>2</dim>     <!-- ends = [1, 9] -->
+            </port>
+            <port id="2" precision="u8">
+                <dim>13</dim>    <!-- symbols = "123456789"-->
+            </port>
+        </input>
+        <output>
+            <port id="0" precision="u8">
+                <dim>5</dim>     <!-- output = ["1", "9"] -->
             </port>
         </output>
     </layer>
