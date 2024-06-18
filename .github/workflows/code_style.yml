@@ -60,7 +60,7 @@ jobs:
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
-        uses: reviewdog/action-shellcheck@6e3a862f231c6895fbd335b70adef8f9243d5762 # v1.21.0
+        uses: reviewdog/action-shellcheck@3546242c869924d13293e38e6289e00a26468e02 # v1.22.0
         with:
           level: style
           reporter: github-pr-review
