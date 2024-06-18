@@ -36,28 +36,6 @@ if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
 endif()
 
 #
-# Settings for FindPython3.cmake
-#
-
-if(NOT DEFINED Python3_USE_STATIC_LIBS)
-    set(Python3_USE_STATIC_LIBS OFF)
-endif()
-
-if(NOT DEFINED Python3_FIND_VIRTUALENV)
-    set(Python3_FIND_VIRTUALENV FIRST)
-endif()
-
-if(NOT DEFINED Python3_FIND_IMPLEMENTATIONS)
-    set(Python3_FIND_IMPLEMENTATIONS CPython PyPy)
-endif()
-
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
-    set(python3_development_component Development.Module)
-else()
-    set(python3_development_component Development)
-endif()
-
-#
 # Check python requirements
 #
 
