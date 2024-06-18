@@ -2,12 +2,15 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import pytest
 import numpy as np
 
-from typing import Dict
 from openvino import Op
-from openvino.runtime import CompiledModel, DiscreteTypeInfo, Model, Shape, compile_model, Tensor
+from openvino import CompiledModel, Core, Model, Shape, Tensor, compile_model, serialize
+from openvino.runtime import DiscreteTypeInfo
 import openvino.runtime.opset14 as ops
+
+from tests.utils.helpers import create_filename_for_test
 
 
 class CustomOp(Op):
@@ -47,35 +50,6 @@ def create_snake_model():
     return Model(custom_op, [param1], "TestModel")
 
 
-class CustomConcat(Op):
-    class_type_info = DiscreteTypeInfo("CustomConcat", "extension")
-
-    def __init__(self, inputs):
-        super().__init__(self)
-        self.set_arguments(inputs)
-        self.constructor_validate_and_infer_types()
-
-    def validate_and_infer_types(self):
-        self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
-
-    def clone_with_new_inputs(self, new_inputs):
-        return CustomOp(new_inputs)
-
-    def get_type_info(self):
-        return CustomOp.class_type_info
-
-    def evaluate(self, outputs, inputs):
-        inputs[0].copy_to(outputs[0])
-        return True
-
-    def has_evaluate(self):
-        return True
-    
-    def visit_attributes(self, attributes: Dict):
-        super().visit_attributes(attributes)
-        return True
-
-
 class CustomAdd(Op):
     class_type_info = DiscreteTypeInfo("CustomAdd", "extension")
 
@@ -104,6 +78,60 @@ def create_add_model():
     custom_add.set_friendly_name("test_add")
     res = ops.result(custom_add, name="result")
     return Model(res, [param1, param2], "AddModel")
+
+
+class CustomOpWithAttribute(Op):
+    class_type_info = DiscreteTypeInfo("CustomOpWithAttribute", "extension")
+
+    def __init__(self, inputs, attrs):
+        super().__init__(self)
+        self._attrs = attrs
+        self.set_arguments(inputs)
+        self.constructor_validate_and_infer_types()
+
+    def validate_and_infer_types(self):
+        self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
+
+    def clone_with_new_inputs(self, new_inputs):
+        return CustomOpWithAttribute(new_inputs)
+
+    def get_type_info(self):
+        return CustomOpWithAttribute.class_type_info
+
+    def visit_attributes(self, visitor):
+        visitor.on_attributes(self._attrs)
+        return True
+
+
+@pytest.mark.parametrize("attributes", [
+    {"axis": 0},
+    {"value_str": "test_attribute"},
+    {"value_float": 0.25},
+    {"value_bool": True},
+    {"list_str": ["one", "two"]},
+    {"list_int": [1, 2]},
+    {"list_float": np.array([1.5, 2.5], dtype="float32")},
+    {"axis": 0, "list_int": [1, 2]},
+])
+def test_visit_attributes_custom_op(request, tmp_path, attributes):
+    input_shape = [2, 1]
+
+    param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
+    param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
+    custom = CustomOpWithAttribute(inputs=[param1, param2], attrs=attributes)
+    res = ops.result(custom, name="result")
+    model_with_op_attr = Model(res, [param1, param2], "CustomModel")
+
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    serialize(model_with_op_attr, xml_path, bin_path)
+
+    ordered_ops = model_with_op_attr.get_ordered_ops()
+    ops_dict = {op.get_type_name(): op for op in ordered_ops}
+    attrs = ops_dict["CustomOpWithAttribute"].get_attributes()
+
+    for key, value in attrs.items():
+        assert key in attributes
+        assert attributes[key] == value
 
 
 def test_custom_add_op():
