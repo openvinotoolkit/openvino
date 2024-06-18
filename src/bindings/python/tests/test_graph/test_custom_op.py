@@ -4,9 +4,10 @@
 
 import pytest
 import numpy as np
+from contextlib import nullcontext as does_not_raise
 
 from openvino import Op
-from openvino import CompiledModel, Core, Model, Shape, Tensor, compile_model, serialize
+from openvino import CompiledModel, Model, Dimension, Shape, Tensor, compile_model, serialize
 from openvino.runtime import DiscreteTypeInfo
 import openvino.runtime.opset14 as ops
 
@@ -103,17 +104,22 @@ class CustomOpWithAttribute(Op):
         return True
 
 
-@pytest.mark.parametrize("attributes", [
-    {"axis": 0},
-    {"value_str": "test_attribute"},
-    {"value_float": 0.25},
-    {"value_bool": True},
-    {"list_str": ["one", "two"]},
-    {"list_int": [1, 2]},
-    {"list_float": np.array([1.5, 2.5], dtype="float32")},
-    {"axis": 0, "list_int": [1, 2]},
+@pytest.mark.parametrize(("attributes", "expectation", "raise_msg"), [
+    ({"axis": 0}, does_not_raise(), ""),
+    ({"value_str": "test_attribute"}, does_not_raise(), ""),
+    ({"value_float": 0.25}, does_not_raise(), ""),
+    ({"value_bool": True}, does_not_raise(), ""),
+    ({"list_str": ["one", "two"]}, does_not_raise(), ""),
+    ({"list_int": [1, 2]}, does_not_raise(), ""),
+    ({"list_float": np.array([1.5, 2.5], dtype="float32")}, does_not_raise(), ""),
+    ({"axis": 0, "list_int": [1, 2]}, does_not_raise(), ""),
+    ({"body": Model(ops.constant([1]), [])}, does_not_raise(), ""),
+    ({"dim": Dimension(2)}, does_not_raise(), ""),
+    ({"wrong_list": [{}]}, pytest.raises(TypeError), "Unsupported attribute type in provided list: <class 'dict'>"),
+    ({"wrong_np": np.array([1.5, 2.5], dtype="complex128")}, pytest.raises(TypeError), "Unsupported NumPy array dtype: complex128"),
+    ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
-def test_visit_attributes_custom_op(request, tmp_path, attributes):
+def test_visit_attributes_custom_op(request, tmp_path, attributes, expectation, raise_msg):
     input_shape = [2, 1]
 
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
@@ -123,11 +129,17 @@ def test_visit_attributes_custom_op(request, tmp_path, attributes):
     model_with_op_attr = Model(res, [param1, param2], "CustomModel")
 
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
-    serialize(model_with_op_attr, xml_path, bin_path)
 
-    ordered_ops = model_with_op_attr.get_ordered_ops()
-    ops_dict = {op.get_type_name(): op for op in ordered_ops}
-    attrs = ops_dict["CustomOpWithAttribute"].get_attributes()
+    attrs = {}
+
+    with expectation as e:
+        serialize(model_with_op_attr, xml_path, bin_path)
+        ordered_ops = model_with_op_attr.get_ordered_ops()
+        ops_dict = {op.get_type_name(): op for op in ordered_ops}
+        attrs = ops_dict["CustomOpWithAttribute"].get_attributes()
+
+    if e is not None:
+        assert raise_msg in str(e.value)
 
     for key, value in attrs.items():
         assert key in attributes

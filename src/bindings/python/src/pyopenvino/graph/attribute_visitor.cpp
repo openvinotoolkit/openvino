@@ -15,10 +15,6 @@
 
 namespace py = pybind11;
 
-// void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
-
-//  void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override;
-
 template <typename AT>
 void visit_attribute(py::dict& attributes,
                      const std::pair<py::handle, py::handle>& attribute,
@@ -50,13 +46,22 @@ void regclass_graph_AttributeVisitor(py::module m) {
                     visit_attribute<double>(attributes, attribute, self);
                 } else if (py::isinstance(attribute.second, float_32_type)) {
                     visit_attribute<float>(attributes, attribute, self);
+                } else if (py::isinstance<ov::Model>(attribute.second)) {
+                    visit_attribute<std::shared_ptr<ov::Model>>(attributes, attribute, self);
+                } else if (py::isinstance<ov::Dimension>(attribute.second)) {
+                    visit_attribute<ov::Dimension>(attributes, attribute, self);
+                } else if (py::isinstance<ov::PartialShape>(attribute.second)) {
+                    visit_attribute<ov::PartialShape>(attributes, attribute, self);
                 } else if (py::isinstance<py::array>(attribute.second)) {
                     // numpy arrays
                     auto _array = attribute.second.cast<py::array>();
                     if (py::isinstance<py::array_t<float>>(_array)) {
                         visit_attribute<std::vector<float>>(attributes, std::make_pair(attribute.first, _array), self);
                     } else {
-                        OPENVINO_THROW("Unsupported NumPy array dtype.");
+                        auto message = py::detail::c_str(std::string("Unsupported NumPy array dtype: ") +
+                                                         std::string(py::str(_array.dtype())));
+                        PyErr_SetString(PyExc_TypeError, message);
+                        throw py::error_already_set();
                     }
                 } else if (py::isinstance<py::list>(attribute.second)) {
                     // python list
@@ -72,21 +77,24 @@ void regclass_graph_AttributeVisitor(py::module m) {
                                                                   std::make_pair(attribute.first, _list),
                                                                   self);
                         break;
-                    case PY_TYPE::DOUBLE:
+                    case PY_TYPE::FLOAT:
                         // python float is float64 in C++
                         visit_attribute<std::vector<double>>(attributes, std::make_pair(attribute.first, _list), self);
-                        break;
-                    case PY_TYPE::FLOAT:
-                        visit_attribute<std::vector<float>>(attributes, std::make_pair(attribute.first, _list), self);
                         break;
                     case PY_TYPE::INT:
                         visit_attribute<std::vector<int64_t>>(attributes, std::make_pair(attribute.first, _list), self);
                         break;
                     default:
-                        OPENVINO_THROW("Unsupported attribute type in provided list.");
+                        auto message = py::detail::c_str(std::string("Unsupported attribute type in provided list: ") +
+                                                         std::string(py::str(_list[0].get_type())));
+                        PyErr_SetString(PyExc_TypeError, message);
+                        throw py::error_already_set();
                     }
                 } else {
-                    OPENVINO_THROW("Unsupported attribute type.");
+                    auto message = py::detail::c_str(std::string("Unsupported attribute type: ") +
+                                                     std::string(py::str(attribute.second.get_type())));
+                    PyErr_SetString(PyExc_TypeError, message);
+                    throw py::error_already_set();
                 }
             }
         },

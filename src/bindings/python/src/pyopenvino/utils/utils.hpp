@@ -32,7 +32,7 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
-    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, DOUBLE, BOOL, PARTIAL_SHAPE };
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
 
     struct EmptyList {};
 
