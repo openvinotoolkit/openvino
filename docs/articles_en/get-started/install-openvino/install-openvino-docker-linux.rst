@@ -1,8 +1,5 @@
-.. {#openvino_docs_install_guides_installing_openvino_docker}
-
 Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image
 =======================================================================
-
 
 .. meta::
    :description: Learn how to use a prebuilt Docker image or create an image
@@ -42,10 +39,14 @@ To start using Dockerfiles the following conditions must be met:
    OpenVINO's `Docker <https://docs.docker.com/>`__ and :doc:`Bare Metal <../install-openvino>`
    distributions are identical, so the documentation applies to both.
 
+   Note that starting with OpenVINO 2024.4, Ubuntu docker images will no longer be provided
+   and will be replaced by Debian-based ones.
+
 .. note::
 
    OpenVINO development environment in a docker container is also available in the
-   `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__.    It can be implemented in
+   `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__.
+   It can be implemented in
    `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__.
 
 More information about Docker CI for Intel® Distribution of OpenVINO™ toolset can be found
