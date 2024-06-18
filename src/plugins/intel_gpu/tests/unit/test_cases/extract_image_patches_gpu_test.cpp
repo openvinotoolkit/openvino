@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/util/attr_types.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -22,10 +23,10 @@ TEST(extract_image_patches_gpu, basic) {
     auto depth = 1;
     auto in_rows = 10;
     auto in_cols = 10;
-    std::vector<unsigned int> sizes = {3, 3};
-    std::vector<unsigned int> strides = {5, 5};
-    std::vector<unsigned int> rates = {1, 1};
-    std::string auto_pad = "valid";
+    ov::Shape sizes = {3, 3};
+    ov::Strides strides = {5, 5};
+    ov::Shape rates = {1, 1};
+    ov::op::PadType auto_pad = ov::op::PadType::VALID;
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
 
@@ -95,10 +96,10 @@ TEST(extract_image_patches_gpu, basic2) {
     auto depth = 1;
     auto in_rows = 10;
     auto in_cols = 10;
-    std::vector<unsigned int> sizes = {4, 4};
-    std::vector<unsigned int> strides = {8, 8};
-    std::vector<unsigned int> rates = {1, 1};
-    std::string auto_pad = "valid";
+    ov::Shape sizes = {4, 4};
+    ov::Strides strides = {8, 8};
+    ov::Shape rates = {1, 1};
+    ov::op::PadType auto_pad = ov::op::PadType::VALID;
     tensor output_shape = {1, 16, 1, 1};
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
@@ -159,10 +160,10 @@ TEST(extract_image_patches_gpu, basic3) {
     auto depth = 1;
     auto in_rows = 10;
     auto in_cols = 10;
-    std::vector<unsigned int> sizes = {4, 4};
-    std::vector<unsigned int> strides = {9, 9};
-    std::vector<unsigned int> rates = {1, 1};
-    std::string auto_pad = "same_upper";
+    ov::Shape sizes = {4, 4};
+    ov::Strides strides = {9, 9};
+    ov::Shape rates = {1, 1};
+    ov::op::PadType auto_pad = ov::op::PadType::SAME_UPPER;
     tensor output_shape = {1, 16, 2, 2};
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
@@ -254,10 +255,10 @@ TEST(extract_image_patches_gpu, basic3_same_lower) {
     auto depth = 1;
     auto in_rows = 10;
     auto in_cols = 10;
-    std::vector<unsigned int> sizes = {4, 4};
-    std::vector<unsigned int> strides = {9, 9};
-    std::vector<unsigned int> rates = {1, 1};
-    std::string auto_pad = "same_lower";
+    ov::Shape sizes = {4, 4};
+    ov::Strides strides = {9, 9};
+    ov::Shape rates = {1, 1};
+    ov::op::PadType auto_pad = ov::op::PadType::SAME_LOWER;
     tensor output_shape = {1, 16, 2, 2};
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
@@ -349,10 +350,10 @@ TEST(extract_image_patches_gpu, basic3_enough_space) {
     auto depth = 1;
     auto in_rows = 10;
     auto in_cols = 10;
-    std::vector<unsigned int> sizes = {3, 3};
-    std::vector<unsigned int> strides = {7, 7};
-    std::vector<unsigned int> rates = {1, 1};
-    std::string auto_pad = "same_upper";
+    ov::Shape sizes = {3, 3};
+    ov::Strides strides = {7, 7};
+    ov::Shape rates = {1, 1};
+    ov::op::PadType auto_pad = ov::op::PadType::SAME_UPPER;
     tensor output_shape = {1, 9, 2, 2};
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
@@ -423,10 +424,10 @@ TEST(extract_image_patches_gpu, basic4) {
     auto depth = 1;
     auto in_rows = 10;
     auto in_cols = 10;
-    std::vector<unsigned int> sizes = {3, 3};
-    std::vector<unsigned int> strides = {5, 5};
-    std::vector<unsigned int> rates = {2, 2};
-    std::string auto_pad = "valid";
+    ov::Shape sizes = {3, 3};
+    ov::Strides strides = {5, 5};
+    ov::Shape rates = {2, 2};
+    ov::op::PadType auto_pad = ov::op::PadType::VALID;
     tensor output_shape = {1, 9, 2, 2};
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
@@ -498,10 +499,10 @@ void test_extract_image_patches_gpu_basic5(bool is_caching_test) {
     auto depth = 2;
     auto in_rows = 5;
     auto in_cols = 5;
-    std::vector<unsigned int> sizes = {2, 2};
-    std::vector<unsigned int> strides = {3, 3};
-    std::vector<unsigned int> rates = {1, 1};
-    std::string auto_pad = "valid";
+    ov::Shape sizes = {2, 2};
+    ov::Strides strides = {3, 3};
+    ov::Shape rates = {1, 1};
+    ov::op::PadType auto_pad = ov::op::PadType::VALID;
     tensor output_shape = {1, 8, 2, 2};
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });

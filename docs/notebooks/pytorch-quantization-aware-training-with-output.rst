@@ -62,20 +62,8 @@ Table of contents:
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -167,7 +155,7 @@ models will be stored.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/pytorch-quantization-aware-training/model/resnet18_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/pytorch-quantization-aware-training/model/resnet18_fp32.pth')
 
 
 
@@ -472,9 +460,9 @@ section at the top of this notebook.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
       warnings.warn(msg)
 
 
@@ -584,19 +572,10 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    2024-04-18 00:33:36.062903: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-18 00:33:36.099858: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 01:21:39.441995: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 01:21:39.478111: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-18 00:33:36.657984: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
-    WARNING:nncf:NNCF provides best results with torch==2.1.2, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.1.2
+    2024-06-06 01:21:40.003115: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -623,10 +602,6 @@ about supported parameters can be found on this
 .. parsed-literal::
 
     INFO:nncf:Compiling and loading torch extension: quantized_functions_cpu...
-
-
-.. parsed-literal::
-
     INFO:nncf:Finished loading torch extension: quantized_functions_cpu
 
 
@@ -664,46 +639,14 @@ demonstrated here.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.183 (0.183)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
-
-
-.. parsed-literal::
-
-    Test: [10/79]	Time 0.144 (0.153)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
-
-
-.. parsed-literal::
-
-    Test: [20/79]	Time 0.145 (0.149)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
-
-
-.. parsed-literal::
-
-    Test: [30/79]	Time 0.146 (0.148)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
-
-
-.. parsed-literal::
-
-    Test: [40/79]	Time 0.146 (0.147)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
-
-
-.. parsed-literal::
-
-    Test: [50/79]	Time 0.144 (0.147)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
-
-
-.. parsed-literal::
-
-    Test: [60/79]	Time 0.143 (0.146)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
-
-
-.. parsed-literal::
-
-    Test: [70/79]	Time 0.144 (0.146)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
-
-
-.. parsed-literal::
-
+    Test: [ 0/79]	Time 0.217 (0.217)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
+    Test: [10/79]	Time 0.176 (0.179)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
+    Test: [20/79]	Time 0.169 (0.176)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
+    Test: [30/79]	Time 0.169 (0.174)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
+    Test: [40/79]	Time 0.171 (0.174)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
+    Test: [50/79]	Time 0.170 (0.173)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
+    Test: [60/79]	Time 0.198 (0.174)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
+    Test: [70/79]	Time 0.173 (0.174)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
      * Acc@1 55.040 Acc@5 79.730
     Accuracy of initialized INT8 model: 55.040
 
@@ -736,129 +679,33 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    Epoch:[0][  0/782]	Time 0.410 (0.410)	Loss 0.917 (0.917)	Acc@1 76.56 (76.56)	Acc@5 93.75 (93.75)
-
-
-.. parsed-literal::
-
-    Epoch:[0][ 50/782]	Time 0.363 (0.366)	Loss 0.625 (0.812)	Acc@1 87.50 (80.27)	Acc@5 96.88 (93.92)
-
-
-.. parsed-literal::
-
-    Epoch:[0][100/782]	Time 0.361 (0.366)	Loss 0.764 (0.807)	Acc@1 79.69 (80.37)	Acc@5 94.53 (94.17)
-
-
-.. parsed-literal::
-
-    Epoch:[0][150/782]	Time 0.363 (0.366)	Loss 0.863 (0.799)	Acc@1 82.81 (80.53)	Acc@5 92.97 (94.25)
-
-
-.. parsed-literal::
-
-    Epoch:[0][200/782]	Time 0.365 (0.367)	Loss 0.581 (0.787)	Acc@1 85.16 (80.80)	Acc@5 97.66 (94.34)
-
-
-.. parsed-literal::
-
-    Epoch:[0][250/782]	Time 0.363 (0.367)	Loss 0.722 (0.782)	Acc@1 82.81 (80.88)	Acc@5 93.75 (94.42)
-
-
-.. parsed-literal::
-
-    Epoch:[0][300/782]	Time 0.365 (0.367)	Loss 0.737 (0.777)	Acc@1 78.91 (81.01)	Acc@5 93.75 (94.41)
-
-
-.. parsed-literal::
-
-    Epoch:[0][350/782]	Time 0.366 (0.367)	Loss 0.819 (0.767)	Acc@1 80.47 (81.29)	Acc@5 92.97 (94.53)
-
-
-.. parsed-literal::
-
-    Epoch:[0][400/782]	Time 0.368 (0.366)	Loss 0.787 (0.767)	Acc@1 80.47 (81.35)	Acc@5 94.53 (94.53)
-
-
-.. parsed-literal::
-
-    Epoch:[0][450/782]	Time 0.364 (0.366)	Loss 0.726 (0.763)	Acc@1 82.03 (81.48)	Acc@5 96.88 (94.55)
-
-
-.. parsed-literal::
-
-    Epoch:[0][500/782]	Time 0.365 (0.366)	Loss 0.727 (0.760)	Acc@1 82.03 (81.54)	Acc@5 94.53 (94.58)
-
-
-.. parsed-literal::
-
-    Epoch:[0][550/782]	Time 0.365 (0.366)	Loss 0.781 (0.758)	Acc@1 82.81 (81.58)	Acc@5 95.31 (94.59)
-
-
-.. parsed-literal::
-
-    Epoch:[0][600/782]	Time 0.362 (0.366)	Loss 0.721 (0.756)	Acc@1 80.47 (81.63)	Acc@5 97.66 (94.61)
-
-
-.. parsed-literal::
-
-    Epoch:[0][650/782]	Time 0.365 (0.366)	Loss 0.922 (0.755)	Acc@1 76.56 (81.64)	Acc@5 92.97 (94.63)
-
-
-.. parsed-literal::
-
-    Epoch:[0][700/782]	Time 0.366 (0.366)	Loss 0.651 (0.753)	Acc@1 83.59 (81.68)	Acc@5 92.97 (94.63)
-
-
-.. parsed-literal::
-
-    Epoch:[0][750/782]	Time 0.369 (0.366)	Loss 0.781 (0.751)	Acc@1 80.47 (81.70)	Acc@5 95.31 (94.66)
-
-
-.. parsed-literal::
-
-    Test: [ 0/79]	Time 0.146 (0.146)	Loss 1.092 (1.092)	Acc@1 73.44 (73.44)	Acc@5 86.72 (86.72)
-
-
-.. parsed-literal::
-
-    Test: [10/79]	Time 0.145 (0.147)	Loss 1.826 (1.522)	Acc@1 49.22 (62.78)	Acc@5 81.25 (84.23)
-
-
-.. parsed-literal::
-
-    Test: [20/79]	Time 0.147 (0.147)	Loss 1.531 (1.594)	Acc@1 64.84 (60.83)	Acc@5 82.03 (83.85)
-
-
-.. parsed-literal::
-
-    Test: [30/79]	Time 0.148 (0.147)	Loss 2.059 (1.690)	Acc@1 57.03 (59.22)	Acc@5 71.09 (82.26)
-
-
-.. parsed-literal::
-
-    Test: [40/79]	Time 0.147 (0.147)	Loss 1.516 (1.744)	Acc@1 64.06 (57.91)	Acc@5 85.16 (81.46)
-
-
-.. parsed-literal::
-
-    Test: [50/79]	Time 0.147 (0.147)	Loss 1.922 (1.750)	Acc@1 53.12 (57.69)	Acc@5 76.56 (81.14)
-
-
-.. parsed-literal::
-
-    Test: [60/79]	Time 0.146 (0.147)	Loss 1.594 (1.785)	Acc@1 65.62 (57.17)	Acc@5 84.38 (80.60)
-
-
-.. parsed-literal::
-
-    Test: [70/79]	Time 0.141 (0.147)	Loss 2.460 (1.811)	Acc@1 46.09 (56.75)	Acc@5 74.22 (80.08)
-
-
-.. parsed-literal::
-
-     * Acc@1 57.180 Acc@5 80.680
-    Accuracy of tuned INT8 model: 57.180
-    Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.660
+    Epoch:[0][  0/782]	Time 0.436 (0.436)	Loss 1.029 (1.029)	Acc@1 75.00 (75.00)	Acc@5 90.62 (90.62)
+    Epoch:[0][ 50/782]	Time 0.375 (0.377)	Loss 0.672 (0.823)	Acc@1 87.50 (79.81)	Acc@5 94.53 (93.84)
+    Epoch:[0][100/782]	Time 0.369 (0.376)	Loss 0.661 (0.799)	Acc@1 85.94 (80.31)	Acc@5 98.44 (94.41)
+    Epoch:[0][150/782]	Time 0.374 (0.375)	Loss 0.632 (0.797)	Acc@1 85.94 (80.50)	Acc@5 94.53 (94.24)
+    Epoch:[0][200/782]	Time 0.373 (0.375)	Loss 0.742 (0.790)	Acc@1 81.25 (80.69)	Acc@5 94.53 (94.31)
+    Epoch:[0][250/782]	Time 0.376 (0.375)	Loss 0.815 (0.785)	Acc@1 81.25 (80.80)	Acc@5 93.75 (94.34)
+    Epoch:[0][300/782]	Time 0.376 (0.374)	Loss 0.878 (0.781)	Acc@1 76.56 (80.87)	Acc@5 92.19 (94.37)
+    Epoch:[0][350/782]	Time 0.367 (0.375)	Loss 0.746 (0.774)	Acc@1 82.03 (81.03)	Acc@5 93.75 (94.44)
+    Epoch:[0][400/782]	Time 0.374 (0.374)	Loss 0.766 (0.772)	Acc@1 79.69 (81.12)	Acc@5 96.88 (94.42)
+    Epoch:[0][450/782]	Time 0.375 (0.374)	Loss 0.865 (0.768)	Acc@1 77.34 (81.28)	Acc@5 93.75 (94.48)
+    Epoch:[0][500/782]	Time 0.380 (0.374)	Loss 0.526 (0.765)	Acc@1 89.06 (81.33)	Acc@5 97.66 (94.53)
+    Epoch:[0][550/782]	Time 0.373 (0.374)	Loss 0.826 (0.762)	Acc@1 79.69 (81.39)	Acc@5 92.19 (94.55)
+    Epoch:[0][600/782]	Time 0.376 (0.374)	Loss 0.644 (0.761)	Acc@1 85.94 (81.45)	Acc@5 95.31 (94.55)
+    Epoch:[0][650/782]	Time 0.374 (0.374)	Loss 0.585 (0.757)	Acc@1 81.25 (81.57)	Acc@5 98.44 (94.59)
+    Epoch:[0][700/782]	Time 0.374 (0.374)	Loss 0.578 (0.755)	Acc@1 86.72 (81.65)	Acc@5 96.88 (94.60)
+    Epoch:[0][750/782]	Time 0.379 (0.374)	Loss 0.783 (0.753)	Acc@1 79.69 (81.69)	Acc@5 95.31 (94.63)
+    Test: [ 0/79]	Time 0.151 (0.151)	Loss 1.063 (1.063)	Acc@1 74.22 (74.22)	Acc@5 87.50 (87.50)
+    Test: [10/79]	Time 0.153 (0.152)	Loss 1.785 (1.514)	Acc@1 50.78 (63.21)	Acc@5 81.25 (84.38)
+    Test: [20/79]	Time 0.152 (0.153)	Loss 1.582 (1.588)	Acc@1 64.84 (61.09)	Acc@5 82.03 (84.04)
+    Test: [30/79]	Time 0.153 (0.153)	Loss 2.103 (1.691)	Acc@1 55.47 (59.30)	Acc@5 71.09 (82.41)
+    Test: [40/79]	Time 0.153 (0.153)	Loss 1.597 (1.745)	Acc@1 64.06 (57.89)	Acc@5 83.59 (81.48)
+    Test: [50/79]	Time 0.154 (0.153)	Loss 1.895 (1.751)	Acc@1 53.91 (57.74)	Acc@5 77.34 (81.20)
+    Test: [60/79]	Time 0.154 (0.153)	Loss 1.566 (1.783)	Acc@1 65.62 (57.18)	Acc@5 84.38 (80.75)
+    Test: [70/79]	Time 0.153 (0.153)	Loss 2.457 (1.811)	Acc@1 45.31 (56.65)	Acc@5 73.44 (80.27)
+     * Acc@1 57.080 Acc@5 80.940
+    Accuracy of tuned INT8 model: 57.080
+    Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.560
 
 
 Export INT8 Model to OpenVINO IR
@@ -880,10 +727,6 @@ Export INT8 Model to OpenVINO IR
 .. parsed-literal::
 
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
     INT8 model exported to model/resnet18_int8.xml.
 
 
@@ -952,17 +795,9 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-
-
-.. parsed-literal::
-
-    [ INFO ] Throughput:   2928.21 FPS
+    [ INFO ] Throughput:   2941.82 FPS
     Benchmark INT8 model (IR)
-
-
-.. parsed-literal::
-
-    [ INFO ] Throughput:   11678.74 FPS
+    [ INFO ] Throughput:   11834.02 FPS
 
 
 Show Device Information for reference.

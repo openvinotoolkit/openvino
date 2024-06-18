@@ -79,65 +79,21 @@ Install requirements
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     paddleclas 2.5.2 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
-    paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
+    paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.10.0.82 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.10.0.82 which is incompatible.
     scikit-image 0.21.0 requires imageio>=2.27, but you have imageio 2.9.0 which is incompatible.
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -241,7 +197,7 @@ source of the function.
 
 .. parsed-literal::
 
-    [04/18 01:23:57] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
+    [06/06 03:48:51] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
 
 
 .. code:: ipython3
@@ -384,23 +340,19 @@ succeeds, the output of the next cell will include
 
 .. parsed-literal::
 
-    2024-04-18 01:24:06 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
-
-
-.. parsed-literal::
-
+    2024-06-06 03:48:59 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
     [Paddle2ONNX] Start to parse PaddlePaddle model...
     [Paddle2ONNX] Model file path: model/paddle_model_static_onnx_temp_dir/model.pdmodel
     [Paddle2ONNX] Parameters file path: model/paddle_model_static_onnx_temp_dir/model.pdiparams
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 11 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2024-04-18 01:24:06 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
+    2024-06-06 03:48:59 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
 
 
 .. parsed-literal::
 
-    I0418 01:24:06.033911 64719 program_interpreter.cc:212] New Executor is Running.
+    I0606 03:48:59.878971 3139950 program_interpreter.cc:212] New Executor is Running.
 
 
 Convert to OpenVINO IR
@@ -676,12 +628,8 @@ measure inference on one image. For more accurate benchmarking, use
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.416 seconds per image, FPS: 2.40
-
-
-.. parsed-literal::
-
-    PaddleGAN model on CPU: 6.032 seconds per image, FPS: 0.17
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.423 seconds per image, FPS: 2.37
+    PaddleGAN model on CPU: 6.059 seconds per image, FPS: 0.17
 
 
 References

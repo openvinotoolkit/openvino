@@ -54,16 +54,21 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
+    import os
+    
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+    
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "torch>=2.1"\
     "datasets"\
     "accelerate"\
-    "openvino-nightly"\
     "gradio"\
-    "transformers>=4.38.1" "langchain>=0.1.14" "wikipedia"
+    "transformers>=4.38.1" "langchain>=0.2.0" "langchain-community>=0.2.0" "wikipedia"
 
 Create a tools
 --------------
@@ -220,7 +225,7 @@ folder.
     model_path = "neural-chat-7b-v3-1-ov-int4"
     
     if not Path(model_path).exists():
-        !optimum-cli export openvino --model ${model_id} --weight-format int4 ${model_path}
+        !optimum-cli export openvino --model {model_id} --weight-format int4 {model_path}
 
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -233,8 +238,13 @@ Select inference device for LLM
     import ipywidgets as widgets
     
     core = ov.Core()
+    
+    support_devices = core.available_devices
+    if "NPU" in support_devices:
+        support_devices.remove("NPU")
+    
     device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
@@ -247,7 +257,7 @@ Select inference device for LLM
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
 
 
 
@@ -257,9 +267,54 @@ class in LangChain. To deploy a model with OpenVINO, you can specify the
 inference framework. For `more
 information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
 
-You can get additional inference speed improvement with `Dynamic
-Quantization of activations and KV-cache
-quantization <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-hf.html#enabling-openvino-runtime-optimizations>`__.
+.. code:: ipython3
+
+    from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
+    
+    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+    
+    ov_llm = HuggingFacePipeline.from_model_id(
+        model_id=model_path,
+        task="text-generation",
+        backend="openvino",
+        model_kwargs={"device": device.value, "ov_config": ov_config},
+        pipeline_kwargs={"max_new_tokens": 1024},
+    )
+
+
+.. parsed-literal::
+
+    2024-05-01 12:57:42.013703: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-01 12:57:42.015389: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-05-01 12:57:42.049792: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-05-01 12:57:42.050591: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-05-01 12:57:42.819557: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+      warn("The installed version of bitsandbytes was compiled without GPU support. "
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+.. parsed-literal::
+
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.1.2+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    Compiling the model to CPU ...
+
+
+You can get additional inference speed improvement with [Dynamic
+Quantization of activations and KV-cache quantization] on
+CPU(https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-hf.html#enabling-openvino-runtime-optimizations).
 These options can be enabled with ``ov_config`` as follows:
 
 .. code:: ipython3
@@ -271,18 +326,6 @@ These options can be enabled with ``ov_config`` as follows:
         "NUM_STREAMS": "1",
         "CACHE_DIR": "",
     }
-
-.. code:: ipython3
-
-    from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
-    
-    ov_llm = HuggingFacePipeline.from_model_id(
-        model_id=model_path,
-        task="text-generation",
-        backend="openvino",
-        model_kwargs={"device": device.value, "ov_config": ov_config},
-        pipeline_kwargs={"max_new_tokens": 1024},
-    )
 
 Create agent
 ------------
@@ -319,11 +362,6 @@ prompt template.
 .. code:: ipython3
 
     agent_executor.invoke({"input": "Take 3 to the fifth power and multiply that by the sum of twelve and three"})
-
-
-.. parsed-literal::
-
-    Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
 
 
 .. parsed-literal::

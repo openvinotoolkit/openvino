@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import pytest
 import numpy as np
 import openvino.runtime.opset8 as ov
 from openvino import Model, Shape
@@ -96,7 +97,10 @@ def test_loop_inputs_are_nodes():
     loop.set_invariant_input(y_i, param_y.output(0))
     loop.set_merged_input(m_body, param_m.output(0), zo.output(0))
     loop.set_special_body_ports([-1, 0])
-    loop.validate()
+    with pytest.warns(DeprecationWarning, match="validate is deprecated and will be removed in version 2024.4."):
+        loop.validate()
+
+    loop.constructor_validate_and_infer_types()
 
     out0 = loop.get_iter_value(body_condition.output(0), -1)
     out1 = loop.get_iter_value(zo.output(0), -1)

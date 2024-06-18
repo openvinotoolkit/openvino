@@ -84,15 +84,6 @@ Prerequisites
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -110,398 +101,13 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'EfficientSAM'...
-
-
-.. parsed-literal::
-
     remote: Enumerating objects: 424, done.[K
-    remote: Counting objects:   1% (1/85)[K
-remote: Counting objects:   2% (2/85)[K
-remote: Counting objects:   3% (3/85)[K
-remote: Counting objects:   4% (4/85)[K
-remote: Counting objects:   5% (5/85)[K
-remote: Counting objects:   7% (6/85)[K
-remote: Counting objects:   8% (7/85)[K
-remote: Counting objects:   9% (8/85)[K
-remote: Counting objects:  10% (9/85)[K
-remote: Counting objects:  11% (10/85)[K
-remote: Counting objects:  12% (11/85)[K
-remote: Counting objects:  14% (12/85)[K
-remote: Counting objects:  15% (13/85)[K
-remote: Counting objects:  16% (14/85)[K
-remote: Counting objects:  17% (15/85)[K
-remote: Counting objects:  18% (16/85)[K
-remote: Counting objects:  20% (17/85)[K
-remote: Counting objects:  21% (18/85)[K
-remote: Counting objects:  22% (19/85)[K
-remote: Counting objects:  23% (20/85)[K
-remote: Counting objects:  24% (21/85)[K
-remote: Counting objects:  25% (22/85)[K
-remote: Counting objects:  27% (23/85)[K
-remote: Counting objects:  28% (24/85)[K
-remote: Counting objects:  29% (25/85)[K
-remote: Counting objects:  30% (26/85)[K
-remote: Counting objects:  31% (27/85)[K
-remote: Counting objects:  32% (28/85)[K
-remote: Counting objects:  34% (29/85)[K
-remote: Counting objects:  35% (30/85)[K
-remote: Counting objects:  36% (31/85)[K
-remote: Counting objects:  37% (32/85)[K
-remote: Counting objects:  38% (33/85)[K
-remote: Counting objects:  40% (34/85)[K
-remote: Counting objects:  41% (35/85)[K
-remote: Counting objects:  42% (36/85)[K
-remote: Counting objects:  43% (37/85)[K
-remote: Counting objects:  44% (38/85)[K
-remote: Counting objects:  45% (39/85)[K
-remote: Counting objects:  47% (40/85)[K
-remote: Counting objects:  48% (41/85)[K
-remote: Counting objects:  49% (42/85)[K
-remote: Counting objects:  50% (43/85)[K
-remote: Counting objects:  51% (44/85)[K
-remote: Counting objects:  52% (45/85)[K
-remote: Counting objects:  54% (46/85)[K
-remote: Counting objects:  55% (47/85)[K
-remote: Counting objects:  56% (48/85)[K
-remote: Counting objects:  57% (49/85)[K
-remote: Counting objects:  58% (50/85)[K
-remote: Counting objects:  60% (51/85)[K
-remote: Counting objects:  61% (52/85)[K
-remote: Counting objects:  62% (53/85)[K
-remote: Counting objects:  63% (54/85)[K
-remote: Counting objects:  64% (55/85)[K
-remote: Counting objects:  65% (56/85)[K
-remote: Counting objects:  67% (57/85)[K
-remote: Counting objects:  68% (58/85)[K
-remote: Counting objects:  69% (59/85)[K
-remote: Counting objects:  70% (60/85)[K
-remote: Counting objects:  71% (61/85)[K
-remote: Counting objects:  72% (62/85)[K
-remote: Counting objects:  74% (63/85)[K
-remote: Counting objects:  75% (64/85)[K
-remote: Counting objects:  76% (65/85)[K
-remote: Counting objects:  77% (66/85)[K
-remote: Counting objects:  78% (67/85)[K
-remote: Counting objects:  80% (68/85)[K
-remote: Counting objects:  81% (69/85)[K
-remote: Counting objects:  82% (70/85)[K
-remote: Counting objects:  83% (71/85)[K
-remote: Counting objects:  84% (72/85)[K
-remote: Counting objects:  85% (73/85)[K
-remote: Counting objects:  87% (74/85)[K
-remote: Counting objects:  88% (75/85)[K
-remote: Counting objects:  89% (76/85)[K
-remote: Counting objects:  90% (77/85)[K
-remote: Counting objects:  91% (78/85)[K
-remote: Counting objects:  92% (79/85)[K
-remote: Counting objects:  94% (80/85)[K
-remote: Counting objects:  95% (81/85)[K
-remote: Counting objects:  96% (82/85)[K
-remote: Counting objects:  97% (83/85)[K
-remote: Counting objects:  98% (84/85)[K
-remote: Counting objects: 100% (85/85)[K
-remote: Counting objects: 100% (85/85), done.[K
-    remote: Compressing objects:   3% (1/33)[K
-remote: Compressing objects:   6% (2/33)[K
-remote: Compressing objects:   9% (3/33)[K
-remote: Compressing objects:  12% (4/33)[K
-remote: Compressing objects:  15% (5/33)[K
-remote: Compressing objects:  18% (6/33)[K
-remote: Compressing objects:  21% (7/33)[K
-remote: Compressing objects:  24% (8/33)[K
-remote: Compressing objects:  27% (9/33)[K
-remote: Compressing objects:  30% (10/33)[K
-remote: Compressing objects:  33% (11/33)[K
-remote: Compressing objects:  36% (12/33)[K
-remote: Compressing objects:  39% (13/33)[K
-remote: Compressing objects:  42% (14/33)[K
-remote: Compressing objects:  45% (15/33)[K
-remote: Compressing objects:  48% (16/33)[K
-remote: Compressing objects:  51% (17/33)[K
-remote: Compressing objects:  54% (18/33)[K
-remote: Compressing objects:  57% (19/33)[K
-remote: Compressing objects:  60% (20/33)[K
-remote: Compressing objects:  63% (21/33)[K
-remote: Compressing objects:  66% (22/33)[K
-remote: Compressing objects:  69% (23/33)[K
-remote: Compressing objects:  72% (24/33)[K
-remote: Compressing objects:  75% (25/33)[K
-remote: Compressing objects:  78% (26/33)[K
-remote: Compressing objects:  81% (27/33)[K
-remote: Compressing objects:  84% (28/33)[K
-remote: Compressing objects:  87% (29/33)[K
-remote: Compressing objects:  90% (30/33)[K
-remote: Compressing objects:  93% (31/33)[K
-remote: Compressing objects:  96% (32/33)[K
-remote: Compressing objects: 100% (33/33)[K
-remote: Compressing objects: 100% (33/33), done.[K
-    Receiving objects:   0% (1/424)
-Receiving objects:   1% (5/424)
-
-.. parsed-literal::
-
-    Receiving objects:   2% (9/424)
-Receiving objects:   3% (13/424)
-Receiving objects:   4% (17/424)
-Receiving objects:   5% (22/424)
-
-.. parsed-literal::
-
-    Receiving objects:   5% (24/424), 7.11 MiB | 7.01 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   5% (24/424), 15.89 MiB | 7.84 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   5% (24/424), 25.21 MiB | 8.33 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   5% (24/424), 35.32 MiB | 8.76 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   6% (26/424), 35.32 MiB | 8.76 MiB/s
-Receiving objects:   7% (30/424), 35.32 MiB | 8.76 MiB/s
-Receiving objects:   8% (34/424), 35.32 MiB | 8.76 MiB/s
-Receiving objects:   9% (39/424), 35.32 MiB | 8.76 MiB/s
-Receiving objects:  10% (43/424), 35.32 MiB | 8.76 MiB/s
-Receiving objects:  11% (47/424), 35.32 MiB | 8.76 MiB/s
-Receiving objects:  12% (51/424), 35.32 MiB | 8.76 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  12% (54/424), 46.28 MiB | 9.54 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  12% (54/424), 58.26 MiB | 10.40 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  12% (54/424), 70.74 MiB | 11.14 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  13% (56/424), 70.74 MiB | 11.14 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  13% (56/424), 81.30 MiB | 11.36 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  13% (56/424), 93.08 MiB | 11.64 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  13% (56/424), 105.71 MiB | 11.89 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  14% (60/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  15% (64/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  16% (68/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  17% (73/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  18% (77/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  19% (81/424), 105.71 MiB | 11.89 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  20% (85/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  21% (90/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  22% (94/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  23% (98/424), 105.71 MiB | 11.89 MiB/s
-Receiving objects:  24% (102/424), 105.71 MiB | 11.89 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  25% (106/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  26% (111/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  27% (115/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  28% (119/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  29% (123/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  30% (128/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  31% (132/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  32% (136/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  33% (140/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  34% (145/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  35% (149/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  36% (153/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  37% (157/424), 112.21 MiB | 11.99 MiB/s
-Receiving objects:  38% (162/424), 112.21 MiB | 11.99 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 118.79 MiB | 12.04 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 132.56 MiB | 12.57 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 147.18 MiB | 13.34 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 159.14 MiB | 13.27 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 172.36 MiB | 13.30 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 186.46 MiB | 13.47 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (164/424), 201.36 MiB | 13.62 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  39% (166/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  40% (170/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  41% (174/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  42% (179/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  43% (183/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  44% (187/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  45% (191/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  46% (196/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  47% (200/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  48% (204/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  49% (208/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  50% (212/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  51% (217/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  52% (221/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  53% (225/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  54% (229/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  55% (234/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  56% (238/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  57% (242/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  58% (246/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  59% (251/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  60% (255/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  61% (259/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  62% (263/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  63% (268/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  64% (272/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  65% (276/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  66% (280/424), 208.90 MiB | 13.65 MiB/s
-Receiving objects:  67% (285/424), 208.90 MiB | 13.65 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  67% (288/424), 216.43 MiB | 13.99 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  67% (288/424), 232.14 MiB | 14.78 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  68% (289/424), 240.34 MiB | 15.09 MiB/s
-Receiving objects:  69% (293/424), 240.34 MiB | 15.09 MiB/s
-Receiving objects:  70% (297/424), 240.34 MiB | 15.09 MiB/s
-Receiving objects:  71% (302/424), 240.34 MiB | 15.09 MiB/s
-Receiving objects:  72% (306/424), 240.34 MiB | 15.09 MiB/s
-Receiving objects:  73% (310/424), 240.34 MiB | 15.09 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  73% (310/424), 248.86 MiB | 15.43 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  74% (314/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  75% (318/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  76% (323/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  77% (327/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  78% (331/424), 257.49 MiB | 15.77 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  79% (335/424), 257.49 MiB | 15.77 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  80% (340/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  81% (344/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  82% (348/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  83% (352/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  84% (357/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  85% (361/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  86% (365/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  87% (369/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  88% (374/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  89% (378/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  90% (382/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  91% (386/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  92% (391/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  93% (395/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  94% (399/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  95% (403/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  96% (408/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  97% (412/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects:  98% (416/424), 257.49 MiB | 15.77 MiB/s
-remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339[K
-    Receiving objects:  99% (420/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects: 100% (424/424), 257.49 MiB | 15.77 MiB/s
-Receiving objects: 100% (424/424), 262.14 MiB | 12.58 MiB/s, done.
-    Resolving deltas:   0% (0/246)
-Resolving deltas:   4% (10/246)
-Resolving deltas:   6% (17/246)
-Resolving deltas:  14% (36/246)
-Resolving deltas:  18% (46/246)
-Resolving deltas:  22% (56/246)
-Resolving deltas:  23% (57/246)
-Resolving deltas:  26% (64/246)
-Resolving deltas:  27% (68/246)
-Resolving deltas:  32% (81/246)
-Resolving deltas:  36% (89/246)
-Resolving deltas:  37% (92/246)
-Resolving deltas:  41% (101/246)
-
-.. parsed-literal::
-
-    Resolving deltas:  42% (105/246)
-Resolving deltas:  44% (110/246)
-Resolving deltas:  46% (114/246)
-
-.. parsed-literal::
-
-    Resolving deltas:  48% (120/246)
-Resolving deltas:  49% (122/246)
-Resolving deltas:  52% (128/246)
-Resolving deltas:  54% (134/246)
-Resolving deltas:  58% (143/246)
-Resolving deltas:  62% (153/246)
-Resolving deltas:  63% (155/246)
-Resolving deltas:  66% (163/246)
-Resolving deltas:  67% (165/246)
-Resolving deltas:  69% (172/246)
-Resolving deltas:  70% (174/246)
-Resolving deltas:  88% (217/246)
-Resolving deltas:  96% (237/246)
-Resolving deltas:  97% (240/246)
-Resolving deltas:  98% (243/246)
-
-.. parsed-literal::
-
-    Resolving deltas:  99% (245/246)
-
-.. parsed-literal::
-
-    Resolving deltas: 100% (246/246)
-Resolving deltas: 100% (246/246), done.
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
+    remote: Counting objects: 100% (85/85), done.[K
+    remote: Compressing objects: 100% (33/33), done.[K
+    remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339[K
+    Receiving objects: 100% (424/424), 262.14 MiB | 26.65 MiB/s, done.
+    Resolving deltas: 100% (246/246), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
 
 
 Load PyTorch model
@@ -756,27 +362,23 @@ disk using ``openvino.save_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       size = int(math.sqrt(xy_num))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert size * size == xy_num
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if size != h or size != w:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[2] == num_patches
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_pts > self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif num_pts < self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if output_w > 0 and output_h > 0:
 
 
@@ -1040,14 +642,10 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 .. parsed-literal::
 
-    2024-04-17 23:43:02.085337: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-17 23:43:02.119379: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 00:16:32.701538: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 00:16:32.734051: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-17 23:43:02.732513: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:16:33.371409: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -1095,10 +693,6 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 .. parsed-literal::
 
     INFO:nncf:57 ignored nodes were found by name in the NNCFGraph
-
-
-.. parsed-literal::
-
     INFO:nncf:88 ignored nodes were found by name in the NNCFGraph
 
 
@@ -1121,12 +715,6 @@ architecture type, we should specify ``transformer`` in ``model_type``.
     <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
     </pre>
 
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
-      return Tensor(self.data * unwrap_tensor_data(other))
 
 
 
@@ -1224,8 +812,8 @@ Compare quantized model size
 .. parsed-literal::
 
     Size of FP16 model is 21.50 MB
-    Size of INT8 quantized model is 10.96 MB
-    Compression rate for INT8 model: 1.962
+    Size of INT8 quantized model is 11.08 MB
+    Compression rate for INT8 model: 1.941
 
 
 Compare inference time of the FP16 and INT8 models
@@ -1251,30 +839,26 @@ models, we use ``bencmark_app``.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-
-
-.. parsed-literal::
-
-    [ INFO ] Read model took 42.86 ms
+    [ INFO ] Read model took 29.27 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
@@ -1283,14 +867,10 @@ models, we use ``bencmark_app``.
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 7/11] Loading the model to the device
-
-
-.. parsed-literal::
-
-    [ INFO ] Compile model took 1414.09 ms
+    [ INFO ] Compile model took 1448.36 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -1298,10 +878,6 @@ models, we use ``bencmark_app``.
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
-
-
-.. parsed-literal::
-
     [ INFO ]   CPU:
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
@@ -1315,6 +891,7 @@ models, we use ``bencmark_app``.
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
     [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]     NETWORK_NAME: Model0
     [ INFO ]     NUM_STREAMS: 6
     [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
@@ -1324,6 +901,7 @@ models, we use ``bencmark_app``.
     [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
     [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'batched_images'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'batched_points'!. This input will be filled with random values!
@@ -1333,25 +911,17 @@ models, we use ``bencmark_app``.
     [ INFO ] Fill input 'batched_point_labels' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-
-
-.. parsed-literal::
-
-    [ INFO ] First inference took 644.24 ms
-
-
-.. parsed-literal::
-
+    [ INFO ] First inference took 677.52 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            49 iterations
-    [ INFO ] Duration:         15719.86 ms
+    [ INFO ] Duration:         15956.35 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1890.94 ms
-    [ INFO ]    Average:       1870.83 ms
-    [ INFO ]    Min:           622.00 ms
-    [ INFO ]    Max:           1963.97 ms
-    [ INFO ] Throughput:   3.12 FPS
+    [ INFO ]    Median:        1926.16 ms
+    [ INFO ]    Average:       1900.48 ms
+    [ INFO ]    Min:           644.61 ms
+    [ INFO ]    Max:           1989.53 ms
+    [ INFO ] Throughput:   3.07 FPS
 
 
 .. code:: ipython3
@@ -1366,34 +936,26 @@ models, we use ``bencmark_app``.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-
-
-.. parsed-literal::
-
-    [ INFO ] Read model took 66.17 ms
+    [ INFO ] Read model took 42.94 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
-
-
-.. parsed-literal::
-
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
@@ -1402,14 +964,10 @@ models, we use ``bencmark_app``.
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
     [Step 7/11] Loading the model to the device
-
-
-.. parsed-literal::
-
-    [ INFO ] Compile model took 1891.51 ms
+    [ INFO ] Compile model took 1975.21 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -1430,6 +988,7 @@ models, we use ``bencmark_app``.
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
     [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]     NETWORK_NAME: Model0
     [ INFO ]     NUM_STREAMS: 6
     [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
@@ -1439,6 +998,7 @@ models, we use ``bencmark_app``.
     [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
     [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'batched_images'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'batched_points'!. This input will be filled with random values!
@@ -1448,25 +1008,17 @@ models, we use ``bencmark_app``.
     [ INFO ] Fill input 'batched_point_labels' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-
-
-.. parsed-literal::
-
-    [ INFO ] First inference took 588.40 ms
-
-
-.. parsed-literal::
-
+    [ INFO ] First inference took 609.28 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            55 iterations
-    [ INFO ] Duration:         16253.02 ms
+    [ INFO ] Duration:         16666.59 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1752.95 ms
-    [ INFO ]    Average:       1732.80 ms
-    [ INFO ]    Min:           518.84 ms
-    [ INFO ]    Max:           1804.26 ms
-    [ INFO ] Throughput:   3.38 FPS
+    [ INFO ]    Median:        1799.56 ms
+    [ INFO ]    Average:       1780.10 ms
+    [ INFO ]    Min:           641.70 ms
+    [ INFO ]    Max:           1867.14 ms
+    [ INFO ] Throughput:   3.30 FPS
 
 
 Interactive segmentation demo

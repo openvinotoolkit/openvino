@@ -9,6 +9,9 @@
 #include "snippets/target_machine.hpp"
 #include "snippets/generator.hpp"
 #include "cache/multi_cache.h"
+#include "snippets/runtime_configurator.hpp"
+
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #include "emitters/snippets/utils/debug_caps_config.hpp"
@@ -34,6 +37,7 @@ public:
     bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
     size_t get_lanes() const override;
+    size_t get_reg_count() const override;
     dnnl::impl::cpu::x64::cpu_isa_t get_isa() const;
 #ifdef SNIPPETS_DEBUG_CAPS
     SnippetsDebugCapsConfig debug_config;

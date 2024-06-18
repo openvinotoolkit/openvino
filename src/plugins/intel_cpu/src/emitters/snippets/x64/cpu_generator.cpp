@@ -1,10 +1,11 @@
-// Copyright (C) 2020-2022 Intel Corporation
+// Copyright (C) 2020-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_generator.hpp"
 
 #include "snippets/snippets_isa.hpp"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
 
 #include "emitters/snippets/x64/jit_brgemm_copy_b_emitter.hpp"
 #include "emitters/snippets/x64/jit_brgemm_emitter.hpp"
@@ -21,7 +22,7 @@
 
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
-#include "transformations/snippets/x64/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
@@ -60,8 +61,7 @@ namespace ov {
 static bool is_load_emitter(const intel_cpu::jit_emitter *emitter) {
     bool ret = false;
     if (dynamic_cast<const intel_cpu::jit_load_memory_emitter*>(emitter) ||
-        dynamic_cast<const intel_cpu::jit_load_broadcast_emitter*>(emitter) ||
-        dynamic_cast<const intel_cpu::jit_load_convert_emitter*>(emitter)) {
+        dynamic_cast<const intel_cpu::jit_load_broadcast_emitter*>(emitter)) {
         return true;
     }
     return ret;
@@ -69,8 +69,7 @@ static bool is_load_emitter(const intel_cpu::jit_emitter *emitter) {
 
 static bool is_store_emitter(const intel_cpu::jit_emitter *emitter) {
     bool ret = false;
-    if (dynamic_cast<const intel_cpu::jit_store_memory_emitter*>(emitter) ||
-        dynamic_cast<const intel_cpu::jit_store_convert_emitter*>(emitter)) {
+    if (dynamic_cast<const intel_cpu::jit_store_memory_emitter*>(emitter)) {
         return true;
     }
     return ret;
@@ -156,7 +155,7 @@ public:
 
 intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                               ov::intel_cpu::MultiCacheWeakPtr cache)
-    : TargetMachine(), h(new jit_snippet()), isa(host_isa), compiled_kernel_cache(std::move(cache)) {
+   : TargetMachine(std::make_shared<CPURuntimeConfigurator>()), h(new jit_snippet()), isa(host_isa), compiled_kernel_cache(std::move(cache)) {
     kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
@@ -170,12 +169,12 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
     jitters[snippets::op::LoadReshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_broadcast_emitter);
-    jitters[intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_convert_emitter);
-    jitters[intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_convert_emitter);
+    jitters[intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
+    jitters[intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
 
     jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_memory_emitter);
-    jitters[intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_convert_emitter);
-    jitters[intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_convert_emitter);
+    jitters[intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_memory_emitter);
+    jitters[intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_store_memory_emitter);
 
     jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_scalar_emitter);
     jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_broadcast_move_emitter);
@@ -238,10 +237,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 
     jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_static_emitter);
     jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
-    jitters[snippets::op::LoopBeginStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_static_emitter);
-    jitters[snippets::op::LoopBeginDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_dynamic_emitter);
-    jitters[snippets::op::LoopEndStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_static_emitter);
-    jitters[snippets::op::LoopEndDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_dynamic_emitter);
+    jitters[snippets::op::LoopBegin::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
+    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
     // Note: jit_brgemm_emitter supports runtime recompilation, so its constructor takes additional arguments
     jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_emitter,
                                                                                     kernel_executor_table,
@@ -285,7 +282,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 }
 
 std::shared_ptr<snippets::TargetMachine> intel_cpu::CPUTargetMachine::clone() const {
-    return std::make_shared<intel_cpu::CPUTargetMachine>(isa, compiled_kernel_cache);
+    const auto cloned = std::make_shared<intel_cpu::CPUTargetMachine>(isa, compiled_kernel_cache);
+    cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+    return cloned;
 }
 
 size_t intel_cpu::CPUTargetMachine::get_lanes() const {
@@ -295,6 +294,10 @@ size_t intel_cpu::CPUTargetMachine::get_lanes() const {
         case dnnl::impl::cpu::x64::avx512_core : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
         default : OPENVINO_THROW("unknown isa ", isa);
     }
+}
+
+size_t intel_cpu::CPUTargetMachine::get_reg_count() const {
+    return 16;
 }
 
 dnnl::impl::cpu::x64::cpu_isa_t intel_cpu::CPUTargetMachine::get_isa() const {

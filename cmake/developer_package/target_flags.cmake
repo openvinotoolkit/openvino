@@ -117,6 +117,42 @@ endif()
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
+function(ov_detect_libc_type)
+    include(CheckCXXSourceCompiles)
+    check_cxx_source_compiles("
+# ifndef _GNU_SOURCE
+#   define _GNU_SOURCE
+#   include <features.h>
+#   ifndef __USE_GNU
+#     define CMAKE_OPENVINO_MUSL_LIBC
+#   endif
+#   undef _GNU_SOURCE /* don't contaminate other includes unnecessarily */
+# else
+#   include <features.h>
+#   ifndef __USE_GNU
+#     define CMAKE_OPENVINO_MUSL_LIBC
+#   endif
+# endif
+# ifndef CMAKE_OPENVINO_MUSL_LIBC
+#   error \"OpenVINO GNU LIBC\"
+# endif
+
+int main() {
+  return 0;
+}"
+    OPENVINO_MUSL_LIBC)
+
+    if(OPENVINO_MUSL_LIBC)
+        set(OPENVINO_MUSL_LIBC ON PARENT_SCOPE)
+    else()
+        set(OPENVINO_GNU_LIBC ON PARENT_SCOPE)
+    endif()
+endfunction()
+
+if(LINUX)
+  ov_detect_libc_type()
+endif()
+
 function(ov_get_compiler_definition definition var)
     if(NOT LINUX)
         message(FATAL_ERROR "Internal error: 'ov_get_definition' must be used only on Linux")
@@ -152,19 +188,26 @@ function(ov_get_compiler_definition definition var)
     endif()
 endfunction()
 
-function(ov_glibc_version)
+function(ov_libc_version)
     # cmake needs to look at glibc version only when we build for Linux on Linux
     if(LINUX)
-        ov_get_compiler_definition("__GLIBC__" _ov_glibc_major)
-        ov_get_compiler_definition("__GLIBC_MINOR__" _ov_glibc_minor)
+        if(OPENVINO_GNU_LIBC)
+            ov_get_compiler_definition("__GLIBC__" _ov_glibc_major)
+            ov_get_compiler_definition("__GLIBC_MINOR__" _ov_glibc_minor)
 
-        set(OV_GLIBC_VERSION "${_ov_glibc_major}.${_ov_glibc_minor}" PARENT_SCOPE)
+            set(OV_LIBC_VERSION "${_ov_glibc_major}.${_ov_glibc_minor}" PARENT_SCOPE)
+        elseif(OPENVINO_MUSL_LIBC)
+            # TODO: implement proper detection
+            set(OV_LIBC_VERSION "1.1" PARENT_SCOPE)
+        else()
+            message(FATAL_ERROR "Undefined libc type")
+        endif()
     else()
-        set(OV_GLIBC_VERSION "0.0" PARENT_SCOPE)
+        set(OV_LIBC_VERSION "0.0" PARENT_SCOPE)
     endif()
 endfunction()
 
-ov_glibc_version()
+ov_libc_version()
 
 #
 # Detects default value for _GLIBCXX_USE_CXX11_ABI for current compiler

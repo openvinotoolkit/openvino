@@ -95,15 +95,10 @@ protected:
             paramsIn.push_back(param4);
         } else if (ov::test::utils::InputLayerType::CONSTANT == secondaryInputType) {
             auto maxBeamIndex = inputShape.second.front().at(2) - 1;
-
-            inp2 =
-                ov::test::utils::deprecated::make_constant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
-            inp3 = ov::test::utils::deprecated::make_constant<float>(netPrecision,
-                                                        {inputShape.second.front().at(1)},
-                                                        {},
-                                                        true,
-                                                        maxBeamIndex);
-            inp4 = ov::test::utils::deprecated::make_constant<float>(netPrecision, {}, {}, true, maxBeamIndex);
+            ov::test::utils::InputGenerateData in_gen_data(1, maxBeamIndex - 1);
+            inp2 = ov::test::utils::make_constant(netPrecision, inputShape.second.front(), in_gen_data);
+            inp3 = ov::test::utils::make_constant(netPrecision, {inputShape.second.front().at(1)}, in_gen_data);
+            inp4 = ov::test::utils::make_constant(netPrecision, {}, in_gen_data);
         } else {
             throw std::runtime_error("Unsupported inputType");
         }

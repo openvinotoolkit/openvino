@@ -1,3 +1,6 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import re
 import argparse
@@ -222,7 +225,7 @@ def main():
 
     skip_workflow = False
     if is_merge_queue or (args.pr and not run_full_scope):
-        if args.skip_when_only_listed_labels_set:
+        if args.skip_when_only_listed_labels_set and changed_component_names:
             excepted_labels = set(args.skip_when_only_listed_labels_set.split(','))
             excepted_labels_only = changed_component_names - excepted_labels == set()
             skip_workflow = excepted_labels_only

@@ -16,6 +16,7 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
+#include "openvino/util/pp.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -132,14 +133,14 @@ void ProgramBuilder::prepare_build() {
 
 void ProgramBuilder::cleanup_build() {
     m_topology.reset();
-    #if defined(__unix__) && !defined(__ANDROID__)
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
     //  Also, this is not happening in Windows.
     //  So, added malloc_trim for linux build until we figure out a better solution.
     malloc_trim(0);
-    #endif
+#endif
 }
 
 std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool partial_build, bool is_inner_program) {

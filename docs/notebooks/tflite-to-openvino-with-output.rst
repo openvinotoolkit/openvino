@@ -61,20 +61,8 @@ Install requirements
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -126,7 +114,7 @@ Download TFLite model
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
 
 
 
@@ -279,30 +267,22 @@ GPU.
 .. parsed-literal::
 
     Benchmark model inference on AUTO
-
-
-.. parsed-literal::
-
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-
-
-.. parsed-literal::
-
-    [ INFO ] Read model took 9.44 ms
+    [ INFO ] Read model took 9.51 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -316,11 +296,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-
-
-.. parsed-literal::
-
-    [ INFO ] Compile model took 190.96 ms
+    [ INFO ] Compile model took 210.51 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -328,10 +304,6 @@ GPU.
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
-
-
-.. parsed-literal::
-
     [ INFO ]   CPU:
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
@@ -345,6 +317,7 @@ GPU.
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
     [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]     NETWORK_NAME: TensorFlow_Lite_Frontend_IR
     [ INFO ]     NUM_STREAMS: 6
     [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
@@ -354,24 +327,21 @@ GPU.
     [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
     [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.52 ms
-
-
-.. parsed-literal::
-
+    [ INFO ] First inference took 6.71 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17502 iterations
-    [ INFO ] Duration:         15008.50 ms
+    [ INFO ] Count:            17454 iterations
+    [ INFO ] Duration:         15007.91 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        5.01 ms
-    [ INFO ]    Average:       5.01 ms
-    [ INFO ]    Min:           3.20 ms
-    [ INFO ]    Max:           15.09 ms
-    [ INFO ] Throughput:   1166.14 FPS
+    [ INFO ]    Median:        5.02 ms
+    [ INFO ]    Average:       5.02 ms
+    [ INFO ]    Min:           3.03 ms
+    [ INFO ]    Max:           13.38 ms
+    [ INFO ] Throughput:   1162.99 FPS
 

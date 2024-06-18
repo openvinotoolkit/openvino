@@ -1,12 +1,6 @@
 Stable Diffusion v2.1 using OpenVINO TorchDynamo backend
 ========================================================
 
-.. container:: alert alert-block alert-danger
-
-   Important note: Currently, PyTorch does not support torch.compile
-   feature on Windows officially. Please follow these instructions if
-   you want to run this tutorial on Windows.
-
 Stable Diffusion v2 is the next generation of Stable Diffusion model a
 Text-to-Image latent diffusion model created by the researchers and
 engineers from `Stability AI <https://stability.ai/>`__ and
@@ -50,25 +44,6 @@ Table of contents:
 -  `Support for Automatic1111 Stable Diffusion
    WebUI <#support-for-automatic1111-stable-diffusion-webui>`__
 
-.. code:: ipython3
-
-    import sys
-    from IPython.display import HTML, display
-    
-    # Fetch `ipython_exit` module
-    import requests
-    
-    r = requests.get("https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/ipython_exit.py")
-    
-    with open("ipython_exit.py", "w") as f:
-        f.write(r.text)
-    
-    from ipython_exit import exit
-    
-    if sys.platform == "win32":
-        display(HTML("""<div class="alert alert-danger">Currently notebook does not support Windows platform"""))
-        exit()
-
 Prerequisites
 -------------
 
@@ -76,38 +51,15 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1" transformers diffusers "gradio>=4.19" ipywidgets --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.3.0"
+    %pip install -q "torch>=2.2" transformers diffusers "gradio>=4.19" ipywidgets --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2024.1.0"
 
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    
 
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    openvino-tokenizers 2024.2.0.0.dev20240416 requires openvino~=2024.2.0.0.dev, but you have openvino 2024.0.0 which is incompatible.
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -124,20 +76,12 @@ Prerequisites
 
 .. parsed-literal::
 
-    2024-04-18 01:02:01.093954: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-18 01:02:01.129165: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 03:31:47.318537: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 03:31:47.352773: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-18 01:02:01.757086: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
+    2024-06-06 03:31:47.873530: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/transformers/transformer_2d.py:34: FutureWarning: `Transformer2DModelOutput` is deprecated and will be removed in version 1.0.0. Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead.
+      deprecate("Transformer2DModelOutput", "1.0.0", deprecation_message)
 
 
 Stable Diffusion with Diffusers library
@@ -279,7 +223,7 @@ Run Image generation
 
 
 
-.. image:: stable-diffusion-torchdynamo-backend-with-output_files/stable-diffusion-torchdynamo-backend-with-output_15_1.png
+.. image:: stable-diffusion-torchdynamo-backend-with-output_files/stable-diffusion-torchdynamo-backend-with-output_14_1.png
 
 
 

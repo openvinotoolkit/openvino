@@ -68,24 +68,11 @@ Install requirements
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     magika 0.5.1 requires numpy<2.0,>=1.24; python_version >= "3.8" and python_version < "3.9", but you have numpy 1.23.5 which is incompatible.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    optimum-intel 1.17.0.dev0+aca2b6c requires transformers<4.40.0,>=4.36.0, but you have transformers 4.33.3 which is incompatible.
-    
-
-.. parsed-literal::
-
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 

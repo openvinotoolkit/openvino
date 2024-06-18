@@ -38,5 +38,25 @@
     {
         "error_text": "Failure when receiving data from the peer",
         "ticket": 137121
+    },
+    {
+        "error_text": "Network is unreachable",
+        "ticket": 130955
+    },
+    {
+        "error_text": "connection timed out",
+        "ticket": 130955
+    },
+    {
+        "error_text": "The requested URL returned error: 500",
+        "ticket": 139384
+    },
+    {
+        "error_text": "Unable to fetch some archives",
+        "ticket": 130965
+    },
+    {
+        "error_text": "status_string: \"Timeout was reached\"",
+        "ticket": 142653
     }
 ]

@@ -17,6 +17,8 @@ on:
         type: string
         required: true
 
+permissions: read-all
+
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
@@ -37,18 +39,15 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -70,12 +69,8 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
-      - name: Install OpenVINO dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y -c=gpu
-
       - name: Fetch setup_python action
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -126,7 +121,7 @@ jobs:
       #
 
       - name: Python API Tests
-        # if: ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380, 127101
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
@@ -211,7 +206,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
@@ -275,9 +270,9 @@ jobs:
 
       - name: Clone API snippets
         if: runner.os != 'macOS'
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
-          sparse-checkout: docs/snippets
+          sparse-checkout: docs/articles_en/assets/snippets
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
 
@@ -285,13 +280,13 @@ jobs:
         if: runner.os != 'macOS'
         run: |
           # to find 'snippets' module in docs
-          export PYTHONPATH=${OPENVINO_REPO}/docs
+          export PYTHONPATH=${OPENVINO_REPO}/docs/articles_en/assets
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 ${OPENVINO_REPO}/docs/snippets/main.py
+          python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ !cancelled() }}
         with:
           name: test-results-python

@@ -31,14 +31,14 @@ def gather(name: str, x, y, z):
                 feed={'x': x, 'index': y},
                 fetch_list=[out])
 
-            saveModel(name, exe, feedkeys=['x', 'index'], fetchlist=[out], inputs=[
+            saveModel(name, exe, feed_vars=[data, index], fetchlist=[out], inputs=[
                 x, y], outputs=[outs[0]], target_dir=sys.argv[1])
         else:
             outs = exe.run(
                 feed={'x': x, 'index': y, 'axis': z},
                 fetch_list=[out])
 
-            saveModel(name, exe, feedkeys=['x', 'index', 'axis'], fetchlist=[
+            saveModel(name, exe, feed_vars=[data, index, axis], fetchlist=[
                       out], inputs=[x, y, z], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

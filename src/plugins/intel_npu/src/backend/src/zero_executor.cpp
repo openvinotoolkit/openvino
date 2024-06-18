@@ -44,19 +44,23 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                                                       zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
                                                       _config,
                                                       group_ordinal)}} {
+    _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_list");
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::ZeroExecutor");
     CommandList graph_command_list(_initStructs->getDevice(),
                                    _initStructs->getContext(),
                                    _initStructs->getGraphDdiTable(),
                                    _config,
                                    _group_ordinal);
+    _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_queue");
     CommandQueue graph_command_queue(_initStructs->getDevice(),
                                      _initStructs->getContext(),
                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                      _config,
                                      _group_ordinal);
+    _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
     Fence fence(graph_command_queue, _config);
 
+    _logger.debug("ZeroExecutor::ZeroExecutor - create graph");
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH, itt::domains::LevelZeroBackend, "Executor::ZeroExecutor", "graphCreate");
 
     ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
@@ -79,6 +83,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties3");
+    _logger.debug("ZeroExecutor::ZeroExecutor - performing pfnGetArgumentProperties3");
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
         ze_graph_argument_properties_3_t arg3;
         zeroUtils::throwOnFail("pfnGetArgumentProperties3",
@@ -104,12 +109,17 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "appendGraphInitialize");
+    _logger.debug("ZeroExecutor::ZeroExecutor - performing appendGraphInitialize");
     graph_command_list.appendGraphInitialize(_graph);
+    _logger.debug("ZeroExecutor::ZeroExecutor - closing graph command list");
     graph_command_list.close();
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "queue_execute");
+    _logger.debug("ZeroExecutor::ZeroExecutor - performing executeCommandList");
     graph_command_queue.executeCommandList(graph_command_list, fence);
+    _logger.debug("ZeroExecutor::ZeroExecutor - performing hostSynchronize");
     fence.hostSynchronize();
+    _logger.debug("ZeroExecutor::ZeroExecutor - hostSynchronize completed");
 }
 
 void ZeroExecutor::setArgumentValue(uint32_t argi_, const void* argv_) const {

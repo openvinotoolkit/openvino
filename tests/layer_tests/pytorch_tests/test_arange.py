@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest, skip_check
 
 
 class TestArange(PytorchLayerTest):
@@ -112,7 +112,7 @@ class TestArange(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uin8"])
     @pytest.mark.parametrize("end", [1, 2, 3])
-    @pytest.mark.parametrize("use_out", [skip_if_export(True), False])
+    @pytest.mark.parametrize("use_out", [skip_check(True), False])
     def test_arange_end_only(self, dtype, end, use_out, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype, 1, use_out), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"end": end})

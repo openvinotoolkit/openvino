@@ -3,14 +3,78 @@
 //
 
 #include "fully_connected_kernel_bf_tiled.h"
-
+#include "kernel_selector_utils.h"
 #include <vector>
 #include <functional>
 #include "common_types.h"
 
 static constexpr size_t simd = 16;
+static constexpr size_t quantize_grp_size = 32;
+static constexpr size_t min_slm_size = 256;
 
 namespace kernel_selector {
+
+static std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params) {
+    size_t input_f = params.inputs[0].Feature().v;
+    size_t input_batch = params.inputs[0].Batch().v;
+    // 3D input
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        input_f = params.inputs[0].Y().v;
+        input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
+    }
+
+    return {input_batch, input_f};
+}
+
+static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params,
+                                                            bool needs_align,
+                                                            uint32_t align_b = 1,
+                                                            int32_t align_f = 1) {
+    size_t output_f = (needs_align == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
+    size_t output_b = params.outputs[0].Batch().v;
+    // 3D output
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        output_f = (needs_align == true) ? CeilDiv(params.outputs[0].Y().v, align_f) : params.outputs[0].Y().v;
+        output_b = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
+    }
+
+    output_b = (needs_align == true) ? CeilDiv(output_b, align_b) : output_b;
+
+    return {output_b, output_f};
+}
+
+// DYNAMIC_QUANTIZE
+static bool should_dynamic_quantize(const fully_connected_params& params) {
+    auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->enable_dynamic_quantize) {
+        dynamic_quantization_group_size = quantize_grp_size;
+    }
+
+    if (params.inputs[0].GetFirstElementOffset() != 0)
+        return false;
+
+    if (dynamic_quantization_group_size < quantize_grp_size)
+        return false;
+
+    auto threads = get_input_bf_size(params);
+    auto input_b = threads.first;
+    auto input_f = threads.second;
+
+    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+    if ((scale_group_size % simd == 0) && (input_f % quantize_grp_size == 0) &&
+        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
+        params.inputs[0].GetDType() == Datatype::F16 &&
+        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
+        (params.decompression_zero_point.Feature().v == 1)) {
+        GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size " << scale_group_size << ", Input (" <<
+            kernel_selector::toString(params.inputs[0].GetDType()) << ", " << kernel_selector::toString(params.outputs[0].GetLayout()) <<
+            ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
+        return true;
+    }
+
+    return false;
+}
 
 FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
     for (unsigned tile_b = 1; tile_b <= 32; ++tile_b)
@@ -41,6 +105,8 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputWeightsType(WeightsType::UINT4);
     k.EnableInputWeightsType(WeightsType::INT4);
+    k.EnableInputWeightsType(WeightsType::UINT8);
+    k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputLayout(DataLayout::bf);
@@ -152,12 +218,9 @@ struct TuneParamsSelector {
 
 bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, const tune_params& tparams) {
     // Check divisibility by dispatch tile sizes.
-    size_t output_f = params.outputs[0].Feature().v;
-    size_t output_b = params.outputs[0].Batch().v;
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        output_b *= params.outputs[0].Feature().v;
-        output_f = params.outputs[0].Y().v;
-    }
+    auto bf_size = get_output_aligned_bf_size(params, false);
+    size_t output_b = bf_size.first;
+    size_t output_f = bf_size.second;
 
     if (params.compressed &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
@@ -180,7 +243,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
         bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
         const auto required_batch_alignment = 64;
-        if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < 256))
+        if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < min_slm_size))
             return false;
 
         const auto required_tile_b = 8;
@@ -226,14 +289,10 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
 
-    size_t batch = params.outputs[0].Batch().v;
-    size_t output_f = params.outputs[0].Feature().v;
+    auto bf_size = get_output_aligned_bf_size(params, false);
+    size_t batch = bf_size.first;
+    size_t output_f = bf_size.second;
 
-    // 3d output
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        batch *= params.outputs[0].Feature().v;
-        output_f = params.outputs[0].Y().v;
-    }
     Datatype dtype = params.inputs[0].GetDType();
 
     auto selector = TuneParamsSelector(params);
@@ -245,10 +304,11 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
-            size_t ideal_num_threads = params.engineInfo.maxThreadsPerDevice * simd;
-            if (output_f / 2 < ideal_num_threads * 0.8 && params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
+            size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
+            if (output_f / 2 < min_num_threads && params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
                 GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: Set ofm_tile 1. (output_f : " << output_f
-                                       << ", ideal threads : " << ideal_num_threads << ")" << std::endl;
+                    << ", computeUnitsCount : " << params.engineInfo.computeUnitsCount
+                    << " min_num_threads : " << min_num_threads << ")" << std::endl;
                 return selector.Default(tune_params(1, 1, 4, 2, 1, 1, EXE_MODE_DEFAULT));
             } else {
                 return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
@@ -256,7 +316,7 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
-                if (params.is_shape_agnostic) {
+                if (params.is_shape_agnostic && !should_dynamic_quantize(params)) {
                     selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                             .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
                 }
@@ -341,14 +401,9 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
 
-    size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tparams.tile_ofm * simd);
-    size_t batch_threads = params.outputs[0].Batch().v;
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        feature_threads = CeilDiv(params.outputs[0].Y().v, tparams.tile_ofm * simd);
-        batch_threads = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
-    }
-
-    batch_threads = CeilDiv(batch_threads, tparams.tile_b);
+    auto threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * simd);
+    auto batch_threads = threads.first;
+    auto feature_threads = threads.second;
 
     const size_t lws_batches = 8;
     const size_t aligned_batch = Align(batch_threads, lws_batches); // Each WG calculates 8x8 batches (TILE_B x LWS[2] size)
@@ -377,9 +432,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
-    size_t output_b = fc_params.outputs[0].Batch().v;
-    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx)
-        output_b *= fc_params.outputs[0].Feature().v;
+    size_t output_b = get_output_aligned_bf_size(fc_params, false).first;
 
     float estimated_time = FORCE_PRIORITY_9;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
@@ -442,10 +495,23 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("FILTER_LOAD_BLOCK_SIZE", block_read_size));
         jit.AddConstant(MakeJitConstant("FILTER_ELEMENTS_PER_LOAD", weights_elements_per_load));
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
+    } else {
+        jit.AddConstant(MakeJitConstant("USE_SLM", 0));
+    }
+
+    // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
+    if (should_dynamic_quantize(params) && dispatchData.tile_m > 1 && dispatchData.tile_n == 2) {
+        jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
+        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+        jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
+        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
+    } else {
+        jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
     }
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
+    jit.AddConstant(MakeJitConstant("HALF_TILE_B", dispatchData.tile_m/2));
     jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
     jit.AddConstant(MakeJitConstant("TILE_IFM", dispatchData.tile_mk));
     jit.AddConstant(MakeJitConstant("TILE_K", dispatchData.tile_nk));
@@ -520,29 +586,53 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
             const auto& prim_params = static_cast<const fully_connected_params&>(params);
 
-            OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func, expected 2, got ", kd.kernels.size());
+            size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
 
-            size_t output_batch = prim_params.outputs[0].Batch().v;
-            if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
-                output_batch *= prim_params.outputs[0].Feature().v;
+            // Get index of the added shape-agnostic kernel
+            int kernel_offset = 0;
+            if (kd.kernels.size() == 3)
+                kernel_offset = 1;  // quantize kernel exists
 
-            // Choose one of the two shape agnostic kernels:
-            // - kd.kernels[0] for batches <= 240 (default version)
-            // - kd.kernels[1] for batches >= 256 (slm version)
+            // Choose one of the two shape agnostic kernels: N == added kernel number
+            // - kd.kernels[N-1] for batches <= 240 (default version)
+            // - kd.kernels[N] for batches >= 256 (slm version)
             const auto default_alignment = 16;
-            // We can use SLM version if `output_batch + default_alignment > 256` because memory and batch are aligned (whether 16 or 64 elements)
-            const auto skip_kernel_idx = output_batch + default_alignment > 256 ? 0 : 1;
-            const auto execute_kernel_idx = 1 - skip_kernel_idx;
+            // We can use SLM version if `output_batch + default_alignment > min_slm_size(256)` because memory and batch are aligned (whether 16 or 64 elements)
+            const auto execute_type = (output_batch + default_alignment > min_slm_size) ? KernelType::SLM : KernelType::DEFAULT;
+            const auto execute_kernel_idx = ((execute_type == KernelType::SLM) ? 1 : 0) + kernel_offset;
+            const auto skip_kernel_idx = ((execute_type == KernelType::SLM) ? 0 : 1) + kernel_offset;
 
+
+            // Check default or SLM version FC, and disable remain version
             kd.kernels[skip_kernel_idx].skip_execution = true;
 
-            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_kernel_idx == 1 ? "SLM" : "Default") << " shape-agnostic kernel version "
+            GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << " shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
 
-            auto dispatchData = SetDefault(prim_params, -1, execute_kernel_idx);
+            auto dispatchData = SetDefault(prim_params, -1, static_cast<int>(execute_type));
             kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
             kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
             kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+            if (!kd.internalBufferSizes.empty()) {
+                // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
+                if (execute_type == KernelType::DEFAULT) {
+                    kd.kernels[0].skip_execution = true;
+                } else {
+                    kd.kernels[0].skip_execution = false;
+                    size_t input_f = get_input_bf_size(prim_params).second;
+                    size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
+
+                    if (kd.internalBufferSizes[0] < input_size) {
+                        kd.internalBufferSizes.clear();
+                        kd.internalBufferSizes.push_back(input_size);                           // quantized input is char type
+                        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);   // de_quan_scale is half type
+                    }
+
+                    kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
+                    kd.kernels[0].params.workGroups.local = {16, 1, 1};
+                }
+            }
         };
     }
 }
@@ -569,34 +659,51 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         weights_layout = WeightsLayout::os_iyx_osv64;
     }
 
-    auto kernels_data = GetCommonKernelsData(params,
-                                             fc_params.inputs[0].GetLayout(),
-                                             weights_layout,
-                                             tparams.exec_options,
-                                             autoTuneIndex);
+    KernelsData kernels_data;
+    if (should_dynamic_quantize(fc_params)) {
+        // Use seperate 2 kernels for dynamic quantizing : quantizing_kernel + fc_kernel
+        // 1st kernel : Dynamic quantizing by quantize_grp_size
+        // 2nd kernel : fully connected kernel with KernelType::DEFAULT. Quantized inputs and scale values could be used.
+        // 3rd kernel : (optional) fully connected shape_agnostic kernel with KernelType::SLM. Quantized inputs and scale values would be used.
+        kernels_data = GetMultiKernelsData(params,
+                                                fc_params.inputs[0].GetLayout(),
+                                                weights_layout,
+                                                tparams.exec_options,
+                                                autoTuneIndex);
+        OPENVINO_ASSERT(!kernels_data.empty() && !kernels_data[0].kernels.empty(), "[GPU] Error to create multi kernel for dynamic quantizing.");
 
-    // In case of dynamic params try to configure additional optimized SLM kernel for large batches
-    if (params.is_shape_agnostic) {
-        auto tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
-        auto can_select_slm_kernel = tparams.kernel_type == KernelType::SLM;
+        if (params.is_shape_agnostic)
+            GetUpdateDispatchDataFunc(kernels_data[0]);
+    } else {
+        kernels_data = GetCommonKernelsData(params,
+                                                fc_params.inputs[0].GetLayout(),
+                                                weights_layout,
+                                                tparams.exec_options,
+                                                autoTuneIndex,
+                                                0);
 
-        if (!can_select_slm_kernel)
-            return kernels_data;
+        if (params.is_shape_agnostic) {
+            auto tparams = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
+            auto can_select_slm_kernel = tparams.kernel_type == KernelType::SLM;
 
-        auto slm_kernel = GetCommonKernelsData(params,
-                                               fc_params.inputs[0].GetLayout(),
-                                               weights_layout,
-                                               tparams.exec_options,
-                                               autoTuneIndex,
-                                               1);
+            if (!can_select_slm_kernel)
+                return kernels_data;
 
-        if (slm_kernel.empty() || slm_kernel[0].kernels.empty())
-            return kernels_data;
+            auto slm_kernel = GetCommonKernelsData(params,
+                                                fc_params.inputs[0].GetLayout(),
+                                                weights_layout,
+                                                tparams.exec_options,
+                                                autoTuneIndex,
+                                                1);
 
-        kernels_data[0].kernels.push_back(slm_kernel[0].kernels.back());
+            if (slm_kernel.empty() || slm_kernel[0].kernels.empty())
+                return kernels_data;
 
-        // Update default update_dispatch_data_func function
-        GetUpdateDispatchDataFunc(kernels_data[0]);
+            kernels_data[0].kernels.push_back(slm_kernel[0].kernels.back());
+
+            // Update default update_dispatch_data_func function
+            GetUpdateDispatchDataFunc(kernels_data[0]);
+        }
     }
 
     return kernels_data;
@@ -626,5 +733,158 @@ KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const 
     }
 
     return res;
+}
+
+
+KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
+                                                           DataLayout dl,
+                                                           WeightsLayout wl,
+                                                           const std::string exeMode,
+                                                           int autoTuneIndex) const {
+    if (!Validate(params)) {
+        return KernelsData();
+    }
+
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
+
+    bool bProperInput = fc_params.inputs[0].GetLayout() == dl;
+    if (!bProperInput && !fc_params.inputs[0].PitchesDifferFromLogicalDims()) {
+        bProperInput = (dl == DataLayout::fb && fc_params.inputs[0].GetLayout() == DataLayout::fyxb) ||
+                       (dl == DataLayout::bf && fc_params.inputs[0].GetLayout() == DataLayout::bfyx);
+    }
+
+    KernelData kd = KernelData::Default<fully_connected_params>(params, 2);
+    fully_connected_params& new_params = *static_cast<fully_connected_params*>(kd.params.get());
+
+    if (!bProperInput) {
+        new_params.inputs[0] = new_params.inputs[0].TransformIgnorePadding(dl);
+        kd.reorderInput = true;
+    }
+
+    bool succeed = UpdateWeightsParams(new_params,
+                                       wl,
+                                       kd.weightsReorderParams,
+                                       GetSupportedKey());
+    if (!succeed) {
+        return {};
+    }
+
+    int inputs_count = 1;
+    if (new_params.compressed) {
+        inputs_count++;
+        if (new_params.has_decompression_zp && !new_params.scalar_zp)
+            inputs_count++;
+    }
+
+    // Generate dispatch data for KernelType::DEFAULT
+    int kernel_number = 0;
+    const DispatchData dispatchData = SetDefault(new_params, autoTuneIndex, kernel_number);
+
+    // Dynamic-quantize kernel
+    {
+        auto& quan_kernel = kd.kernels[0];
+        DispatchData dyn_quan_dispatch = dispatchData;
+        dyn_quan_dispatch.gws = {std::max((fc_params.inputs[0].PhysicalSize() / quantize_grp_size), (size_t)1), 1, 1};
+        dyn_quan_dispatch.lws = {16, 1, 1};
+        quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
+        quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
+        quan_kernel.skip_execution = false;
+
+        auto quan_entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
+        auto quan_cldnn_jit = GetJitConstants(new_params, dyn_quan_dispatch);
+        quan_cldnn_jit.AddConstant(MakeJitConstant("FC_KERNEL_DYNAMIC_QUANTIZE", 1));
+        auto quan_jit = CreateJit(kernelName, quan_cldnn_jit, quan_entry_point);
+
+
+        FillCLKernelData(quan_kernel,
+                        dyn_quan_dispatch,
+                        params.engineInfo,
+                        kernelName,
+                        quan_jit,
+                        quan_entry_point,
+                        exeMode,  // No exec mode
+                        false,
+                        false,
+                        1, // Only INPUT_0 is used for quantizing
+                        0, // No fused ops
+                        0, // No output
+                        fc_params.is_shape_agnostic);
+
+        quan_kernel.params.arguments.clear();  // Clear original output argument
+        quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize());
+        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize() / quantize_grp_size * 2);
+        kernel_number++;
+    }
+    kd.internalBufferDataType = Datatype::F16;
+
+    // FC kernel for dynamic quantized input with KernelType::DEFAULT
+    {
+        auto entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
+        auto cldnn_jit = GetJitConstants(new_params, dispatchData);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+        auto& fc_kernel = kd.kernels[1];
+        fc_kernel.params.workGroups.global = dispatchData.gws;
+        fc_kernel.params.workGroups.local = dispatchData.lws;
+        fc_kernel.skip_execution = false;
+
+        FillCLKernelData(fc_kernel,
+                        dispatchData,
+                        params.engineInfo,
+                        kernelName,
+                        jit,
+                        entry_point,
+                        exeMode,
+                        true,
+                        !fc_params.bias.empty(),
+                        inputs_count,
+                        GetFusedPrimitiveInputsCount(params),
+                        1,
+                        fc_params.is_shape_agnostic);
+
+        fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel_number++;
+    }
+
+    const DispatchData slm_Data = SetDefault(new_params, autoTuneIndex, kernel_number);
+    auto slm_params = GetAutoTuneParams(fc_params, KernelType::SLM, autoTuneIndex);
+    auto can_select_slm_kernel = slm_params.kernel_type == KernelType::SLM;
+    // FC kernel for dynamic quantized input with KernelType::SLM
+    if (params.is_shape_agnostic && can_select_slm_kernel) {
+        kd.kernels.resize(kernel_number + 1);
+
+        auto entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
+        auto cldnn_jit = GetJitConstants(new_params, slm_Data);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+        auto& sa_kernel = kd.kernels[2];
+        sa_kernel.params.workGroups.global = slm_Data.gws;
+        sa_kernel.params.workGroups.local = slm_Data.lws;
+        sa_kernel.skip_execution = false;
+
+        FillCLKernelData(sa_kernel,
+                        slm_Data,
+                        params.engineInfo,
+                        kernelName,
+                        jit,
+                        entry_point,
+                        slm_params.exec_options,
+                        true,
+                        !fc_params.bias.empty(),
+                        inputs_count,
+                        GetFusedPrimitiveInputsCount(params),
+                        1,
+                        fc_params.is_shape_agnostic);
+
+        sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+    }
+
+    kd.autoTuneIndex = autoTuneIndex;
+    return {kd};
 }
 }  // namespace kernel_selector
