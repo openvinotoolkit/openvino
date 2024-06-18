@@ -161,7 +161,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Sets the value symbol of the tensor.
 
                 :param value_symbol: List of Symbols
-                :type value_symbol: List 
+                :type value_symbol: List[openvino.runtime.Symbol]
              )");
 
     tensor.def_property_readonly("shape", &ov::descriptor::Tensor::get_shape);
