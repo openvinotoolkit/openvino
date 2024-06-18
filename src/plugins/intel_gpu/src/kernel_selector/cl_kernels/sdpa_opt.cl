@@ -33,7 +33,12 @@
         #define SCALE_KEY_GET_INDEX(b, f, y, x) 0
     #endif
 #endif
-
+#if IS_KV_COMPRESSED
+#define __VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(char, 1, ptr, offset)
+#endif
+#define __MG_CHECK_VAL(line, __value_val) if (fabs((half)__value_val) > 3.0h) printf("value_val is too large %d: %f\n", line, (half)__value_val);
+#define MG_CHECK_VAL(line, __value_val) {}
+ 
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_SIMPLE
     return GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
@@ -151,10 +156,12 @@ KERNEL(sdpa_opt)(
     const __global INPUT4_TYPE* scale,
 #if IS_KV_COMPRESSED
     const __global INPUT5_TYPE* key_scale,
+    const __global INPUT6_TYPE* val_scale,
 #endif
 #else  /* !HAS_SCALE_INPUT */
 #if IS_KV_COMPRESSED
     const __global INPUT4_TYPE* key_scale,
+    const __global INPUT5_TYPE* val_scale,
 #endif
 #endif
     __global OUTPUT_TYPE* output,
@@ -539,11 +546,13 @@ KERNEL(sdpa_opt)(
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len * SUBGROUP_SIZE + sglid];
             }
 
-#define __VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(uchar, 1, ptr, offset)
-
              unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#if 0
-                uchar __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+#if IS_KV_COMPRESSED
+    #ifdef BEAM_TABLE_TYPE
+                char __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+    #else
+                char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+    #endif
                 half value_val = __value_val;
                 value_val /= SCALE_VAL;
 #else
@@ -581,7 +590,7 @@ KERNEL(sdpa_opt)(
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
             }
-#if 0
+#if IS_KV_COMPRESSED
             char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
             half value_val = __value_val;
             value_val /= SCALE_VAL;
@@ -636,10 +645,12 @@ KERNEL(sdpa_opt)(
     const __global INPUT4_TYPE* scale,
 #if IS_KV_COMPRESSED
     const __global INPUT5_TYPE* key_scale,
+    const __global INPUT6_TYPE* val_scale,
 #endif
 #else  /* !HAS_SCALE_INPUT */
 #if IS_KV_COMPRESSED
     const __global INPUT4_TYPE* key_scale,
+    const __global INPUT5_TYPE* val_scale,
 #endif
 #endif
     __global OUTPUT_TYPE* output,
@@ -943,10 +954,21 @@ KERNEL(sdpa_opt)(
                 printf("this is not supposed to be executed 6\n");
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#ifdef BEAM_TABLE_TYPE
-                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+#if IS_KV_COMPRESSED
+    #ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+    #else
+                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+    #endif
+                half value_val = __value_val;
+                value_val /= SCALE_VAL;
+
 #else
+    #ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+    #else
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
+    #endif
 #endif
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
@@ -981,12 +1003,20 @@ KERNEL(sdpa_opt)(
 #endif
 
             for (uint seq_len_idx = 0; seq_len_idx < partition_seq_len - seq_len_leftovers_start; seq_len_idx++) {
-                if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
-                    printf("this is not supposed to be executed 7\n");
-#ifdef BEAM_TABLE_TYPE
-                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
+#if IS_KV_COMPRESSED
+    #ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
+    #else
+                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+    #endif
+                half value_val = __value_val;
+                value_val /= SCALE_VAL;
 #else
+    #ifdef BEAM_TABLE_TYPE
+                INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
+    #else
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
+    #endif
 #endif
 
                 for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
@@ -1058,18 +1088,16 @@ KERNEL(sdpa_opt)(
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len * SUBGROUP_SIZE + sglid];
             }
 
-            // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
-            //     printf("this is not supposed to be executed 8\n");
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#if 0
+#if IS_KV_COMPRESSED
 #ifdef BEAM_TABLE_TYPE
-                INPUT2_TYPE __value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
 #else
-                INPUT2_TYPE __value_val = VALUE_BLOCK_READ(value_input, value_offset);
+                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
 #endif
                 half value_val = __value_val;
                 value_val /= SCALE_VAL;
-#else
+#else // !IS_KV_COMPRESSED
 #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
 #else

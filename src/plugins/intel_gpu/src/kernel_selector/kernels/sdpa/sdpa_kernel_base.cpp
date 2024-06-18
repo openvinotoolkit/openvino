@@ -76,7 +76,7 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
 
     jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
     jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
-    size_t port_for_kv_scale = params.conf.is_kv_compressed ? 1 : 0;
+    size_t port_for_kv_scale = params.conf.is_kv_compressed ? 2 : 0;
     jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3 + port_for_kv_scale));
     jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4 + port_for_kv_scale));
 

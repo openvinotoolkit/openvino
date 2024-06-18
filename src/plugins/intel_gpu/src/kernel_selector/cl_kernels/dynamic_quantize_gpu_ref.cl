@@ -35,6 +35,8 @@ KERNEL(dynamic_quantize_gpu_ref)(
             max_val = fmax(max_val, fabs(input[offset + x]));
     }
 
+    if (max_val < 1.5)
+        max_val = 1.0h;
     half scale = 127.0h / max_val;
     for (int y = 0; y < INPUT0_SIZE_Y; y++) {
         const uint in_offset = INPUT0_GET_INDEX(b, f, y, 0);
