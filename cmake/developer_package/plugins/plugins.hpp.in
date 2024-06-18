@@ -35,6 +35,7 @@ struct Value {
 struct Value {
     std::string m_plugin_path;
     std::map<std::string, std::string> m_default_config;
+    std::string shared_library_name;
 };
 
 #endif

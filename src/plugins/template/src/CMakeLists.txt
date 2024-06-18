@@ -16,6 +16,7 @@ endif()
 # adds a shared library with plugin
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "TEMPLATE"
+              SHARED_LIBRARY_NAME "TEMPLATE"
               SOURCES ${SOURCES} ${HEADERS}
               ${skip_plugin}
               VERSION_DEFINES_FOR plugin.cpp

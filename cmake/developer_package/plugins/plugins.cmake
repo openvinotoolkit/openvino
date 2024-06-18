@@ -24,6 +24,7 @@ endif()
 #
 # ov_add_plugin(NAME <targetName>
 #               DEVICE_NAME <deviceName>
+#               [SHARED_LIBRARY_NAME]
 #               [PSEUDO_DEVICE]
 #               [PSEUDO_PLUGIN_FOR <actual_device>]
 #               [AS_EXTENSION]
@@ -38,7 +39,7 @@ endif()
 #
 function(ov_add_plugin)
     set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
-    set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
+    set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR SHARED_LIBRARY_NAME)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(OV_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -48,6 +49,10 @@ function(ov_add_plugin)
 
     if(NOT OV_PLUGIN_DEVICE_NAME)
         message(FATAL_ERROR "Please, specify device name for ${OV_PLUGIN_NAME}")
+    endif()
+
+    if (NOT OV_PLUGIN_SHARED_LIBRARY_NAME)
+      set(OV_PLUGIN_SHARED_LIBRARY_NAME)
     endif()
 
     # create and configure target
@@ -155,7 +160,7 @@ function(ov_add_plugin)
 
         # append plugin to the list to register
 
-        list(APPEND PLUGIN_FILES "${OV_PLUGIN_DEVICE_NAME}:${OV_PLUGIN_NAME}")
+        list(APPEND PLUGIN_FILES "${OV_PLUGIN_DEVICE_NAME}:${OV_PLUGIN_NAME}:${OV_PLUGIN_SHARED_LIBRARY_NAME}")
         set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
         set(${OV_PLUGIN_DEVICE_NAME}_CONFIG "${OV_PLUGIN_DEFAULT_CONFIG}" CACHE INTERNAL "" FORCE)
         set(${OV_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${OV_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
@@ -185,7 +190,7 @@ macro(ov_register_in_plugins_xml)
     foreach(name IN LISTS PLUGIN_FILES)
         string(REPLACE ":" ";" name "${name}")
         list(LENGTH name length)
-        if(NOT ${length} EQUAL 2)
+        if(NOT ${length} EQUAL 3)
             message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
         endif()
         list(GET name 0 device_name)
@@ -207,7 +212,7 @@ macro(ov_register_in_plugins_xml)
     foreach(name IN LISTS PLUGIN_FILES)
         string(REPLACE ":" ";" name "${name}")
         list(LENGTH name length)
-        if(NOT ${length} EQUAL 2)
+        if(NOT ${length} EQUAL 3)
             message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
         endif()
         list(GET name 0 device_name)
@@ -265,7 +270,7 @@ function(ov_target_link_plugins TARGET_NAME)
     foreach(name IN LISTS PLUGIN_FILES)
         string(REPLACE ":" ";" name "${name}")
         list(LENGTH name length)
-        if(NOT ${length} EQUAL 2)
+        if(NOT ${length} EQUAL 3)
             message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
         endif()
 
@@ -289,7 +294,7 @@ function(ov_generate_plugins_hpp)
     foreach(name IN LISTS PLUGIN_FILES)
         string(REPLACE ":" ";" name "${name}")
         list(LENGTH name length)
-        if(NOT ${length} EQUAL 2)
+        if(NOT ${length} EQUAL 3)
             message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
         endif()
 
@@ -297,8 +302,9 @@ function(ov_generate_plugins_hpp)
         list(GET name 0 device_name)
         if(BUILD_SHARED_LIBS)
             list(GET name 1 library_name)
+            list(GET name 2 shared_library_name)
             ov_plugin_get_file_name(${library_name} library_name)
-            list(APPEND device_mapping "${device_name}:${library_name}")
+            list(APPEND device_mapping "${device_name}:${library_name}:${shared_library_name}")
         else()
             if(${device_name}_PSEUDO_PLUGIN_FOR)
                 list(APPEND device_mapping "${device_name}:${${device_name}_PSEUDO_PLUGIN_FOR}")

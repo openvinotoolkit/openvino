@@ -13,6 +13,7 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
+              SHARED_LIBRARY_NAME "HETERO"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR src/version.cpp

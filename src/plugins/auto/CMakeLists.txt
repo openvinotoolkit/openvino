@@ -18,23 +18,27 @@ endif()
 if(ENABLE_AUTO AND ENABLE_MULTI)
     ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "MULTI"
+                  SHARED_LIBRARY_NAME "AUTO"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}
                   VERSION_DEFINES_FOR src/plugin.cpp)
 
     ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "AUTO"
+                  SHARED_LIBRARY_NAME "AUTO"
                   PSEUDO_DEVICE
                   PSEUDO_PLUGIN_FOR "MULTI")
 elseif(ENABLE_AUTO)
     ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "AUTO"
+                  SHARED_LIBRARY_NAME "AUTO"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}
                   VERSION_DEFINES_FOR src/plugin.cpp)
 elseif(ENABLE_MULTI)
     ov_add_plugin(NAME ${TARGET_NAME}
                   DEVICE_NAME "MULTI"
+                  SHARED_LIBRARY_NAME "AUTO"
                   PSEUDO_DEVICE
                   SOURCES ${SOURCES}
                   VERSION_DEFINES_FOR src/plugin.cpp)

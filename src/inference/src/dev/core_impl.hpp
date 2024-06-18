@@ -113,6 +113,7 @@ private:
 
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
+        std::string sharedLibraryName;
         ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
         CreatePluginEngineFunc* pluginCreateFunc = nullptr;
@@ -121,17 +122,21 @@ private:
         PluginDescriptor() = default;
 
         PluginDescriptor(const ov::util::FilePath& libraryLocation,
+                         const std::string& sharedLibraryName = "",
                          const ov::AnyMap& defaultConfig = {},
                          const std::vector<ov::util::FilePath>& listOfExtentions = {}) {
             this->libraryLocation = libraryLocation;
+            this->sharedLibraryName = sharedLibraryName;
             this->defaultConfig = defaultConfig;
             this->listOfExtentions = listOfExtentions;
         }
 
         PluginDescriptor(CreatePluginEngineFunc* pluginCreateFunc,
+                         const std::string& sharedLibraryName = "",
                          const ov::AnyMap& defaultConfig = {},
                          CreateExtensionFunc* extensionCreateFunc = nullptr) {
             this->pluginCreateFunc = pluginCreateFunc;
+            this->sharedLibraryName = sharedLibraryName;
             this->defaultConfig = defaultConfig;
             this->extensionCreateFunc = extensionCreateFunc;
         }

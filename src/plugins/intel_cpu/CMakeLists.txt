@@ -167,6 +167,7 @@ list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
+              SHARED_LIBRARY_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
               SOURCES ${SOURCES} ${HEADERS})

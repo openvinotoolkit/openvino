@@ -18,6 +18,12 @@ foreach(dev_map IN LISTS OV_DEVICE_MAPPING)
     string(REPLACE ":" ";" dev_map "${dev_map}")
     list(GET dev_map 0 mapped_dev_name)
     list(GET dev_map 1 actual_dev_name)
+    list(LENGTH dev_map length)
+    if(${length} EQUAL 2)
+        set(shared_library_name)
+    else()
+        list(GET dev_map 2 shared_library_name)
+    endif()
 
     # definitions
     set(dev_config "{")
@@ -54,7 +60,7 @@ foreach(dev_map IN LISTS OV_DEVICE_MAPPING)
         { \"${mapped_dev_name}\", Value { ${_OV_CREATE_PLUGIN_FUNC}, ${_OV_CREATE_EXTENSION_FUNC}, ${dev_config} } },")
     else()
         set(OV_PLUGINS_MAP_DEFINITION "${OV_PLUGINS_MAP_DEFINITION}
-        { \"${mapped_dev_name}\", Value { \"${actual_dev_name}\", ${dev_config} } },")
+        { \"${mapped_dev_name}\", Value { \"${actual_dev_name}\", ${dev_config}, \"${shared_library_name}\" } },")
     endif()
 endforeach()
 
