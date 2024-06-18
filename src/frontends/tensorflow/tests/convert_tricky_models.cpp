@@ -420,20 +420,10 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithEmptyTensorListAndPushBac
     { model = convert_model("empty_tensor_list/empty_tensor_list.pb"); }
     {
         auto x = make_shared<v0::Parameter>(f32, Shape{2, 3, 5});
-        auto minus_one_const = make_shared<v0::Constant>(i32, Shape{1}, -1);
-        auto x_flatten = make_shared<v1::Reshape>(x, minus_one_const, false);
-        auto zero_const = make_shared<v0::Constant>(i32, Shape{1}, 0);
-        auto x_unsqueeze_flatten = make_shared<v0::Unsqueeze>(x_flatten, zero_const);
-        auto list_push_back = make_shared<v0::Concat>(OutputVector{x_unsqueeze_flatten}, 0);
-        auto list_push_back_shape = make_shared<v3::ShapeOf>(list_push_back, element::i32);
-        auto start = make_shared<v0::Constant>(i32, Shape{1}, 0);
-        auto stop = make_shared<v0::Constant>(i32, Shape{1}, 1);
-        auto step = make_shared<v0::Constant>(i32, Shape{1}, 1);
-        auto batch = make_shared<v8::Slice>(list_push_back_shape, start, stop, step);
-        auto shape_without_batch = make_shared<v0::Constant>(i32, Shape{3}, vector<int32_t>{2, 3, 5});
-        auto recover_item_shape = make_shared<v0::Concat>(OutputVector{batch, shape_without_batch}, 0);
-        auto recover_item = make_shared<v1::Reshape>(list_push_back, recover_item_shape, false);
-        model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
+        auto axes = make_shared<v0::Constant>(i32, Shape{1}, 0);
+        auto x_unsqueeze = make_shared<v0::Unsqueeze>(x, axes);
+        auto list_push_back = make_shared<v0::Concat>(OutputVector{x_unsqueeze}, 0);
+        model_ref = make_shared<Model>(OutputVector{list_push_back}, ParameterVector{x});
     }
     comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
