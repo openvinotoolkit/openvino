@@ -22,7 +22,7 @@ Consider inputs:
 * *word_ends* = [5, 13]
 * *output_symbols* = "IntelOpenVINO"
 
-*StringTensorPack* uses indices from *word_begins* and *word_ends* to transform concatenated string *output_symbols* into ``output``, 
+*StringTensorPack* uses indices from ``word_begins`` and ``word_ends`` to transform concatenated string ``output_symbols`` into ``output``, 
 a batched string tensor. The ``output.shape`` (also called ``batch_size``) is equal to ``word_beings.shape`` and ``word_ends.shape``, 
 and in this case holds values ``["Intel", "OpenVINO"]``.
 
@@ -48,7 +48,7 @@ and in this case holds values ``["Intel", "OpenVINO"]``.
 
 **Outputs**
 
-* **1**: *data*
+* **1**: *output*
 
   * **Description**: A string tensor.
   * **Shape**: ``(batch_size)``

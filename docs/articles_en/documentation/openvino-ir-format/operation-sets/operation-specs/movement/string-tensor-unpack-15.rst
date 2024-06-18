@@ -19,22 +19,22 @@ strings or as ``unsigned 8-bit integer`` values.
 
 Consider an ``input`` string tensor containing values ``["Intel", "OpenVINO"]``.
 
-The operator will tokenize the tensor into three outputs:
+The operator will transform the tensor into three outputs:
 
 * *word_begins* = [0, 5]
-    ``word_begins[0]`` is equal to 0, because the first word starts at the beggining index.
-    ``word_begins[1]`` is equal to 5, because length of the word "Intel" is equal to 5.
-    ``word_begins.shape`` is equal to [2], because the ``input`` is a batch of 2 words.
+    * ``word_begins[0]`` is equal to 0, because the first word starts at the beggining index.
+    * ``word_begins[1]`` is equal to 5, because length of the word "Intel" is equal to 5.
+    * ``word_begins.shape`` is equal to [2], because the ``input`` is a batch of 2 words.
 
 * *word_ends* = [5, 13]
-    ``word_ends[0]`` is equal to 5, because length of the word "Intel" is equal to 5.
-    ``word_ends[1]`` is equal to 13, because length of the word "OpenVINO" is 8, and it needs to be summed up
+    * ``word_ends[0]`` is equal to 5, because length of the word "Intel" is equal to 5.
+    * ``word_ends[1]`` is equal to 13, because length of the word "OpenVINO" is 8, and it needs to be summed up
     with length of the word "Intel".
-    ``word_ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 words.
+    * ``word_ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 words.
 
 * *output_symbols* = "IntelOpenVINO"
-    ``output_symbols`` contains concatenated string data, interpretable using ``word_begins`` and ``word_ends``.
-    ``output_symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` words.
+    * ``output_symbols`` contains concatenated string data, interpretable using ``word_begins`` and ``word_ends``.
+    * ``output_symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` words.
 
 **Inputs**
 
