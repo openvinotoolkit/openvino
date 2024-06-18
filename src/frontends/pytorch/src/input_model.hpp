@@ -48,7 +48,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<frontend::Place>> m_name_to_place;
     std::vector<std::shared_ptr<frontend::Place>> m_inputs;
     std::vector<std::shared_ptr<frontend::Place>> m_outputs;
-    std::vector<std::shared_ptr<frontend::Place>> m_fake_places;
+    std::vector<std::shared_ptr<frontend::Place>> m_requested_places;
     std::unordered_map<size_t, PlaceDesc> m_descriptors;
 };
 

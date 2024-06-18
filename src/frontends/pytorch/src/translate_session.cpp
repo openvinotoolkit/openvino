@@ -82,7 +82,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         auto mutated_tensors = std::make_shared<std::set<size_t>>();
         std::vector<size_t> inserted_params;
 
-        if (input_model && input_model->m_fake_places.size() == 0) {
+        if (input_model && input_model->m_requested_places.size() == 0) {
             // When we have input model we should use its inputs order to create Parameters
             // We use m_inputs instead of get_inputs() because latter doesn't have "self" input
             // If there are fake places we don't need to use model inputs in that case

@@ -162,7 +162,7 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
     bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
     FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
 
-    if (pt_model->m_fake_places.size() != 0) {
+    if (pt_model->m_requested_places.size() != 0) {
         // Fake tensors mean that types were set to non-existent before conversion inputs.
         // Here we resolve this. If input doesn't exist after conversion exception is raised.
         const auto& inputs = pt_model->get_inputs();
@@ -173,7 +173,7 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
                                           converted_model);
             update_parameter_info(parameters[i], inputs[i], converted_model);
         }
-        for (const auto& fplace : pt_model->m_fake_places) {
+        for (const auto& fplace : pt_model->m_requested_places) {
             const auto& pt_place = std::dynamic_pointer_cast<pytorch::Place>(fplace);
             FRONT_END_GENERAL_CHECK(pt_place, "Wrong place type.");
             if (fplace->get_names().size() == 0) {

@@ -79,10 +79,10 @@ void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialSha
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
     pytorch_place->m_pshape = shape;
     if (pytorch_place->m_is_fake &&
-        std::all_of(m_fake_places.cbegin(), m_fake_places.cend(), [&place](const Place::Ptr& p) {
+        std::all_of(m_requested_places.cbegin(), m_requested_places.cend(), [&place](const Place::Ptr& p) {
             return !p->is_equal(place);
         })) {
-        m_fake_places.push_back(place);
+        m_requested_places.push_back(place);
     }
 }
 
@@ -101,10 +101,10 @@ void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Ty
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
     pytorch_place->m_type = type;
     if (pytorch_place->m_is_fake &&
-        std::all_of(m_fake_places.cbegin(), m_fake_places.cend(), [&place](const Place::Ptr& p) {
+        std::all_of(m_requested_places.cbegin(), m_requested_places.cend(), [&place](const Place::Ptr& p) {
             return !p->is_equal(place);
         })) {
-        m_fake_places.push_back(place);
+        m_requested_places.push_back(place);
     }
 }
 
