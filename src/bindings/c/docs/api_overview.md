@@ -207,6 +207,8 @@ typedef enum {
 
     F4E2M1,          //!< f4e2m1 element type
 
+    F8E8M0,          //!< f8e8m0 element type
+
 } ov_element_type_e;
 ```
 

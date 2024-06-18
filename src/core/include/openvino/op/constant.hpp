@@ -159,6 +159,7 @@ public:
         case Type_t::f4e2m1:
             fill_lp_data<Type_t::f4e2m1>(value);
             break;
+        case Type_t::f8e8m0:
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -720,6 +721,7 @@ private:
         case Type_t::f4e2m1:
             write_lp_buffer<Type_t::f4e2m1>(source);
             break;
+        case Type_t::f8e8m0:
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
