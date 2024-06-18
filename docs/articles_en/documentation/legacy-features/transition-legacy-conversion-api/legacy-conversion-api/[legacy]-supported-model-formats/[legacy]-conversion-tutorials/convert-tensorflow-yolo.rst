@@ -236,7 +236,7 @@ To convert DarkNet YOLOv1 and YOLOv2 models to the OpenVINO format, follow these
 
 
 Installing DarkFlow
---------------------------------------------------------------
++++++++++++++++++++++
 
 You need DarkFlow to convert YOLOv1 and YOLOv2 models to TensorFlow. To install DarkFlow:
 
@@ -259,7 +259,7 @@ You need DarkFlow to convert YOLOv1 and YOLOv2 models to TensorFlow. To install 
 
 
 Converting a DarkNet YOLOv1 or YOLOv2 Model to TensorFlow
---------------------------------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the cloned DarkFlow repository, place the previously downloaded \*.cfg and \*.weights files in the current directory and run the following command:
 
@@ -292,7 +292,7 @@ in ``built_graph``  subdirectory of the cloned DarkFlow repository.
 File ``<model_name>.pb`` is a TensorFlow representation of the YOLO model.
 
 Converting a TensorFlow YOLOv1 or YOLOv2 Model to the IR
----------------------------------------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Converted TensorFlow YOLO model is missing ``Region`` layer and its parameters. Original YOLO ``Region`` layer parameters are stored in the configuration ``<path_to_model>/<model_name>.cfg`` file under the ``[region]`` title.
 

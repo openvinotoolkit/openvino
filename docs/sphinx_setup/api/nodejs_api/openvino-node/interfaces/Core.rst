@@ -63,6 +63,7 @@ Methods
 
 
 .. rubric:: compileModel
+   :name: compileModel
 
 .. container:: m-4
 

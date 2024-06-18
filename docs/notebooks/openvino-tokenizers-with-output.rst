@@ -121,8 +121,8 @@ use ``pip install openvino-tokenizers[transformers]``.
 .. code:: ipython3
 
     from pathlib import Path
-    
-    
+
+
     tokenizer_dir = Path("tokenizer/")
     model_id = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
 
@@ -172,8 +172,8 @@ The other method is to pass HuggingFace ``hf_tokenizer`` object to
 
     from transformers import AutoTokenizer
     from openvino_tokenizers import convert_tokenizer
-    
-    
+
+
     hf_tokenizer = AutoTokenizer.from_pretrained(model_id)
     ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
     ov_tokenizer, ov_detokenizer
@@ -207,8 +207,8 @@ from OpenVINO to reuse converted tokenizers later:
 .. code:: ipython3
 
     from openvino import save_model
-    
-    
+
+
     save_model(ov_tokenizer, tokenizer_dir / "openvino_tokenizer.xml")
     save_model(ov_detokenizer, tokenizer_dir / "openvino_detokenizer.xml")
 
@@ -226,14 +226,14 @@ tasks, but not suitable for text generation.
 .. code:: ipython3
 
     from openvino import compile_model
-    
-    
+
+
     tokenizer, detokenizer = compile_model(ov_tokenizer), compile_model(ov_detokenizer)
     test_strings = ["Test", "strings"]
-    
+
     token_ids = tokenizer(test_strings)["input_ids"]
     print(f"Token ids: {token_ids}")
-    
+
     detokenized_text = detokenizer(token_ids)["string_output"]
     print(f"Detokenized text: {detokenized_text}")
 
@@ -252,7 +252,7 @@ one:
 
     hf_token_ids = hf_tokenizer(test_strings).input_ids
     print(f"Token ids: {hf_token_ids}")
-    
+
     hf_detokenized_text = hf_tokenizer.batch_decode(hf_token_ids)
     print(f"Detokenized text: {hf_detokenized_text}")
 
@@ -294,15 +294,15 @@ command is commented.
 .. code:: ipython3
 
     model_dir = Path(Path(model_id).name)
-    
+
     if not model_dir.exists():
         # converting the original model
         # %pip install -U "git+https://github.com/huggingface/optimum-intel.git" "nncf>=2.8.0" onnx
         # %optimum-cli export openvino -m $model_id --task text-generation-with-past $model_dir
-    
+
         # load already converted model
         from huggingface_hub import hf_hub_download
-    
+
         hf_hub_download(
             "chgk13/TinyLlama-1.1B-intermediate-step-1431k-3T",
             filename="openvino_model.xml",
@@ -335,10 +335,10 @@ command is commented.
     from openvino_tokenizers import add_greedy_decoding
     from openvino_tokenizers.constants import EOS_TOKEN_ID_NAME
     from openvino import Core
-    
-    
+
+
     core = Core()
-    
+
     # add the greedy decoding subgraph on top of LLM to get the most probable token as an output
     ov_model = add_greedy_decoding(core.read_model(model_dir / "openvino_model.xml"))
     compiled_model = core.compile_model(ov_model)
@@ -352,34 +352,34 @@ distinct and separate state..
 .. code:: ipython3
 
     text_input = ["Quick brown fox jumped"]
-    
+
     model_input = {name.any_name: output for name, output in tokenizer(text_input).items()}
-    
+
     if "position_ids" in (input.any_name for input in infer_request.model_inputs):
         model_input["position_ids"] = np.arange(model_input["input_ids"].shape[1], dtype=np.int64)[np.newaxis, :]
-    
+
     # no beam search, set idx to 0
     model_input["beam_idx"] = np.array([0], dtype=np.int32)
     # end of sentence token is that model signifies the end of text generation
     # read EOS token ID from rt_info of tokenizer/detokenizer ov.Model object
     eos_token = ov_tokenizer.get_rt_info(EOS_TOKEN_ID_NAME).value
-    
+
     tokens_result = np.array([[]], dtype=np.int64)
-    
+
     # reset KV cache inside the model before inference
     infer_request.reset_state()
     max_infer = 10
-    
+
     for _ in trange(max_infer):
         infer_request.start_async(model_input)
         infer_request.wait()
-    
+
         # get a prediction for the last token on the first inference
         output_token = infer_request.get_output_tensor().data[:, -1:]
         tokens_result = np.hstack((tokens_result, output_token))
         if output_token[0, 0] == eos_token:
             break
-    
+
         # prepare input for new inference
         model_input["input_ids"] = output_token
         model_input["attention_mask"] = np.hstack((model_input["attention_mask"].data, [[1]]))
@@ -389,7 +389,7 @@ distinct and separate state..
                 [[model_input["position_ids"].data.shape[-1]]],
             )
         )
-    
+
     text_result = detokenizer(tokens_result)["string_output"]
     print(f"Prompt:\n{text_input[0]}")
     print(f"Generated:\n{text_result[0]}")
@@ -407,11 +407,11 @@ distinct and separate state..
     Quick brown fox jumped
     Generated:
     over the fence.
-    
-    
-    
-    
-    
+
+
+
+
+
 
 
 Merge Tokenizer into a Model
@@ -449,7 +449,7 @@ models and tokenizers simplifies memory management.
 
     model_id = "mrm8488/bert-tiny-finetuned-sms-spam-detection"
     model_dir = Path(Path(model_id).name)
-    
+
     if not model_dir.exists():
         %pip install -qU git+https://github.com/huggingface/optimum-intel.git onnx
         !optimum-cli export openvino --model $model_id --task text-classification $model_dir
@@ -513,19 +513,19 @@ models and tokenizers simplifies memory management.
 
     from openvino import Core, save_model
     from openvino_tokenizers import connect_models
-    
-    
+
+
     core = Core()
     text_input = ["Free money!!!"]
-    
+
     ov_tokenizer = core.read_model(model_dir / "openvino_tokenizer.xml")
     ov_model = core.read_model(model_dir / "openvino_model.xml")
     combined_model = connect_models(ov_tokenizer, ov_model)
     save_model(combined_model, model_dir / "combined_openvino_model.xml")
-    
+
     compiled_combined_model = core.compile_model(combined_model)
     openvino_output = compiled_combined_model(text_input)
-    
+
     print(f"Logits: {openvino_output['logits']}")
 
 
@@ -557,6 +557,6 @@ Links
    Types <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#supported-tokenizer-types>`__
 -  `OpenVINO.GenAI repository with the C++ example of OpenVINO
    Tokenizers
-   usage <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
+   usage <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__
 -  `HuggingFace Tokenizers Comparison
    Table <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#output-match-by-model>`__

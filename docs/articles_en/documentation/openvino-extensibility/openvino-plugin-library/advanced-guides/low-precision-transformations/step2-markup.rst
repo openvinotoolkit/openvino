@@ -26,6 +26,7 @@ Step 2. Markup Transformations
    CreatePrecisionsDependentAttribute <step2-markup/create-precisions-dependent-attribute>
    PropagateThroughPrecisionPreserved <step2-markup/propagate-through-precision-preserved>
    PropagateToInput <step2-markup/propagate-to-input>
+   PropagateSharedValue <step2-markup/propagate-shared-value>
    UpdateSharedPrecisionPreserved <step2-markup/update-shared-precision-preserved>
 
 This step defines the optimal ``FakeQuantize`` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
@@ -36,8 +37,9 @@ This step defines the optimal ``FakeQuantize`` decomposition precisions for the 
 4. :doc:`MarkupPerTensorQuantization <step2-markup/markup-per-tensor-quantization>`
 5. :doc:`MarkupAvgPoolPrecisionPreserved <step2-markup/markup-avg-pool-precision-preserved>`
 6. :doc:`PropagatePrecisions <step2-markup/propagate-precisions>`
-7. :doc:`AlignQuantizationIntervals <step2-markup/align-quantization-intervals>`
-8. :doc:`AlignQuantizationParameters <step2-markup/align-quantization-parameters>`
+7. :doc:`PropagateSharedValue <step2-markup/propagate-shared-value>`
+8. :doc:`AlignQuantizationIntervals <step2-markup/align-quantization-intervals>`
+9. :doc:`AlignQuantizationParameters <step2-markup/align-quantization-parameters>`
 
 .. list-table::
     :header-rows: 1

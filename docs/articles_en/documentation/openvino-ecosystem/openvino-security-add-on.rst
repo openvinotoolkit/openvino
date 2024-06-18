@@ -226,15 +226,16 @@ This example in this step uses the following names. Your configuration might use
 4. Save and close the network configuration file.
 5. Run two commands to activate the updated network configuration file. If you use ssh, you might lose network connectivity when issuing these commands. If so, reconnect to the network.
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   sudo netplan generate
+      sudo netplan generate
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   sudo netplan apply
+      sudo netplan apply
 
-   A bridge is created and an IP address is assigned to the new bridge.
+      A bridge is created and an IP address is assigned to the new bridge.
+
 6. Verify the new bridge:
 
    .. code-block:: sh

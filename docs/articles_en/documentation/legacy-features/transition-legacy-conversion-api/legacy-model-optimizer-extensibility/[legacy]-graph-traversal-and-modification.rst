@@ -71,7 +71,7 @@ the ``mo.graph.port.Port`` class). The ``Port`` object has several attributes:
 
 * ``node`` - the instance of the ``Node`` object the port belongs to.
 * ``idx`` - the port number. Input and output ports are numbered independently, starting from ``0``. Thus,
-:doc:`ReLU <../../../openvino-ir-format/operation-sets/operation-specs/activation/relu-1>` operation has one input port (with index ``0``) and one output port (with index ``0``).
+  :doc:`ReLU <../../../openvino-ir-format/operation-sets/operation-specs/activation/relu-1>` operation has one input port (with index ``0``) and one output port (with index ``0``).
 * ``type`` - the type of the port. Could be equal to either ``"in"`` or ``"out"``.
 * ``data`` - the object that should be used to get attributes of the corresponding data node. This object has methods ``get_shape()`` / ``set_shape()`` and ``get_value()`` / ``set_value()`` to get/set shape/value of the corresponding data node. For example, ``in_port.data.get_shape()`` returns an input shape of a tensor connected to input port ``in_port`` (``in_port.type == 'in'``), ``out_port.data.get_value()`` returns a value of a tensor produced from output port ``out_port`` (``out_port.type == 'out'``).
 
