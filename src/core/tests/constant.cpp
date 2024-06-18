@@ -2119,9 +2119,8 @@ TEST(constant, f8e8m0_write_then_cast_custom_type) {
 }
 
 template <typename T1, typename T2>
-::testing::AssertionResult test_convert() {
+::testing::AssertionResult test_convert(vector<T1> expected = {1, 2, 3, 4, 6}) {
     Shape shape{5};
-    vector<T1> expected{1, 2, 3, 4, 6};
     auto c1 = std::make_shared<ov::op::v0::Constant>(ov::element::from<T2>(), shape, expected);
     vector<T1> actual = c1->template cast_vector<T1>();
     ::testing::AssertionResult rc =
@@ -2153,7 +2152,7 @@ TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<float, uint32_t>()));
     EXPECT_TRUE((test_convert<float, uint64_t>()));
     EXPECT_TRUE((test_convert<float, float4_e2m1>()));
-    EXPECT_TRUE((test_convert<float, float8_e8m0>()));
+    EXPECT_TRUE((test_convert<float, float8_e8m0>({1, 2, 4, 8, 16})));
 
     EXPECT_TRUE((test_convert<double, float>()));
     EXPECT_TRUE((test_convert<double, double>()));
@@ -2168,7 +2167,7 @@ TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<double, uint32_t>()));
     EXPECT_TRUE((test_convert<double, uint64_t>()));
     EXPECT_TRUE((test_convert<double, float4_e2m1>()));
-    EXPECT_TRUE((test_convert<double, float8_e8m0>()));
+    EXPECT_TRUE((test_convert<double, float8_e8m0>({1, 2, 4, 8, 16})));
 
     EXPECT_TRUE((test_convert<float16, float>()));
     EXPECT_TRUE((test_convert<float16, double>()));
@@ -2183,7 +2182,7 @@ TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<float16, uint32_t>()));
     EXPECT_TRUE((test_convert<float16, uint64_t>()));
     EXPECT_TRUE((test_convert<float16, float4_e2m1>()));
-    EXPECT_TRUE((test_convert<float16, float8_e8m0>()));
+    EXPECT_TRUE((test_convert<float16, float8_e8m0>({1, 2, 4, 8, 16})));
 
     EXPECT_TRUE((test_convert<bfloat16, float>()));
     EXPECT_TRUE((test_convert<bfloat16, double>()));
@@ -2198,7 +2197,7 @@ TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<bfloat16, uint32_t>()));
     EXPECT_TRUE((test_convert<bfloat16, uint64_t>()));
     EXPECT_TRUE((test_convert<bfloat16, float4_e2m1>()));
-    EXPECT_TRUE((test_convert<bfloat16, float8_e8m0>()));
+    EXPECT_TRUE((test_convert<bfloat16, float8_e8m0>({1, 2, 4, 8, 16})));
 
     EXPECT_TRUE((test_convert<int8_t, float>()));
     EXPECT_TRUE((test_convert<int8_t, double>()));
