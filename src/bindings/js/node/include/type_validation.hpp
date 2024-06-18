@@ -20,7 +20,7 @@ std::string get_current_signature(const Napi::CallbackInfo& info);
 
 template <typename T>
 const char* get_attr_type() {
-    throw std::runtime_error("get_attr_type is not implemented for passed type!");
+    OPENVINO_THROW("get_attr_type is not implemented for passed type!");
 };
 
 template <>
@@ -43,7 +43,7 @@ const char* get_attr_type<TensorWrap>();
 
 template <typename T>
 bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
-    throw std::runtime_error("Validation for this type is not implemented!");
+    OPENVINO_THROW("Validation for this type is not implemented!");
 };
 
 template <>
