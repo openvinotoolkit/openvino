@@ -4,7 +4,7 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   workflow_dispatch:
-  # pull_request:
+  pull_request:
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -41,7 +41,7 @@ jobs:
 #            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_BUILD_TYPE: 'RelWithDebInfo'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
