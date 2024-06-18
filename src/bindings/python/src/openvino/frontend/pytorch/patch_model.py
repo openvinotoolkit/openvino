@@ -84,7 +84,7 @@ def unpatch_model(model, orig_forward_name):
 
 def __make_16bit_traceable(model: torch.nn.Module):
     """
-    Prepare a PyTorch model for 16-bit tracing with OpenVINO.
+    Prepare a 16-bit PyTorch model for tracing with OpenVINO.
      - Replace known list of modules with ModuleExtension.
      - Convert other modules with weights to FP32.
     """
