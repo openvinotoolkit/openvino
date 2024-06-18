@@ -116,6 +116,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         m_has_sub_compiled_models = true;
         auto sub_cfg = m_cfg;
         sub_cfg.enableSubStreams = false;
+        sub_cfg.enableNodeSplit = true;
         auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
         auto message = message_manager();
         m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.streamExecutorConfig.get_sub_streams());
