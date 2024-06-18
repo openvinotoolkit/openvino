@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -20,7 +19,9 @@ namespace intel_npu::driverCompilerAdapter {
 
 class IR {
 public:
-    IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedVersionByCompiler = 11);
+    IR(const std::shared_ptr<const ov::Model>& origModel,
+       uint32_t supportedVersionByCompiler = 11,
+       bool largeModel = false);
     ~IR();
 
     std::istream& getXml() {

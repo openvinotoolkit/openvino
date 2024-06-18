@@ -18,10 +18,6 @@ public:
         this->setp(base, base + _buffer.size());
     }
 
-    const std::vector<char>& get_buffer() const {
-        return _buffer;
-    }
-
     std::streampos tellp() {
         return std::streampos(_writePos);
     }
