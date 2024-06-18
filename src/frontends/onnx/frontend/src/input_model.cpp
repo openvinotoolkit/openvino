@@ -64,6 +64,14 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
     return nullptr;
 }
 
+ov::frontend::Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    const auto& inputs = get_inputs();
+    if (input_idx < inputs.size()) {
+        return inputs.at(input_idx);
+    }
+    return {};
+}
+
 ov::frontend::Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
         const auto node_index = m_editor->get_node_index(EditorNode{operation_name});

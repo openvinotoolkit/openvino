@@ -824,6 +824,14 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
     return _impl->get_place_by_tensor_name(tensorName);
 }
 
+ov::frontend::Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    const auto& inputs = get_inputs();
+    if (input_idx < inputs.size()) {
+        return inputs.at(input_idx);
+    }
+    return {};
+}
+
 void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
     _impl->override_all_outputs(outputs);
 }

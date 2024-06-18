@@ -85,16 +85,19 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         for idx, input_info in enumerate(argv.input):
             if getattr(input_info, "name", None):
                 place = input_model.get_place_by_tensor_name(input_info.name)
-                if input_info.shape:
-                    input_model.set_partial_shape(place, input_info.shape)
-                if input_info.type:
-                    input_model.set_element_type(place, input_info.type)
+                if not input_info.shape and not input_info.type:
+                    # If we received place by name, we need to use it for FE to verify
+                    # that such name exist, otherwise we silently ignore it.
+                    # Using dynamic shape should be safe, because FE will not overwrite
+                    # the shape that was produced after conversion, but merge it, so
+                    # dynamic shape will not change anything.
+                    input_model.set_partial_shape(place, PartialShape.dynamic())
             else:
                 place = input_model.get_place_by_input_index(idx)
-                if input_info.shape:
-                    input_model.set_partial_shape(place, input_info.shape)
-                if input_info.type:
-                    input_model.set_element_type(place, input_info.type)
+            if input_info.shape:
+                input_model.set_partial_shape(place, input_info.shape)
+            if input_info.type:
+                input_model.set_element_type(place, input_info.type)
     else:
         argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
             input_model, argv.placeholder_shapes, argv.placeholder_data_types)

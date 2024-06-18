@@ -37,11 +37,6 @@ Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
     if (!m_actual) {
         return {};
     }
-    /*const auto& inputs = get_inputs();
-    if (input_idx < inputs.size()) {
-        return inputs.at(input_idx);
-    }
-    return {};*/
     FRONTEND_RETURN_STATEMENT("get_place_by_input_index", m_actual->get_place_by_input_index(input_idx))
 }
 

@@ -406,6 +406,14 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
     return _impl->get_place_by_tensor_name(tensorName);
 }
 
+ov::frontend::Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    const auto& inputs = get_inputs();
+    if (input_idx < inputs.size()) {
+        return inputs.at(input_idx);
+    }
+    return {};
+}
+
 void InputModel::set_partial_shape(const Place::Ptr& place, const PartialShape& shape) {
     _impl->set_partial_shape(place, shape);
 }
