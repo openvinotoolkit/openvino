@@ -82,6 +82,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         sys.exit(0)
 
     if getattr(argv, "framework", None) == "pytorch":
+        iplaces = []
         for idx, input_info in enumerate(argv.input):
             if getattr(input_info, "name", None):
                 place = input_model.get_place_by_tensor_name(input_info.name)
@@ -94,10 +95,35 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                     input_model.set_partial_shape(place, PartialShape.dynamic())
             else:
                 place = input_model.get_place_by_input_index(idx)
-            if input_info.shape:
+            iplaces.append(place)
+            if input_info.shape is not None:
                 input_model.set_partial_shape(place, input_info.shape)
-            if input_info.type:
+            if input_info.type is not None:
                 input_model.set_element_type(place, input_info.type)
+        model_inputs = input_model.get_inputs()
+        def equal_places_lists(list1, list2):
+            if len(list1) != len(list2):
+                return False
+            for p1, p2 in zip(list1, list2):
+                if not p1.is_equal(p2):
+                    return False
+            return True
+        # Currently this only work to reorder inputs/outputs
+        to_override_all_inputs = len(iplaces) <= len(model_inputs) and not equal_places_lists(model_inputs, iplaces)
+        to_override_all_outputs = False
+        if argv.output:
+            oplaces = []
+            _outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
+            for out_desc in _outputs:
+                oplaces.append(out_desc["name"])
+            model_outputs = input_model.get_outputs()
+            to_override_all_outputs = len(oplaces) <= len(model_inputs) and not equal_places_lists(model_outputs, oplaces)
+        if to_override_all_inputs and to_override_all_outputs:
+            input_model.extract_subgraph(iplaces, oplaces)
+        elif to_override_all_inputs:
+            input_model.override_all_inputs(iplaces)
+        elif to_override_all_outputs:
+            input_model.override_all_outputs(oplaces)
     else:
         argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
             input_model, argv.placeholder_shapes, argv.placeholder_data_types)
