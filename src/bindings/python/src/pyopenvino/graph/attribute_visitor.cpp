@@ -11,6 +11,7 @@
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -30,6 +31,8 @@ void visit_attribute(py::dict& attributes,
 };
 
 void regclass_graph_AttributeVisitor(py::module m) {
+    using PY_TYPE = Common::utils::PY_TYPE;
+
     py::class_<ov::AttributeVisitor, std::shared_ptr<ov::AttributeVisitor>> visitor(m, "AttributeVisitor");
 
     visitor.def(
@@ -59,29 +62,9 @@ void regclass_graph_AttributeVisitor(py::module m) {
                     // python list
                     auto _list = attribute.second.cast<py::list>();
 
-                    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, DOUBLE, FLOAT };
-                    PY_TYPE detected_type = PY_TYPE::UNKNOWN;
-
-                    for (const auto& it : _list) {
-                        auto check_type = [&](PY_TYPE type) {
-                            if (detected_type == PY_TYPE::UNKNOWN || detected_type == type) {
-                                detected_type = type;
-                                return;
-                            }
-                            OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
-                        };
-                        if (py::isinstance<py::str>(it)) {
-                            check_type(PY_TYPE::STR);
-                        } else if (py::isinstance<py::int_>(it)) {
-                            check_type(PY_TYPE::INT);
-                        } else if (py::isinstance<py::float_>(it)) {
-                            check_type(PY_TYPE::DOUBLE);
-                        } else if (py::isinstance(it, float_32_type)) {
-                            check_type(PY_TYPE::FLOAT);
-                        }
-                    }
-
                     OPENVINO_ASSERT(!_list.empty(), "Attributes list is empty.");
+
+                    PY_TYPE detected_type = Common::utils::check_list_element_type(_list);
 
                     switch (detected_type) {
                     case PY_TYPE::STR:
@@ -100,10 +83,10 @@ void regclass_graph_AttributeVisitor(py::module m) {
                         visit_attribute<std::vector<int64_t>>(attributes, std::make_pair(attribute.first, _list), self);
                         break;
                     default:
-                        OPENVINO_ASSERT(false, "Unsupported attribute type in provided list.");
+                        OPENVINO_THROW("Unsupported attribute type in provided list.");
                     }
                 } else {
-                    OPENVINO_ASSERT(false, "Unsupported attribute type.");
+                    OPENVINO_THROW("Unsupported attribute type.");
                 }
             }
         },
