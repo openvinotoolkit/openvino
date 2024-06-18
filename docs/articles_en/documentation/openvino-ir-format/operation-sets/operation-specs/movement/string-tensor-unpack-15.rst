@@ -32,7 +32,7 @@ The operator will transform the tensor into three outputs:
     * ``ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 strings.
 
 * *symbols* = "IntelOpenVINO"
-    * ``symbols`` contains concatenated string data, interpretable using ``begins`` and ``ends``.
+    * ``symbols`` contains concatenated string data encoded in utf-8 bytes, interpretable using ``begins`` and ``ends``.
     * ``symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` strings.
 
 **Inputs**
