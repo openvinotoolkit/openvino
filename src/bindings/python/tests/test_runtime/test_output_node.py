@@ -7,6 +7,7 @@ import openvino.runtime.opset13 as ops
 from openvino import Type, Tensor, Symbol
 import numpy as np
 
+
 def test_output_replace(device):
     param = ops.parameter([1, 64], Type.i64)
     param.output(0).get_tensor().set_names({"a", "b"})

@@ -147,7 +147,7 @@ def test_tensor_bounds_in_model(device):
     lower_value_tensor = Tensor(lower_value.reshape(partial_shape))
     upper_value = np.ones(tensor_size, dtype=np.float32)
     upper_value_tensor = Tensor(upper_value.reshape(partial_shape))
-    
+
     tensor.set_lower_value(lower_value_tensor)
     retrieved_lower_value = tensor.get_lower_value().data
     tensor.set_upper_value(upper_value_tensor)
@@ -163,6 +163,5 @@ def test_value_symbol_in_model(device):
     partial_shape = tensor.get_partial_shape().to_shape()
     tensor_size = np.prod(partial_shape)
     values = [Symbol() for _ in range(tensor_size)]
-    a = tensor.get_value_symbol()
     tensor.set_value_symbol(values)
     assert tensor.get_value_symbol() == values
