@@ -60,14 +60,14 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
-    std::vector<std::string> checked_signatures;
+    std::vector<std::string> allowed_signatures;
 
     try {
         std::shared_ptr<ov::Model> model;
 
-        if (ov::js::validate<Napi::String, Napi::String>(info, checked_signatures)) {
+        if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
             model = _core.read_model(info[0].ToString(), info[1].ToString());
-        } else if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::Buffer<uint8_t>>(info, checked_signatures)) {
+        } else if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
             std::string model_str = buffer_to_string(info[0]);
 
             Napi::Buffer<uint8_t> weights = info[1].As<Napi::Buffer<uint8_t>>();
@@ -78,15 +78,15 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
             std::memcpy(weight_tensor.data(), bin, bin_size);
 
             model = _core.read_model(model_str, weight_tensor);
-        } else if (ov::js::validate<Napi::Buffer<uint8_t>>(info, checked_signatures)) {
+        } else if (ov::js::validate<Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
             std::string model_str = buffer_to_string(info[0]);
             ov::Tensor weight_tensor = ov::Tensor(ov::element::Type_t::u8, {0});
 
             model = _core.read_model(model_str, weight_tensor);
-        } else if (ov::js::validate<Napi::String>(info, checked_signatures)) {
+        } else if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
             model = _core.read_model(info[0].ToString());
         } else {
-            std::string error_message = ov::js::get_parameters_error_msg(info, checked_signatures);
+            std::string error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
 
             OPENVINO_THROW(error_message);
         }
@@ -152,24 +152,24 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
 }
 
 Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {
-    std::vector<std::string> checked_signatures;
+    std::vector<std::string> allowed_signatures;
 
     try {
-        if (ov::js::validate<Napi::String, Napi::String>(info, checked_signatures)) {
+        if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
             return compile_model_sync(info, info[0].ToString(), info[1].ToString());
-        } else if (ov::js::validate<ModelWrap, Napi::String>(info, checked_signatures)) {
+        } else if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures)) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
-        } else if (ov::js::validate<Napi::String, Napi::String, Napi::Object>(info, checked_signatures)) {
+        } else if (ov::js::validate<Napi::String, Napi::String, Napi::Object>(info, allowed_signatures)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
 
             return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
-        } else if (ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, checked_signatures)) {
+        } else if (ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
 
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         }
 
-        std::string error_message = ov::js::get_parameters_error_msg(info, checked_signatures);
+        std::string error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
 
         OPENVINO_THROW(error_message);
     } catch (std::exception& e) {

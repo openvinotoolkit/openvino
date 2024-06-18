@@ -117,13 +117,13 @@ bool validate(const Napi::CallbackInfo& info) {
 };
 
 template <typename... Ts>
-bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& checked_signatures) {
+bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_signatures) {
     std::vector<std::string> signature_attributes = get_signature<Ts...>();
-    checked_signatures.push_back(std::string("(" + ov::util::join(signature_attributes) + ")"));
+    allowed_signatures.push_back(std::string("(" + ov::util::join(signature_attributes) + ")"));
 
     return validate_detail<Ts...>(info);
 };
 
-std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector<std::string>& checked_signatures);
+std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_signatures);
 }  // namespace js
 }  // namespace ov
