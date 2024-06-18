@@ -111,7 +111,6 @@ def embedding_bag_offsets(
     :param name: Optional name for output node.
     :return: The new node performing EmbeddingBagOffsets operation.
     """
-
     inputs = [emb_table, indices, offsets]
     if default_index is not None:
         inputs.append(default_index)
