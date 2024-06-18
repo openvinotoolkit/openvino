@@ -263,11 +263,20 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         REGISTER_PASS(manager, ConstantFolding)
         manager.register_pass<ov::pass::VisualizeTree>("before_MatmulSplitDecomposition_moc.svg");
 
+        manager.run_passes(f);
+        ov::pass::Serialize serializer1("before_matmul_gathers.xml", "before_matmul_gathers.bin");
+        serializer1.run_on_model(f);
+
         auto decomp_tmp = manager.register_pass<GraphRewrite>();
         ADD_MATCHER(decomp_tmp, MatmulSplitDecomposition)
         decomp_tmp->set_name("ov::pass::MatmulSplitDecomposition");
+        ADD_MATCHER(decomp_tmp, MatmulVariadicSplitDecomposition)
+        decomp_tmp->set_name("ov::pass::MatmulVariadicSplitDecomposition");
 
         manager.register_pass<ov::pass::VisualizeTree>("after_MatmulSplitDecomposition_moc.svg");
+        manager.run_passes(f);
+        ov::pass::Serialize serializer2("after_matmul_gathers.xml", "after_matmul_gathers.bin");
+        serializer2.run_on_model(f);
     }
 
     auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();

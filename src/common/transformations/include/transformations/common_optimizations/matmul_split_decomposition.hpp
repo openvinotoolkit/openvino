@@ -11,6 +11,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MatmulSplitDecomposition;
+class TRANSFORMATIONS_API MatmulVariadicSplitDecomposition;
 
 }  // namespace pass
 }  // namespace ov
@@ -62,4 +63,12 @@ public:
     MatmulSplitDecomposition();
     void split_weights(const Output<Node>& weights, OutputVector& new_weights,
                        const Output<Node>& bias, OutputVector& new_bias);
+};
+
+class ov::pass::MatmulVariadicSplitDecomposition : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MatmulVariadicSplitDecomposition", "0");
+    MatmulVariadicSplitDecomposition();
+    void split_weights(const Output<Node>& weights, OutputVector& new_weights,
+                       const Output<Node>& split_length);
 };

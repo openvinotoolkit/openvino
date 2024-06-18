@@ -194,6 +194,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
         auto decomp_tmp = manager.register_pass<GraphRewrite>();
         ADD_MATCHER(decomp_tmp, MatmulSplitDecomposition)
         decomp_tmp->set_name("ov::pass::MatmulSplitDecomposition");
+        ADD_MATCHER(decomp_tmp, MatmulVariadicSplitDecomposition)
+        decomp_tmp->set_name("ov::pass::MatmulVariadicSplitDecomposition");
 
         manager.register_pass<ov::pass::VisualizeTree>("after_MatmulSplitDecomposition.svg");
     }
