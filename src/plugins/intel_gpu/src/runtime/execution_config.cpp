@@ -56,6 +56,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::internal::exclusive_async_requests, false),
         std::make_tuple(ov::internal::query_model_ratio, 1.0f),
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
+        std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
