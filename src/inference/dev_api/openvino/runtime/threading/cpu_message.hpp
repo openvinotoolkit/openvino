@@ -50,6 +50,8 @@ public:
 
     void set_num_sub_streams(int num_sub_streams);
 
+    int get_num_sub_streams();
+
 private:
     int _num_sub_streams = 0;
     std::thread _serverThread;

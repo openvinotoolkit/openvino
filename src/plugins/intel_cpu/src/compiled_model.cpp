@@ -114,12 +114,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
     // std::cout << "m_has_sub_compiled_models: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
     if (m_cfg.enableSubStreams) {
-        m_cfg.enableSubStreams = false;
         m_has_sub_compiled_models = true;
         auto sub_cfg = m_cfg;
+        sub_cfg.enableSubStreams = false;
+        sub_cfg.enableNodeSplit = true;
         auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
         auto message = message_manager();
         m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.streamExecutorConfig.get_sub_streams());
+        message->set_num_sub_streams(m_cfg.streamExecutorConfig.get_sub_streams());
         for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
             std::vector<std::vector<int>> sub_streams_table;
             sub_streams_table.push_back(streams_info_table[i + 1]);
@@ -135,7 +137,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_sub_compiled_models.push_back(
                 std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
         }
-        message->set_num_sub_streams(static_cast<int>(m_sub_compiled_models.size()));
     }
     // init sub stream threads of executor
     // int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();

@@ -76,6 +76,7 @@ struct Config {
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableSubStreams = false;
+    bool enableNodeSplit = false;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
