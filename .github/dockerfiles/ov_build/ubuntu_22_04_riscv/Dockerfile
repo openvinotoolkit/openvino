@@ -29,10 +29,13 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
-        # Python
+        # Python \
+        python3-dev \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
+        libxml2-dev \
+        libxslt-dev \
         # Compilers
         gcc \
         g++ \
