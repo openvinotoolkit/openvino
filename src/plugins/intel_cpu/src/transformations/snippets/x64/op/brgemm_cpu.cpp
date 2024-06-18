@@ -5,6 +5,7 @@
 #include "brgemm_cpu.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "utils/general_utils.h"
 #include "snippets/utils.hpp"

@@ -124,7 +124,7 @@ std::unordered_map<std::string, std::vector<size_t>> compute_label_dim_map(const
             for (size_t ind = 0; ind < num_broadcasted_dims; ++ind) {
                 label_dims.push_back(static_cast<size_t>(current_dim + ind));
             }
-            resulted_map[label] = label_dims;
+            resulted_map[label] = std::move(label_dims);
             current_dim += num_broadcasted_dims;
         } else if (resulted_map.find(label) != resulted_map.end()) {
             resulted_map[label].push_back(static_cast<size_t>(current_dim));
@@ -132,7 +132,7 @@ std::unordered_map<std::string, std::vector<size_t>> compute_label_dim_map(const
         } else {
             std::vector<size_t> label_dims;
             label_dims.push_back(static_cast<size_t>(current_dim));
-            resulted_map[label] = label_dims;
+            resulted_map[label] = std::move(label_dims);
             ++current_dim;
         }
     }
@@ -350,8 +350,8 @@ void reduce_input(ov::TensorVector& inputs,
     reference::reduce_sum(input_ptr.data<T>(), output_ptr.data<T>(), input_shape, reduced_axes);
 
     // update a vector of inputs and input subscripts
-    inputs[input_ind] = output_ptr;
-    input_subscripts[input_ind] = new_input_subscript;
+    inputs[input_ind] = std::move(output_ptr);
+    input_subscripts[input_ind] = std::move(new_input_subscript);
 }
 
 /// \brief      Transpose input to layout specified through the required subscript
@@ -408,7 +408,7 @@ void transpose_input(ov::TensorVector& inputs,
                          output_shape);
 
     // update a vector of inputs and input subscripts
-    inputs[input_ind] = output_ptr;
+    inputs[input_ind] = std::move(output_ptr);
     input_subscripts[input_ind] = required_subscript;
 }
 
@@ -452,7 +452,7 @@ void broadcast_input(ov::TensorVector& inputs,
                          broadcast_axes,
                          input.get_element_type().size());
 
-    input = output;
+    input = std::move(output);
 }
 
 /// \brief      Build identity tensor that will be used to zero non-diagonal tensor
@@ -528,7 +528,7 @@ ov::Tensor build_multi_identity(const ov::Tensor& input,
                                multi_identity.get_shape(),
                                identity.get_shape(),
                                ov::op::AutoBroadcastType::NUMPY);
-        multi_identity = mul_output;
+        multi_identity = std::move(mul_output);
     }
     return multi_identity;
 }
@@ -545,7 +545,7 @@ void extract_diagonal(ov::TensorVector& inputs, std::vector<std::string>& input_
 
     const auto& input_ptr = inputs[input_ind];
     const auto& input_subscript = input_subscripts[input_ind];
-    const auto input_shape = input_ptr.get_shape();
+    const auto& input_shape = input_ptr.get_shape();
 
     std::string resultant_subscript = "";
     constexpr char ellipsis[] = "...";
@@ -591,8 +591,8 @@ void extract_diagonal(ov::TensorVector& inputs, std::vector<std::string>& input_
 
     auto result = ov::Tensor(input_ptr.get_element_type(), result_shape);
     reference::reduce_sum(mul_output.data<T>(), result.data<T>(), mul_output.get_shape(), reduced_axes);
-    inputs[input_ind] = result;
-    input_subscripts[input_ind] = resultant_subscript;
+    inputs[input_ind] = std::move(result);
+    input_subscripts[input_ind] = std::move(resultant_subscript);
 }
 
 /// \brief      Reshape input to the new shape specified by sub-shapes of the
