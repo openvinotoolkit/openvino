@@ -1742,6 +1742,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         preferred_impl = impl_types::ocl;
     }
 
+    // if (node.is_type<convolution>()) {
+    //     preferred_impl = impl_types::ocl;
+    // }
+
     return preferred_impl;
 }
 

@@ -70,27 +70,40 @@ void compile_graph::run(program& p) {
                         change_initial_impl = false;
                 }
             }
-            // if (node->is_type<convolution>()) {
-            //     std::vector<std::string> conv_list = {
-            //         "__module.conv_in/aten::_convolution/Convolution",
-            //         "__module.down_blocks.0.resnets.0.conv1/aten::_convolution/Convolution",
-            //         "__module.down_blocks.0.resnets.0.conv2/aten::_convolution/Convolution",
-            //         "__module.down_blocks.0.attentions.0.proj_in/aten::_convolution/Convolution",
-            //         "__module.down_blocks.0.attentions.0.proj_out/aten::_convolution/Convolution",
-            //         "__module.down_blocks.0.resnets.1.conv1/aten::_convolution/Convolution",
-            //         "__module.down_blocks.0.resnets.1.conv2/aten::_convolution/Convolution",
-            //     };
-            //     bool is_hit = false;
-            //     for (auto conv_id : conv_list) {
-            //         if (node->id().find(conv_id) != std::string::npos) {
-            //             is_hit = true;
-            //             break;
-            //         }
-            //     }
-            //     if (!is_hit) {
-            //         change_initial_impl = false;
-            //     }
-            // }
+            if (node->is_type<convolution>()) {
+#if 0
+                std::vector<std::string> conv_list = {
+                    // "__module.conv_in/aten::_convolution/Convolution",
+                    // "__module.down_blocks.0.resnets.0.conv1/aten::_convolution/Convolution",
+                    // "__module.down_blocks.0.resnets.0.conv2/aten::_convolution/Convolution",
+                    // "__module.down_blocks.0.attentions.0.proj_in/aten::_convolution/Convolution",
+                    // "__module.down_blocks.0.attentions.0.proj_out/aten::_convolution/Convolution",
+                    // "__module.down_blocks.0.resnets.1.conv1/aten::_convolution/Convolution",
+                    // "__module.down_blocks.0.resnets.1.conv2/aten::_convolution/Convolution",
+                    "__module.down_blocks.1.resnets.0.conv_shortcut/aten::_convolution/Convolution",
+                };
+                bool is_hit = false;
+                for (auto conv_id : conv_list) {
+                    if (node->id().find(conv_id) != std::string::npos) {
+                        is_hit = true;
+                        break;
+                    }
+                }
+                if (!is_hit) {
+                    change_initial_impl = false;
+                }
+#else
+                bool is_hit = false;
+                auto w_layout = node->as<convolution>().weights().get_output_layout();
+                if (w_layout.spatial(0) == 1 && w_layout.spatial(1) == 1) {
+                    is_hit = true;
+                    GPU_DEBUG_COUT << node->id() << ": " << w_layout.to_short_string() << std::endl;
+                }
+                if (!is_hit) {
+                    change_initial_impl = false;
+                }
+#endif
+            }
         }
 
         if (change_initial_impl)

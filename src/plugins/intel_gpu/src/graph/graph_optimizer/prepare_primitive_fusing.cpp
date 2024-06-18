@@ -53,6 +53,8 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
+    // temporarily disable fusion because of conv_fsv16_1x1 has an issue with block_size > 1
+    return;
     fuse_reorders(p);
     remove_redundant_reshape(p);
     fuse_bias(p);

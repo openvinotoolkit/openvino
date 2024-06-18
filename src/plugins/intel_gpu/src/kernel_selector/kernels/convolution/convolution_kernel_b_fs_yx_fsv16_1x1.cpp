@@ -60,19 +60,31 @@ float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_p
 ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetTuningParams(const convolution_params& params) const {
     ConvolutionTuningData tuning_data;
 
-    const auto& input = params.inputs[0];
+    // GPU_DEBUG_INFO << params.has_dynamic_inputs() << ", " << params.has_dynamic_outputs() << ", " << params.has_dynamic_tensors() << std::endl;
+    // if (!params.has_dynamic_tensors()) {
+        const auto& input = params.inputs[0];
 
-    size_t ic_blocks = CeilDiv(input.Feature().v, tuning_data.feature_block_size);
+        size_t ic_blocks = CeilDiv(input.Feature().v, tuning_data.feature_block_size);
 
-    size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
-    bool block_size_one_is_better = params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && input.Feature().v >= 2048;
+        size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
+        bool block_size_one_is_better = params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && input.Feature().v >= 2048;
 
-    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !block_size_one_is_better)
-        while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
-               EstimateOccupancy(params, tuning_data) < 4.0)
-            tuning_data.slm_div_factor *= 2;
 
-    tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;
+        // if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !block_size_one_is_better)
+        if (params.engineInfo.supports_imad && !block_size_one_is_better)
+            while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
+                EstimateOccupancy(params, tuning_data) < 4.0)
+                tuning_data.slm_div_factor *= 2;
+
+        tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;
+
+        GPU_DEBUG_INFO << params.layerID << " : " << static_cast<int>(params.engineInfo.deviceType) << ", "
+                        << params.engineInfo.supports_imad << ", " << block_size_one_is_better << " : "
+                        << tuning_data.work_group_size << " = " << tuning_data.slm_div_factor << " * " << tuning_data.sub_group_size << " : "
+                        << params.outputs[0].X().v << " , " << params.outputs[0].Y().v << ", " << input.Feature().v << " : "
+                        << max_slm_div_factor << " =  " << params.engineInfo.maxWorkGroupSize << " / " << tuning_data.sub_group_size << " : "
+                        << ic_blocks << ", " << input.Feature().v << ", " << tuning_data.feature_block_size << std::endl;
+    // }
 
     return tuning_data;
 }
@@ -92,7 +104,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_1x1::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    // k.EnableDynamicShapesSupport();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -126,6 +138,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = tuning_data.work_group_size;
     dispatchData.lws[2] = 1;
+
+    GPU_DEBUG_INFO << "gws: " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << std::endl;
+    GPU_DEBUG_INFO << "lws: " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << std::endl;
 
     return dispatchData;
 }
@@ -216,6 +231,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         jit.Merge(MakeFusedOpsJitConstants(params, { conf_vec, conf_scalar1, conf_scalar2 }));
     }
 
+    GPU_DEBUG_INFO << params.layerID << " : params.fused_ops.empty(): " << params.fused_ops.empty() << std::endl;
+
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", tuning_data.sub_group_size));
     jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
 
@@ -239,9 +256,34 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
 
     jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", padded_output));
     jit.AddConstant(MakeJitConstant("NON_UNIT_FUSED_OP_SPATIAL", non_unit_fused_op_spatial));
+    if (params.has_dynamic_tensors()) {
+        // const convolution_params& cp = static_cast<const convolution_params&>(params);
+        // DimensionAccessHelperJit dims0(cp.outputs[0]);
+        // auto x = dims0.x();
+        // auto y = dims0.y();
+        // auto f = dims0.f();
 
-    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", blockWidth));
-    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, blockWidth)));
+        // auto blockWidth_str = "(" + x
+
+        // if (x == 1 && y == 1) {
+        //     return { 1, EXE_MODE_DEFAULT };
+        // } else if (x * f <= 256) {
+        //     if (x < 8 || x * f <= 128)
+        //         return { 2, EXE_MODE_DEFAULT };
+        //     else
+        //         return { 4, EXE_MODE_DEFAULT };
+        // } else if (x * f <= 1536) {
+        //     return { 4, EXE_MODE_DEFAULT };
+        // } else {
+        //     return { 8, EXE_MODE_DEFAULT };
+        // }
+        jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", 8));
+        jit.AddConstant(MakeJitConstant("X_BLOCKS", 8));
+    } else {
+        jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", blockWidth));
+        jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, blockWidth)));
+    }
+
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
     jit.AddConstant(MakeJitConstant("WORK_GROUP_SIZE", tuning_data.work_group_size));
     jit.AddConstant(MakeJitConstant("IC_BLOCKS", CeilDiv(params.inputs[0].Feature().v, tuning_data.feature_block_size)));
