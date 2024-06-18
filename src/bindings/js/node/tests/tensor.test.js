@@ -24,8 +24,8 @@ const params = [
 ];
 
 test('Test for number of arguments in tensor', () => {
-  assert.throws( () => new ov.Tensor(ov.element.f32),
-    {message: 'Invalid number of arguments for Tensor constructor.'});
+  assert.throws( () => new ov.Tensor(ov.element.f32, shape, data, params),
+    {message: /Invalid number of arguments for Tensor constructor./});
 });
 
 describe('Tensor without data parameters', () => {
@@ -45,16 +45,22 @@ describe('Tensor data', () => {
   });
 
   it(`Create string tensor`, () => {
-    const str_data = ['H', 'e', 'l', 'l', 'o'];
-    const tensor = new ov.Tensor(ov.element.string, [1,1,1,5], str_data);
-    assert.deepStrictEqual(tensor.data, str_data);
+    const str_arr = ['text', 'more text', 'even more text'];
+    const tensor = new ov.Tensor(str_arr);
+    assert.deepStrictEqual(tensor.data, str_arr);
+  });
+
+  it(`Create string tensor`, () => {
+    const str_arr = ['text', 'more text', 'even more text'];
+    const tensor = new ov.Tensor(str_arr);
+    assert.deepStrictEqual(tensor.data, str_arr);
   });
 
   it(`Set string tensor data`, () => {
-    const str_data = ['H', 'e', 'l', 'l', 'o'];
+    const str_arr = ['H', 'e', 'l', 'l', 'o'];
     const tensor = new ov.Tensor(ov.element.string, [1,1,1,5]);
-    tensor.data = str_data;
-    assert.deepStrictEqual(tensor.data, str_data);
+    tensor.data = str_arr;
+    assert.deepStrictEqual(tensor.data, str_arr);
   });
 
   it('Test tensor getData()', () => {
@@ -116,13 +122,13 @@ describe('Tensor data', () => {
   it('Third argument of a tensor cannot be an ArrayBuffer', () => {
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape, new ArrayBuffer(1234)),
-      {message: /Third argument of a tensor must be TypedArray, or Array if the tensor type is string./});
+      {message: /Third argument of a tensor must be TypedArray./});
   });
 
   it('Third argument of a tensor cannot be an array object', () => {
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape, [1, 2, 3, 4]),
-      {message: /Third argument of a tensor must be TypedArray, or Array if the tensor type is string./});
+      {message: /Third argument of a tensor must be TypedArray./});
   });
 });
 

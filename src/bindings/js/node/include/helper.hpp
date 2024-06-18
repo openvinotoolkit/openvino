@@ -129,7 +129,7 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& data, const ov::Shape& shape, 
 void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr);
 
 /** @brief Helper method to create ov::tensor of ov::element::string type */
-ov::Tensor cast_to_tensor(const Napi::Array& tokens, const ov::Shape& shape);
+ov::Tensor cast_to_tensor(const Napi::Array& array);
 
 /** @brief A helper function to create a ov::Tensor from Napi::Value.
  * @param value a Napi::Value that can be either a TypedArray or a TensorWrap Object.
@@ -139,13 +139,13 @@ ov::Tensor cast_to_tensor(const Napi::Array& tokens, const ov::Shape& shape);
  */
 template <typename KeyType>
 ov::Tensor value_to_tensor(const Napi::Value& value, ov::InferRequest& infer_request, const KeyType key) {
-    const auto input = get_request_tensor(infer_request, key);
-    const auto& shape = input.get_shape();
-    const auto& type = input.get_element_type();
     if (value.IsTypedArray()) {
+        const auto input = get_request_tensor(infer_request, key);
+        const auto& shape = input.get_shape();
+        const auto& type = input.get_element_type();
         return cast_to_tensor(value.As<Napi::TypedArray>(), shape, type);
     } else if (value.IsArray()) {
-        return cast_to_tensor(value.As<Napi::Array>(), shape);
+        return cast_to_tensor(value.As<Napi::Array>());
     } else {
         return cast_to_tensor(value.As<Napi::Value>());
     }

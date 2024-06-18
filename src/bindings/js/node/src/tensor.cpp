@@ -13,27 +13,21 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     if (info.Length() == 0) {
         return;
     }
-
-    if (info.Length() == 1 || info.Length() > 3) {
-        reportError(info.Env(), "Invalid number of arguments for Tensor constructor.");
-        return;
-    }
-
     try {
-        const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
-        const auto& shape = js_to_cpp<ov::Shape>(info, 1);
+        if (info.Length() > 3) {
+            OPENVINO_THROW("Invalid number of arguments for Tensor constructor.");
+        } else if (info.Length() == 1 && info[0].IsArray()) {
+            this->_tensor = cast_to_tensor(info[0].As<Napi::Array>());
+        } else {
+            const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
+            const auto& shape = js_to_cpp<ov::Shape>(info, 1);
 
-        if (info.Length() == 2) {
-            this->_tensor = ov::Tensor(type, shape);
-        } else if (info.Length() == 3) {
-            if (info[2].IsTypedArray()) {
+            if (info.Length() == 2) {
+                this->_tensor = ov::Tensor(type, shape);
+            } else if (info.Length() == 3 && info[2].IsTypedArray()) {
                 this->_tensor = cast_to_tensor(info[2].As<Napi::TypedArray>(), shape, type);
-            } else if (type == ov::element::string && info[2].IsArray()) {
-                this->_tensor = cast_to_tensor(info[2].As<Napi::Array>(), shape);
             } else {
-                reportError(info.Env(),
-                            "Third argument of a tensor must be TypedArray, or Array if the tensor type is string.");
-                return;
+                OPENVINO_THROW("Third argument of a tensor must be TypedArray.");
             }
         }
     } catch (std::invalid_argument& e) {
@@ -127,12 +121,12 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
         return arr;
     }
     case ov::element::string: {
-        auto tokens = Napi::Array::New(info.Env(), _tensor.get_size());
+        auto str_data = Napi::Array::New(info.Env(), _tensor.get_size());
         const auto data = _tensor.data<std::string>();
         for (uint32_t i = 0; i < _tensor.get_size(); ++i) {
-            tokens[i] = Napi::String::New(info.Env(), data[i]);
+            str_data[i] = Napi::String::New(info.Env(), data[i]);
         }
-        return tokens;
+        return str_data;
     }
     default: {
         reportError(info.Env(), "Failed to return tensor data.");

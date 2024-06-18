@@ -327,9 +327,9 @@ void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {
     }
 }
 
-ov::Tensor cast_to_tensor(const Napi::Array& tokens, const ov::Shape& shape) {
-    auto tensor = ov::Tensor(ov::element::string, shape);
-    fill_tensor_from_strings(tensor, tokens);
+ov::Tensor cast_to_tensor(const Napi::Array& array) {
+    auto tensor = ov::Tensor(ov::element::string, ov::Shape{array.Length()});
+    fill_tensor_from_strings(tensor, array);
     return tensor;
 }
 
