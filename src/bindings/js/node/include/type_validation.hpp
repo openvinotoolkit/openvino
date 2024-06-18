@@ -79,34 +79,17 @@ std::string get_signature() {
     }
 };
 
-template <typename T>
-bool validate_impl(const Napi::CallbackInfo& info, size_t depth) {
-    return validate_value<T>(info.Env(), info[depth]);
-};
-
-template <typename T0, typename T1, typename... Ts>
-bool validate_impl(const Napi::CallbackInfo& info, size_t depth) {
-    bool is_passed = validate_value<T0>(info.Env(), info[depth]);
-
-    if (!is_passed)
-        return false;
-
-    return validate_impl<T1, Ts...>(info, depth + 1);
-};
-
-template <typename... Ts>
-bool validate_detail(const Napi::CallbackInfo& info) {
-    const size_t attrs_length = info.Length();
-
-    if (attrs_length != sizeof...(Ts))
-        return false;
-
-    return validate_impl<Ts...>(info, 0);
+template <class... Ts>
+struct InputParameters {
+    template <size_t... Is>
+    static auto validate(const Napi::CallbackInfo& info, std::index_sequence<Is...>) {
+        return sizeof...(Ts) == info.Length() && (... && (validate_value<Ts>(info.Env(), info[Is])));
+    }
 };
 
 template <typename... Ts>
 bool validate(const Napi::CallbackInfo& info) {
-    return validate_detail<Ts...>(info);
+    return InputParameters<Ts...>::validate(info, std::index_sequence_for<Ts...>{});
 };
 
 template <typename... Ts>
@@ -114,7 +97,7 @@ bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_
     const auto signature_attributes = get_signature<Ts...>();
     allowed_signatures.push_back(signature_attributes);
 
-    return validate_detail<Ts...>(info);
+    return InputParameters<Ts...>::validate(info, std::index_sequence_for<Ts...>{});
 };
 
 std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_signatures);
