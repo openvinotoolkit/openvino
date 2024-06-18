@@ -26,6 +26,9 @@ Consider inputs:
 a batched string tensor. The ``output.shape`` (also called ``batch_size``) is equal to ``begins.shape`` and ``ends.shape``, 
 and in this case holds values ``["Intel", "OpenVINO"]``.
 
+When defining *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, 
+but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
+
 **Inputs**
 
 * **1**: *begins*:
