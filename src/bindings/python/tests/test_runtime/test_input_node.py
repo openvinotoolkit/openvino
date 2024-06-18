@@ -152,7 +152,8 @@ def test_tensor_bounds_in_model(device):
     retrieved_lower_value = tensor.get_lower_value().data
     tensor.set_upper_value(upper_value_tensor)
     retrieved_upper_value = tensor.get_upper_value().data
-    assert np.array_equal(retrieved_lower_value, lower_value_tensor.data) and np.array_equal(retrieved_upper_value, upper_value_tensor.data)
+    assert np.array_equal(retrieved_lower_value, lower_value_tensor.data)
+    assert np.array_equal(retrieved_upper_value, upper_value_tensor.data)
 
 
 def test_value_symbol_in_model(device):

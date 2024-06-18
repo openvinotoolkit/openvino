@@ -40,7 +40,8 @@ def test_tensor_bounds():
     values = Tensor(np.zeros([1, 64], dtype=np.float32))
     tensor.set_lower_value(values)
     tensor.set_upper_value(values)
-    assert np.array_equal(tensor.get_lower_value().data, values.data) and np.array_equal(tensor.get_upper_value().data, values.data)
+    assert np.array_equal(tensor.get_lower_value().data, values.data)
+    assert np.array_equal(tensor.get_upper_value().data, values.data)
 
 
 def test_output_symbol():
