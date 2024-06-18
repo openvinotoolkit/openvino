@@ -65,25 +65,18 @@ bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value);
 template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value);
 
-template <typename T>
-void get_signature_impl(std::vector<std::string>& attributes) {
-    attributes.push_back(get_attr_type<T>());
-};
-
-template <typename T0, typename T1, typename... Ts>
-void get_signature_impl(std::vector<std::string>& attributes) {
-    attributes.push_back(get_attr_type<T0>());
-
-    get_signature_impl<T1, Ts...>(attributes);
-};
-
 template <typename... Ts>
-std::vector<std::string> get_signature() {
-    std::vector<std::string> attributes;
+std::string get_signature() {
+    if constexpr (sizeof...(Ts) == 0) {
+        return "()";
+    } else {
+        std::string signature = "(";
+        (signature.append(get_attr_type<Ts>()).append(", "), ...);
+        signature.pop_back();
+        signature.back() = ')';
 
-    get_signature_impl<Ts...>(attributes);
-
-    return attributes;
+        return signature;
+    }
 };
 
 template <typename T>
@@ -118,8 +111,8 @@ bool validate(const Napi::CallbackInfo& info) {
 
 template <typename... Ts>
 bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_signatures) {
-    std::vector<std::string> signature_attributes = get_signature<Ts...>();
-    allowed_signatures.push_back(std::string("(" + ov::util::join(signature_attributes) + ")"));
+    const auto signature_attributes = get_signature<Ts...>();
+    allowed_signatures.push_back(signature_attributes);
 
     return validate_detail<Ts...>(info);
 };
