@@ -142,7 +142,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Sets the upper bound of the tensor.
 
                 :param upper_bound: Sets the upper bound value.
-                :type upper_bound: Tensor
+                :type upper_bound: openvino.runtime.Tensor
              )");
 
     tensor.def("get_value_symbol",
