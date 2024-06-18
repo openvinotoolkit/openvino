@@ -927,11 +927,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*MatMulTransposeConcatTest.*"
         });
 
-        // [Tracking number: E#121043]
-        _skipRegistry.addPatterns("Compiler adapter is not extracting network name from metadata", {
-                ".*smoke_BehaviorTests/OVClassCompiledModelGetPropertyTest.GetMetricNoThrow_NETWORK_NAME.*"
-        });
-
         // [Tracking number: E#121347]
         _skipRegistry.addPatterns("Error message for empty model from stream must be changed to have \"device xml header\"", {
                 ".*smoke_BehaviorTests/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName.*",

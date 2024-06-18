@@ -56,7 +56,7 @@ std::string init_info_jit_memory_emitter(const jit_memory_emitter *emitter) {
     ss << " src_precision:" << emitter->src_prc
        << " dst_precision:" << emitter->dst_prc
        << " load/store_element_number:" << emitter->count
-       << " byte_offset:" << emitter->byte_offset;
+       << " byte_offset:" << emitter->compiled_byte_offset;
     return ss.str();
 }
 
@@ -76,26 +76,10 @@ static std::string init_info_jit_load_broadcast_emitter(const jit_load_broadcast
     return ss.str();
 }
 
-static std::string init_info_jit_load_convert_emitter(const jit_load_convert_emitter *emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_load_convert_emitter"
-       << memory_emitter_info;
-    return ss.str();
-}
-
 static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emitter *emitter) {
     std::stringstream ss;
     std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
     ss << "Emitter_type_name:jit_store_memory_emitter"
-       << memory_emitter_info;
-    return ss.str();
-}
-
-static std::string init_info_jit_store_convert_emitter(const jit_store_convert_emitter *emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_store_convert_emitter"
        << memory_emitter_info;
     return ss.str();
 }
@@ -190,12 +174,8 @@ void jit_emitter_info_t::init(const jit_emitter *emitter) {
         str_ = init_info_jit_load_memory_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_load_broadcast_emitter*>(emitter)) {
         str_ = init_info_jit_load_broadcast_emitter(e_type);
-    }  else if (auto e_type = dynamic_cast<const jit_load_convert_emitter*>(emitter)) {
-        str_ = init_info_jit_load_convert_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_store_memory_emitter*>(emitter)) {
         str_ = init_info_jit_store_memory_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_store_convert_emitter*>(emitter)) {
-        str_ = init_info_jit_store_convert_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_brgemm_emitter*>(emitter)) {
         str_ = init_info_jit_brgemm_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_brgemm_copy_b_emitter*>(emitter)) {

@@ -1,5 +1,3 @@
-.. {#compatibility_and_support}
-
 Compatibility and Support
 =========================
 
@@ -9,11 +7,14 @@ Compatibility and Support
    :hidden:
 
    compatibility-and-support/supported-devices
+   compatibility-and-support/supported-models
    compatibility-and-support/supported-operations-inference-devices
    compatibility-and-support/supported-operations-framework-frontend
 
 
 :doc:`Supported Devices <compatibility-and-support/supported-devices>` - compatibility information for supported hardware accelerators.
+
+:doc:`Supported Models <compatibility-and-support/supported-models>` - a list of selected models confirmed to work with given hardware.
 
 :doc:`Supported Operations <compatibility-and-support/supported-operations-inference-devices>` - a listing of framework layers supported by OpenVINO.
 
