@@ -101,20 +101,22 @@ def embedding_bag_offsets(
     """Return a node which performs sums or means of bags of embeddings without the intermediate embeddings.
 
     :param emb_table: Tensor containing the embedding lookup table.
-    :param indices: Tensor with indices.
-    :param offsets: Tensor containing the starting index positions of each bag in indices.
+    :param indices: 1D Tensor with indices.
+    :param offsets: 1D Tensor containing the starting index positions of each bag in indices.
     :param per_sample_weights: Tensor with weights for each sample.
     :param default_index: Scalar containing default index in embedding table to fill empty bags.
+                          If unset or set to -1, empty bags will be filled with 0.
+                          Reverse indexing using negative indices is not supported.
     :param reduction: String to select algorithm used to perform reduction of elements in bag.
     :param name: Optional name for output node.
-    :return: The new node which performs EmbeddingBagOffsets
+    :return: The new node performing EmbeddingBagOffsets operation.
     """
 
     inputs = [emb_table, indices, offsets]
     if default_index is not None:
         inputs.append(default_index)
     elif per_sample_weights is not None:
-        inputs.append(convert_like(constant(np.array(-1, np.int32)), inputs[1]), name=name)
+        inputs.append(convert_like(constant(np.array(-1, np.int32)), inputs[1]))
     if per_sample_weights is not None:
         inputs.append(per_sample_weights)
 
@@ -132,11 +134,11 @@ def embedding_bag_packed(
     """Return a node which performs sums or means of "bags" of embeddings, without the intermediate embeddings.
 
     :param emb_table: Tensor containing the embedding lookup table.
-    :param indices: Tensor with indices.
-    :param per_sample_weights: Weights to be multiplied with embedding table.
+    :param indices: 2D Tensor of shape [batch, indices_per_bag] with indices.
+    :param per_sample_weights: Tensor of weights to be multiplied with embedding table with same shape as indices.
     :param reduction: Operator to perform reduction of elements in bag.
     :param name: Optional name for output node.
-    :return: EmbeddingBagPacked node
+    :return: The new node performing EmbeddingBagPacked operation.
     """
     inputs = [emb_table, indices]
     if per_sample_weights is not None:
