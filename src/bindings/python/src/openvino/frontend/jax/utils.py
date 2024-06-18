@@ -66,7 +66,7 @@ def ivalue_to_constant(ivalue, shared_memory=True):
         return ov_type, Shape([len(ivalue)]), op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, (jax.Array, np.ndarray)):
-        return get_ov_type_for_value(ivalue), Shape(ivalue.shape), \
+        return get_ov_type_from_jax_type(ivalue.dtype), Shape(ivalue.shape), \
             jax_array_to_ov_const(ivalue, shared_memory=shared_memory).outputs()
             
     ov_dtype_value = get_ov_type_from_jax_type(ivalue)

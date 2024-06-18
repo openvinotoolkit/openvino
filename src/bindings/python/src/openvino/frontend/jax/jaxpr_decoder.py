@@ -67,13 +67,23 @@ class JaxprPythonDecoder (Decoder):
         if hasattr(self.jaxpr, 'params') and isinstance(self.jaxpr.params, dict):
             for k in self.jaxpr.params.keys():
                 self.params[k] = self.convert_param_to_constant_node(self.jaxpr, k)
-        
+                
         # TODO: this implementation may lead to memory increasing. Any better solution?
         self.m_decoders = []
         
     def inputs(self) -> List[int]:
         if isinstance(self.jaxpr, jax.core.Var):
             return []
+        elif isinstance(self.jaxpr, jax.core.JaxprEqn):
+            idx = 0
+            res = []
+            for inp in self.jaxpr.invars:
+                if isinstance(inp, jax.core.Literal):
+                    res.append(self.literals[idx].output(0))
+                    idx += 1
+                else:
+                    res.append(id(inp))
+            return res
         else:
             return [id(v) for v in self.jaxpr.invars]
     
@@ -140,7 +150,13 @@ class JaxprPythonDecoder (Decoder):
             node_visitor(decoder)
         # Visit every `JaxEqn` in the jaxpr, see https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L285
         for node in self.jaxpr.eqns:
-            decoder = JaxprPythonDecoder(node, name=self.name + "/" + node.primitive.name)
+            literal_decoders = []
+            for inp in node.invars:
+                if isinstance(inp, jax.core.Literal):
+                    literal_decoder = self.convert_literal_to_constant_node(inp)
+                    literal_decoders.append(literal_decoder)
+                    node_visitor(literal_decoder)
+            decoder = JaxprPythonDecoder(node, name=self.name + "/" + node.primitive.name, literals=literal_decoders)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
             
@@ -201,6 +217,12 @@ class JaxprPythonDecoder (Decoder):
         assert hasattr(jaxpr, 'params'), "The jaxpr does not have params."
         dtype, shape, constant = ivalue_to_constant(jaxpr.params[param], shared_memory=False)
         return _JaxprPythonConstantDecoder(constant=constant, dtype=dtype, shape=shape)
+    
+    @staticmethod
+    def convert_literal_to_constant_node(literal):
+        assert isinstance(literal, jax.core.Literal)
+        dtype, shape, constant = ivalue_to_constant(literal.val, shared_memory=False)
+        return _JaxprPythonConstantDecoder(constant=constant, dtype=dtype, shape=shape)
         
 class _JaxprPythonConstantDecoder (Decoder):
     def __init__(self, name=None, constant=None, dtype=None, shape=None):
@@ -245,7 +267,7 @@ class _JaxprPythonConstantDecoder (Decoder):
         raise ValueError("This is a constant node so it does not have named param.")
     
     def get_param_names(self):
-        raise ValueError("This is a constant node so it does not have named param.")
+        return []
     
     def get_output_type(self, index) -> OVType:
         return OVAny(self.dtype)

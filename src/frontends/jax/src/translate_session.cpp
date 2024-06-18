@@ -87,7 +87,7 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
         // When we have input model we should use its inputs order to create
         // Parameters We use m_inputs instead of get_inputs() because latter
         // doesn't have "self" input
-        for (auto& input_p : input_model->m_inputs) {
+        for (auto& input_p : input_model->get_inputs()) {
             auto jax_place = std::dynamic_pointer_cast<jax::Place>(input_p);
             FRONT_END_GENERAL_CHECK(jax_place, "Only place produced by Jax Frontend is supported.");
             auto tensor_id = jax_place->get_tensor_index();
@@ -100,40 +100,14 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
             parameters->push_back(parameter);
             (*tensor_map)[tensor_id] = parameter;
         }
+
         // Add all tensors that were frozen
         for (auto& desc : input_model->m_descriptors) {
             (*tensor_map)[desc.first] = desc.second.m_value;
         }
 
         auto node_visitor = [&](std::shared_ptr<JaxDecoder> node) {
-            // Explore all inputs of node. Node may refer to input value that hasn't
-            // been created in the current scope. But this value can be found in the
-            // outer scope, for this purpose we create new input for the model to link
-            // with external scope on a higher level.
-
-            auto raw_inputs = node->inputs();
-            for (size_t i = 0; i < raw_inputs.size(); ++i) {
-                auto input = raw_inputs.at(i);
-                if (tensor_map->find(input) == tensor_map->end()) {
-                    // Input refers value in the outer scope, need to create a new
-                    // Parameter in the current scope Linkage to external scope will be
-                    // performed on the level of the parent operation (if or loop)
-                    // TODO: Eliminate duplication with the main code for Parameters
-                    // creation
-                    PartialShape ps = node->get_input_shape(i);
-                    auto type = simplified_type_interpret(node->get_input_type(i));
-                    auto dtype = element::dynamic;
-                    if (type.is<element::Type>()) {
-                        dtype = type.as<element::Type>();
-                    }
-                    auto parameter = std::make_shared<v0::Parameter>(dtype, ps);
-                    (*tensor_map)[input] = parameter;
-                    // set name of parameter to the index of node in the model
-                    encode_tensor_name(parameter->output(0), input);
-                    parameters->push_back(parameter);
-                }
-            }
-
+            // Get named params, if there's any.
             std::unordered_map<std::string, size_t> param_name_to_id;
             auto param_names = node->get_param_names();
             for (auto name : param_names) {
