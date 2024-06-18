@@ -12,8 +12,7 @@ StringTensorUnpack
 **Category**: *Data movement*
 
 **Short description**: *StringTensorUnpack* operation transforms a given batch of strings into three tensors - one containing 
-the concatenated string data, and two other storing begin and end indices of the strings, respectively. The data can be given either as 
-strings or as ``unsigned 8-bit integer`` values.
+the concatenated string data, and two other storing begin and end indices of the strings, respectively.
 
 **Detailed description**
 
@@ -65,7 +64,7 @@ The operator will transform the tensor into three outputs:
 
 **Types**
 
-* *T*: ``string`` or ``u8``.
+* *T*: ``string``.
 * *T_IDX*: ``int64``.
 
 **Examples**
@@ -96,7 +95,7 @@ For ``input = ["Intel", "OpenVINO"]``
         </output>
     </layer>
 
-*Example 2: input data as u8*
+*Example 2: input with an empty string*
 
 For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
 
@@ -105,7 +104,7 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="u8">
+            <port id="0" precision="string">
                 <dim>5</dim>     <!-- batch of strings -->
             </port>
         </input>
@@ -116,7 +115,7 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
             <port id="1" precision="I64">
                 <dim>2</dim>     <!-- word_ends = [3, 3, 8, 9, 13] -->
             </port>
-            <port id="2" precision="u8">
+            <port id="2" precision="string">
                 <dim>13</dim>    <!-- output_symbols = "OMZGenAI 2024"-->
             </port>
         </output>
