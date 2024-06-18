@@ -180,7 +180,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             if user_shapes:
                 placeholder_shapes = create_target_input_shapes(
                     new_input_places)
-                print(f"placeholder_shapes: {placeholder_shapes}")
                 new_output_places_name = [x.get_names()[0]
                                           for x in new_output_places]
 
@@ -210,7 +209,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 model_inputs = input_model.get_inputs()
 
         if user_shapes:
-            print(f"user_shapes: {user_shapes}")
             for user_shape in user_shapes:
                 if user_shape.get('shape') is not None:
                     input_model.set_partial_shape(
