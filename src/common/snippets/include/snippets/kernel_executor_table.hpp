@@ -32,8 +32,8 @@ public:
         /*** Compute hash for fast comparison operations or caching support */
         virtual size_t hash() const = 0;
 
-        virtual bool operator==(const GenericConfig& rhs) const { return hash() == rhs.hash(); }
-        virtual bool operator!=(const GenericConfig& rhs) const { return hash() != rhs.hash(); }
+        bool operator==(const GenericConfig& rhs) const { return hash() == rhs.hash(); }
+        bool operator!=(const GenericConfig& rhs) const { return hash() != rhs.hash(); }
 
         virtual ~GenericConfig() = default;
         /** serialize config for debug purposes */
@@ -69,7 +69,6 @@ public:
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
     void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) override final { // NOLINT
-        m_config = std::static_pointer_cast<Conf>(m_config->clone());
         update_config(expr, m_config);
         OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
@@ -134,12 +133,16 @@ public:
         for (const auto& record : m_table)
             record.second->update_by_expression(record.first);
     }
+    /*** Return cumulative state of all the executors in the table. The returned ExecTableState object can be passed to reset_state */
     ExecTableState get_state() const {
         ExecTableState result;
+        // Note: we need to clone configs when saving the state, since the configs still stored in the table can
+        // be modified e.g. by calling update_by_expression();
         for (const auto& record : m_table)
             result.emplace_back(std::make_pair(record.first, record.second->get_config()->clone()));
         return result;
     }
+    /*** Restore the table state previously obtained by get_state() */
     void reset_state(const ExecTableState& state) {
         OPENVINO_ASSERT(state.size() == m_table.size(), "Invalid state in restore_state: size mismatch");
         auto state_it = state.begin();
