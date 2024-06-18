@@ -26,13 +26,11 @@ public:
     std::string targetDevice = ov::test::utils::DEVICE_GPU;
 
     static std::string get_test_case_name(testing::TestParamInfo<BF16WeightsDecompressionParams> obj) {
-        int given;
+        float given;
         float expected;
         std::tie(given, expected) = obj.param;
-
         std::ostringstream result;
-        result << " given=" << given << "expected=" << expected;
-
+        result << "given=" << given << "expected=" << expected;
         return result.str();
     }
 
@@ -129,7 +127,8 @@ INSTANTIATE_TEST_SUITE_P(Inference_without_convert, BF16WeightsDecompression,
                             BF16WeightsDecompressionParams(98304.0f, 18624.0f), //768x128
                             BF16WeightsDecompressionParams(55340232221128654848.0f, 24896.0f),
                             BF16WeightsDecompressionParams(-55340232221128654848.0f, 57664.0f),
-                            BF16WeightsDecompressionParams(-3.0f, 49472.0f)));
+                            BF16WeightsDecompressionParams(-3.0f, 49472.0f)),
+                            BF16WeightsDecompression::get_test_case_name);
 
 
 TEST_F(BF16WeightsDecompression, Inference_input_Add_without_convert) {
