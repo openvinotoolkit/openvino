@@ -551,11 +551,13 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
                 char __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                half value_val = __value_val;
+                value_val *= val_scale[sub_group_broadcast(value_offset, i)/4096];
     #else
                 char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
-    #endif
                 half value_val = __value_val;
-                value_val *= val_scale[scale_value_offset];
+                value_val *= val_scale[value_offset/4096];
+    #endif
 #else
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
@@ -595,7 +597,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
             char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
             half value_val = __value_val;
-            value_val *= val_scale[scale_value_offset];
+            value_val *= val_scale[value_offset/4096];
 #else
             INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
@@ -963,11 +965,13 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                half value_val = __value_val;
+                value_val *= val_scale[sub_group_broadcast(value_offset, i)/4096];
     #else
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
-    #endif
                 half value_val = __value_val;
-                value_val *= val_scale[scale_value_offset];
+                value_val *= val_scale[value_offset/4096];
+    #endif
 #else
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
@@ -1014,11 +1018,13 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
+                half value_val = __value_val;
+                value_val *= val_scale[sub_group_broadcast(value_offset, seq_len_idx)/4096];
     #else
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
-    #endif
                 half value_val = __value_val;
-                value_val *= val_scale[scale_value_offset];
+                value_val *= val_scale[value_offset/4096];
+    #endif
 #else
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
