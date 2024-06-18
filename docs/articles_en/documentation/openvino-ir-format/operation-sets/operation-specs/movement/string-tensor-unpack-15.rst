@@ -35,6 +35,9 @@ The operator will transform the tensor into three outputs:
     * ``symbols`` contains concatenated string data, interpretable using ``begins`` and ``ends``.
     * ``symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` strings.
 
+When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, 
+but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
+
 **Inputs**
 
 * **1**: *data*
