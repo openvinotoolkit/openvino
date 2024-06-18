@@ -153,8 +153,9 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* 
     const auto& config = std::static_pointer_cast<const BrgemmKernelConfig>(desc->get_config());
     OV_CPU_JIT_EMITTER_ASSERT(kernel && config, "has nullptr compiler kernel or invalid config");
 
-    if (config->is_with_amx() && config->compatible(args->amx_tile_config)) {
-        *args->amx_tile_config = static_cast<amx_tile_config_t>(*config);
+    const auto tile_config = args->amx_tile_config;
+    if (config->is_with_amx() && tile_config && !config->compatible(tile_config)) {
+        *tile_config = static_cast<amx_tile_config_t>(*config);
         cpu::x64::amx_tile_configure(kernel->palette);
     }
 
