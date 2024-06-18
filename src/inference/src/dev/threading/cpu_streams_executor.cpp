@@ -365,7 +365,6 @@ struct CPUStreamsExecutor::Impl {
                     {
                         std::unique_lock<std::mutex> lock(_mutex);
                         _queueCondVar.wait(lock, [&] {
-                            // std::cout << _config.get_name() << " addr: " << this << " in : " << streamId << "\n";
                             return !_taskQueue.empty() || (stopped = _isStopped);
                         });
                         if (!_taskQueue.empty()) {

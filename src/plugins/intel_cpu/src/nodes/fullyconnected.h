@@ -80,13 +80,15 @@ private:
     ExecutorFactoryPtr<FCAttrs, node::FullyConnected> factory;
     ExecutorPtr executor = nullptr;
     std::string errorPrefix;
+
+    // tensor parallel
     int w_rank = -1;
     int w_size = -1;
     int id = 0;
     std::shared_ptr<SubMemoryManager> sub_memory = nullptr;
     bool enable_tensor_parallel = false;
-    MemoryPtr cached_splited_weight;
-    MemoryPtr cached_splited_bias;
+    MemoryPtr cached_splited_weight = nullptr;
+    MemoryPtr cached_splited_bias = nullptr;
     MemoryPtr cached_scale = nullptr;
     MemoryPtr cached_zeropoint = nullptr;
 };

@@ -112,7 +112,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-    // std::cout << "m_has_sub_compiled_models: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
     if (m_cfg.enableSubStreams) {
         m_has_sub_compiled_models = true;
         auto sub_cfg = m_cfg;

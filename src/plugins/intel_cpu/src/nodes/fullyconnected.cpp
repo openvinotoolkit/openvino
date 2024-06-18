@@ -26,7 +26,6 @@
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/profiler.hpp"
 
 using namespace dnnl;
 using namespace ov::element;
@@ -100,7 +99,6 @@ void FullyConnected::prepareParams() {
 
 void FullyConnected::execute(dnnl::stream strm) {
     if (enable_tensor_parallel) {
-        PROFILE(_prof1, "fc_sync");
         id = sub_memory->get_memory_id(w_rank);
         sub_memory->set_memory_used(id, w_rank);
         while (true) {
@@ -118,12 +116,10 @@ void FullyConnected::execute(dnnl::stream strm) {
     }
 
     {
-        PROFILE(_prof1, "fc_exec");
         executor->execute(memory);
     }
 
     if (enable_tensor_parallel) {
-        PROFILE(_prof1, "fc_post");
         // dst
         auto dst = getDstMemoryAtPort(0);
         auto dst_ptr = static_cast<uint8_t*>(dst->getData());
@@ -133,7 +129,6 @@ void FullyConnected::execute(dnnl::stream strm) {
         auto shape = dst->getShape();
         auto dims = shape.getDims();
         auto prec = dst->getPrecision();
-        auto mem_size = dst->getSize(); // total bytes
 
         auto split_parts = [](int len, int n) {
             int average = len / n;
@@ -143,9 +138,12 @@ void FullyConnected::execute(dnnl::stream strm) {
         };
 
         const int dim = dims.size() - 1;
-        auto channel_size = dims[dim] * prec.size();    // selected dim bytes
-        // const int step = (mem_size / channel_size);     // the steps need to copy.
-        const size_t count = (mem_size / channel_size);     // the steps need to copy.
+        // selected dim bytes
+        auto channel_size = dims[dim] * prec.size();
+        // total bytes
+        auto mem_size = dst->getSize();
+        // the steps need to copy.
+        const size_t count = (mem_size / channel_size);
 
         auto splited_dim_vec = split_parts(dims[dim], w_size);
         const auto strideSize = splited_dim_vec[0] * prec.size();
@@ -160,12 +158,6 @@ void FullyConnected::execute(dnnl::stream strm) {
                 if (wait_list[idx] > 0 && sub_memory->_memorys_table[id][idx].flag) {
                     auto new_ptr = static_cast<uint8_t*>(sub_memory->_memorys_table[id][idx].send_buf);
                     const auto copySize = splited_dim_vec[idx] * prec.size();    // bytes of half selected dim.
-                    // size_t step = count;
-                    // parallel_for(step, [&](size_t i){
-                    //     int dst_offset = i * dims[dim] * prec.size() + idx * strideSize;
-                    //     int src_offset = i * copySize;
-                    //     cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
-                    // });
                     const size_t unloop = 8;
                     size_t step = count / unloop;
                     parallel_for(step, [&](size_t i){

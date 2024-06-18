@@ -24,7 +24,6 @@ void MessageManager::send_message(const MessageInfo& msg_info) {
     {
         std::lock_guard<std::mutex> lock(_msgMutex);
         _messageQueue.push_back(msg_info);
-        // std::cout << "send : " << msg_info.msg_type << "\n";
     }
     _msgCondVar.notify_all();
 }
@@ -46,13 +45,11 @@ void MessageManager::server_wait() {
             while (!_isServerStopped) {
                 std::vector<MessageInfo> msgQueue;
                 {
-                    // std::cout << "server_wait ........" << _isServerStopped << "\n";
                     std::unique_lock<std::mutex> lock(_msgMutex);
                     _msgCondVar.wait(lock, [&] {
                         return !_messageQueue.empty();
                     });
                     std::swap(_messageQueue, msgQueue);
-                    // std::cout << "server_wait receive: " << msgQueue[0].msg_type << "\n";
                 }
 
                 for (auto rec_info : msgQueue) {
@@ -62,7 +59,6 @@ void MessageManager::server_wait() {
                         task();
                     } else if (msg_type == CALL_BACK) {  // CALL_BACK
                         count++;
-                        // std::cout << "server_wait CALL_BACK: " << call_back_count << "/" << _num_sub_streams << "\n";
                         if (count == _num_sub_streams) {
                             call_back_count = count;
                             count = 0;
@@ -73,7 +69,6 @@ void MessageManager::server_wait() {
                     }
                 }
             }
-            // std::cout << "-------- server_wait end ---------\n";
         });
     }
 }
