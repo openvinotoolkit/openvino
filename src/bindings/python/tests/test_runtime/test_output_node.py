@@ -32,6 +32,7 @@ def test_output_names():
     param.output(0).add_names(more_names)
     assert param.output(0).get_names() == names.union(more_names)
 
+
 def test_tensor_bounds():
     param = ops.parameter([1, 64], Type.f32)
     tensor = param.output(0).get_tensor()
