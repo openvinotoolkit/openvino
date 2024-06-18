@@ -338,7 +338,7 @@ Additional Resources
 
 * `OpenVINO Tokenizers repo <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 * `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-tokenizers>`__
-* `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
+* `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 
 
