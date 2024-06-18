@@ -43,7 +43,7 @@ def test_tensor_bounds():
 
 
 def test_output_symbol():
-    param = ops.parameter([1,64], Type.f32)
+    param = ops.parameter([1, 64], Type.f32)
     tensor = param.output(0).get_tensor()
     values = [Symbol() for i in range(64)]
     tensor.set_value_symbol(values)
