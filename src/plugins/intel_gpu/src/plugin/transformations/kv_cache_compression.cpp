@@ -84,6 +84,7 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher() {
         auto org_sdpa = std::dynamic_pointer_cast<ov::intel_gpu::op::IndirectSDPA>(pattern_map.at(present).get_node_shared_ptr());
         
         if (org_sdpa->get_friendly_name().find(".h.0.") != std::string::npos
+        || org_sdpa->get_friendly_name().find(".h.1.") != std::string::npos
             ) {
             std::cout << "pattern matched! " << org_sdpa->get_friendly_name() << std::endl;   
             auto k_dyn_quan = std::make_shared<op::DynamicQuantize>(key_node->get_input_node_shared_ptr(1));

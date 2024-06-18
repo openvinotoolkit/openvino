@@ -274,9 +274,7 @@ KERNEL(sdpa_opt)(
                     KEY_BLOCK __key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
                     MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE) key_vals;
                     key_vals = TO_KEY_VEC_TYPE(__key_vals);
-                    key_vals *= key_scale[scale_key_offset];
-                    // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
-                    //     printf("val %d -> %f\n", __key_vals[0], key_vals[0]);
+                    key_vals *= key_scale[(key_offset + head_idx_index)/4096];
 
 #else
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
@@ -303,6 +301,9 @@ KERNEL(sdpa_opt)(
 
                 #define KEY_BLOCK_SIZE 4
                 for (; head_idx_index + (KEY_BLOCK_SIZE * SUBGROUP_SIZE) <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * KEY_BLOCK_SIZE) {
+                    if(get_global_id(0) == 0)
+                        printf("not supposed to be executed.. 307\n");
+
 #if IS_KV_COMPRESSED
 #define TO_KEY_VEC_TYPE(x) CAT(convert_, MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE))(x)
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(char, KEY_BLOCK_SIZE, ptr, offset);
@@ -751,17 +752,18 @@ KERNEL(sdpa_opt)(
 #ifdef BEAM_TABLE_TYPE
                 const uint b_idx = beam_table[FUNC_CALL(get_bt_index_key)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len + sglid, 0)];
                 const uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + seq_len + sglid, 0);
-                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b_idx, b1_idx, 0, 0);
+                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b_idx, start_partition_idx + seq_len + sglid, 0, 0);
 #else
 #ifdef INPUT1_DIMS_ORDER
                 uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
                 uint key_offset_next_seq = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len + 1, 0);
                 const uint key_pitch = key_offset_next_seq - key_offset;
+                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b0_idx, start_partition_idx + seq_len, 0, 0);
 #else
                 uint key_offset = INPUT1_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, 0);
                 const uint key_pitch = HEAD_SIZE;
+                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b0_idx, start_partition_idx + seq_len, 0, 0);
 #endif
-                const uint scale_key_offset = SCALE_KEY_GET_INDEX(b0_idx, b1_idx, 0, 0);
 #endif
 
                 INPUT0_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {INPUT0_VAL_ZERO};
@@ -779,21 +781,25 @@ KERNEL(sdpa_opt)(
 
                     unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; key_row_idx++) {
 #if IS_KV_COMPRESSED
-#ifdef BEAM_TABLE_TYPE
+    #ifdef BEAM_TABLE_TYPE
                         INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index);
-#else
-                        INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
-#endif
                         half key_vals = __key_vals;
-                        key_vals *= key_scale[scale_key_offset];;
-                        // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
-                        //     printf("key_vals %d - %f\n", __key_vals, key_vals);
+                        // FIXME: optimize accessing for key_scale
+                        // FIXME: 4096 is hard-coded.
+                        int my_key_offset = sub_group_broadcast(key_offset, key_row_idx) + head_idx_index;
+                        int my_scale_offset = (sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/4096;
+                        key_vals *= key_scale[(sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/4096];
+    #else
+                        INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
+                        half key_vals = __key_vals;
+                        key_vals *= key_scale[(key_offset + key_row_idx * key_pitch + head_idx_index)/4096];  // may use vload for key_row_idx
+    #endif
 #else
-#ifdef BEAM_TABLE_TYPE
+    #ifdef BEAM_TABLE_TYPE
                         INPUT1_TYPE key_vals = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index);
-#else
+    #else
                         INPUT1_TYPE key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
-#endif
+    #endif
 #endif
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                             acc[key_row_idx] = mad(sub_group_broadcast(key_vals, i), queries_vec[i], acc[key_row_idx]);
