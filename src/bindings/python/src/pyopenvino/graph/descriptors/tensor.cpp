@@ -106,8 +106,8 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 :return: Any name.
                 :rtype: string
              )");
-   
-   tensor.def("get_lower_value",
+
+    tensor.def("get_lower_value",
                &ov::descriptor::Tensor::get_lower_value,
                R"(
                 Returns the lower bound of the tensor.
