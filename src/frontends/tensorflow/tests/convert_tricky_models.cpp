@@ -420,9 +420,10 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithEmptyTensorListAndPushBac
     { model = convert_model("empty_tensor_list/empty_tensor_list.pb"); }
     {
         auto x = make_shared<v0::Parameter>(f32, Shape{2, 3, 5});
-        auto tensor_list_shape = make_shared<v0::Constant>(i64, Shape{4}, std::vector<int64_t>{1, 2, 3, 5});
-        auto reshape = make_shared<v1::Reshape>(x, tensor_list_shape, false);
-        model_ref = make_shared<Model>(OutputVector{reshape}, ParameterVector{x});
+        auto axes = make_shared<v0::Constant>(i32, Shape{1}, 0);
+        auto x_unsqueeze = make_shared<v0::Unsqueeze>(x, axes);
+        auto list_push_back = make_shared<v0::Concat>(OutputVector{x_unsqueeze}, 0);
+        model_ref = make_shared<Model>(OutputVector{list_push_back}, ParameterVector{x});
     }
     comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
