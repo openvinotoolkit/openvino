@@ -197,7 +197,7 @@ protected:
         buffer_offsets = snippet_config->buffer_cluster_offsets;
         data_offsets = snippet_config->io_data_offsets;
         loop_args = snippet_config->loop_args;
-        reset_exec_table_state = snippet_config->get_exec_table_reset();
+        reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     };
 
     std::vector<size_t> buffer_offsets = {};

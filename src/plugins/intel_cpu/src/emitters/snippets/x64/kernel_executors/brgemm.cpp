@@ -69,11 +69,11 @@ size_t BrgemmKernelConfig::compute_hash() const {
 std::string BrgemmKernelConfig::to_string() const {
     std::stringstream ss;
 #define PRINT(X) ss << #X  << " = " << X << "\n"
-    PRINT(dt_in0); PRINT(dt_in1);
-    PRINT(is_with_amx); PRINT(is_with_comp);
-    PRINT(beta); PRINT(isa);
-    PRINT(M); PRINT(N); PRINT(K);
-    PRINT(LDA); PRINT(LDB); PRINT(LDC);
+    PRINT(m_dt_in0); PRINT(m_dt_in1);
+    PRINT(m_is_with_amx); PRINT(m_is_with_comp);
+    PRINT(m_beta); PRINT(m_isa);
+    PRINT(m_M); PRINT(m_N); PRINT(m_K);
+    PRINT(m_LDA); PRINT(m_LDB); PRINT(m_LDC);
 #undef PRINT
     return ss.str();
 }

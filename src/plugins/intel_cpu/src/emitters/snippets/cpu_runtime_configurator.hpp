@@ -19,16 +19,6 @@ public:
     CPURuntimeConfig() = default;
 
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
-    /**
-    * @brief Returns lambda function that contains current state of kernel executor table,
-     * and restores this state when called;
-    */
-    std::function<void()> get_exec_table_reset() {
-        auto kernel_exec_table_state = kernel_executor_table->get_state();
-        return [=]() {
-            kernel_executor_table->reset_state(kernel_exec_table_state);
-        };
-    }
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {

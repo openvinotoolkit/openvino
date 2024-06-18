@@ -114,7 +114,6 @@ private:
 
 class KernelExecutorTable {
 public:
-    typedef std::vector<std::pair<snippets::lowered::ExpressionPtr, std::shared_ptr<const KernelExecutorBase::GenericConfig>>> ExecTableState;
     /*** Register KernelExecutor in the KernelExecutorTable so it can be later updated in runtime. */
     template<typename T, class ...C,
             typename std::enable_if<std::is_base_of<KernelExecutorBase, T>::value, bool>::type = true>
@@ -128,29 +127,16 @@ public:
         OPENVINO_ASSERT(m_table.count(expr), "This expression doesn't have a registered kernel executor");
         return m_table.at(expr);
     }
-    /*** Update every registered KernelExecutor in accordance with the corresponding expression */
+    /*** Updates every registered KernelExecutor in accordance with the corresponding expression */
     void update_state() const {
         for (const auto& record : m_table)
             record.second->update_by_expression(record.first);
     }
-    /*** Return cumulative state of all the executors in the table. The returned ExecTableState object can be passed to reset_state */
-    ExecTableState get_state() const {
-        ExecTableState result;
-        // Note: we need to clone configs when saving the state, since the configs still stored in the table can
-        // be modified e.g. by calling update_by_expression();
-        for (const auto& record : m_table)
-            result.emplace_back(std::make_pair(record.first, record.second->get_config()->clone()));
-        return result;
-    }
-    /*** Restore the table state previously obtained by get_state() */
-    void reset_state(const ExecTableState& state) {
-        OPENVINO_ASSERT(state.size() == m_table.size(), "Invalid state in restore_state: size mismatch");
-        auto state_it = state.begin();
-        for (const auto& table_record : m_table) {
-            const auto& state_record = *state_it++;
-            OPENVINO_ASSERT(table_record.first == state_record.first, "Invalid state in restore_state: expressions mismatch");
-            table_record.second->update_by_config(state_record.second);
-        }
+
+    /*** Returns lambda function that contains current state of the table, and restores this state when called  */
+    std::function<void()> get_state_reset() {
+        auto current_state = get_state();
+        return [=]() { reset_state(current_state); };
     }
 
     /**
@@ -159,20 +145,19 @@ public:
      * be accessible from RuntimeConfigurator. In order to replace these cloned ExpressionPtrs with the original ones,
      * we need to call this method.
     */
-    bool replace_reference_expression(const snippets::lowered::ExpressionPtr& from, const snippets::lowered::ExpressionPtr& to) {
-        const auto& found = m_table.find(from);
-        if (found != m_table.end()) {
-            OPENVINO_ASSERT(m_table.count(to) == 0, "Attempt to replace a value that is already in the KernelExecutorTable");
-            m_table.insert({to, found->second});
-            m_table.erase(found);
-            return true;
-        }
-        return false;
-    }
+    bool replace_reference_expression(const snippets::lowered::ExpressionPtr& from, const snippets::lowered::ExpressionPtr& to);
+
     virtual ~KernelExecutorTable() = default;
 
 protected:
     std::unordered_map<snippets::lowered::ExpressionPtr, std::shared_ptr<KernelExecutorBase>> m_table{};
+    typedef std::vector<std::pair<snippets::lowered::ExpressionPtr, std::shared_ptr<const KernelExecutorBase::GenericConfig>>> ExecTableState;
+
+    /*** Restore the table state previously obtained by get_state() */
+    void reset_state(const ExecTableState& state);
+
+    /*** Return cumulative state of all the executors in the table. The returned ExecTableState object can be passed to reset_state */
+    ExecTableState get_state() const;
 };
 
 using KernelExecutorTablePtr = std::shared_ptr<KernelExecutorTable>;
