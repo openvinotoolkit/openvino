@@ -19,8 +19,16 @@ public:
     CPURuntimeConfig() = default;
 
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
-    snippets::KernelExecutorTable::ExecTableState kernel_exec_table_state = {};
-    std::shared_ptr<snippets::KernelExecutorTable> m_kernel_executor_table = nullptr;
+    /**
+    * @brief Returns lambda function that contains current state of kernel executor table,
+     * and restores this state when called;
+    */
+    std::function<void()> get_exec_table_reset() {
+        auto kernel_exec_table_state = kernel_executor_table->get_state();
+        return [=]() {
+            kernel_executor_table->reset_state(kernel_exec_table_state);
+        };
+    }
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
@@ -43,11 +51,6 @@ protected:
      * @param linear_ir LinearIR
      */
     void update_loop_args(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const;
-
-    /**
-    * @brief Update kernel executors that depend on runtime parameters (e.g. shapes)
-    */
-    void update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
 
     const size_t rank6D = 6;
 };

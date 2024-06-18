@@ -53,18 +53,6 @@ size_t BrgemmKernelConfig::compute_hash() const {
 #undef HASH
     return seed;
 }
-bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
-#define EQUAL(X) X == rhs.X
-    return EQUAL(dt_in0) && EQUAL(dt_in1) &&
-           EQUAL(is_with_amx)  && EQUAL(is_with_comp) &&
-           EQUAL(beta) && EQUAL(isa) &&
-           EQUAL(M) && EQUAL(N) && EQUAL(K) &&
-           EQUAL(LDA) && EQUAL(LDB) && EQUAL(LDC) && EQUAL(m_hash);
-#undef EQUAL
-}
-bool BrgemmKernelConfig::operator!=(const BrgemmKernelConfig& rhs) const {
-    return !(*this == rhs);
-}
 
 #ifdef SNIPPETS_DEBUG_CAPS
 std::string BrgemmKernelConfig::to_string() const {

@@ -44,6 +44,7 @@ public:
 
     size_t buffer_scratchpad_size = 0;
     std::vector<size_t> buffer_cluster_offsets {};
+    std::shared_ptr<KernelExecutorTable> kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
 };
 
 /**
@@ -61,11 +62,8 @@ public:
      * @return updated config
      */
     const std::shared_ptr<RuntimeConfig>& get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir);
-    const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const { return m_kernel_executor_table; }
-    /**
-    * @brief Update kernel executors that depend on runtime parameters (e.g. shapes)
-    */
-    virtual void update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {}
+    /*** Returns pointer to KernelExecutorTable owned by the config */
+    const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const { return m_config->kernel_executor_table; }
 
 protected:
     /**
@@ -128,7 +126,6 @@ protected:
     std::map<size_t, std::set<lowered::ExpressionPtr>> m_dynamic_buffer_clusters;
 
     std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
-    std::shared_ptr<KernelExecutorTable> m_kernel_executor_table = nullptr;
 };
 
 } // namespace snippets

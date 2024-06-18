@@ -25,7 +25,15 @@ public:
          * while dynamic kernels will be completed only in runtime, when all the shapes are known.
         */
         virtual bool is_completed() const = 0;
+
+        /*** Return deep copy of the config */
         virtual std::shared_ptr<GenericConfig> clone() const = 0;
+
+        /*** Compute hash for fast comparison operations or caching support */
+        virtual size_t hash() const = 0;
+
+        virtual bool operator==(const GenericConfig& rhs) const { return hash() == rhs.hash(); }
+        virtual bool operator!=(const GenericConfig& rhs) const { return hash() != rhs.hash(); }
 
         virtual ~GenericConfig() = default;
         /** serialize config for debug purposes */
@@ -61,7 +69,6 @@ public:
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
     void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) override final { // NOLINT
-        //todo: it's a wa
         m_config = std::static_pointer_cast<Conf>(m_config->clone());
         update_config(expr, m_config);
         OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in update_by_expression");
@@ -69,7 +76,9 @@ public:
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
     void update_by_config(const std::shared_ptr<const GenericConfig>& new_config) override final { // NOLINT
-        m_config = std::const_pointer_cast<Conf>(std::static_pointer_cast<const Conf>(new_config));
+        if (*m_config == *new_config)
+            return;
+        m_config = std::static_pointer_cast<Conf>(std::const_pointer_cast<GenericConfig>(new_config));
         OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in get_config");
         update_kernel(m_config, m_kernel);
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
@@ -120,16 +129,10 @@ public:
         OPENVINO_ASSERT(m_table.count(expr), "This expression doesn't have a registered kernel executor");
         return m_table.at(expr);
     }
-    /**
-    * @brief Update KernelExecutor registered in the KernelExecutorTable for a particular expression
-     * @return true if a KernelExecutor was updated for the expression, false otherwise
-    */
-    void update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const {
-        for (const auto& expr : *linear_ir) {
-            const auto& found = m_table.find(expr);
-            if (found != m_table.end())
-                found->second->update_by_expression(expr);
-        }
+    /*** Update every registered KernelExecutor in accordance with the corresponding expression */
+    void update_state() const {
+        for (const auto& record : m_table)
+            record.second->update_by_expression(record.first);
     }
     ExecTableState get_state() const {
         ExecTableState result;

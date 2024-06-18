@@ -24,12 +24,10 @@ public:
                        size_t LDA = 0, size_t LDB = 0, size_t LDC = 0);
     BrgemmKernelConfig() = default;
     bool is_completed() const override;
-    size_t hash() const { return m_hash; }
+    size_t hash() const override { return m_hash; }
     std::shared_ptr<GenericConfig> clone() const override {
         return std::make_shared<BrgemmKernelConfig>(*this);
     }
-    bool operator==(const BrgemmKernelConfig& rhs) const;
-    bool operator!=(const BrgemmKernelConfig& rhs) const;
 #ifdef SNIPPETS_DEBUG_CAPS
     std::string to_string() const override;
 #endif
