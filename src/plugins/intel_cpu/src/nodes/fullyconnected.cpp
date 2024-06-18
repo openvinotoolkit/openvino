@@ -363,6 +363,18 @@ void FullyConnected::createPrimitive() {
     auto src = getSrcMemoryAtPort(DATA_ID);
     auto wgt = getSrcMemoryAtPort(WEIGHTS_ID);
     auto dst = getDstMemoryAtPort(0);
+    // tensor parallel should be disabled in two conditions.
+    // 1. weight shape is dynamic
+    // 2. last dim can be splited.
+    if (enable_tensor_parallel) {
+        auto shape = wgt->getShape();
+        if (shape.isDynamic()) {
+            enable_tensor_parallel = false;
+        } else if (shape.getDims()[0] < static_cast<size_t>(w_size)) {
+            enable_tensor_parallel = false;
+        }
+    }
+
     if (enable_tensor_parallel) {
         // src
         memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
