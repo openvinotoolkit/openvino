@@ -104,7 +104,7 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="u8">
+            <port id="0" precision="string">
                 <dim>5</dim>     <!-- batch of strings -->
             </port>
         </input>
