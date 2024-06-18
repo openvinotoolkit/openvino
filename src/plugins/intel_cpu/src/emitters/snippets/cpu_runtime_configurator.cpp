@@ -12,21 +12,13 @@ namespace ov {
 namespace intel_cpu {
 
 CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {
-    std::static_pointer_cast<CPURuntimeConfig>(m_config)->m_kernel_executor_table = m_kernel_executor_table;
 }
 
 void CPURuntimeConfigurator::update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
     RuntimeConfigurator::update(linear_ir);
-    // todo: remove this
-//    for (const auto& p : linear_ir->get_parameters()) {
-//        std::cerr << "[";
-//        for (const auto& s : p->get_output_port_descriptor(0)->get_shape())
-//            std::cerr << s << " ";
-//        std::cerr << "]\n";
-//    }
 
     if (linear_ir->is_dynamic()) {
-        update_kernel_executors(linear_ir);
+        get_kernel_executor_table()->update_state();
         update_loop_args(linear_ir);
     }
 }
@@ -56,13 +48,6 @@ void CPURuntimeConfigurator::update_loop_args(const std::shared_ptr<ov::snippets
             loop_arg.m_finalization_offsets[i] *= data_sizes[i];
         }
     }
-}
-
-void CPURuntimeConfigurator::update_kernel_executors(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
-    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
-    OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
-    m_kernel_executor_table->update_kernel_executors(linear_ir);
-    cpu_config->kernel_exec_table_state = m_kernel_executor_table->get_state();
 }
 
 } // namespace intel_cpu
