@@ -1,28 +1,40 @@
-.. {#openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3}
+.. {#openvino_docs_ops_sparse_EmbeddingBagOffsets_15}
 
-EmbeddingBagOffsetsSum
+EmbeddingBagOffsets
 ======================
 
 
 .. meta::
-  :description: Learn about EmbeddingBagOffsetsSum-3 - a sparse operation, which
+  :description: Learn about EmbeddingBagOffsets-15 - a sparse operation, which
                 can be performed on three required and two optional input tensors.
 
-**Versioned name**: *EmbeddingBagOffsetsSum-3*
+**Versioned name**: *EmbeddingBagOffsets-15*
 
 **Category**: *Sparse*
 
-**Short description**: Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
+**Short description**: Computes sums or means of "bags" of embeddings, without instantiating the intermediate embeddings.
 
 **Detailed description**:
 
 Operation EmbeddingBagOffsets is an implementation of ``torch.nn.EmbeddingBag`` with indices and offsets inputs being 1D tensors.
 
-For each index in ``indices`` this operator gathers values from ``emb_table`` embedding table. Indices that are in range of same bag based on ``offset`` input values are then reduced using sum  operation.
+For each index in ``indices`` this operator gathers values from ``emb_table`` embedding table. Indices that are in range of same bag based on ``offset`` input values are then reduced according to ``reduction`` attribute.
 Values in ``offsets`` define starting index in ``indices`` tensor of each "bag",
 e.g. ``offsets`` with value ``[0, 3, 4, 4, 6]`` define 5 "bags" containing ``[3, 1, 0, 2, num_indices-6]`` elements corresponding to ``[indices[0:3], indices[3:4], empty_bag, indices[4:6], indices[6:]]`` slices of indices per bag.
 
-**Attributes**: EmbeddingBagOffsetsSum operation has no attributes.
+**Attributes**:
+
+* *reduction*
+
+  * **Description**: reduction mode. 
+  * **Range of values**:
+
+    * sum - compute weighted sum, using corresponding values of ``per_sample_weights`` as weights if provided.
+    * mean - compute average of values in bag. Input ``per_sample_weights`` is not supported and will raise exception.
+
+  * **Type**: ``string``
+  * **Default value**: sum
+  * **Required**: *no*
 
 **Inputs**:
 
@@ -45,7 +57,7 @@ e.g. ``offsets`` with value ``[0, 3, 4, 4, 6]`` define 5 "bags" containing ``[3,
 
 .. code-block:: cpp
 
-   <layer ... type="EmbeddingBagOffsetsSum" ... >
+   <layer ... type="EmbeddingBagOffsets" ... >
        <input>
            <port id="0">     <!-- emb_table value is: [[-0.2, -0.6], [-0.1, -0.4], [-1.9, -1.8], [-1.,  1.5], [ 0.8, -0.7]] -->
                <dim>5</dim>
@@ -58,12 +70,39 @@ e.g. ``offsets`` with value ``[0, 3, 4, 4, 6]`` define 5 "bags" containing ``[3,
                <dim>3</dim>
            </port>
            <port id="3"/>    <!-- default_index value is: 0 -->
-           <port id="4"/>    <!-- per_sample_weigths value is: [0.5, 0.5, 0.5, 0.5] -->
+           <port id="4"/>    <!-- per_sample_weights value is: [0.5, 0.5, 0.5, 0.5] -->
                <dim>4</dim>
            </port>
        </input>
        <output>
            <port id="5">     <!-- output value is: [[-1.05, -1.2], [-0.2, -0.6], [-0.1, 0.4]] -->
+               <dim>3</dim>
+               <dim>2</dim>
+           </port>
+       </output>
+   </layer>
+
+.. code-block:: cpp
+
+   <layer ... type="EmbeddingBagOffsets" ... >
+       <input>
+           <port id="0">     <!-- emb_table value is: [[-0.2, -0.6], [-0.1, -0.4], [-1.9, -1.8], [-1.,  1.5], [ 0.8, -0.7]] -->
+               <dim>5</dim>
+               <dim>2</dim>
+           </port>
+           <port id="1">     <!-- indices value is: [0, 2, 3, 4] -->
+               <dim>4</dim>
+           </port>
+           <port id="2">     <!-- offsets value is: [0, 2, 2] - 3 "bags" containing [2,0,4-2] elements, second "bag" is empty -->
+               <dim>3</dim>
+           </port>
+           <port id="3"/>    <!-- default_index value is: -1 - fill empty bag with 0-->
+           <port id="4"/>    <!-- per_sample_weights value is: [0.5, 0.5, 0.5, 0.5] -->
+               <dim>4</dim>
+           </port>
+       </input>
+       <output>
+           <port id="5">     <!-- output value is: [[-1.05, -1.2], [0, 0], [-0.1, 0.4]] -->
                <dim>3</dim>
                <dim>2</dim>
            </port>
