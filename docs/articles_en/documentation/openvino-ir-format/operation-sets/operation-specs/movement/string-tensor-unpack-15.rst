@@ -32,7 +32,7 @@ The operator will transform the tensor into three outputs:
     * ``ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 strings.
 
 * *symbols* = "IntelOpenVINO"
-    * ``symbols`` contains concatenated string data, interpretable using ``begins`` and ``ends``.
+    * ``symbols`` contains concatenated string data encoded in utf-8 bytes, interpretable using ``begins`` and ``ends``.
     * ``symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` strings.
 
 When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, 
@@ -107,7 +107,7 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="u8">
+            <port id="0" precision="string">
                 <dim>5</dim>     <!-- batch of strings -->
             </port>
         </input>

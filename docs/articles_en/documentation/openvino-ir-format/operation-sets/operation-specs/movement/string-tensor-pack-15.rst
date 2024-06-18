@@ -45,7 +45,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
 * **3**: *symbols*:
 
-  * **Description**: Concatenated ``input`` strings. **Required.**
+  * **Description**: Concatenated ``input`` strings encoded in utf-8 bytes. **Required.**
   * **Shape**: 1D tensor of shape equal to the total length of concatenated strings.
   * **Type**: *T*
 
