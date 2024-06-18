@@ -113,7 +113,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Returns the lower bound of the tensor.
 
                 :return: Lower bound.
-                :rtype: Tensor
+                :rtype: openvino.runtime.Tensor
              )");
 
     tensor.def("set_lower_value",
