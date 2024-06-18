@@ -144,6 +144,7 @@ static void print_help_messages() {
                               "from one specific iteration by giving the same values for the start and end, and the open "
                               "ended range is also available by range from given start to the last iteration as -1. e.g. "
                               "OV_GPU_DumpProfilingDataIteration='10..-1'");
+    message_list.emplace_back("OV_GPU_HostTimeProfiling", "Enable collecting of model enqueue time spent on the host");
     message_list.emplace_back("OV_GPU_DumpGraphs", "1) dump ngraph before and after transformation. 2) dump graph in model compiling."
                               "3) dump graph in execution.");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
@@ -180,6 +181,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
     message_list.emplace_back("OV_GPU_DisableFakeAlignment", "Disable fake alignment");
+    message_list.emplace_back("OV_GPU_EnableDynamicQuantize", "Enable Dynamic quantization for fully connected primitive");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
     message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in "
                               "the following order: number of iterations for pre-allocation(int), max size of single iteration in bytes(int), "
@@ -218,6 +220,7 @@ debug_configuration::debug_configuration()
         , disable_onednn_opt_post_ops(0)
         , dump_profiling_data(std::string(""))
         , dump_profiling_data_per_iter(0)
+        , host_time_profiling(0)
         , dump_graphs(std::string())
         , dump_sources(std::string())
         , dump_layers_path(std::string())
@@ -243,7 +246,8 @@ debug_configuration::debug_configuration()
         , disable_build_time_weight_reorder_for_dynamic_nodes(0)
         , disable_runtime_skip_reorder(0)
         , disable_primitive_fusing(0)
-        , disable_fake_alignment(0) {
+        , disable_fake_alignment(0)
+        , enable_dynamic_quantize(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -266,6 +270,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
     get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
     get_gpu_debug_env_var("DumpProfilingDataPerIter", dump_profiling_data_per_iter);
+    get_gpu_debug_env_var("HostTimeProfiling", host_time_profiling);
     std::string dump_prof_data_iter_str;
     get_gpu_debug_env_var("DumpProfilingDataIteration", dump_prof_data_iter_str);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
@@ -293,6 +298,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableRuntimeSkipReorder", disable_runtime_skip_reorder);
     get_gpu_debug_env_var("DisablePrimitiveFusing", disable_primitive_fusing);
     get_gpu_debug_env_var("DisableFakeAlignment", disable_fake_alignment);
+    get_gpu_debug_env_var("EnableDynamicQuantize", enable_dynamic_quantize);
     std::string dump_iteration_str;
     get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
     std::string mem_preallocation_params_str;
