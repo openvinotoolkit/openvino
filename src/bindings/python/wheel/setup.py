@@ -457,7 +457,7 @@ class PrepareLibs(build_clib):
         replacements = {
             "{CMAKE_CURRENT_LIST_DIR}/../../": "{CMAKE_CURRENT_LIST_DIR}/../",
             f"{OV_RUNTIME_LIBS_DIR}": f"{WHEEL_LIBS_INSTALL_DIR}",
-            f"{DATA_INSTALL_CFG['core_dev'].get('install_dir')}/include": f"{WHEEL_PACKAGE_DIR}/include",
+            r"({_IMPORT_PREFIX})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
             r"(.so).(\d\d)(\d\d).(\d+).(\d+)": r"\1.\3\4\5"  # changed the lib version 2024.3.0 -> 2430
         }
 
