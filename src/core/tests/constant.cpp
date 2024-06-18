@@ -2039,7 +2039,7 @@ TEST(constant, f8e8m0_string) {
     ov::op::v0::Constant c(element::f8e8m0, Shape{4}, input);
     auto v = c.cast_vector<float8_e8m0>();
     ASSERT_EQ(v.size(), shape_size(c.get_shape()));
-    EXPECT_THAT(v, ElementsAre(1.0f, std::numeric_limits<float>::min()/2, 4.0f, 0.5f));
+    EXPECT_THAT(v, ElementsAre(1.0f, std::numeric_limits<float>::min() / 2, 4.0f, 0.5f));
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0x7f);
@@ -2071,7 +2071,7 @@ TEST(constant, f8e8m0_string_broadcast) {
 TEST(constant, f8e8m0_vector) {
     op::v0::Constant c(element::f8e8m0, Shape{5}, std::vector<float8_e8m0>{-1.5f, 4.0f, 2.0f, 1.5f, 3.0f});
     auto v = c.cast_vector<float>();
-    EXPECT_THAT(v, ElementsAre(std::numeric_limits<float>::min()/2, 4.0f, 2.0f, 2.0f, 2.0f));
+    EXPECT_THAT(v, ElementsAre(std::numeric_limits<float>::min() / 2, 4.0f, 2.0f, 2.0f, 2.0f));
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0x00);
@@ -2084,7 +2084,7 @@ TEST(constant, f8e8m0_vector) {
 TEST(constant, f8e8m0_from_float_vector) {
     op::v0::Constant c(element::f8e8m0, Shape{5}, std::vector<float>{-1.5f, 4.0f, 2.0f, 1.5f, 2.0f});
     auto v = c.cast_vector<float>();
-    EXPECT_THAT(v, ElementsAre(std::numeric_limits<float>::min()/2, 4.0f, 2.0f, 2.0f, 2.0f));
+    EXPECT_THAT(v, ElementsAre(std::numeric_limits<float>::min() / 2, 4.0f, 2.0f, 2.0f, 2.0f));
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0x00);
@@ -2603,11 +2603,10 @@ TEST(constant, lazy_bitwise_identical) {
 }
 
 TEST(constant, cast_vector) {
-    std::vector<element::Type_t> types = {element::boolean, element::bf16, element::f16, element::f32, element::f64,
-                                          element::i4,      element::i8,   element::i16, element::i32, element::i64,
-                                          element::u1,      element::u2,   element::u3,  element::u4,  element::u6,
-                                          element::u8,      element::u16,  element::u32, element::u64, element::f4e2m1,
-                                          element::f8e8m0};
+    std::vector<element::Type_t> types = {
+        element::boolean, element::bf16, element::f16, element::f32, element::f64, element::i4,     element::i8,
+        element::i16,     element::i32,  element::i64, element::u1,  element::u2,  element::u3,     element::u4,
+        element::u6,      element::u8,   element::u16, element::u32, element::u64, element::f4e2m1, element::f8e8m0};
     std::vector<int64_t> data = {0, 1, 0, 0, 1, 1, 0, 1};
     std::vector<int64_t> expected_partial_data = {0, 1, 0, 0, 1, 1};
 

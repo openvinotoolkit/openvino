@@ -17,10 +17,10 @@ namespace ConversionOpsRefTestDefinitions {
 namespace {
 
 const auto f4e2m1_values = std::vector<uint8_t>{0x0a, 0x2f, 0x49, 0x3b, 0x78, 0x05};
-const auto e8m0_min = std::numeric_limits<float8_e8m0>::min(); // 2^-127
-const auto f32_min = std::numeric_limits<float>::min() / 2; // 2^-127
-const auto f16_min = ov::float16::from_bits(0x1); // smallest greater than zero = 2^-25
-const auto bf16_min = std::numeric_limits<bfloat16>::min() / 2; // 2^-127
+const auto e8m0_min = std::numeric_limits<float8_e8m0>::min();   // 2^-127
+const auto f32_min = std::numeric_limits<float>::min() / 2;      // 2^-127
+const auto f16_min = ov::float16::from_bits(0x1);                // smallest greater than zero = 2^-25
+const auto bf16_min = std::numeric_limits<bfloat16>::min() / 2;  // 2^-127
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Conversion_With_Hardcoded_Refs,
@@ -1871,25 +1871,28 @@ INSTANTIATE_TEST_SUITE_P(
                       ov::element::f4e2m1,
                       std::vector<float>{-1.2f, 0.2f, -6.5f, 1.2f, -0.6f, 2.49f, -1.5f, 1.6f, -0.1f, 6.0f, 2.8f},
                       f4e2m1_values),
-        //destination f8e8m0
-        ConvertParams(ConversionTypes::CONVERT_LIKE,
-                      ov::PartialShape{11},
-                      ov::element::f16,
-                      ov::element::f8e8m0,
-                      std::vector<float16>{-1.2f, 0.05f, 0.1f, 0.2f, 0.3f, 0.4f, 0.7f, 1.2f, 2.49f, 1.6f, 6.0f, 2.8f},
-                      std::vector<float8_e8m0>{e8m0_min, 0.0625, 0.125, 0.25f, 0.25f, 0.5f, 0.5f, 1.0f, 2.0f, 2.0f, 8.0f, 2.0f}),
-        ConvertParams(ConversionTypes::CONVERT_LIKE,
-                      ov::PartialShape{12},
-                      ov::element::bf16,
-                      ov::element::f8e8m0,
-                      std::vector<bfloat16>{-1.2f, 0.05f, 0.1f, 0.2f, 0.3f, 0.4f, 0.7f, 1.2f, 2.49f, 1.6f, 6.0f, 2.8f},
-                      std::vector<float8_e8m0>{e8m0_min, 0.0625, 0.125, 0.25f, 0.25f, 0.5f, 0.5f, 1.0f, 2.0f, 2.0f, 8.0f, 2.0f}),
-        ConvertParams(ConversionTypes::CONVERT_LIKE,
-                      ov::PartialShape{12},
-                      ov::element::f32,
-                      ov::element::f8e8m0,
-                      std::vector<float>{-1.2f, 0.05f, 0.1f, 0.2f, 0.3f, 0.4f, 0.7f, 1.2f, 2.49f, 1.6f, 6.0f, 2.8f},
-                      std::vector<float8_e8m0>{e8m0_min, 0.0625, 0.125, 0.25f, 0.25f, 0.5f, 0.5f, 1.0f, 2.0f, 2.0f, 8.0f, 2.0f})),
+        // destination f8e8m0
+        ConvertParams(
+            ConversionTypes::CONVERT_LIKE,
+            ov::PartialShape{11},
+            ov::element::f16,
+            ov::element::f8e8m0,
+            std::vector<float16>{-1.2f, 0.05f, 0.1f, 0.2f, 0.3f, 0.4f, 0.7f, 1.2f, 2.49f, 1.6f, 6.0f, 2.8f},
+            std::vector<float8_e8m0>{e8m0_min, 0.0625, 0.125, 0.25f, 0.25f, 0.5f, 0.5f, 1.0f, 2.0f, 2.0f, 8.0f, 2.0f}),
+        ConvertParams(
+            ConversionTypes::CONVERT_LIKE,
+            ov::PartialShape{12},
+            ov::element::bf16,
+            ov::element::f8e8m0,
+            std::vector<bfloat16>{-1.2f, 0.05f, 0.1f, 0.2f, 0.3f, 0.4f, 0.7f, 1.2f, 2.49f, 1.6f, 6.0f, 2.8f},
+            std::vector<float8_e8m0>{e8m0_min, 0.0625, 0.125, 0.25f, 0.25f, 0.5f, 0.5f, 1.0f, 2.0f, 2.0f, 8.0f, 2.0f}),
+        ConvertParams(
+            ConversionTypes::CONVERT_LIKE,
+            ov::PartialShape{12},
+            ov::element::f32,
+            ov::element::f8e8m0,
+            std::vector<float>{-1.2f, 0.05f, 0.1f, 0.2f, 0.3f, 0.4f, 0.7f, 1.2f, 2.49f, 1.6f, 6.0f, 2.8f},
+            std::vector<float8_e8m0>{e8m0_min, 0.0625, 0.125, 0.25f, 0.25f, 0.5f, 0.5f, 1.0f, 2.0f, 2.0f, 8.0f, 2.0f})),
     ReferenceConversionLayerTest::getTestCaseName);
 }  // namespace
 }  // namespace ConversionOpsRefTestDefinitions
