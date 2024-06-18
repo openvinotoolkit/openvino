@@ -13,6 +13,7 @@ namespace intel_cpu {
 namespace kernel {
 
 struct RandomUniformCompileParams {
+
     element::Type out_data_type = element::f32;
 };
 
@@ -26,12 +27,14 @@ struct RandomUniformCallArgs {
     uint64_t work_amount = 0lu;
 };
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class RandomUniform : public JitKernel<RandomUniformCompileParams, RandomUniformCallArgs> {
-public:
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(RandomUniform)
+namespace random_uniform {
 
-    explicit RandomUniform(const RandomUniformCompileParams& jcp);
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+class PhiloxOpenvino : public JitKernel<RandomUniformCompileParams, RandomUniformCallArgs> {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(PhiloxOpenvino)
+
+    explicit PhiloxOpenvino(const RandomUniformCompileParams& jcp);
 
     void generate() override;
 
@@ -92,6 +95,117 @@ private:
     static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
 };
 
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+class PhilloxTensorflow : public JitKernel<RandomUniformCompileParams, RandomUniformCallArgs> {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(PhilloxTensorflow)
+
+    explicit PhilloxTensorflow(const RandomUniformCompileParams& jcp);
+
+    void generate() override;
+
+private:
+    using Vmm   = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm,
+                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
+                                                                                                     Xbyak::Ymm>::type;
+    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask,
+                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
+                                                                                                     Xbyak::Ymm>::type;
+
+    RegistersPool::Reg<Xbyak::Reg64> r64_dst;
+    RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
+    RegistersPool::Reg<Xbyak::Reg64> r64_n_inc;
+    RegistersPool::Reg<Xbyak::Reg64> r64_convert_0;
+    RegistersPool::Reg<Xbyak::Reg64> r64_convert_1;
+    RegistersPool::Reg<Xbyak::Reg64> r64_min;
+    RegistersPool::Reg<Xbyak::Reg64> r64_f64_pow_52;
+
+    const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
+
+    // Vector registers.
+    RegistersPool::Reg<Vmm> v_max_mul_n_64;
+    RegistersPool::Reg<Vmm> v_max_mul_c_64;
+    RegistersPool::Reg<Vmm> v_add_low_k;
+    RegistersPool::Reg<Vmm> v_add_up_k;
+    RegistersPool::Reg<Vmm> v_n_inc;
+    RegistersPool::Reg<Vmm> v_range;
+    RegistersPool::Reg<Vmm> v_min;
+    RegistersPool::Reg<Vmm> v_key_64;
+    RegistersPool::Reg<Vmm> v_counter_64;
+    RegistersPool::Reg<Vmm> v_n_64;
+    RegistersPool::Reg<Vmm> v_res_perm;
+    RegistersPool::Reg<Vmm> v_convert_0;
+    RegistersPool::Reg<Vmm> v_convert_1;
+
+    void process();
+
+    static constexpr uint64_t ROUNDS_NUMBER = 10lu;
+    static constexpr uint32_t CRUSH_RESISTANCE_CONST_LOWER_VALUE = 0x9E3779B9;
+    static constexpr uint32_t CRUSH_RESISTANCE_CONST_UPPER_VALUE = 0xBB67AE85;
+    static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
+    static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
+};
+
+
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+class MersenneTwister : public JitKernel<MersenneTwisterCompileParams, MersenneTwisterCallArgs> {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(MersenneTwister)
+
+    explicit MersenneTwister(const MersenneTwisterCompileParams& jcp);
+
+    void generate() override;
+
+private:
+    using Vmm   = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm,
+                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
+                                                                                                     Xbyak::Ymm>::type;
+    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask,
+                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
+                                                                                                     Xbyak::Ymm>::type;
+
+    RegistersPool::Reg<Xbyak::Reg64> r64_dst;
+    RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
+
+    const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
+
+    // Vector registers.
+    RegistersPool::Reg<Vmm> v_state;
+    RegistersPool::Reg<Vmm> v_mt_index;
+    RegistersPool::Reg<Vmm> v_temp;
+
+    void initVectors();
+
+    void process();
+
+    void generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1);
+
+    void tail(const Vmm& v_dst_0, const Vmm& v_dst_1);
+
+    // Mersenne Twister constants
+    static constexpr uint32_t MT_CONST_1 = 0x9908B0DF;
+    static constexpr uint32_t MT_CONST_2 = 0x9D2C5680;
+    static constexpr uint32_t MT_CONST_3 = 0xEFC60000;
+    static constexpr uint32_t MT_CONST_4 = 0xFFFFFFFF;
+    static constexpr uint32_t MT_CONST_5 = 0x6C078965;
+    static constexpr uint32_t MT_CONST_6 = 0xFFFFFFFF;
+    static constexpr uint32_t MT_CONST_7 = 0x80000000;
+    static constexpr uint32_t MT_CONST_8 = 0x7FFFFFFF;
+    static constexpr uint32_t MT_N = 624;
+    static constexpr uint32_t MT_M = 397;
+    static constexpr uint32_t MT_R = 31;
+    static constexpr uint32_t MT_U = 11;
+    static constexpr uint32_t MT_S = 7;
+    static constexpr uint32_t MT_B = 0x9D2C5680;
+    static constexpr uint32_t MT_T = 15;
+    static constexpr uint32_t MT_C = 0xEFC60000;
+    static constexpr uint32_t MT_L = 18;
+
+    uint32_t mt_state[MT_N];
+    uint32_t mt_index;
+};
+
+}   // namespace random_uniform
 }   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov

@@ -57,7 +57,10 @@ protected:
 private:
     void computeStl(void* out, size_t work_amount);
 
-    std::pair<uint64_t, uint64_t> computePhilox(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
+    std::pair<uint64_t, uint64_t> computePhiloxOpenvino(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
+    std::pair<uint64_t, uint64_t> computePhiloxTensorflow(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
+    std::pair<uint64_t, uint64_t> computeMersenneTwister(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
+
 
     template <typename T, typename DISTR_TYPE>
     void generateData(DISTR_TYPE distribution, void* out, size_t work_amount);
@@ -69,7 +72,7 @@ private:
     void evalRange();
 
     enum { SHAPE = 0, MIN_VAL, MAX_VAL };
-    enum AlgoType { STL, PHILOX };
+    enum AlgoType { STL = 0, PHILOX_OV, PHILOX_TF, MERSENNE};
 
     bool m_const_inputs[3] = {false, false, false};
 
@@ -77,16 +80,16 @@ private:
     uint64_t m_global_seed = 0lu;
     uint64_t m_op_seed = 0lu;
     std::pair<uint64_t, uint64_t> m_state {0lu, 0lu};
+    ov::op::PhilloxAlignment m_alignment;
 
     VectorDims m_out_shape = {};
     uint64_t m_out_el_num = 1lu;
     OutputType m_min_val;
     OutputType m_max_val;
     OutputType m_range_val;
-    AlgoType m_algo = PHILOX;
+    AlgoType m_algo = PHILOX_OV;
 
     std::default_random_engine m_generator;
-
     struct ThreadParams {
         uint64_t work_amount = 0lu;
         uint64_t dst_shift = 0lu;
