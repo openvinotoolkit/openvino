@@ -5,6 +5,7 @@
 #include <climits>
 
 #include "common_op_table.hpp"
+#include "helper_ops/tensor_list_ops.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -37,6 +38,12 @@ Output<Node> create_initial_tensor_list(const NodeContext& node,
                                         const Output<Node>& num_elements,
                                         const Output<Node>& element_shape,
                                         const element::Type& element_dtype) {
+    // handle tensor elements of dynamic rank
+    if (element_shape.get_partial_shape().is_dynamic() || element_shape.get_shape().size() != 1) {
+        auto tensor_list = make_shared<TensorList>(num_elements, ov::Rank::dynamic(), element_dtype);
+        return {tensor_list};
+    }
+
     TENSORFLOW_OP_VALIDATION(node,
                              element_shape.get_partial_shape().is_static(),
                              "[TensorFlow Frontend] internal error: element_shape must be of static shape");
@@ -112,21 +119,12 @@ OutputVector translate_tensor_list_get_item_op(const NodeContext& node) {
     default_op_checks(node, 3, {"TensorListGetItem"});
     auto input_handle = node.get_input(0);
     auto index = node.get_input(1);
+    auto element_shape = node.get_input(2);
     auto element_dtype = node.get_attribute<element::Type>("element_dtype");
 
-    // make index be a scalar
-    if (index.get_partial_shape() != PartialShape{}) {
-        auto new_index_shape = make_shared<v0::Constant>(element::i32, Shape{0}, vector<int32_t>{});
-        index = make_shared<v1::Reshape>(index, new_index_shape, false);
-    }
-
-    // gather tensor element by the required position
-    auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    Output<Node> tensor_element = make_shared<v8::Gather>(input_handle, index, gather_axis);
-    tensor_element = make_shared<v0::Convert>(tensor_element, element_dtype);
-
-    set_node_name(node.get_name(), tensor_element.get_node_shared_ptr());
-    return {tensor_element};
+    auto tensor_list_get_item = make_shared<TensorListGetItem>(input_handle, index, element_shape, element_dtype);
+    set_node_name(node.get_name(), tensor_list_get_item);
+    return {tensor_list_get_item};
 }
 
 OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
@@ -134,35 +132,10 @@ OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
     auto input_handle = node.get_input(0);
     auto index = node.get_input(1);
     auto item = node.get_input(2);
+    auto tensor_list_set_item = make_shared<TensorListSetItem>(input_handle, index, item);
 
-    // make index be of a shape [1]
-    if (index.get_partial_shape() != PartialShape{1}) {
-        auto new_index_shape = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int32_t>{1});
-        index = make_shared<v1::Reshape>(index, new_index_shape, false);
-    }
-
-    // compute the current length of the list
-    Output<Node> list_length = make_shared<v3::ShapeOf>(input_handle, element::i32);
-    auto zero_const = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    auto one_const = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    list_length = make_shared<v8::Slice>(list_length, zero_const, one_const, one_const);
-
-    // compute element shape of real elements to be inserted into the list
-    auto item_shape = make_shared<v3::ShapeOf>(item, element::i32);
-
-    // broadcast tensor list container to the real shape
-    // since the initial state has shape [num_elements, 1, ..., 1]
-    auto target_shape = make_shared<v0::Concat>(OutputVector{list_length, item_shape}, 0);
-    input_handle = make_shared<v1::Broadcast>(input_handle, target_shape);
-
-    // reshape item before insertion to source tensor
-    item = make_shared<v0::Unsqueeze>(item, zero_const);
-
-    // update the resulted tensor using ScatterUpdate
-    auto scatter_update = make_shared<v3::ScatterUpdate>(input_handle, index, item, zero_const);
-
-    set_node_name(node.get_name(), scatter_update);
-    return {scatter_update};
+    set_node_name(node.get_name(), tensor_list_set_item);
+    return {tensor_list_set_item};
 }
 
 OutputVector translate_tensor_list_push_back_op(const NodeContext& node) {
