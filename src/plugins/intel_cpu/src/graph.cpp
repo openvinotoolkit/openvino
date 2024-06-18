@@ -14,6 +14,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <queue>
 
 #include "edge.h"
 #include "graph_dumper.h"
@@ -689,6 +690,143 @@ static edge_clusters_t findEdgeClusters(const std::vector<EdgePtr> & graphEdges)
     return edge_clusters;
 }
 
+class GreedyMemorySolver {
+public:
+    using Box = ov::MemorySolver::Box;
+
+public:
+    explicit GreedyMemorySolver(const std::vector<Box>& boxes)
+        : m_active_boxes([](const Box& lhs, const Box& rhs) {
+              return lhs.finish > rhs.finish;
+          }),
+          m_boxes(boxes) {
+        MemorySolver::normalize_boxes(m_boxes);
+        m_offsets.reserve(m_boxes.size());
+    }
+
+    int64_t solve() {
+        for (auto&& box : m_boxes) {
+            m_offsets.insert(std::make_pair(static_cast<size_t>(box.id), insert_box(box)));
+            max_current_size = std::max(max_current_size, current_size);
+        }
+        return m_max_size;
+    }
+
+    size_t get_offset(size_t id) const {
+        auto res = m_offsets.find(id);
+        OPENVINO_ASSERT(res != m_offsets.end());
+        return res->second;
+    }
+
+private:
+    using BoxCmp = std::function<bool(const Box&, const Box&)>;
+    using BoxPriorityQueue = std::priority_queue<Box, std::vector<Box>, BoxCmp>;
+    using VecBoxes = std::vector<Box>;
+    using MemBlock = std::pair<size_t, size_t>; //offset, size
+    //using MemBlockCmp = std::function<bool(const MemBlock&, const MemBlock&)>;
+    using MemBlockMap = std::map<size_t, size_t>; //start offset, block size
+    using EndsMap = std::map<size_t, size_t>; //end offset, block start offset
+
+private:
+    size_t insert_box(Box box) { //return offset
+        box.size = ((box.size + (m_alignment - 1)) & ~(m_alignment - 1));  // always allocate by aligned blocks
+        current_size += box.size;
+        // diagnostics
+        max_box_size = std::max(max_box_size, static_cast<size_t>(box.size));
+
+        OPENVINO_ASSERT(m_last_start <= box.start); //the boxes mast be sorted by the start index
+        m_last_start = box.start;
+        while (!m_active_boxes.empty() && m_active_boxes.top().finish < box.start) {
+            auto&& retire_box = m_active_boxes.top();
+            insert_free_block(std::make_pair(static_cast<size_t>(retire_box.id), static_cast<size_t>(retire_box.size)));
+            current_size -= retire_box.size;
+            m_active_boxes.pop();
+        }
+
+        //search free block to reuse
+        // todo: there might be different strategy
+        // this one - use the lowest address as the adjacent block is the next to be retired
+        for (auto it = m_free_blocks.begin(); it != m_free_blocks.end(); ++it) {
+            const size_t block_size = it->second;
+            if (block_size >= static_cast<size_t>(box.size)) {
+                //block found, reuse block
+                const size_t block_offset = it->first;
+                box.id = static_cast<int64_t>(block_offset);
+                //todo extract to method evict free block
+                m_free_blocks.erase(it);
+                m_ends_map.erase(block_offset + block_size);
+                const size_t remaining_space = block_size - box.size;
+                if (remaining_space) {
+                    const size_t free_block_offset = block_offset + box.size;
+                    // todo extract to method (insert free block)
+                    m_free_blocks.insert(std::make_pair(free_block_offset, remaining_space));
+                    m_ends_map.insert(std::make_pair(free_block_offset + remaining_space, free_block_offset));
+                }
+                m_active_boxes.emplace(std::move(box));
+                return block_offset;
+            }
+        }
+
+        //no suitable free blocks, extend memory
+        const size_t ret_offset = m_max_size;
+        box.id = ret_offset;
+        m_max_size += box.size;
+        m_active_boxes.emplace(std::move(box));
+        return ret_offset;
+    }
+
+    void insert_free_block(MemBlock block) {
+        // important property, freeing block may not overlap existing free blocks
+        // fast track, try to insert before the free block
+        const size_t end_offset = block.first + block.second;
+        {
+            auto it = m_free_blocks.find(end_offset);
+            if (it != m_free_blocks.end()) {
+                //merge blocks
+                const size_t adjacent_block_size = it->second;
+                m_free_blocks.erase(it);
+                block.second = adjacent_block_size + block.second;
+                m_ends_map.erase(block.first + block.second);//todo sanity check
+                // m_free_blocks.insert(std::make_pair(block.first, adjacent_block_size + block.second));
+                // return;
+            }
+        }
+        //try to merge to the end of the free block
+        {
+            auto it = m_ends_map.find(block.first);
+            if (it != m_ends_map.end()) {
+                //merge blocks
+                block.first = it->second;
+                block.second += it->first - it->second;
+                m_ends_map.erase(it);
+                //m_ends_map.insert(std::make_pair(end_offset, new_block_offset));
+                //m_free_blocks.erase[new_block_offset] = (end_offset - new_block_offset);
+                m_free_blocks.erase(block.first); //todo sanity check
+            }
+        }
+        //nothing to merge with
+        //[todo] sanity checks
+        m_free_blocks.insert(std::make_pair(block.first, block.second));
+        m_ends_map.insert(std::make_pair(block.first + block.second, block.first));
+    }
+
+private:
+    BoxPriorityQueue m_active_boxes;
+    MemBlockMap m_free_blocks; //better to use interval tree(?)
+    EndsMap m_ends_map; // used to quickly merge
+    VecBoxes m_boxes;
+    std::unordered_map<size_t, size_t> m_offsets; // map box id to offset
+    size_t m_max_size = 0lu;
+    int64_t m_last_start = std::numeric_limits<int64_t>::min();
+    //diagnostics
+    size_t max_box_size = 0;
+    size_t current_size = 0;
+    size_t max_current_size = 0;
+    // end diagnostics
+
+    static constexpr size_t m_alignment = 1;  // 64lu;  // cache line size
+};
+
 void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     edge_clusters_t edge_clusters = findEdgeClusters(graphEdges);
 
@@ -816,7 +954,22 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
 
     // Process defined boxes (static shapes)
     ov::MemorySolver staticMemSolver(definedBoxes);
+    auto start = std::chrono::steady_clock::now();
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
+
+    auto end = std::chrono::steady_clock::now();
+    std::cout << "Classic solver time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "[us]" << std::endl;
+    std::cout << "Classic solver memory: " << total_size << " bytes" << std::endl;
+
+    GreedyMemorySolver testMemSolver(definedBoxes);
+
+    start = std::chrono::steady_clock::now();
+    size_t test_total_size = testMemSolver.solve()  * alignment;
+    end = std::chrono::steady_clock::now();
+    std::cout << "New solver time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "[us]" << std::endl;
+    std::cout << "New solver memory: " << test_total_size << " bytes" << std::endl;
+
+    //total_size = test_total_size;
 
     memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(ov::element::i8, Shape(VectorDims{total_size})));
 
@@ -830,6 +983,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         for (auto& edge : edge_clusters[box.id]) {
             if (edge->getStatus() == Edge::Status::NeedAllocation) {
                 int64_t offset = staticMemSolver.get_offset(box.id);
+                //auto offset = testMemSolver.get_offset(box.id);
                 // !! Fallback to individual memory allocation !!
                 // if you like to check infer without reuse just call this function without arguments.
                 edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
