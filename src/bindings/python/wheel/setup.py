@@ -337,7 +337,7 @@ class PrepareLibs(build_clib):
         # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
         self.copy_package_libs(get_install_dirs_list(LIB_INSTALL_CFG))
         # copy package data (everything except python or libraries)
-        if not PYTHON_EXTENSIONS_ONLY:
+        if CPACK_GENERATOR == "TGZ":
             self.copy_package_data(get_install_dirs_list(DATA_INSTALL_CFG))
 
     def post_install(self, install_cfg):
