@@ -32,10 +32,8 @@ void regclass_graph_Symbol(py::module m) {
         },
         "Check whether the symbol is meaningful");
 
-    symbol.def(
-        "__hash__",
-        [](const std::shared_ptr<ov::Symbol>& self) {
-            auto ancestor = ov::symbol::ancestor_of(self);
-            return std::hash<std::shared_ptr<ov::Symbol>>{}(ancestor);
+    symbol.def("__hash__", [](const std::shared_ptr<ov::Symbol>& self) {
+        auto ancestor = ov::symbol::ancestor_of(self);
+        return std::hash<std::shared_ptr<ov::Symbol>>{}(ancestor);
     });
 }
