@@ -290,6 +290,6 @@ if(ENABLE_PKGCONFIG_GEN)
 
     install(FILES "${pkgconfig_out}"
             DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
-            COMPONENT ${OV_CPACK_COMP_LINKS}
-            ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL})
+            COMPONENT ${OV_CPACK_COMP_PKG_CONFIG}
+            ${OV_CPACK_COMP_PKG_CONFIG_EXCLUDE_ALL})
 endif()

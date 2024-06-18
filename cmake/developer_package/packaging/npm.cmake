@@ -67,6 +67,8 @@ macro(ov_define_component_include_rules)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # pkgconfig
+    unset(OV_CPACK_COMP_PKG_CONFIG_EXCLUDE_ALL)
     # symbolic links
     unset(OV_CPACK_COMP_LINKS_EXCLUDE_ALL)
 endmacro()
