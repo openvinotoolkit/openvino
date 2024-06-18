@@ -40,8 +40,8 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
                                  bool is_runtime);
     bool match(concatenation_node& node);
     static bool match(const program_node& concat_node,
-                      kernel_impl_params concat_params,
-                      std::vector<kernel_impl_params> pred_params,
+                      kernel_impl_params& concat_params,
+                      std::vector<kernel_impl_params>& pred_params,
                       bool is_runtime = false);
     bool optimize(concatenation_node& node) {
         std::list<concatenation_node*> need_reopt;

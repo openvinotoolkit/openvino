@@ -71,8 +71,8 @@ auto available_pred = [](const program_node& input) {
 };
 
 bool concat_in_place_optimization::match(const program_node& concat_node,
-                                         kernel_impl_params concat_params,
-                                         std::vector<kernel_impl_params> pred_params,
+                                         kernel_impl_params& concat_params,
+                                         std::vector<kernel_impl_params>& pred_params,
                                          bool is_runtime) {
     if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
         return false;
@@ -96,8 +96,8 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         }
     }
 
-    auto pred_nodes = concat_node.get_dependencies();
-    for (auto p : pred_nodes) {
+    const auto& pred_nodes = concat_node.get_dependencies();
+    for (const auto& p : pred_nodes) {
         // TODO : In dynamic shape only one user is allowed for optimzied concat
         // It is mainly because of the limited flexibility of current exec order
         // For now, we are doing shape_infer for all pred nodes and concats when executing one of the predecessors for runtime buffer fusing
@@ -119,15 +119,15 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     // For in place concatenation input layouts and data types must match.
     // Also, it checks whether data along f-axis is aligned properly for implicit concat.
     // Otherwise, use explicit concat instead.
-    auto output_format = concat_params.get_output_layout().format;
-    auto output_datatype = concat_params.get_output_layout().data_type;
+    const auto& output_format = concat_params.get_output_layout().format;
+    const auto& output_datatype = concat_params.get_output_layout().data_type;
 
     auto lower_padd_in_axis = concat_params.get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
                                   pred_params[0].get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
 
     size_t idx = 0;
-    for (auto pred : pred_nodes) {
+    for (const auto& pred : pred_nodes) {
         if (!available_pred(*pred.first))
             return false;
         if (pred.first->is_output())
@@ -159,7 +159,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
 
         size_t concat_users = 0;
-        for (auto& user : pred.first->get_users())
+        for (const auto& user : pred.first->get_users())
             if (user->is_type<concatenation>())
                 concat_users += 1;
 
@@ -167,7 +167,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         if (concat_users != 1)
             return false;
 
-        layout pred_l = pred_params[idx].get_output_layout();
+        const layout& pred_l = pred_params[idx].get_output_layout();
         if (output_format != pred_l.format || output_datatype != pred_l.data_type)
             return false;
         if (pred_l.format.block_sizes().size() > 1)
@@ -210,7 +210,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                 }
             }
         }
-        auto input_padd = pred.first->get_output_layout().data_padding;
+        const auto& input_padd = pred.first->get_output_layout().data_padding;
 
         // Check that there isn't already some padding between inputs in concat axis.
         // If node has already been optimized we skip this check - this is just cascade adjustment.
@@ -228,7 +228,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
         bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
-        layout concat_out_l = concat_params.get_output_layout();
+        const layout& concat_out_l = concat_params.get_output_layout();
         if (!use_usm)
             return false;
         if (concat_node.is_dynamic() && !is_runtime) {
