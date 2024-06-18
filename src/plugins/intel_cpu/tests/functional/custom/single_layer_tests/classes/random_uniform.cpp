@@ -24,9 +24,10 @@ std::string RandomUniformLayerTestCPU::getTestCaseName(const testing::TestParamI
     result << "_OutPrc="          << std::get<3>(obj.param);
     result << "_GlobalSeed="      << std::get<4>(obj.param);
     result << "_OperationalSeed=" << std::get<5>(obj.param);
-    result << "_ConstIn={"        << utils::bool2str(std::get<6>(obj.param)) << ","
-                                  << utils::bool2str(std::get<7>(obj.param)) << ","
-                                  << utils::bool2str(std::get<8>(obj.param)) << "}";
+    result << "_Alignment="       << std::get<6>(obj.param);
+    result << "_ConstIn={"        << utils::bool2str(std::get<7>/(obj.param)) << ","
+                                  << utils::bool2str(std::get<8>(obj.param)) << ","
+                                  << utils::bool2str(std::get<9>(obj.param)) << "}";
 
     result << CPUTestsBase::getTestCaseName(std::get<9>(obj.param));
 
@@ -53,11 +54,12 @@ void RandomUniformLayerTestCPU::SetUp() {
     const auto& output_prc = std::get<3>(params);
     m_global_seed          = std::get<4>(params);
     m_operational_seed     = std::get<5>(params);
-    const auto& const_in_1 = std::get<6>(params);
-    const auto& const_in_2 = std::get<7>(params);
-    const auto& const_in_3 = std::get<8>(params);
-    const auto& cpu_params = std::get<9>(params);
-    configuration          = std::get<10>(params);
+    const auto& alignment  = std::get<6>(params);
+    const auto& const_in_1 = std::get<7>(params);
+    const auto& const_in_2 = std::get<8>(params);
+    const auto& const_in_3 = std::get<9>(params);
+    const auto& cpu_params = std::get<10>(params);
+    configuration          = std::get<11>(params);
 
     m_min_val = std::get<0>(min_max);
     m_max_val = std::get<1>(min_max);
@@ -118,7 +120,7 @@ void RandomUniformLayerTestCPU::SetUp() {
 
     init_input_shapes(in_shapes);
 
-    const auto rnd_op = std::make_shared<ov::op::v8::RandomUniform>(inputs[0], inputs[1], inputs[2], output_prc, m_global_seed, m_operational_seed);
+    const auto rnd_op = std::make_shared<ov::op::v8::RandomUniform>(inputs[0], inputs[1], inputs[2], output_prc, m_global_seed, m_operational_seed, alignment);
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnd_op)};
 
     function = std::make_shared<ov::Model>(results, in_params, "RandomUniformLayerTestCPU");
@@ -192,6 +194,9 @@ fill_data(tensor.data<ov::element_type_traits<P>::value_type>(), S, L); break;
 
 void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     if (m_global_seed != 0lu || m_operational_seed != 0lu) {
+        // When seeds match, generator output should be exactly the same
+        abs_threshold = 0.0f;
+        rel_threshold = 0.0f;
         SubgraphBaseTest::compare(expected, actual);
         return;
     }
