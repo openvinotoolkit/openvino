@@ -348,6 +348,15 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::hint::execution_mode.name()) {
             try {
                 executionMode = val.as<ov::hint::ExecutionMode>();
+                if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
+                    // disable dynamic quantization and kv quantization for best accuracy
+                    fcDynamicQuantizationGroupSize = 0;
+                    kvCachePrecision = ov::element::f32;
+                } else {
+                    // restore to default
+                    fcDynamicQuantizationGroupSize = 32;
+                    kvCachePrecision = ov::element::u8;
+                }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
