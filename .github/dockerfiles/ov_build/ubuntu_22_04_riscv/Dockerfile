@@ -16,6 +16,8 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
+    # install compilers to build OpenVINO for RISC-V 64
+    apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu && \
     apt-get install \
         curl \
         git \
@@ -31,16 +33,10 @@ RUN apt-get update && \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
-        # install compilers to build OpenVINO for RISC-V 64
-        gcc-riscv64-linux-gnu \
-        g++-riscv64-linux-gnu \
+        # Compilers
+        gcc \
+        g++ \
         && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install build dependencies
-ADD install_build_dependencies.sh /install_build_dependencies.sh
-RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install RISC-V native debian packages
