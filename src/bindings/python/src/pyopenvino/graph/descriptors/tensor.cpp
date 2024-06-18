@@ -151,7 +151,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                 Returns the List of symbols.
 
                 :return: List of Symbols.
-                :rtype: List
+                :rtype: List[openvino.runtime.Symbol]
              )");
 
     tensor.def("set_value_symbol",
