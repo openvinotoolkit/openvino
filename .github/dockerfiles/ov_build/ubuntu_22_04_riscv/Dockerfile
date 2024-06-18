@@ -31,11 +31,9 @@ RUN apt-get update && \
         tzdata \
         # Python \
         python3-dev \
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
-        libxml2-dev \
-        libxslt-dev \
+        python3-pip \
+        python3-venv \
+        python3-distutils \
         # Compilers
         gcc \
         g++ \
@@ -66,10 +64,5 @@ RUN dpkg --add-architecture riscv64 && \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
-
-# Use Python 3.11 as default instead of Python 3.8
-# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
-RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$PATH"
