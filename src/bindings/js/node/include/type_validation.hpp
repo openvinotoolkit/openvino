@@ -94,8 +94,7 @@ bool validate(const Napi::CallbackInfo& info) {
 
 template <typename... Ts>
 bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_signatures) {
-    const auto signature_attributes = get_signature<Ts...>();
-    allowed_signatures.push_back(signature_attributes);
+    allowed_signatures.push_back(get_signature<Ts...>());
 
     return InputParameters<Ts...>::validate(info, std::index_sequence_for<Ts...>{});
 };
