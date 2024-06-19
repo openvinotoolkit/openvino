@@ -14,7 +14,7 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
         return;
     }
     try {
-        OPENVINO_ASSERT(info.Length() > 3, "Invalid number of arguments for Tensor constructor.");
+        OPENVINO_ASSERT(info.Length() <= 3, "Invalid number of arguments for Tensor constructor.");
         if (info.Length() == 1 && info[0].IsArray()) {
             this->_tensor = cast_to_tensor(info[0].As<Napi::Array>());
         } else {
