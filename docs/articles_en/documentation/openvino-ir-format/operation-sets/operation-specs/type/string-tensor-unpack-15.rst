@@ -52,23 +52,19 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
   * **Description**: Indices of each string's begginings.
   * **Range of values**: ND tensor of non-negative integer numbers.
-  * **Type**: *T_IDX*
+  * **Type**: ``int32``
 
 * **2**: *ends*:
 
   * **Description**: Indices of each string's endings.
   * **Range of values**: ND tensor of non-negative integer numbers.
-  * **Type**: *T_IDX*
+  * **Type**: ``int32``
 
 * **3**: *symbols*:
 
   * **Description**: Concatenated ``input`` strings.
   * **Range of values**: 1D tensor of concatenated strings data encoded in utf-8 bytes.
   * **Type**: ``u8``
-
-**Types**
-
-* *T_IDX*: ``int32``
 
 **Examples**
 
@@ -86,10 +82,10 @@ For ``input = ["Intel", "OpenVINO"]``
             </port>
         </input>
         <output>
-            <port id="0" precision="I64">
+            <port id="0" precision="I32">
                 <dim>2</dim>     <!-- begins = [0, 5] -->
             </port>
-            <port id="1" precision="I64">
+            <port id="1" precision="I32">
                 <dim>2</dim>     <!-- ends = [5, 13] -->
             </port>
             <port id="2" precision="u8">
@@ -112,10 +108,10 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
             </port>
         </input>
         <output>
-            <port id="0" precision="I64">
+            <port id="0" precision="I32">
                 <dim>2</dim>     <!-- begins = [0, 3, 3, 8, 9] -->
             </port>
-            <port id="1" precision="I64">
+            <port id="1" precision="I32">
                 <dim>2</dim>     <!-- ends = [3, 3, 8, 9, 13] -->
             </port>
             <port id="2" precision="u8">
@@ -139,11 +135,11 @@ For ``input = [["Intel", "OpenVINO"], ["OMZ", "GenAI"]]``
             </port>
         </input>
         <output>
-            <port id="0" precision="I64">
+            <port id="0" precision="I32">
                 <dim>2</dim>     <!-- begins = [[0, 5], [13, 16]] -->
                 <dim>2</dim>
             </port>
-            <port id="1" precision="I64">
+            <port id="1" precision="I32">
                 <dim>2</dim>     <!-- ends = [[5, 13], [16, 21]] -->
                 <dim>2</dim>
             </port>
