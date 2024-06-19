@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import pytest
 import numpy as np
 from contextlib import nullcontext as does_not_raise
@@ -104,6 +105,17 @@ class CustomOpWithAttribute(Op):
         return True
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.fixture
+def prepared_paths(request, tmp_path):
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+
+    yield xml_path, bin_path
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
 @pytest.mark.parametrize(("attributes", "expectation", "raise_msg"), [
     ({"axis": 0}, does_not_raise(), ""),
     ({"value_str": "test_attribute"}, does_not_raise(), ""),
@@ -119,7 +131,7 @@ class CustomOpWithAttribute(Op):
     ({"wrong_np": np.array([1.5, 2.5], dtype="complex128")}, pytest.raises(TypeError), "Unsupported NumPy array dtype: complex128"),
     ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
-def test_visit_attributes_custom_op(request, tmp_path, attributes, expectation, raise_msg):
+def test_visit_attributes_custom_op(prepared_paths, attributes, expectation, raise_msg):
     input_shape = [2, 1]
 
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
@@ -128,7 +140,7 @@ def test_visit_attributes_custom_op(request, tmp_path, attributes, expectation, 
     res = ops.result(custom, name="result")
     model_with_op_attr = Model(res, [param1, param2], "CustomModel")
 
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = prepared_paths
 
     with expectation as e:
         serialize(model_with_op_attr, xml_path, bin_path)
