@@ -105,9 +105,11 @@ public:
     int print_input_data_shapes;                                // Print the input data_shape for benchmark_app.
     int disable_usm;                                            // Disable usm usage
     int disable_onednn;                                         // Disable onednn for discrete GPU (no effect for integrated GPU)
+    int disable_onednn_permute_fusion;                          // Disable permute fusion for onednn ops
     int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators
     std::string dump_profiling_data;                            // Enables dump of extended performance profiling to specified dir
     int dump_profiling_data_per_iter;                           // Enables dump of extended performance profiling to specified dir for each iteration
+    int host_time_profiling;                                    // Enables measurement of scheduling time spend on the host
     std::string dump_graphs;                                    // Dump optimized graph
     std::string dump_sources;                                   // Dump opencl sources
     std::string dump_layers_path;                               // Enable dumping intermediate buffers and set the dest path
@@ -128,6 +130,7 @@ public:
     std::vector<std::string> forced_impl_types;                 // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                                  // Maximum number of kernels in a batch during compiling kernels
     int impls_cache_capacity;                                   // The maximum number of entries in the kernel impl cache
+    int enable_sdpa;                                            // Allows to control SDPA decomposition
     int disable_async_compilation;                              // Disable async compilation
     int disable_winograd_conv;                                  // Disable Winograd conv
     int disable_dynamic_impl;                                   // Disable dynamic implementation
@@ -136,6 +139,8 @@ public:
     int disable_build_time_weight_reorder_for_dynamic_nodes;    // Disable build time weight reordering for dynamic nodes
     int disable_runtime_skip_reorder;                           // Disable runtime skip reorder
     int disable_primitive_fusing;                               // Disable primitive fusing
+    int disable_fake_alignment;                                 // Disable fake alignment
+    int enable_dynamic_quantize;                                // Enable Dynamic quantization for fully connected primitive
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();

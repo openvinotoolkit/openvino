@@ -435,9 +435,6 @@ Compare performance PyTorch vs OpenVINO
     Performance distil-large-v2 openvino speedup: 1.684
 
 
-load_in_8bit### Compare with OpenAI Whisper 
-
-
 Usage OpenVINO model with HuggingFace pipelines
 -----------------------------------------------
 

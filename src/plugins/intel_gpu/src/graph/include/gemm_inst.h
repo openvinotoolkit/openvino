@@ -37,6 +37,49 @@ public:
                                                        const std::vector<layout>& input_layouts);
     static layout transform_output_layout(const std::shared_ptr<const gemm> primitive, const std::vector<layout>& input_layouts, const layout& output_layout);
 
+    static bool is_fusable_permute_input_order_onednn(const std::vector<size_t>& permute_order, format& fmt) {
+        const std::vector<format> gemm_in_format_white_list = {format::bfyx,
+                                                               format::bfxy,
+                                                               format::fyxb,
+                                                               format::byfx,
+                                                               format::bxfy,
+                                                               format::fybx,
+                                                               format::ybfx,
+                                                               format::xbfy};
+        auto target_permute_order = permute_order;
+        for (size_t i = 0; i < permute_order.size(); ++i) {
+            target_permute_order[permute_order[i]] = i;
+        }
+
+        for (const auto& cand_format : gemm_in_format_white_list) {
+            const auto cand_format_order = format::traits(static_cast<format::type>(cand_format))._order;
+            if (cand_format_order == target_permute_order) {
+                fmt = cand_format;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static bool is_fusable_permute_output_order_onednn(const std::vector<size_t>& target_order, format& fmt) {
+        const std::vector<format> gemm_out_format_white_list = {format::bfyx,
+                                                                format::bfxy,
+                                                                format::fyxb,
+                                                                format::fybx,
+                                                                format::byfx,
+                                                                format::ybfx};
+
+        for (const auto& cand_format : gemm_out_format_white_list) {
+            const auto cand_format_order = format::traits(static_cast<format::type>(cand_format))._order;
+            if (cand_format_order == target_order) {
+                fmt = cand_format;
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     typed_primitive_inst(network& network, gemm_node const& node);
 };
 

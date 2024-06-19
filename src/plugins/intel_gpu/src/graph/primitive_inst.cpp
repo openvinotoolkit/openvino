@@ -103,15 +103,12 @@ bool is_user_cpu(const program_node* user) {
                 return true;
             }
         }
-        // If the user is dynamic and runtime skippable node, we still need to its parents' completion
-        // event even though the user's program_node is can_be_optimized
-        if (!user->is_dynamic() || (!user->is_runtime_skippable()))
-            return false;
     }
     bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu()
                                             : user->get_preferred_impl_type() == impl_types::cpu;
     return is_cpu;
 }
+
 bool has_cpu_user_not_shape_of(const program_node* user) {
     if (user->can_be_optimized()) {
         auto users = user->get_users();
@@ -312,6 +309,8 @@ void primitive_inst::update_shape() {
 
     if (input_shape_changed)
         set_shape_change();
+    else
+        reset_shape_change();
 
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
     if (_node->is_type<shape_of>() && !input_shape_changed) {
@@ -342,7 +341,7 @@ void primitive_inst::update_shape() {
         }
     }
 
-    // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
+    // Even though the predecessors' shapes are not changed, the output shape might be updated by the mem_dep
     auto memory_deps = _node->get_const_memory_deps();
     for (auto& i : _node->get_shape_infer_dependencies()) {
         if (memory_deps.count(i) > 0) {
@@ -459,6 +458,28 @@ void primitive_inst::update_shape() {
     }
 }
 
+kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
+    auto updated_params = _node->type()->get_fake_aligned_params(orig_impl_param);
+
+    const auto &dev_info = get_node().get_program().get_engine().get_device_info();
+
+    // The target HW of this patch is limited because of performance concern
+    if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
+        // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
+        // i.e. predecessor node was supposed be increased already
+        if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
+            && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
+            GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
+                << "  allocated: " << dep_memory(0).count()
+                << "  required: " << updated_params.input_layouts[0].count()
+                << std::endl;
+            updated_params = *_impl_params;
+        }
+    }
+    return updated_params;
+}
+
+
 event::ptr primitive_inst::realloc_if_needed() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -478,8 +499,10 @@ event::ptr primitive_inst::realloc_if_needed() {
             return ev;
         }
     }
+
     // Update param if fake_alignment is available
-    auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
+    auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
+
     const auto& actual_layout = updated_params.get_output_layout();
     OPENVINO_ASSERT(actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
@@ -815,7 +838,7 @@ bool primitive_inst::update_impl() {
 
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
         // Update param if fake_alignment is available
-        auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
+        auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
         // Change weights layout of `updated_params` to original one to have valid information
         // in _impl->_weights_reorder_params about required weights format after impl selection
         if (_node->is_type<fully_connected>() || _node->is_type<convolution>() || _node->is_type<deconvolution>()) {
@@ -952,44 +975,46 @@ void primitive_inst::do_runtime_skip_reorder() {
     // set successive reorder can_be_optimized if layouts are same
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
-            if (is_input() && u->is_output())
-                continue;
-            // TODO: Skipped reorder + in_place concat is not supported yet. To support later.
-            if (u->get_users().size() == 1 && u->get_users().front()->is_type<concatenation>() && u->get_users().front()->can_be_optimized())
-                continue;
-            auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
-            // If current node's output_node is not dynamic, the memory is already allocated at build time
-            auto alloc_type = allocation_type::unknown;
-            if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
-                alloc_type = _outputs[out_port_idx]->get_allocation_type();
-            }
-            if (alloc_type == allocation_type::usm_device && u->is_output())
-                continue;
-            GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
-            u->update_shape();
-            u->update_shape_done_by_other = true;
-
-            if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
-                std::function<void(std::vector<primitive_inst*>)> update_memory_dependencies;
-                update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
-                    for (auto& user : users) {
-                        GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
-                        user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
-                        if (user->can_be_optimized())
-                            update_memory_dependencies(user->get_user_insts());
-                    }
-                };
-
-                update_memory_dependencies(u->get_user_insts());
-
-                u->set_can_be_optimized(true);
-                // Opt out reorder which has _needs_completion_event = true causes syncronization failed in dGPU.
-                if (_needs_completion_event == false && u->_needs_completion_event == true) {
-                    _needs_completion_event = true;
+            if (u->get_node().can_be_optimized() && u->get_node().is_runtime_skippable()) {
+                auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
+                // If current node's output_node is not dynamic, the memory is already allocated at build time
+                auto alloc_type = allocation_type::unknown;
+                if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
+                    alloc_type = _outputs[out_port_idx]->get_allocation_type();
                 }
-                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
-            } else {
-                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
+                if (alloc_type == allocation_type::usm_device && u->is_output()) {
+                    u->set_can_be_optimized(false);
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id()
+                                                << " cannot be optimized for that " << u->id() << " is reorder and output node" << std::endl;
+                    continue;
+                }
+                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
+                u->update_shape();
+                u->update_shape_done_by_other = true;
+
+                if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
+                    std::function<void(std::vector<primitive_inst*>)> update_memory_dependencies;
+                    update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
+                        for (auto& user : users) {
+                            GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
+                            user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
+                            if (user->can_be_optimized())
+                                update_memory_dependencies(user->get_user_insts());
+                        }
+                    };
+
+                    update_memory_dependencies(u->get_user_insts());
+                    u->set_can_be_optimized(true);
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
+                } else {
+                    u->set_can_be_optimized(false);
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id()
+                                                << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder]  * input_layout  : "
+                                                << u->_impl_params->get_input_layout().to_short_string() << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder]  * output_layout : "
+                                                << u->_impl_params->get_output_layout().to_short_string() << std::endl;
+                }
             }
         }
     }
@@ -1009,6 +1034,14 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     auto& past_layout = _impl_params->input_layouts[0];
     auto& present_layout = _impl_params->output_layouts[0];
     const auto& sequence_axis = desc->concat_axis;
+    const auto& gather_axis = desc->gather_axis;
+    const auto prev_batch_size = static_cast<size_t>(past_layout.get_shape()[gather_axis]);
+    const auto beam_size = static_cast<size_t>(present_layout.get_shape()[gather_axis]);
+    if (prev_batch_size != beam_size) {
+        // If the previous batch size is not same as beam size, need explicit concat
+        _impl_params->_can_be_optimized = false;
+        return;
+    }
 
     auto sequence_axis_legacy = kv_cache_inst::get_sequence_axis_legacy(sequence_axis, past_layout.get_partial_shape().size());
     if (present_layout.data_padding.get_dynamic_pad_dims().sizes()[sequence_axis_legacy] != 1)
@@ -1044,6 +1077,7 @@ void primitive_inst::do_runtime_skip_gather() {
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : check optimizability" << std::endl;
+
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     auto axis = _impl_params->typed_desc<gather>()->axis;
     auto idx_id = get_node().get_dependency(1).id();
@@ -1109,6 +1143,7 @@ void primitive_inst::do_runtime_skip_permute() {
     if (!get_node().is_type<permute>()
         || is_output()
         || !get_node().can_be_optimized()
+        || !get_node().is_runtime_skippable()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
         return;
@@ -1117,11 +1152,11 @@ void primitive_inst::do_runtime_skip_permute() {
     auto desc = _node->as<permute>().get_primitive();
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     const auto& permute_order = desc->permute_order;
-
     // Check runtime shape
-    // Optimize when the largest value among the acutal dim values in case where the permute order
+    // Optimize when the largest value among the actual dim values in case where the permute order
     // is different from the shape index is equal to the multiplied value
-    int32_t size = 1;
+    // Set size to zero to pass the case that permute order is same with input order like [0, 1, 2, 3]
+    int32_t size = 0;
     int32_t max_value = 0;
     for (int32_t i = 0; i < static_cast<int32_t>(permute_order.size()); ++i) {
         int32_t order = static_cast<int32_t>(permute_order[i]);
@@ -1129,13 +1164,18 @@ void primitive_inst::do_runtime_skip_permute() {
         if (i != order) {
             if (dim > max_value)
                 max_value = dim;
-            size *= dim;
+            size = (size == 0) ? dim : (size * dim);
         }
     }
+
     // If the largest value and total size are different, can_be_optimized needs to be reset
     if (size != max_value) {
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value << ") are different" << std::endl;
         set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value
+                               << ") are different" << std::endl;
+
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : reset can_be_optimized to false "
+                               << std::endl;
         return;
     }
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized" << std::endl;
@@ -1228,10 +1268,13 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     std::vector<kernel_impl_params> pred_params;
     std::vector<layout> preds_layouts;
-    for (auto& pred : concat_inst->_deps) {
+    for (const auto& pred : concat_inst->_deps) {
         pred_params.push_back(*pred.first->_impl_params);
         preds_layouts.push_back(pred.first->_impl_params->get_output_layout());
     }
+
+    if (!concat_inst->shape_changed())
+        return;
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);
@@ -1275,11 +1318,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     _mem_changed = false;
     const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
-    if (is_dynamic() && !has_inner_networks()) {
+    if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
-
 
         bool can_skip_execution = false;
         if (_impl_params->output_layouts[0].count() == 0) {
@@ -1287,7 +1329,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             can_skip_execution = true;
         }
 
-        if (_node->is_in_shape_of_subgraph()) {
+        // subgraph_input_changed can be available only shape_of is dynamic.
+        // shape_of_subgraph for static shape_of could be run every inference if constant propagation does not work.
+        if (_node->is_in_shape_of_subgraph() && dependant_shape_of_insts.front()->is_dynamic()) {
             bool subgraph_input_changed = false;
             for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
                 if (dependant_shape_of_insts[i]->shape_changed()) {

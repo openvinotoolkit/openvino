@@ -58,14 +58,14 @@ The following commands are accepted by the API:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_multi.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_multi.py
          :language: python
          :fragment: [MULTI_0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/MULTI0.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/MULTI0.cpp
          :language: cpp
          :fragment: [part0]
 
@@ -83,14 +83,14 @@ As mentioned previously, executing inference with MULTI may be set up by configu
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_multi.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_multi.py
          :language: python
          :fragment: [MULTI_4]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/MULTI4.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/MULTI4.cpp
          :language: cpp
          :fragment: [part4]
 
@@ -107,7 +107,7 @@ using the :doc:`configure devices <query-device-properties>` property:
 
    .. tab-item:: C++
 
-       .. doxygensnippet:: docs/snippets/MULTI5.cpp
+       .. doxygensnippet:: docs/articles_en/assets/snippets/MULTI5.cpp
           :language: cpp
           :fragment: [part5]
 

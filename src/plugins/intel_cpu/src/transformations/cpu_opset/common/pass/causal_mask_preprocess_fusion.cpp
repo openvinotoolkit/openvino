@@ -18,7 +18,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/utils/utils.hpp"
-#include "utils/gen_pattern.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov::gen_pattern;
 
@@ -125,23 +125,11 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         makePattern<ov::opset8::Gather>({ShapeOf_49034, {1}, 0}, {{"batch_dims", 0}});  //  tensor_array<i32[1]>
     auto ScatterUpdate_93502 =
         makePattern<ov::opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, Gather_41642, {0}});  //  tensor_array<i32[4]>
-    auto SliceAssign_201_Slice = makePattern<ov::opset1::StridedSlice>(
-        {SliceAssign_201_Reshape, {0, 0, 0, 0}, ScatterUpdate_93502, {1, 1, 1, 1}},
-        {{"begin_mask", {1, 1, 1, 0}},
-         {"end_mask", {1, 1, 1, 0}},
-         {"new_axis_mask", {}},
-         {"shrink_axis_mask", {}},
-         {"ellipsis_mask", {}}});  //  tensor_array<i32[?,1,8192,..8192]>
+    auto SliceAssign_201_Slice = GenSlice2(SliceAssign_201_Reshape, {0, 0, 0, 0}, ScatterUpdate_93502, {1, 1, 1, 1}, 3); //  tensor_array<i32[?,1,8192,..8192]>
     auto SliceAssign_201_Reshape_1 =
         makePattern<ov::opset1::Reshape>({SliceAssign_201_Slice, {-1, 1}},
                                          {{"special_zero", false}});  //  tensor_array<i32[?,1]>
-    auto causal_mask_boolean_1 =
-        makePattern<ov::opset1::StridedSlice>({mul_Multiply_1, {0, 0, 0, 0}, ScatterUpdate_93502, {1, 1, 1, 1}},
-                                              {{"begin_mask", {1, 1, 1, 0}},
-                                               {"end_mask", {1, 1, 1, 0}},
-                                               {"new_axis_mask", {}},
-                                               {"shrink_axis_mask", {}},
-                                               {"ellipsis_mask", {}}});  //  tensor_array<f32[?,1,8192,..8192]>
+    auto causal_mask_boolean_1 = GenSlice2(mul_Multiply_1, {0, 0, 0, 0}, ScatterUpdate_93502, {1, 1, 1, 1}, 3); //  tensor_array<f32[?,1,8192,..8192]>
     auto Constant_107278 = makeConst(ov::element::f32,
                                      ov::Shape({
                                          1,
@@ -187,13 +175,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                                          {{"special_zero", true}});  //  tensor_array<f32[?,1,8192,8192]>
     auto ScatterUpdate_93554 =
         makePattern<ov::opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, kvLen, {0}});  //  tensor_array<i32[4]>
-    auto slice_Slice_14 = makePattern<ov::opset1::StridedSlice>(
-        {SliceAssign_201_Reshape_3, {0, 0, 0, 0}, ScatterUpdate_93554, {1, 1, 1, 1}},
-        {{"begin_mask", {1, 1, 1, 0}},
-         {"end_mask", {1, 1, 1, 0}},
-         {"new_axis_mask", {}},
-         {"shrink_axis_mask", {}},
-         {"ellipsis_mask", {}}});  //  tensor_array<f32[?,1,8192,..8192]>
+    auto slice_Slice_14 = GenSlice2(SliceAssign_201_Reshape_3, {0, 0, 0, 0}, ScatterUpdate_93554, {1, 1, 1, 1}, 3); //  tensor_array<f32[?,1,8192,..8192]>
     auto index_Gather = makePattern<ov::opset8::Gather>({slice_Slice_14, cache_positions, 2},
                                                         {{"batch_dims", 0}},
                                                         nullptr);  //  tensor_array<f32[?,1,?,..8192]>

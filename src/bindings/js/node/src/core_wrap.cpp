@@ -76,7 +76,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
     try {
         ReadModelArgs* args = new ReadModelArgs(info);
-        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), args);
+        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), _core, args);
         _readerWorker->Queue();
 
         return _readerWorker->GetPromise();
@@ -132,10 +132,10 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
         } else if (info.Length() == 2 && info[0].IsObject() && info[1].IsString()) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
         } else if (info.Length() == 3 && info[0].IsString() && info[1].IsString()) {
-            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
         } else if (info.Length() == 3 && info[0].IsObject() && info[1].IsString()) {
-            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         } else if (info.Length() < 2 || info.Length() > 3) {
             reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
@@ -204,7 +204,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         if (info.Length() == 3) {
             try {
-                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             } catch (std::exception& e) {
                 reportError(env, e.what());
             }
@@ -228,7 +228,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         if (info.Length() == 3) {
             try {
-                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             } catch (std::exception& e) {
                 reportError(env, e.what());
             }

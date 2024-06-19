@@ -5,6 +5,7 @@
 
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
@@ -23,6 +24,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
+                        InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -164,4 +166,20 @@ Napi::Value ModelWrap::get_friendly_name(const Napi::CallbackInfo& info) {
     }
     const auto friendly_name = _model->get_friendly_name();
     return Napi::String::New(env, friendly_name);
+}
+
+Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
+    if (info.Length() != 1 || !info[0].IsNumber()) {
+        reportError(info.Env(), "Invalid argument. Expected a single number.");
+        return info.Env().Undefined();
+    }
+
+    try {
+        auto idx = info[0].As<Napi::Number>().Int32Value();
+        auto output = _model->output(idx);
+        return cpp_to_js<ov::Shape, Napi::Array>(info, output.get_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
