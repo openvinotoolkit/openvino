@@ -12,6 +12,20 @@
 
 #include "openvino/util/util.hpp"
 
+#if defined(__linux__) && !defined(__ANDROID__)
+#    if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1913))
+#        if __has_include(<filesystem>)
+#            include <filesystem>
+namespace fs = std::filesystem;
+#        endif
+#    else
+#        define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#        define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
+#        include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#    endif
+#endif
+
 namespace ov {
 namespace util {
 
@@ -354,24 +368,6 @@ void save_binary(const std::string& path, const char* binary, size_t bin_size);
  * @return Pointer to trimmed file name path.
  */
 const char* trim_file_name(const char* const fname);
-
-#ifndef __EMSCRIPTEN__
-/**
- * @brief Check the file path is symlink or hardlink
- * @param path - file path to be checked
- * @return Return true, if the path is symlink or hardlink
- */
-bool is_symlink_or_hardlink(const std::string& path);
-
-#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-/**
- * @brief Check the file path is symlink or hardlink
- * @param path - file path (wstring) to be checked
- * @return Return true, if the path is symlink or hardlink
- */
-bool is_symlink_or_hardlink(const std::wstring& path);
-#    endif
-#endif
 
 template <typename C>
 using enableIfSupportedChar =
