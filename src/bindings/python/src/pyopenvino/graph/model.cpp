@@ -408,6 +408,7 @@ void regclass_graph_Model(py::module m) {
             std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
             for (const auto& item : partial_shapes) {
                 std::pair<ov::Output<ov::Node>, ov::PartialShape> new_shape;
+                // check keys
                 if (py::isinstance<py::int_>(item.first)) {
                     new_shape.first = self.input(item.first.cast<size_t>());
                 } else if (py::isinstance<py::str>(item.first)) {
