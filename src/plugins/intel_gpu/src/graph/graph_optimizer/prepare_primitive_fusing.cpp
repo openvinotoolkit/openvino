@@ -54,7 +54,7 @@ using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
     // temporarily disable fusion because of conv_fsv16_1x1 has an issue with block_size > 1
-    return;
+    // return;
     fuse_reorders(p);
     remove_redundant_reshape(p);
     fuse_bias(p);
@@ -198,9 +198,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
 
         if (node->get_output_layout().is_dynamic()) {
+            #if 0
             auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
-            if (!eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>())
-                continue;
+            // if (!eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>())
+            //     continue;
             if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
                 continue;
             // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
@@ -220,6 +221,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
                 continue;
             }
+            #endif
         } else {
             cldnn::tensor::value_type out_features = node->get_output_layout().feature();
             bool is_3d_fc = false;

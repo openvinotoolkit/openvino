@@ -69,12 +69,14 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_f
         size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
         bool block_size_one_is_better = params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && input.Feature().v >= 2048;
 
-
-        // if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !block_size_one_is_better)
-        if (params.engineInfo.supports_imad && !block_size_one_is_better)
-            while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
-                EstimateOccupancy(params, tuning_data) < 4.0)
-                tuning_data.slm_div_factor *= 2;
+        // clEnqueueNDRangeKernel, error code: -54
+        // because of invalid SLM_DIV_FACTOR in __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE * SLM_DIV_FACTOR, 1)))
+        // Need to update proper SLM_DIV_FACTOR after shape updated.
+        // // if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !block_size_one_is_better)
+        // if (params.engineInfo.supports_imad && !block_size_one_is_better)
+        //     while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
+        //         EstimateOccupancy(params, tuning_data) < 4.0)
+        //         tuning_data.slm_div_factor *= 2;
 
         tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;
 
