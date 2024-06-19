@@ -2,13 +2,16 @@
 
 System Requirements
 ===================
- 
 
 
-Certain hardware requires specific drivers to work properly with OpenVINO. 
-These drivers, including Linux* kernels, might require updates to your operating system,
-which is not part of OpenVINO installation. Refer to your hardware's documentation 
-for updating instructions.
+.. note::
+
+   Certain hardware (including but not limited to GPU, GNA, and latest CPUs) requires manual
+   installation of specific drivers and/or other software components to work correctly and/or
+   to utilize hardware capabilities at their best. This might require updates to operating
+   system, including but not limited to Linux kernel, please refer to their documentation
+   for details. These modifications should be handled by user and are not part of OpenVINO
+   installation.
 
 
 CPU
@@ -20,26 +23,24 @@ CPU
 
       * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
-      * 6th - 13th generation Intel® Core™ processors
-      * Intel® Core™ Ultra (codename Meteor Lake)
-      * Intel® Xeon® Scalable Processors (code name Skylake) 
-      * 2nd Generation Intel® Xeon® Scalable Processors (code name Cascade Lake)
-      * 3rd Generation Intel® Xeon® Scalable Processors (code name Cooper Lake and Ice Lake)
-      * 4th Generation Intel® Xeon® Scalable Processors (code name Sapphire Rapids)
-      * ARM* and ARM64 CPUs; Apple M1, M2 and Raspberry Pi 
+      * 6th - 14th generation Intel® Core™ processors
+      * Intel® Core™ Ultra (codename Meteor Lake)
+      * 1st - 5th generation Intel® Xeon® Scalable Processors
+      * ARM and ARM64 CPUs; Apple M1, M2, and Raspberry Pi
 
    .. tab-item:: Supported Operating Systems
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
-      * Windows* 10
-      * Windows* 11
-      * macOS* 10.15 and above, 64-bit
+      * Windows 10
+      * Windows 11
+      * macOS 10.15 and above, 64-bit
       * macOS 11 and above, ARM64
-      * Red Hat Enterprise Linux* 8, 64-bit
-      * Debian 9 ARM64 and ARM
-      * CentOS 7 64-bit 
+      * CentOS 7
+      * Red Hat Enterprise Linux 8, 64-bit
+      * Ubuntu 18 ARM64
+      * Debian 9 ARM
 
 GPU
 ##########
@@ -53,7 +54,7 @@ GPU
       * Intel® Iris® Pro Graphics
       * Intel® Iris® Xe Graphics
       * Intel® Iris® Xe Max Graphics
-      * Intel® Arc ™ GPU Series
+      * Intel® Arc™ GPU Series
       * Intel® Data Center GPU Flex Series
       * Intel® Data Center GPU Max Series
 
@@ -63,7 +64,7 @@ GPU
       * Ubuntu 20.04 long-term support (LTS), 64-bit
       * Windows 10, 64-bit
       * Windows 11, 64-bit
-      * Centos 7
+      * CentOS 7
       * Red Hat Enterprise Linux 8, 64-bit
 
    .. tab-item:: Additional considerations
@@ -72,24 +73,24 @@ GPU
         Distribution of OpenVINO™ toolkit package.
       * A chipset that supports processor graphics is required for Intel® Xeon®
         processors. Processor graphics are not included in all processors. See
-        `Product Specifications  <https://ark.intel.com/>`__ 
-        for information about your processor.  
-      * Although this release works with Ubuntu 20.04 for discrete graphic cards,
-        Ubuntu 20.04 is not POR for discrete graphics drivers, so OpenVINO support
-        is limited.  
+        `Product Specifications  <https://ark.intel.com/>`__
+        for information about your processor.
+      * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
+        for Intel discrete graphic cards does not fully support Ubuntu 20.04.
+        We recommend using Ubuntu 22.04 when executing on discrete graphics.
       * The following minimum (i.e., used for old hardware) OpenCL™ driver's versions
         were used during OpenVINO internal validation: 22.43 for Ubuntu 22.04, 21.48
-        for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8. 
+        for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8.
 
-NPU and GNA 
-#############################
+Intel® Neural Processing Unit
+################################
 
 .. tab-set::
 
    .. tab-item:: Operating Systems for NPU
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit
+      * Windows 11, 64-bit (22H2, 23H2)
 
    .. tab-item:: Operating Systems for GNA
 
@@ -100,10 +101,23 @@ NPU and GNA
 
    .. tab-item:: Additional considerations
 
-      * These Accelerators require drivers that are not included in the
-        Intel® Distribution of OpenVINO™ toolkit package.
+      * These Accelerators require :doc:`drivers <openvino_docs_install_guides_configurations_for_intel_npu>`
+        that are not included in the Intel® Distribution of OpenVINO™ toolkit package.
       * Users can access the NPU plugin through the OpenVINO archives on
-        the download page.
+        the :doc:`download page <openvino_docs_install_guides_overview>`.
+
+
+Intel® Gaussian & Neural Accelerator
+##########################################
+
+.. tab-set::
+
+   .. tab-item:: Operating Systems for GNA
+
+      * Ubuntu 22.04 long-term support (LTS), 64-bit
+      * Ubuntu 20.04 long-term support (LTS), 64-bit
+      * Windows 10, 64-bit
+      * Windows 11, 64-bit
 
 
 Operating systems and developer environment
@@ -111,7 +125,7 @@ Operating systems and developer environment
 
 .. tab-set::
 
-   .. tab-item:: Linux
+   .. tab-item:: Linux OS
 
       * Ubuntu 22.04 with Linux kernel 5.15+
       * Ubuntu 20.04 with Linux kernel 5.15+
@@ -127,16 +141,13 @@ Operating systems and developer environment
         * `GNU Compiler Collection (GCC) <https://www.gnu.org/software/gcc/>`__ 7.5 and above
         * `CMake <https://cmake.org/download/>`__ 3.10 or higher
 
-      Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors,
-      11th Gen Intel® Core™ Processors, 11th Gen Intel® Core™ Processors S-Series Processors,
-      12th Gen Intel® Core™ Processors, 13th Gen Intel® Core™ Processors, Intel® Core™ Ultra
-      Processors, or 4th Gen Intel® Xeon® Scalable Processors to support CPU, GPU, GNA or
-      hybrid-cores CPU capabilities.
+      Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors, 11th Gen
+      Intel® Core™ Processors, 11th Gen Intel® Core™ Processors S-Series Processors, 12th Gen
+      Intel® Core™ Processors, 13th Gen Intel® Core™ Processors, 14th Gen
+      Intel® Core™ Processors, Intel® Core™ Ultra Processors, 4th Gen Intel® Xeon® Scalable Processors
+      or 5th Gen Intel® Xeon® Scalable Processors to support CPU, GPU, GNA or hybrid-cores CPU capabilities.
 
-   .. tab-item:: Windows
-
-      * Windows 10
-      * Windows 11
+   .. tab-item:: Windows 10 and 11
 
       Build environment components:
 
@@ -158,24 +169,23 @@ Operating systems and developer environment
 
    .. tab-item:: DL frameworks versions:
 
-      * TensorFlow* 1.15, 2.12
-      * MxNet* 1.9.0 
-      * ONNX* 1.14.1 
-      * PaddlePaddle* 2.4
+      * TensorFlow 1.15, 2.12
+      * MxNet 1.9.0
+      * ONNX 1.14.1
+      * PaddlePaddle 2.4
 
-      This package can be installed on other versions of DL Framework
-      but only the version specified here is fully validated. 
+      This package can be installed on other versions of DL Frameworks
+      but only the versions specified here are fully validated.
 
 
 .. note::
 
-   OpenVINO Python binaries and binaries on Windows/CentOS7/MACOS(x86) are built
-   with oneTBB libraries. Other binaries on Ubuntu and Redhat OSes are built with
-   legacy TBB which is released by OS distribution. OpenVINO can be built with 
-   either oneTBB or legacy TBB by the user on all OS systems listed. System 
-   compatibility and performance are improved on Hybrid CPUs, 
+   OpenVINO Python binaries and binaries on Windows, CentOS 7, and macOS (x86) are built
+   with oneTBB libraries, and others on Ubuntu and RedHat systems are built with
+   legacy TBB which is released by OS distribution. OpenVINO can be built from source
+   with either oneTBB or legacy TBB on all the systems listed here. System
+   compatibility and performance are improved on Hybrid CPUs
    such as 12th Gen Intel Core and above.
-
 
 
 Legal Information
@@ -202,7 +212,7 @@ enabled hardware, software or service activation. Learn more at
 `http://www.intel.com/ <http://www.intel.com/>`__
 or from the OEM or retailer.
 
-No computer system can be absolutely secure. 
+No computer system can be absolutely secure.
 
 Intel, Atom, Arria, Core, Movidius, Xeon, OpenVINO, and the Intel logo are trademarks
 of Intel Corporation in the U.S. and/or other countries.
@@ -213,9 +223,9 @@ Other names and brands may be claimed as the property of others.
 
 Copyright © 2023, Intel Corporation. All rights reserved.
 
-For more complete information about compiler optimizations, see our Optimization Notice. 
- 
-Performance varies by use, configuration and other factors. Learn more at 
+For more complete information about compiler optimizations, see our Optimization Notice.
+
+Performance varies by use, configuration and other factors. Learn more at
 `www.Intel.com/PerformanceIndex <www.Intel.com/PerformanceIndex>`__.
 
 

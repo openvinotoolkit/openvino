@@ -5,16 +5,16 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
 
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and
                  macOS operating systems, using a PyPi package.
 
 
 .. note::
-   
+
    Note that the PyPi distribution:
-   
+
    * offers the Python API only
-   * is dedicated to users of all major OSes: Windows, Linux, and macOS 
+   * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
    * Windows and Linux do not offer support for GNA and NPU inference
    * macOS offers support only for CPU inference
@@ -26,12 +26,12 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
 
       | Full requirement listing is available in:
       | :doc:`System Requirements Page <system_requirements>`
-      | `PyPi OpenVINO page <https://pypi.org/project/openvino/>`__
-   
-   
+      | `PyPI OpenVINO page <https://pypi.org/project/openvino/>`__
+
+
    .. tab-item:: Processor Notes
       :sync: processor-notes
-   
+
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
 
@@ -120,8 +120,8 @@ Run the command below:
 If installation was successful, you will see the list of available devices.
 
 
-Congratulations! You've just Installed OpenVINO! For some use cases you may still 
-need to install additional components. Check the 
+Congratulations! You've just Installed OpenVINO! For some use cases you may still
+need to install additional components. Check the
 :doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
 to see if your case needs any of them.
 
@@ -136,16 +136,16 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
 
-Try the `Python Quick Start Example <https://docs.openvino.ai/2023.2/notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+Try the `Python Quick Start Example <https://docs.openvino.ai/2023.3/notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
 Get started with Python
 +++++++++++++++++++++++
 
 Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <https://docs.openvino.ai/2023.2/notebooks/002-openvino-api-with-output.html>`__
-* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2023.2/notebooks/001-hello-world-with-output.html>`__
-* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2023.2/notebooks/205-vision-background-removal-with-output.html>`__
+* `OpenVINO Python API Tutorial <https://docs.openvino.ai/2023.3/notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2023.3/notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2023.3/notebooks/205-vision-background-removal-with-output.html>`__
 
 
 

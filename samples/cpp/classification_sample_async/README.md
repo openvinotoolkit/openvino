@@ -6,17 +6,17 @@ Models with only one input and output are supported.
 
 In addition to regular images, the sample also supports single-channel ``ubyte`` images as an input for LeNet model.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_classification_sample_async_README.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.3/openvino_sample_image_classification_async.html)
 
 ## Requirements
 
 | Options                    | Values                                                                                                                               |
 | ---------------------------| -------------------------------------------------------------------------------------------------------------------------------------| 
-| Validated Models           | [alexnet](https://docs.openvino.ai/2023.2/omz_models_model_alexnet.html),                                                            |
-|                            | [googlenet-v1](https://docs.openvino.ai/2023.2/omz_models_model_googlenet_v1.html)                                                   |
+| Validated Models           | [alexnet](https://docs.openvino.ai/2023.3/omz_models_model_alexnet.html),                                                            |
+|                            | [googlenet-v1](https://docs.openvino.ai/2023.3/omz_models_model_googlenet_v1.html)                                                   |
 | Model Format               | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                                      |
-| Supported devices          | [All](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                                  |
-| Other language realization | [Python](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README.html) |
+| Supported devices          | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                                  |
+| Other language realization | [Python](https://docs.openvino.ai/2023.3/openvino_sample_image_classification_async.html)                                            |
 
 The following C++ API is used in the application:
 

@@ -34,13 +34,12 @@ The tutorial consists of following steps:
 2. Run inference on the image.
 3. Run interactive background blurring demo on video.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 
-   -  `Install required
-      dependencies <#install-required-dependencies>`__
+   -  `Install required dependencies <#install-required-dependencies>`__
    -  `Download pretrained model and test
       image <#download-pretrained-model-and-test-image>`__
 
@@ -58,14 +57,17 @@ The tutorial consists of following steps:
 -  `Interactive background blurring demo on
    video <#interactive-background-blurring-demo-on-video>`__
 
-   -  `Run Live Background
-      Blurring <#run-live-background-blurring>`__
+   -  `Run Live Background Blurring <#run-live-background-blurring>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
 
-Install required dependencies 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Install required dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -74,7 +76,11 @@ Install required dependencies
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -86,8 +92,10 @@ Install required dependencies
         filename='notebook_utils.py'
     );
 
-Download pretrained model and test image 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download pretrained model and test image
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -110,12 +118,14 @@ Download pretrained model and test image
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/243-tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/243-tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
 
 
 
-Convert Tensorflow Lite model to OpenVINO IR format 
----------------------------------------------------------------------------------------------
+Convert Tensorflow Lite model to OpenVINO IR format
+---------------------------------------------------
+
+
 
 Starting from the 2023.0.0 release, OpenVINO supports TFLite model
 conversion. However TFLite model format can be directly passed in
@@ -133,9 +143,9 @@ instance which represents this model. The obtained model is ready to use
 and to be loaded on the device using ``compile_model`` or can be saved
 on a disk using the ``ov.save_model`` function reducing loading time for
 the next running. For more information about model conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
 For TensorFlow Lite, refer to the `models
-support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+support <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
 
 .. code:: ipython3
 
@@ -189,15 +199,19 @@ and others. Each value in the output tensor represents of probability
 that the pixel belongs to the specified class. We can use the ``argmax``
 operation to get the label with the highest probability for each pixel.
 
-Run OpenVINO model inference on image 
--------------------------------------------------------------------------------
+Run OpenVINO model inference on image
+-------------------------------------
+
+
 
 Let’s see the model in action. For running the inference model with
 OpenVINO we should load the model on the device first. Please use the
 next dropdown list for the selection inference device.
 
-Load model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load model
+~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -225,8 +239,10 @@ Load model
 
     compiled_model = core.compile_model(ov_model, device.value)
 
-Prepare input image 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare input image
+~~~~~~~~~~~~~~~~~~~
+
+
 
 The model accepts an image with size 256x256, we need to resize our
 input image to fit it in the model input tensor. Usually, segmentation
@@ -280,15 +296,19 @@ Additionally, the input image is represented as an RGB image in UINT8
     # Convert input data from uint8 [0, 255] to float32 [0, 1] range and add batch dimension
     normalized_img = np.expand_dims(padded_img.astype(np.float32) / 255, 0)
 
-Run model inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run model inference
+~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     out = compiled_model(normalized_img)[0]
 
-Postprocess and visualize inference results 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postprocess and visualize inference results
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The model predicts segmentation probabilities mask with the size 256 x
 256, we need to apply postprocessing to get labels with the highest
@@ -393,8 +413,10 @@ Visualize obtained result
 .. image:: 243-tflite-selfie-segmentation-with-output_files/243-tflite-selfie-segmentation-with-output_25_0.png
 
 
-Interactive background blurring demo on video 
----------------------------------------------------------------------------------------
+Interactive background blurring demo on video
+---------------------------------------------
+
+
 
 The following code runs model inference on a video:
 
@@ -515,8 +537,10 @@ The following code runs model inference on a video:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Live Background Blurring 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Live Background Blurring
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with \ ``source=0``. If you have multiple webcams, each one will be

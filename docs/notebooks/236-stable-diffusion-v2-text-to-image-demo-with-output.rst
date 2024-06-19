@@ -21,16 +21,28 @@ like to see the full implementation of stable diffusion for text to
 image, please visit
 `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Step 0: Install and import prerequisites <#step--install-and-import-prerequisites>`__
-- `Step 1: Stable Diffusion v2 Fundamental components <#step--stable-diffusion-v-fundamental-components>`__
-- `Step 1.1: Retrieve components fromHuggingFace <#step--retrieve-components-from-huggingface>`__
-- `Step 2: Convert the models to OpenVINO <#step--convert-the-models-to-openvino>`__
-- `Step 3: Text-to-Image Generation Inference Pipeline <#step--text-to-image-generation-inference-pipeline>`__
-- `Step 3.1: Load and Understand Text to Image OpenVINO models <#step--load-and-understand-text-to-image-openvino-models>`__
-- `Step 3.2: Select inference device <#step--select-inference-device>`__
-- `Step 3.3: Run Text-to-Image generation <#step--run-text-to-image-generation>`__
+-  `Step 0: Install and import
+   prerequisites <#step-0-install-and-import-prerequisites>`__
+-  `Step 1: Stable Diffusion v2 Fundamental
+   components <#step-1-stable-diffusion-v2-fundamental-components>`__
+
+   -  `Step 1.1: Retrieve components from
+      HuggingFace <#step-1-1-retrieve-components-from-huggingface>`__
+
+-  `Step 2: Convert the models to
+   OpenVINO <#step-2-convert-the-models-to-openvino>`__
+-  `Step 3: Text-to-Image Generation Inference
+   Pipeline <#step-3-text-to-image-generation-inference-pipeline>`__
+
+   -  `Step 3.1: Load and Understand Text to Image OpenVINO
+      models <#step-3-1-load-and-understand-text-to-image-openvino-models>`__
+   -  `Step 3.2: Select inference
+      device <#step-3-2-select-inference-device>`__
+   -  `Step 3.3: Run Text-to-Image
+      generation <#step-3-3-run-text-to-image-generation>`__
 
 Step 0: Install and import prerequisites
 ----------------------------------------

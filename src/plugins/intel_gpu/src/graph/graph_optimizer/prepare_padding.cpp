@@ -6,6 +6,7 @@
 #include "program_node.h"
 #include "pass_manager.h"
 #include "convolution_inst.h"
+#include "mvn_inst.h"
 #include "sliding_window_utils.hpp"
 #include <algorithm>
 
@@ -240,6 +241,13 @@ void prepare_padding::run(program& p) {
             padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
         }
 
+        auto& input = node.get_dependency(0);
+        if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()) {
+            auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
+            auto& new_reorder_node = p.get_or_create(new_reorder);
+            p.add_intermediate(new_reorder_node, node, input);
+        }
+
         // Adjust right padding, so entire buffer size in X dimension is properly aligned.
         // TODO: NOTE: Will be reenabled with next check-in once heuristic for line-aligned algorithm will be added.
         // auto needed_buffer_size_x = static_cast<cldnn::tensor::value_type>(
@@ -248,6 +256,6 @@ void prepare_padding::run(program& p) {
 
         cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
         needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
-        p.apply_needed_padding(node, conv_input_node, needed_padding);
+        p.apply_needed_padding(node, node.get_dependency(0), needed_padding);
     }
 }

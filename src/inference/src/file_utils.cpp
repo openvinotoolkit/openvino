@@ -52,6 +52,12 @@ void FileUtils::createDirectoryRecursive(const std::string& dirPath) {
     ov::util::create_directory_recursive(dirPath);
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void FileUtils::createDirectoryRecursive(const std::wstring& dirPath) {
+    ov::util::create_directory_recursive(dirPath);
+}
+#endif
+
 namespace InferenceEngine {
 
 namespace {

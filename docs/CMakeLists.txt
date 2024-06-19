@@ -59,7 +59,7 @@ function(build_docs)
 
     if(${ENABLE_PYTHON_API})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO Python API")
-        list(APPEND commands COMMAND ${Python3_EXECUTABLE} -m pip install openvino)
+        list(APPEND commands COMMAND ${Python3_EXECUTABLE} -m pip install openvino==2023.3)
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO Python API")
     endif()
 

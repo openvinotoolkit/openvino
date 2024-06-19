@@ -14,6 +14,10 @@ void ov::Exception::create(const char* file, int line, const std::string& explan
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+void ov::Exception::create(const CheckLocInfo& check_loc_info, const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, explanation);
+}
+
 std::string ov::Exception::make_what(const char* file,
                                      int line,
                                      const char* check_string,
@@ -47,8 +51,20 @@ void ov::AssertFailure::create(const char* file,
     throw ov::AssertFailure(make_what(file, line, check_string, context_info, explanation));
 }
 
+void ov::AssertFailure::create(const CheckLocInfo& check_loc_info,
+                               const std::string& context_info,
+                               const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, check_loc_info.check_string, context_info, explanation);
+}
+
 void ov::NotImplemented::create(const char* file, int line, const std::string& explanation) {
     throw ov::NotImplemented(make_what(file, line, nullptr, default_msg, explanation));
+}
+
+void ov::NotImplemented::create(const CheckLocInfo& check_loc_info,
+                                const std::string&,
+                                const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, explanation);
 }
 
 void ov::NotImplemented::create(const char* file,

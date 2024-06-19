@@ -5,7 +5,7 @@ Gather
 
 
 .. meta::
-  :description: Learn about Gather-7 - a data movement operation, 
+  :description: Learn about Gather-7 - a data movement operation,
                 which can be performed on three required input tensors.
 
 **Versioned name**: *Gather-7*
@@ -29,12 +29,12 @@ the number of batch dimensions. ``N`` and ``M`` are numbers of dimensions of ``d
 **Attributes**:
 
 * *batch_dims*
-  
-  * **Description**: *batch_dims* (also denoted as ``b``) is a leading number of dimensions of ``data`` 
-    tensor and ``indices`` representing the batches, and *Gather* starts to gather from the ``b`` 
-    dimension. It requires the first ``b`` dimensions in `data` and `indices` tensors to be equal. 
+
+  * **Description**: *batch_dims* (also denoted as ``b``) is a leading number of dimensions of ``data``
+    tensor and ``indices`` representing the batches, and *Gather* starts to gather from the ``b``
+    dimension. It requires the first ``b`` dimensions in `data` and `indices` tensors to be equal.
     If ``batch_dims`` is less than zero, the normalized value is used ``batch_dims = indices.rank + batch_dims``.
-  * **Range of values**: ``[-min(data.rank, indices.rank); min(data.rank, indices.rank)]`` and 
+  * **Range of values**: ``[-min(data.rank, indices.rank); min(data.rank, indices.rank)]`` and
     ``batch_dims' <= axis'``. Where ``batch_dims'`` and ``axis'`` stand for normalized ``batch_dims`` and ``axis`` values.
   * **Type**: *T_AXIS*
   * **Default value**: 0
@@ -46,7 +46,7 @@ Example 1 with default *batch_dims* value:
 
    batch_dims = 0
    axis = 0
-   
+
    indices = [0, 0, 4]
    data    = [1, 2, 3, 4, 5]
    output  = [1, 1, 5]
@@ -58,15 +58,15 @@ Example 2 with non-default *batch_dims* value:
 
    batch_dims = 1
    axis = 1
-   
+
    indices = [[0, 0, 4], <-- this is applied to the first batch
               [4, 0, 0]]  <-- this is applied to the second batch
    indices_shape = (2, 3)
-   
+
    data    = [[1, 2, 3, 4, 5],  <-- the first batch
               [6, 7, 8, 9, 10]]  <-- the second batch
    data_shape = (2, 5)
-   
+
    output  = [[ 1, 1, 5],
               [10, 6, 6]]
    output_shape = (2, 3)
@@ -78,24 +78,24 @@ Example 3 with non-default *batch_dims* value:
 
    batch_dims = 2
    axis = 2
-   
+
    indices = [[[0, 0, 4],  <-- this is applied to the first batch, index = (0, 0)
                [4, 0, 0]],  <-- this is applied to the second batch, index = (0, 1)
-   
+
               [[1, 2, 4],  <-- this is applied to the third batch, index = (1, 0)
                [4, 3, 2]]]  <-- this is applied to the fourth batch, index = (1, 1)
    indices_shape = (2, 2, 3)
-   
+
    data    = [[[1, 2, 3, 4, 5],  <-- the first batch, index = (0, 0)
                [6, 7, 8, 9, 10]],  <-- the second batch, index = (0, 1)
-   
+
               [[11, 12, 13, 14, 15],  <-- the third batch, index = (1, 0)
                [16, 17, 18, 19, 20]]]  <-- the fourth batch, index = (1, 1)
    data_shape = (2, 2, 5)
-   
+
    output  = [[[ 1, 1, 5],
                [10, 6, 6]],
-   
+
               [[12, 13, 15],
                [20, 19, 18]]]
    output_shape = (2, 2, 3)
@@ -106,28 +106,28 @@ Example 4 with *axis* > *batch_dims*:
 
    batch_dims = 1
    axis = 2
-   
+
    indices = [[1, 2, 4],  <-- this is applied to the first batch
               [4, 3, 2]]  <-- this is applied to the second batch
    indices_shape = (2, 3)
-   
+
    data = [[[[ 1,  2,  3,  4], <-- first batch
              [ 5,  6,  7,  8],
              [ 9, 10, 11, 12],
              [13, 14, 15, 16],
              [17, 18, 19, 20]]],
-   
+
            [[[21, 22, 23, 24], <-- second batch
              [25, 26, 27, 28],
              [29, 30, 31, 32],
              [33, 34, 35, 36],
              [37, 38, 39, 40]]]]
    data_shape = (2, 1, 5, 4)
-   
+
    output = [[[[ 5,  6,  7,  8],
                [ 9, 10, 11, 12],
                [17, 18, 19, 20]]],
-   
+
              [[[37, 38, 39, 40],
                [33, 34, 35, 36],
                [29, 30, 31, 32]]]]
@@ -140,15 +140,15 @@ Example 5 with negative *batch_dims* value:
 
    batch_dims = -1  <-- normalized value will be indices.rank + batch_dims = 2 - 1 = 1
    axis = 1
-   
+
    indices = [[0, 0, 4], <-- this is applied to the first batch
               [4, 0, 0]]  <-- this is applied to the second batch
    indices_shape = (2, 3)
-   
+
    data    = [[1, 2, 3, 4, 5],  <-- the first batch
               [6, 7, 8, 9, 10]]  <-- the second batch
    data_shape = (2, 5)
-   
+
    output  = [[ 1, 1, 5],
               [10, 6, 6]]
    output_shape = (2, 3)
@@ -167,7 +167,7 @@ Example 5 with negative *batch_dims* value:
 
 **Outputs**
 
-* **1**: The resulting tensor of type *T* that consists of elements from ``data`` tensor gathered by ``indices``. 
+* **1**: The resulting tensor of type *T* that consists of elements from ``data`` tensor gathered by ``indices``.
   The shape of the output tensor is ``data.shape[:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]``
 
 **Types**
@@ -193,7 +193,7 @@ Example 5 with negative *batch_dims* value:
                <dim>32</dim>
                <dim>21</dim>
            </port>
-           <port id="2"/>   < !--  axis = 1  -->
+           <port id="2"/>   <!--  axis = 1  -->
        </input>
        <output>
            <port id="2">

@@ -7,28 +7,42 @@ subject-and-text condition. BLIP-Diffusion enables zero-shot
 subject-driven generation, and efficient fine-tuning for customized
 subjects with up to 20x speedup. In addition, BLIP-Diffusion can be
 flexibly combined with ControlNet and prompt-to-prompt to enable novel
-subject-driven generation and editing applications. 
+subject-driven generation and editing applications.
 
-**Table of contents**:
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Prerequisites <#prerequisites>`__
-- `Load the model <#load-the-model>`__
-- `Infer the original model <#infer-the-original-model>`__
-- `Zero-Shot subject-driven generation <#zero-shot-subject-driven-generation>`__
-- `Controlled subject-driven generation (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
-- `Controlled subject-driven generation (Scribble) <#controlled-subject-driven-generation-scribble>`__
-- `Convert the model to OpenVINO Intermediate Representation (IR) <#convert-the-model-to-openvino-intermediate-representation-ir>`__
-- `Q-Former <#q-former>`__
-- `Text encoder <#text-encoder>`__
-- `ControlNet <#controlnet>`__
-- `UNet <#unet>`__
-- `Variational Autoencoder (VAE) <#variational-autoencoder-vae>`__
-- `Select inference device <#select-inference-device>`__
-- `Inference <#inference>`__
-- `Zero-Shot subject-driven generation <#zero-shot-subject-driven-generation>`__
-- `Controlled subject-driven generation (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
-- `Controlled subject-driven generation (Scribble) <#controlled-subject-driven-generation-scribble>`__
-- `Interactive inference <#interactive-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load the model <#load-the-model>`__
+-  `Infer the original model <#infer-the-original-model>`__
+
+   -  `Zero-Shot subject-driven
+      generation <#zero-shot-subject-driven-generation>`__
+   -  `Controlled subject-driven generation
+      (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
+   -  `Controlled subject-driven generation
+      (Scribble) <#controlled-subject-driven-generation-scribble>`__
+
+-  `Convert the model to OpenVINO Intermediate Representation
+   (IR) <#convert-the-model-to-openvino-intermediate-representation-ir>`__
+
+   -  `Q-Former <#q-former>`__
+   -  `Text encoder <#text-encoder>`__
+   -  `ControlNet <#controlnet>`__
+   -  `UNet <#unet>`__
+   -  `Variational Autoencoder (VAE) <#variational-autoencoder-vae>`__
+   -  `Select inference device <#select-inference-device>`__
+
+-  `Inference <#inference>`__
+
+   -  `Zero-Shot subject-driven
+      generation <#zero-shot-subject-driven-generation>`__
+   -  `Controlled subject-driven generation
+      (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
+   -  `Controlled subject-driven generation
+      (Scribble) <#controlled-subject-driven-generation-scribble>`__
+
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://github.com/salesforce/LAVIS/raw/main/projects/blip-diffusion/teaser-website.png
 
@@ -40,7 +54,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0" matplotlib Pillow gradio
-    %pip install -q -extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0"
 
 
 .. parsed-literal::
@@ -56,7 +70,7 @@ Prerequisites
     from typing import List, Optional, Union
     from functools import partial
     from urllib.request import urlretrieve
-    
+
     import diffusers
     import torch
     import matplotlib.pyplot as plt
@@ -65,7 +79,7 @@ Prerequisites
     import numpy as np
     import gradio as gr
     import controlnet_aux
-    
+
     import openvino as ov
 
 
@@ -85,7 +99,7 @@ Prerequisites
     UNET_PATH = MODELS_DIR / "unet.xml"
     UNET_CONTROLNET_PATH = MODELS_DIR / "unet_controlnet.xml"
     VAE_PATH = MODELS_DIR / "vae.xml"
-    
+
     DATA_DIR = Path("data")
     DOG_IMG_URL = "https://huggingface.co/datasets/ayushtues/blipdiffusion_images/resolve/main/dog.jpg"
     DOG_IMG_PATH = DATA_DIR / "dog.jpg"
@@ -99,7 +113,7 @@ Prerequisites
     FLOWER_IMG_PATH = DATA_DIR / "flower.jpg"
     BAG_IMG_URL = "https://huggingface.co/lllyasviel/sd-controlnet-scribble/resolve/main/images/bag.png"
     BAG_IMG_PATH = DATA_DIR / "bag.jpg"
-    
+
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -234,10 +248,10 @@ description.
     canny = controlnet_aux.CannyDetector()
     cldm_cond_image = canny(cond_image, 30, 70, output_type="pil")
     cldm_cond_image = [cldm_cond_image]
-    
+
     style_image = PIL.Image.open(FLOWER_IMG_PATH)
-    
-    
+
+
     guidance_scale = 7.5
     num_inference_steps = 50
     negative_prompt = "over-exposure, under-exposure, saturated, duplicate, out of frame, lowres, cropped, worst quality, low quality, jpeg artifacts, morbid, mutilated, out of frame, ugly, bad anatomy, bad proportions, deformed, blurry, duplicate"
@@ -272,7 +286,7 @@ description.
         "Style image": style_image,
         "Output": output[0][0]
     }
-    
+
     plt.figure(figsize=(16, 4), layout="tight")
     for i, (title, img) in enumerate(title2img.items()):
         ax = plt.subplot(1, len(title2img), i + 1)
@@ -312,11 +326,11 @@ edge map is the final output of HED and input of our diffusion model.
     hed = controlnet_aux.HEDdetector.from_pretrained("lllyasviel/Annotators")
     cldm_cond_image = hed(cldm_cond_image)
     cldm_cond_image = [cldm_cond_image]
-    
+
     guidance_scale = 7.5
     num_inference_steps = 50
     negative_prompt = "over-exposure, under-exposure, saturated, duplicate, out of frame, lowres, cropped, worst quality, low quality, jpeg artifacts, morbid, mutilated, out of frame, ugly, bad anatomy, bad proportions, deformed, blurry, duplicate"
-    
+
     output = pipe_controlnet(
         text_prompt,
         style_image,
@@ -364,10 +378,8 @@ Convert the model to OpenVINO Intermediate Representation (IR)
 
 BLIP-Diffusion pipeline has the following structure:
 
-.. figure:: 258-blip-diffusion-subject-generation-with-output_files/1c472f1f-1fce-4a13-9d44-b10f6f760ddb.png
-   :alt: image
+.. image:: 258-blip-diffusion-subject-generation-with-output_files/1c472f1f-1fce-4a13-9d44-b10f6f760ddb.png
 
-   image
 
 The output of the BLIP-2 multimodal encoder is connected to the input of
 the diffusion model’s text encoder. The multimodal encoder takes as
@@ -395,7 +407,7 @@ for the diffusion model to generate the output image.
     vae.eval()
     controlnet = pipe_controlnet.controlnet
     controlnet.eval()
-    
+
     # Extract additional instances
     tokenizer = pipe.tokenizer
     qformer_tokenizer = pipe.qformer.tokenizer
@@ -411,7 +423,7 @@ for the diffusion model to generate the output image.
         "unet_in_channels": pipe.unet.config.in_channels,
     }
     unet_sample_size = pipe.unet.config.sample_size
-    
+
     del pipe
     del pipe_controlnet
     gc.collect()
@@ -441,12 +453,12 @@ we clean after every conversion.
                 converted_model = ov.convert_model(model, **convert_kwargs)
                 ov.save_model(converted_model, xml_path)
                 del converted_model
-    
+
             # Clear torch.jit cache
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
             torch.jit._state._clear_class_state()
-    
+
             gc.collect()
 
 Q-Former
@@ -474,12 +486,12 @@ Original QFormer model takes raw text as input, so we redefine the
         def __init__(self, qformer):
             super().__init__()
             self._qformer = qformer
-    
+
         def __getattr__(self, name):
             if name == "_qformer":
                 return super().__getattr__(name)
             return getattr(self._qformer, name)
-    
+
         def forward(
             self,
             text_input_ids,
@@ -489,35 +501,35 @@ Original QFormer model takes raw text as input, so we redefine the
             batch_size = text_input_ids.shape[0]
             query_atts = torch.ones((batch_size, self.query_tokens.size()[1]), dtype=torch.long)
             attention_mask = torch.cat([query_atts, text_attention_mask], dim=1)
-    
+
             output_attentions = self.config.output_attentions
             output_hidden_states = self.config.output_hidden_states
             return_dict = self.config.use_return_dict
-    
+
             query_length = self.query_tokens.shape[1]
-    
+
             embedding_output = self.embeddings(input_ids=text_input_ids, query_embeds=self.query_tokens)
-    
+
             # embedding_output = self.layernorm(query_embeds)
             # embedding_output = self.dropout(embedding_output)
-    
+
             input_shape = embedding_output.size()[:-1]
             batch_size, seq_length = input_shape
             device = embedding_output.device
-    
+
             image_embeds_frozen = self.visual_encoder(image_input).last_hidden_state
             # image_embeds_frozen = torch.ones_like(image_embeds_frozen)
             encoder_hidden_states = image_embeds_frozen
-    
+
             if attention_mask is None:
                 attention_mask = torch.ones(((batch_size, seq_length)), device=device)
-    
+
             # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
             # ourselves in which case we just need to make it broadcastable to all heads.
             extended_attention_mask = self.get_extended_attention_mask(
                 attention_mask, input_shape, device
             )
-    
+
             # If a 2D or 3D attention mask is provided for the cross-attention
             # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
             if encoder_hidden_states is not None:
@@ -530,9 +542,9 @@ Original QFormer model takes raw text as input, so we redefine the
                 encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
             else:
                 encoder_extended_attention_mask = None
-    
+
             head_mask = [None] * self.config.qformer_config.num_hidden_layers
-    
+
             encoder_outputs = self.encoder(
                 embedding_output,
                 attention_mask=extended_attention_mask,
@@ -563,7 +575,7 @@ Original QFormer model takes raw text as input, so we redefine the
             "text_attention_mask": ((1, ov.Dimension(3, 77)), np.int64),
         },
     )
-    
+
     del qformer
     gc.collect()
 
@@ -603,7 +615,7 @@ embeddings, and interact with them using self-attention.
             "ctx_begin_pos": ((1),),
         },
     )
-    
+
     # Convert 2nd instance for negative prompt encoding
     serialize_openvino(
         text_encoder,
@@ -615,7 +627,7 @@ embeddings, and interact with them using self-attention.
             "input_ids": ((1, 77), np.int64),
         },
     )
-    
+
     del text_encoder
     gc.collect()
 
@@ -686,7 +698,7 @@ facilitates the actual diffusion process.
 .. code:: ipython3
 
     from typing import Tuple
-    
+
     serialize_openvino(
         unet,
         UNET_PATH,
@@ -701,23 +713,23 @@ facilitates the actual diffusion process.
             "encoder_hidden_states": ((2, 77, 768),),
         },
     )
-    
+
     dtype_mapping = {
         torch.float32: ov.Type.f32,
         torch.float64: ov.Type.f64,
         torch.int32: ov.Type.i32,
         torch.int64: ov.Type.i64,
     }
-    
-    
+
+
     class UnetWrapper(torch.nn.Module):
         def __init__(
-            self, 
-            unet, 
-            sample_dtype=torch.float32, 
-            timestep_dtype=torch.int64, 
-            encoder_hidden_states=torch.float32, 
-            down_block_additional_residuals=torch.float32, 
+            self,
+            unet,
+            sample_dtype=torch.float32,
+            timestep_dtype=torch.int64,
+            encoder_hidden_states=torch.float32,
+            down_block_additional_residuals=torch.float32,
             mid_block_additional_residual=torch.float32
         ):
             super().__init__()
@@ -727,13 +739,13 @@ facilitates the actual diffusion process.
             self.encoder_hidden_states_dtype = encoder_hidden_states
             self.down_block_additional_residuals_dtype = down_block_additional_residuals
             self.mid_block_additional_residual_dtype = mid_block_additional_residual
-    
+
         def forward(
-            self, 
-            sample:torch.Tensor, 
-            timestep:torch.Tensor, 
-            encoder_hidden_states:torch.Tensor, 
-            down_block_additional_residuals:Tuple[torch.Tensor],  
+            self,
+            sample:torch.Tensor,
+            timestep:torch.Tensor,
+            encoder_hidden_states:torch.Tensor,
+            down_block_additional_residuals:Tuple[torch.Tensor],
             mid_block_additional_residual:torch.Tensor
         ):
             sample.to(self.sample_dtype)
@@ -742,13 +754,13 @@ facilitates the actual diffusion process.
             down_block_additional_residuals = [res.to(self.down_block_additional_residuals_dtype) for res in down_block_additional_residuals]
             mid_block_additional_residual.to(self.mid_block_additional_residual_dtype)
             return self.unet(
-                sample, 
-                timestep, 
-                encoder_hidden_states, 
-                down_block_additional_residuals=down_block_additional_residuals, 
+                sample,
+                timestep,
+                encoder_hidden_states,
+                down_block_additional_residuals=down_block_additional_residuals,
                 mid_block_additional_residual=mid_block_additional_residual
             )
-    
+
     def flatten_inputs(inputs):
         flat_inputs = []
         for input_data in inputs:
@@ -759,8 +771,8 @@ facilitates the actual diffusion process.
             else:
                 flat_inputs.append(input_data)
         return flat_inputs
-    
-    
+
+
     # convert 2nd time for stylization task
     example_input = {
         "sample": torch.randn(2, 4, unet_sample_size, unet_sample_size),
@@ -809,11 +821,11 @@ decoder in separate ``torch.nn.Module``.
         def __init__(self, vae: torch.nn.Module):
             super().__init__()
             self.vae = vae
-    
+
         def forward(self, z: torch.FloatTensor):
             return self.vae.decode(z / self.vae.config.scaling_factor, return_dict=False)[0]
-    
-    
+
+
     serialize_openvino(
         VaeDecoderWrapper(vae),
         VAE_PATH,
@@ -842,7 +854,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     device = ipywidgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
@@ -921,7 +933,7 @@ Inference
             self.qformer = partial(call, qformer)
             self.image_processor = image_processor
             self.register_to_config(**config)
-    
+
         def __call__(
             self,
             prompt: List[str],
@@ -940,7 +952,7 @@ Inference
         ):
             """
             Function invoked when calling the pipeline for generation.
-    
+
             Args:
                 prompt (`List[str]`):
                     The prompt or prompts to guide the image generation.
@@ -988,16 +1000,16 @@ Inference
                 image_std=self.config.std,
                 return_tensors="pt",
             )["pixel_values"]
-    
+
             if isinstance(prompt, str):
                 prompt = [prompt]
             if isinstance(source_subject_category, str):
                 source_subject_category = [source_subject_category]
             if isinstance(target_subject_category, str):
                 target_subject_category = [target_subject_category]
-    
+
             batch_size = len(prompt)
-    
+
             prompt = self._build_prompt(
                 prompts=prompt,
                 tgt_subjects=target_subject_category,
@@ -1016,7 +1028,7 @@ Inference
             do_classifier_free_guidance = guidance_scale > 1.0
             if do_classifier_free_guidance:
                 max_length = self.config.text_encoder_max_position_embeddings
-    
+
                 uncond_input = self.tokenizer(
                     [neg_prompt] * batch_size,
                     padding="max_length",
@@ -1028,7 +1040,7 @@ Inference
                 # Here we concatenate the unconditional and text embeddings into a single batch
                 # to avoid doing two forward passes
                 text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
-    
+
             scale_down_factor = 2 ** (len(self.config.unet_block_out_channels) - 1)
             latents = self.prepare_latents(
                 batch_size=batch_size,
@@ -1043,7 +1055,7 @@ Inference
             # set timesteps
             extra_set_kwargs = {}
             self.scheduler.set_timesteps(num_inference_steps, **extra_set_kwargs)
-    
+
             if conditioning_image:
                 cond_image = self.prepare_control_image(
                     image=conditioning_image,
@@ -1058,7 +1070,7 @@ Inference
             for i, t in enumerate(self.progress_bar(self.scheduler.timesteps)):
                 # expand the latents if we are doing classifier free guidance
                 do_classifier_free_guidance = guidance_scale > 1.0
-    
+
                 latent_model_input = (
                     torch.cat([latents] * 2) if do_classifier_free_guidance else latents
                 )
@@ -1083,29 +1095,29 @@ Inference
                         *[v for _, v in controlnet_output.items()],
                     )
                 )
-    
+
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (
                         noise_pred_text - noise_pred_uncond
                     )
-    
+
                 latents = self.scheduler.step(
                     noise_pred,
                     t,
                     latents,
                 )["prev_sample"]
-    
+
             image = self.vae(latents)
             image = self.image_processor.postprocess(image, output_type=output_type)
             return image
-    
+
         def encode_prompt(self, query_embeds, prompt, device=None):
             # embeddings for prompt, with query_embeds as context
             max_len = self.config.text_encoder_max_position_embeddings
             max_len -= self.config.qformer_num_query_tokens
-    
+
             tokenized_prompt = self.tokenizer(
                 prompt,
                 padding="max_length",
@@ -1113,19 +1125,19 @@ Inference
                 max_length=max_len,
                 return_tensors="pt",
             )
-    
+
             batch_size = query_embeds.shape[0]
             ctx_begin_pos = [self.config.ctx_begin_pos] * batch_size
-    
+
             text_embeddings = self.text_encoder(
                 input_ids=tokenized_prompt.input_ids,
                 ctx_embeddings=query_embeds,
                 ctx_begin_pos=ctx_begin_pos,
             )
-    
+
             return text_embeddings
-    
-    
+
+
     OvBlipDiffusionPipeline.prepare_control_image = (
         diffusers.pipelines.BlipDiffusionControlNetPipeline.prepare_control_image
     )
@@ -1189,14 +1201,14 @@ Controlled subject-driven generation (Canny-edge)
     canny = controlnet_aux.CannyDetector()
     cldm_cond_image = canny(cond_image, 30, 70, output_type="pil")
     cldm_cond_image = [cldm_cond_image]
-    
+
     style_image = PIL.Image.open(FLOWER_IMG_PATH)
-    
-    
+
+
     guidance_scale = 7.5
     num_inference_steps = 50
     negative_prompt = "over-exposure, under-exposure, saturated, duplicate, out of frame, lowres, cropped, worst quality, low quality, jpeg artifacts, morbid, mutilated, out of frame, ugly, bad anatomy, bad proportions, deformed, blurry, duplicate"
-    
+
     output = ov_pipe(
         text_prompt,
         style_image,
@@ -1223,7 +1235,7 @@ Controlled subject-driven generation (Canny-edge)
         "Style image": style_image,
         "Output": output[0]
     }
-    
+
     plt.figure(figsize=(16, 4), layout="tight")
     for i, (title, img) in enumerate(title2img.items()):
         ax = plt.subplot(1, len(title2img), i + 1)
@@ -1250,11 +1262,11 @@ Controlled subject-driven generation (Scribble)
     hed = controlnet_aux.HEDdetector.from_pretrained("lllyasviel/Annotators")
     cldm_cond_image = hed(cldm_cond_image)
     cldm_cond_image = [cldm_cond_image]
-    
+
     guidance_scale = 7.5
     num_inference_steps = 50
     negative_prompt = "over-exposure, under-exposure, saturated, duplicate, out of frame, lowres, cropped, worst quality, low quality, jpeg artifacts, morbid, mutilated, out of frame, ugly, bad anatomy, bad proportions, deformed, blurry, duplicate"
-    
+
     output = ov_pipe(
         text_prompt,
         style_image,
@@ -1491,7 +1503,7 @@ Interactive inference
                 ],
                 inputs,
             )
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

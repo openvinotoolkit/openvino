@@ -5,8 +5,8 @@ NonMaxSuppression
 
 
 .. meta::
-  :description: Learn about NonMaxSuppression-4 - a sorting and maximization 
-                operation, which can be performed on two required and three 
+  :description: Learn about NonMaxSuppression-4 - a sorting and maximization
+                operation, which can be performed on two required and three
                 optional input tensors.
 
 **Versioned name**: *NonMaxSuppression-4*
@@ -108,7 +108,7 @@ The output tensor is filled with -1s for output tensor elements if the total num
       </input>
       <output>
           <port id="5" precision="I64">
-              <dim>150</dim> < !-- min(100, 10) * 3 * 5 -->
+              <dim>150</dim> <!-- min(100, 10) * 3 * 5 -->
               <dim>3</dim>
           </port>
       </output>

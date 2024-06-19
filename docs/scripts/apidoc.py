@@ -125,8 +125,7 @@ def get_compound_data(compound, args, hide=True):
         title = compound.findtext("name")    
     refs = []
     for ing in root.iter('innergroup'):
-        if ' ' not in ing.text:
-            refs.append((ing.text, ing.get('refid') + '.rst'))
+        refs.append((ing.text, ing.get('refid') + '.rst'))
     for inc in root.iter('innerclass'):
         if ' ' not in inc.text:
             refs.append((inc.text, inc.get('refid') + '.rst'))

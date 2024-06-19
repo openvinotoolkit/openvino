@@ -23,7 +23,7 @@ const OVdefaultSelections = {
             'resnet-50',
         ]
     },
-    parameters: {name: 'kpi', data: ['Throughput']},
+    parameters: {name: 'kpi', data: ['Throughput','Latency']},
     pracision: {name: 'precision', data: ['INT8', 'FP32']}
 }
 
@@ -121,6 +121,7 @@ class ExcelData {
         this.throughputInt8 = csvdataline[4];
         this.throughputFP16 = csvdataline[5];
         this.throughputFP32 = csvdataline[6];
+        this.throughputBF16 = csvdataline[24];
         this.value = csvdataline[7];
         this.efficiency = csvdataline[8];
         this.price = csvdataline[9];
@@ -132,6 +133,7 @@ class ExcelData {
         this.latency16 = csvdataline[19];
         this.latency32 = csvdataline[20];
         this.latency4 = csvdataline[21];
+        this.latencyBF16 = csvdataline[23];
         this.throughputUnit = csvdataline[15];
         this.valueUnit = csvdataline[16];
         this.efficiencyUnit = csvdataline[17];
@@ -168,7 +170,8 @@ class GraphData {
                 'int4': excelData.throughputInt4,
                 'int8': excelData.throughputInt8,
                 'fp16': excelData.throughputFP16,
-                'fp32': excelData.throughputFP32
+                'fp32': excelData.throughputFP32,
+                'bf16': excelData.throughputBF16
             },
             excelData.value,
             excelData.efficiency,
@@ -178,7 +181,8 @@ class GraphData {
                 'int4': excelData.latency4,
                 'int8': excelData.latency,
                 'fp16': excelData.latency16,
-                'fp32': excelData.latency32
+                'fp32': excelData.latency32,
+                'bf16': excelData.latencyBF16
             },);
         
         this.price = excelData.price;
@@ -231,7 +235,7 @@ class Modal {
     static getPrecisionsLabels(version) {
         if (version == 'ovms')
             return ['OV-INT8 (reference)', 'INT8', 'OV-FP32 (reference)', 'FP32'];
-        return ['INT4', 'INT8', 'FP16', 'FP32'];
+        return ['INT4', 'INT8', 'FP16', 'FP32', 'BF16'];
     }
     static getCoreTypes(labels) {
         return labels.map((label) => {
@@ -262,13 +266,14 @@ class Modal {
                     return 'fp16';
                 case 'FP32':
                     return 'fp32';
+                case 'BF16':
+                    return 'bf16';
                 default:
                     return '';
             }
         });
     }
     static getUnitDescription(unit) {
-            console.log(unit)
             switch (unit) {
                 case 'msec.':
                     return '(lower is better)';
@@ -355,14 +360,14 @@ class Graph {
                     chartTitle: 'Value',
                     iconClass: 'value-icon',
                     unit: units.valueUnit,
-                    datasets: [{ data: null, color: '#8BAE46', label: `INT8` }],
+                    datasets: [{ data: null, color: '#8BAE46', label: `Value` }],
                 };
             case 'efficiency':
                 return {
                     chartTitle: 'Efficiency',
                     iconClass: 'efficiency-icon',
                     unit: units.efficiencyUnit,
-                    datasets: [{ data: null, color: '#E96115', label: `INT8` }],
+                    datasets: [{ data: null, color: '#E96115', label: `Efficiency` }],
                 };
             default:
                 return {};
@@ -383,6 +388,8 @@ class Graph {
                 return { data: null, color: '#009fca', label: `FP16` };
             case 'fp32':
                 return { data: null, color: '#007797', label: `FP32` };
+            case 'bf16':
+                return { data: null, color: '#00536a', label: `BF16` };
             default:
                 return {};
         }
@@ -402,6 +409,8 @@ class Graph {
                 return { data: null, color: '#8424a9', label: `FP16` };
             case 'fp32':
                 return { data: null, color: '#5b037d', label: `FP32` };
+            case 'bf16':
+                return { data: null, color: '#37014c', label: `BF16` };
             default:
                 return {};
         }
@@ -441,14 +450,14 @@ $(document).ready(function () {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);
         $('.modal-footer').show();
         $('#modal-display-graphs').show();
-        $('.edit-settings-btn').on('click', (event) => {
+        $('.edit-settings-btn').off('click').on('click', (event) => {
             $('#modal-configure-graphs').show();
             $('#modal-display-graphs').hide();
             $('.modal-footer').hide();
             $('.chart-placeholder').empty();
         });
 
-        $('.graph-chart-title-header').on('click', (event) => {
+        $('.graph-chart-title-header').off('click').on('click', (event) => {
             var parent = event.target.parentElement;
 
             if ($(parent).children('.chart-wrap,.empty-chart-container').is(":visible")) {
@@ -787,7 +796,7 @@ $(document).ready(function () {
           li.style.alignItems = 'center';
           li.style.display = 'block';
           li.style.flexDirection = 'column';
-          li.style.marginLeft = '10px';
+          li.style.marginLeft = '4px';
 
           li.onclick = () => {
             const {type} = chart.config;
@@ -806,16 +815,17 @@ $(document).ready(function () {
           boxSpan.style.borderColor = item.strokeStyle;
           boxSpan.style.borderWidth = item.lineWidth + 'px';
           boxSpan.style.display = 'inline-block';
-          boxSpan.style.height = '12px';
+          boxSpan.style.height = '10px';
           boxSpan.style.marginRight = '4px';
           boxSpan.style.width = '30px';
 
           // Text
           const textContainer = document.createElement('p');
-          textContainer.style.color = item.fontColor;
+          textContainer.style.color = '#666';
           textContainer.style.margin = 0;
           textContainer.style.padding = 0;
-          textContainer.style.fontSize = '0.8rem';
+          textContainer.style.fontSize = '0.6rem';
+          textContainer.style.marginLeft = '3px';
           textContainer.style.textDecoration = item.hidden ? 'line-through' : '';
 
           const text = document.createTextNode(item.text);
@@ -828,40 +838,39 @@ $(document).ready(function () {
       }
     };
 
-    // ====================================================
-
     function getChartOptions(title, containerId) {
         return {
             responsive: true,
+            indexAxis: 'y',
             maintainAspectRatio: false,
-            legend: {display: false},
             title: {
                 display: false,
                 text: title
             },
             scales: {
-                xAxes: [{
+                x: {
                     ticks: {
                         beginAtZero: true
                     }
-                }],
-                yAxes: [{
+                },
+                y: {
                     ticks: {
-                        display: false, //this will remove only the label
+                        display: false,
                         beginAtZero: true
                     }
-                }]
+                  }
             },
             plugins: {
+                legend: {
+                    display: false
+                },
                 htmlLegend: {
-                // ID of the container to put the legend in
                     containerID: containerId,
                 }
             }
         }
     }
 
-    // params: string[], Datasets[]
     function getChartDataNew(labels, datasets) {
         return {
             labels: labels,
@@ -871,7 +880,7 @@ $(document).ready(function () {
                     data: item.data,
                     backgroundColor: item.color,
                     borderColor: 'rgba(170,170,170,0)',
-                    barThickness: 12
+                    barThickness: 10
                 }
             })
         }
@@ -938,26 +947,20 @@ $(document).ready(function () {
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
             var groupUnit = model[0];
-            if (kpi === 'throughput') {
-                var throughputData = Graph.getDatabyKPI(model, kpi);
+            if (kpi === 'throughput' || kpi === 'latency') {
+                var kpiData = Graph.getDatabyKPI(model, kpi);
                 var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
                 precisions.forEach((prec, index) => {
-                    config.datasets[index].data = throughputData.map(tData => tData[prec]);
+                    config.datasets[index].data = kpiData.map(tData => tData[prec]);
                 });
-                return config;
-            }
-            else if(kpi === 'latency'){
-                var latencyData = Graph.getDatabyKPI(model, kpi);
-                var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
-                precisions.forEach((prec, index) => {
-                    config.datasets[index].data = latencyData.map(tData => tData[prec]);
-                });
-                return config;
+                return removeEmptyLabel(config);
             }
             var config = Graph.getGraphConfig(kpi, groupUnit);
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
             return config;
         });
+
+
         // get the client platform labels and create labels for all the graphs
         var labelsContainer = $('<div>');
         labelsContainer.addClass('chart-labels-container');
@@ -1013,6 +1016,20 @@ $(document).ready(function () {
         setChartsDisplayDirection(display.mode);
         adjustHeaderIcons(display.mode);
     }
+    function removeEmptyLabel(config, indexes) {
+        var indexes = [];
+        config.datasets.forEach((item, index) =>{
+            if(item.data[0] == '') {
+                indexes.push(index);
+            }
+        })
+        var sorted = indexes.sort(function(a, b){return b-a});
+        
+        sorted.forEach((index)=>{
+            config.datasets.splice(index,1);
+        })
+        return config;
+    }
 
     function processMetricNew(labels, datasets, chartTitle, container, widthClass, id) {
         // ratio for consistent chart label height
@@ -1032,7 +1049,7 @@ $(document).ready(function () {
         context.canvas.height = heightRatio;
         window.setTimeout(() => {
             new Chart(context, {
-            type: 'horizontalBar',
+            type: 'bar',
             data: getChartDataNew(labels, datasets),
             options: getChartOptions(chartTitle, containerId),
             plugins: [htmlLegendPlugin]

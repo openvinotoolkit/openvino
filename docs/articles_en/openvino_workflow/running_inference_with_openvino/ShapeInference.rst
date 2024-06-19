@@ -153,7 +153,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
 
 You can find the usage scenarios of the ``reshape`` method in
-:doc:`Hello Reshape SSD Samples <openvino_inference_engine_samples_hello_reshape_ssd_README>`.
+:doc:`Hello Reshape SSD Samples <openvino_sample_hello_reshape_ssd>`.
 
 .. note::
 

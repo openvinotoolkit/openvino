@@ -5,7 +5,7 @@ A very basic introduction to using object detection models with
 OpenVINO™.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.0/omz_models_model_horizontal_text_detection_0001.html>`__
+`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.3/omz_models_model_horizontal_text_detection_0001.html>`__
 model from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used. It
 detects horizontal text in images and returns a blob of data in the
@@ -16,8 +16,8 @@ corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
 class.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Imports <#imports>`__
 -  `Download model weights <#download-model-weights>`__
@@ -38,8 +38,10 @@ class.
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -58,8 +60,10 @@ Imports
     
     from notebook_utils import download_file
 
-Download model weights 
-----------------------------------------------------------------
+Download model weights
+----------------------
+
+
 
 .. code:: ipython3
 
@@ -94,8 +98,10 @@ Download model weights
     model/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
 
 
-Select inference device 
------------------------------------------------------------------
+Select inference device
+-----------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -122,8 +128,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model 
---------------------------------------------------------
+Load the Model
+--------------
+
+
 
 .. code:: ipython3
 
@@ -135,8 +143,10 @@ Load the Model
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output("boxes")
 
-Load an Image 
--------------------------------------------------------
+Load an Image
+-------------
+
+
 
 .. code:: ipython3
 
@@ -171,8 +181,10 @@ Load an Image
 .. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_11_1.png
 
 
-Do Inference 
-------------------------------------------------------
+Do Inference
+------------
+
+
 
 .. code:: ipython3
 
@@ -182,8 +194,10 @@ Do Inference
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-Visualize Results 
------------------------------------------------------------
+Visualize Results
+-----------------
+
+
 
 .. code:: ipython3
 

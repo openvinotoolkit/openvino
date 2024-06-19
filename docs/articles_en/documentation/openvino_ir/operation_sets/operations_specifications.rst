@@ -19,6 +19,7 @@ Operation Specifications
    Asin-1 <openvino_docs_ops_arithmetic_Asin_1>
    Asinh-3 <openvino_docs_ops_arithmetic_Asinh_3>
    Assign-3 <openvino_docs_ops_infrastructure_Assign_3>
+   Assign-6 <openvino_docs_ops_infrastructure_Assign_6>
    Atan-1 <openvino_docs_ops_arithmetic_Atan_1>
    Atanh-3 <openvino_docs_ops_arithmetic_Atanh_3>
    AvgPool-1 <openvino_docs_ops_pooling_AvgPool_1>
@@ -162,6 +163,7 @@ Operation Specifications
    Range-4 <openvino_docs_ops_generation_Range_4>
    RDFT-9<openvino_docs_ops_signals_RDFT_9>
    ReadValue-3 <openvino_docs_ops_infrastructure_ReadValue_3>
+   ReadValue-6 <openvino_docs_ops_infrastructure_ReadValue_6>
    ReLU-1 <openvino_docs_ops_activation_ReLU_1>
    ReduceL1-4 <openvino_docs_ops_reduction_ReduceL1_4>
    ReduceL2-4 <openvino_docs_ops_reduction_ReduceL2_4>

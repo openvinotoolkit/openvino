@@ -91,10 +91,10 @@ Example 3 - 2D tensor, without replacement
 
   * **Description**: controls whether to sample with replacement (classes can be sampled multiple times).
   * **Range of values**: `true`, `false`
-  
+
     * ``true`` - class indices can be sampled multiple times.
     * ``false`` - class indices will not repeat in the output and the size of ``probs``' ``class_size`` dimension is required to be larger or equal to *num_samples* value. Might affect performance.
-  
+
   * **Type**: `bool`
   * **Required**: *Yes*
 
@@ -149,16 +149,16 @@ Example 3 - 2D tensor, without replacement
     <layer ... name="Multinomial" type="Multinomial">
         <data convert_type="f32", with_replacement="true", log_probs="false", global_seed="234", op_seed="148"/>
         <input>
-            <port id="0" precision="FP32">  < !-- probs value: [[0.1, 0.5, 0.4]] -->
-                <dim>1</dim> < !-- batch size of 2 -->
+            <port id="0" precision="FP32">  <!-- probs value: [[0.1, 0.5, 0.4]] -->
+                <dim>1</dim> <!-- batch size of 2 -->
                 <dim>3</dim>
             </port>
-            <port id="1" precision="I32"/> < !-- num_samples value: 5 -->
+            <port id="1" precision="I32"/> <!-- num_samples value: 5 -->
         </input>
         <output>
             <port id="3" precision="I32" names="Multinomial:0">
-                <dim>1</dim> < !--dimension depends on input batch size -->
-                <dim>5</dim> < !--dimension depends on num_samples -->
+                <dim>1</dim> <!--dimension depends on input batch size -->
+                <dim>5</dim> <!--dimension depends on num_samples -->
             </port>
         </output>
     </layer>
@@ -171,16 +171,16 @@ Example 3 - 2D tensor, without replacement
     <layer ... name="Multinomial" type="Multinomial">
         <data convert_type="f32", with_replacement="true", log_probs="true", global_seed="234", op_seed="148"/>
         <input>
-            <port id="0" precision="FP32">  < !-- probs value: [[-1, 1, 2], [50, 1, 21]] -->
-                <dim>2</dim> < !-- batch size of 2 -->
+            <port id="0" precision="FP32">  <!-- probs value: [[-1, 1, 2], [50, 1, 21]] -->
+                <dim>2</dim> <!-- batch size of 2 -->
                 <dim>3</dim>
             </port>
-            <port id="1" precision="I32"/> < !-- num_samples value: 10 -->
+            <port id="1" precision="I32"/> <!-- num_samples value: 10 -->
         </input>
         <output>
             <port id="3" precision="I32" names="Multinomial:0">
-                <dim>2</dim> < !--dimension depends on input batch size -->
-                <dim>10</dim> < !--dimension depends on num_samples -->
+                <dim>2</dim> <!--dimension depends on input batch size -->
+                <dim>10</dim> <!--dimension depends on num_samples -->
             </port>
         </output>
     </layer>
@@ -193,16 +193,16 @@ Example 3 - 2D tensor, without replacement
     <layer ... name="Multinomial" type="Multinomial">
         <data convert_type="f32", with_replacement="false", log_probs="false", global_seed="234", op_seed="148"/>
         <input>
-            <port id="0" precision="FP32">  < !-- probs value: [[0.1, 0.5, 0.4]] -->
-                <dim>2</dim> < !-- batch size of 2 -->
+            <port id="0" precision="FP32">  <!-- probs value: [[0.1, 0.5, 0.4]] -->
+                <dim>2</dim> <!-- batch size of 2 -->
                 <dim>3</dim>
             </port>
-            <port id="1" precision="I32"/> < !-- num_samples value: 2 -->
+            <port id="1" precision="I32"/> <!-- num_samples value: 2 -->
         </input>
         <output>
             <port id="3" precision="I32" names="Multinomial:0">
-                <dim>2</dim> < !-- batch size of 2 -->
-                <dim>2</dim> < !-- 2 unique samples of classes -->
+                <dim>2</dim> <!-- batch size of 2 -->
+                <dim>2</dim> <!-- 2 unique samples of classes -->
             </port>
         </output>
     </layer>

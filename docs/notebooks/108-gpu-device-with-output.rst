@@ -1,8 +1,8 @@
 Working with GPUs in OpenVINO™
 ==============================
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Introduction <#introduction>`__
 
@@ -12,16 +12,15 @@ Working with GPUs in OpenVINO™
    Device <#checking-gpus-with-query-device>`__
 
    -  `List GPUs with
-      core.available_devices <#list-gpus-with-coreavailable_devices>`__
+      core.available_devices <#list-gpus-with-core-available_devices>`__
    -  `Check Properties with
-      core.get_property <#check-properties-with-coreget_property>`__
+      core.get_property <#check-properties-with-core-get_property>`__
    -  `Brief Descriptions of Key
       Properties <#brief-descriptions-of-key-properties>`__
 
 -  `Compiling a Model on GPU <#compiling-a-model-on-gpu>`__
 
-   -  `Download and Convert a
-      Model <#download-and-convert-a-model>`__
+   -  `Download and Convert a Model <#download-and-convert-a-model>`__
 
       -  `Download and unpack the
          Model <#download-and-unpack-the-model>`__
@@ -39,22 +38,20 @@ Working with GPUs in OpenVINO™
 
 -  `Performance Comparison with
    benchmark_app <#performance-comparison-with-benchmark_app>`__
-   - `CPU vs GPU with Latency
-   Hint <#cpu-vs-gpu-with-latency-hint>`__ - `CPU vs GPU with
-   Throughput Hint <#cpu-vs-gpu-with-throughput-hint>`__ -
-   `Single GPU vs Multiple
-   GPUs <#single-gpu-vs-multiple-gpus>`__
--  `Basic Application Using
-   GPUs <#basic-application-using-gpus>`__
+
+   -  `CPU vs GPU with Latency Hint <#cpu-vs-gpu-with-latency-hint>`__
+   -  `CPU vs GPU with Throughput
+      Hint <#cpu-vs-gpu-with-throughput-hint>`__
+   -  `Single GPU vs Multiple GPUs <#single-gpu-vs-multiple-gpus>`__
+
+-  `Basic Application Using GPUs <#basic-application-using-gpus>`__
 
    -  `Import Necessary Packages <#import-necessary-packages>`__
    -  `Compile the Model <#compile-the-model>`__
    -  `Load and Preprocess Video
       Frames <#load-and-preprocess-video-frames>`__
-   -  `Define Model Output
-      Classes <#define-model-output-classes>`__
-   -  `Set up Asynchronous
-      Pipeline <#set-up-asynchronous-pipeline>`__
+   -  `Define Model Output Classes <#define-model-output-classes>`__
+   -  `Set up Asynchronous Pipeline <#set-up-asynchronous-pipeline>`__
 
       -  `Callback Definition <#callback-definition>`__
       -  `Create Async Pipeline <#create-async-pipeline>`__
@@ -75,8 +72,10 @@ run to compare GPU performance in different configurations. It also
 provides the code for a basic end-to-end application that compiles a
 model on GPU and uses it to run inference.
 
-Introduction 
-------------------------------------------------------
+Introduction
+------------
+
+
 
 Originally, graphic processing units (GPUs) began as specialized chips,
 developed to accelerate the rendering of computer graphics. In contrast
@@ -95,15 +94,17 @@ cards <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/ar
 and `Intel® Data Center GPU Flex
 Series <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/flex-series.html>`__.
 To get started, first `install
-OpenVINO <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_overview.html>`__
+OpenVINO <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_overview.html>`__
 on a system equipped with one or more Intel GPUs. Follow the `GPU
 configuration
-instructions <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
+instructions <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
 to configure OpenVINO to work with your GPU. Then, read on to learn how
 to accelerate inference with GPUs in OpenVINO!
 
-Install required packages 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Install required packages
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -126,14 +127,18 @@ Install required packages
 
 
 
-Checking GPUs with Query Device 
--------------------------------------------------------------------------
+Checking GPUs with Query Device
+-------------------------------
+
+
 
 In this section, we will see how to list the available GPUs and check
 their properties. Some of the key properties will also be defined.
 
-List GPUs with core.available_devices 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+List GPUs with core.available_devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 OpenVINO Runtime provides the ``available_devices`` method for checking
 which devices are available for inference. The following code will
@@ -162,17 +167,19 @@ the system has a CPU, an integrated and discrete GPU, we should expect
 to see a list like this: ``['CPU', 'GPU.0', 'GPU.1']``. To simplify its
 use, the “GPU.0” can also be addressed with just “GPU”. For more
 details, see the `Device Naming
-Convention <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_GPU.html#device-naming-convention>`__
+Convention <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html#device-naming-convention>`__
 section.
 
 If the GPUs are installed correctly on the system and still do not
 appear in the list, follow the steps described
-`here <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
+`here <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
 to configure your GPU drivers to work with OpenVINO. Once we have the
 GPUs working with OpenVINO, we can proceed with the next sections.
 
-Check Properties with core.get_property 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Check Properties with core.get_property
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To get information about the GPUs, we can use device properties. In
 OpenVINO, devices have properties that describe their characteristics
@@ -254,8 +261,10 @@ for that property.
     DEVICE_ID                     : 0
 
 
-Brief Descriptions of Key Properties 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Brief Descriptions of Key Properties
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Each device has several properties as seen in the last command. Some of
 the key properties are:
@@ -279,19 +288,23 @@ the key properties are:
    speed up compilation time.
 
 To learn more about devices and properties, see the `Query Device
-Properties <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_query_api.html>`__
+Properties <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_query_api.html>`__
 page.
 
-Compiling a Model on GPU 
-------------------------------------------------------------------
+Compiling a Model on GPU
+------------------------
+
+
 
 Now, we know how to list the GPUs in the system and check their
 properties. We can easily use one for compiling and running models with
 OpenVINO `GPU
-plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_GPU.html>`__.
+plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html>`__.
 
-Download and Convert a Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download and Convert a Model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 This tutorial uses the ``ssdlite_mobilenet_v2`` model. The
 ``ssdlite_mobilenet_v2`` model is used for object detection. The model
@@ -300,8 +313,10 @@ was trained on `Common Objects in Context
 categories of object. For details, see the
 `paper <https://arxiv.org/abs/1801.04381>`__.
 
-Download and unpack the Model 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Download and unpack the Model
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 Use the ``download_file`` function from the ``notebook_utils`` to
 download an archive with the model. It automatically creates a directory
@@ -357,13 +372,15 @@ package is already downloaded.
     
 
 
-Convert the Model to OpenVINO IR format 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Convert the Model to OpenVINO IR format
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 To convert the model to OpenVINO IR with ``FP16`` precision, use model
 conversion API. The models are saved to the ``model/ir_model/``
 directory. For more details about model conversion, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -402,8 +419,10 @@ directory. For more details about model conversion, see this
     IR model saved to model/ir_model/ssdlite_mobilenet_v2_fp16.xml
 
 
-Compile with Default Configuration 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compile with Default Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 When the model is ready, first we need to read it, using the
 ``read_model`` method. Then, we can use the ``compile_model`` method and
@@ -420,12 +439,14 @@ the ``available_devices`` method are valid device specifiers. You may
 also use “AUTO”, which will automatically select the best device for
 inference (which is often the GPU). To learn more about AUTO plugin,
 visit the `Automatic Device
-Selection <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+Selection <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 page as well as the `AUTO device
 tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/106-auto-device>`__.
 
-Reduce Compile Time through Model Caching 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Reduce Compile Time through Model Caching
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Depending on the model used, device-specific optimizations and network
 compilations can cause the compile step to be time-consuming, especially
@@ -446,7 +467,7 @@ following:
     cache_folder.mkdir(exist_ok=True)
     
     start = time.time()
-    core = Core()
+    core = ov.Core()
     
     # Set cache folder
     core.set_property({'CACHE_DIR': cache_folder})
@@ -468,14 +489,14 @@ compile times with caching enabled and disabled as follows:
 .. code:: ipython3
 
     start = time.time()
-    core = Core()
+    core = ov.Core()
     core.set_property({'CACHE_DIR': 'cache'})
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
     print(f"Cache enabled  - compile time: {time.time() - start}s")
     
     start = time.time()
-    core = Core()
+    core = ov.Core()
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
     print(f"Cache disabled - compile time: {time.time() - start}s")
@@ -490,11 +511,13 @@ compile times with caching enabled and disabled as follows:
 The actual time improvements will depend on the environment as well as
 the model being used but it is definitely something to consider when
 optimizing an application. To read more about this, see the `Model
-Caching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Model_caching_overview.html>`__
+Caching <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Model_caching_overview.html>`__
 docs.
 
-Throughput and Latency Performance Hints 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Throughput and Latency Performance Hints
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To simplify device and pipeline configuration, OpenVINO provides
 high-level performance hints that automatically set the batch size and
@@ -523,13 +546,15 @@ available memory.
 
     compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "THROUGHPUT"})
 
-Using Multiple GPUs with Multi-Device and Cumulative Throughput 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using Multiple GPUs with Multi-Device and Cumulative Throughput
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The latency and throughput hints mentioned above are great and can make
 a difference when used adequately but they usually use just one device,
 either due to the `AUTO
-plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html#how-auto-works>`__
+plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html#how-auto-works>`__
 or by manual specification of the device name as above. When we have
 multiple devices, such as an integrated and discrete GPU, we may use
 both at the same time to improve the utilization of the resources. In
@@ -561,12 +586,14 @@ manually specify devices to use. Below is an example showing how to use
    how to set up an asynchronous pipeline that takes advantage of
    parallelism to increase throughput.** To learn more, see
    `Asynchronous
-   Inferencing <https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_async_infer_request.html>`__
+   Inferencing <https://docs.openvino.ai/2023.3/openvino_docs_ov_plugin_dg_async_infer_request.html>`__
    in OpenVINO as well as the `Asynchronous Inference
    notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/115-async-api>`__.
 
-Performance Comparison with benchmark_app 
------------------------------------------------------------------------------------
+Performance Comparison with benchmark_app
+-----------------------------------------
+
+
 
 Given all the different options available when compiling a model, it may
 be difficult to know which settings work best for a certain application.
@@ -585,7 +612,7 @@ Note that benchmark_app only requires the model path to run but both the
 device and hint arguments will be useful to us. For more advanced
 usages, the tool itself has other options that can be checked by running
 ``benchmark_app -h`` or reading the
-`docs <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+`docs <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
 The following example shows how to benchmark a simple model, using a GPU
 with a latency focus:
 
@@ -665,8 +692,10 @@ performance may depend on the hardware used. Generally, we should expect
 GPU to be better than CPU, whereas multiple GPUs should be better than a
 single GPU as long as there is enough work for each of them.
 
-CPU vs GPU with Latency Hint 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+CPU vs GPU with Latency Hint
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -802,8 +831,10 @@ CPU vs GPU with Latency Hint
     [ INFO ] Throughput:   189.21 FPS
 
 
-CPU vs GPU with Throughput Hint 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+CPU vs GPU with Throughput Hint
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -939,8 +970,10 @@ CPU vs GPU with Throughput Hint
     [ INFO ] Throughput:   326.34 FPS
 
 
-Single GPU vs Multiple GPUs 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Single GPU vs Multiple GPUs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -1065,8 +1098,10 @@ Single GPU vs Multiple GPUs
     RuntimeError: Config for device with 1 ID is not registered in GPU plugin
 
 
-Basic Application Using GPUs 
-----------------------------------------------------------------------
+Basic Application Using GPUs
+----------------------------
+
+
 
 We will now show an end-to-end object detection example using GPUs in
 OpenVINO. The application compiles a model on GPU with the “THROUGHPUT”
@@ -1077,8 +1112,10 @@ found in each frame. The detections are then drawn on their
 corresponding frame and saved as a video, which is displayed at the end
 of the application.
 
-Import Necessary Packages 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Import Necessary Packages
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1088,10 +1125,10 @@ Import Necessary Packages
     import cv2
     import numpy as np
     from IPython.display import Video
-    from openvino.runtime import AsyncInferQueue, Core, InferRequest
+    import openvino as ov
     
     # Instantiate OpenVINO Runtime
-    core = Core()
+    core = ov.Core()
     core.available_devices
 
 
@@ -1103,8 +1140,10 @@ Import Necessary Packages
 
 
 
-Compile the Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compile the Model
+~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1127,8 +1166,10 @@ Compile the Model
     Model input shape: 1 300 300 3
 
 
-Load and Preprocess Video Frames 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load and Preprocess Video Frames
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1170,8 +1211,10 @@ Load and Preprocess Video Frames
     Number of frames:  288
 
 
-Define Model Output Classes 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Define Model Output Classes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1191,16 +1234,20 @@ Define Model Output Classes
         "teddy bear", "hair drier", "toothbrush", "hair brush"
     ]
 
-Set up Asynchronous Pipeline 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Set up Asynchronous Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Callback Definition 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+Callback Definition
+^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
     # Define a callback function that runs every time the asynchronous pipeline completes inference on a frame
-    def completion_callback(infer_request: InferRequest, frame_id: int) -> None:
+    def completion_callback(infer_request: ov.InferRequest, frame_id: int) -> None:
         global frame_number
         stop_time = time.time()
         frame_number += 1
@@ -1211,17 +1258,21 @@ Callback Definition
         total_time = stop_time - start_time
         frame_fps[frame_id] = frame_number / total_time
 
-Create Async Pipeline 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Create Async Pipeline
+^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
     # Create asynchronous inference queue with optimal number of infer requests
-    infer_queue = AsyncInferQueue(compiled_model)
+    infer_queue = ov.AsyncInferQueue(compiled_model)
     infer_queue.set_callback(completion_callback)
 
-Perform Inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Perform Inference
+~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1250,8 +1301,10 @@ Perform Inference
     Time per frame: 0.004744s (210.774 FPS)
 
 
-Process Results 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Process Results
+~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1284,7 +1337,7 @@ Process Results
         # Draw info at the top left such as current fps, the devices and the performance hint being used
         cv2.putText(frame, f"fps {str(round(frame_fps[current_frame], 2))}", (5, 20), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
         cv2.putText(frame, f"device {device_name}", (5, 40), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA) 
-        cv2.putText(frame, f"hint {compiled_model.get_property('PERFORMANCE_HINT').name}", (5, 60), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"hint {compiled_model.get_property('PERFORMANCE_HINT')}", (5, 60), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
     
         # prediction contains [image_id, label, conf, x_min, y_min, x_max, y_max] according to model
         for prediction in np.squeeze(results[current_frame]):
@@ -1322,8 +1375,10 @@ Process Results
 
 
 
-Conclusion 
-----------------------------------------------------
+Conclusion
+----------
+
+
 
 This tutorial demonstrates how easy it is to use one or more GPUs in
 OpenVINO, check their properties, and even tailor the model performance
@@ -1335,18 +1390,18 @@ To read more about any of these topics, feel free to visit their
 corresponding documentation:
 
 -  `GPU
-   Plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_GPU.html>`__
+   Plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html>`__
 -  `AUTO
-   Plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+   Plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 -  `Model
-   Caching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Model_caching_overview.html>`__
+   Caching <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Model_caching_overview.html>`__
 -  `MULTI Device
    Mode <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__
 -  `Query Device
-   Properties <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_query_api.html>`__
+   Properties <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_query_api.html>`__
 -  `Configurations for GPUs with
-   OpenVINO <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
+   OpenVINO <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
 -  `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+   Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 -  `Asynchronous
-   Inferencing <https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_async_infer_request.html>`__
+   Inferencing <https://docs.openvino.ai/2023.3/openvino_docs_ov_plugin_dg_async_infer_request.html>`__

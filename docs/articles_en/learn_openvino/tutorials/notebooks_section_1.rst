@@ -12,6 +12,12 @@ Convert & Optimize
 Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
 .. showcase::
+   :title: 127-tensorflow-bit-image-classification-nncf-quantization
+   :img: _static/images/notebook_eye.png
+
+   BiT Image Classification OpenVINO IR model Quantization with NNCF.
+
+.. showcase::
    :title: 126-tensorflow-hub
    :img: _static/images/notebook_eye.png
 
@@ -54,10 +60,16 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    Quantize Speech Recognition Models with accuracy control using NNCF PTQ API.
 
 .. showcase::
+   :title: 121-legacy-mo-convert-to-openvino
+   :img: _static/images/notebook_eye.png
+
+   Learn about OpenVINO™ model conversion API.
+
+.. showcase::
    :title: 121-convert-to-openvino
    :img: _static/images/notebook_eye.png
 
-   Learn OpenVINO model conversion API.
+   Learn about model conversion in OpenVINO™.
 
 .. showcase::
    :title: 120-tensorflow-object-detection-to-openvino

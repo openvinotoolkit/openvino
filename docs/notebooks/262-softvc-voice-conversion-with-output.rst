@@ -18,8 +18,8 @@ audio are preserved.
 
 In this tutorial we will use the base model flow.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Use the original model to run an

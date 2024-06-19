@@ -334,6 +334,61 @@ TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
     run();
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicodePath) {
+    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    auto hash = std::hash<std::string>()(test_name);
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
+    std::string cache_path = ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator +
+                             "compiledModel_" + std::to_string(hash) + "_" + ss.str() + "_" + GetTimestamp() + "_cache";
+    std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[0];
+    std::wstring cache_path_w = ov::util::string_to_wstring(cache_path) + postfix;
+    auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
+    std::wstring model_xml_path_w =
+        ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_modelName);
+    std::wstring model_bin_path_w =
+        ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_weightsName);
+
+    try {
+        ov::test::utils::createDirectory(cache_path_w);
+
+        // Copy IR files into unicode folder for read_model test
+        ov::test::utils::copyFile(m_modelName, model_xml_path_w);
+        ov::test::utils::copyFile(m_weightsName, model_bin_path_w);
+
+        // Set unicode folder as cache_dir
+        core->set_property(ov::cache_dir(cache_path_mb));
+        // Read model from unicode folder
+        auto model = core->read_model(ov::util::wstring_to_string(model_xml_path_w));
+
+        // Load model to target plugins
+        auto compiled_model = core->compile_model(model, targetDevice, configuration);
+        compiled_model = {};
+        model = {};
+        // Check that directory with cached model exists after loading network
+        ASSERT_TRUE(ov::util::directory_exists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+        // Check that folder contains cache files and remove them
+        ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("blob")), 0);
+        ov::test::utils::removeFile(model_xml_path_w);
+        ov::test::utils::removeFile(model_bin_path_w);
+        // Remove directory and check that it doesn't exist anymore
+        ov::test::utils::removeDir(cache_path_w);
+        ASSERT_FALSE(ov::util::directory_exists(cache_path_w));
+    } catch (std::exception& ex) {
+        // Cleanup in case of any exception
+        if (ov::util::directory_exists(cache_path_w)) {
+            // Check that folder contains cache files and remove them
+            ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("blob")), 0);
+            ov::test::utils::removeFile(model_xml_path_w);
+            ov::test::utils::removeFile(model_bin_path_w);
+            ov::test::utils::removeDir(cache_path_w);
+        }
+        FAIL() << ex.what() << std::endl;
+    }
+}
+#endif
+
 std::string CompileModelLoadFromMemoryTestBase::getTestCaseName(
     testing::TestParamInfo<compileModelLoadFromMemoryParams> obj) {
     auto param = obj.param;

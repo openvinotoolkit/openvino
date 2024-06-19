@@ -5,7 +5,7 @@ CumSum
 
 
 .. meta::
-  :description: Learn about CumSum-3 - an element-wise, arithmetic operation, which 
+  :description: Learn about CumSum-3 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *CumSum-3*
@@ -24,7 +24,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
   * **Description**: If the attribute is set to ``true``, then exclusive sums are returned, the ``j-th`` element is not included in the ``j-th`` sum. Otherwise, the inclusive sum of the first ``j`` elements for the ``j-th`` element is calculated.
   * **Range of values**:
-    
+
     * ``false`` - include the top element
     * ``true`` - do not include the top element
   * **Type**: ``boolean``
@@ -35,7 +35,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
   * **Description**: If set to ``true`` will perform the sums in reverse direction.
   * **Range of values**:
-    
+
     * ``false`` - do not perform sums in reverse direction
     * ``true`` - perform sums in reverse direction
   * **Type**: ``boolean``
@@ -63,16 +63,16 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="CumSum" exclusive="0" reverse="0">
        <input>
-           <port id="0">     < !-- input value is: [1., 2., 3., 4., 5.] -->
+           <port id="0">     <!-- input value is: [1., 2., 3., 4., 5.] -->
                <dim>5</dim>
            </port>
-           <port id="1"/>     < !-- axis value is: 0 -->
+           <port id="1"/>     <!-- axis value is: 0 -->
        </input>
        <output>
-           <port id="2">     < !-- output value is: [1., 3., 6., 10., 15.] -->
+           <port id="2">     <!-- output value is: [1., 3., 6., 10., 15.] -->
                <dim>5</dim>
            </port>
        </output>
@@ -82,16 +82,16 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="CumSum" exclusive="1" reverse="0">
        <input>
-           <port id="0">     < !-- input value is: [1., 2., 3., 4., 5.] -->
+           <port id="0">     <!-- input value is: [1., 2., 3., 4., 5.] -->
                <dim>5</dim>
            </port>
-           <port id="1"/>     < !-- axis value is: 0 -->
+           <port id="1"/>     <!-- axis value is: 0 -->
        </input>
        <output>
-           <port id="2">     < !-- output value is: [0., 1., 3., 6., 10.] -->
+           <port id="2">     <!-- output value is: [0., 1., 3., 6., 10.] -->
                <dim>5</dim>
            </port>
        </output>
@@ -101,16 +101,16 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="CumSum" exclusive="0" reverse="1">
        <input>
-           <port id="0">     < !-- input value is: [1., 2., 3., 4., 5.] -->
+           <port id="0">     <!-- input value is: [1., 2., 3., 4., 5.] -->
                <dim>5</dim>
            </port>
-           <port id="1"/>     < !-- axis value is: 0 -->
+           <port id="1"/>     <!-- axis value is: 0 -->
        </input>
        <output>
-           <port id="2">     < !-- output value is: [15., 14., 12., 9., 5.] -->
+           <port id="2">     <!-- output value is: [15., 14., 12., 9., 5.] -->
                <dim>5</dim>
            </port>
        </output>
@@ -120,7 +120,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="CumSum" exclusive="1" reverse="1">
        <input>
            <port id="0">     < -- input value is: [1., 2., 3., 4., 5.] -->

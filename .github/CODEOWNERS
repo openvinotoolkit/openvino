@@ -28,6 +28,7 @@
 
 /src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
 /src/bindings/c/ @openvinotoolkit/openvino-c-api-maintainers
+/src/bindings/js/ @openvinotoolkit/openvino-js-api-maintainers
 /src/common/*transformations/  @openvinotoolkit/openvino-ie-transformations-maintainers
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers
 
@@ -35,6 +36,7 @@
 /samples/c/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-c-api-maintainers
 /samples/cpp/  @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-maintainers
 /samples/python/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
+/samples/js/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-js-api-maintainers
 /thirdparty/zlib/ @openvinotoolkit/openvino-samples-maintainers
 /thirdparty/json/ @openvinotoolkit/openvino-samples-maintainers
 /thirdparty/gflags/ @openvinotoolkit/openvino-samples-maintainers

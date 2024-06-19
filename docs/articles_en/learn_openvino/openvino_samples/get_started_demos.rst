@@ -1,7 +1,7 @@
 .. {#openvino_docs_get_started_get_started_demos}
 
-Get Started with C++ Samples
-============================
+Get Started with Samples
+========================
 
 
 .. meta::
@@ -9,7 +9,7 @@ Get Started with C++ Samples
                  toolkit, and how to run inference, using provided code samples.
 
 
-To use OpenVINO samples, install OpenVINO using one of the following distributions: 
+To use OpenVINO samples, install OpenVINO using one of the following distributions:
 
 * Archive files (recommended) - :doc:`Linux <openvino_docs_install_guides_installing_openvino_from_archive_linux>` | :doc:`Windows <openvino_docs_install_guides_installing_openvino_from_archive_windows>` | :doc:`macOS <openvino_docs_install_guides_installing_openvino_from_archive_macos>`
 * :doc:`APT <openvino_docs_install_guides_installing_openvino_apt>` or :doc:`YUM <openvino_docs_install_guides_installing_openvino_yum>` for Linux
@@ -32,7 +32,7 @@ Before you build samples, refer to the :doc:`system requirements <system_require
 3. :ref:`Download a suitable model <download-model>`.
 4. :ref:`Download media files used as input, if necessary <download-media>`.
 
-Once you perform all the steps, you can :ref:`run inference with the chosen sample application <run-inference>` to see the results. 
+Once you perform all the steps, you can :ref:`run inference with the chosen sample application <run-inference>` to see the results.
 
 .. _build-samples:
 
@@ -43,7 +43,7 @@ Select a sample you want to use from the :doc:`OpenVINO Samples <openvino_docs_O
 
 .. note::
 
-   Some samples may also require `OpenCV <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ to run properly. Make sure to install it for use with vision-oriented samples. 
+   Some samples may also require `OpenCV <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ to run properly. Make sure to install it for use with vision-oriented samples.
 
 Instructions below show how to build sample applications with CMake. If you are interested in building them from source, check the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
 
@@ -57,58 +57,63 @@ Instructions below show how to build sample applications with CMake. If you are 
 
          .. tab-item:: Python
             :sync: python
-   
-            Python samples do not require building. You can run the code samples in your development environment.
-   
+
+            Each Python sample directory contains the ``requirements.txt`` file, which you must install before running the sample:
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/samples/python/<SAMPLE_DIR>
+               python3 -m pip install -r ./requirements.txt
+
          .. tab-item:: C and C++
             :sync: cpp
-   
+
             To build the C or C++ sample applications for Linux, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
-      
+
             .. code-block:: sh
-               
+
                build_samples.sh
-      
+
             Once the build is completed, you can find sample binaries in the following folders:
-      
+
             * C samples: ``~/openvino_c_samples_build/<architecture>/Release``
             * C++ samples: ``~/openvino_cpp_samples_build/<architecture>/Release`` where the <architecture> is the output of ``uname -m``, for example, ``intel64``, ``armhf``, or ``aarch64``.
-            
+
             You can also build the sample applications manually:
-            
+
             .. note::
-               
+
                If you have installed the product as a root user, switch to root mode before you continue: ``sudo -i`` .
-      
+
             1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
-            
+
                .. code-block:: sh
-                  
+
                   mkdir build
-               
-               .. note:: 
-               
+
+               .. note::
+
                   If you ran the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory: ``~/openvino_cpp_samples_build/``
-               
+
             2. Go to the created directory:
-               
+
                .. code-block:: sh
-                  
+
                   cd build
-               
+
             3. Run CMake to generate the Make files for release configuration. For example, for C++ samples:
-            
-                .. code-block:: sh
-                  
-                   cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
-               
-            
-            4. Run ``make`` to build the samples:
-            
+
                .. code-block:: sh
-                  
+
+                  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
+
+
+            4. Run ``make`` to build the samples:
+
+               .. code-block:: sh
+
                   cmake --build . --parallel
-            
+
             For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``;
             for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
 
@@ -119,29 +124,34 @@ Instructions below show how to build sample applications with CMake. If you are 
 
          .. tab-item:: Python
             :sync: python
-   
-            Python samples do not require building. You can run the code samples in your development environment.
-   
+
+            Each Python sample directory contains the ``requirements.txt`` file, which you must install before running the sample:
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>\samples\python\<SAMPLE_DIR>
+               python -m pip install -r requirements.txt
+
          .. tab-item:: C and C++
             :sync: c-cpp
 
             .. note::
-      
+
                If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
-   
+
             To build the C or C++ sample applications on Windows, go to the ``<INSTALL_DIR>\samples\c`` or ``<INSTALL_DIR>\samples\cpp`` directory, respectively, and run the ``build_samples_msvc.bat`` batch file:
-      
+
             .. code-block:: sh
-               
+
                build_samples_msvc.bat
-      
+
             By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
-            
+
             Once the build is completed, you can find sample binaries in the following folders:
-            
+
             * C samples: ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\<architecture>\Release``
             * C++ samples: ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\<architecture>\Release`` where the <architecture> is the output of ``echo PROCESSOR_ARCHITECTURE%``, for example, ``intel64`` (AMD64), or ``arm64``.
-            
+
             You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the Microsoft Visual Studio and open the generated solution file from the ``C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`` directory.
 
    .. tab-item:: macOS
@@ -151,69 +161,74 @@ Instructions below show how to build sample applications with CMake. If you are 
 
          .. tab-item:: Python
             :sync: python
-   
-            Python samples do not require building. You can run the code samples in your development environment.
-   
+
+            Each Python sample directory contains the ``requirements.txt`` file, which you must install before running the sample:
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/samples/python/<SAMPLE_DIR>
+               python3 -m pip install -r ./requirements.txt
+
          .. tab-item:: C and C++
             :sync: cpp
 
-            .. note:: 
-            
+            .. note::
+
                For building samples from the open-source version of OpenVINO toolkit, see the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
 
             To build the C or C++ sample applications for macOS, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
-            
+
             .. code-block:: sh
-               
+
                build_samples.sh
-            
+
             Once the build is completed, you can find sample binaries in the following folders:
-            
+
             * C samples: ``~/openvino_c_samples_build/<architecture>/Release``
             * C++ samples: ``~/openvino_cpp_samples_build/<architecture>/Release``
-            
+
             You can also build the sample applications manually. Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by:
-      
+
             .. code-block:: sh
-      
+
                cd <INSTALL_DIR>/
                source setupvars.sh
-      
+
             .. note::
-      
+
                If you have installed the product as a root user, switch to root mode before you continue: ``sudo -i``
-      
+
             1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
-            
+
                .. code-block:: sh
-               
+
                   mkdir build
-               
-               .. note:: 
-               
+
+               .. note::
+
                   If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: ``~/openvino_cpp_samples_build/``
-               
+
             2. Go to the created directory:
-            
+
                .. code-block:: sh
-               
+
                   cd build
-            
+
             3. Run CMake to generate the Make files for release configuration. For example, for C++ samples:
-            
+
                .. code-block:: sh
-            
+
                   cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
 
-               
+
             4. Run ``make`` to build the samples:
-            
+
                .. code-block:: sh
-               
+
                   make
-            
+
             For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``; for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
-      
+
 
 .. _select-sample:
 
@@ -227,13 +242,13 @@ First, select a sample from the :doc:`Sample Overview <openvino_docs_OV_UG_Sampl
 Download the Models
 --------------------
 
-You need a model that is specific for your inference task. You can get it from one of model repositories, such as TensorFlow Zoo, HuggingFace, or TensorFlow Hub. 
+You need a model that is specific for your inference task. You can get it from one of model repositories, such as TensorFlow Zoo, HuggingFace, or TensorFlow Hub.
 
 
 Convert the Model
 --------------------
 
-If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.1/openvino_docs_get_started_get_started_demos.html>`__ for information how to do it.
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.3/openvino_docs_get_started_get_started_demos.html>`__ for information how to do it.
 
 .. _download-media:
 
@@ -309,57 +324,57 @@ To run the code sample with an input image using the IR model:
 
 
    .. tab-set::
-      
+
       .. tab-item:: Python
          :sync: python
-      
+
          .. tab-set::
-      
+
             .. tab-item:: Linux
                :sync: linux
-      
+
                .. code-block:: sh
-      
+
                   python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
-      
+
             .. tab-item:: Windows
                :sync: windows
-      
+
                .. code-block:: bat
-      
+
                   python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
-      
+
             .. tab-item:: macOS
                :sync: macos
-      
+
                .. code-block:: sh
-      
+
                   python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
-      
+
       .. tab-item:: C++
          :sync: cpp
-      
+
          .. tab-set::
-      
+
             .. tab-item:: Linux
                :sync: linux
-      
+
                .. code-block:: sh
-      
+
                   <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
-      
+
             .. tab-item:: Windows
                :sync: windows
-      
+
                .. code-block:: bat
-      
+
                   <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
-      
+
             .. tab-item:: macOS
                :sync: macos
-      
+
                .. code-block:: sh
-      
+
                   <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
 
 
@@ -373,7 +388,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 .. note::
 
-   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <openvino_docs_install_guides_configurations_for_intel_gpu>`, as described earlier on this page. 
+   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <openvino_docs_install_guides_configurations_for_intel_gpu>`, as described earlier on this page.
    * Running on GPU is not compatible with macOS.
 
 .. tab-set::
@@ -382,52 +397,52 @@ The following command shows how to run the Image Classification Code Sample usin
       :sync: python
 
       .. tab-set::
-      
+
          .. tab-item:: Linux
             :sync: linux
-      
+
             .. code-block:: sh
-      
+
                python classification_sample_async.py -m ~/ir/googlenet-v1.xml -i ~/Downloads/dog.bmp -d CPU
 
          .. tab-item:: Windows
             :sync: windows
-      
+
             .. code-block:: bat
-      
+
                python classification_sample_async.py -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -i %USERPROFILE%\Downloads\dog.bmp -d CPU
 
          .. tab-item:: macOS
             :sync: macos
-      
+
             .. code-block:: sh
-      
+
                python classification_sample_async.py -m ~/ir/googlenet-v1.xml -i ~/Downloads/dog.bmp -d CPU
 
    .. tab-item:: C++
       :sync: cpp
 
       .. tab-set::
-      
+
          .. tab-item:: Linux
             :sync: linux
-      
+
             .. code-block:: sh
-      
+
                ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 
          .. tab-item:: Windows
             :sync: windows
-      
+
             .. code-block:: bat
-      
+
                .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
 
          .. tab-item:: macOS
             :sync: macos
-      
+
             .. code-block:: sh
-      
+
                ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 
 
@@ -458,5 +473,5 @@ When the sample application is complete, you are given the label and confidence 
 Other Samples
 ================================
 
-Articles in this section describe all sample applications provided with OpenVINO. They will give you more information on how each of them works, giving you a convenient starting point for your own application. 
+Articles in this section describe all sample applications provided with OpenVINO. They will give you more information on how each of them works, giving you a convenient starting point for your own application.
 

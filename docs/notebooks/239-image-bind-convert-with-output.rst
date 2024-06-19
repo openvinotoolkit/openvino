@@ -67,8 +67,8 @@ represented on the image below:
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
@@ -96,7 +96,7 @@ Prerequisites
 
     import sys
     
-    %pip install -q soundfile pytorchvideo ftfy "timm==0.6.7" einops fvcore "openvino>=2023.1.0"  --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q soundfile pytorchvideo ftfy "timm>=0.6.7" einops fvcore "openvino>=2023.1.0" numpy scipy matplotlib --extra-index-url https://download.pytorch.org/whl/cpu
     
     if sys.version_info.minor < 8:
         %pip install -q "decord"
@@ -104,9 +104,9 @@ Prerequisites
         %pip install -q "eva-decord"
     
     if sys.platform != "linux":
-        %pip install -q "torch==2.0.1" "torchvision==0.15.2" "torchaudio==2.0.2"
+        %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2"
     else:
-        %pip install -q "torch==2.0.1" "torchvision==0.15.2" "torchaudio==2.0.2" --index-url https://download.pytorch.org/whl/cpu
+        %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2" --index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -204,7 +204,7 @@ Convert Model to OpenVINO Intermediate Representation (IR) format
 
 OpenVINO supports PyTorch through Model Conversion API. You will use
 `model conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 to convert model to IR format. The ``ov.convert_model`` function returns
 OpenVINO Model class instance ready to load on a device or save on a
 disk for next loading using ``ov.save_model``.
@@ -513,6 +513,6 @@ Next Steps
 
 
 
-Open the `239-image-bind-quantize <239-image-bind-quantize.ipynb>`__
+Open the `239-image-bind-quantize <239-image-bind-quantize-with-output.html>`__
 notebook to quantize the IR model with the Post-training Quantization
 API of NNCF and compare ``FP16`` and ``INT8`` models.

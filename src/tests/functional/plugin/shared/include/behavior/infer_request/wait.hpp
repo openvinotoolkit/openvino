@@ -36,7 +36,8 @@ TEST_P(InferRequestWaitTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) 
     req.StartAsync();
     InferenceEngine::StatusCode sts;
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY);
-    ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK || sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
+    ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK || sts == InferenceEngine::StatusCode::RESULT_NOT_READY ||
+                sts == InferenceEngine::StatusCode::INFER_NOT_STARTED);
 }
 
 // Plugin correct infer request with allocating input and result BlobMaps inside plugin
@@ -76,8 +77,7 @@ TEST_P(InferRequestWaitTests, returnDeviceBusyOnSetBlobAfterAsyncInfer) {
     auto outputBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first);
     InferenceEngine::StatusCode sts;
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::STATUS_ONLY);
-    ASSERT_TRUE(InferenceEngine::StatusCode::INFER_NOT_STARTED == sts ||
-                sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
+    ASSERT_TRUE(InferenceEngine::StatusCode::INFER_NOT_STARTED == sts);
     req.StartAsync();
     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);

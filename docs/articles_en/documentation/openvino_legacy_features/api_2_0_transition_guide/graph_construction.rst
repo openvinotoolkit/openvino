@@ -58,6 +58,4 @@ API 2.0
 Additional Resources
 ####################
 
-* :doc:`Hello Model Creation C++ Sample <openvino_inference_engine_samples_model_creation_sample_README>`
-* :doc:`Hello Model Creation Python Sample <openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README>`
-
+* :doc:`Hello Model Creation Sample <openvino_sample_model_creation>`

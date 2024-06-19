@@ -109,6 +109,9 @@
 'category: packaging':
 - 'cmake/**/packaging/**/*'
 - 'src/bindings/python/wheel/**/*'
+- any: ['src/bindings/js/node/CMakeLists.txt',
+        'src/bindings/js/node/package.json',
+        'src/bindings/js/node/package-lock.json']
 - 'tools/openvino_dev/**/*'
 
 'category: PDPD FE':
@@ -123,6 +126,9 @@
 
 'category: Python API':
 - 'src/bindings/python/**/*'
+
+'category: JS API':
+- 'src/bindings/js/**/*'
 
 'category: samples':
 - 'samples/**/*'

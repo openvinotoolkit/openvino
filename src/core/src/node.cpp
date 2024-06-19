@@ -28,6 +28,12 @@ static const char idx_txt[] = "index '";
 static const char out_of_range_txt[] = "' out of range";
 }  // namespace
 
+void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                       const Node* node,
+                                       const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, check_loc_info.check_string, node, explanation);
+}
+
 void ov::NodeValidationFailure::create(const char* file,
                                        int line,
                                        const char* check_string,
@@ -48,6 +54,13 @@ void ov::NodeValidationFailure::create(const char* file,
                                               check_string,
                                               node_validation_failure_loc_string(ctx.first),
                                               op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
+}
+
+template <>
+void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                       std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
+                                       const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, check_loc_info.check_string, std::move(ctx), explanation);
 }
 
 atomic<size_t> ov::Node::m_next_instance_id(0);

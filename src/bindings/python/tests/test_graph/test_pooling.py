@@ -9,7 +9,7 @@ import openvino.runtime.opset8 as ov
 from openvino import Type
 
 
-@pytest.fixture()
+@pytest.fixture
 def ndarray_1x1x4x4():
     return np.arange(11, 27, dtype=np.float32).reshape(1, 1, 4, 4)
 

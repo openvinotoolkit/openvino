@@ -22,8 +22,8 @@ the PaddleOCR is as follows:
    server, the webcam will not work. You can still do inference on a
    video file.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Imports <#imports>`__
 
@@ -52,22 +52,44 @@ the PaddleOCR is as follows:
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q "paddlepaddle==2.5.0"
+    %pip install -q "paddlepaddle>=2.5.1"
     %pip install -q "pyclipper>=1.2.1" "shapely>=1.7.1"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -104,8 +126,10 @@ Imports
     import notebook_utils as utils
     import pre_post_processing as processing
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -133,8 +157,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Models for PaddleOCR 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Models for PaddleOCR
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 PaddleOCR includes two parts of deep learning models, text detection and
 text recognition. Pre-trained models used in the demo are downloaded and
@@ -177,8 +203,10 @@ files to load to CPU/GPU.
             else:
                 print("Error Extracting the model. Please check the network.")
 
-Download the Model for Text **Detection** 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Download the Model for Text **Detection**
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -198,7 +226,7 @@ Download the Model for Text **Detection**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/405-padd…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/405-padd…
 
 
 .. parsed-literal::
@@ -207,8 +235,10 @@ Download the Model for Text **Detection**
     Model Extracted to model/ch_PP-OCRv3_det_infer/inference.pdmodel.
 
 
-Load the Model for Text **Detection** 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Load the Model for Text **Detection**
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -221,8 +251,10 @@ Load the Model for Text **Detection**
     det_input_layer = det_compiled_model.input(0)
     det_output_layer = det_compiled_model.output(0)
 
-Download the Model for Text **Recognition** 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Download the Model for Text **Recognition**
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -240,7 +272,7 @@ Download the Model for Text **Recognition**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/405-padd…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/405-padd…
 
 
 .. parsed-literal::
@@ -249,8 +281,10 @@ Download the Model for Text **Recognition**
     Model Extracted to model/ch_PP-OCRv3_rec_infer/inference.pdmodel.
 
 
-Load the Model for Text **Recognition** with Dynamic Shape 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Load the Model for Text **Recognition** with Dynamic Shape
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 Input to text recognition model refers to detected bounding boxes with
 different image sizes, for example, dynamic input shapes. Hence:
@@ -278,8 +312,10 @@ different image sizes, for example, dynamic input shapes. Hence:
     rec_input_layer = rec_compiled_model.input(0)
     rec_output_layer = rec_compiled_model.output(0)
 
-Preprocessing Image Functions for Text Detection and Recognition 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Preprocessing Image Functions for Text Detection and Recognition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Define preprocessing functions for text detection and recognition: 1.
 Preprocessing for text detection: resize and normalize input images. 2.
@@ -394,8 +430,10 @@ with Chinese text) for easy batching in inference.
         norm_img_batch = norm_img_batch.copy()
         return norm_img_batch
 
-Postprocessing Image for Text Detection 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postprocessing Image for Text Detection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -433,8 +471,10 @@ Postprocessing Image for Text Detection
         dt_boxes = processing.filter_tag_det_res(dt_boxes, ori_im.shape)    
         return dt_boxes
 
-Main Processing Function for PaddleOCR 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function for PaddleOCR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Run ``paddleOCR`` function in different operations, either a webcam or a
 video file. See the list of procedures below:
@@ -606,8 +646,10 @@ video file. See the list of procedures below:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Live PaddleOCR with OpenVINO 
---------------------------------------------------------------------------
+Run Live PaddleOCR with OpenVINO
+--------------------------------
+
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -619,39 +661,27 @@ Firefox, may cause flickering. If you experience flickering, set
    **NOTE**: Popup mode may not work if you run this notebook on a
    remote computer.
 
-Run live PaddleOCR:
-
-.. code:: ipython3
-
-    run_paddle_ocr(source=0, flip=False, use_popup=False)
-
-
-.. parsed-literal::
-
-    Cannot open camera 0
-
-
-.. parsed-literal::
-
-    [ WARN:0@10.896] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@10.896] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
-
-
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
 OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 will work.
 
+Run live PaddleOCR:
+
 .. code:: ipython3
 
-    # Test OCR results on a video file.
+    USE_WEBCAM = False
     
+    cam_id = 0
     video_file = "https://raw.githubusercontent.com/yoyowz/classification/master/images/test.mp4"
-    run_paddle_ocr(source=video_file, flip=False, use_popup=False, skip_first_frames=0)
+    
+    source = cam_id if USE_WEBCAM else video_file 
+    
+    run_paddle_ocr(source, flip=False, use_popup=False)
 
 
 
-.. image:: 405-paddle-ocr-webcam-with-output_files/405-paddle-ocr-webcam-with-output_32_0.png
+.. image:: 405-paddle-ocr-webcam-with-output_files/405-paddle-ocr-webcam-with-output_30_0.png
 
 
 .. parsed-literal::

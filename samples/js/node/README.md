@@ -1,6 +1,6 @@
 # OpenVINO™ JavaScript API examples of usage
 
-## Installation of openvinojs-node package
+## Installation of openvino-node package
 From *openvino/src/bindings/js/node* run `npm i` to download OpenVINO™ runtime, install requirements, build bindings and compile TypeScript code to JavaScript
 
 On the *.nix systems run `source openvino/src/bindings/js/node/scripts/setupvars.sh` to add path to OpenVINO™ runtime libraries in `LD_LIBRARY_PATH` variable

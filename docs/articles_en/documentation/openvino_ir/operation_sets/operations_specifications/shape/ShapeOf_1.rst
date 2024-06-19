@@ -5,7 +5,7 @@ ShapeOf
 
 
 .. meta::
-  :description: Learn about ShapeOf-1 - a shape manipulation operation, which 
+  :description: Learn about ShapeOf-1 - a shape manipulation operation, which
                 can be performed on an arbitrary input tensor.
 
 **Versioned name**: *ShapeOf-1*
@@ -39,7 +39,7 @@ ShapeOf
             </port>
         </input>
         <output>
-            <port id="1">  < !-- output value is: [2,3,224,224]-->
+            <port id="1">  <!-- output value is: [2,3,224,224]-->
                 <dim>4</dim>
             </port>
         </output>

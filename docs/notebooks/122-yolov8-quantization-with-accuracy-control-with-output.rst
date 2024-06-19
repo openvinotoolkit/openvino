@@ -14,7 +14,7 @@ quantization flow allows to apply 8-bit quantization to the model with
 control of accuracy metric. This is achieved by keeping the most
 impactful operations within the model in the original precision. The
 flow is based on the `Basic 8-bit
-quantization <https://docs.openvino.ai/2023.0/basic_quantization_flow.html>`__
+quantization <https://docs.openvino.ai/2023.3/basic_quantization_flow.html>`__
 and has the following differences:
 
 -  Besides the calibration dataset, a validation dataset is required to
@@ -38,8 +38,8 @@ and has the following differences:
 The steps for the quantization with accuracy control are described
 below.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Get Pytorch model and OpenVINO IR
@@ -95,7 +95,7 @@ we do not need to do these steps manually.
 
     import os
     from pathlib import Path
-    
+
     from ultralytics import YOLO
     from ultralytics.yolo.cfg import get_cfg
     from ultralytics.yolo.data.utils import check_det_dataset
@@ -104,11 +104,11 @@ we do not need to do these steps manually.
     from ultralytics.yolo.utils import DEFAULT_CFG
     from ultralytics.yolo.utils import ops
     from ultralytics.yolo.utils.metrics import ConfusionMatrix
-    
+
     ROOT = os.path.abspath('')
-    
+
     MODEL_NAME = "yolov8n-seg"
-    
+
     model = YOLO(f"{ROOT}/{MODEL_NAME}.pt")
     args = get_cfg(cfg=DEFAULT_CFG)
     args.data = "coco128-seg.yaml"
@@ -118,12 +118,12 @@ Load model.
 .. code:: ipython3
 
     import openvino as ov
-    
-    
+
+
     model_path = Path(f"{ROOT}/{MODEL_NAME}_openvino_model/{MODEL_NAME}.xml")
     if not model_path.exists():
         model.export(format="openvino", dynamic=True, half=False)
-    
+
     ov_model = ov.Core().read_model(model_path)
 
 Define validator and data loader
@@ -146,7 +146,7 @@ validator class instance.
     validator = model.ValidatorClass(args)
     validator.data = check_det_dataset(args.data)
     data_loader = validator.get_dataloader(f"{DATASETS_DIR}/coco128-seg", 1)
-    
+
     validator.is_coco = True
     validator.class_map = ops.coco80_to_coco91_class()
     validator.names = model.model.names
@@ -173,15 +173,15 @@ We can use one dataset as calibration and validation datasets. Name it
 .. code:: ipython3
 
     from typing import Dict
-    
+
     import nncf
-    
-    
+
+
     def transform_fn(data_item: Dict):
         input_tensor = validator.preprocess(data_item)["img"].numpy()
         return input_tensor
-    
-    
+
+
     quantization_dataset = nncf.Dataset(data_loader, transform_fn)
 
 
@@ -198,11 +198,11 @@ Prepare validation function
 .. code:: ipython3
 
     from functools import partial
-    
+
     import torch
     from nncf.quantization.advanced_parameters import AdvancedAccuracyRestorerParameters
-    
-    
+
+
     def validation_ac(
         compiled_model: ov.CompiledModel,
         validation_loader: torch.utils.data.DataLoader,
@@ -216,7 +216,7 @@ Prepare validation function
         validator.batch_i = 1
         validator.confusion_matrix = ConfusionMatrix(nc=validator.nc)
         num_outputs = len(compiled_model.outputs)
-    
+
         counter = 0
         for batch_i, batch in enumerate(validation_loader):
             if num_samples is not None and batch_i == num_samples:
@@ -240,10 +240,10 @@ Prepare validation function
             stats_metrics = stats["metrics/mAP50-95(M)"]
         if log:
             print(f"Validate: dataset length = {counter}, metric value = {stats_metrics:.3f}")
-        
+
         return stats_metrics
-    
-    
+
+
     validation_fn = partial(validation_ac, validator=validator, log=False)
 
 Run quantization with accuracy control
@@ -297,6 +297,7 @@ value 25 to speed up the execution.
     INFO:nncf:Validation of initial model was started
 
 
+
 .. parsed-literal::
 
     INFO:nncf:Elapsed Time: 00:00:00
@@ -318,13 +319,13 @@ value 25 to speed up the execution.
     INFO:nncf:Calculating ranking score for groups of quantizers
     INFO:nncf:Elapsed Time: 00:02:16
     INFO:nncf:Changing the scope of quantizer nodes was started
-    INFO:nncf:Reverted 1 operations to the floating-point precision: 
+    INFO:nncf:Reverted 1 operations to the floating-point precision:
     	/model.22/Mul_5
     INFO:nncf:Accuracy drop with the new quantization scope is 0.013359187935064742 (DropType.ABSOLUTE)
-    INFO:nncf:Reverted 1 operations to the floating-point precision: 
+    INFO:nncf:Reverted 1 operations to the floating-point precision:
     	/model.1/conv/Conv/WithoutBiases
     INFO:nncf:Accuracy drop with the new quantization scope is 0.01287864227202773 (DropType.ABSOLUTE)
-    INFO:nncf:Reverted 1 operations to the floating-point precision: 
+    INFO:nncf:Reverted 1 operations to the floating-point precision:
     	/model.2/cv1/conv/Conv/WithoutBiases
     INFO:nncf:Algorithm completed: achieved required accuracy drop 0.007027355074555763 (DropType.ABSOLUTE)
     INFO:nncf:3 out of 91 were reverted back to the floating-point precision:
@@ -347,11 +348,11 @@ is not exceeded.
     core = ov.Core()
     quantized_compiled_model = core.compile_model(model=quantized_model, device_name='CPU')
     compiled_ov_model = core.compile_model(model=ov_model, device_name='CPU')
-    
+
     pt_result = validation_ac(compiled_ov_model, data_loader, validator)
     quantized_result = validation_ac(quantized_compiled_model, data_loader, validator)
-    
-    
+
+
     print(f'[Original OpenVino]: {pt_result:.4f}')
     print(f'[Quantized OpenVino]: {quantized_result:.4f}')
 
@@ -372,10 +373,10 @@ And compare performance.
     # Set model directory
     MODEL_DIR = Path("model")
     MODEL_DIR.mkdir(exist_ok=True)
-    
+
     ir_model_path = MODEL_DIR / 'ir_model.xml'
     quantized_model_path = MODEL_DIR / 'quantized_model.xml'
-    
+
     # Save models to use them in the commandline banchmark app
     ov.save_model(ov_model, ir_model_path, compress_to_fp16=False)
     ov.save_model(quantized_model, quantized_model_path, compress_to_fp16=False)
@@ -393,12 +394,12 @@ And compare performance.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.2.0-12713-47c2a91b6b6
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2023.2.0-12713-47c2a91b6b6
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -442,7 +443,7 @@ And compare performance.
     [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 42.88 ms
@@ -471,12 +472,12 @@ And compare performance.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.2.0-12713-47c2a91b6b6
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2023.2.0-12713-47c2a91b6b6
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -520,7 +521,7 @@ And compare performance.
     [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 31.29 ms

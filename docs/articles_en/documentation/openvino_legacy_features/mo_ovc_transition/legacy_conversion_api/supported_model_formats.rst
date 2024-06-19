@@ -7,7 +7,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Supported Model Formats <openvino_docs_model_processing_introduction>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Supported Model Formats <openvino_docs_model_processing_introduction>` article.
 
 .. toctree::
    :maxdepth: 1
@@ -26,16 +26,16 @@
 
 **OpenVINO IR (Intermediate Representation)** - the proprietary and default format of OpenVINO, benefiting from the full extent of its features. All other supported model formats, as listed below, are converted to :doc:`OpenVINO IR <openvino_ir>` to enable inference. Consider storing your model in this format to minimize first-inference latency, perform model optimization, and, in some cases, save space on your drive.
 
-**PyTorch, TensorFlow, ONNX, and PaddlePaddle** - can be used with OpenVINO Runtime API directly, 
+**PyTorch, TensorFlow, ONNX, and PaddlePaddle** - can be used with OpenVINO Runtime API directly,
 which means you do not need to save them as OpenVINO IR before including them in your application.
 OpenVINO can read, compile, and convert them automatically, as part of its pipeline.
 
-In the Python API, these options are provided as three separate methods: 
+In the Python API, these options are provided as three separate methods:
 ``read_model()``, ``compile_model()``, and ``convert_model()``.
-The ``convert_model()`` method enables you to perform additional adjustments 
-to the model, such as setting shapes, changing model input types or layouts, 
-cutting parts of the model, freezing inputs, etc. For a detailed description 
-of the conversion process, see the 
+The ``convert_model()`` method enables you to perform additional adjustments
+to the model, such as setting shapes, changing model input types or layouts,
+cutting parts of the model, freezing inputs, etc. For a detailed description
+of the conversion process, see the
 :doc:`model conversion guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 Here are code examples of how to use these methods with different model formats:
@@ -64,6 +64,11 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: py
                  :force:
+
+                 import openvino
+                 import torchvision
+                 from openvino.tools.mo import convert_model
+                 core = openvino.Core()
 
                  model = torchvision.models.resnet50(weights='DEFAULT')
                  ov_model = convert_model(model)
@@ -108,6 +113,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 from openvino.tools.mo import convert_model
+
+                 core = openvino.Core()
                  ov_model = convert_model("saved_model.pb")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -210,6 +219,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 from openvino.tools.mo import convert_model
+
+                 core = openvino.Core()
                  ov_model = convert_model("<INPUT_MODEL>.tflite")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -230,7 +243,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = read_model("<INPUT_MODEL>.tflite")
+                 import openvino
+
+                 core = openvino.Core()
+                 ov_model = core.read_model("<INPUT_MODEL>.tflite")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
             * The ``compile_model()`` method:
@@ -244,6 +260,9 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+
+                 core = openvino.Core()
                  compiled_model = core.compile_model("<INPUT_MODEL>.tflite", "AUTO")
 
               For a guide on how to run inference, see how to
@@ -328,6 +347,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 from openvino.tools.mo import convert_model
+
+                 core = openvino.Core()
                  ov_model = convert_model("<INPUT_MODEL>.onnx")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -348,7 +371,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = read_model("<INPUT_MODEL>.onnx")
+                 import openvino
+                 core = openvino.Core()
+
+                 ov_model = core.read_model("<INPUT_MODEL>.onnx")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
             * The ``compile_model()`` method:
@@ -361,6 +387,9 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: py
                  :force:
+
+                 import openvino
+                 core = openvino.Core()
 
                  compiled_model = core.compile_model("<INPUT_MODEL>.onnx", "AUTO")
 
@@ -449,6 +478,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 from openvino.tools.mo import convert_model
+                 core = openvino.Core()
+
                  ov_model = convert_model("<INPUT_MODEL>.pdmodel")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -468,6 +501,9 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 core = openvino.Core()
+
                  ov_model = read_model("<INPUT_MODEL>.pdmodel")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -481,6 +517,9 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: py
                  :force:
+
+                 import openvino
+                 core = openvino.Core()
 
                  compiled_model = core.compile_model("<INPUT_MODEL>.pdmodel", "AUTO")
 
@@ -551,13 +590,13 @@ converting them to ONNX for use with OpenVINO should be considered the default p
 
 .. note::
 
-   If you want to keep working with the legacy formats the old way, refer to a previous 
+   If you want to keep working with the legacy formats the old way, refer to a previous
    `OpenVINO LTS version and its documentation <https://docs.openvino.ai/2022.3/Supported_Model_Formats.html>`__ .
-    
-   OpenVINO versions of 2023 are mostly compatible with the old instructions, 
+
+   OpenVINO versions of 2023 are mostly compatible with the old instructions,
    through a deprecated MO tool, installed with the deprecated OpenVINO Developer Tools package.
 
-   `OpenVINO 2023.0 <https://docs.openvino.ai/2023.0/Supported_Model_Formats.html>`__ is the last
+   `OpenVINO 2023.0 <https://docs.openvino.ai/2023.3/Supported_Model_Formats_MO_DG.html>`__ is the last
    release officially supporting the MO conversion process for the legacy formats.
 
 

@@ -534,6 +534,20 @@ public:
                                     std::pair<const Node*, const std::vector<TShape>*>&& ctx,
                                     const std::string& explanation);
 
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const Node* node,
+                                                                                                    const std::string&
+                                                                                                        explanation);
+
+    template <class TShape>
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 "
+        "release") static void create(const CheckLocInfo& check_loc_info,
+                                      std::pair<const Node*, const std::vector<TShape>*>&& ctx,
+                                      const std::string& explanation);
+
 protected:
     explicit NodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
@@ -552,6 +566,12 @@ OPENVINO_API void NodeValidationFailure::create(const char* file,
                                                 const char* check_string,
                                                 std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
                                                 const std::string& explanation);
+
+template <>
+OPENVINO_API void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                                std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
+                                                const std::string& explanation);
+
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 

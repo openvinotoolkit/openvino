@@ -14,6 +14,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 using namespace ov;
@@ -507,6 +508,86 @@ TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
         auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f32);
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
                                                               convert_ins1,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::op::v0::Constant::create(
+            ov::element::f16,
+            ov::Shape{1, 3, 3, 3},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_node,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f16,
+            ov::Shape{1, 3, 3, 3},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_node,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::op::v0::Constant::create(
+            ov::element::bf16,
+            ov::Shape{1, 3, 3, 3},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_node,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::bf16,
+            ov::Shape{1, 3, 3, 3},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_node,
                                                               ov::Strides{1, 1},
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::CoordinateDiff{0, 0},

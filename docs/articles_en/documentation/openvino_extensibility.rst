@@ -5,8 +5,8 @@ OpenVINO Extensibility Mechanism
 
 
 .. meta::
-   :description: Explore OpenVINO™ Extensibility API, which allows adding 
-                 support for models with custom operations and their further implementation 
+   :description: Explore OpenVINO™ Extensibility API, which allows adding
+                 support for models with custom operations and their further implementation
                  in applications.
 
 .. toctree::
@@ -16,18 +16,18 @@ OpenVINO Extensibility Mechanism
    openvino_docs_Extensibility_UG_add_openvino_ops
    openvino_docs_Extensibility_UG_Frontend_Extensions
    openvino_docs_Extensibility_UG_GPU
-   
+
 .. toctree::
    :maxdepth: 1
    :hidden:
-   
+
    openvino_docs_transformations
    OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
 
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
-TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle (OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently 
-being deprecated and will be removed entirely in the future). The list of supported operations is different for each of the supported frameworks. 
+TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle (OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently
+being deprecated and will be removed entirely in the future). The list of supported operations is different for each of the supported frameworks.
 To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_resources_supported_operations_frontend>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
@@ -80,32 +80,32 @@ Registering Extensions
 
 A custom operation class and a new mapping frontend extension class object should be registered to be usable in OpenVINO runtime.
 
-.. note:: 
+.. note::
    This documentation is derived from the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates the details of extension development. It is based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
 
-Use the ``:ref:`ov::Core::add_extension <doxid-classov_1_1_core_1a68d0dea1cbcd42a67bea32780e32acea>``` method to load the extensions to the ``:ref:`ov::Core <doxid-classov_1_1_core>``` object. This method allows loading library with extensions or extensions from the code.
+Use the ``ov::Core::add_extension`` method to load the extensions to the ``ov::Core`` object. This method allows loading library with extensions or extensions from the code.
 
 Load Extensions to Core
 +++++++++++++++++++++++
 
-Extensions can be loaded from a code with the  ``:ref:`ov::Core::add_extension <doxid-classov_1_1_core_1a68d0dea1cbcd42a67bea32780e32acea>``` method:
+Extensions can be loaded from a code with the  ``ov::Core::add_extension`` method:
 
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
- 
+
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python
          :fragment: [add_extension]
 
    .. tab-item:: C++
       :sync: cpp
- 
+
       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [add_extension]
-   
+
 
 The ``Identity`` is a custom operation class defined in :doc:`Custom Operation Guide <openvino_docs_Extensibility_UG_add_openvino_ops>`. This is sufficient to enable reading OpenVINO IR which uses the ``Identity`` extension operation emitted by Model Optimizer. In order to load original model directly to the runtime, add a mapping extension:
 
@@ -130,7 +130,7 @@ When Python API is used, there is no way to implement a custom OpenVINO operatio
 Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
 
 .. _create_a_library_with_extensions:
- 
+
 Create a Library with Extensions
 ++++++++++++++++++++++++++++++++
 
@@ -142,7 +142,7 @@ An extension library should be created in the following cases:
 
 To create an extension library, for example, to load the extensions into Model Optimizer, perform the following:
 
-1. Create an entry point for extension library. OpenVINO provides the ``:ref:`OPENVINO_CREATE_EXTENSIONS() <doxid-core_2include_2openvino_2core_2extension_8hpp_1acdadcfa0eff763d8b4dadb8a9cb6f6e6>``` macro, which allows to define an entry point to a library with OpenVINO Extensions.
+1. Create an entry point for extension library. OpenVINO provides the ``OPENVINO_CREATE_EXTENSIONS()`` macro, which allows to define an entry point to a library with OpenVINO Extensions.
 This macro should have a vector of all OpenVINO Extensions as an argument.
 
 Based on that, the declaration of an extension class might look like the following:
@@ -162,7 +162,7 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
 3. Build the extension library, running the commands below:
 
 .. code-block:: sh
-   
+
    $ cd src/core/template_extension/new
    $ mkdir build
    $ cd build
@@ -173,16 +173,16 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
 4. After the build, you may use the path to your extension library to load your extensions to OpenVINO Runtime:
 
 .. tab-set::
-   
+
    .. tab-item:: Python
       :sync: py
- 
+
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python
          :fragment: [add_extension_lib]
 
    .. tab-item:: C++
-      :sync: cpp 
+      :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
          :language: cpp
@@ -194,5 +194,5 @@ See Also
 
 * :doc:`OpenVINO Transformations <openvino_docs_transformations>`
 * :doc:`Using OpenVINO Runtime Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Hello Shape Infer SSD sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
+* :doc:`Hello Shape Infer SSD sample <openvino_sample_hello_reshape_ssd>`
 

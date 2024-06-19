@@ -5,15 +5,15 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
 
 .. meta::
-   :description: A collection of troubleshooting steps and solutions to possible 
-                 problems that may occur during the installation and configuration 
+   :description: A collection of troubleshooting steps and solutions to possible
+                 problems that may occur during the installation and configuration
                  of OpenVINO™ on your system.
 
 
 .. _troubleshooting guide for install:
 
 | This guide provides general troubleshooting steps and solutions to possible issues that
-  may be encountered while installing and configuring OpenVINO™. For a comprehensive 
+  may be encountered while installing and configuring OpenVINO™. For a comprehensive
   database of support topics on OpenVINO, go to:
 | `Support for OpenVINO™ toolkit <https://www.intel.com/content/www/us/en/support/products/96066/software/development-software/openvino-toolkit.html>`__
 
@@ -24,30 +24,29 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 .. dropdown:: Errors with Installing via PIP for Users in China
 
    Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try one of the following options:
-      
-   * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
+
+   * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example:
 
    .. code-block:: sh
-      
+
       pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
-   
+
    Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
    You can also run the following command to install specific framework. For example:
-      
-   .. code-block:: sh
-      
-      pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
-      
 
-   * For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the archive file, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: 
-      
    .. code-block:: sh
-      
+
+      pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
+
+
+   * For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the archive file, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command:
+
+   .. code-block:: sh
+
       pip install -r <INSTALL_DIR>/tools/requirements.txt
-      
+
    For APT and YUM users, replace the ``INSTALL_DIR`` with ``/usr/share/openvino``.
 
-<!-- this part was from Docker installation -->
 
 .. dropdown:: Issues with Installing OpenVINO on Linux from Docker
 
@@ -68,7 +67,7 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    When using the ``bitbake-layers add-layer meta-intel`` command, the following error might occur:
 
    .. code-block:: sh
-      
+
       NOTE: Starting bitbake server...
       ERROR: The following required tools (as specified by HOSTTOOLS) appear to be unavailable in PATH, please install them in order to proceed: chrpath diffstat pzstd zstd
 
@@ -76,10 +75,10 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    To resolve the issue, install the ``chrpath diffstat zstd`` tools:
 
    .. code-block:: sh
-      
+
       sudo apt-get install chrpath diffstat zstd
 
-      3. If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
+      3. If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first.
 
 .. dropdown:: Check the versions of OpenVINO Runtime and Development Tools
 
@@ -106,13 +105,13 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
 
    * To check the version of OpenVINO Runtime, use the following code:
-      
+
    .. code-block:: sh
-      
-      from openvino.runtime import get_version 
+
+      from openvino.runtime import get_version
       get_version()
 
-   
+
 .. dropdown:: Check the versions of Python and PIP
 
    To check your Python version, run ``python -VV`` or ``python --version``. The supported Python versions should be 64-bit and between 3.8 and 3.11. If you are using Python 3.7, you are recommended to upgrade the version to 3.8 or higher.
@@ -125,22 +124,19 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    For PIP, make sure that you have installed the latest version. To check and upgrade your PIP version, run the following command:
 
    .. code-block:: sh
-      
+
       python -m pip install --upgrade pip
 
-<!--## Check the special tips for Anaconda installation-->
-
-<!--add this part in future-->
 
 .. dropdown:: Check if environment variables are set correctly
 
    - For Python developers, if you previously installed OpenVINO using the archive file, and are now installing OpenVINO using PIP, remove all the PATH settings and the lines with ``setupvars`` from ``.bashrc``. Note that if you installed OpenVINO with PIP in a virtual environment, you don't need to set any environment variables.
-   - If you have installed OpenVINO before, you probably have added ``setupvars`` to your ``PATH /.bashrc`` or Windows environment variables. After restarting your environment, you should see similar information as below: 
+   - If you have installed OpenVINO before, you probably have added ``setupvars`` to your ``PATH /.bashrc`` or Windows environment variables. After restarting your environment, you should see similar information as below:
 
    .. code-block:: sh
-      
+
       [setupvars.sh] OpenVINO™ environment initialized
-      
+
 
    - If you don't see the information above, your PATH variables may be configured incorrectly. Check if you have typed the correct <INSTALL_DIR> or you are trying to activate in the correct directory.
    - If you added it to a ``.bashrc`` file, make sure that the command is correctly written and the file is found in the ``~/.bashrc`` folder.
@@ -152,7 +148,7 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    .. code-block:: sh
 
       python -c "from openvino import Core; print(Core().available_devices)"
-      
+
    If OpenVINO was successfully installed, you will see a list of available devices.
 
    * If you installed OpenVINO Runtime using the archive file, you can search "openvino" in Apps & Features on a Windows system, or check your installation directory on Linux to see if OpenVINO is there.
@@ -169,12 +165,12 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
 .. dropdown:: Check firewall and network settings
 
-   Make sure that your firewall and network settings are configured correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy: 
+   Make sure that your firewall and network settings are configured correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy:
 
    .. code-block:: sh
 
-      pip install --proxy http://address:port --trusted-host pypi.org openvino 
+      pip install --proxy http://address:port --trusted-host pypi.org openvino
 
-   For specific issues, see :ref:`Errors with Installing via PIP for Users in China <install_for_prc>` and :ref:`proxy issues with installing OpenVINO on Linux from Docker <proxy-issues>`. 
+   For specific issues, see Errors with Installing via PIP for Users in China and Proxy issues with installing OpenVINO on Linux from Docker questions above.
 
 

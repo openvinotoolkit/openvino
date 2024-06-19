@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="{{ pathto('_static/css/custom.css', 1) }}" type="text/css" />
 <link rel="stylesheet" href="{{ pathto('_static/css/coveo_custom.css', 1) }}" type="text/css" />
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-barchart-background@1.3.0/build/Plugin.Barchart.Background.min.js"></script>
@@ -25,10 +25,7 @@
 {% block docs_navbar %}
 {{ super() }}
 <div id="info-banner" class="transition-banner">
-    <p>OpenVINO 2022.1 has introduced OpenVINO API 2.0. For more information on transition steps from the previous API, see the <a href="https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html">transition guide</a></p>
-    <button type="button" class="close-banner" onclick="closeTransitionBanner()">
-      <span aria-hidden="true">&times;</span>
-    </button>
+    <p>This page relates to OpenVINO 2023.3 (LTS). <a href="https://docs.openvino.ai/">Go to the latest documentation for up-to-date information.</a></p>
 </div>
 <script src="{{ pathto('_static/js/hide_banner.js', 1) }}"></script>
 {% endblock %}
