@@ -366,6 +366,27 @@ def test_reshape_with_python_types(device):
     )
 
 
+def test_reshape_with_list_of_shapes():
+
+    def generate_model_with_inputs(input_shapes):
+        params = [ops.parameter(shape, dtype=np.float32) for shape in input_shapes]
+        relus = [ops.relu(param) for param in params]
+        return Model(relus, params)
+
+    input_shapes = [[], [], [], []]
+    model = generate_model_with_inputs(input_shapes)
+
+    # Define new shapes to reshape the inputs to
+    new_shapes_list = [[2, 2], [2, 3, 224, 224], [10], [4]]
+
+    model.reshape(new_shapes_list)
+
+    for model_input, expected_shape in zip(model.inputs, new_shapes_list):
+        assert model_input.partial_shape == PartialShape(expected_shape)
+
+    assert len(model.inputs) == len(new_shapes_list)
+
+
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_rt_info(request, tmp_path):
     version = "TestVersion"

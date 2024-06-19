@@ -327,9 +327,22 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const py::list& partial_shape) {
-            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape));
-            py::gil_scoped_release release;
-            self.reshape(new_shape);
+            if (py::isinstance<py::list>(partial_shape[0])) {
+                std::map<ov::Output<ov::Node>, ov::PartialShape> shapes_map;
+
+                for (size_t i = 0; i < py::len(partial_shape); ++i) {
+                    py::list shape_list = partial_shape[i].cast<py::list>();
+                    ov::PartialShape shape = Common::partial_shape_from_list(shape_list);
+                    shapes_map[self.input(i)] = shape;
+                }
+
+                py::gil_scoped_release release;
+                self.reshape(shapes_map);
+            } else {
+                ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape));
+                py::gil_scoped_release release;
+                self.reshape(new_shape);
+            }
         },
         py::arg("partial_shape"),
         R"(
@@ -337,9 +350,21 @@ void regclass_graph_Model(py::module m) {
 
                 GIL is released while running this function.
 
-                :param partial_shape: New shape.
-                :type partial_shape: list
+                :param partial_shape: New shape or list of shapes.
+                :type partial_shape: list or list of lists
                 :return : void
+
+                If a list of integers is provided, the model input will be reshaped to the specified shape.
+                If a list of lists is provided, each sublist represents the new shape for the corresponding model input.
+
+                Example usage:
+                
+                # Reshaping a single input
+                model.reshape([1, 224, 224, 3])
+
+                # Reshaping multiple inputs
+                model.reshape([[1, 224, 224, 3], [1, 10], [2, 3, 224, 224]])
+
              )");
 
     model.def(
@@ -383,7 +408,6 @@ void regclass_graph_Model(py::module m) {
             std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
             for (const auto& item : partial_shapes) {
                 std::pair<ov::Output<ov::Node>, ov::PartialShape> new_shape;
-                // check keys
                 if (py::isinstance<py::int_>(item.first)) {
                     new_shape.first = self.input(item.first.cast<size_t>());
                 } else if (py::isinstance<py::str>(item.first)) {
