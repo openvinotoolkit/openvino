@@ -21,6 +21,9 @@ std::vector<TRShape> shape_infer(const GatherElements* op, const std::vector<T>&
     auto indices_rank = indices_pshape.rank();
     auto output_shapes = std::vector<TRShape>();
 
+    NODE_VALIDATION_CHECK(op,
+                          indices_rank.is_dynamic() || indices_rank.get_length() >= 1,
+                          "indices rank must be >= 1.");
     if (data_rank.is_dynamic()) {
         output_shapes.push_back(indices_pshape);
         return output_shapes;
@@ -37,7 +40,6 @@ std::vector<TRShape> shape_infer(const GatherElements* op, const std::vector<T>&
         output_shape[axis] = DimType();
         return output_shapes;
     }
-    NODE_VALIDATION_CHECK(op, indices_rank.get_length() >= 1, "indices rank must be >= 1.");
 
     // left only case when data_rank.is_static() && indices_rank.is_static()
     NODE_VALIDATION_CHECK(op,
