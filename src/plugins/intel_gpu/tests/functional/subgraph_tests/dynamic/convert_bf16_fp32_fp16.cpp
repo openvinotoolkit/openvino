@@ -34,6 +34,19 @@ public:
         return result.str();
     }
 
+    static ushort float_to_ushort(float source) {
+        uint* in = reinterpret_cast<uint*>(&source);
+        ushort u = 0;
+        if ( (*in>>31) ) {
+            u = 1 << 15;
+        }
+        //exponent
+        u += ( ( (*in >> 23) & 0b11111111)) << 7;
+        //fraction
+        u += (*in >> 16) & 0b1111111;
+        return u;
+    }
+
 protected:
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(ov::element::Type_t typ, float val) {
         auto weights_tensor_left = ov::test::utils::create_and_fill_tensor(typ, ov::Shape{{2, 2}});
@@ -103,14 +116,16 @@ TEST_P(BF16WeightsDecompression, Inference_without_convert) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Inference_without_convert, BF16WeightsDecompression,
-                         testing::Values(BF16WeightsDecompressionParams(768, 17728.0f),
-                            BF16WeightsDecompressionParams(3.0f, 16704.0f),
-                            BF16WeightsDecompressionParams(2.0f, 16640.0f),
-                            BF16WeightsDecompressionParams(49512.0f, 18497.0f), //768x64
-                            BF16WeightsDecompressionParams(98304.0f, 18624.0f), //768x128
-                            BF16WeightsDecompressionParams(55340232221128654848.0f, 24896.0f),
-                            BF16WeightsDecompressionParams(-55340232221128654848.0f, 57664.0f),
-                            BF16WeightsDecompressionParams(-3.0f, 49472.0f)),
+                         testing::Values(BF16WeightsDecompressionParams(768, BF16WeightsDecompression::float_to_ushort(768*4)),
+                            BF16WeightsDecompressionParams(3.0f, BF16WeightsDecompression::float_to_ushort(3.0f*4)), //4 because of multiply by [[2,2], [2,2]]
+                            BF16WeightsDecompressionParams(2.0f, BF16WeightsDecompression::float_to_ushort(2.0f*4)),
+                            BF16WeightsDecompressionParams(49512.0f, BF16WeightsDecompression::float_to_ushort(49512.0f*4)),
+                            BF16WeightsDecompressionParams(98304.0f, BF16WeightsDecompression::float_to_ushort(98304.0f*4)),
+                            BF16WeightsDecompressionParams(55340232221128654848.0f,
+                                BF16WeightsDecompression::float_to_ushort(55340232221128654848.0f*4)),
+                            BF16WeightsDecompressionParams(-55340232221128654848.0f,
+                                 BF16WeightsDecompression::float_to_ushort(-55340232221128654848.0f*4)),
+                            BF16WeightsDecompressionParams(-3.0f, BF16WeightsDecompression::float_to_ushort(-3.0f*4))),
                             BF16WeightsDecompression::get_test_case_name);
 
 
