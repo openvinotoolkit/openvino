@@ -35,7 +35,7 @@ FrontEnd::~FrontEnd() = default;
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (m_actual) {
-        FRONTEND_RETURN_STATEMENT("Check supported", m_actual->supported_impl(to_wstring_if_needed(variants)))
+        FRONTEND_RETURN_STATEMENT("Check supported", m_actual->supported_impl(variants))
     }
     return false;
 }
@@ -45,7 +45,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     auto model = std::make_shared<InputModel>();
     model->m_shared_object = m_shared_object;
     FRONTEND_CALL_STATEMENT("Loading input model",
-                            model->m_actual = m_actual->load_impl(to_wstring_if_needed(variants)))
+                            model->m_actual = m_actual->load_impl(variants))
     return model;
 }
 

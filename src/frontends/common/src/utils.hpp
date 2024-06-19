@@ -4,7 +4,6 @@
 
 #include <string>
 
-#include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/visibility.hpp"
 
 #define RETHROW_FRONTEND_EXCEPTION(Type) \
@@ -49,11 +48,3 @@
     catch (...) {                                                   \
         OPENVINO_ASSERT(false, (MESSAGE));                          \
     }
-
-namespace ov {
-namespace frontend {
-
-std::vector<ov::Any> to_wstring_if_needed(const std::vector<ov::Any>& variants);
-
-}
-}  // namespace ov

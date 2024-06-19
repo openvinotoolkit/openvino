@@ -226,7 +226,7 @@ FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework) {
 }
 
 FrontEnd::Ptr FrontEndManager::load_by_model_impl(const std::vector<ov::Any>& variants) {
-    return m_impl->load_by_model(to_wstring_if_needed(variants));
+    return m_impl->load_by_model(variants);
 }
 
 std::vector<std::string> FrontEndManager::get_available_front_ends() {
