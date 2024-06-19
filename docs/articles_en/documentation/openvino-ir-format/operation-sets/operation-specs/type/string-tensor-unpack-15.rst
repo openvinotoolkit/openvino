@@ -21,14 +21,13 @@ Consider an ``input`` string tensor containing values ``["Intel", "OpenVINO"]``.
 The operator will transform the tensor into three outputs:
 
 * *begins* = [0, 5]
-    * ``begins[0]`` is equal to 0, because the first string starts at the beggining index.
+    * ``begins[0]`` is equal to 0, because the first string starts at the beginning index.
     * ``begins[1]`` is equal to 5, because length of the string "Intel" is equal to 5.
     * ``begins.shape`` is equal to [2], because the ``input`` is a batch of 2 strings.
 
 * *ends* = [5, 13]
     * ``ends[0]`` is equal to 5, because length of the string "Intel" is equal to 5.
-    * ``ends[1]`` is equal to 13, because length of the string "OpenVINO" is 8, and it needs to be summed up
-    with length of the string "Intel".
+    * ``ends[1]`` is equal to 13, because length of the string "OpenVINO" is 8, and it needs to be summed up with length of the string "Intel".
     * ``ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 strings.
 
 * *symbols* = "IntelOpenVINO"
@@ -50,7 +49,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
 * **1**: *begins*:
 
-  * **Description**: Indices of each string's begginings.
+  * **Description**: Indices of each string's beginnings.
   * **Range of values**: ND tensor of non-negative integer numbers.
   * **Type**: ``int32``
 
