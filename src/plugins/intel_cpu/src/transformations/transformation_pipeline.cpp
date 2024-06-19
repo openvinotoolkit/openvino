@@ -122,6 +122,7 @@
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
+#include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
@@ -432,6 +433,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
+    CPU_REGISTER_PASS_ARM(manager, ConvertReduceNoKeepDims);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceMultiAxis);
     CPU_REGISTER_PASS_ARM32(manager, MishDecomposition);
     CPU_REGISTER_PASS_ARM(manager, ConvertConv1D);
@@ -943,17 +945,33 @@ void Transformations::MainSnippets(void) {
 
     auto is_supported_op = [](const std::shared_ptr<const ov::Node> &n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
-        return (ov::is_type<ov::op::v1::Add>(n) ||
+        return (ov::is_type<ov::op::v0::Abs>(n) ||
+                ov::is_type<ov::op::v1::Add>(n) ||
+                ov::is_type<ov::op::v0::Clamp>(n) ||
                 ov::is_type<ov::op::v1::Divide>(n) ||
-                ov::is_type<ov::op::v1::Multiply>(n) ||
+                ov::is_type<ov::op::v0::Elu>(n) ||
                 ov::is_type<ov::op::v0::Exp>(n) ||
+                ov::is_type<ov::op::v0::Floor>(n) ||
+                ov::is_type<ov::op::v0::Gelu>(n) ||
+                ov::is_type<ov::op::v7::Gelu>(n) ||
+                ov::is_type<ov::op::v4::HSwish>(n) ||
+                ov::is_type<ov::op::v1::Maximum>(n) ||
+                ov::is_type<ov::op::v1::Minimum>(n) ||
+                ov::is_type<ov::op::v4::Mish>(n) ||
+                ov::is_type<ov::op::v1::Mod>(n) ||
+                ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Relu>(n) ||
+                ov::is_type<ov::op::v0::Sigmoid>(n) ||
+                ov::is_type<ov::op::v1::Subtract>(n) ||
+                ov::is_type<ov::op::v4::Swish>(n) ||
                 ov::is_type<ov::op::v0::Tanh>(n));
 #else
-        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
-        auto is_unsupported_swish = [](const std::shared_ptr<const ov::Node> &n) {
-            return ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                   !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
+        // and CPU Plugin does not support Mish for x64
+        auto is_unsupported = [](const std::shared_ptr<const ov::Node> &n) {
+            return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
+                   !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1))) ||
+                   ov::is_type<const ov::op::v4::Mish>(n);
         };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
@@ -967,7 +985,7 @@ void Transformations::MainSnippets(void) {
                     ov::is_type<const ov::op::v1::ReduceMax>(n) ||
                     ov::is_type<const ov::op::v1::ReduceSum>(n));
         };
-        return !is_unsupported_swish(n) && !is_unsupported_by_common_tokenization(n);
+        return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
 #endif
     };
 

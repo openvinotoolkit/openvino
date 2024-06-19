@@ -6,8 +6,10 @@ Deploy Locally
    :maxdepth: 1
    :hidden:
 
-   Local Distribution Libraries <deployment-locally/local-distribution-libraries>
-   Optimize Binaries Size <deployment-locally/optimial-binary-size-conditional-compilation>
+   Local Distribution Libraries <./deployment-locally/local-distribution-libraries>
+   Optimize Binaries Size <./deployment-locally/optimial-binary-size-conditional-compilation>
+   Integrate OpenVINO with Ubuntu Snap <./deployment-locally/integrate-openvino-with-ubuntu-snap>
+
 
 .. meta::
    :description: There are several ways of deploying OpenVINO™ application once
