@@ -108,8 +108,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
             if (!std::get<1>(existing_names)) {
                 existing_names = std::make_tuple(get_function_tensor_names(model), true);
             }
-            const auto& def_output = res.m_param->get_default_output();
-            for (const auto& tensor_name : def_output.get_tensor().get_names()) {
+            for (const auto& tensor_name : res.m_param->get_default_output().get_tensor().get_names()) {
                 auto new_name = tensor_name + sub_name;
                 OPENVINO_ASSERT(
                     std::get<0>(existing_names).count(new_name) == 0,

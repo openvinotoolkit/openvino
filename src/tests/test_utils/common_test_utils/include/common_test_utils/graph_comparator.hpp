@@ -181,11 +181,10 @@ public:
 
         // save result input tensor names and friendly name for future comparison
         for (auto r : f->get_results()) {
-            const auto& input = r->input_value(0);
-            const auto& tensor_names = input.get_names();
+            const auto& tensor_names = r->input_value(0).get_names();
             m_result_tensor_names[r.get()].insert(tensor_names.begin(), tensor_names.end());
-            m_result_node_names[r.get()] = {input.get_node()->get_friendly_name(),
-                                            input.get_node()->outputs().size() != 1};
+            m_result_node_names[r.get()] = {r->input_value(0).get_node()->get_friendly_name(),
+                                            r->input_value(0).get_node()->outputs().size() != 1};
             // As get_ordered_ops doesn't guaranty that the order of Result ops is the same
             // we explicitly update Result names to have them in increasing order that
             // helps FunctionComparator to compare Functions with multiple Results.
@@ -224,14 +223,13 @@ public:
         for (auto r : f->get_results()) {
             // Check that old tensor names for results were preserved
             const auto& ref_tensor_names = m_result_tensor_names.at(r.get());
-            const auto& input = r->input_value(0);
-            const auto& cur_tensor_names = input.get_names();
+            const auto& cur_tensor_names = r->input_value(0).get_names();
             for (const auto& ref_name : ref_tensor_names) {
                 if (cur_tensor_names.count(ref_name) == 0) {
                     std::stringstream ss;
-                    auto node = input.get_node();
+                    auto node = r->input_value(0).get_node();
                     ss << "Tensor name: " << ref_name << " is missing in " << node->get_type_info() << " ";
-                    ss << "output(" << input.get_index() << ")";
+                    ss << "output(" << r->input_value(0).get_index() << ")";
                     OPENVINO_THROW(ss.str());
                 }
             }

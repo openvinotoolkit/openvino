@@ -119,8 +119,7 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
             visited.insert(curr_node);
             if (type_input_port_batch_index.count(curr_node->get_type_info())) {
                 auto batch_placement = type_input_port_batch_index[curr_node->get_type_info()];
-                const auto& curr_input = curr_node->input_value(batch_placement.first);
-                const auto& shape = curr_input.get_partial_shape();
+                const auto& shape = curr_node->input_value(batch_placement.first).get_partial_shape();
                 const auto& batch_dim_symbol = shape[batch_placement.second].get_symbol();
                 if (batch_dim_symbol == nullptr)
                     mark_no_batch(parameter, parameter_to_batch_symbols);

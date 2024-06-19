@@ -176,7 +176,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
     PartialShape result_shape{PartialShape::dynamic()};
     const auto& input_shape = get_input_partial_shape(0);
     const auto input_rank = input_shape.rank();
-    const auto& target_shape = get_input_partial_shape(1);
+    const auto& target_shape = input_value(1).get_partial_shape();
     const bool is_target_shape_known = target_shape.rank().is_static() && target_shape[0].is_static();
 
     if (m_mode.m_type == BroadcastType::BIDIRECTIONAL) {

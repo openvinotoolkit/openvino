@@ -29,8 +29,7 @@ std::tuple<ov::pass::MakeStateful::ParamResPairs, std::vector<std::string>> find
         const auto& param_name = param_res.first;
         const auto& res_name = param_res.second;
         auto param = std::find_if(params.begin(), params.end(), [&](const std::shared_ptr<ov::Node>& node) {
-            const auto& output = node->output(0);
-            const auto& possible_names = output.get_names();
+            const auto& possible_names = node->output(0).get_names();
             return possible_names.find(param_name) != possible_names.end();
         });
         OPENVINO_ASSERT(param != params.end(),
@@ -41,8 +40,7 @@ std::tuple<ov::pass::MakeStateful::ParamResPairs, std::vector<std::string>> find
         uniq_params.insert(param->get());
 
         auto res = std::find_if(results.begin(), results.end(), [&](const std::shared_ptr<ov::Node>& node) {
-            const auto& output = node->output(0);
-            const auto& possible_names = output.get_names();
+            const auto& possible_names = node->output(0).get_names();
             return possible_names.find(res_name) != possible_names.end();
         });
 

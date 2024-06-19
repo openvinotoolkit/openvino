@@ -24,8 +24,7 @@ namespace frontend {
 namespace onnx {
 namespace convpool {
 ov::Shape get_kernel_shape(const Node& node) {
-    const auto& inputs = node.get_ov_inputs();
-    const auto& data_shape = inputs.at(0).get_partial_shape();
+    const auto& data_shape = node.get_ov_inputs().at(0).get_partial_shape();
     const size_t input_spatial_dims = data_shape.rank().get_length() - 2;
     return node.get_attribute_value<std::vector<size_t>>("kernel_shape", std::vector<size_t>(input_spatial_dims, 1UL));
 }
