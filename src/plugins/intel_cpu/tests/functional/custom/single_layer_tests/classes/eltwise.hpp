@@ -51,6 +51,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();
 const std::vector<utils::InputLayerType>& secondaryInputTypes();
 
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();
+const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets();
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesDiffInp();
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinDyn();
 

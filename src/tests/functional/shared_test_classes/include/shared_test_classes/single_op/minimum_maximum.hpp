@@ -13,6 +13,13 @@
 
 namespace ov {
 namespace test {
+using ov::test::utils::MinMaxOpType;
+
+static std::map<MinMaxOpType, std::string> extremumNames = {
+        {MinMaxOpType::MINIMUM, "MINIMUM"},
+        {MinMaxOpType::MAXIMUM, "MAXIMUM"}
+};
+
 using MaxMinParamsTuple = typename std::tuple<
         std::vector<InputShape>,          // Input shapes
         ov::test::utils::MinMaxOpType,    // Operation type

@@ -314,6 +314,15 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
     return eltwiseOpTypesBinInp;
 }
 
+const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
+    static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
+        utils::EltwiseTypes::ADD,
+        utils::EltwiseTypes::MULTIPLY,
+        utils::EltwiseTypes::MOD,
+    };
+    return eltwiseOpTypesBinInp;
+}
+
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesDiffInp() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesDiffInp = { // Different number of input nodes depending on optimizations
         utils::EltwiseTypes::POWER,
