@@ -25,7 +25,7 @@ namespace convert {
         f4e2m1, f8e8m0
 
 #define CONVERT_TO_ANY_NO_F4 \
-    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, f8e5m2, f8e8m0
+    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, f8e4m3, f8e5m2
 
 struct Evaluate : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
@@ -34,7 +34,8 @@ struct Evaluate : public element::NoAction<bool> {
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN != element::f16 && ET_IN != element::bf16 && ET_IN != element::f32 &&
-                                      ET_IN != element::nf4 && ET_IN != element::f4e2m1>::type* = nullptr>
+                                      ET_IN != element::nf4 && ET_IN != element::f4e2m1 &&
+                                      ET_IN != element::f8e8m0>::type* = nullptr>
     static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
@@ -91,7 +92,7 @@ struct Evaluate : public element::NoAction<bool> {
                           count);
     }
 
-    // convert to F4E2M1
+    // convert from F4E2M1
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN == element::f4e2m1>::type* = nullptr>
@@ -99,6 +100,21 @@ struct Evaluate : public element::NoAction<bool> {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           OV_PP_ET_LIST(f16, bf16, f32, f4e2m1),
+                          EvalByOutputType,
+                          out.get_element_type(),
+                          iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
+                          out,
+                          count);
+    }
+
+    // convert from F8E8M0
+    template <element::Type_t ET_IN,
+              class TI = fundamental_type_for<ET_IN>,
+              typename std::enable_if<ET_IN == element::f8e8m0>::type* = nullptr>
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+        using namespace ov::element;
+        return IF_TYPE_OF(Convert_out,
+                          OV_PP_ET_LIST(f16, bf16, f32, f8e8m0),
                           EvalByOutputType,
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
@@ -213,6 +229,10 @@ bool Convert::has_evaluate() const {
         return et == element::f16 || et == element::bf16 || et == element::f32 || et == element::f4e2m1;
     };
 
+    const auto can_convert_f8e8m0 = [](const element::Type& et) {
+        return et == element::f16 || et == element::bf16 || et == element::f32 || et == element::f8e8m0;
+    };
+
     const auto is_valid_type = [](const element::Type& et) -> bool {
         switch (et) {
         case element::boolean:
@@ -233,7 +253,6 @@ bool Convert::has_evaluate() const {
         case element::u64:
         case element::f8e4m3:
         case element::f8e5m2:
-        case element::f8e8m0:
             return true;
         default:
             return false;
@@ -244,7 +263,8 @@ bool Convert::has_evaluate() const {
     const auto& output_et = get_output_element_type(0);
 
     return (is_valid_type(input_et) && is_valid_type(output_et)) || is_to_nf4_supported(input_et, output_et) ||
-           (can_convert_f4e2m1(input_et) && can_convert_f4e2m1(output_et));
+           (can_convert_f4e2m1(input_et) && can_convert_f4e2m1(output_et)) ||
+           (can_convert_f8e8m0(input_et) && can_convert_f8e8m0(output_et));
 }
 
 bool Convert::evaluate_lower(TensorVector& output_values) const {

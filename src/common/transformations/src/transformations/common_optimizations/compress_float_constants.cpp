@@ -96,8 +96,7 @@ public:
                                                                                            ov::element::u8,
                                                                                            ov::element::nf4,
                                                                                            ov::element::f8e4m3,
-                                                                                           ov::element::f8e5m2,
-                                                                                           ov::element::f8e8m0}));
+                                                                                           ov::element::f8e5m2}));
         auto convert = pattern::wrap_type<ov::op::v0::Convert>({weights});
         auto zero_point_const = pattern::wrap_type<ov::op::v0::Constant>();
         auto zero_point = pattern::optional<ov::op::v0::Convert>(zero_point_const);

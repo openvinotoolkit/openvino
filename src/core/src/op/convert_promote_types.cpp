@@ -29,7 +29,6 @@ bool is_float8(const element::Type& type) {
     switch (type) {
     case element::f8e4m3:
     case element::f8e5m2:
-    case element::f8e8m0:
         return true;
     default:
         return false;

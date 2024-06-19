@@ -124,7 +124,7 @@ def fake_convert(
     data: NodeInput,
     scale: NodeInput,
     shift: Optional[NodeInput] = None,
-    destination_type: Literal["f8e4m3", "f8e5m2", "f8e8m0"] = "f8e4m3",
+    destination_type: Literal["f8e4m3", "f8e5m2"] = "f8e4m3",
     name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs FakeConvert.
@@ -137,7 +137,7 @@ def fake_convert(
                   of the same type as the data, and shape Numpy-broadcastable to data.
     :param shift: Optional tensor with value to subtract before and add after conversion of the data input value,
                   of the same type as the data, and shape Numpy-broadcastable to data.
-    :param destination_type: Type to emulate, string of either "f8e4m3", "f8e5m2" or "f8e8m0".
+    :param destination_type: Type to emulate, string of either "f8e4m3" or "f8e5m2".
     :param name: The optional new name for output node.
 
     :return: The new node performing FakeConvert operation.
