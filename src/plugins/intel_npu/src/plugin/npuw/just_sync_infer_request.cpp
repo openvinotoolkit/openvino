@@ -111,24 +111,9 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     LOG_INFO("Preallocating input tensors...");
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
-        const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(i);
         m_input_tensors.push_back(ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
         m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
-
-        if (to_submodel != ov::npuw::CompiledModel::NO_LINK) {
-            m_reader_to_orig_port[to_submodel] = port;
-        } else {
-            // Quick hack to support models with unused Parameters...
-            // ..and do nothing here.
-        }
     } // for(inputs)
-    // One more map to fill...
-    for (auto&& it : m_npuw_model->m_param_subscribers) {
-        const auto& prim_port = m_npuw_model->inputs()[it.first];
-        for (auto&& to_submodel : it.second) {
-            m_reader_to_orig_port[to_submodel] = prim_port;
-        }
-    }
 
     // Preallocate output tensors
     LOG_INFO("Preallocating output tensors...");
@@ -307,28 +292,15 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
 
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    if (real_idx != idx && m_use_function_pipelining) {
-        LOG_DEBUG("This is a function and pipelining enabled - will be done in-pipeline, skipping");
-        return;
-    }
-
-    if (real_idx != idx) {
-        // Don't do here - function call will take parameter
-        // itself. Note it may be implemented more efficently
-        // than now (and in some cases, parameter can be pre-set)
-        LOG_DEBUG("Skipping this too now - function will do it for itself");
-        // FIXME ^^^ this is the old branch, it needs to be updated
-        // the logic needs to move there.
-        return;
-    }
 
     const auto &iodesc = m_subrequests_gio.at(idx);
     for (auto &&it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
+        auto &subr = m_subrequests[real_idx];
         const auto& g_port = m_npuw_model->inputs()[param_idx];
-        const auto& s_port = m_subrequests[idx]->get_inputs()[sub_in_idx];
-        m_subrequests[idx]->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
+        const auto& s_port = subr->get_inputs()[sub_in_idx];
+        subr->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
     }
 
     LOG_DEBUG("Done");
@@ -345,8 +317,6 @@ void ov::npuw::JustInferRequest::bind_global_results(std::size_t idx) {
         // itself. Note it may be implemented more efficently
         // than now (and in some cases, parameter can be pre-set)
         LOG_DEBUG("Skipping this too now - function will do it for itself");
-        // FIXME ^^^ this is the old branch, it needs to be updated
-        // the logic needs to move there.
         return;
     }
 
@@ -395,11 +365,6 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 // Take its tensor from the storage
                 m_subrequests[real_idx]->set_tensor(iport, m_funcall_result.at({prod_idx, prod_port}));
             }
-        } else {
-            // Take input from the associated parameter.
-            LOG_DEBUG("Finding the original model port for " << idx << "/" << i << "...");
-            auto& orig_port = m_reader_to_orig_port.at({idx, i});
-            m_subrequests[real_idx]->set_tensor(iport, m_port_to_tensor.at(orig_port).tensor);
         }
     }  // for(param_base)
 
@@ -412,7 +377,11 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         unpack_closure(idx, m_subrequests[real_idx]);
     }
 
-    // 3. Tell the function which results to produce (this time)
+    // 3. Tell the function which results to produce (this time).
+    // Note it covers both internal tensors used by other subgraphs as well as
+    // the Result tensors for the entire network.
+    // ..Since the tensors allocated for outputs of the networks ARE taken from the
+    // "funcall_results" if those are produced by funcall results.
     for (std::size_t i = 0; i < func_desc.compiled_model->outputs().size(); i++) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];

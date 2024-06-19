@@ -60,12 +60,6 @@ private:
     using TensorPtr = ov::SoPtr<ov::ITensor>;
     std::map<LinkFrom, TensorPtr> m_funcall_result;
 
-    using ToSubmodel = std::pair<std::size_t /* Subrequest index */
-                                 ,
-                                 std::size_t /* Subrequest input index */
-                                 >;          // Fixme: fourth installment?
-    std::map<ToSubmodel, ov::Output<const ov::Node>> m_reader_to_orig_port;
-
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
