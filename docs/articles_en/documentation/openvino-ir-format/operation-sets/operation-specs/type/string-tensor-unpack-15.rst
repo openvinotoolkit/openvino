@@ -27,8 +27,7 @@ The operator will transform the tensor into three outputs:
 
 * *ends* = [5, 13]
     * ``ends[0]`` is equal to 5, because length of the string "Intel" is equal to 5.
-    * ``ends[1]`` is equal to 13, because length of the string "OpenVINO" is 8, and it needs to be summed up
-    with length of the string "Intel".
+    * ``ends[1]`` is equal to 13, because length of the string "OpenVINO" is 8, and it needs to be summed up with length of the string "Intel".
     * ``ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 strings.
 
 * *symbols* = "IntelOpenVINO"
