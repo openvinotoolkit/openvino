@@ -116,14 +116,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
 
         if (to_submodel != ov::npuw::CompiledModel::NO_LINK) {
-            const auto& submodel_idx = to_submodel.first;
-            m_port_to_subrequest_idx[port] = submodel_idx;
             m_reader_to_orig_port[to_submodel] = port;
-            m_port_orig_to_sub[port] =
-                get_real_subrequest(to_submodel.first)->get_compiled_model()->inputs()[to_submodel.second];
         } else {
             // Quick hack to support models with unused Parameters...
-            m_port_to_subrequest_idx[port] = ov::npuw::JustInferRequest::INVALID_IDX;
+            // ..and do nothing here.
         }
     } // for(inputs)
     // One more map to fill...
@@ -131,8 +127,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         const auto& prim_port = m_npuw_model->inputs()[it.first];
         for (auto&& to_submodel : it.second) {
             m_reader_to_orig_port[to_submodel] = prim_port;
-            m_port_orig_to_sub[prim_port] =
-                get_real_subrequest(to_submodel.first)->get_compiled_model()->inputs()[to_submodel.second];
         }
     }
 
@@ -153,10 +147,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                           ? funcall_result_iter->second  // Function calls have their tensors allocated, so just use one
                           : ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
 
-        const auto& submodel_idx = from_submodel.first;
-        m_port_to_subrequest_idx[port] = submodel_idx;
-        m_port_orig_to_sub[port] =
-            get_real_subrequest(from_submodel.first)->get_compiled_model()->outputs()[from_submodel.second];
         m_output_tensors.push_back(tensor);
         m_port_to_tensor[port] = TensorStorage{tensor, true};
     }

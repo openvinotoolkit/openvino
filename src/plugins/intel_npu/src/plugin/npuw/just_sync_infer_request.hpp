@@ -66,13 +66,6 @@ private:
                                  >;          // Fixme: fourth installment?
     std::map<ToSubmodel, ov::Output<const ov::Node>> m_reader_to_orig_port;
 
-    // FIXME: STOP USING ov::Output<> AT ALL! It is a weak feature
-    // These objects get discarded on occasional model recompilation
-    std::map<ov::Output<const ov::Node>, size_t> m_port_to_subrequest_idx;
-    std::map<ov::Output<const ov::Node>,
-             ov::Output<const ov::Node>>
-        m_port_orig_to_sub;  // FIXME: this one likely replaces `m_port_to_subrequest_idx'
-
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
