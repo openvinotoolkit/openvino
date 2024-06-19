@@ -46,7 +46,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 * **3**: *symbols*:
 
   * **Description**: Concatenated ``input`` strings encoded in utf-8 bytes. **Required.**
-  * **Range of values**: 1D tensor of element::string objects.
+  * **Range of values**: 1D tensor of concatenated strings data encoded in utf-8 bytes.
   * **Type**: ``u8``
 
 **Outputs**
