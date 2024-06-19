@@ -31,7 +31,8 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = 
         {std::make_pair(ov::supported_properties.name(), ov::Any("deadbeef"))},
         {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))}};
 
-std::vector<std::pair<std::string, ov::Any>> properties = {{}};
+std::vector<std::pair<std::string, ov::Any>> mlir_compiler_type_properties = {
+        {std::make_pair(ov::intel_npu::compiler_type.name(), ov::Any(ov::intel_npu::CompilerType::MLIR))}};
 
 // ExecutableNetwork Properties tests
 class ClassExecutableNetworkGetPropertiesTestNPU :
@@ -95,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkGetProperties
                          ClassExecutableNetworkTestSuite1NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(exe_network_supported_properties),
-                                            ::testing::ValuesIn(properties)),
+                                            ::testing::ValuesIn(mlir_compiler_type_properties)),
                          ClassExecutableNetworkTestSuite1NPU::getTestCaseName);
 
 using ClassExecutableNetworkTestSuite2NPU = ClassExecutableNetworkGetPropertiesTestNPU;
@@ -117,7 +118,7 @@ TEST_P(ClassExecutableNetworkTestSuite2NPU, PropertyIsSupportedAndImmutableAndCa
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkTestSuite2NPU, ClassExecutableNetworkTestSuite2NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(exe_network_immutable_properties),
-                                            ::testing::ValuesIn(properties)),
+                                            ::testing::ValuesIn(mlir_compiler_type_properties)),
                          ClassExecutableNetworkTestSuite2NPU::getTestCaseName);
 
 }  // namespace
@@ -328,7 +329,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkGetProperties
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn({std::make_pair<std::string, ov::Any>(
                                                     "THISCONFIGKEYNOTEXIST", ov::Any("THISCONFIGVALUENOTEXIST"))}),
-                                            ::testing::ValuesIn(properties)),
+                                            ::testing::ValuesIn(mlir_compiler_type_properties)),
                          ClassPluginPropertiesTestSuite4NPU::getTestCaseName);
 
 }  // namespace
