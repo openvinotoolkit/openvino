@@ -10,12 +10,12 @@ import openvino.runtime as ov
 import pytest
 import tensorflow as tf
 from openvino.runtime import PartialShape, Model, Dimension
+from openvino.test_utils import compare_functions
 
 from common import constants
 from common.layer_test_class import CommonLayerTest
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.utils.tf_utils import save_to_pb
-
 
 def create_tf_graph_def(tmp_dir):
     tf.compat.v1.reset_default_graph()
@@ -1293,10 +1293,10 @@ class TestUnicodePaths(unittest.TestCase):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_unicode_paths(self):
-        test_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), r"晚安", r"путь_к_файлу")
-        with tempfile.TemporaryDirectory(dir=test_directory) as temp_dir:
+        test_directory = os.path.dirname(os.path.realpath(__file__))
+        with tempfile.TemporaryDirectory(dir=test_directory, prefix=r"晚安_путь_к_файлу") as temp_dir:
             model, model_ref, _ = create_tf_graph_def(None)
-            model_path = save_to_pb(model, model_name)
+            model_path = save_to_pb(model, temp_dir)
 
             from openvino import convert_model
             res_model = convert_model(model_path)
