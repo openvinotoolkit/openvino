@@ -219,7 +219,7 @@ class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
     std::map<std::string, double> getLoad() {
         return {{"0", 0}};
-};
+    };
 #endif
 GpuPerformanceCounter::GpuPerformanceCounter() : PerformanceCounter("GPU") {}
 GpuPerformanceCounter::~GpuPerformanceCounter() {
