@@ -18,7 +18,7 @@ For performance analysis, follow the steps below:
 
     1. [Intel Vtune Profiler](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html)
 
-3. Run OpenVINO project with performance analysis tool.
+3. Run an OpenVINO project with the performance analysis tool.
 
 ### Intel Vtune Profiler
 
