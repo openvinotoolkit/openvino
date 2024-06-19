@@ -44,7 +44,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
   * **Description**: A tensor containing a string to be unpacked. **Required.**
   * **Range of values**: A string tensor.
-  * **Type**: ``element::string``
+  * **Type**: ``string``
 
 **Outputs**
 
