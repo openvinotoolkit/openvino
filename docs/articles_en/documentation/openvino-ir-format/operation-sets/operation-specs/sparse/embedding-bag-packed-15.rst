@@ -16,10 +16,10 @@ EmbeddingBagPacked
 
 **Detailed description**:
 
-  Operation EmbeddingBagPacked is an implementation of ``torch.nn.EmbeddingBag`` with indices input being 2D tensor of shape ``[batch, indices_per_bag]``.
-  Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* followed by reduction:
-    * *sum* - *ReduceSum(Multiply(gather_op, Unsqueeze(per_sample_weights, -1)), axis=1)*,
-    * *mean* - *ReduceMean(gather_op, axis=1)*.
+Operation EmbeddingBagPacked is an implementation of ``torch.nn.EmbeddingBag`` with indices input being 2D tensor of shape ``[batch, indices_per_bag]``.
+Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* followed by reduction:
+* *sum* - *ReduceSum(Multiply(gather_op, Unsqueeze(per_sample_weights, -1)), axis=1)*,
+* *mean* - *ReduceMean(gather_op, axis=1)*.
 
 **Attributes**:
 

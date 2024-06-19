@@ -16,8 +16,8 @@ EmbeddingBagPackedSum
 
 **Detailed description**:
 
-  Operation EmbeddingBagPackedSum is an implementation of ``torch.nn.EmbeddingBag`` in ``sum`` mode, which indices input being 2D tensor of shape ``[batch, indices_per_bag]``.
-  Operation is equivalent to *ReduceSum(Multiply(Gather(emb_table, indices, axis=0), Unsqueeze(per_sample_weights, -1)), axis=1)*.
+Operation EmbeddingBagPackedSum is an implementation of ``torch.nn.EmbeddingBag`` in ``sum`` mode, which indices input being 2D tensor of shape ``[batch, indices_per_bag]``.
+Operation is equivalent to *ReduceSum(Multiply(Gather(emb_table, indices, axis=0), Unsqueeze(per_sample_weights, -1)), axis=1)*.
 
 **Attributes**: EmbeddingBagPackedSum operation has no attributes.
 
