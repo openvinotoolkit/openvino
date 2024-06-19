@@ -112,7 +112,7 @@ void SDPAKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 KernelsPriority SDPAKernelRef::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_1;
-    // return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    // return FORCE_PRIORITY_1;
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector
