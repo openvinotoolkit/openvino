@@ -93,7 +93,7 @@ For ``input = ["Intel", "OpenVINO"]``
                 <dim>2</dim>     <!-- ends = [5, 13] -->
             </port>
             <port id="2" precision="u8">
-                <dim>13</dim>     <!-- symbols = "IntelOpenVINO" -->
+                <dim>13</dim>     <!-- symbols = "IntelOpenVINO" encoded in an utf-8 array -->
             </port>
         </output>
     </layer>
@@ -119,7 +119,7 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
                 <dim>2</dim>     <!-- ends = [3, 3, 8, 9, 13] -->
             </port>
             <port id="2" precision="u8">
-                <dim>13</dim>    <!-- symbols = "OMZGenAI 2024"-->
+                <dim>13</dim>    <!-- symbols = "OMZGenAI 2024" encoded in an utf-8 array -->
             </port>
         </output>
     </layer>
@@ -148,7 +148,7 @@ For ``input = [["Intel", "OpenVINO"], ["OMZ", "GenAI"]]``
                 <dim>2</dim>
             </port>
             <port id="2" precision="u8">
-                <dim>21</dim>    <!-- symbols = "IntelOpenVINOOMZGenAI" -->
+                <dim>21</dim>    <!-- symbols = "IntelOpenVINOOMZGenAI" encoded in an utf-8 array -->
             </port>
         </output>
     </layer>
