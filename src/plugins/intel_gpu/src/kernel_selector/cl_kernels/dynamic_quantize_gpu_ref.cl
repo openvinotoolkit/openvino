@@ -17,11 +17,12 @@ KERNEL(dynamic_quantize_gpu_ref)(
     const uint bf = (uint)get_global_id(0);
     const uint b = (uint)get_global_id(0) / INPUT0_FEATURE_NUM;
     const uint f = (uint)get_global_id(0) % INPUT0_FEATURE_NUM;
-    const uint scale_idx = OUTPUT1_GET_INDEX(b, f, 0, 0);
+    const uint y = (uint)get_global_id(1);
+    const uint scale_idx = OUTPUT1_GET_INDEX(b, f, y, 0);
 
     half max_val = 0.0h;
-    for (int y = 0; y < INPUT0_SIZE_Y; y++) {
-        const uint offset = INPUT0_GET_INDEX(b, f, y, 0);
+    for (int y_off = 0; y_off < (get_global_size(1) == 1 ? INPUT0_SIZE_Y : 1); y_off++) {        
+        const uint offset = INPUT0_GET_INDEX(b, f, y + y_off, 0);
         int x;
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {
             half8 val = as_half8(vload8(0, (ushort*)input + offset + x * 8));
@@ -36,9 +37,9 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
 
     half scale = 127.0h / max_val;
-    for (int y = 0; y < INPUT0_SIZE_Y; y++) {
-        const uint in_offset = INPUT0_GET_INDEX(b, f, y, 0);
-        const uint out_offset = OUTPUT_GET_INDEX(b, f, y, 0);
+    for (int y_off = 0; y_off < (get_global_size(1) == 1 ? INPUT0_SIZE_Y : 1); y_off++) {
+        const uint in_offset = INPUT0_GET_INDEX(b, f, y + y_off, 0);
+        const uint out_offset = OUTPUT_GET_INDEX(b, f, y + y_off, 0);
         int x;
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {
             half8 val = as_half8(vload8(0, (ushort*)input + in_offset + x * 8));

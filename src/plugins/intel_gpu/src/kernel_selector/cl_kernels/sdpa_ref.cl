@@ -15,6 +15,41 @@
 // 1) The order of scale application (which can be controlled using the APPLY_SCALE_TO_QUERY macro)
 // 2) The type of SoftMax accumulator
 
+
+#define IS_V_COMPRESSED 0
+#define IS_STATIC_COMP 0
+#define SCALE_KEY (10.0h/128.0h)
+#if HAS_SCALE_INPUT
+    #if IS_KV_COMPRESSED
+        #define SCALE_KEY_GET_INDEX(b, f, y, x) INPUT5_GET_INDEX(b, f, y, x)
+        #if IS_V_COMPRESSED
+            #define SCALE_VALUE_GET_INDEX(b, f, y, x) INPUT6_GET_INDEX(b, f, y, x)
+        #else
+            #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
+        #endif
+    #else
+        #define SCALE_KEY_GET_INDEX(b, f, y, x) 0
+        #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
+    #endif
+#else  /* !HAS_SCALE_INPUT */
+    #if IS_KV_COMPRESSED
+        #define SCALE_KEY_GET_INDEX(b, f, y, x) INPUT4_GET_INDEX(b, f, y, x)
+        #if IS_V_COMPRESSED
+            #define SCALE_VALUE_GET_INDEX(b, f, y, x) INPUT5_GET_INDEX(b, f, y, x)
+        #else
+            #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
+        #endif
+    #else
+        #define SCALE_KEY_GET_INDEX(b, f, y, x) 0
+        #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
+    #endif
+#endif
+#if IS_KV_COMPRESSED
+#define __VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(char, 1, ptr, offset)
+#endif
+
+
+
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT0, b, f, w, z, y, x);
@@ -123,6 +158,19 @@ KERNEL(sdpa_ref)(
 #endif
 #if HAS_SCALE_INPUT
     const __global INPUT4_TYPE* scale,
+#if IS_KV_COMPRESSED
+    const __global INPUT5_TYPE* key_scale,
+    #if IS_V_COMPRESSED
+    const __global INPUT6_TYPE* val_scale,
+    #endif
+#endif
+#else  /* !HAS_SCALE_INPUT */
+#if IS_KV_COMPRESSED
+    const __global INPUT4_TYPE* key_scale,
+    #if IS_V_COMPRESSED
+    const __global INPUT5_TYPE* val_scale,
+    #endif
+#endif
 #endif
     __global OUTPUT_TYPE* output,
 #ifdef BEAM_TABLE_TYPE
@@ -162,7 +210,17 @@ KERNEL(sdpa_ref)(
 #else
                 INPUT0_TYPE q_val = query_input[query_offset];
 #endif
+#if IS_KV_COMPRESSED
+                INPUT1_TYPE __k_val = key_input[key_offset];
+                half k_val = (half)__k_val;
+    #ifdef COMPRESSED_PER_HEAD
+                k_val *= key_scale[key_offset/128];
+    #else
+                k_val *= key_scale[key_offset/4096];
+    #endif
+#else
                 INPUT1_TYPE k_val = key_input[key_offset];
+#endif
                 acc += q_val * k_val;
             }
 

@@ -8,6 +8,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -126,13 +127,12 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
 }
 
 std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::PartialShape> input_shapes) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     ov::op::v0::Concat concat;
     concat.set_axis(op->get_concat_axis());
     std::vector<ov::PartialShape> out_shapes;
 
-    // std::cout << "shape_infer " << op->get_friendly_name() << std::endl;
     if (op->get_output_size() >= 2) {
-        // std::cout << "  indirect! " << op->get_friendly_name() << std::endl;
         ov::op::v8::Gather gather;
         int64_t gather_axis = ov::util::normalize(op->get_gather_axis(), input_shapes[0].size());
         auto gather_axis_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&gather_axis));
@@ -152,6 +152,9 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::Par
             ov::PartialShape scale_shape(std::vector<size_t>(out_shapes[0].size(), 1));
             scale_shape[0] = out_shapes[0][0];
             scale_shape[1] = out_shapes[0][1];
+            GPU_DEBUG_IF(debug_config->enable_kv_cache_compression == 1) { // per-head compression
+                scale_shape[2] = out_shapes[0][2];
+            }
             out_shapes.push_back(scale_shape);
         }
     } else {

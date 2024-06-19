@@ -18,10 +18,17 @@
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
 
 // FIXME: generate this index from jitter
+#define IS_V_COMPRESSED 0
+#define IS_STATIC_COMP 0
+#define SCALE_KEY (10.0h/128.0h)
 #if HAS_SCALE_INPUT
     #if IS_KV_COMPRESSED
         #define SCALE_KEY_GET_INDEX(b, f, y, x) INPUT5_GET_INDEX(b, f, y, x)
-        #define SCALE_VALUE_GET_INDEX(b, f, y, x) INPUT6_GET_INDEX(b, f, y, x)
+        #if IS_V_COMPRESSED
+            #define SCALE_VALUE_GET_INDEX(b, f, y, x) INPUT6_GET_INDEX(b, f, y, x)
+        #else
+            #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
+        #endif
     #else
         #define SCALE_KEY_GET_INDEX(b, f, y, x) 0
         #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
@@ -29,7 +36,11 @@
 #else  /* !HAS_SCALE_INPUT */
     #if IS_KV_COMPRESSED
         #define SCALE_KEY_GET_INDEX(b, f, y, x) INPUT4_GET_INDEX(b, f, y, x)
-        #define SCALE_VALUE_GET_INDEX(b, f, y, x) INPUT5_GET_INDEX(b, f, y, x)
+        #if IS_V_COMPRESSED
+            #define SCALE_VALUE_GET_INDEX(b, f, y, x) INPUT5_GET_INDEX(b, f, y, x)
+        #else
+            #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
+        #endif
     #else
         #define SCALE_KEY_GET_INDEX(b, f, y, x) 0
         #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
@@ -156,12 +167,16 @@ KERNEL(sdpa_opt)(
     const __global INPUT4_TYPE* scale,
 #if IS_KV_COMPRESSED
     const __global INPUT5_TYPE* key_scale,
+    #if IS_V_COMPRESSED
     const __global INPUT6_TYPE* val_scale,
+    #endif
 #endif
 #else  /* !HAS_SCALE_INPUT */
 #if IS_KV_COMPRESSED
     const __global INPUT4_TYPE* key_scale,
+    #if IS_V_COMPRESSED
     const __global INPUT5_TYPE* val_scale,
+    #endif
 #endif
 #endif
     __global OUTPUT_TYPE* output,
@@ -274,7 +289,11 @@ KERNEL(sdpa_opt)(
                     KEY_BLOCK __key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
                     MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE) key_vals;
                     key_vals = TO_KEY_VEC_TYPE(__key_vals);
-                    key_vals *= key_scale[(key_offset + head_idx_index)/4096];
+#if IS_STATIC_COMP
+                    key_vals *= SCALE_KEY;
+#else
+                    key_vals *= key_scale[(key_offset + head_idx_index)/128];
+#endif
 
 #else
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
@@ -312,7 +331,11 @@ KERNEL(sdpa_opt)(
 
                     KEY_BLOCK __key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
                     MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE) key_vals;
+#if IS_STATIC_COMP
+                    key_vals *= SCALE_KEY;
+#else
                     key_vals = TO_KEY_VEC_TYPE(__key_vals);
+#endif
                     // key_vals *= SCALE_KEY;
 #else
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
@@ -548,15 +571,15 @@ KERNEL(sdpa_opt)(
             }
 
              unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#if IS_KV_COMPRESSED
+#if IS_KV_COMPRESSED && IS_V_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
                 char __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
                 half value_val = __value_val;
-                value_val *= val_scale[sub_group_broadcast(value_offset, i)/4096];
+                value_val *= val_scale[sub_group_broadcast(value_offset, i)/128];
     #else
                 char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
                 half value_val = __value_val;
-                value_val *= val_scale[value_offset/4096];
+                value_val *= val_scale[value_offset/128];
     #endif
 #else
     #ifdef BEAM_TABLE_TYPE
@@ -594,10 +617,10 @@ KERNEL(sdpa_opt)(
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
             }
-#if IS_KV_COMPRESSED
+#if IS_KV_COMPRESSED && IS_V_COMPRESSED
             char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
             half value_val = __value_val;
-            value_val *= val_scale[value_offset/4096];
+            value_val *= val_scale[value_offset/128];
 #else
             INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
@@ -647,12 +670,16 @@ KERNEL(sdpa_opt)(
     const __global INPUT4_TYPE* scale,
 #if IS_KV_COMPRESSED
     const __global INPUT5_TYPE* key_scale,
+    #if IS_V_COMPRESSED
     const __global INPUT6_TYPE* val_scale,
+    #endif
 #endif
 #else  /* !HAS_SCALE_INPUT */
 #if IS_KV_COMPRESSED
     const __global INPUT4_TYPE* key_scale,
+    #if IS_V_COMPRESSED
     const __global INPUT5_TYPE* val_scale,
+    #endif
 #endif
 #endif
     __global OUTPUT_TYPE* output,
@@ -787,14 +814,22 @@ KERNEL(sdpa_opt)(
                         INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index);
                         half key_vals = __key_vals;
                         // FIXME: optimize accessing for key_scale
-                        // FIXME: 4096 is hard-coded.
+                        // FIXME: 128 is hard-coded.
                         int my_key_offset = sub_group_broadcast(key_offset, key_row_idx) + head_idx_index;
-                        int my_scale_offset = (sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/4096;
-                        key_vals *= key_scale[(sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/4096];
+                        int my_scale_offset = (sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/128;
+#if IS_STATIC_COMP
+                    key_vals *= SCALE_KEY;
+#else
+                        key_vals *= key_scale[(sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/128];
+#endif
     #else
                         INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
                         half key_vals = __key_vals;
-                        key_vals *= key_scale[(key_offset + key_row_idx * key_pitch + head_idx_index)/4096];  // may use vload for key_row_idx
+#if IS_STATIC_COMP
+                    key_vals *= SCALE_KEY;
+#else
+                        key_vals *= key_scale[(key_offset + key_row_idx * key_pitch + head_idx_index)/128];  // may use vload for key_row_idx
+#endif
     #endif
 #else
     #ifdef BEAM_TABLE_TYPE
@@ -962,15 +997,15 @@ KERNEL(sdpa_opt)(
             }
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#if IS_KV_COMPRESSED
+#if IS_KV_COMPRESSED && IS_V_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
                 half value_val = __value_val;
-                value_val *= val_scale[sub_group_broadcast(value_offset, i)/4096];
+                value_val *= val_scale[sub_group_broadcast(value_offset, i)/128];
     #else
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
                 half value_val = __value_val;
-                value_val *= val_scale[value_offset/4096];
+                value_val *= val_scale[value_offset/128];
     #endif
 #else
     #ifdef BEAM_TABLE_TYPE
@@ -1015,15 +1050,15 @@ KERNEL(sdpa_opt)(
 #endif
 
             for (uint seq_len_idx = 0; seq_len_idx < partition_seq_len - seq_len_leftovers_start; seq_len_idx++) {
-#if IS_KV_COMPRESSED
+#if IS_KV_COMPRESSED && IS_V_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
                 half value_val = __value_val;
-                value_val *= val_scale[sub_group_broadcast(value_offset, seq_len_idx)/4096];
+                value_val *= val_scale[sub_group_broadcast(value_offset, seq_len_idx)/128];
     #else
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
                 half value_val = __value_val;
-                value_val *= val_scale[value_offset/4096];
+                value_val *= val_scale[value_offset/128];
     #endif
 #else
     #ifdef BEAM_TABLE_TYPE
@@ -1106,7 +1141,7 @@ KERNEL(sdpa_opt)(
             }
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#if IS_KV_COMPRESSED
+#if IS_KV_COMPRESSED && IS_V_COMPRESSED
 #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
 #else
@@ -1137,10 +1172,7 @@ KERNEL(sdpa_opt)(
 
         // If the number of partitions is greater than 1, save results to the temporary buffer;
         // otherwise, save results directly to the main output.
-#if IS_KV_COMPRESSED
-        // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
-        //     printf("num_of_partitions %d\n", num_of_partitions);
-#endif
+
         if (num_of_partitions > 1) {
 #if TARGET_SEQ_LEN_BLOCK_SIZE > 1
             const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
@@ -1156,10 +1188,7 @@ KERNEL(sdpa_opt)(
                                             head_size_idx;
                 tmp_out[tmp_out_offset] = acc[seq_idx];
                 // tmp_out[tmp_out_offset] = 0.0h;
-#if IS_KV_COMPRESSED
-                // if (tmp_out_offset >= 200 && tmp_out_offset <= 300)
-                //     printf("tmp_out[%d]=%f  acc[%d]=%f\n", tmp_out_offset, tmp_out[tmp_out_offset], seq_idx, acc[seq_idx]);
-#endif
+
             }
         } else {
 #if TARGET_SEQ_LEN_BLOCK_SIZE > 1
@@ -1264,10 +1293,7 @@ KERNEL(sdpa_opt_finalization_stage)(
                                             partition_idx * (HEAD_SIZE) +
                                             (head_size_idx * SUBGROUP_SIZE + sglid);
                 OUTPUT_TYPE out_val = tmp_out[tmp_out_offset];
-#if IS_KV_COMPRESSED
-                // if (tmp_out_offset > 200 && tmp_out_offset < 300)
-                //     printf("out_val %f at %d\n", out_val, tmp_out_offset);
-#endif
+
                 acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) *
                     TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(exp_sum[partition_idx / SUBGROUP_SIZE], partition_idx % SUBGROUP_SIZE)) /
                     TO_SOFTMAX_ACCUMULATOR_TYPE(global_sum);

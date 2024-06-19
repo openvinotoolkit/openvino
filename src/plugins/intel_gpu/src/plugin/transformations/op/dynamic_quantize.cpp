@@ -7,6 +7,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "variadic_split_shape_inference.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -34,11 +35,14 @@ std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVec
 }
 
 std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op, std::vector<ov::PartialShape> input_shapes) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     std::vector<ov::PartialShape> out_shapes;
     out_shapes.push_back(input_shapes[0]);
     // FIXME: generalize to N-dim case
     auto scale_shape = input_shapes[0];
-    scale_shape[2] = 1;
+    GPU_DEBUG_IF(debug_config->enable_kv_cache_compression != 1) { // per-token compression
+        scale_shape[2] = 1;
+    }
     scale_shape[3] = 1;
     out_shapes.push_back(scale_shape);
     return out_shapes;

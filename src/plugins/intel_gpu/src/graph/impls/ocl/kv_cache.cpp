@@ -264,12 +264,16 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     static layout get_compression_scale_layout(const kernel_impl_params& impl_param) {
         // FIXME: it is implemented in multiple places
+        GPU_DEBUG_GET_INSTANCE(debug_config);
         const auto& primitive = impl_param.typed_desc<kv_cache>();
         auto kv_layout = impl_param.get_input_layout(0);
         auto kv_shape = kv_layout.get_partial_shape();
         auto comp_scale_shape = ov::PartialShape(std::vector<size_t>(kv_shape.size(), 1));
         comp_scale_shape[0] = kv_shape[0];
         comp_scale_shape[1] = kv_shape[1];
+        GPU_DEBUG_IF(debug_config->enable_kv_cache_compression == 1) { // per-head compression
+            comp_scale_shape[2] = kv_shape[2];
+        }
         return layout{comp_scale_shape, impl_param.output_layouts[2].data_type, format::get_default_format(comp_scale_shape.size())};
     }
 
