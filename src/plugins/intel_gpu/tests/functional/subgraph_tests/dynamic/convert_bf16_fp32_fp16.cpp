@@ -34,9 +34,10 @@ public:
         return result.str();
     }
 
-    static ushort float_to_ushort(float source) {
-        uint* in = reinterpret_cast<uint*>(&source);
-        ushort u = 0;
+
+    static unsigned short float_to_ushort(float source) {
+        unsigned int* in = reinterpret_cast<unsigned int*>(&source);
+        unsigned short u = 0;
         if ( (*in>>31) ) {
             u = 1 << 15;
         }
