@@ -14,9 +14,8 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
         return;
     }
     try {
-        if (info.Length() > 3) {
-            OPENVINO_THROW("Invalid number of arguments for Tensor constructor.");
-        } else if (info.Length() == 1 && info[0].IsArray()) {
+        OPENVINO_ASSERT(info.Length() > 3, "Invalid number of arguments for Tensor constructor.");
+        if (info.Length() == 1 && info[0].IsArray()) {
             this->_tensor = cast_to_tensor(info[0].As<Napi::Array>());
         } else {
             const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
