@@ -29,7 +29,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
         {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
-        {ov::element::f4e2m1, py::dtype("uint8")},
+        {ov::element::f4e2m1, py::dtype("uint8")}, {ov::element::f8e8m0, py::dtype("uint8")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -388,7 +388,7 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     } else if (element_type == ov::element::i64) {
         return _get_byte_strides<int64_t>(shape);
     } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
-               element_type == ov::element::nf4) {
+               element_type == ov::element::nf4 || element_type == ov::element::f4e2m1) {
         // WA for u1, u4, nf4, all returned as packed uint8 arrays
         return _get_byte_strides<uint8_t>(shape);
     } else if (element_type == ov::element::u16) {
