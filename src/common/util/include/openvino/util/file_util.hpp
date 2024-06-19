@@ -13,7 +13,7 @@
 #include "openvino/util/util.hpp"
 
 #if defined(__linux__) && !defined(__ANDROID__)
-#    if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1913))
+#    if (__cplusplus >= 201703L)
 #        if __has_include(<filesystem>)
 #            include <filesystem>
 namespace fs = std::filesystem;
