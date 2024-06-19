@@ -6,20 +6,20 @@ Supported configurations:
 - Windows 10 x86 64-bit or higher with Visual Studio 2019 or higher build for X64 architecture.
 - Windows on ARM (shortly WoA) to build for ARM64 architecture. OpenVINO was validated on [Windows DevKit 2023](https://developer.qualcomm.com/hardware/windows-on-snapdragon/windows-dev-kit-2023)
 
-## Software requirements 
+## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
-  > **NOTE**: Native Microsoft Visual Studio for WoA is available since 2022. 
+  > **NOTE**: Native Microsoft Visual Studio for WoA is available since 2022.
 - Python 3.8 - 3.11 for OpenVINO Runtime Python API
-  > **NOTE**: Python for ARM64 is available since [3.11](https://www.python.org/downloads/windows/) version. 
+  > **NOTE**: Python for ARM64 is available since [3.11](https://www.python.org/downloads/windows/) version.
 - [Git for Windows*]
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
-  > **NOTE**: After installation, make sure `clang-cl` compiler is available from `PATH`. 
+  > **NOTE**: After installation, make sure `clang-cl` compiler is available from `PATH`.
 
 ## How to build
 
-> **NOTE**: By default, the build enables the OpenVINO Runtime GPU plugin to infer models on your Intel® Processor Graphics. This requires you to download and install the Intel® Graphics Driver for Windows (26.20) [driver package](https://www.intel.com/content/www/us/en/download/19344/intel-graphics-windows-dch-drivers.html) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_INTEL_GPU=OFF` CMake build option and skip the installation of the Intel® Graphics Driver.
+> **NOTE**: By default, the build enables the OpenVINO Runtime GPU plugin to infer models on your Intel® Processor Graphics. This requires you to download and install the Intel® Graphics Driver for Windows [driver package](https://www.intel.com/content/www/us/en/download/19344/intel-graphics-windows-dch-drivers.html) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_INTEL_GPU=OFF` CMake build option and skip the installation of the Intel® Graphics Driver.
 
 1. Clone submodules:
     ```sh
@@ -37,12 +37,12 @@ Supported configurations:
     ```sh
     cmake -G "Visual Studio 17 2022" <path/to/openvino>
     ```
-    
+
    > **HINT**: **Generating PDB Files and Debugging Your Build** <br>
    > If you intend to generate PDB files and debug your build, it is essential to set the CMake build type appropriately.
    > You should utilize one of the following CMake build type options: <br>
    >* `-DCMAKE_BUILD_TYPE=RelWithDebInfo`: This option generates PDB files with release information, making it suitable for debugging optimized builds. <br>
-   >* `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information. 
+   >* `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information.
 
 4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j<number_of_jobs>` to build from the command line. View the number of available processing units with `WMIC cpu get numberofLogicalProcessors`. Be aware that this process may take some time.
 
