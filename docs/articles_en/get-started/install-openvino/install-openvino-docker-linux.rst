@@ -30,7 +30,7 @@ The Docker CI repository includes guides on how to
 
 To start using Dockerfiles the following conditions must be met:
 
-- Linux OS or Windows (under :ref:`Windows Subsystem for Linux (WSL2) <wsl-install>`)
+- Linux OS or Windows (under :ref:`Windows Subsystem for Linux (WSL2) <wsl_install>`)
 - Installed docker engine or compatible container engine
 - Permissions to run containers (sudo or docker group membership)
 
