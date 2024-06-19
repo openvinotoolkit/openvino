@@ -41,7 +41,9 @@ private:
 
     // FIXME: probably this one should go to the base class too
     RqPtr get_real_subrequest(std::size_t idx);
-    void bind_params_results();
+
+    void bind_global_parameters(std::size_t idx);
+    void bind_global_results(std::size_t idx);
     void function_prologue(std::size_t idx);
     void unpack_closure(std::size_t idx, RqPtr request);
 
