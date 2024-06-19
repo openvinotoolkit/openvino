@@ -1,7 +1,6 @@
 name: Export workflow metrics (BETA)
 
 on:
-  pull_request:
   workflow_run:
     workflows:
       - Android ARM64 with vcpkg
@@ -52,17 +51,17 @@ jobs:
           # yet it still complains, so install them here
           python3 -m pip install PyGithub==2.2.0 psycopg2-binary==2.9.9
 
-#      - name: Send metrics to SQL database
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          RUN_ID: ${{ github.event.workflow_run.id }}
-#          PGHOST: ${{ secrets.METRICS_DATABASE_HOST }}
-#          PGUSER: ${{ secrets.METRICS_DATABASE_USERNAME }}
-#          PGPASSWORD: ${{ secrets.METRICS_DATABASE_PASSWORD }}
-#          PGDATABASE: ${{ secrets.METRICS_DATABASE_NAME }}
-#          PGPORT: 5432
-#          LOGLEVEL: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-#        run: |
-#          python3 .github/scripts/collect_github_metrics.py \
-#          --run-id ${{ github.event.workflow_run.id }} \
-#          --repository-name ${GITHUB_REPOSITORY}
+      - name: Send metrics to SQL database
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          PGHOST: ${{ secrets.METRICS_DATABASE_HOST }}
+          PGUSER: ${{ secrets.METRICS_DATABASE_USERNAME }}
+          PGPASSWORD: ${{ secrets.METRICS_DATABASE_PASSWORD }}
+          PGDATABASE: ${{ secrets.METRICS_DATABASE_NAME }}
+          PGPORT: 5432
+          LOGLEVEL: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
+        run: |
+          python3 .github/scripts/collect_github_metrics.py \
+          --run-id ${{ github.event.workflow_run.id }} \
+          --repository-name ${GITHUB_REPOSITORY}
