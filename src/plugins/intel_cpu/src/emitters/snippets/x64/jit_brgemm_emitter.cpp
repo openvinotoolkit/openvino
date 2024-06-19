@@ -41,7 +41,6 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()) &&
                               !snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(1)->get_shape()),
                               "Jit emitter is called when the shapes are unknown");
-//    m_kernel_executor->update_by_expression(expr);
 
     m_load_offset_a = brgemm_node->get_offset_a();
     m_load_offset_b = brgemm_node->get_offset_b();

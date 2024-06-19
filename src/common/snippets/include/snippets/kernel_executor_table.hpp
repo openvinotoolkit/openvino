@@ -69,6 +69,7 @@ public:
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
     void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) override final { // NOLINT
+        m_config = std::static_pointer_cast<Conf>(m_config->clone());
         update_config(expr, m_config);
         OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
