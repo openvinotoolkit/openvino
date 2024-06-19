@@ -39,7 +39,6 @@
 #include "data_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
-#include "fully_connected_inst.h"
 #include "generate_proposals_inst.h"
 #include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "input_layout_inst.h"
@@ -701,6 +700,7 @@ void program::transfer_memory_to_device() {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
+
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;

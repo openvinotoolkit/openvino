@@ -267,7 +267,7 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 
     return primitive_description.str();
 }
-void fully_connected_inst::init_zp_scalar() {
+void fully_connected_inst::init_zp_scalar_if_needed() {
     auto& fc_node = get_node().as<fully_connected>();
     auto desc = fc_node.get_primitive();
     if (desc->decompression_zero_point_scalar.has_value()) {
@@ -283,6 +283,6 @@ void fully_connected_inst::init_zp_scalar() {
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
     : parent(network, node) {
-        init_zp_scalar();
+        init_zp_scalar_if_needed();
     }
 }  // namespace cldnn

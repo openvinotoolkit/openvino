@@ -65,7 +65,7 @@ public:
 
     bool bias_term() const { return _impl_params->bias_layout.has_value(); }
 
-    void init_zp_scalar();
+    void init_zp_scalar_if_needed();
 
     memory::ptr zp_memory() const { return m_zp_mem; }
 
