@@ -148,6 +148,13 @@ jobs:
           # patch vcpkg default toolchain to build only Release configuration
           echo "set(VCPKG_BUILD_TYPE release)" >> ${VCPKG_ROOT}/triplets/arm64-android.cmake
 
+      - name: Check paths
+        run: |
+          ls -la ${ANDROID_TOOLS}
+          ls -la ${ANDROID_NDK_HOME}
+          
+          cat ${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake
+
       - name: CMake - configure
         run: |
           cmake \
