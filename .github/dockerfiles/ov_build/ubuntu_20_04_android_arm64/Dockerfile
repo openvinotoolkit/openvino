@@ -32,9 +32,9 @@ RUN apt-get update && \
         ninja-build \
         build-essential \
         # Python
-        python3.8-dev \
-        python3.8-venv \
-        python3.8-distutils \
+        python3-dev \
+        python3-venv \
+        python3-distutils \
         # vcpkg 'python3' port dependencies
         autoconf \
         libtool \
@@ -62,7 +62,7 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 # Install Android SDK, NDK and Tools
