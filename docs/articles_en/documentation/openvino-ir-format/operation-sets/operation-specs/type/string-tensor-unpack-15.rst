@@ -50,7 +50,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
 * **1**: *begins*:
 
-  * **Description**: Indices of each string's begginings.
+  * **Description**: Indices of each string's beginnings.
   * **Range of values**: ND tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
