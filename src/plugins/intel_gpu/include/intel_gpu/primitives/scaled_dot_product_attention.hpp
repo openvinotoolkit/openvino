@@ -38,7 +38,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
             auto data_inputs_num = inputs.size();
             if (indirect_axis != -1)
                 data_inputs_num--;
-            size_t scale_value_cnt = is_kv_compressed ? 2 : 0;
+            size_t scale_value_cnt = is_kv_compressed ? 1 : 0;
             has_attn_mask_input = data_inputs_num > 3 + scale_value_cnt;
             has_scale_input = data_inputs_num > 4 + scale_value_cnt;
         }

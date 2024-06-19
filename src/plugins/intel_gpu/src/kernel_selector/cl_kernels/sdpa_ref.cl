@@ -16,7 +16,9 @@
 // 2) The type of SoftMax accumulator
 
 
-#define IS_V_COMPRESSED 1
+#define IS_V_COMPRESSED 0
+#define IS_STATIC_COMP 0
+#define SCALE_KEY (10.0h/128.0h)
 #if HAS_SCALE_INPUT
     #if IS_KV_COMPRESSED
         #define SCALE_KEY_GET_INDEX(b, f, y, x) INPUT5_GET_INDEX(b, f, y, x)
@@ -292,18 +294,7 @@ KERNEL(sdpa_ref)(
 #endif
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, head_size_idx);
 
-#if IS_KV_COMPRESSED
-        INPUT2_TYPE __value = value_input[value_offset];
-        half value = (half)__value;
-    #ifdef COMPRESSED_PER_HEAD
-        value *= val_scale[value_offset / 128];
-    #else
-        value *= val_scale[value_offset / 4096];
-    #endif
-        acc += tmp_buf[tmp_buf_offset] * value;
-#else
         acc += tmp_buf[tmp_buf_offset] * value_input[value_offset];
-#endif
     }
 
     uint output_offset = OUTPUT_GET_INDEX(b0, b1, target_seq_idx, head_size_idx);
