@@ -267,7 +267,22 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 
     return primitive_description.str();
 }
+void fully_connected_inst::init_zp_scalar() {
+    auto& fc_node = get_node().as<fully_connected>();
+    auto desc = fc_node.get_primitive();
+    if (desc->decompression_zero_point_scalar.has_value()) {
+        auto& engine = get_network().get_engine();
+        auto& stream = get_network().get_stream();
+        auto zp_scalar = desc->decompression_zero_point_scalar.value();
+        auto zp_layout = layout(data_types::i8, format::bfyx, {1, 1, 1, 1});
+        m_zp_mem = engine.allocate_memory(zp_layout, false);
+        mem_lock<uint8_t, mem_lock_type::write> data(m_zp_mem, stream);
+        memset(data.data(), std::round(zp_scalar), data.size());
+    }
+}
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
-    : parent(network, node) { }
+    : parent(network, node) {
+        init_zp_scalar();
+    }
 }  // namespace cldnn

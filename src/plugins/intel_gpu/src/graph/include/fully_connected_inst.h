@@ -64,6 +64,13 @@ public:
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 
     bool bias_term() const { return _impl_params->bias_layout.has_value(); }
+
+    void init_zp_scalar();
+
+    memory::ptr zp_memory() const { return m_zp_mem; }
+
+private:
+    memory::ptr m_zp_mem;
 };
 
 using fully_connected_inst = typed_primitive_inst<fully_connected>;
