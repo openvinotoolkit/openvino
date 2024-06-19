@@ -8,6 +8,7 @@
 namespace kernel_selector {
 ParamsKey ReorderKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::INT32);
@@ -20,6 +21,7 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableSurfaceInputSupport();
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
@@ -50,6 +52,10 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
         }
         FusedOpsConfiguration conf = {"", idx_order, "res", GetUnitType(params), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
+         jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
     }
 
     return jit;

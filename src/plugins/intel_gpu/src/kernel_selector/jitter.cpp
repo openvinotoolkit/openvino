@@ -1489,6 +1489,15 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "0.5f";
             is_fp = false;
             break;
+        case Datatype::BF16:
+            type = "ushort";
+            val_one = "(ushort) 1";
+            val_zero = "(ushort) 0";
+            to_type = "_convert_bfloat16_as_ushort(v)";
+            to_type_sat = "_convert_bfloat16_as_ushort(v)";
+            type_size = "2";
+            is_fp = false;
+            break;
         default:
             type = "float";
             max_val = "FLT_MAX";
@@ -1540,6 +1549,8 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::UINT4, macroName);
         case WeightsType::INT32:
             return MakeTypeJitConstants(Datatype::INT32, macroName);
+        case WeightsType::BF16:
+            return MakeTypeJitConstants(Datatype::BF16, macroName);
     }
     assert(false || "Unreachable!");
     // FIXME: Is there some builtin_unreachable available?

@@ -119,6 +119,9 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
                       params.mode == MeanSubtractMode::NONE && params.activations.empty());
 
     Datatype calc_type = useUshort ? Datatype::UINT16 : params.inputs[0].GetDType();
+    if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
+        calc_type = Datatype::F32;
+    }
     Datatype output_reorder_type = useUshort ? Datatype::UINT16 : params.outputs[0].GetDType();
     Datatype input_reorder_type = useUshort ? Datatype::UINT16 : params.inputs[0].GetDType();
 

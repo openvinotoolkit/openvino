@@ -9,6 +9,7 @@
 namespace kernel_selector {
 ParamsKey ReorderWeightsKernel::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputWeightsType(WeightsType::BF16);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
@@ -29,6 +30,14 @@ ParamsKey ReorderWeightsKernel::GetSupportedKey() const {
 KernelsData ReorderWeightsKernel::GetKernelsData(const Params& params) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
     return GetCommonKernelsData(orgParams);
+}
+
+JitConstants ReorderWeightsKernel::GetJitConstants(const reorder_weights_params& params) const {
+    auto jit = ReorderKernelBase::GetJitConstants(params);
+    if ( params.input.GetDType() == WeightsType::BF16 ) {
+        jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
+    }
+    return jit;
 }
 
 KernelsPriority ReorderWeightsKernel::GetKernelsPriority(const Params& /*params*/) const {
