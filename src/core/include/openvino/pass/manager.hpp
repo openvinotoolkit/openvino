@@ -66,7 +66,7 @@ public:
     ///
     /// \return     Returns true if the model was changed by transformations,
     ///             false otherwise.
-    bool run_passes(std::shared_ptr<Model> model);
+    bool run_passes(const std::shared_ptr<Model>& model);
 
     void set_pass_visualization(bool new_state) {
         m_visualize = new_state;
