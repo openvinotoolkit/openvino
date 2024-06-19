@@ -44,21 +44,28 @@ describe('Tensor data', () => {
     });
   });
 
-  it(`Create string tensor`, () => {
+  it('Create string tensor', () => {
     const str_arr = ['text', 'more text', 'even more text'];
     const tensor = new ov.Tensor(str_arr);
     assert.deepStrictEqual(tensor.data, str_arr);
   });
 
-  it(`Create string tensor`, () => {
+  it('Create string tensor', () => {
     const str_arr = ['text', 'more text', 'even more text'];
     const tensor = new ov.Tensor(str_arr);
     assert.deepStrictEqual(tensor.data, str_arr);
   });
 
-  it(`Set string tensor data`, () => {
+  it('String tensor - passed array does not contain string elements', () => {
+    const str_arr = ['text', true];
+    assert.throws(() => { new ov.Tensor(str_arr);},
+      /The array passed to create string tensor must contain only strings./
+    );
+  });
+
+  it('Set string tensor data', () => {
     const str_arr = ['H', 'e', 'l', 'l', 'o'];
-    const tensor = new ov.Tensor(ov.element.string, [1,1,1,5]);
+    const tensor = new ov.Tensor(ov.element.string, [1, 1, 1, 5]);
     tensor.data = str_arr;
     assert.deepStrictEqual(tensor.data, str_arr);
   });
@@ -197,7 +204,6 @@ describe('Tensor element type', () => {
   });
 });
 
-
 describe('Tensor getSize', () => {
 
   it('getSize returns the correct total number of elements', () => {
@@ -241,4 +247,3 @@ describe('Tensor getSize for various shapes', () => {
     assert.strictEqual(tensor.getSize(), expectedSize);
   });
 });
-

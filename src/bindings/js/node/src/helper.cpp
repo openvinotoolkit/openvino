@@ -323,6 +323,7 @@ void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {
     }
     const auto data = tensor.data<std::string>();
     for (size_t i = 0; i < tensor.get_size(); ++i) {
+        OPENVINO_ASSERT(arr[i].IsString(), "The array passed to create string tensor must contain only strings.");
         data[i] = arr[i].ToString().Utf8Value();
     }
 }
