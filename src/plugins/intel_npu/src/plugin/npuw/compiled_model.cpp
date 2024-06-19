@@ -278,6 +278,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // Do it just once if that's a function
         if (real_id == id) {
             remove_long_output_names(m_compiled_submodels[real_id].model);
+            fill_empty_tensor_names(m_compiled_submodels[real_id].model);
         }
 
         if (ov::npuw::util::is_set(id, dump_sub_opt)) {
@@ -288,7 +289,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                    << " as it is a function body for Subgraph[" << id << "]");
             }
             const auto model_to_dump = m_compiled_submodels[real_id].model;
-            fill_empty_tensor_names(model_to_dump);
             std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
                                           (subgraph._funcall.empty() ? "" : "_" + subgraph._funcall) + ".xml";
             ov::save_model(model_to_dump, model_dump_path);
@@ -402,18 +402,20 @@ void ov::npuw::CompiledModel::fill_empty_tensor_names(const std::shared_ptr<ov::
     for (auto& input : model->inputs()) {
         auto tensor_names = input.get_tensor().get_names();
         if (tensor_names.empty()) {
-            input.get_tensor().set_names({"npuw_in_tensor_" + std::to_string(in_tensor_idx++)});
+            input.get_tensor().set_names({"npuw_in_tensor_" + std::to_string(in_tensor_idx)});
             LOG_INFO("Added input tensor name for " << model->get_friendly_name());
             LOG_BLOCK();
         }
+        in_tensor_idx++;
     }
     for (auto& output : model->outputs()) {
         auto tensor_names = output.get_tensor().get_names();
         if (tensor_names.empty()) {
-            output.get_tensor().set_names({"npuw_out_tensor_" + std::to_string(out_tensor_idx++)});
+            output.get_tensor().set_names({"npuw_out_tensor_" + std::to_string(out_tensor_idx)});
             LOG_INFO("Added output tensor name for " << model->get_friendly_name());
             LOG_BLOCK();
         }
+        out_tensor_idx++;
     }
 }
 
@@ -543,7 +545,6 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
     const std::string dof_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_ON_FAIL>();
 
     if (ov::npuw::util::is_set(id, dof_opt)) {
-        fill_empty_tensor_names(m_compiled_submodels[id].model);
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
     }
 }
