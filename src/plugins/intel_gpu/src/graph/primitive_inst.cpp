@@ -859,8 +859,7 @@ bool primitive_inst::update_impl() {
 
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (get_node().get_preferred_impl_type() == impl_types::onednn
-            && !_impl_params->fused_desc.empty()) {
+        if (get_node().get_preferred_impl_type() == impl_types::onednn) {
             auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
             std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
             cldnn::create_onednn_primitive_attributes(get_node(),
@@ -869,7 +868,11 @@ bool primitive_inst::update_impl() {
                                                         fused_desc_onednn,
                                                         _impl_params.get());
             _impl_params->attrs_onednn = attrs_onednn;
-            _impl_params->fused_desc_onednn = fused_desc_onednn;
+            {
+                auto& fused_prims_onednn = _impl_params->fused_desc_onednn;
+                fused_prims_onednn.erase(fused_prims_onednn.begin(), fused_prims_onednn.end());
+                fused_prims_onednn.insert(fused_prims_onednn.end(), fused_desc_onednn.begin(), fused_desc_onednn.end());
+            }
         }
 #endif
 
