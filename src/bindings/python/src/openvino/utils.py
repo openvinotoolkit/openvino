@@ -4,8 +4,11 @@
 
 import os
 import sys
+import site
 from functools import wraps
 from typing import Callable, Any
+from itertools import chain
+from pathlib import Path
 
 
 def _add_openvino_libs_to_search_path() -> None:
@@ -36,6 +39,19 @@ def _add_openvino_libs_to_search_path() -> None:
             if os.path.isdir(lib_path):
                 # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
                 os.add_dll_directory(os.path.abspath(lib_path))
+
+
+def get_cmake_path():
+    site_packages = chain((Path(__file__).parent.parent,), site.getusersitepackages(), site.getsitepackages())
+    cmake_path = next(
+        (
+            cpath
+            for site_package in map(Path, site_packages)
+            if (cpath := site_package / __package__ / "cmake").is_dir()
+        ),
+        "",
+    )
+    return cmake_path
 
 
 def deprecated(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[..., Any]:
