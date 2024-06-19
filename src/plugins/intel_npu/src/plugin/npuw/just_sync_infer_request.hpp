@@ -89,6 +89,15 @@ private:
     // subgraphs, but with only function call-related elements
     // initialized.
     std::vector<FuncallPipeline> m_funcall_pipeline;
+
+    // This structure tracks how every individual subrequest
+    // access the model's top-level (global, public, etc) parameters
+    // and results
+    struct GlobalIO {
+        std::map<std::size_t, std::size_t> global_params;  // param idx -> input idx
+        std::map<std::size_t, std::size_t> global_results; // result idx -> output idx
+    };
+    std::vector<GlobalIO> m_subrequests_gio;
 };
 
 }  // namespace npuw
