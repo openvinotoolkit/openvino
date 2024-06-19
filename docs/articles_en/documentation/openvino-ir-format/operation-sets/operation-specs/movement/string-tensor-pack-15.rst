@@ -11,7 +11,7 @@ StringTensorPack
 
 **Category**: *Data movement*
 
-**Short description**: *StringTensorPack* transforms a concatenated batch of strings into 
+**Short description**: *StringTensorPack* transforms a concatenated strings data (encoded as 1D tensor of u8 element type) into 
 a string tensor using *begins* and *ends* indices.
 
 **Detailed description**
