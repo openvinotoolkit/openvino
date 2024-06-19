@@ -119,7 +119,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
 #endif
 
 #if defined(__linux__) && !defined(__ANDROID__)
-    OPENVINO_ASSERT(!fs::is_symlink(model_path),
+    OPENVINO_ASSERT(fs::is_regular_file(model_path),
                     "Cannot read model" + modelPath + ". The path is a symlink or hardlink");
 #endif
 
