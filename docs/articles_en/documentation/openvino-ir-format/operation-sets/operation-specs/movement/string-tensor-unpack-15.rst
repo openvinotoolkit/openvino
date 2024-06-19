@@ -43,6 +43,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 * **1**: *data*
 
   * **Description**: A tensor containing a string to be unpacked. **Required.**
+  * **Range of values**: A string tensor.
   * **Type**: *T*
 
 **Outputs**
@@ -50,19 +51,19 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 * **1**: *begins*:
 
   * **Description**: Indices of each string's begginings.
-  * **Shape**: 1D tensor of shape ``(batch_size)``.
+  * **Range of values**: 1D tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
 * **2**: *ends*:
 
   * **Description**: Indices of each string's endings.
-  * **Shape**: 1D tensor of shape ``(batch_size)``.
+  * **Range of values**: 1D tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
 * **3**: *symbols*:
 
   * **Description**: Concatenated ``input`` strings.
-  * **Shape**: 1D tensor of shape equal to the total length of concatenated string.
+  * **Range of values**: 1D tensor of element::string objects.
   * **Type**: *T*
 
 **Types**

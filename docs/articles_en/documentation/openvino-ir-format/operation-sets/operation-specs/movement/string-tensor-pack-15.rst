@@ -23,8 +23,8 @@ Consider inputs:
 * *symbols* = "IntelOpenVINO"
 
 *StringTensorPack* uses indices from ``begins`` and ``ends`` to transform concatenated string ``symbols`` into ``output``, 
-a batched string tensor. The ``output.shape`` (also called ``batch_size``) is equal to ``begins.shape`` and ``ends.shape``, 
-and in this case holds values ``["Intel", "OpenVINO"]``.
+a batched string tensor. The ``output.shape`` is equal to ``begins.shape`` and ``ends.shape``, 
+and in this case ``output`` holds values ``["Intel", "OpenVINO"]``.
 
 When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, 
 but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
@@ -34,32 +34,31 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 * **1**: *begins*:
 
   * **Description**: Indices of each string's beginnings. **Required.**
-  * **Shape**: 1D tensor of shape ``(batch_size)``.
+  * **Range of values**: 1D tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
 * **2**: *ends*:
 
   * **Description**: Indices of each string's endings. **Required.**
-  * **Shape**: 1D tensor of shape ``(batch_size)``.
+  * **Range of values**: 1D tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
 * **3**: *symbols*:
 
   * **Description**: Concatenated ``input`` strings encoded in utf-8 bytes. **Required.**
-  * **Shape**: 1D tensor of shape equal to the total length of concatenated strings.
-  * **Type**: *T*
+  * **Range of values**: 1D tensor of element::string objects.
+  * **Type**: ``u8`
 
 **Outputs**
 
 * **1**: *output*
 
   * **Description**: A string tensor.
-  * **Shape**: ``(batch_size)``
-  * **Type**: *T*
+  * **Range of values**: A string tensor.
+  * **Type**: ``element::string`
 
 **Types**
 
-* *T*: ``u8``.
 * *T_IDX*: ``int64``.
 
 **Examples**
