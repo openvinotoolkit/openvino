@@ -108,7 +108,6 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher() {
             new_kv_cache_k->set_friendly_name(key_node->get_friendly_name());
             ov::copy_runtime_info(key_node, new_kv_cache_k);
 
-#if 0
             auto v_dyn_quan = std::make_shared<op::DynamicQuantize>(value_node->get_input_node_shared_ptr(1));
             v_dyn_quan->set_friendly_name("dyn_quan_value");
             // FIXME: need to tell whether it is direct KV cache or indirect kv cache
@@ -123,16 +122,15 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher() {
 
             new_kv_cache_v->set_friendly_name(value_node->get_friendly_name());
             ov::copy_runtime_info(value_node, new_kv_cache_v);
-#endif
             // FIXME: output port from new_kv_cache_k is fixed. compression and indirectness is orthogonal.
             OutputVector sdpa_inputs;
             // QKV -- attention_mask -- input_scale -- key_scale -- beam_idx
             for (size_t i = 0; i < org_sdpa->get_input_size() - 1; i++)
                 sdpa_inputs.push_back(org_sdpa->get_input_node_shared_ptr(i));
             sdpa_inputs[1] = new_kv_cache_k->output(0);         // compressed K
-            // sdpa_inputs[2] = new_kv_cache_v->output(0);         // compressed V
+            sdpa_inputs[2] = new_kv_cache_v->output(0);         // compressed V
             sdpa_inputs.push_back(new_kv_cache_k->output(2));   // scale for compressed K
-            // sdpa_inputs.push_back(new_kv_cache_v->output(2));   // scale for compressed V
+            sdpa_inputs.push_back(new_kv_cache_v->output(2));   // scale for compressed V
 
             // auto new_sdpa = org_sdpa->clone_with_new_inputs(sdpa_inputs);
             auto new_sdpa = std::make_shared<op::IndirectSDPA>(sdpa_inputs,
@@ -149,8 +147,8 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher() {
             new_kv_cache_k->set_friendly_name(key_node->get_friendly_name());
             ov::copy_runtime_info(key_node, new_kv_cache_k);
 
-            // new_kv_cache_v->set_friendly_name(value_node->get_friendly_name());
-            // ov::copy_runtime_info(value_node, new_kv_cache_v);
+            new_kv_cache_v->set_friendly_name(value_node->get_friendly_name());
+            ov::copy_runtime_info(value_node, new_kv_cache_v);
 
             new_sdpa->set_friendly_name(org_sdpa->get_friendly_name());
             ov::copy_runtime_info(org_sdpa, new_sdpa);

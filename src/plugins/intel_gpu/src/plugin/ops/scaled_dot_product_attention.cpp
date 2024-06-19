@@ -64,7 +64,7 @@ static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     bool is_causal = op->get_causal();
     bool is_kv_compressed = op->get_kv_compressed();
-    size_t scale_input_cnt = is_kv_compressed ? 1 : 0;
+    size_t scale_input_cnt = is_kv_compressed ? 2 : 0;
     validate_inputs_count(op, {4 + scale_input_cnt, 5 + scale_input_cnt, 6 + scale_input_cnt});
     int64_t indirect_axis = op->get_indirect_axis();
     auto sdpa_prim = cldnn::scaled_dot_product_attention(layerName,
