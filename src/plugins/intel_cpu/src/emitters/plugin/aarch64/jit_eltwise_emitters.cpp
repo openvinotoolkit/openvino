@@ -516,30 +516,18 @@ std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions
     return {{element::f32}};
 }
 
-/// GELU_BASE ///
-jit_gelu_base_emitter::jit_gelu_base_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                           const std::shared_ptr<ov::Node>& node)
-        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-}
-
-jit_gelu_base_emitter::jit_gelu_base_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                           const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
-}
-
 /// GELU_ERF ///
 jit_gelu_erf_emitter::jit_gelu_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                            const std::shared_ptr<ov::Node>& node)
-        : jit_gelu_base_emitter(host, host_isa, node) {
+        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
     exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, node);
 }
 
 jit_gelu_erf_emitter::jit_gelu_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                           const ov::element::Type exec_prc) : jit_gelu_base_emitter(host, host_isa, exec_prc) {
+                                           const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
     exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
 }
@@ -666,14 +654,14 @@ std::set<std::vector<element::Type>> jit_gelu_erf_emitter::get_supported_precisi
 jit_gelu_tanh_emitter::jit_gelu_tanh_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                              const std::shared_ptr<ov::Node>& node)
-                                             : jit_gelu_base_emitter(host, host_isa, node) {
+                                             : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
     tanh_emitter = std::make_unique<jit_tanh_emitter>(h, host_isa, node);
 }
 
 jit_gelu_tanh_emitter::jit_gelu_tanh_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                             const ov::element::Type exec_prc) : jit_gelu_base_emitter(host, host_isa, exec_prc) {
+                                             const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
     tanh_emitter = std::make_unique<jit_tanh_emitter>(h, host_isa, exec_prc);
 }
@@ -751,58 +739,6 @@ void jit_gelu_tanh_emitter::emit_data() const {
 
 std::set<std::vector<element::Type>> jit_gelu_tanh_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
-}
-
-/// GELU_V7 ///
-jit_gelu_v7_emitter::jit_gelu_v7_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                         const std::shared_ptr<ov::Node>& node)
-        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-    const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(node);
-    if (gelu == nullptr) {
-        OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v7::Gelu");
-    }
-    const auto approximationMode = gelu->get_approximation_mode();
-    if (approximationMode == ov::op::GeluApproximationMode::ERF) {
-        gelu_emitter = std::static_pointer_cast<jit_gelu_base_emitter>(std::make_shared<jit_gelu_erf_emitter>(h, host_isa, node));
-    } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {
-        gelu_emitter = std::static_pointer_cast<jit_gelu_base_emitter>(std::make_shared<jit_gelu_tanh_emitter>(h, host_isa, node));
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Unsupported Gelu approximation mode");
-    }
-}
-
-size_t jit_gelu_v7_emitter::get_inputs_count() const {
-    return gelu_emitter->get_inputs_count();
-}
-
-size_t jit_gelu_v7_emitter::get_aux_vecs_count() const {
-    return gelu_emitter->get_aux_vecs_count();
-}
-
-size_t jit_gelu_v7_emitter::get_aux_gprs_count() const {
-    return gelu_emitter->get_aux_gprs_count();
-}
-
-void jit_gelu_v7_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
-    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
-        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
-    }
-}
-
-template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-void jit_gelu_v7_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
-    gelu_emitter->emit_code(in_vec_idxs, out_vec_idxs, aux_vec_idxs, aux_gpr_idxs);
-}
-
-void jit_gelu_v7_emitter::emit_data() const {
-    gelu_emitter->emit_data();
-}
-
-std::set<std::vector<element::Type>> jit_gelu_v7_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return jit_gelu_base_emitter::get_supported_precisions(node);
 }
 
 /// HARD_SWISH ///
