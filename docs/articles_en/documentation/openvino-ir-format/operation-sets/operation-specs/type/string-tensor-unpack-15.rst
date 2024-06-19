@@ -21,7 +21,7 @@ Consider an ``input`` string tensor containing values ``["Intel", "OpenVINO"]``.
 The operator will transform the tensor into three outputs:
 
 * *begins* = [0, 5]
-    * ``begins[0]`` is equal to 0, because the first string starts at the beggining index.
+    * ``begins[0]`` is equal to 0, because the first string starts at the beginning index.
     * ``begins[1]`` is equal to 5, because length of the string "Intel" is equal to 5.
     * ``begins.shape`` is equal to [2], because the ``input`` is a batch of 2 strings.
 
