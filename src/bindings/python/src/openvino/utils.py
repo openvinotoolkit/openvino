@@ -50,15 +50,19 @@ def get_cmake_path():
     Returns:
     str: The path to the directory containing CMake files, if found. Otherwise, returns empty string.
     """
-    site_packages = chain((Path(__file__).parent.parent,), site.getusersitepackages(), site.getsitepackages())
-    cmake_path = next(
-        (
-            cpath
-            for site_package in map(Path, site_packages)
-            if (cpath := site_package / __package__ / "cmake").is_dir()
-        ),
-        "",
+    site_packages = chain(
+        (Path(__file__).parent.parent,),
+        site.getusersitepackages(),
+        site.getsitepackages()
     )
+
+    cmake_paths = [
+        site_package / __package__ / "cmake"
+        for site_package in map(Path, site_packages)
+    ]
+
+    cmake_path = next((path for path in cmake_paths if path.is_dir()), "")
+
     return cmake_path
 
 
