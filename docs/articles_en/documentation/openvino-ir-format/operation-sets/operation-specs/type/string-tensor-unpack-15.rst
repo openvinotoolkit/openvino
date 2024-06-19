@@ -5,11 +5,11 @@ StringTensorUnpack
 
 
 .. meta::
-  :description: Learn about StringTensorUnpack-15 - data movement operation which unpacks a batch of strings into three tensors.
+  :description: Learn about StringTensorUnpack-15 - operation which unpacks a batch of strings into three tensors.
 
 **Versioned name**: *StringTensorUnpack-15*
 
-**Category**: *Data movement*
+**Category**: *Type*
 
 **Short description**: *StringTensorUnpack* operation transforms a given batch of strings into three tensors - one containing 
 the concatenated string data, and two other storing begin and end indices of the strings, respectively.

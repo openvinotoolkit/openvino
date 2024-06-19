@@ -5,11 +5,11 @@ StringTensorPack
 
 
 .. meta::
-  :description: Learn about StringTensorPack-15 - data movement operation which packs a concatenated batch of strings into a batched string tensor.
+  :description: Learn about StringTensorPack-15 - operation which packs a concatenated batch of strings into a batched string tensor.
 
 **Versioned name**: *StringTensorPack-15*
 
-**Category**: *Data movement*
+**Category**: *Type*
 
 **Short description**: *StringTensorPack* transforms a concatenated batch of strings into 
 a string tensor using *begins* and *ends* indices.
