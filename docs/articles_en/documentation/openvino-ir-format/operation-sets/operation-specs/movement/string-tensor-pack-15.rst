@@ -34,13 +34,13 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 * **1**: *begins*:
 
   * **Description**: Indices of each string's beginnings. **Required.**
-  * **Range of values**: 1D tensor of non-negative integer numbers.
+  * **Range of values**: ND tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
 * **2**: *ends*:
 
   * **Description**: Indices of each string's endings. **Required.**
-  * **Range of values**: 1D tensor of non-negative integer numbers.
+  * **Range of values**: ND tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
 * **3**: *symbols*:
@@ -59,7 +59,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
 **Types**
 
-* *T_IDX*: ``int64``.
+* *T_IDX*: ``int32`` or ``int64``.
 
 **Examples**
 
@@ -81,7 +81,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
             </port>
         </input>
         <output>
-            <port id="0" precision="u8">
+            <port id="0" precision="string">
                 <dim>2</dim>     <!-- output = ["Intel", "OpenVINO"] -->
             </port>
         </output>
@@ -105,7 +105,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
             </port>
         </input>
         <output>
-            <port id="0" precision="u8">
+            <port id="0" precision="string">
                 <dim>5</dim>     <!-- output = ["OMZ", "", "GenAI", " ", "2024"] -->
             </port>
         </output>
@@ -129,8 +129,35 @@ but not including, ``b``. That is why in the example given the length of "IntelO
             </port>
         </input>
         <output>
-            <port id="0" precision="u8">
+            <port id="0" precision="string">
                 <dim>5</dim>     <!-- output = ["1", "9"] -->
+            </port>
+        </output>
+    </layer>
+
+*Example 4: 2D begins and ends*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="StringTensorPack" ... >
+        <input>
+            <port id="0" precision="I64">
+                <dim>2</dim>     <!-- begins = [[0, 5], [13, 16]] -->
+                <dim>2</dim>
+            </port>
+            <port id="1" precision="I64">
+                <dim>2</dim>     <!-- ends = [[5, 13], [16, 21]] -->
+                <dim>2</dim>
+            </port>
+            <port id="2" precision="u8">
+                <dim>21</dim>    <!-- symbols = "IntelOpenVINOOMZGenAI" -->
+            </port>
+        </input>
+        <output>
+            <port id="0" precision="string">
+                <dim>2</dim>     <!-- output = [["Intel", "OpenVINO"], ["OMZ", "GenAI"]] -->
+                <dim>2</dim>
             </port>
         </output>
     </layer>

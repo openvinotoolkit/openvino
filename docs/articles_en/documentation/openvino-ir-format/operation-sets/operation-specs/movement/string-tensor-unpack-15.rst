@@ -44,32 +44,31 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
   * **Description**: A tensor containing a string to be unpacked. **Required.**
   * **Range of values**: A string tensor.
-  * **Type**: *T*
+  * **Type**: ``element::string``
 
 **Outputs**
 
 * **1**: *begins*:
 
   * **Description**: Indices of each string's begginings.
-  * **Range of values**: 1D tensor of non-negative integer numbers.
+  * **Range of values**: ND tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
 * **2**: *ends*:
 
   * **Description**: Indices of each string's endings.
-  * **Range of values**: 1D tensor of non-negative integer numbers.
+  * **Range of values**: ND tensor of non-negative integer numbers.
   * **Type**: *T_IDX*
 
 * **3**: *symbols*:
 
   * **Description**: Concatenated ``input`` strings.
   * **Range of values**: 1D tensor of element::string objects.
-  * **Type**: *T*
+  * **Type**: ``u8``
 
 **Types**
 
-* *T*: ``u8``.
-* *T_IDX*: ``int64``.
+* *T_IDX*: ``int32`` or ``int64``.
 
 **Examples**
 
@@ -82,7 +81,7 @@ For ``input = ["Intel", "OpenVINO"]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="u8">
+            <port id="0" precision="string">
                 <dim>2</dim>     <!-- batch of strings -->
             </port>
         </input>
@@ -121,6 +120,35 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
             </port>
             <port id="2" precision="u8">
                 <dim>13</dim>    <!-- symbols = "OMZGenAI 2024"-->
+            </port>
+        </output>
+    </layer>
+
+*Example 3: 2D input*
+
+For ``input = [["Intel", "OpenVINO"], ["OMZ", "GenAI"]]``
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="StringTensorUnpack" ... >
+        <input>
+            <port id="0" precision="string">
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </input>
+        <output>
+            <port id="0" precision="I64">
+                <dim>2</dim>     <!-- begins = [[0, 5], [13, 16]] -->
+                <dim>2</dim>
+            </port>
+            <port id="1" precision="I64">
+                <dim>2</dim>     <!-- ends = [[5, 13], [16, 21]] -->
+                <dim>2</dim>
+            </port>
+            <port id="2" precision="u8">
+                <dim>21</dim>    <!-- symbols = "IntelOpenVINOOMZGenAI" -->
             </port>
         </output>
     </layer>
