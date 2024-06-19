@@ -178,21 +178,21 @@ pass::AbsSinking::AbsSinking() {
 
 pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     MATCHER_SCOPE(SimplifyGatherShapeOf);
-    const auto gather_pattern = wrap_type<op::util::GatherBase>();
+    const auto data_pattern = pattern::any_input(pattern::has_static_rank());
+    const auto indices_pattern = pattern::any_input(pattern::has_static_rank());
+    const auto axis_pattern = wrap_type<op::v0::Constant>();
+    const auto gather_pattern = wrap_type<op::util::GatherBase>({data_pattern, indices_pattern, axis_pattern});
     const auto shape_of_pattern = wrap_type<v0::ShapeOf, v3::ShapeOf>({gather_pattern});
 
     matcher_pass_callback callback = [](Matcher& m) {
         auto node = m.get_match_root();
-        auto gather = as_type_ptr<v1::Gather>(node->input_value(0).get_node_shared_ptr());
-        if (!gather) {
+        auto gather = as_type_ptr<op::util::GatherBase>(node->input_value(0).get_node_shared_ptr());
+        if (!gather || gather->get_batch_dims() != 0) {
             return false;
         }
+        int64_t axis = gather->get_axis();
         auto gather_in_rank = gather->get_input_partial_shape(0).rank();
         auto indices_rank = gather->get_input_partial_shape(1).rank();
-        auto axis = gather->get_axis();
-        if (gather_in_rank.is_dynamic() || indices_rank.is_dynamic() || axis == v1::Gather::AXIS_NOT_SET_VALUE) {
-            return false;
-        }
 
         auto zero_axis = v0::Constant::create<int64_t>(element::i64, Shape{}, {0});
         NodeVector new_ops;
@@ -353,7 +353,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
 bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
-    Manager manager;
+    Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
     REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)

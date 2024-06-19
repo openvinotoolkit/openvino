@@ -20,9 +20,9 @@ main  .searchForm {
 pre {
     white-space: pre-wrap;
     word-wrap: break-word;
-    background-color: white;
-    color: red !important;
-}
+    /*background-color: white;
+     color: red !important; */
+}   /*confirm this is not necessary, if so, remove */
 
 button.copybtn {
     opacity: 100;
@@ -129,7 +129,7 @@ nav.bd-links li > a:hover {
     text-decoration: underline
 }
 
-ul#navbar-main-elements > li:hover { 
+ul#navbar-main-elements > li:hover {
     text-decoration: underline;
     color: #fff;
 }
@@ -146,6 +146,10 @@ nav.bd-links .current>a {
     white-space: nowrap;
     padding-right: 0;
     padding: 0 0.8rem;
+}
+
+a.nav-link:hover {
+    text-decoration:none !important;
 }
 
 /* Github icon size */
@@ -223,7 +227,7 @@ details.sd-dropdown:not([open]).sd-card {
 /* Ttile is at the same place for both open and close states */
 .sd-card-header {
     border-radius: 0px !important;
-    
+
 }
 
 /* Ttile is at the same place for both open and close states */
@@ -262,7 +266,7 @@ details.sd-dropdown .sd-summary-title {
     min-width: 125px!important;
 }
 
-[aria-labelledby="version-selector"]  .dropdown-item { 
+[aria-labelledby="version-selector"]  .dropdown-item {
     padding: 0.25rem 0.5rem!important;
 }
 
@@ -423,23 +427,40 @@ div.highlight {
 .hidden-banner {
     display: none!important;
 }
+/* Header */
 
+.bd-header label.primary-toggle {
+    color: white;
+}
+
+.bd-header label.secondary-toggle {
+    visibility: hidden;
+}
 
 /* Responsiveness */
 /* =================================================== */
 @media (max-width: 720px) {
+
+    .container,
+    .container-lg,
+    .container-md,
+    .container-sm,
+    .container-xl {
+        max-width: 1850px;
+    }
+
     .transition-banner {
         margin-top: 2rem;
     }
 }
 
 @media (min-width: 1200px) {
-    .container, 
+    .container,
     .container-lg,
     .container-md,
     .container-sm,
     .container-xl {
-        max-width: 1800px;
+        max-width: 1900px;
     }
 }
 
@@ -904,6 +925,7 @@ div.highlight {
 
 
 /* Content formatting for the benchmark pages */
+/* =================================================== */
 .picker-options {
     margin: 15px 0;
 }
@@ -1206,7 +1228,7 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
 
 .newsletter-submit-btn:before {
     font-family: "Font Awesome 5 Free";
-    content: "\f0e0\00a0"; 
+    content: "\f0e0\00a0";
     font-size: 1rem;
 }
 
@@ -1290,3 +1312,29 @@ input:-webkit-autofill {
     -webkit-box-shadow: 0 0 0px 1000px white inset;
 }
 
+/* Scrollbox Extension */
+/* =================================================== */
+.scrollbox {
+    overflow-y:scroll;
+    height:300px;
+    margin-bottom: 20px;
+}
+
+/* overriding the 'back to top btn' style from webpack://pydata_sphinx_theme/src/pydata_sphinx_theme/assets/styles/base/_base.scss */
+/* =================================================== */
+#pst-back-to-top {
+    top: unset;
+    bottom: 3rem;
+    left: unset;
+    right: -2rem;
+    background-color: #0068b5;
+    font-size: .8rem;
+    border-radius: .25rem !important;
+}
+
+/* hide the header for the side menu */
+/* =================================================== */
+
+nav.bd-links p.bd-links__title {
+    display: none;
+}

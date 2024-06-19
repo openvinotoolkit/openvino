@@ -14,6 +14,7 @@ and on-device, in the browser or in the cloud.
 Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
 
 
+
 .. container::
    :name: ov-homepage-banner
 
@@ -24,30 +25,20 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
          <section class="splide" aria-label="Splide Banner Carousel">
            <div class="splide__track">
          		<ul class="splide__list">
-                  <li id="ov-homepage-slide1" id class="splide__slide">
-                     <p class="ov-homepage-slide-title">An open-source toolkit for optimizing and deploying deep learning models.</p>
-                     <p class="ov-homepage-slide-subtitle">Boost your AI deep-learning inference performance!</p>
-                     <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/get-started.html">Learn more</a>
+                  <li id="ov-homepage-slide1" class="splide__slide">
+                  <p class="ov-homepage-slide-title">New Generative AI API</p>
+                  <p class="ov-homepage-slide-subtitle">Generate text with LLMs in only a few lines of code!</p>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide2" class="splide__slide">
-                  <p class="ov-homepage-slide-title">Better OpenVINO integration with PyTorch!</p>
-                  <p class="ov-homepage-slide-subtitle">Use PyTorch models directly, without converting them first.</p>
-                     <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html">Learn more</a>
+                  <p class="ov-homepage-slide-title">Improved model serving</p>
+                  <p class="ov-homepage-slide-subtitle">OpenVINO Model Server has improved parallel inferencing!</p>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/ovms_what_is_openvino_model_server.html">Learn more</a>
                   </li>
                   <li id="ov-homepage-slide3" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
                   <p class="ov-homepage-slide-subtitle">Use OpenVINO directly in PyTorch-native applications!</p>
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html">Learn more</a>
-                  </li>
-                  <li id="ov-homepage-slide4" class="splide__slide">
-                  <p class="ov-homepage-slide-title">Do you like Generative AI?</p>
-                  <p class="ov-homepage-slide-subtitle">You will love how it performs with OpenVINO!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/interactive-tutorials-python.html">Check out our new notebooks</a>
-                  </li>
-                  <li id="ov-homepage-slide5" id class="splide__slide">
-                     <p class="ov-homepage-slide-title">Boost your AI deep learning interface performance.</p>
-                     <p class="ov-homepage-slide-subtitle">Use Intel's open-source OpenVino toolkit for optimizing and deploying deep learning models.</p>
-                     <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html">Learn more</a>
                   </li>
             </ul>
            </div>
@@ -57,7 +48,7 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
 |
 |
 
-.. image:: ./_static/images/openvino-overview-diagram.jpg
+.. image:: ./assets/images/openvino-overview-diagram.jpg
    :align: center
    :alt: openvino diagram
 
@@ -70,7 +61,7 @@ Places to Begin
    :class-container: ov-homepage-higlight-grid
 
    .. grid-item-card:: Installation
-      :img-top: ./_static/images/home_begin_tile_01.png
+      :img-top: ./assets/images/home_begin_tile_01.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -83,7 +74,7 @@ Places to Begin
          Get Started
 
    .. grid-item-card:: Performance Benchmarks
-      :img-top: ./_static/images/home_begin_tile_02.png
+      :img-top: ./assets/images/home_begin_tile_02.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -96,7 +87,7 @@ Places to Begin
          View data
 
    .. grid-item-card:: Framework Compatibility
-      :img-top: ./_static/images/home_begin_tile_03.png
+      :img-top: ./assets/images/home_begin_tile_03.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -109,7 +100,7 @@ Places to Begin
          Load your model
 
    .. grid-item-card:: Easy Deployment
-      :img-top: ./_static/images/home_begin_tile_04.png
+      :img-top: ./assets/images/home_begin_tile_04.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -122,7 +113,7 @@ Places to Begin
          Run Inference
 
    .. grid-item-card:: Serving at scale
-      :img-top: ./_static/images/home_begin_tile_05.png
+      :img-top: ./assets/images/home_begin_tile_05.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -135,7 +126,7 @@ Places to Begin
          Try it out
 
    .. grid-item-card:: Model Compression
-      :img-top: ./_static/images/home_begin_tile_06.png
+      :img-top: ./assets/images/home_begin_tile_06.png
       :class-card: homepage_begin_tile
       :shadow: none
 
@@ -157,28 +148,28 @@ Key Features
    :class-container: homepage_begin_container
 
    .. grid-item-card:: Model Compression
-      :img-top: ./_static/images/home_key_feature_01.png
+      :img-top: ./assets/images/home_key_feature_01.png
       :class-card: homepage_begin_key
       :shadow: none
 
       You can either link directly with OpenVINO Runtime to run inference locally or use OpenVINO Model Server to serve model inference from a separate server or within Kubernetes environment.
 
    .. grid-item-card:: Fast & Scalable Deployment
-      :img-top: ./_static/images/home_key_feature_02.png
+      :img-top: ./assets/images/home_key_feature_02.png
       :class-card: homepage_begin_key
       :shadow: none
 
       Write an application once, deploy it anywhere, achieving maximum performance from hardware. Automatic device discovery allows for superior deployment flexibility. OpenVINO Runtime supports Linux, Windows and MacOS and provides Python, C++ and C API. Use your preferred language and OS.
 
    .. grid-item-card:: Lighter Deployment
-      :img-top: ./_static/images/home_key_feature_03.png
+      :img-top: ./assets/images/home_key_feature_03.png
       :class-card: homepage_begin_key
       :shadow: none
 
       Designed with minimal external dependencies reduces the application footprint, simplifying installation and dependency management. Popular package managers enable application dependencies to be easily installed and upgraded. Custom compilation for your specific model(s) further reduces final binary size.
 
    .. grid-item-card:: Enhanced App Start-Up Time
-      :img-top: ./_static/images/home_key_feature_04.png
+      :img-top: ./assets/images/home_key_feature_04.png
       :class-card: homepage_begin_key
       :shadow: none
 
