@@ -21,8 +21,6 @@ Plus, enjoy `Jupyter notebooks <https://github.com/openvinotoolkit/datumaro/tree
 Detailed Workflow
 #################
 
-``
-
 .. image:: ../../assets/images/datumaro.png
 
 1. To start working with Datumaro, download public datasets or prepare your own annotated dataset.
