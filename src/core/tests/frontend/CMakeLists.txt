@@ -12,7 +12,7 @@ target_compile_definitions(${MOCK1_FE_NAME} PRIVATE "-DMOCK_VARIANT=\"1\"")
 
 target_include_directories(${MOCK1_FE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(${MOCK1_FE_NAME} PRIVATE openvino::frontend::common)
+target_link_libraries(${MOCK1_FE_NAME} PRIVATE openvino::frontend::common openvino::util)
 add_dependencies(ov_core_unit_tests ${MOCK1_FE_NAME})
 
 ov_add_clang_format_target(${MOCK1_FE_NAME}_clang FOR_TARGETS ${MOCK1_FE_NAME})
