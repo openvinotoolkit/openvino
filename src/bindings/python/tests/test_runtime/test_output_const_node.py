@@ -156,4 +156,4 @@ def test_deepcopy():
     output_node = node.outputs()[0]
     with pytest.raises(TypeError) as e:
         deepcopy(output_node)
-    assert "cannot deepcopy 'openvino.runtime.Output' object." in str(e)
+    assert "Cannot deepcopy 'openvino.runtime.Output' object." in str(e)

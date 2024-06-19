@@ -580,4 +580,4 @@ def test_copy_failed():
     model = generate_add_model()
     with pytest.raises(TypeError) as e:
         copy(model)
-    assert "cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(e.value)
+    assert "Cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(e.value)

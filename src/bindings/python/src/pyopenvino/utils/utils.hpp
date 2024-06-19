@@ -32,7 +32,11 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
+
     struct EmptyList {};
+
+    PY_TYPE check_list_element_type(const py::list& list);
 
     py::object from_ov_any_no_leaves(const ov::Any& any);
 
