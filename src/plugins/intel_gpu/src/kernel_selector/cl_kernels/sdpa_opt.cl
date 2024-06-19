@@ -46,9 +46,6 @@
         #define SCALE_VALUE_GET_INDEX(b, f, y, x) 0
     #endif
 #endif
-#if IS_KV_COMPRESSED
-#define __VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(char, 1, ptr, offset)
-#endif
 #ifdef COMPRESSED_PER_HEAD
 #define OFFSET_DIVIDER 128
 #else
@@ -580,11 +577,11 @@ KERNEL(sdpa_opt)(
              unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
 #if IS_KV_COMPRESSED && IS_V_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
-                char __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                char __value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
                 half value_val = __value_val;
                 value_val *= val_scale[sub_group_broadcast(value_offset, i)/OFFSET_DIVIDER];
     #else
-                char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+                char __value_val = VALUE_BLOCK_READ(value_input, value_offset);
                 half value_val = __value_val;
                 value_val *= val_scale[value_offset/OFFSET_DIVIDER];
     #endif
@@ -625,7 +622,7 @@ KERNEL(sdpa_opt)(
                 qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
             }
 #if IS_KV_COMPRESSED && IS_V_COMPRESSED
-            char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+            char __value_val = VALUE_BLOCK_READ(value_input, value_offset);
             half value_val = __value_val;
             value_val *= val_scale[value_offset/OFFSET_DIVIDER];
 #else
@@ -1005,11 +1002,11 @@ KERNEL(sdpa_opt)(
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
 #if IS_KV_COMPRESSED && IS_V_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
-                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                INPUT2_TYPE __value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
                 half value_val = __value_val;
                 value_val *= val_scale[sub_group_broadcast(value_offset, i)/OFFSET_DIVIDER];
     #else
-                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+                INPUT2_TYPE __value_val = VALUE_BLOCK_READ(value_input, value_offset);
                 half value_val = __value_val;
                 value_val *= val_scale[value_offset/OFFSET_DIVIDER];
     #endif
@@ -1149,9 +1146,9 @@ KERNEL(sdpa_opt)(
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
 #if IS_KV_COMPRESSED && IS_V_COMPRESSED
 #ifdef BEAM_TABLE_TYPE
-                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
+                INPUT2_TYPE __value_val = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
 #else
-                INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
+                INPUT2_TYPE __value_val = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
                 half value_val = __value_val;
                 value_val *= val_scale[scale_value_offset];
