@@ -35,6 +35,8 @@ public:
     uint64_t GetDeviceTotalMemSize(const std::string& specifiedDeviceName) const;
     uint32_t GetDriverVersion() const;
     uint32_t GetDriverExtVersion() const;
+    uint32_t GetSteppingNumber(const std::string& specifiedDeviceName) const;
+    uint32_t GetMaxTiles(const std::string& specifiedDeviceName) const;
     ov::device::PCIInfo GetPciInfo(const std::string& specifiedDeviceName) const;
     std::map<ov::element::Type, float> GetGops(const std::string& specifiedDeviceName) const;
     ov::device::Type GetDeviceType(const std::string& specifiedDeviceName) const;
