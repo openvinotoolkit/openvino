@@ -187,19 +187,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ov::pass::CommonDecompositions");
 
-    if (getenv("REPLACE")) {
-        REGISTER_PASS(manager, ConstantFolding)
-        manager.register_pass<ov::pass::VisualizeTree>("before_MatmulSplitDecomposition.svg");
-
-        auto decomp_tmp = manager.register_pass<GraphRewrite>();
-        ADD_MATCHER(decomp_tmp, MatmulSplitDecomposition)
-        decomp_tmp->set_name("ov::pass::MatmulSplitDecomposition");
-        ADD_MATCHER(decomp_tmp, MatmulVariadicSplitDecomposition)
-        decomp_tmp->set_name("ov::pass::MatmulVariadicSplitDecomposition");
-
-        manager.register_pass<ov::pass::VisualizeTree>("after_MatmulSplitDecomposition.svg");
-    }
-
     REGISTER_PASS(manager, ConstantFolding)
 
     // CF is required after all decompositions

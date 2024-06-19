@@ -15,5 +15,10 @@ TEST_P(MatMulGatherDecompose, CompareWithRefs) {
     run();
 }
 
+TEST_P(MatMulSplitDecompose, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+}
+
 }  // namespace test
 }  // namespace ov
