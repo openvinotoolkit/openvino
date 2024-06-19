@@ -58,20 +58,6 @@
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
-#ifndef __EMSCRIPTEN__
-#    if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1913))
-#        if __has_include(<filesystem>)
-#            include <filesystem>
-namespace fs = std::filesystem;
-#        endif
-#    else
-#        define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
-#        define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
-#        include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#    endif
-#endif
-
 std::string ov::util::get_file_name(const std::string& s) {
     std::string rc = s;
     // Linux-style separator
@@ -691,21 +677,3 @@ const char* ov::util::trim_file_name(const char* const fname) {
 #endif
     return fname_trim_ptr;
 }
-
-#ifndef __EMSCRIPTEN__
-bool ov::util::is_symlink_or_hardlink(const std::string& path) {
-    if (path.empty())
-        return false;
-    fs::path p = fs::path(path);
-    return fs::is_symlink(p);
-}
-
-#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-bool ov::util::is_symlink_or_hardlink(const std::wstring& path) {
-    if (path.empty())
-        return false;
-    fs::path p = fs::path(path);
-    return fs::is_symlink(p);
-}
-#    endif
-#endif

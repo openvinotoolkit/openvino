@@ -118,10 +118,9 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
     std::string model_path = modelPath;
 #endif
 
-#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
-    if (ov::util::is_symlink_or_hardlink(model_path)) {
-        OPENVINO_THROW("Cannot read model" + modelPath + ". The path is a symlink or hardlink");
-    }
+#if defined(__linux__) && !defined(__ANDROID__)
+    OPENVINO_ASSERT(!fs::is_symlink(model_path),
+                    "Cannot read model" + modelPath + ". The path is a symlink or hardlink");
 #endif
 
     // Try to load with FrontEndManager
