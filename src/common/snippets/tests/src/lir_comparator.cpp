@@ -97,11 +97,7 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
         PROPAGATE_ERROR("", run_comparison(result_it, result_it_ref));
 
     if (should_compare(LIRCmpValues::LOOP_MANAGER)) {
-        if (should_compare(LIRCmpValues::LOOP_INDICES)) {
-            PROPAGATE_ERROR("Loop managers", compare_loop_managers(linear_ir->get_loop_manager(), linear_ir_ref->get_loop_manager()));
-        } else {
-            PROPAGATE_ERROR("Loop managers", compare_loop_managers_without_index(linear_ir->get_loop_manager(), linear_ir_ref->get_loop_manager()));
-        }
+        PROPAGATE_ERROR("Loop managers", compare_loop_managers(linear_ir->get_loop_manager(), linear_ir_ref->get_loop_manager()));
     }
     return Result::ok();
 }
@@ -131,21 +127,6 @@ LIRComparator::Result LIRComparator::compare_loop_managers(const LoopManagerPtr&
         const auto& loop_info = map_elem.second;
         const auto& loop_info_ref = iter->second;
         PROPAGATE_ERROR("Loop with id " + std::to_string(id), compare_loop_info(loop_info, loop_info_ref));
-    }
-    return Result::ok();
-}
-
-LIRComparator::Result LIRComparator::compare_loop_managers_without_index(const LoopManagerPtr& loop_manager,
-                                                                         const LoopManagerPtr& loop_manager_ref) {
-    const auto& map = loop_manager->get_map();
-    const auto& map_ref = loop_manager_ref->get_map();
-    COMPARE("Loops map size", map.size(), map_ref.size());
-
-    for (auto map_iter = map.cbegin(), map_ref_iter = map_ref.cbegin(); map_iter != map.cend(); map_iter++, map_ref_iter++) {
-        const auto& loop_info = map_iter->second;
-        const auto& loop_info_ref = map_ref_iter->second;
-        PROPAGATE_ERROR("Loop with id " + std::to_string(map_iter->first) + " and ref Loop with id " + std::to_string(map_ref_iter->first),
-                        compare_loop_info(loop_info, loop_info_ref));
     }
     return Result::ok();
 }

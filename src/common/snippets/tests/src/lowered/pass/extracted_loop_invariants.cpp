@@ -24,7 +24,7 @@ using namespace ov::snippets::lowered::pass;
 class ExtractLoopInvariantsTest : public LoweredPassTestsF {
 public:
     ExtractLoopInvariantsTest() : LoweredPassTestsF() {
-        comparator.disable(LIRComparator::LIRCmpValues::LOOP_INDICES); // loop could be removed and loop index could be different
+        comparator.enable(LIRComparator::LIRCmpValues::LOOP_INDICES);
         comparator.enable(LIRComparator::LIRCmpValues::PORT_DESCRIPTORS);
         comparator.enable(LIRComparator::LIRCmpValues::PORT_CONNECTORS);
         comparator.enable(LIRComparator::LIRCmpValues::LOOP_MANAGER);
@@ -32,7 +32,6 @@ public:
 
     void SetUp() override {
         pipeline.register_pass<ExtractLoopInvariants>();
-        // pipeline.register_pass<NormalizeLoopIDs>();
     }
 };
 
@@ -234,9 +233,79 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsOutputLoopUpdateNotNeed
     }
 }
 
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOutside) {
+    size_t vector_size = 16;
+    const auto input_precision = ov::element::f32;
+    const ov::Shape input_shape_0{3, 512};
+    const ov::Shape input_shape_1{1, 1};
+    ov::snippets::VectorDims layout{0, 1};
+    ov::snippets::VectorDims subtensor{3, 512};
+    /*
+     * before:       Param0, Param1, [[Broadcast, Add]], Result
+     * intermediate: Param0, Param1, [Broadcast, [Add]], Result
+     * after:        Param0, Param1, Broadcast, [[Add]], Result
+     *      Param0(3,512)    Param1(1,1)
+     *              \         /
+     *               \    Broadcast
+     *                \     /
+     *                  Add
+     *                   |
+     *                 Result
+    */
+    {
+        auto param_0 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        auto param_1 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
+        auto broadcastmove = linear_ir->push_node<ov::snippets::op::BroadcastMove>(param_1.second, 512);
+        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
+        auto add = linear_ir->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
+        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
+        auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
+        create_and_add_unified_loop_info(linear_ir, broadcastmove.first, result.first, 3, 1,
+                                        {LoopPort((*broadcastmove.first)->get_input_port(0), true, 1),
+                                         LoopPort((*add.first)->get_input_port(0), true, 1)},
+                                        {LoopPort((*add.first)->get_output_port(0), true, 1)});
+        create_and_add_unified_loop_info(linear_ir, broadcastmove.first, result.first, 512, vector_size,
+                                        {LoopPort((*broadcastmove.first)->get_input_port(0), true, 0),
+                                         LoopPort((*add.first)->get_input_port(0), true, 0)},
+                                        {LoopPort((*add.first)->get_output_port(0), true, 0)});
+    }
+    {
+        auto param_0 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        auto param_1 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
+        auto broadcastmove = linear_ir_ref->push_node<ov::snippets::op::BroadcastMove>(param_1.second, 512);
+        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
+        auto add = linear_ir_ref->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
+        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
+        create_and_add_unified_loop_info(linear_ir_ref, add.first, result.first, 3, 1,
+                                        {LoopPort((*add.first)->get_input_port(0), true, 1),
+                                         LoopPort((*add.first)->get_input_port(1), true, 1)},
+                                        {LoopPort((*add.first)->get_output_port(0), true, 1)});
+        create_and_add_unified_loop_info(linear_ir_ref, add.first, result.first, 512, vector_size,
+                                        {LoopPort((*add.first)->get_input_port(0), true, 0),
+                                         LoopPort((*add.first)->get_input_port(1), true, 0)},
+                                        {LoopPort((*add.first)->get_output_port(0), true, 0)});
+    }
+}
+
+class ExtractLoopInvariantsRemoveLoopsTest : public LoweredPassTestsF {
+public:
+    ExtractLoopInvariantsRemoveLoopsTest() : LoweredPassTestsF() {
+        comparator.enable(LIRComparator::LIRCmpValues::LOOP_INDICES);
+        comparator.enable(LIRComparator::LIRCmpValues::PORT_DESCRIPTORS);
+        comparator.enable(LIRComparator::LIRCmpValues::PORT_CONNECTORS);
+        comparator.enable(LIRComparator::LIRCmpValues::LOOP_MANAGER);
+    }
+
+    void SetUp() override {
+        pipeline.register_pass<ExtractLoopInvariants>();
+        pipeline.register_pass<NormalizeLoopIDs>(); // loop could be removed and loop index could be different, normalize it
+    }
+};
+
 // softmax with shape of 1 for innermost dimension.
-// Cover multiple(all) exprs are extracted, and loop is removed.
-TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsAllExprsInLoopExtracted) {
+// Cover multiple(all) exprs are extracted, and inner loops are removed.
+TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLoopExtracted) {
     size_t vector_size = 16;
     const auto input_precision = ov::element::f32;
     const ov::Shape input_shape{10, 1};
@@ -298,11 +367,17 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsAllExprsInLoopExtracted
                                          LoopPort((*multiply.first)->get_input_port(1), true, 0)},
                                         {LoopPort((*multiply.first)->get_output_port(0), true, 0)});
         // outer loop info
-        create_and_add_unified_loop_info(linear_ir, max.first, result.first, 10, 1,
+        const auto loop_begin = std::make_shared<ov::snippets::op::LoopBegin>();
+        auto loop_begin_expr = linear_ir->insert_node(loop_begin, std::vector<PortConnectorPtr>{}, {}, false, max.first);
+        const auto loop_end = std::make_shared<ov::snippets::op::LoopEnd>();
+        std::vector<PortConnectorPtr> loop_end_inputs{(*loop_begin_expr)->get_output_port_connector(0)};
+        auto loop_end_expr = linear_ir->insert_node(loop_end, loop_end_inputs, {}, false, result.first);
+        create_and_add_unified_loop_info(linear_ir, loop_begin_expr, result.first, 10, 1,
                                         {LoopPort((*max.first)->get_input_port(0), true, 1),
                                          LoopPort((*max.first)->get_input_port(1), true, 0),
                                          LoopPort((*add.first)->get_input_port(1), true, 0)},
                                         {LoopPort((*multiply.first)->get_output_port(0), true, 1)});
+        loop_end->set_id((*loop_end_expr)->get_loop_ids().back());
     }
     {
         auto param = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape);
@@ -324,66 +399,17 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsAllExprsInLoopExtracted
         init_expr_descriptors(*multiply.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(multiply.second);
         // outer loop
-        create_and_add_unified_loop_info(linear_ir_ref, max.first, result.first, 10, 1,
+        const auto loop_begin = std::make_shared<ov::snippets::op::LoopBegin>();
+        auto loop_begin_expr = linear_ir_ref->insert_node(loop_begin, std::vector<PortConnectorPtr>{}, {}, false, max.first);
+        const auto loop_end = std::make_shared<ov::snippets::op::LoopEnd>();
+        std::vector<PortConnectorPtr> loop_end_inputs{(*loop_begin_expr)->get_output_port_connector(0)};
+        auto loop_end_expr = linear_ir_ref->insert_node(loop_end, loop_end_inputs, {}, false, result.first);
+        create_and_add_unified_loop_info(linear_ir_ref, loop_begin_expr, result.first, 10, 1,
                                         {LoopPort((*max.first)->get_input_port(0), true, 1),
                                          LoopPort((*max.first)->get_input_port(1), true, 0),
                                          LoopPort((*add.first)->get_input_port(1), true, 0)},
                                         {LoopPort((*multiply.first)->get_output_port(0), true, 1)});
-    }
-}
-
-TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOutside) {
-    size_t vector_size = 16;
-    const auto input_precision = ov::element::f32;
-    const ov::Shape input_shape_0{3, 512};
-    const ov::Shape input_shape_1{1, 1};
-    ov::snippets::VectorDims layout{0, 1};
-    ov::snippets::VectorDims subtensor{3, 512};
-    /*
-     * before:       Param0, Param1, [[Broadcast, Add]], Result
-     * intermediate: Param0, Param1, [Broadcast, [Add]], Result
-     * after:        Param0, Param1, Broadcast, [[Add]], Result
-     *      Param0(3,512)    Param1(1,1)
-     *              \         /
-     *               \    Broadcast
-     *                \     /
-     *                  Add
-     *                   |
-     *                 Result
-    */
-    {
-        auto param_0 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
-        auto param_1 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
-        auto broadcastmove = linear_ir->push_node<ov::snippets::op::BroadcastMove>(param_1.second, 512);
-        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
-        auto add = linear_ir->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
-        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
-        auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
-        create_and_add_unified_loop_info(linear_ir, broadcastmove.first, result.first, 3, 1,
-                                        {LoopPort((*broadcastmove.first)->get_input_port(0), true, 1),
-                                         LoopPort((*add.first)->get_input_port(0), true, 1)},
-                                        {LoopPort((*add.first)->get_output_port(0), true, 1)});
-        create_and_add_unified_loop_info(linear_ir, broadcastmove.first, result.first, 512, vector_size,
-                                        {LoopPort((*broadcastmove.first)->get_input_port(0), true, 0),
-                                         LoopPort((*add.first)->get_input_port(0), true, 0)},
-                                        {LoopPort((*add.first)->get_output_port(0), true, 0)});
-    }
-    {
-        auto param_0 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
-        auto param_1 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
-        auto broadcastmove = linear_ir_ref->push_node<ov::snippets::op::BroadcastMove>(param_1.second, 512);
-        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
-        auto add = linear_ir_ref->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
-        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
-        create_and_add_unified_loop_info(linear_ir_ref, add.first, result.first, 3, 1,
-                                        {LoopPort((*add.first)->get_input_port(0), true, 1),
-                                         LoopPort((*add.first)->get_input_port(1), true, 1)},
-                                        {LoopPort((*add.first)->get_output_port(0), true, 1)});
-        create_and_add_unified_loop_info(linear_ir_ref, add.first, result.first, 512, vector_size,
-                                        {LoopPort((*add.first)->get_input_port(0), true, 0),
-                                         LoopPort((*add.first)->get_input_port(1), true, 0)},
-                                        {LoopPort((*add.first)->get_output_port(0), true, 0)});
+        loop_end->set_id((*loop_end_expr)->get_loop_ids().back());
     }
 }
 
