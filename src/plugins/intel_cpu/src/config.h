@@ -52,6 +52,8 @@ struct Config {
     float fcSparseWeiDecompressionRate = 1.0f;
     uint64_t fcDynamicQuantizationGroupSize = 32;
     ov::element::Type kvCachePrecision = ov::element::u8;
+    bool kvCachePrecisionSetExplicitly = false;
+    bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
 #if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;
 #else
