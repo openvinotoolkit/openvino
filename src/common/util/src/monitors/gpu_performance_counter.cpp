@@ -188,7 +188,7 @@ private:
     std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
 };
 
-#elif __linux__
+#elif defined(__linux__)
 #    include <unistd.h>
 
 #    include <chrono>

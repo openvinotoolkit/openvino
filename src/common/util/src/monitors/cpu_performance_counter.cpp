@@ -116,7 +116,7 @@ private:
     std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
 };
 
-#elif __linux__
+#elif defined(__linux__)
 #    include <unistd.h>
 
 #    include <chrono>
@@ -174,10 +174,6 @@ private:
 
 #else
 // not implemented
-namespace {
-const std::size_t nCores{0};
-}
-
 class CpuMonitor::PerformanceCounterImpl {
 public:
     std::vector<double> getLoad() {
@@ -194,7 +190,14 @@ CpuPerformanceCounter::~CpuPerformanceCounter() {
 std::map<std::string, double> CpuPerformanceCounter::getLoad() {
     if (!performanceCounter)
         performanceCounter = new PerformanceCounterImpl();
-    return performanceCounter->getLoad();
+    if (nCores == 0)
+        return performanceCounter->getLoad();
+    std::map<std::string, double> ret;
+    ret["Total"] = 0.0;
+    for (int i = 0; i < nCores; i++) {
+        ret[std::to_string(i)] = 0.0;
+    }
+    return ret;
 }
 }
 }
