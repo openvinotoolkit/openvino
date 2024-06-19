@@ -204,7 +204,8 @@ public:
     PerformanceCounterImpl() {}
 
     std::map<std::string, double> getLoad() {
-        return {{"0", 0}};
+        // TODO: Implement.
+        return {{"00000000", 0}};
     }
 };
 

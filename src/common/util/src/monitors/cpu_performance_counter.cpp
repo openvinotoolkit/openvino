@@ -163,22 +163,7 @@ public:
     PerformanceCounterImpl() : prevIdleCpuStat{getIdleCpuStat()}, prevTimePoint{std::chrono::steady_clock::now()} {}
 
     std::map<std::string, double> getLoad() {
-        //std::vector<unsigned long> idleCpuStat = getIdleCpuStat();
-        //auto timePoint = std::chrono::steady_clock::now();
-        //// don't update data too frequently which may result in negative values for cpuLoad.
-        //// It may happen when collectData() is called just after setHistorySize().
-        //if (timePoint - prevTimePoint > std::chrono::milliseconds{300}) {
-        //    std::map<std::string, double> cpuLoad;
-        //    for (std::size_t i = 0; i < idleCpuStat.size(); ++i) {
-        //        double idleDiff = idleCpuStat[i] - prevIdleCpuStat[i];
-        //        typedef std::chrono::duration<double, std::chrono::seconds::period> Sec;
-        //        cpuLoad[std::to_string(i)] =
-        //            1.0 - idleDiff / clockTicks / std::chrono::duration_cast<Sec>(timePoint - prevTimePoint).count();
-        //    }
-        //    prevIdleCpuStat = std::move(idleCpuStat);
-        //    prevTimePoint = timePoint;
-        //    return cpuLoad;
-        //}
+        // TODO: Implement.
         return {{"Total", 0.0}};
     }
 
