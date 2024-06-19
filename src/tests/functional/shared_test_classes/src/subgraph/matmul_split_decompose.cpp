@@ -14,8 +14,8 @@
 namespace ov {
 namespace test {
 
-std::string MatMulSplitDecompose::getTestCaseName(const testing::TestParamInfo<MatMulSplitDecomposeParams>& obj) {
-    MatMulSplitDecomposeShapeParams shape_params;
+std::string MatMulGatherDecompose::getTestCaseName(const testing::TestParamInfo<MatMulGatherDecomposeParams>& obj) {
+    MatMulGatherDecomposeShapeParams shape_params;
     std::string device;
     std::tie(shape_params, device) = obj.param;
     std::ostringstream results;
@@ -29,8 +29,8 @@ std::string MatMulSplitDecompose::getTestCaseName(const testing::TestParamInfo<M
     return results.str();
 }
 
-void MatMulSplitDecompose::SetUp() {
-    MatMulSplitDecomposeShapeParams shape_params;
+void MatMulGatherDecompose::SetUp() {
+    MatMulGatherDecomposeShapeParams shape_params;
     element::Type precision = element::f32;
     std::tie(shape_params, targetDevice) = GetParam();
 
@@ -43,16 +43,11 @@ void MatMulSplitDecompose::SetUp() {
 
     std::vector<float> weights_vals(shape_size(weights_shape), 2.0f);
     weights_vals = ov::test::utils::generate_float_numbers(shape_size(weights_shape), -0.1f, 0.1f);
-    // std::iota (std::begin(weights_vals), std::end(weights_vals), 0.f);
-    // std::copy(weights_vals.begin(), weights_vals.end(), std::ostream_iterator<float>(std::cout, ", "));
-    // std::cout << "\n\n";
     auto weights = ov::op::v0::Constant::create(precision, weights_shape, weights_vals);
     auto matmul = std::make_shared<ov::op::v0::MatMul>(param, weights, false, shape_params.trans_b);
 
     std::vector<float> bias_vals = {0.0};
     bias_vals = ov::test::utils::generate_float_numbers(shape_size(bias_shape), -0.1f, 0.1f);
-    // std::copy(bias_vals.begin(), bias_vals.end(), std::ostream_iterator<float>(std::cout, ", "));
-    // std::cout << "\n\n";
     auto bias = ov::op::v0::Constant::create(precision, bias_shape, bias_vals);
     auto add = std::make_shared<ov::op::v1::Add>(matmul, bias);
 
@@ -76,6 +71,7 @@ void MatMulSplitDecompose::SetUp() {
     auto softmax = std::make_shared<ov::op::v1::Softmax>(mm_qk);
     auto mm_v = std::make_shared<ov::op::v0::MatMul>(softmax, gather_2, false, false);
 
+#if 0 // Debug code
     functionRefs = std::make_shared<Model>(OutputVector{mm_v}, ParameterVector{param});
     ov::pass::Serialize serializer("matmul_gathers_ref.xml", "matmul_gathers_ref.bin");
     serializer.run_on_model(functionRefs);
@@ -87,6 +83,9 @@ void MatMulSplitDecompose::SetUp() {
     manager.run_passes(function);
     ov::pass::Serialize serializer2("matmul_gathers.xml", "matmul_gathers.bin");
     serializer2.run_on_model(function);
+#else
+    function = std::make_shared<ov::Model>(OutputVector{mm_v}, ParameterVector{param}, "MatMulGatherDecompose");
+#endif
 }
 
 }  // namespace test

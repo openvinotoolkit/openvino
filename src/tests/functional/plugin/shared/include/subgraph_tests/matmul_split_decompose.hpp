@@ -10,7 +10,7 @@
 namespace ov {
 namespace test {
 
-TEST_P(MatMulSplitDecompose, CompareWithRefs) {
+TEST_P(MatMulGatherDecompose, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 }

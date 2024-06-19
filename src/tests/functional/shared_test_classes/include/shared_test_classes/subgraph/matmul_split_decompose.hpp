@@ -12,7 +12,7 @@
 namespace ov {
 namespace test {
 
-struct MatMulSplitDecomposeShapeParams {
+struct MatMulGatherDecomposeShapeParams {
     ov::Shape input_shape;
     ov::Shape weights_shape;
     bool trans_b;
@@ -20,19 +20,41 @@ struct MatMulSplitDecomposeShapeParams {
     ov::Shape reshape_shape;
 };
 
-typedef std::tuple<MatMulSplitDecomposeShapeParams,
+typedef std::tuple<MatMulGatherDecomposeShapeParams,
                    std::string  // Device name
                    >
-    MatMulSplitDecomposeParams;
+    MatMulGatherDecomposeParams;
 
-class MatMulSplitDecompose : public testing::WithParamInterface<MatMulSplitDecomposeParams>,
-                             virtual public ov::test::SubgraphBaseStaticTest {
+class MatMulGatherDecompose : public testing::WithParamInterface<MatMulGatherDecomposeParams>,
+                              virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MatMulSplitDecomposeParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulGatherDecomposeParams>& obj);
 
 protected:
     void SetUp() override;
 };
+
+// struct MatMulSplitDecomposeShapeParams {
+//     ov::Shape input_shape;
+//     ov::Shape weights_shape;
+//     bool trans_b;
+//     ov::Shape bias_shape;
+//     ov::Shape reshape_shape;
+// };
+
+// typedef std::tuple<MatMulSplitDecomposeShapeParams,
+//                    std::string  // Device name
+//                    >
+//     MatMulSplitDecomposeParams;
+
+// class MatMulSplitDecompose : public testing::WithParamInterface<MatMulSplitDecomposeParams>,
+//                              virtual public ov::test::SubgraphBaseStaticTest {
+// public:
+//     static std::string getTestCaseName(const testing::TestParamInfo<MatMulSplitDecomposeParams>& obj);
+
+// protected:
+//     void SetUp() override;
+// };
 
 }  // namespace test
 }  // namespace ov
