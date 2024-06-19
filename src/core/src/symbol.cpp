@@ -28,3 +28,11 @@ void ov::symbol::set_equal(const std::shared_ptr<Symbol>& lhs, const std::shared
         return;  // already are equal
     lhs_root->m_parent = rhs_root;
 }
+
+std::shared_ptr<ov::Symbol> ov::Symbol::operator+(const std::shared_ptr<ov::Symbol> &other) {
+    return nullptr;
+}
+
+std::shared_ptr<ov::Symbol> ov::Symbol::operator-(const std::shared_ptr<ov::Symbol> &other) {
+    return nullptr;
+}
