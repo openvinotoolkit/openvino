@@ -70,10 +70,10 @@
 
 /**
  * @brief Define no dangling attribute.
- * Use it as C++ attribute e.g. [[OV_NO_DANGLING]]
+ * Use it as C++ attribute e.g. OV_NO_DANGLING void my_func();
  */
 #if defined(__GNUC__) && (__GNUC__ >= 14)
-#    define OV_NO_DANGLING gnu::no_dangling
+#    define OV_NO_DANGLING [[gnu::no_dangling]]
 #else
 #    define OV_NO_DANGLING
 #endif
