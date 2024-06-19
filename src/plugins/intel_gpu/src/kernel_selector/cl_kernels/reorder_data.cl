@@ -133,7 +133,7 @@ KERNEL (reorder_data)(
     float res = clamp(Ycomponent, 0.f, 255.f);
 #else
     #ifdef BF16_INPUT
-        CALC_TYPE res = _convert_as_bfloat16_float(input[input_idx]);
+        CALC_TYPE res = TO_CALC_TYPE(_convert_as_bfloat16_float(input[input_idx]));
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif

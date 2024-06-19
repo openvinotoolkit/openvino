@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,23 +66,6 @@ protected:
     }
 };
 
-/*
-TEST_F(BF16WeightsDecompression, TypeCheck) {
-    std::shared_ptr<ov::Model> subgraph = init_subgraph();
-    ov::CompiledModel model = core->compile_model(subgraph, targetDevice, {ov::hint::inference_precision(ov::element::f32)});
-    bool convert_found = false;
-    std::cout << "entering " << model.get_runtime_model()->get_ops().size() << std::endl;
-    for ( const auto& n : model.get_runtime_model()->get_ordered_ops() ) {
-        std::cout << "znaleziono " << n->get_friendly_name() << std::endl;
-        if ( n->get_friendly_name() == "conversion_bf16_to_f32" ) {
-            ASSERT_EQ(n->get_input_element_type(0),  ov::element::bf16);
-            ASSERT_EQ(n->get_output_element_type(0),  ov::element::f32);
-            convert_found = true;
-        }
-    }
-    ASSERT_TRUE(convert_found);
-}
-*/
 TEST_F(BF16WeightsDecompression, Inference_input_3) {
     std::shared_ptr<ov::Model> function = init_subgraph();
     ov::CompiledModel cM = core->compile_model(function, targetDevice, {ov::hint::inference_precision(ov::element::f32)});
@@ -115,7 +98,7 @@ TEST_P(BF16WeightsDecompression, Inference_without_convert) {
     request.infer();
     auto out_tensor = request.get_output_tensor();
     for ( size_t i = 0 ; i < out_tensor.get_size(); i++ ) {
-        ASSERT_NEAR(reinterpret_cast<unsigned short*>(out_tensor.data())[i], expected, 0.2f); //3072
+        ASSERT_NEAR(reinterpret_cast<unsigned short*>(out_tensor.data())[i], expected, 0.2f);
     }
 }
 

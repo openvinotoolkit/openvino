@@ -1495,7 +1495,6 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(ushort) 0";
             to_type = "_convert_bfloat16_as_ushort(v)";
             to_type_sat = "_convert_bfloat16_as_ushort(v)";
-            as_type = "_convert_bfloat16_as_ushort(v)";
             type_size = "2";
             is_fp = false;
             break;
