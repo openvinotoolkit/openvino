@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
@@ -40,6 +41,28 @@ jobs:
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
+  Docker:
+    needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_20_04_android_arm64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
   Build:
     needs: Smart_CI
     timeout-minutes: 150
@@ -48,7 +71,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_android_arm64 }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -64,8 +87,6 @@ jobs:
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
-      ANDROID_TOOLS: '/__w/openvino/openvino/android_tools'
-      ANDROID_NDK_HOME: '/__w/openvino/openvino/android_tools/ndk-bundle'
       ANDROID_SDK_VERSION: 29
       ANDROID_ABI_CONFIG: arm64-v8a
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
@@ -113,28 +134,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # generic dependencies
-          apt --assume-yes install ccache scons ninja-build build-essential python3-pip
-
           # vcpkg requires cmake 3.19 or later
           python3 -m pip install -U pip cmake~=3.28.0
-          # vcpkg's tool dependencies
-          apt --assume-yes install curl zip unzip tar
-          # vcpkg 'python3' port dependencies
-          apt --assume-yes install autoconf libtool autoconf-archive
-          # vcpkg tree of dependencies require extra packages
-          apt --assume-yes install pkgconf linux-libc-dev
-
-          # Install Android SDK, NDK and Tools
-          apt -y --no-install-recommends install unzip wget default-jdk
-          wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
-          unzip commandlinetools-linux-7583922_latest.zip
-          echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
-
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@89e9040de88b577a072e3760aaf59f585da083af # v0.0.5
-        with:
-          version: "v0.7.5"
 
       #
       # Build
