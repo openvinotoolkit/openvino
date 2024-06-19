@@ -86,7 +86,7 @@ BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kern
 
 std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& config) const {
     OV_CPU_JIT_EMITTER_ASSERT(config, "Invalid config provided for BrgemmKernelDesc::compile_kernel");
-    cpu::x64::brgemm_t desc;
+    cpu::x64::brgemm_desc_t desc;
     auto status = brgemm_desc_init(&desc, config->isa, cpu::x64::brgemm_strd,
                                    config->dt_in0, config->dt_in1,
                                    false, false, cpu::x64::brgemm_row_major, 1.f,
