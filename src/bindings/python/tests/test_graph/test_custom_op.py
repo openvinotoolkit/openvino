@@ -130,8 +130,6 @@ def test_visit_attributes_custom_op(request, tmp_path, attributes, expectation, 
 
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
 
-    attrs = {}
-
     with expectation as e:
         serialize(model_with_op_attr, xml_path, bin_path)
         ordered_ops = model_with_op_attr.get_ordered_ops()
