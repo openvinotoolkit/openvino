@@ -718,6 +718,10 @@ public:
         return res->second;
     }
 
+    size_t get_optimal_size() const {
+        return max_current_size;
+    }
+
 private:
     using BoxCmp = std::function<bool(const Box&, const Box&)>;
     using BoxPriorityQueue = std::priority_queue<Box, std::vector<Box>, BoxCmp>;
@@ -968,6 +972,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     end = std::chrono::steady_clock::now();
     std::cout << "New solver time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "[us]" << std::endl;
     std::cout << "New solver memory: " << test_total_size << " bytes" << std::endl;
+    std::cout << "New optimal memory: " << testMemSolver.get_optimal_size() * alignment << " bytes" << std::endl;
 
     //total_size = test_total_size;
 
