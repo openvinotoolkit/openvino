@@ -55,7 +55,6 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                       const IStreamsExecutor::Config::StreamsMode sub_streams_model,
                                       const int& target_proc) {
         stream_info[PROC_TYPE] = ALL_PROC;
-        // stream_info[NUMBER_OF_STREAMS] = 1;
         stream_info[NUMBER_OF_STREAMS] =
             sub_streams_model == IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL ? 1 : -1;
         stream_info[THREADS_PER_STREAM] = num_threads;
