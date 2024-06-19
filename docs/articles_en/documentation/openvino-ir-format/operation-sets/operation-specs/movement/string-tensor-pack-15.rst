@@ -33,7 +33,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
 * **1**: *begins*:
 
-  * **Description**: Indices of each string's begginings. **Required.**
+  * **Description**: Indices of each string's beginnings. **Required.**
   * **Shape**: 1D tensor of shape ``(batch_size)``.
   * **Type**: *T_IDX*
 
