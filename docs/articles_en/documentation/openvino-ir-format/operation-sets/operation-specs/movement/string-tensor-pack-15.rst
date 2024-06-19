@@ -55,7 +55,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
   * **Description**: A string tensor.
   * **Range of values**: A string tensor.
-  * **Type**: ``element::string``
+  * **Type**: ``string`
 
 **Types**
 
