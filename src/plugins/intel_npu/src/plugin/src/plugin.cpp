@@ -595,6 +595,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    Logger::global().setLevel(localConfig.get<LOG_LEVEL>());
 
     set_batch_config(_backends->isBatchingSupported(), localConfig);
 
@@ -679,6 +680,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     auto localConfig = merge_configs(_globalConfig, any_copy(properties), OptionMode::RunTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    Logger::global().setLevel(localConfig.get<LOG_LEVEL>());
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
 
     set_batch_config(_backends->isBatchingSupported(), localConfig);

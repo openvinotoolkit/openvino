@@ -22,7 +22,6 @@ public:
     IR(const std::shared_ptr<const ov::Model>& origModel,
        uint32_t supportedVersionByCompiler = 11,
        bool largeModel = false);
-    ~IR();
 
     std::istream& getXml() {
         if (!_isLargeModel) {
@@ -41,10 +40,6 @@ public:
     }
 
 private:
-    bool isLargeModel() const {
-        return _isLargeModel;
-    }
-
     /**
      * @brief Serialize OpenVINO model to IR
      */

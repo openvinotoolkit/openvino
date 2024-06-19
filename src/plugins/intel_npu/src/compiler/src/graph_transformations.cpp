@@ -34,8 +34,6 @@ IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpse
     serializeToIR(supportedOpset);
 }
 
-IR::~IR() {}
-
 void IR::serializeToIR(uint32_t supportedOpset) {
     _logger.debug("serializeToIR");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();

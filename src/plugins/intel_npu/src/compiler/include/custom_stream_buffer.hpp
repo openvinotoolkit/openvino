@@ -10,9 +10,13 @@
 
 namespace intel_npu::driverCompilerAdapter {
 
+/**
+ * @brief Custom stream buffer for reading and writing data of data larger than 2G on Windows
+ */
 class CustomStreamBuf : public std::streambuf {
 public:
     CustomStreamBuf(size_t bufferSize = 1024) : _buffer(bufferSize), _readPos(0), _writePos(0) {
+        // Update read and write pointers
         char* base = _buffer.data();
         this->setg(base, base, base);
         this->setp(base, base + _buffer.size());
@@ -42,7 +46,6 @@ protected:
         return traits_type::eof();
     }
 
-    // Write to buffer
     virtual std::streamsize xsputn(const char* s, std::streamsize n) override {
         if (_writePos + n > _buffer.size()) {
             _buffer.resize(_writePos + n);
@@ -54,7 +57,6 @@ protected:
         return n;
     }
 
-    // Read from buffer
     virtual std::streamsize xsgetn(char* s, std::streamsize n) override {
         std::streamsize num = std::min(n, static_cast<std::streamsize>(_buffer.size() - _readPos));
         std::copy(_buffer.data() + _readPos, _buffer.data() + _readPos + num, s);
@@ -63,31 +65,42 @@ protected:
         return num;
     }
 
-    // Return right pos
     virtual std::streampos seekoff(std::streamoff off,
                                    std::ios_base::seekdir way,
                                    std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override {
         if (which & std::ios_base::in) {
-            if (way == std::ios_base::beg) {
+            switch (way) {
+            case std::ios_base::beg:
                 _readPos = off;
-            } else if (way == std::ios_base::cur) {
+                break;
+            case std::ios_base::cur:
                 _readPos += off;
-            } else if (way == std::ios_base::end) {
+                break;
+            case std::ios_base::end:
                 _readPos = _buffer.size() + off;
+            default:
+                break;
             }
+
             if (_readPos > _buffer.size() || _readPos < 0) {
                 return std::streampos(std::streamoff(-1));
             }
             this->setg(_buffer.data(), _buffer.data() + _readPos, _buffer.data() + _buffer.size());
             return std::streampos(_readPos);
         } else if (which & std::ios_base::out) {
-            if (way == std::ios_base::beg) {
+            switch (way) {
+            case std::ios_base::beg:
                 _writePos = off;
-            } else if (way == std::ios_base::cur) {
+                break;
+            case std::ios_base::cur:
                 _writePos += off;
-            } else if (way == std::ios_base::end) {
+                break;
+            case std::ios_base::end:
                 _writePos = _buffer.size() + off;
+            default:
+                break;
             }
+
             if (_writePos > _buffer.size() || _writePos < 0) {
                 return std::streampos(std::streamoff(-1));
             }
