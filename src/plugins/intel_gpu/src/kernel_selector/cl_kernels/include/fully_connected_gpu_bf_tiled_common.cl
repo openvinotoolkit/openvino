@@ -5,6 +5,20 @@
 #define FUNC_NAME_BATCHED CAT(fc_bf_tiled_kernel_forced_tile_b, FORCED_TILE_B)
 #define FUNC_NAME CAT(_, CAT(CAT(FUNC_NAME_BATCHED, _), KERNEL_ID))
 
+#if DYNAMIC_QUANTIZE
+    #define INPUT_LOAD_SIZE                     2
+    #define PACKED_DQ_TYPE                      short
+    #define DQ_FILTER_VEC_TYPE                  MAKE_VECTOR_TYPE(DQ_TYPE, TILE_K_OFM)
+
+    #if TILE_K == 4 && COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
+        #define UNPACK_INT4 UNPACK_INT4x2_OSV32_ISV2
+        #define UNPACK_TRANSPOSED_INT4 UNPACK_INT4x2_OSV32_ISV2
+    #else
+        #define UNPACK_INT4 UNPACK_INT4x2
+        #define UNPACK_TRANSPOSED_INT4 UNPACK_TRANSPOSED_INT4x2
+    #endif
+#endif
+
 inline void (FUNC_NAME)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -21,6 +35,10 @@ inline void (FUNC_NAME)(
 #endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
+#endif
+#if DYNAMIC_QUANTIZE
+    , __global char* quantized_input
+    , __global INPUT0_TYPE* scale
 #endif
 ) {
     uint gid = (uint)get_group_id(0);
@@ -42,7 +60,16 @@ inline void (FUNC_NAME)(
     ACCUMULATOR_VEC_TYPE acc[FORCED_TILE_B] = { };
     INPUT_VEC_TYPE       in_0[FORCED_TILE_B] = { };
 
-    FILTER_VEC_TYPE wei = 0;
+    #if DYNAMIC_QUANTIZE && TILE_K_OFM == 8
+        DQ_FILTER_VEC_TYPE wei = 0;
+
+        MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[FORCED_TILE_B] = { };   // Load 2 linear inputs for packing
+        PACKED_DQ_TYPE                                  packed_in_0[FORCED_TILE_B] = { };     // Packing char2 inputs to 1 short
+        INPUT0_TYPE                                     de_quantize_scale[FORCED_TILE_B];
+    #else
+        FILTER_VEC_TYPE wei = 0;
+    #endif
+
 #if OUTPUT_3D
     uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
     uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
@@ -110,6 +137,120 @@ inline void (FUNC_NAME)(
     // =====================================================================================================================================
     // Main computation loop
     uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
+
+#if DYNAMIC_QUANTIZE && TILE_K_OFM == 8
+    // Each sub-group load 2 inputs on a single batch
+    uint idx_sglid = (sglid * INPUT_LOAD_SIZE);
+    __attribute__((opencl_unroll_hint(1)))
+    for (uint ni = 0; ni < iterations; ++ni) {
+        uint in_offset = input_offset + idx_sglid;
+        uint scale_offset = input_offset / QUANTIZE_GROUP_SIZE;
+        for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+            // Load quantizing info from pre-quantizing kernel
+            tiled_input_0[bi] = vload2(0, &quantized_input[in_offset]);
+            de_quantize_scale[bi] = scale[scale_offset];
+
+            // Packing : Get N(B)x2(K) short vector (packing to Nx1 vector)
+            packed_in_0[bi] = as_short(tiled_input_0[bi]);
+
+            // Next batch
+            in_offset += (TILE_IN_B_PITCH);
+            scale_offset += (TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE);
+        }
+
+        input_offset += TILE_IFM * SIMD;
+
+        MAKE_VECTOR_TYPE(int, TILE_OFM) acc_tmp[8] = { };
+
+        unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
+            #if COMPRESSED_WEIGHTS_INT4
+                FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
+                wei = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
+            #else
+                wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #endif
+
+            #if COMPRESSED_WEIGHTS
+                DQ_TYPE* w = (DQ_TYPE*)(&wei);
+                unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                    unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
+                        // Valid only if DECOMPRESSION_SCALE_POST_OP is enabled
+                        ACCUMULATOR_TYPE ds = ACCUMULATOR_VAL_ONE;
+
+                        #if DECOMPRESSION_ZP_TERM
+                            #if DECOMPRESSION_ZP_SCALAR
+                                ACCUMULATOR_TYPE dzp = DECOMPRESSION_ZP_VALUE;
+                            #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
+                                const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
+                                                    ((kii + ki*TILE_K + ni*TILE_IFM*SIMD) / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                                ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
+                            #else
+                                ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
+                            #endif
+                        #else
+                            ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
+                        #endif
+
+                        w[fi * TILE_K + kii] -= dzp;
+                    }
+                }
+            #endif
+
+            #if COMPRESSED_WEIGHTS_INT4
+                // Compute input * weight : packed char4 type
+                char4 first_weight = wei.s0123;
+                char4 second_weight = wei.s4567;
+                unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+                    short2 input_val = {_sub_group_shuffle(packed_in_0[bi], (ki * 2)),
+                                       _sub_group_shuffle(packed_in_0[bi], (ki * 2)+1)};
+                    char4 char_input = as_char4(input_val);
+                    ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0], char_input, first_weight);
+                    ((int *)(&acc_tmp[bi]))[1] = imad_SW(((int *)(&acc_tmp[bi]))[1], char_input, second_weight);
+                }
+            #endif
+
+            weights_offset += TILE_K_OFM_PACKED * SIMD;
+
+            #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
+                unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
+
+                        #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                            const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
+                                                    ((ni*TILE_IFM*SIMD + ki*TILE_K) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                            ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                        #else
+                            ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                        #endif
+
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi];
+                        acc_tmp[bi][fi] = 0;
+                    }
+                }
+            #endif
+        }  // Whole tile_k elements of each iteration : ki
+
+        #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD <= DECOMPRESSION_SCALE_GROUP_SIZE)
+            const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+            unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+                unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                    const uint offset_ofm = out_f + fi*SIMD + sglid;
+
+                    #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                        const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH + ni_offset;
+                        ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                    #else
+                        ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                    #endif
+
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi];
+                }
+            }
+        #endif
+    }  // Done main compute loop : ni
+#else  // !DYNAMIC_QUANTIZE
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
         // Load input.
@@ -224,6 +365,8 @@ inline void (FUNC_NAME)(
         }
 #endif
     }
+#endif  // DYNAMIC_QUANTIZE
+
     // =====================================================================================================================================
     // Leftovers
 #if MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD) != 0

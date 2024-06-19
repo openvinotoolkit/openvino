@@ -1242,6 +1242,10 @@ KERNEL(fc)(
         #if HAS_FUSED_OPS_DECLS
             , FUSED_OPS_ARGS
         #endif
+        #if DYNAMIC_QUANTIZE
+            , quantized_input
+            , de_quan_scale
+        #endif
         );
     } else if (batch_size == 2) {
         // if (get_global_id(0) == 0 && get_global_id(2) == 0 && get_local_id(0) == 0 && get_local_id(2) == 0)
@@ -1262,6 +1266,10 @@ KERNEL(fc)(
         #endif
         #if HAS_FUSED_OPS_DECLS
             , FUSED_OPS_ARGS
+        #endif
+        #if DYNAMIC_QUANTIZE
+            , quantized_input
+            , de_quan_scale
         #endif
         );
     } else if (batch_size == 3) {
@@ -1284,6 +1292,10 @@ KERNEL(fc)(
         #if HAS_FUSED_OPS_DECLS
             , FUSED_OPS_ARGS
         #endif
+        #if DYNAMIC_QUANTIZE
+            , quantized_input
+            , de_quan_scale
+        #endif
         );
     } else if (batch_size == 4) {
         // if (get_global_id(0) == 0 && get_global_id(2) == 0 && get_local_id(0) == 0 && get_local_id(2) == 0)
@@ -1304,6 +1316,10 @@ KERNEL(fc)(
         #endif
         #if HAS_FUSED_OPS_DECLS
             , FUSED_OPS_ARGS
+        #endif
+        #if DYNAMIC_QUANTIZE
+            , quantized_input
+            , de_quan_scale
         #endif
         );
     } else if (batch_size == 5) {
@@ -1326,6 +1342,10 @@ KERNEL(fc)(
         #if HAS_FUSED_OPS_DECLS
             , FUSED_OPS_ARGS
         #endif
+        #if DYNAMIC_QUANTIZE
+            , quantized_input
+            , de_quan_scale
+        #endif
         );
     } else if (batch_size == 6) {
         // if (get_global_id(0) == 0 && get_global_id(2) == 0 && get_local_id(0) == 0 && get_local_id(2) == 0)
@@ -1347,6 +1367,10 @@ KERNEL(fc)(
         #if HAS_FUSED_OPS_DECLS
             , FUSED_OPS_ARGS
         #endif
+        #if DYNAMIC_QUANTIZE
+            , quantized_input
+            , de_quan_scale
+        #endif
         );
     } else if (batch_size == 7) {
         // if (get_global_id(0) == 0 && get_global_id(2) == 0 && get_local_id(0) == 0 && get_local_id(2) == 0)
@@ -1367,6 +1391,10 @@ KERNEL(fc)(
         #endif
         #if HAS_FUSED_OPS_DECLS
             , FUSED_OPS_ARGS
+        #endif
+        #if DYNAMIC_QUANTIZE
+            , quantized_input
+            , de_quan_scale
         #endif
         );
     } else {

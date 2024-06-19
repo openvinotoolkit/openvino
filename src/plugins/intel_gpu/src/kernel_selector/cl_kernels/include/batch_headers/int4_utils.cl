@@ -96,6 +96,18 @@ inline uchar8 unpack_transposed_to_uchar_osv32_isv2(uint4x8_t v) __attribute__((
     return (uchar8)(v0.s0, v1.s0, v2.s0, v3.s0, v0.s1, v1.s1, v2.s1, v3.s1);
 }
 
+inline char4 unpack_transposed_to_char(uint4x4_t v) __attribute__((overloadable)) {
+    char2 v0 = unpack_to_char(v.s0);
+    char2 v1 = unpack_to_char(v.s1);
+    return (char4)(v0.s0, v1.s0, v0.s1, v1.s1);
+}
+
+inline char4 unpack_transposed_to_char_osv32_isv2(uint4x4_t v) __attribute__((overloadable)) {
+    char2 v0 = unpack_to_char(v.s0);
+    char2 v1 = unpack_to_char(v.s1);
+    return (char4)(v0.s0, v1.s0, v0.s1, v1.s1);
+}
+
 inline float2 unpack_to_float(uint4x2_t v) __attribute__((overloadable)) {
     return convert_float2(cvt_uint4x2_to_uint8x2(v));
 }

@@ -59,12 +59,12 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
         return false;
 
     auto threads = get_input_bf_size(params);
-    auto input_b = threads.first;
+    // auto input_b = threads.first;
     auto input_f = threads.second;
 
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % quantize_grp_size == 0) &&
-        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_dyn_quan_size)) &&
+        /*(params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_dyn_quan_size)) &&*/
         params.inputs[0].GetDType() == Datatype::F16 &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
         (params.decompression_zero_point.Feature().v == 1)) {
@@ -501,7 +501,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
-    if (should_dynamic_quantize(params) && dispatchData.tile_m > 1 && dispatchData.tile_n == 2) {
+    if (should_dynamic_quantize(params) && dispatchData.tile_nk == 4 && dispatchData.tile_n == 2) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
         jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
@@ -514,6 +514,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
     jit.AddConstant(MakeJitConstant("HALF_TILE_B", dispatchData.tile_m/2));
     jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
+    // std::cout << " >> TILE_OFM : " << dispatchData.tile_n << ", TILE_K_OFM : " << tile_k_ofm << std::endl;
     jit.AddConstant(MakeJitConstant("TILE_IFM", dispatchData.tile_mk));
     jit.AddConstant(MakeJitConstant("TILE_K", dispatchData.tile_nk));
     jit.AddConstant(MakeJitConstant("TILE_K_OFM", tile_k_ofm));
@@ -621,7 +622,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             if (!kd.internalBufferSizes.empty()) {
                 size_t input_b = get_input_bf_size(prim_params).first;
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
-                if (execute_type == KernelType::DEFAULT && input_b < 8) {
+                if (execute_type == KernelType::DEFAULT && false/*input_b < 8*/) {
                     // Use common kernel(No dynamic quantization)
                     kd.kernels[0].skip_execution = true;
                     GPU_DEBUG_TRACE_DETAIL << " Disabled dynamic quantize kernel. batch size : " << input_b << std::endl;
@@ -806,6 +807,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         auto quan_entry_point = GetEntryPoint(kernelName, fc_params.layerID, params, kernel_number);
         auto quan_cldnn_jit = GetJitConstants(new_params, dyn_quan_dispatch);
         quan_cldnn_jit.AddConstant(MakeJitConstant("FC_KERNEL_DYNAMIC_QUANTIZE", 1));
+        quan_cldnn_jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
         auto quan_jit = CreateJit(kernelName, quan_cldnn_jit, quan_entry_point);
 
 
