@@ -78,9 +78,9 @@ static std::set<int64_t> parse_int_set(std::string& str) {
         while (ss >> token) {
             try {
                 int_array.insert(static_cast<int64_t>(std::stol(token)));
-            } catch(const std::exception& ex) {
+            } catch(const std::exception &) {
                 int_array.clear();
-                GPU_DEBUG_COUT << "OV_GPU_DumpMemoryPoolIters was ignored. It cannot be parsed to integer array." << std::endl;
+                GPU_DEBUG_COUT << "Argument was ignored. It cannot be parsed to integer array: " << str << std::endl;
                 break;
             }
         }
