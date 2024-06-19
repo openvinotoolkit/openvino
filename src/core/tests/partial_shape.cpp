@@ -802,3 +802,12 @@ TEST(partial_shape, subscribe_operator_throw_out_of_range) {
     EXPECT_THROW(shape[-8], ov::Exception);
     EXPECT_THROW(shape[-80000], ov::Exception);
 }
+TEST(partial_shape, equality_with_tuple) {
+    std::vector<Dimension::value_type> dimensions = {1, 2, 3};
+    ASSERT_TRUE(PartialShape{1, 2, 3} == dimensions);
+}
+
+TEST(partial_shape, equality_with_list) {
+    std::vector<Dimension::value_type> dimensions = {1, 2, 3};
+    ASSERT_TRUE(PartialShape{1, 2, 3} == dimensions);
+}

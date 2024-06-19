@@ -59,3 +59,12 @@ TEST(shape, at_throw_exception) {
     EXPECT_THROW(shape.at(-8), ov::Exception);
     EXPECT_THROW(shape.at(-80000), ov::Exception);
 }
+TEST(shape, equality_with_tuple) {
+    std::vector<size_t> dimensions = {1, 2, 3};
+    ASSERT_TRUE(Shape{1, 2, 3} == dimensions);
+}
+
+TEST(shape, equality_with_list) {
+    std::vector<size_t> dimensions = {1, 2, 3};
+    ASSERT_TRUE(Shape{1, 2, 3} == dimensions);
+}

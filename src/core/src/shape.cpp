@@ -8,7 +8,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
 
-std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
+std::ostream& ov::operator<<(std::ostream& s, const ov::Shape& shape) {
     s << "[";
     s << ov::util::join(shape, ",");
     s << "]";
@@ -69,21 +69,47 @@ std::string ov::Shape::to_string() const {
     return shape_str_stream.str();
 }
 
+#include <vector>
+#include <list>
+#include <tuple>
+#include <algorithm>
+
+
 namespace ov {
 
-typename Shape::reference Shape::operator[](std::ptrdiff_t i) {
-    return std::vector<size_t>::operator[](util::normalize(i, size()));
-}
+class Shape : public std::vector<size_t> {
+public:
 
-typename Shape::const_reference Shape::operator[](std::ptrdiff_t i) const {
-    return std::vector<size_t>::operator[](util::normalize(i, size()));
-}
+    bool operator==(const std::tuple<size_t>& dimensions) const {
+        if (std::tuple_size<std::remove_reference_t<decltype(dimensions)>>::value == this->size()) {
+            // Note: You might need to adjust this line to properly compare a tuple and a vector
+            return std::equal(this->begin(), this->end(), std::get<0>(dimensions));
+        }
+        return false;
+    }
 
-typename Shape::reference Shape::at(std::ptrdiff_t i) {
-    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
-}
+    bool operator==(const std::list<size_t>& dimensions) const {
+        if (dimensions.size() == this->size()) {
+            return std::equal(this->begin(), this->end(), dimensions.begin());
+        }
+        return false;
+    }
 
-typename Shape::const_reference Shape::at(std::ptrdiff_t i) const {
-    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
-}
+    typename Shape::reference operator[](std::ptrdiff_t i) {
+        return std::vector<size_t>::operator[](util::normalize(i, size()));
+    }
+
+    typename Shape::const_reference operator[](std::ptrdiff_t i) const {
+        return std::vector<size_t>::operator[](util::normalize(i, size()));
+    }
+
+    typename Shape::reference at(std::ptrdiff_t i) {
+        return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+    }
+
+    typename Shape::const_reference at(std::ptrdiff_t i) const {
+        return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+    }
+};
+
 }  // namespace ov

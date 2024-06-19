@@ -55,6 +55,14 @@ ov::PartialShape::PartialShape(std::vector<Dimension> dimensions)
     : m_rank_is_static(true),
       m_dimensions(std::move(dimensions)) {}
 
+bool ov::PartialShape::operator==(const ov::PartialShape &partial_shape) const {
+    if (m_rank_is_static && partial_shape.m_rank_is_static && m_dimensions.size() == partial_shape.m_dimensions.size()) {
+        return std::equal(m_dimensions.begin(), m_dimensions.end(), partial_shape.m_dimensions.begin());
+    }
+    return false;
+}
+
+
 bool ov::PartialShape::is_static() const {
     ShapeType shape_type = m_shape_type;
 
