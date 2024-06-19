@@ -186,6 +186,8 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/string_tensor_pack.hpp"
+#include "openvino/op/string_tensor_unpack.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
