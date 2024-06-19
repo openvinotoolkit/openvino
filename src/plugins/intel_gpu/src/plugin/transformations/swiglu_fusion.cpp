@@ -60,7 +60,7 @@ SwiGLUFusion::SwiGLUFusion() {
         auto isSwiGLU = pattern_map.count(swish_m);
         auto isGeGLU = pattern_map.count(gelu_m);
         size_t split_to_glu_idx = 0;
-        ov::intel_gpu::op::SwiGLU::GluType glu_type;
+        ov::intel_gpu::op::SwiGLU::GluType glu_type = ov::intel_gpu::op::SwiGLU::GluType::Swish;
 
         if (isSwiGLU) {
             auto swish = std::dynamic_pointer_cast<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
