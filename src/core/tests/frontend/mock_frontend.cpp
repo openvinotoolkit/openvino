@@ -135,7 +135,8 @@ public:
     bool supported_impl(const std::vector<ov::Any>& variants) const override {
         // Last boolean flag in `variants` (if presented) is reserved for FE configuration
         size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
-        if (variants.size() == 1 + extra_variants_num && (variants[0].is<std::string>() || variants[0].is<std::wstring>())) {
+        if (variants.size() == 1 + extra_variants_num &&
+            (variants[0].is<std::string>() || variants[0].is<std::wstring>())) {
             std::string command;
             if (variants[0].is<std::string>()) {
                 command = variants[0].as<std::string>();
@@ -158,7 +159,8 @@ public:
         // Last boolean flag in `variants` (if presented) is reserved for FE configuration
         size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
         auto input_model = std::make_shared<InputModelMock>();
-        if (variants.size() == 1 + extra_variants_num && (variants[0].is<std::string>() || variants[0].is<std::wstring>())) {
+        if (variants.size() == 1 + extra_variants_num &&
+            (variants[0].is<std::string>() || variants[0].is<std::wstring>())) {
             std::string command;
             if (variants[0].is<std::string>()) {
                 command = variants[0].as<std::string>();
