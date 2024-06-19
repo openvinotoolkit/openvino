@@ -113,7 +113,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         const auto& port = m_npuw_model->inputs()[i];
         m_input_tensors.push_back(ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
         m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
-    } // for(inputs)
+    }  // for(inputs)
 
     // Preallocate output tensors
     LOG_INFO("Preallocating output tensors...");
@@ -293,11 +293,11 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
-    const auto &iodesc = m_subrequests_gio.at(idx);
-    for (auto &&it : iodesc.global_params) {
+    const auto& iodesc = m_subrequests_gio.at(idx);
+    for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
-        auto &subr = m_subrequests[real_idx];
+        auto& subr = m_subrequests[real_idx];
         const auto& g_port = m_npuw_model->inputs()[param_idx];
         const auto& s_port = subr->get_inputs()[sub_in_idx];
         subr->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
@@ -320,8 +320,8 @@ void ov::npuw::JustInferRequest::bind_global_results(std::size_t idx) {
         return;
     }
 
-    const auto &iodesc = m_subrequests_gio.at(idx);
-    for (auto &&it : iodesc.global_results) {
+    const auto& iodesc = m_subrequests_gio.at(idx);
+    for (auto&& it : iodesc.global_results) {
         std::size_t result_idx{}, sub_out_idx{};
         std::tie(result_idx, sub_out_idx) = it;
         const auto& g_port = m_npuw_model->outputs()[result_idx];

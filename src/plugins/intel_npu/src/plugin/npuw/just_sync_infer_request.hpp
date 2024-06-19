@@ -51,8 +51,6 @@ private:
 
     void recreate_subrequests(std::size_t idx);
 
-    static constexpr const std::size_t INVALID_IDX = std::numeric_limits<std::size_t>::max();
-
     using LinkFrom = std::pair<std::size_t /* Subrequest index */
                                ,
                                std::size_t /* Subrequest output index */
@@ -81,8 +79,8 @@ private:
     // access the model's top-level (global, public, etc) parameters
     // and results
     struct GlobalIO {
-        std::map<std::size_t, std::size_t> global_params;  // param idx -> input idx
-        std::map<std::size_t, std::size_t> global_results; // result idx -> output idx
+        std::map<std::size_t, std::size_t> global_params;   // param idx -> input idx
+        std::map<std::size_t, std::size_t> global_results;  // result idx -> output idx
     };
     std::vector<GlobalIO> m_subrequests_gio;
 };
