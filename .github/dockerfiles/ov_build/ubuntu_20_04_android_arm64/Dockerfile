@@ -44,6 +44,8 @@ RUN apt-get update && \
         linux-libc-dev \
         # Install jdk
         default-jdk \
+        gcc-10 \
+        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
