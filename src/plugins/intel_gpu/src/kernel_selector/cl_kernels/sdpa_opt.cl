@@ -49,6 +49,12 @@
 #if IS_KV_COMPRESSED
 #define __VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(char, 1, ptr, offset)
 #endif
+#ifdef COMPRESSED_PER_HEAD
+#define OFFSET_DIVIDER 128
+#else
+#define OFFSET_DIVIDER 4096
+#endif
+
  
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_SIMPLE
@@ -289,10 +295,11 @@ KERNEL(sdpa_opt)(
                     KEY_BLOCK __key_vals = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
                     MAKE_VECTOR_TYPE(half, KEY_BLOCK_SIZE) key_vals;
                     key_vals = TO_KEY_VEC_TYPE(__key_vals);
+
 #if IS_STATIC_COMP
                     key_vals *= SCALE_KEY;
 #else
-                    key_vals *= key_scale[(key_offset + head_idx_index)/128];
+                    key_vals *= key_scale[(key_offset + head_idx_index)/OFFSET_DIVIDER];
 #endif
 
 #else
@@ -575,11 +582,11 @@ KERNEL(sdpa_opt)(
     #ifdef BEAM_TABLE_TYPE
                 char __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
                 half value_val = __value_val;
-                value_val *= val_scale[sub_group_broadcast(value_offset, i)/128];
+                value_val *= val_scale[sub_group_broadcast(value_offset, i)/OFFSET_DIVIDER];
     #else
                 char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
                 half value_val = __value_val;
-                value_val *= val_scale[value_offset/128];
+                value_val *= val_scale[value_offset/OFFSET_DIVIDER];
     #endif
 #else
     #ifdef BEAM_TABLE_TYPE
@@ -799,7 +806,7 @@ KERNEL(sdpa_opt)(
 
                 for (uint head_idx_index = 0; head_idx_index < HEAD_SIZE; head_idx_index += SUBGROUP_SIZE) {
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset);
-                    #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT1_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+                    #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
 
                     QUERY_VEC queries_vec;
                     uint query_local_offset = (head_idx_index * TARGET_SEQ_LEN_BLOCK_SIZE) + sglid;
@@ -812,24 +819,23 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED
     #ifdef BEAM_TABLE_TYPE
                         INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index);
+
                         half key_vals = __key_vals;
                         // FIXME: optimize accessing for key_scale
                         // FIXME: 128 is hard-coded.
-                        int my_key_offset = sub_group_broadcast(key_offset, key_row_idx) + head_idx_index;
-                        int my_scale_offset = (sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/128;
-#if IS_STATIC_COMP
-                    key_vals *= SCALE_KEY;
-#else
-                        key_vals *= key_scale[(sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/128];
-#endif
+        #if IS_STATIC_COMP
+                        key_vals *= SCALE_KEY;
+        #else
+                        key_vals *= key_scale[(sub_group_broadcast(key_offset, key_row_idx) + head_idx_index)/OFFSET_DIVIDER];
+        #endif
     #else
                         INPUT1_TYPE __key_vals = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index);
                         half key_vals = __key_vals;
-#if IS_STATIC_COMP
-                    key_vals *= SCALE_KEY;
-#else
-                        key_vals *= key_scale[(key_offset + key_row_idx * key_pitch + head_idx_index)/128];  // may use vload for key_row_idx
-#endif
+        #if IS_STATIC_COMP
+                        key_vals *= SCALE_KEY;
+        #else
+                        key_vals *= key_scale[(key_offset + key_row_idx * key_pitch + head_idx_index)/OFFSET_DIVIDER];  // may use vload for key_row_idx
+        #endif
     #endif
 #else
     #ifdef BEAM_TABLE_TYPE
@@ -1001,11 +1007,11 @@ KERNEL(sdpa_opt)(
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
                 half value_val = __value_val;
-                value_val *= val_scale[sub_group_broadcast(value_offset, i)/128];
+                value_val *= val_scale[sub_group_broadcast(value_offset, i)/OFFSET_DIVIDER];
     #else
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
                 half value_val = __value_val;
-                value_val *= val_scale[value_offset/128];
+                value_val *= val_scale[value_offset/OFFSET_DIVIDER];
     #endif
 #else
     #ifdef BEAM_TABLE_TYPE
@@ -1054,11 +1060,11 @@ KERNEL(sdpa_opt)(
     #ifdef BEAM_TABLE_TYPE
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
                 half value_val = __value_val;
-                value_val *= val_scale[sub_group_broadcast(value_offset, seq_len_idx)/128];
+                value_val *= val_scale[sub_group_broadcast(value_offset, seq_len_idx)/OFFSET_DIVIDER];
     #else
                 INPUT2_TYPE __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
                 half value_val = __value_val;
-                value_val *= val_scale[value_offset/128];
+                value_val *= val_scale[value_offset/OFFSET_DIVIDER];
     #endif
 #else
     #ifdef BEAM_TABLE_TYPE
@@ -1159,10 +1165,6 @@ KERNEL(sdpa_opt)(
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
                 }
-#if IS_KV_COMPRESSED
-                // if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0)
-                //     printf("value %d - %f, acc[seq_idx] = %f\n", __value_val, value_val, acc[0]);
-#endif
 
 #ifndef BEAM_TABLE_TYPE
                 value_offset += value_pitch;
@@ -1187,8 +1189,6 @@ KERNEL(sdpa_opt)(
                                             partition_idx * (HEAD_SIZE) +
                                             head_size_idx;
                 tmp_out[tmp_out_offset] = acc[seq_idx];
-                // tmp_out[tmp_out_offset] = 0.0h;
-
             }
         } else {
 #if TARGET_SEQ_LEN_BLOCK_SIZE > 1
