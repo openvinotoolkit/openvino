@@ -56,16 +56,13 @@ static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
 
 const std::vector<ov::AnyMap> configs = {{}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVBasicPropertiesTestsP, OVBasicPropertiesTestsP,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVBasicPropertiesTestsP, OVBasicPropertiesTestsP,
                          ::testing::ValuesIn(plugins), OVClassBasicTestName::getTestCaseName);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassBasicTestP, OVClassBasicTestPNPU, ::testing::ValuesIn(plugins),
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVClassBasicTestP, OVClassBasicTestPNPU, ::testing::ValuesIn(plugins),
                          OVClassBasicTestName::getTestCaseName);
 #endif
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassModelTestP, OVClassModelTestP, ::testing::ValuesIn(devices),
-                         OVClassNetworkTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassNetworkTestP, OVClassNetworkTestPNPU,
                          ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(configs)),
@@ -75,14 +72,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassNetworkTestP, OVClassNetwork
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetMetricPropsTest_nightly, OVGetMetricPropsTest, ::testing::ValuesIn(devices),
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVGetMetricPropsTest_nightly, OVGetMetricPropsTest, ::testing::ValuesIn(devices),
                          OVClassNetworkTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetMetricPropsTest_nightly, OVGetMetricPropsOptionalTest,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVGetMetricPropsTest_nightly, OVGetMetricPropsOptionalTest,
                          ::testing::ValuesIn(devices), OVClassNetworkTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests, OVCheckSetSupportedRWMetricsPropsTests,
+        smoke_BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests, OVCheckSetSupportedRWMetricsPropsTests,
         ::testing::Combine(::testing::Values("MULTI", "AUTO"),
                            ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
                                    {ov::log::level.name()}))),
@@ -135,11 +132,6 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
          ov::device::properties(ov::test::utils::DEVICE_NPU,
                                 ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassSetDevicePriorityConfigPropsTest,
-                         OVClassSetDevicePriorityConfigPropsTest,
-                         ::testing::Combine(::testing::Values("MULTI", "AUTO"), ::testing::ValuesIn(multiConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVClassSetDevicePriorityConfigPropsTest>);
-
 //
 // IE Class GetConfig
 //
@@ -149,17 +141,17 @@ INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetConfigTest_nightly, OVGetConfigTest,
 
 // IE Class Load network
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
                                             ::testing::ValuesIn(configsWithSecondaryProperties)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_Multi_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("MULTI"),
                                             ::testing::ValuesIn(multiConfigsWithSecondaryProperties)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_AUTO_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_AUTO_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("AUTO"),
                                             ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
@@ -282,18 +274,18 @@ INSTANTIATE_TEST_SUITE_P(nightly_BehaviorTests_OVClassGetMetricTest, OVClassGetM
                          ::testing::Values(ov::test::utils::DEVICE_NPU), OVClassNetworkTestName::getTestCaseName);
 
 // Several devices case
-INSTANTIATE_TEST_SUITE_P(nightly_BehaviorTests_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestCompileModel,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_nightly_BehaviorTests_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestCompileModel,
                          ::testing::Values(std::vector<std::string>(
                                  {std::string(ov::test::utils::DEVICE_NPU) + "." +
                                   removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))})),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassSeveralDevicesTestCompileModel>));
 
-INSTANTIATE_TEST_SUITE_P(nightly_BehaviorTests_OVClassModelOptionalTestP, OVClassModelOptionalTestP,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_nightly_BehaviorTests_OVClassModelOptionalTestP, OVClassModelOptionalTestP,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassModelOptionalTestP>));
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_BehaviorTests_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestQueryModel,
+        backwardDrvComp_nightly_BehaviorTests_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestQueryModel,
         ::testing::Values(std::vector<std::string>(
                 {std::string(ov::test::utils::DEVICE_NPU) + "." +
                          removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700")),

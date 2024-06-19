@@ -13,12 +13,12 @@ using namespace ov::test::behavior;
 namespace {
 const std::vector<ov::AnyMap> configs = {{}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTests,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests, OVInferRequestCancellationTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTestsNPU,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests, OVInferRequestCancellationTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);

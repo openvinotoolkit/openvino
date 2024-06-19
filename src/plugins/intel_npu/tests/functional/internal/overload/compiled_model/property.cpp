@@ -202,7 +202,7 @@ TEST_P(ClassPluginPropertiesTestSuite0NPU, CanSetGetPublicMutableProperty) {
     ASSERT_EQ(retrieved_value.as<std::string>(), configValue.as<std::string>());
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassPluginPropertiesTestNPU, ClassPluginPropertiesTestSuite0NPU,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_ClassPluginPropertiesTestNPU, ClassPluginPropertiesTestSuite0NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(plugin_public_mutable_properties)),
                          ClassPluginPropertiesTestNPU::getTestCaseName);
@@ -218,7 +218,7 @@ TEST_P(ClassPluginPropertiesTestSuite1NPU, CanSetGetInternalMutableProperty) {
     ASSERT_EQ(retrieved_value.as<std::string>(), configValue.as<std::string>());
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassPluginPropertiesTestNPU, ClassPluginPropertiesTestSuite1NPU,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_ClassPluginPropertiesTestNPU, ClassPluginPropertiesTestSuite1NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(plugin_internal_mutable_properties)),
                          ClassPluginPropertiesTestNPU::getTestCaseName);
@@ -279,7 +279,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassPluginPropertiesOptsTest1NPU, 
                                             ::testing::ValuesIn(plugin_public_immutable_properties)),
                          ClassPluginPropertiesTestNPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassPluginPropertiesOptsTest2NPU, ClassPluginPropertiesTestSuite3NPU,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_ClassPluginPropertiesOptsTest2NPU, ClassPluginPropertiesTestSuite3NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(plugin_public_mutable_properties)),
                          ClassPluginPropertiesTestNPU::getTestCaseName);

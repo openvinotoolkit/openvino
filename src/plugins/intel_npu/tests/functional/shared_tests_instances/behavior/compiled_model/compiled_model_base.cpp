@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelBaseTestOpti
                                             ::testing::ValuesIn(heteroCompiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVCompiledModelBaseTestOptional>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVAutoExecutableNetworkTest,
+INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests, OVAutoExecutableNetworkTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVAutoExecutableNetworkTest>);

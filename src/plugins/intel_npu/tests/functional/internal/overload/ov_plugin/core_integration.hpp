@@ -154,7 +154,7 @@ TEST_P(OVClassLoadNetworkTestNPU, LoadNetworkHETEROWithDeviceIDNoThrow) {
     }
 }
 
-TEST(OVClassBasicPropsTestNPU, smoke_SetConfigDevicePropertiesThrows) {
+TEST(backwardDrvComp_OVClassBasicPropsTestNPU, smoke_SetConfigDevicePropertiesThrows) {
     ov::Core core;
     ASSERT_THROW(core.set_property("", ov::device::properties(ov::test::utils::DEVICE_NPU, ov::enable_profiling(true))),
                  ov::Exception);
