@@ -46,7 +46,7 @@ std::shared_ptr<ov::Node> IndirectSDPA::clone_with_new_inputs(const ov::OutputVe
 
 void IndirectSDPA::validate_and_infer_types() {
     const auto input_size = get_input_size();
-    const size_t scale_data_cnt = m_is_kv_compressed ? 1 : 0;
+    const size_t scale_data_cnt = m_is_kv_compressed ? 2 : 0;
     NODE_VALIDATION_CHECK(this,
         input_size == 4 + scale_data_cnt || input_size == 5 + scale_data_cnt || input_size == 6 + scale_data_cnt,
         "Number of inputs is incorrect. Current value is: ",

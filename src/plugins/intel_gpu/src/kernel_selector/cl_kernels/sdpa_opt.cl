@@ -18,7 +18,7 @@
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
 
 // FIXME: generate this index from jitter
-#define IS_V_COMPRESSED 0
+#define IS_V_COMPRESSED 1
 #define IS_STATIC_COMP 0
 #define SCALE_KEY (10.0h/128.0h)
 #if HAS_SCALE_INPUT
@@ -627,7 +627,7 @@ KERNEL(sdpa_opt)(
 #if IS_KV_COMPRESSED && IS_V_COMPRESSED
             char __value_val = __VALUE_BLOCK_READ(value_input, value_offset);
             half value_val = __value_val;
-            value_val *= val_scale[value_offset/128];
+            value_val *= val_scale[value_offset/OFFSET_DIVIDER];
 #else
             INPUT2_TYPE value_val = VALUE_BLOCK_READ(value_input, value_offset);
 #endif
