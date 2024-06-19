@@ -59,12 +59,12 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
         return false;
 
     auto threads = get_input_bf_size(params);
-    // auto input_b = threads.first;
+    auto input_b = threads.first;
     auto input_f = threads.second;
 
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % quantize_grp_size == 0) &&
-        /*(params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_dyn_quan_size)) &&*/
+        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_dyn_quan_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
         (params.decompression_zero_point.Feature().v == 1)) {
@@ -303,7 +303,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         max_tile_ofm *= 2;
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
-        if (!params.is_shape_agnostic && batch == 1) {
+        if (should_dynamic_quantize(params) && batch == 1) {
+            return selector.Default(tune_params(1, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+        } else if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
             size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
             if (output_f / 2 < min_num_threads && params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
@@ -512,9 +514,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
-    jit.AddConstant(MakeJitConstant("HALF_TILE_B", dispatchData.tile_m/2));
+    jit.AddConstant(MakeJitConstant("HALF_TILE_B", std::max(dispatchData.tile_m / 2, (uint32_t)1)));
     jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
-    // std::cout << " >> TILE_OFM : " << dispatchData.tile_n << ", TILE_K_OFM : " << tile_k_ofm << std::endl;
     jit.AddConstant(MakeJitConstant("TILE_IFM", dispatchData.tile_mk));
     jit.AddConstant(MakeJitConstant("TILE_K", dispatchData.tile_nk));
     jit.AddConstant(MakeJitConstant("TILE_K_OFM", tile_k_ofm));
@@ -622,7 +623,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             if (!kd.internalBufferSizes.empty()) {
                 size_t input_b = get_input_bf_size(prim_params).first;
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
-                if (execute_type == KernelType::DEFAULT && false/*input_b < 8*/) {
+                if (execute_type == KernelType::DEFAULT && false) {
                     // Use common kernel(No dynamic quantization)
                     kd.kernels[0].skip_execution = true;
                     GPU_DEBUG_TRACE_DETAIL << " Disabled dynamic quantize kernel. batch size : " << input_b << std::endl;
@@ -643,8 +644,8 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                         kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);   // de_quan_scale is half type
                     }
 
-                    kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
-                    kd.kernels[0].params.workGroups.local = {16, 1, 1};
+                    kd.kernels[0].params.workGroups.global = {16, 1, std::max((input_size / quantize_grp_size), (size_t)1)};
+                    kd.kernels[0].params.workGroups.local = {16, 1, 16};
                 }
             }
         };
@@ -790,6 +791,10 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
             inputs_count++;
     }
 
+    size_t input_b = get_input_bf_size(fc_params).first;
+    size_t input_f = get_input_bf_size(fc_params).second;
+    size_t input_size = 0;
+
     // Generate dispatch data for KernelType::DEFAULT
     int kernel_number = 0;
     const DispatchData dispatchData = SetDefault(new_params, autoTuneIndex, kernel_number);
@@ -798,8 +803,8 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     {
         auto& quan_kernel = kd.kernels[0];
         DispatchData dyn_quan_dispatch = dispatchData;
-        dyn_quan_dispatch.gws = {std::max((fc_params.inputs[0].PhysicalSize() / quantize_grp_size), (size_t)1), 1, 1};
-        dyn_quan_dispatch.lws = {16, 1, 1};
+        dyn_quan_dispatch.gws = {16, 1, std::max((fc_params.inputs[0].PhysicalSize() / quantize_grp_size), (size_t)1)};
+        dyn_quan_dispatch.lws = {16, 1, 16};
         quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
         quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
         quan_kernel.skip_execution = false;
@@ -865,6 +870,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
 
         fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        input_size = input_f * Align(input_b, dispatchData.tile_m);
         kernel_number++;
     }
 
@@ -900,9 +906,19 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
 
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        input_size = input_f * slm_Data.tile_m * slm_Data.gws[2];
     }
 
     kd.autoTuneIndex = autoTuneIndex;
+    // Update the first pre-quantizing kernel by aligned input size
+    if (kd.internalBufferSizes[0] < input_size) {
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(input_size);                           // quantized input is char type
+        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);   // de_quan_scale is half type
+        kd.kernels[0].params.workGroups.global = {16, 1, std::max((input_size / quantize_grp_size), (size_t)1)};
+        kd.kernels[0].params.workGroups.local = {16, 1, 16};
+    }
+
     return {kd};
 }
 }  // namespace kernel_selector

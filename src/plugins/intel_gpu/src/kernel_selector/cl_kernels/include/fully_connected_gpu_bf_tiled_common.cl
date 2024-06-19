@@ -200,13 +200,17 @@ inline void (FUNC_NAME)(
             #if COMPRESSED_WEIGHTS_INT4
                 // Compute input * weight : packed char4 type
                 char4 first_weight = wei.s0123;
-                char4 second_weight = wei.s4567;
+                #if TILE_OFM == 2
+                    char4 second_weight = wei.s4567;
+                #endif
                 unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
                     short2 input_val = {_sub_group_shuffle(packed_in_0[bi], (ki * 2)),
                                        _sub_group_shuffle(packed_in_0[bi], (ki * 2)+1)};
                     char4 char_input = as_char4(input_val);
                     ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0], char_input, first_weight);
-                    ((int *)(&acc_tmp[bi]))[1] = imad_SW(((int *)(&acc_tmp[bi]))[1], char_input, second_weight);
+                    #if TILE_OFM == 2
+                        ((int *)(&acc_tmp[bi]))[1] = imad_SW(((int *)(&acc_tmp[bi]))[1], char_input, second_weight);
+                    #endif
                 }
             #endif
 

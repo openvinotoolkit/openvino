@@ -18,43 +18,31 @@
 // DISPATCH_BSV   as if they laid in bs_fs_bsv_fsv format, these macros describe fsv and bsv factors;
 
 #if FC_KERNEL_DYNAMIC_QUANTIZE
-#define INPUT_LOAD_SIZE                     4
+#define INPUT_LOAD_SIZE                     2
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(quantize_input)(
     const __global INPUT0_TYPE* input,
     __global char* quantized_input,
     __global INPUT0_TYPE* de_quan_scale) {
-    const uint offset = get_global_id(0);
+    const uint offset = get_global_id(2);
 
     uint input_offset = offset * QUANTIZE_GROUP_SIZE;
-    half4 input_0[8];
-    char4 quantized_value[8];
-    half  max[8];
+    half2 input_0;
+    char2 quantized_value;
+    half  max;
 
-    unroll_for (uint i = 0 ; i < 8 ; ++i) {
-        input_0[i] = vload4(0, &input[input_offset + i * 4]);
-        max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
-    }
+    int sglid = get_sub_group_local_id();
+    input_0 = vload2(0, &input[input_offset + sglid * 2]);
+    max = fmax(fabs(input_0[0]), fabs(input_0[1]));
 
-    half max_value = fmax(fmax(fmax(max[0], max[1]), fmax(max[2], max[3])),
-                            fmax(fmax(max[4], max[5]), fmax(max[6], max[7])));
+    half max_value = sub_group_reduce_max(max);
 
     half quan_scale = max_value / 128;
+    quantized_value = CAT(convert_, MAKE_VECTOR_TYPE(char, INPUT_LOAD_SIZE))(input_0 / (half2)quan_scale);
+    vstore2(quantized_value, 0, &quantized_input[input_offset + sglid * 2]);
 
-    unroll_for (uint i = 0 ; i < 8 ; ++i) {
-        quantized_value[i] = CAT(convert_, MAKE_VECTOR_TYPE(char, INPUT_LOAD_SIZE))(input_0[i] / (half4)quan_scale);
-        vstore4(quantized_value[i], 0, &quantized_input[input_offset + i * 4]);
-    }
-
-    // if (/*get_global_id(0) == 0*/ get_group_id(0) == 0) {
-    //     printf("input local(%d): %.2f, %.2f, %.2f, %.2f / %.2f, %.2f, %.2f, %.2f, quan_scale: %.4f\n", get_local_id(0),
-    //             (float)input_0[0][0], (float)input_0[0][1], (float)input_0[0][2], (float)input_0[0][3],
-    //             (float)input_0[1][0], (float)input_0[1][1], (float)input_0[1][2], (float)input_0[1][3], (float)quan_scale);
-    //     printf(" -- Quantize input(%d) : %d, %d, %d, %d, %d, %d, %d, %d\n", get_local_id(0),
-    //             (int)quantized_value[0][0], (int)quantized_value[0][1], (int)quantized_value[0][2], (int)quantized_value[0][3],
-    //             (int)quantized_value[1][0], (int)quantized_value[1][1], (int)quantized_value[1][2], (int)quantized_value[1][3]);
-    // }
-
-    de_quan_scale[offset] = quan_scale;
+    if (sglid == 0)
+        de_quan_scale[offset] = quan_scale;
 }
 #else  // !FC_KERNEL_DYNAMIC_QUANTIZE
 
@@ -710,13 +698,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
 // Dyc Quantize
 #if DYNAMIC_QUANTIZE
-    #if USE_SLM
-        #define INPUT_LOAD_SIZE                     4
-        #define PACKED_DQ_TYPE                      int
-    #else
-        #define INPUT_LOAD_SIZE                     2
-        #define PACKED_DQ_TYPE                      short
-    #endif
+#define INPUT_LOAD_SIZE                     4
+#define PACKED_DQ_TYPE                      int
 #define DQ_VEC_TYPE                         MAKE_VECTOR_TYPE(DQ_TYPE, TILE_IFM)
 #define DQ_SLM_FILTER_VEC                   MAKE_VECTOR_TYPE(DQ_TYPE, 4)
 #define DQ_SLM_FILTER_PACKED_VEC            MAKE_VECTOR_TYPE(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE)
@@ -764,11 +747,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint out_f = gid * (TILE_OFM * SIMD);
     uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
 
-    // Dynamic Quantize
-    MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[HALF_TILE_B] = { };   // Load 4 linear inputs for packing
-    PACKED_DQ_TYPE                                  packed_in_0[HALF_TILE_B] = { };     // Packing char4 inputs to 1 integer
-    INPUT0_TYPE                                     de_quantize_scale[TILE_B];
-
 #else
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
     // This allows more fine grained control over dispatch order than using work-groups and
@@ -785,13 +763,12 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
 
     DQ_FILTER_VEC_TYPE wei = 0;
-    // FILTER_VEC_TYPE wei = 0;
+#endif
 
     // Dynamic Quantize
-    MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[TILE_B] = { };   // Load 2 linear inputs for packing
-    PACKED_DQ_TYPE                                  packed_in_0[TILE_B] = { };     // Packing char2 inputs to 1 integer
+    MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[HALF_TILE_B] = { };   // Load 4 linear inputs for packing
+    PACKED_DQ_TYPE                                  packed_in_0[HALF_TILE_B] = { };     // Packing char4 inputs to 1 integer
     INPUT0_TYPE                                     de_quantize_scale[TILE_B];
-#endif
 
 #if OUTPUT_3D
     uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
@@ -999,28 +976,31 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         #endif
     }  // Main compute loop : ni
 #else  // !USE_SLM
-    // Each sub-group load 2 inputs on a single batch
-    uint idx_sglid = (sglid * INPUT_LOAD_SIZE);
+    // Each sub-group loads 2 Batch
+    uint idx_sglid = (sglid * TILE_K) % QUANTIZE_GROUP_SIZE;       // same index for sglid 0~7 : to tile_k direction
+    uint batch_sglid = (sglid * TILE_K) / QUANTIZE_GROUP_SIZE;     // 0 to 1 : to batch direction
+
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
-        uint in_offset = input_offset + idx_sglid;
+        uint in_offset = input_offset + (idx_sglid + batch_sglid * TILE_IN_B_PITCH);
         uint scale_offset = input_offset / QUANTIZE_GROUP_SIZE;
-        for (uint bi = 0; bi < TILE_B; ++bi) {
+        for (uint bi = 0; bi < HALF_TILE_B; ++bi) {
             // Load quantizing info from pre-quantizing kernel
-            tiled_input_0[bi] = vload2(0, &quantized_input[in_offset]);
-            de_quantize_scale[bi] = scale[scale_offset];
+            tiled_input_0[bi] = vload4(0, &quantized_input[in_offset]);
+            de_quantize_scale[bi * 2] = scale[scale_offset];
+            de_quantize_scale[bi * 2 + 1] = scale[scale_offset+ (TILE_IN_B_PITCH/QUANTIZE_GROUP_SIZE)];
 
-            // Packing : Get N(B)x2(K) short vector (packing to Nx1 vector)
-            packed_in_0[bi] = as_short(tiled_input_0[bi]);
+            // Packing : Get 4(B)x4(K) integer vector (packing to 4x1 vector)
+            packed_in_0[bi] = as_int(tiled_input_0[bi]);
 
             // Next batch
-            in_offset += (TILE_IN_B_PITCH);
-            scale_offset += (TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE);
+            in_offset += (TILE_IN_B_PITCH * 2);
+            scale_offset += (TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE * 2);
         }
 
         input_offset += TILE_IFM * SIMD;
 
-        MAKE_VECTOR_TYPE(int, TILE_B) acc_tmp[TILE_OFM] = { };
+        MAKE_VECTOR_TYPE(int, TILE_OFM) acc_tmp[TILE_B] = { };
 
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
             FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
@@ -1053,18 +1033,13 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 }
             #endif
 
-            #if COMPRESSED_WEIGHTS_INT4
-                // Compute input * weight : packed char4 type
-                char4 first_weight = wei.s0123;
-                char4 second_weight = wei.s4567;
-                unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                    short2 input_val = {_sub_group_shuffle(packed_in_0[bi], (ki * 2)),
-                                       _sub_group_shuffle(packed_in_0[bi], (ki * 2)+1)};
-                    char4 char_input = as_char4(input_val);
-                    acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi], char_input, first_weight);
-                    acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], char_input, second_weight);
-                }
-            #endif
+            char4 first_wei = wei.s0123;
+            char4 second_wei = wei.s4567;
+            unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+                char4 input_val = as_char4(_sub_group_shuffle(packed_in_0[bi / 2], (bi % 2) * 8 + ki));
+                ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0], input_val, first_wei);
+                ((int *)(&acc_tmp[bi]))[1] = imad_SW(((int *)(&acc_tmp[bi]))[1], input_val, second_wei);
+            }
 
             weights_offset += TILE_K_OFM_PACKED * SIMD;
 
@@ -1081,8 +1056,8 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                         #endif
 
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
-                        acc_tmp[fi][bi] = 0;
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi];
+                        acc_tmp[bi][fi] = 0;
                     }
                 }
             #endif
@@ -1101,7 +1076,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                     #endif
 
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi];
                 }
             }
         #endif
