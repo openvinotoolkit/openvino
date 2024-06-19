@@ -1287,3 +1287,24 @@ class TestInputTensorName(unittest.TestCase):
 
         assert ov_model.inputs[0].get_names() == {"x:0"}
         assert ov_model.inputs[1].get_names() == {"y:0"}
+
+
+class TestUnicodePaths(unittest.TestCase):
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_unicode_paths(self):
+        test_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), r"晚安", r"путь_к_файлу")
+        with tempfile.TemporaryDirectory(dir=test_directory) as temp_dir:
+            model, model_ref, _ = create_tf_graph_def(None)
+            model_path = save_to_pb(model, model_name)
+
+            from openvino import convert_model
+            res_model = convert_model(model_path)
+            flag, msg = compare_functions(res_model, model_ref, False)
+            assert flag, msg
+
+            from openvino.frontend import FrontEndManager
+            fm = FrontEndManager()
+            fe = fm.load_by_framework("tf")
+
+            assert fe.supported(model_path)
