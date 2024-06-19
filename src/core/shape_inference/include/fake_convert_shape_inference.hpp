@@ -22,7 +22,8 @@ std::vector<TRShape> shape_infer(const FakeConvert* op, const std::vector<T>& in
                                scales_shape.compatible(shifts_shape),
                                "FakeConvert scale shape is not compatible with shift shape.");
     }
-    TRShape output_pshape = input_shapes[0];
+    auto output_shapes = std::vector<TRShape>{input_shapes[0]};
+    auto& output_pshape = output_shapes[0];
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            T::broadcast_merge_into(output_pshape, scales_shape, op::AutoBroadcastType::NUMPY),
@@ -31,8 +32,8 @@ std::vector<TRShape> shape_infer(const FakeConvert* op, const std::vector<T>& in
         op,
         input_shapes,
         input_shapes[0].compatible(output_pshape),
-        "FakeConvert support only unidirectional broadcasting, inputs cannot be broadcastd into data.");
-    return {output_pshape};
+        "FakeConvert support only unidirectional broadcasting, inputs cannot be broadcast into data.");
+    return output_shapes;
 }
 }  // namespace v13
 }  // namespace op
