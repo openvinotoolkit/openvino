@@ -48,6 +48,9 @@ private:
 
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);
+
+    void bind_next_global_parameters(std::size_t idx_base);
+
     void function_prologue(std::size_t idx);
     void unpack_closure(std::size_t idx, RqPtr request);
 

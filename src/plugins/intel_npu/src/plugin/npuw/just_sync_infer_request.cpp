@@ -262,8 +262,11 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    // Submit global parameters (if needed) for the first subgraph
+    bind_next_global_parameters(0);
+
     // If funcall pipelining is enabled, prefill the function "heads"
-    // with constant arguments
+    // with constant arguments. The list of heads is empty otherwise.
     for (auto&& id : m_funcall_heads) {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
         unpack_closure(id, m_subrequests[id]);
@@ -286,6 +289,16 @@ void ov::npuw::JustInferRequest::start_subrequest(std::size_t idx) {
     m_subrequests[idx]->start_async();
 }
 
+void ov::npuw::JustInferRequest::bind_next_global_parameters(std::size_t idx_base) {
+    // look for a non-empty subgraph starting with idx_base.
+    // once found, initialize its parameters and return immediately.
+    auto next_idx = next(idx_base);
+    if (idx_base == 0 || next_idx != 0) {
+        // 0 means loop-back - and we already do this job in prepare_for_infer()
+        bind_global_parameters(next_idx);
+    }
+}
+
 void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     LOG_DEBUG("Binding parameters for Subgraph[" << idx << "]");
     LOG_BLOCK();
@@ -294,11 +307,26 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
     const bool do_copy = needs_copy(idx);
-    auto& subr = m_subrequests[real_idx];
     const auto& iodesc = m_subrequests_gio.at(idx);
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node> > > copy_list;
+
+    // pick which subrequest we actually work on here
+    auto subr = [&]() {
+        if (real_idx == real(now_idx())) {
+            // The real index of request we need to prepare IS
+            // the same request which executes now. Happens only when
+            // it is a function and the function pipelining is ON.
+            NPUW_ASSERT(m_use_function_pipelining);
+            NPUW_ASSERT(m_funcall_pipeline[real_idx].subrequest);
+            return m_funcall_pipeline[real_idx].subrequest;
+        }
+        // Otherwise: Just a return a subrequest which is in place.
+        // If it is a function call and we have function pipelining ON,
+        // it is still the right subrequest we can use.
+        return m_subrequests[real_idx];
+    } ();
 
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
@@ -499,6 +527,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     // Infer is also fail-safe...
     bool job_done = false;
     bool dump_in = false;
+    bool next_prepared = false;
     while (!job_done) {
         bool should_recreate = false;
         if (m_subrequest_devices[real_idx] != *m_npuw_model->m_compiled_submodels[real_idx].device_it) {
@@ -510,13 +539,6 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             recreate_subrequests(real_idx);
         }
 
-        // If subrequests refers to the parent model's global
-        // Parameter tensors, bind/copy them here. The in-graph
-        // connections are managed automatically with inference
-        // chaining. Functions are the exception, see
-        // function_prologue() below.
-        bind_global_parameters(idx);
-
         // Same applies to Result tensors
         bind_global_results(idx);
 
@@ -527,29 +549,65 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             dump_in = true;
             dump_input_tensors(idx);
         }
+
+        const std::size_t next_idx = next(idx + 1);
         try {
             LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
-            if (m_use_function_pipelining && comp_model_desc.replaced_by) {
-                // Start THIS request -- everything is ready for it at this point
-                m_subrequests[real_idx]->start_async();
-                if (m_funcall_pipeline[idx].next) {
-                    const auto next_id = m_funcall_pipeline[idx].next.value();
-                    // Prepare the NEXT request while this one is running
-                    LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_id << "]...");
-                    LOG_BLOCK();
-                    unpack_closure(next_id, m_funcall_pipeline[real_idx].subrequest);
+            LOG_BLOCK();
+            if (comp_model_desc.replaced_by) {
+                // This is a function call!
+                if (real_idx == real(next_idx)) {
+                    // The next subgraph is a call to the same function...
+                    // At this point, THIS infer request is already prepared.
+                    // Run it, then prepare it again for the next entrace
+                    if (m_use_function_pipelining) {
+                        // function pipelining is here! and the next rq is ours.
+                        NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
+                        m_subrequests[real_idx]->start_async();
+                        LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
+                        LOG_BLOCK();
+                        // Note: do it here unconditionally - if this request fails,
+                        // have to resubmit all the data to the recompiled pair anyway
+                        bind_global_parameters(next_idx);
+                        unpack_closure(next_idx, m_funcall_pipeline[real_idx].subrequest);
+                        m_subrequests[real_idx]->wait();
+                    } else {
+                        // Function pipelining is not used. THIS infer request
+                        // is also the NEXT one. Nothing much to do here
+                        m_subrequests[real_idx]->infer();
+                        bind_global_parameters(next_idx);
+                    }
+                } else {
+                    // The next subgraph is NOT a call to the same function!
+                    // Trigger execution of the current one
+                    // FIXME: pipelining?
+                    if (next_idx == 0) {
+                        m_subrequests[real_idx]->infer();
+                    } else {
+                        m_subrequests[real_idx]->start_async();
+                        if (!next_prepared) {
+                            bind_global_parameters(next_idx);
+                            next_prepared = true;
+                        }
+                        m_subrequests[real_idx]->wait();
+                    }
                 }
-
-                // Wait for completion of this one. Once completed,
-                // its' brother was already updated all the right
-                // closure tensors. Swapping the subrequests will
-                // happen in the very end to allow dumping the proper
-                // tensors, if needed (see job_done check).
-                m_subrequests[real_idx]->wait();
             } else {
-                m_subrequests[real_idx]->infer();
-            }
+                // This is a regular subgraph. Start it async to prepare the next
+                // parameters
+                if (next_idx == 0) {
+                    m_subrequests[real_idx]->infer();
+                } else {
+                    m_subrequests[real_idx]->start_async();
+                    if (!next_prepared) {
+                        bind_global_parameters(next_idx);
+                        next_prepared = true;
+                    }
+                    m_subrequests[real_idx]->wait();
+                }
+            } // if (replaced_by)
             job_done = true;
+            LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {
             LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl << ex.what());
             should_recreate = true;
