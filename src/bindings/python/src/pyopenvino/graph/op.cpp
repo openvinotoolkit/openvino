@@ -31,10 +31,9 @@ public:
     bool visit_attributes(ov::AttributeVisitor& value) override {
         pybind11::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
         // Try to look up the overridden method on the Python side.
-        pybind11::function override = pybind11::get_override(this, "visit_attributes");
-        if (override) {                           // method is found
-            py::bool_ result = override(&value);  // Call the Python function.
-            return result;
+        pybind11::function overrided_py_method = pybind11::get_override(this, "visit_attributes");
+        if (overrided_py_method) {                                       // method is found
+            return static_cast<py::bool_>(overrided_py_method(&value));  // Call the Python function.
         }
         return false;
     }

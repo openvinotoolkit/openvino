@@ -21,7 +21,7 @@ void visit_attribute(py::dict& attributes,
                      ov::AttributeVisitor* visitor) {
     auto attr_casted = attribute.second.cast<AT>();
     visitor->on_attribute<AT>(attribute.first.cast<std::string>(), attr_casted);
-    attributes[attribute.first] = attr_casted;
+    attributes[attribute.first] = std::move(attr_casted);
 
     return;
 };
@@ -58,10 +58,7 @@ void regclass_graph_AttributeVisitor(py::module m) {
                     if (py::isinstance<py::array_t<float>>(_array)) {
                         visit_attribute<std::vector<float>>(attributes, std::make_pair(attribute.first, _array), self);
                     } else {
-                        auto message = py::detail::c_str(std::string("Unsupported NumPy array dtype: ") +
-                                                         std::string(py::str(_array.dtype())));
-                        PyErr_SetString(PyExc_TypeError, message);
-                        throw py::error_already_set();
+                        throw py::type_error("Unsupported NumPy array dtype: " + std::string(py::str(_array.dtype())));
                     }
                 } else if (py::isinstance<py::list>(attribute.second)) {
                     // python list
@@ -85,16 +82,12 @@ void regclass_graph_AttributeVisitor(py::module m) {
                         visit_attribute<std::vector<int64_t>>(attributes, std::make_pair(attribute.first, _list), self);
                         break;
                     default:
-                        auto message = py::detail::c_str(std::string("Unsupported attribute type in provided list: ") +
-                                                         std::string(py::str(_list[0].get_type())));
-                        PyErr_SetString(PyExc_TypeError, message);
-                        throw py::error_already_set();
+                        throw py::type_error("Unsupported attribute type in provided list: " +
+                                             std::string(py::str(_list[0].get_type())));
                     }
                 } else {
-                    auto message = py::detail::c_str(std::string("Unsupported attribute type: ") +
-                                                     std::string(py::str(attribute.second.get_type())));
-                    PyErr_SetString(PyExc_TypeError, message);
-                    throw py::error_already_set();
+                    throw py::type_error("Unsupported attribute type: " +
+                                         std::string(py::str(attribute.second.get_type())));
                 }
             }
         },

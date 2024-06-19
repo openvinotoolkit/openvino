@@ -137,13 +137,12 @@ def test_visit_attributes_custom_op(request, tmp_path, attributes, expectation, 
         ordered_ops = model_with_op_attr.get_ordered_ops()
         ops_dict = {op.get_type_name(): op for op in ordered_ops}
         attrs = ops_dict["CustomOpWithAttribute"].get_attributes()
+        for key, value in attrs.items():
+            assert key in attributes
+            assert attributes[key] == value
 
     if e is not None:
         assert raise_msg in str(e.value)
-
-    for key, value in attrs.items():
-        assert key in attributes
-        assert attributes[key] == value
 
 
 def test_custom_add_op():
