@@ -570,6 +570,43 @@ def test_model_add_remove_variable():
     assert len(model.get_variables()) == 1
 
 
+def test_complicated_model():
+    from openvino.runtime.op import read_value
+    model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
+
+    input_shape=Shape([2, 1])
+    data_type=Type.f32
+    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
+    init_val = ops.constant(np.zeros(input_shape), data_type)
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+
+    rv = read_value(init_val, variable_1)
+    assign = ops.assign(rv, variable_1)
+
+    model.add_variables([variable_1])
+    model.add_sinks([assign])
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+
+    # assert len(model.get_variables()) == 1
+    # #model.add_variables([variable_1])
+    # #assert len(model.get_variables()) == 2
+    # variable_by_id = model.get_variable_by_id("var_id_667")
+    # assert variable_by_id.info.variable_id == "var_id_667"
+    model.validate_nodes_and_infer_types()
+    # model.remove_variable(variable_1)
+    # assert len(model.get_variables()) == 1
+
+
 def test_save_model_with_none():
     with pytest.raises(AttributeError) as e:
         save_model(model=None, output_model="model.xml")
