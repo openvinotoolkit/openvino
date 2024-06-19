@@ -109,7 +109,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                     return False
             return True
         # Currently this only work to reorder inputs/outputs
-        to_override_all_inputs = len(iplaces) > 0 and len(iplaces) <= len(model_inputs) and not equal_places_lists(model_inputs, iplaces)
+        to_override_all_inputs = len(iplaces) == len(model_inputs) and not equal_places_lists(model_inputs, iplaces)
         to_override_all_outputs = False
         if argv.output:
             oplaces = []
@@ -117,7 +117,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             for out_desc in _outputs:
                 oplaces.append(out_desc["name"])
             model_outputs = input_model.get_outputs()
-            to_override_all_outputs = len(oplaces) > 0 and len(oplaces) <= len(model_inputs) and not equal_places_lists(model_outputs, oplaces)
+            to_override_all_outputs = len(oplaces) == len(model_inputs) and not equal_places_lists(model_outputs, oplaces)
         if to_override_all_inputs and to_override_all_outputs:
             input_model.extract_subgraph(iplaces, oplaces)
         elif to_override_all_inputs:
