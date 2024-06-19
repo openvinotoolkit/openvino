@@ -26,6 +26,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 private:
+    ////////////////////////////////////
     // implement IBaseInferRequest
     void prepare_for_infer() override;
     bool valid_subrequest(std::size_t idx) const override;
@@ -38,6 +39,9 @@ private:
     bool supports_async_pipeline() const override;
 
     void update_subrequest_links(std::size_t idx) override;
+
+    ////////////////////////////////////
+    // now own API
 
     // FIXME: probably this one should go to the base class too
     RqPtr get_real_subrequest(std::size_t idx);
@@ -79,8 +83,9 @@ private:
     // access the model's top-level (global, public, etc) parameters
     // and results
     struct GlobalIO {
-        std::map<std::size_t, std::size_t> global_params;   // param idx -> input idx
-        std::map<std::size_t, std::size_t> global_results;  // result idx -> output idx
+        using map_t = std::map<std::size_t, std::size_t>;
+        map_t global_params;   // param idx -> input idx
+        map_t global_results;  // result idx -> output idx
     };
     std::vector<GlobalIO> m_subrequests_gio;
 };

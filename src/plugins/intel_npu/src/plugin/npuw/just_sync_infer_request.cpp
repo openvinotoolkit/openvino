@@ -293,15 +293,31 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
+    const bool do_copy = needs_copy(idx);
+    auto& subr = m_subrequests[real_idx];
     const auto& iodesc = m_subrequests_gio.at(idx);
+
+    // a list of ports to copy tensors, if needed: FROM -> TO
+    std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node> > > copy_list;
+
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
-        auto& subr = m_subrequests[real_idx];
         const auto& g_port = m_npuw_model->inputs()[param_idx];
+        const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
         const auto& s_port = subr->get_inputs()[sub_in_idx];
-        subr->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
+        if (do_copy) {
+            copy_list.emplace_back(g_tnsr, s_port);
+        } else {
+            subr->set_tensor(s_port, g_tnsr);
+        }
     }
+
+    ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
+        auto &it = copy_list[idx];
+        ov::SoPtr<ov::ITensor> dst = subr->get_tensor(it.second);
+        it.first->copy_to(dst._ptr);
+    });
 
     LOG_DEBUG("Done");
 }

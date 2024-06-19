@@ -110,6 +110,8 @@ protected:
     mutable std::optional<bool> m_iter_suffix_required;
     std::size_t m_run_iter = 0;
 
+    bool needs_copy(std::size_t idx) const;
+
     RqPtrs m_ref_subrequests;
 };
 

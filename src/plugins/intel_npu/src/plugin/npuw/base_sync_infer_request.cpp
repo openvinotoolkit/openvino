@@ -279,3 +279,17 @@ std::string ov::npuw::IBaseInferRequest::iter_path_suffix(std::size_t idx) const
     // is exceeded)
     return "_iter_" + ov::npuw::util::fmt(m_run_iter, 1000);
 }
+
+
+bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx) const {
+    // Answer if the given subgraph needs copy for I/O or tolerates
+    // the set/get_ tensor API
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    if (ov::npuw::util::starts_with(m_subrequest_devices[real_idx], "CPU")) {
+        return false;
+    }
+
+    // Assume all others prefer copy unless remote tensors are supported
+    return true;
+}
