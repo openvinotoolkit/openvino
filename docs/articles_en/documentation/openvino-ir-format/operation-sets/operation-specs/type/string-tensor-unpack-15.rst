@@ -43,9 +43,9 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
 **Outputs**
 
-* **1**: ``begins`` - ND tensor of non-negative integer numbers of type *int32* and of the same shape as ``data``.
+* **1**: ``begins`` - ND tensor of non-negative integer numbers of type *int32* and of the same shape as ``data`` input.
 
-* **2**: ``ends`` - ND tensor of non-negative integer numbers of type *int32* and of the same shape as ``data``.
+* **2**: ``ends`` - ND tensor of non-negative integer numbers of type *int32* and of the same shape as ``data`` input.
 
 * **3**: ``symbols`` - 1D tensor of concatenated strings data encoded in utf-8 bytes, of type *u8* and size equal to the sum of the lengths of each string from the ``data`` input.
 
