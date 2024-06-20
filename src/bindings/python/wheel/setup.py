@@ -455,10 +455,12 @@ class PrepareLibs(build_clib):
         os.makedirs(package_dir, exist_ok=True)
 
         replacements = {
-            "{CMAKE_CURRENT_LIST_DIR}/../../": "{CMAKE_CURRENT_LIST_DIR}/../",
+            # change the path where the libraries are installed (runtime/lib/intel64/Release -> openvino/libs)
             f"{OV_RUNTIME_LIBS_DIR}": f"{WHEEL_LIBS_INSTALL_DIR}",
+            # change the path where the include files are installed (runtime/include -> openvino/include)
             r"({_IMPORT_PREFIX})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
-            r"(.so).(\d\d)(\d\d).(\d+).(\d+)": r"\1.\3\4\5"  # changed the lib version 2024.3.0 -> 2430
+            # changed the lib version (2024.3.0 -> 2430)
+            r"(.so).(\d\d)(\d\d).(\d+).(\d+)": r"\1.\3\4\5"
         }
 
         for src_dir in src_dirs:
