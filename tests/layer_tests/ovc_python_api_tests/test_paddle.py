@@ -144,7 +144,11 @@ class TestUnicodePathsPaddle(unittest.TestCase):
     @pytest.mark.precommit
     def test_unicode_paths(self):
         import os
-        import paddle
+        try:
+            import paddle
+        except ImportError:
+            return
+
         paddle.enable_static()
         test_directory = os.path.dirname(os.path.realpath(__file__))
         with tempfile.TemporaryDirectory(dir=test_directory, prefix=r"晚安_путь_к_файлу") as temp_dir:
