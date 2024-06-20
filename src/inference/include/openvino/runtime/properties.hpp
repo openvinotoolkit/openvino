@@ -1049,7 +1049,7 @@ static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
 static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
 
 /**
- * @brief Structure to store PCI bus information of device (Domain/Bus/Device/Function)
+ * @brief Structure to store PCI bus information of device (Domain/Bus/Device/Function/Product)
  * @ingroup ov_runtime_cpp_prop_api
  */
 struct PCIInfo {
@@ -1069,18 +1069,23 @@ struct PCIInfo {
      * @brief PCI function ID
      */
     uint32_t function;
+    /**
+     * @brief PCI device's product ID
+     */
+    uint32_t product;
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PCIInfo& pci_info) {
     return os << "{domain: " << pci_info.domain << " bus: " << pci_info.bus << " device: 0x" << std::hex
-              << pci_info.device << " function: " << std::dec << pci_info.function << "}";
+              << pci_info.device << " function: " << std::dec << pci_info.function << " product: 0x" << std::hex
+              << pci_info.product << "}";
 }
 
 inline std::istream& operator>>(std::istream& is, PCIInfo& pci_info) {
     std::string delim;
     if (!(is >> delim >> pci_info.domain >> delim >> pci_info.bus >> delim >> std::hex >> pci_info.device >> delim >>
-          std::dec >> pci_info.function)) {
+          std::dec >> pci_info.function >> delim >> std::hex >> pci_info.product)) {
         OPENVINO_THROW("Could not deserialize PCIInfo. Invalid format!");
     }
     return is;
