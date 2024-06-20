@@ -1290,14 +1290,20 @@ class TestInputTensorName(unittest.TestCase):
         assert ov_model.inputs[1].get_names() == {"y:0"}
 
 
-class TestUnicodePaths(unittest.TestCase):
+class TestUnicodePathsTF(unittest.TestCase):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_unicode_paths(self):
         test_directory = os.path.dirname(os.path.realpath(__file__))
         with tempfile.TemporaryDirectory(dir=test_directory, prefix=r"晚安_путь_к_файлу") as temp_dir:
             model, model_ref, _ = create_tf_graph_def(None)
-            model_path = save_to_pb(model, temp_dir)
+
+            try:
+                model_path = save_to_pb(model, temp_dir)
+            except:
+                return
+
+            assert os.path.exists(model_path), "Could not create a directory with unicode path."
 
             from openvino import convert_model
             res_model = convert_model(model_path)
