@@ -341,13 +341,6 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa, typename type>
 void jit_exp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT_FP16_FP32(exec_prc_)
 
-    const auto min = std::numeric_limits<float16>::min();
-    const auto max = std::numeric_limits<float16>::max();
-
-    { // NOLINT
-    auto exec_prc = sizeof(type) == 4 ? ov::element::f32 : ov::element::f16;
-    //convert(ov::element::f32, ov::element::f16, in_vec_idxs, out_vec_idxs, aux_vec_idxs);
-
     using TReg = typename cpu_isa_vector_traits<isa, type>::TReg;
     using BReg = typename cpu_isa_vector_traits<isa, type>::BReg;
     const TReg vmm_src(in_vec_idxs[0]);
@@ -359,10 +352,10 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 
     // source and destination registers can be the same:
     // use vmm_aux2 to store destination before get mask
-    h->ld1r(vmm_aux0, table_val2("exp_ln_flt_max_f", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("exp_ln_flt_max_f"));
     h->fmin(vmm_aux2, vmm_src, vmm_aux0);
 
-    h->ld1r(vmm_aux0, table_val2("exp_ln_flt_min_f", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("exp_ln_flt_min_f"));
     // get mask of values lower than log(FLT_MIN) to zero them in the output
     h->fcmgt(vmm_mask, vmm_src, vmm_aux0);
     h->fmax(vmm_dst, vmm_aux2, vmm_aux0);
@@ -371,8 +364,8 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 
     // calculate exp(x)
     // fx = x * log2ef + 0.5
-    h->ld1r(vmm_aux0, table_val2("exp_log2ef", exec_prc));
-    h->ld1r(vmm_aux2, table_val2("half", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("exp_log2ef"));
+    h->ld1r(vmm_aux2, table_val2("half"));
     h->fmla(vmm_aux2, vmm_dst, vmm_aux0);
 
     // tmp = floorf(fx)
@@ -382,7 +375,7 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     h->mov(BReg(vmm_dst.getIdx()), BReg(vmm_aux2.getIdx()));
 
     // x = x - fx * ln2
-    h->ld1r(vmm_aux0, table_val2("ln2f", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("ln2f"));
     h->fmls(vmm_aux1, vmm_aux2, vmm_aux0);
 
     // We do not count 2^n here, because n can reach 128 and 2^128 is not
@@ -391,19 +384,11 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     // and 2 are numbers representable in fp32.
 
     // compute 2^(n-1)
-    h->ld1r(vmm_aux0, table_val2("one", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("one"));
     h->fsub(vmm_dst, vmm_dst, vmm_aux0);
 
-    //convert(ov::element::f16, ov::element::f32, in_vec_idxs, out_vec_idxs, aux_vec_idxs);
-    }
-
     if (exec_prc_ == ov::element::f16) {
-        auto exec_prc = ov::element::f32;
-
-        //convert(ov::element::f32, ov::element::f16, in_vec_idxs, out_vec_idxs, aux_vec_idxs);
-
         using TReg = typename cpu_isa_vector_traits<isa, float>::TReg;
-        using BReg = typename cpu_isa_vector_traits<isa, float>::BReg;
         const TReg vmm_dst(out_vec_idxs[0]);
         const TReg vmm_aux2(aux_vec_idxs[1]);
         const TReg vmm_aux0(aux_vec_idxs[2]);
@@ -411,110 +396,66 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 
         typedef Xbyak_aarch64::VReg VReg;
         h->fcvtl(VReg(vmm_aux0.getIdx()).s4, VReg(vmm_dst.getIdx()).h4);
-        h->fcvtzs(vmm_aux2, vmm_aux0); // <= this should be in fp32
-
-        h->ld1r(vmm_aux0, table_val2("exponent_bias", exec_prc));
+        h->fcvtzs(vmm_aux2, vmm_aux0);
+        h->ld1r(vmm_aux0, table_val2("exponent_bias"));
         h->add(vmm_aux2, vmm_aux2, vmm_aux0);
-
-        const int n_mantissa_bits = exec_prc == ov::element::f16 ? 10 : 23;
-        h->sqshl(vmm_aux2, vmm_aux2, n_mantissa_bits); // <= this should be in fp32
+        h->sqshl(vmm_aux2, vmm_aux2, 23);
         h->fcvtn(VReg(vmm_aux2.getIdx()).h4, VReg(vmm_aux2.getIdx()).s4);
 
 
-
         h->fcvtl2(VReg(vmm_aux0.getIdx()).s4, VReg(vmm_dst.getIdx()).h8);
-        h->fcvtzs(vmm_aux3, vmm_aux0); // <= this should be in fp32
-
-        h->ld1r(vmm_aux0, table_val2("exponent_bias", exec_prc));
+        h->fcvtzs(vmm_aux3, vmm_aux0);
+        h->ld1r(vmm_aux0, table_val2("exponent_bias"));
         h->add(vmm_aux3, vmm_aux3, vmm_aux0);
-
-        h->sqshl(vmm_aux3, vmm_aux3, n_mantissa_bits); // <= this should be in fp32
+        h->sqshl(vmm_aux3, vmm_aux3, 23);
         h->fcvtn2(VReg(vmm_aux2.getIdx()).h8, VReg(vmm_aux3.getIdx()).s4);
     } else {
-        auto exec_prc = ov::element::f32;
-
-        using TReg = typename cpu_isa_vector_traits<isa, type>::TReg;
-        using BReg = typename cpu_isa_vector_traits<isa, type>::BReg;
-        const TReg vmm_src(in_vec_idxs[0]);
-        const TReg vmm_dst(out_vec_idxs[0]);
-        const TReg vmm_aux1(aux_vec_idxs[0]);
-        const TReg vmm_aux2(aux_vec_idxs[1]);
-        const TReg vmm_aux0(aux_vec_idxs[2]);
-        const TReg vmm_mask(aux_vec_idxs[3]);
-
-        h->fcvtzs(vmm_aux2, vmm_dst); // <= this should be in fp32
-
-        h->ld1r(vmm_aux0, table_val2("exponent_bias", exec_prc));
+        h->fcvtzs(vmm_aux2, vmm_dst);
+        h->ld1r(vmm_aux0, table_val2("exponent_bias"));
         h->add(vmm_aux2, vmm_aux2, vmm_aux0);
-
-        const int n_mantissa_bits = exec_prc == ov::element::f16 ? 10 : 23;
-        h->sqshl(vmm_aux2, vmm_aux2, n_mantissa_bits); // <= this should be in fp32
+        h->sqshl(vmm_aux2, vmm_aux2, 23);
     }
-
-    {
-    auto exec_prc = sizeof(type) == 4 ? ov::element::f32 : ov::element::f16;
-    //convert(ov::element::f32, ov::element::f16, in_vec_idxs, out_vec_idxs, aux_vec_idxs);
-
-    using TReg = typename cpu_isa_vector_traits<isa, type>::TReg;
-    using BReg = typename cpu_isa_vector_traits<isa, type>::BReg;
-    const TReg vmm_src(in_vec_idxs[0]);
-    const TReg vmm_dst(out_vec_idxs[0]);
-    const TReg vmm_aux1(aux_vec_idxs[0]);
-    const TReg vmm_aux2(aux_vec_idxs[1]);
-    const TReg vmm_aux0(aux_vec_idxs[2]);
-    const TReg vmm_mask(aux_vec_idxs[3]);
 
     // set zeroes at those points which were < log(FLT_MIN)
     h->and_(BReg(vmm_aux2.getIdx()), BReg(vmm_mask.getIdx()), BReg(vmm_aux2.getIdx()));
 
     // compute polynomial
-    h->ld1r(vmm_aux0, table_val2("exp_pol5", exec_prc));
-    h->ld1r(vmm_dst, table_val2("exp_pol4", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("exp_pol5"));
+    h->ld1r(vmm_dst, table_val2("exp_pol4"));
     h->fmla(vmm_dst, vmm_aux1, vmm_aux0);
 
-    h->ld1r(vmm_aux0, table_val2("exp_pol3", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("exp_pol3"));
     h->fmla(vmm_aux0, vmm_dst, vmm_aux1);
 
-    h->ld1r(vmm_dst, table_val2("exp_pol2", exec_prc));
+    h->ld1r(vmm_dst, table_val2("exp_pol2"));
     h->fmla(vmm_dst, vmm_aux0, vmm_aux1);
 
-    h->ld1r(vmm_aux0, table_val2("exp_pol1", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("exp_pol1"));
     h->fmla(vmm_aux0, vmm_dst, vmm_aux1);
 
-    h->ld1r(vmm_dst, table_val2("one", exec_prc));
+    h->ld1r(vmm_dst, table_val2("one"));
     h->fmla(vmm_dst, vmm_aux0, vmm_aux1);
 
     // y = y * 2^n
     h->fmul(vmm_dst, vmm_dst, vmm_aux2);
-    h->ld1r(vmm_aux0, table_val2("two", exec_prc));
+    h->ld1r(vmm_aux0, table_val2("two"));
     h->fmul(vmm_dst, vmm_dst, vmm_aux0);
-
-    //convert(ov::element::f16, ov::element::f32, in_vec_idxs, out_vec_idxs, aux_vec_idxs);
-    }
 }
 
 void jit_exp_emitter::register_table_entries() {
-    const auto exec_prc = ov::element::f16;
-
-    const auto push_args_entry_of = [&](const ov::element::Type& exec_prc) {
-        const auto exec_prc_str = "_" + exec_prc.to_string();
-        push_arg_entry_of("exp_ln_flt_max_f" + exec_prc_str, float2int(std::log(FLT_MAX), exec_prc), true, exec_prc);
-        push_arg_entry_of("exp_ln_flt_min_f" + exec_prc_str, float2int(std::log(FLT_MIN), exec_prc), true, exec_prc);
-        push_arg_entry_of("exp_log2ef" + exec_prc_str, float2int(1.44269502, exec_prc), true, exec_prc);
-        push_arg_entry_of("one" + exec_prc_str, float2int(1.f, exec_prc), true, exec_prc);
-        push_arg_entry_of("two" + exec_prc_str, float2int(2.f, exec_prc), true, exec_prc);
-        push_arg_entry_of("half" + exec_prc_str, float2int(0.5f, exec_prc), true, exec_prc);
-        push_arg_entry_of("ln2f" + exec_prc_str, float2int(std::log(2.f), exec_prc), true, exec_prc);
-        push_arg_entry_of("exponent_bias" + exec_prc_str, exec_prc == ov::element::f32 ? 0x0000007f : 0x000F, true, exec_prc);
-        push_arg_entry_of("exp_pol1" + exec_prc_str, float2int(0.999999701f, exec_prc), true, exec_prc);
-        push_arg_entry_of("exp_pol2" + exec_prc_str, float2int(0.499991506f, exec_prc), true, exec_prc);
-        push_arg_entry_of("exp_pol3" + exec_prc_str, float2int(0.166676521f, exec_prc), true, exec_prc);
-        push_arg_entry_of("exp_pol4" + exec_prc_str, float2int(0.0418978221f, exec_prc), true, exec_prc);
-        push_arg_entry_of("exp_pol5" + exec_prc_str, float2int(0.00828929059f, exec_prc), true, exec_prc);
-    };
-
-    push_args_entry_of(ov::element::f16);
-    push_args_entry_of(ov::element::f32);
+    push_arg_entry_of("exp_ln_flt_max_f", float2int(std::log(FLT_MAX), exec_prc_), true, exec_prc_);
+    push_arg_entry_of("exp_ln_flt_min_f", float2int(std::log(FLT_MIN), exec_prc_), true, exec_prc_);
+    push_arg_entry_of("exp_log2ef", float2int(1.44269502, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("one", float2int(1.f, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("two", float2int(2.f, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("half", float2int(0.5f, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("ln2f", float2int(std::log(2.f), exec_prc_), true, exec_prc_);
+    push_arg_entry_of("exponent_bias", 0x0000007f, true, ov::element::f32);
+    push_arg_entry_of("exp_pol1", float2int(0.999999701f, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("exp_pol2", float2int(0.499991506f, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("exp_pol3", float2int(0.166676521f, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("exp_pol4", float2int(0.0418978221f, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("exp_pol5", float2int(0.00828929059f, exec_prc_), true, exec_prc_);
 }
 
 std::set<std::vector<element::Type>> jit_exp_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {

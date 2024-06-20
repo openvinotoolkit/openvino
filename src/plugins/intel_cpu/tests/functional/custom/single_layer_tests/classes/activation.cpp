@@ -291,7 +291,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
     return activationTypes;
 }
 
-const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesFp16() {
+const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesF16() {
     static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes {
         {Elu,         {{0.1f}}},
         {Exp,         {{}}},

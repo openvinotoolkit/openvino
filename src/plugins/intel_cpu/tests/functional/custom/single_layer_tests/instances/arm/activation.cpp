@@ -14,26 +14,28 @@ namespace Activation {
 const auto basicCasesFp32 = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(basic5D())),
         ::testing::Values(activationShapes()),
-        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesFp16())),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesF16())),
         ::testing::ValuesIn({ov::element::f32}),
         ::testing::ValuesIn({ov::element::f32}),
         ::testing::ValuesIn({ov::element::f32}),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5D()))
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5D())),
+        ::testing::Values(false)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Eltwise_CPU_fp32, ActivationLayerCPUTest, basicCasesFp32, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Eltwise_CPU_f32, ActivationLayerCPUTest, basicCasesFp32, ActivationLayerCPUTest::getTestCaseName);
 
 const auto basicCasesFp16 = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(basic5D())),
         ::testing::Values(activationShapes()),
-        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesFp16())),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesF16())),
         ::testing::ValuesIn({ov::element::f16}),
         ::testing::ValuesIn({ov::element::f16}),
         ::testing::ValuesIn({ov::element::f16}),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5D()))
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5D())),
+        ::testing::Values(false)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Eltwise_CPU_fp16, ActivationLayerCPUTest, basicCasesFp16, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Eltwise_CPU_f16, ActivationLayerCPUTest, basicCasesFp16, ActivationLayerCPUTest::getTestCaseName);
 
 } // namespace Activation
 }  // namespace test

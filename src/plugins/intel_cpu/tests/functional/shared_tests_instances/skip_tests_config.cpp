@@ -446,6 +446,7 @@ std::vector<std::string> disabledTestPatterns() {
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+        retVector.emplace_back(R"(.*smoke_Activation_Eltwise_CPU_f16.*)");
     } else {
         // Issue 117407
         retVector.emplace_back(
