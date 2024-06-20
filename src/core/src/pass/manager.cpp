@@ -41,7 +41,6 @@ bool getenv_visualize_tracing() {
     return ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
 }
 
-
 class stopwatch {
 public:
     void start() {
@@ -81,8 +80,8 @@ private:
 class Profiler {
 public:
     Profiler(bool visualize, bool profile_pass_enable)
-            : m_visualize(visualize),
-              m_profile_pass_enable(profile_pass_enable) {}
+        : m_visualize(visualize),
+          m_profile_pass_enable(profile_pass_enable) {}
 
     void start_timer(const std::string& name) {
         if (m_profile_pass_enable) {
