@@ -119,8 +119,8 @@ TEST(type_prop, interpolate_v4_default_ctor) {
     attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
 
     auto interp = std::make_shared<op::v4::Interpolate>();

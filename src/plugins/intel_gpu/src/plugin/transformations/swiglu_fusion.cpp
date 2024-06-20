@@ -79,6 +79,8 @@ SwiGLUFusion::SwiGLUFusion() {
             size_t split_in_idx = ov::is_type<ov::op::v7::Gelu>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
             if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
+        } else {
+            OPENVINO_THROW("'glu_type' not initialized");
         }
 
         auto variadic_split = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());

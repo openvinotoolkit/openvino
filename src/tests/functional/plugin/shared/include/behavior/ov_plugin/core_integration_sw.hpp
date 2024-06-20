@@ -116,7 +116,8 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAutoNoThrows) {
     ov::Core core;
 
     // priority config test
-    ov::hint::Priority value;
+    // initialize, gcc 14.1 reports maybe-uninitialized at line 123 because of test macro at line 122
+    ov::hint::Priority value{};
     OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
     OV_ASSERT_NO_THROW(value = core.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::LOW);
