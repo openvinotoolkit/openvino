@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import io
+import tempfile
+import unittest
 
 import numpy as np
 import openvino.runtime as ov
 import pytest
 from openvino.runtime import Model
-import tempfile
-import unittest
-
 from openvino.test_utils import compare_functions
+
 from common.mo_convert_test_class import CommonMOConvertTest
 
 
