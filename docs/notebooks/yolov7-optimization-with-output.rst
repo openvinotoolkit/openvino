@@ -41,40 +41,40 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Get Pytorch model <#get-pytorch-model>`__
--  `Prerequisites <#prerequisites>`__
--  `Check model inference <#check-model-inference>`__
--  `Export to ONNX <#export-to-onnx>`__
+-  `Get Pytorch model <#Get-Pytorch-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Check model inference <#Check-model-inference>`__
+-  `Export to ONNX <#Export-to-ONNX>`__
 -  `Convert ONNX Model to OpenVINO Intermediate Representation
-   (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
--  `Verify model inference <#verify-model-inference>`__
+   (IR) <#Convert-ONNX-Model-to-OpenVINO-Intermediate-Representation-(IR)>`__
+-  `Verify model inference <#Verify-model-inference>`__
 
-   -  `Preprocessing <#preprocessing>`__
-   -  `Postprocessing <#postprocessing>`__
-   -  `Select inference device <#select-inference-device>`__
+   -  `Preprocessing <#Preprocessing>`__
+   -  `Postprocessing <#Postprocessing>`__
+   -  `Select inference device <#Select-inference-device>`__
 
--  `Verify model accuracy <#verify-model-accuracy>`__
+-  `Verify model accuracy <#Verify-model-accuracy>`__
 
-   -  `Download dataset <#download-dataset>`__
-   -  `Create dataloader <#create-dataloader>`__
-   -  `Define validation function <#define-validation-function>`__
+   -  `Download dataset <#Download-dataset>`__
+   -  `Create dataloader <#Create-dataloader>`__
+   -  `Define validation function <#Define-validation-function>`__
 
 -  `Optimize model using NNCF Post-training Quantization
-   API <#optimize-model-using-nncf-post-training-quantization-api>`__
+   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
 -  `Validate Quantized model
-   inference <#validate-quantized-model-inference>`__
+   inference <#Validate-Quantized-model-inference>`__
 -  `Validate quantized model
-   accuracy <#validate-quantized-model-accuracy>`__
+   accuracy <#Validate-quantized-model-accuracy>`__
 -  `Compare Performance of the Original and Quantized
-   Models <#compare-performance-of-the-original-and-quantized-models>`__
+   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
 
 Get Pytorch model
 -----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Generally, PyTorch models represent an instance of the
-`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv7 tiny model pre-trained on a COCO dataset, which is available
 in this `repo <https://github.com/WongKinYiu/yolov7>`__. Typical steps
@@ -91,7 +91,7 @@ the YOLOv7 model to ONNX, so we do not need to do these steps manually.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -107,13 +107,14 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
     mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
     mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 3.20.3 which is incompatible.
+    pyannote-audio 2.0.1 requires speechbrain<0.6,>=0.5.12, but you have speechbrain 1.0.0 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -144,9 +145,9 @@ Prerequisites
     Cloning into 'yolov7'...
     remote: Enumerating objects: 1197, done.[K
     remote: Total 1197 (delta 0), reused 0 (delta 0), pack-reused 1197[K
-    Receiving objects: 100% (1197/1197), 74.23 MiB | 31.20 MiB/s, done.
-    Resolving deltas: 100% (519/519), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7
+    Receiving objects: 100% (1197/1197), 74.23 MiB | 32.22 MiB/s, done.
+    Resolving deltas: 100% (520/520), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7
 
 
 .. code:: ipython3
@@ -171,14 +172,14 @@ Prerequisites
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7/model/yolov7-tiny.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7/model/yolov7-tiny.pt')
 
 
 
 Check model inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``detect.py`` script run pytorch model inference and save image as
 result,
@@ -199,9 +200,9 @@ result,
      traced_script_module saved! 
      model is traced! 
     
-    5 horses, Done. (74.7ms) Inference, (0.9ms) NMS
+    5 horses, Done. (75.6ms) Inference, (0.9ms) NMS
      The image with the result is saved in: runs/detect/exp/horses.jpg
-    Done. (0.082s)
+    Done. (0.083s)
 
 
 .. code:: ipython3
@@ -221,7 +222,7 @@ result,
 Export to ONNX
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To export an ONNX format of the model, we will use ``export.py`` script.
 Let us check its arguments.
@@ -319,7 +320,7 @@ an end2end ONNX model, you can check this
 Convert ONNX Model to OpenVINO Intermediate Representation (IR)
 ---------------------------------------------------------------
 
- While ONNX models are directly
+`back to top ⬆️ <#Table-of-contents:>`__ While ONNX models are directly
 supported by OpenVINO runtime, it can be useful to convert them to IR
 format to take the advantage of OpenVINO model conversion API features.
 The ``ov.convert_model`` python function of `model conversion
@@ -340,7 +341,7 @@ However, it can also be save on device in OpenVINO IR format using
 Verify model inference
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To test model work, we create inference pipeline similar to
 ``detect.py``. The pipeline consists of preprocessing step, inference of
@@ -349,7 +350,7 @@ OpenVINO model, and results post-processing to get bounding boxes.
 Preprocessing
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model input is a tensor with the ``[1, 3, 640, 640]`` shape in
 ``N, C, H, W`` format, where
@@ -512,7 +513,7 @@ To keep specific shape, preprocessing automatically enables padding.
 Postprocessing
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model output contains detection boxes candidates. It is a tensor with
 the ``[1,25200,85]`` shape in the ``B, N, 85`` format, where:
@@ -606,7 +607,7 @@ algorithm and rescale boxes coordinates to original image size.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -654,12 +655,12 @@ select device from dropdown list for running inference using OpenVINO
 Verify model accuracy
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download dataset
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 YOLOv7 tiny is pre-trained on the COCO dataset, so in order to evaluate
 the model accuracy, we need to download it. According to the
@@ -701,7 +702,7 @@ the original model evaluation scripts.
 Create dataloader
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -724,13 +725,13 @@ Create dataloader
 
 .. parsed-literal::
 
-    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:02<00:00, 2473.28it/s]
+    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2510.12it/s]
 
 
 Define validation function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will reuse validation metrics provided in the YOLOv7 repo with a
 modification for this case (removing extra steps). The original model
@@ -919,7 +920,7 @@ Validation function reports following list of accuracy metrics:
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -987,10 +988,10 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    2024-06-06 03:53:34.859213: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-06 03:53:34.891040: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-20 03:00:03.617430: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-20 03:00:03.649358: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-06 03:53:35.475627: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-20 03:00:04.235708: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -1038,7 +1039,7 @@ asymmetric quantization of activations.
 Validate Quantized model inference
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1070,7 +1071,7 @@ Validate Quantized model inference
 Validate quantized model accuracy
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1114,7 +1115,7 @@ significant.
 Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
@@ -1154,18 +1155,18 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 13.13 ms
+    [ INFO ] Read model took 13.70 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -1179,7 +1180,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 265.04 ms
+    [ INFO ] Compile model took 280.84 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: main_graph
@@ -1216,17 +1217,17 @@ models.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 45.52 ms
+    [ INFO ] First inference took 43.05 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            11772 iterations
-    [ INFO ] Duration:         120088.10 ms
+    [ INFO ] Count:            11706 iterations
+    [ INFO ] Duration:         120095.15 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        60.93 ms
-    [ INFO ]    Average:       61.07 ms
-    [ INFO ]    Min:           45.87 ms
-    [ INFO ]    Max:           84.07 ms
-    [ INFO ] Throughput:   98.03 FPS
+    [ INFO ]    Median:        61.25 ms
+    [ INFO ]    Average:       61.41 ms
+    [ INFO ]    Min:           36.20 ms
+    [ INFO ]    Max:           81.43 ms
+    [ INFO ] Throughput:   97.47 FPS
 
 
 .. code:: ipython3
@@ -1242,18 +1243,18 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 18.95 ms
+    [ INFO ] Read model took 19.26 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -1267,7 +1268,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 495.11 ms
+    [ INFO ] Compile model took 491.22 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: main_graph
@@ -1304,15 +1305,15 @@ models.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 23.46 ms
+    [ INFO ] First inference took 24.70 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            34698 iterations
-    [ INFO ] Duration:         120019.34 ms
+    [ INFO ] Count:            34512 iterations
+    [ INFO ] Duration:         120021.56 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        20.56 ms
-    [ INFO ]    Average:       20.64 ms
-    [ INFO ]    Min:           14.43 ms
-    [ INFO ]    Max:           39.46 ms
-    [ INFO ] Throughput:   289.10 FPS
+    [ INFO ]    Median:        20.67 ms
+    [ INFO ]    Average:       20.75 ms
+    [ INFO ]    Min:           14.48 ms
+    [ INFO ]    Max:           40.43 ms
+    [ INFO ] Throughput:   287.55 FPS
 

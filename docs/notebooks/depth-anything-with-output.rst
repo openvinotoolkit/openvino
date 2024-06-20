@@ -22,36 +22,36 @@ model.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Load and run PyTorch model <#load-and-run-pytorch-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load and run PyTorch model <#Load-and-run-PyTorch-model>`__
 
-   -  `Prepare input data <#prepare-input-data>`__
-   -  `Run model inference <#run-model-inference>`__
+   -  `Prepare input data <#Prepare-input-data>`__
+   -  `Run model inference <#Run-model-inference>`__
 
 -  `Convert Model to OpenVINO IR
-   format <#convert-model-to-openvino-ir-format>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   format <#Convert-Model-to-OpenVINO-IR-format>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Run inference on image <#run-inference-on-image>`__
-   -  `Run inference on video <#run-inference-on-video>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Run inference on image <#Run-inference-on-image>`__
+   -  `Run inference on video <#Run-inference-on-video>`__
 
--  `Quantization <#quantization>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
-   -  `Run quantization <#run-quantization>`__
+   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
+   -  `Run quantization <#Run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
-      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
-   -  `Compare model file size <#compare-unet-file-size>`__
+      models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
+   -  `Compare model file size <#Compare-UNet-file-size>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 .. |image.png| image:: https://depth-anything.github.io/static/images/pipeline.png
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -75,13 +75,13 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'Depth-Anything'...
-    remote: Enumerating objects: 421, done.[K
-    remote: Counting objects: 100% (144/144), done.[K
-    remote: Compressing objects: 100% (105/105), done.[K
-    remote: Total 421 (delta 101), reused 43 (delta 39), pack-reused 277[K
-    Receiving objects: 100% (421/421), 237.89 MiB | 26.31 MiB/s, done.
-    Resolving deltas: 100% (144/144), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything
+    remote: Enumerating objects: 430, done.[K
+    remote: Counting objects: 100% (153/153), done.[K
+    remote: Compressing objects: 100% (112/112), done.[K
+    remote: Total 430 (delta 107), reused 47 (delta 41), pack-reused 277[K
+    Receiving objects: 100% (430/430), 237.89 MiB | 23.98 MiB/s, done.
+    Resolving deltas: 100% (150/150), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     WARNING: typer 0.12.3 does not provide the extra 'all'
@@ -92,7 +92,7 @@ Prerequisites
 Load and run PyTorch model
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To be able run PyTorch model on CPU, we should disable xformers
 attention optimizations first.
@@ -139,7 +139,7 @@ DepthAnything family.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -211,7 +211,7 @@ range.
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Preprocessed image passed to model forward and model returns depth map
 in format ``B`` x ``H`` x ``W``, where ``B`` is input batch size, ``H``
@@ -250,7 +250,7 @@ image size and prepare it for visualization.
 Convert Model to OpenVINO IR format
 -----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -273,27 +273,27 @@ loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert H % patch_H == 0, f"Input image height {H} is not a multiple of patch height {patch_H}"
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert W % patch_W == 0, f"Input image width {W} is not a multiple of patch width: {patch_W}"
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/vision_transformer.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/vision_transformer.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if npatch == N and w == h:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/depth_anything/dpt.py:133: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/depth_anything/dpt.py:133: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       out = F.interpolate(out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True)
 
 
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we are ready to run OpenVINO model
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For starting work, please select inference device from dropdown list.
 
@@ -328,7 +328,7 @@ For starting work, please select inference device from dropdown list.
 Run inference on image
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -360,7 +360,7 @@ Run inference on image
 Run inference on video
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -571,7 +571,7 @@ Run inference on video
 
 .. parsed-literal::
 
-    Processed 60 frames in 13.62 seconds. Total FPS (including video processing): 4.41.Inference FPS: 10.01 
+    Processed 60 frames in 13.15 seconds. Total FPS (including video processing): 4.56.Inference FPS: 10.55 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything.mp4'.
 
 
@@ -598,7 +598,7 @@ Run inference on video
 .. parsed-literal::
 
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
@@ -620,7 +620,7 @@ Run inference on video
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -672,10 +672,10 @@ improve model inference speed.
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a portion of
-`Nahrawy/VIDIT-Depth-ControlNet <https://huggingface.co/datasets/Nahrawy/VIDIT-Depth-ControlNet>`__
+```Nahrawy/VIDIT-Depth-ControlNet`` <https://huggingface.co/datasets/Nahrawy/VIDIT-Depth-ControlNet>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
@@ -705,7 +705,7 @@ dataset from Hugging Face as calibration data.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 > **NOTE**: Quantization is time and memory consuming operation. Running
@@ -735,10 +735,10 @@ quantization code below may take some time.
 
 .. parsed-literal::
 
-    2024-06-06 00:01:26.132845: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-06 00:01:26.165931: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-19 23:17:58.857728: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-19 23:17:58.890483: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-06 00:01:26.726838: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-19 23:17:59.450018: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -902,10 +902,10 @@ data.
 
 .. parsed-literal::
 
-    Processed 60 frames in 12.67 seconds. Total FPS (including video processing): 4.74.Inference FPS: 12.82 
+    Processed 60 frames in 12.57 seconds. Total FPS (including video processing): 4.77.Inference FPS: 12.87 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything_int8.mp4'.
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
@@ -927,7 +927,7 @@ data.
 Compare model file size
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -951,7 +951,7 @@ Compare model file size
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
@@ -985,15 +985,15 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 
 .. parsed-literal::
 
-    FP16 Throughput: 10.66 FPS
-    INT8 Throughput: 14.02 FPS
-    Speed-up: 1.32
+    FP16 Throughput: 10.71 FPS
+    INT8 Throughput: 14.20 FPS
+    Speed-up: 1.33
 
 
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can apply model on own images. You can move the slider on the
 resulting image to switch between the original image and the depth map
@@ -1120,7 +1120,7 @@ launch the interactive demo.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

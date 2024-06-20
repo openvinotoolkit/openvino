@@ -24,23 +24,23 @@ consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Imports <#imports>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Imports <#Imports>`__
 
    -  `Download, quantize and sparsify the model, using Hugging Face
       Optimum
-      API <#download-quantize-and-sparsify-the-model-using-hugging-face-optimum-api>`__
+      API <#Download,-quantize-and-sparsify-the-model,-using-Hugging-Face-Optimum-API>`__
 
 -  `Benchmark quantized dense inference
-   performance <#benchmark-quantized-dense-inference-performance>`__
+   performance <#Benchmark-quantized-dense-inference-performance>`__
 -  `Benchmark quantized sparse inference
-   performance <#benchmark-quantized-sparse-inference-performance>`__
--  `When this might be helpful <#when-this-might-be-helpful>`__
+   performance <#Benchmark-quantized-sparse-inference-performance>`__
+-  `When this might be helpful <#When-this-might-be-helpful>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -50,16 +50,16 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -73,23 +73,19 @@ Imports
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    2024-06-06 02:53:32.407670: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-06 02:53:32.442101: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-20 01:59:16.082466: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-20 01:59:16.116739: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-06 02:53:33.039105: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    2024-06-20 01:59:16.707884: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
 
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The first step is to download a quantized sparse transformers which has
 been translated to OpenVINO IR. Then, it will be put through a
@@ -119,8 +115,6 @@ model card on Hugging Face.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
     Compiling the model to CPU ...
 
 
@@ -158,7 +152,7 @@ the IRs into a single folder.
 Benchmark quantized dense inference performance
 -----------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Benchmark dense inference performance using parallel execution on four
 CPU cores to simulate a small instance in the cloud infrastructure.
@@ -197,18 +191,18 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
+    [ INFO ] Build ................................. 2024.3.0-15743-15257f1bac1
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
+    [ INFO ] Build ................................. 2024.3.0-15743-15257f1bac1
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 72.11 ms
+    [ INFO ] Read model took 88.99 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -219,7 +213,7 @@ as an example. It is recommended to tune based on your applications.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 30.85 ms
+    [ INFO ] Reshape model took 34.76 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -228,7 +222,7 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1277.07 ms
+    [ INFO ] Compile model took 1235.74 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -260,23 +254,23 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 25.64 ms
+    [ INFO ] First inference took 27.07 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            9508 iterations
-    [ INFO ] Duration:         60047.81 ms
+    [ INFO ] Count:            9540 iterations
+    [ INFO ] Duration:         60043.79 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        25.04 ms
-    [ INFO ]    Average:       25.08 ms
-    [ INFO ]    Min:           23.07 ms
-    [ INFO ]    Max:           36.95 ms
-    [ INFO ] Throughput:   158.34 FPS
+    [ INFO ]    Median:        24.94 ms
+    [ INFO ]    Average:       25.01 ms
+    [ INFO ]    Min:           23.75 ms
+    [ INFO ]    Max:           39.25 ms
+    [ INFO ] Throughput:   158.88 FPS
 
 
 Benchmark quantized sparse inference performance
 ------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To enable sparse weight decompression feature, users can add it to
 runtime config like below. ``CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE``
@@ -292,7 +286,7 @@ for which a layer will be enabled.
         outfile.write(
             """
             {
-                "CPU": {"NUM_STREAMS": 4, "INFERENCE_NUM_THREADS": 4, "CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE": 0.75}
+                "CPU": {"NUM_STREAMS": 4, "INFERENCE_NUM_THREADS": 4, "CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE": "0.75"}
             }
             """
         )
@@ -316,18 +310,18 @@ for which a layer will be enabled.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
+    [ INFO ] Build ................................. 2024.3.0-15743-15257f1bac1
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.3.0-15599-de4d00a5970
+    [ INFO ] Build ................................. 2024.3.0-15743-15257f1bac1
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 63.33 ms
+    [ INFO ] Read model took 60.88 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -338,7 +332,7 @@ for which a layer will be enabled.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 30.21 ms
+    [ INFO ] Reshape model took 29.62 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -347,30 +341,55 @@ for which a layer will be enabled.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ ERROR ] Exception from src/inference/src/cpp/core.cpp:104:
-    Exception from src/inference/src/dev/plugin.cpp:53:
-    Exception from src/plugins/intel_cpu/src/config.cpp:226:
-    Wrong value for property key CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE. Expected only float numbers
-    
-    
-    Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
-        compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 543, in compile_model
-        super().compile_model(model, device_name, {} if config is None else config),
-    RuntimeError: Exception from src/inference/src/cpp/core.cpp:104:
-    Exception from src/inference/src/dev/plugin.cpp:53:
-    Exception from src/plugins/intel_cpu/src/config.cpp:226:
-    Wrong value for property key CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE. Expected only float numbers
-    
-    
-    
+    [ INFO ] Compile model took 1289.57 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: torch_jit
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+    [ INFO ]   NUM_STREAMS: 4
+    [ INFO ]   INFERENCE_NUM_THREADS: 4
+    [ INFO ]   PERF_COUNT: NO
+    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]   PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_DISTRIBUTION_POLICY: set()
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]   LOG_LEVEL: Level.NO
+    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 0.75
+    [ INFO ]   DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]   KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]   AFFINITY: Affinity.CORE
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
+    [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
+    [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
+    [ INFO ] Fill input 'input_ids' with random values 
+    [ INFO ] Fill input 'attention_mask' with random values 
+    [ INFO ] Fill input 'token_type_ids' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 26.65 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            9548 iterations
+    [ INFO ] Duration:         60036.73 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        24.93 ms
+    [ INFO ]    Average:       24.97 ms
+    [ INFO ]    Min:           23.91 ms
+    [ INFO ]    Max:           35.98 ms
+    [ INFO ] Throughput:   159.04 FPS
 
 
 When this might be helpful
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This feature can improve inference performance for models with sparse
 weights in the scenarios when the model is deployed to handle multiple

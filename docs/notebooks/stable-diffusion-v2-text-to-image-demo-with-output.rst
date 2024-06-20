@@ -25,35 +25,35 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `Step 0: Install and import
-   prerequisites <#step-0-install-and-import-prerequisites>`__
+   prerequisites <#Step-0:-Install-and-import-prerequisites>`__
 -  `Step 1: Stable Diffusion v2 Fundamental
-   components <#step-1-stable-diffusion-v2-fundamental-components>`__
+   components <#Step-1:-Stable-Diffusion-v2-Fundamental-components>`__
 
    -  `Step 1.1: Retrieve components from
-      HuggingFace <#step-1-1-retrieve-components-from-huggingface>`__
+      HuggingFace <#Step-1.1:-Retrieve-components-from-HuggingFace>`__
 
 -  `Step 2: Convert the models to
-   OpenVINO <#step-2-convert-the-models-to-openvino>`__
+   OpenVINO <#Step-2:-Convert-the-models-to-OpenVINO>`__
 -  `Step 3: Text-to-Image Generation Inference
-   Pipeline <#step-3-text-to-image-generation-inference-pipeline>`__
+   Pipeline <#Step-3:-Text-to-Image-Generation-Inference-Pipeline>`__
 
    -  `Step 3.1: Load and Understand Text to Image OpenVINO
-      models <#step-3-1-load-and-understand-text-to-image-openvino-models>`__
+      models <#Step-3.1:-Load-and-Understand-Text-to-Image-OpenVINO-models>`__
    -  `Step 3.2: Select inference
-      device <#step-3-2-select-inference-device>`__
+      device <#Step-3.2:-Select-inference-device>`__
    -  `Step 3.3: Run Text-to-Image
-      generation <#step-3-3-run-text-to-image-generation>`__
+      generation <#Step-3.3:-Run-Text-to-Image-generation>`__
 
 Step 0: Install and import prerequisites
 ----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To work with Stable Diffusion v2, we will use Hugging Face’s
 `Diffusers <https://github.com/huggingface/diffusers>`__ library.
 
 To experiment with Stable Diffusion models, Diffusers exposes the
-`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 and ``StableDiffusionInpaintPipeline``, similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 
@@ -79,7 +79,7 @@ pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 Step 1: Stable Diffusion v2 Fundamental components
 --------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Stable Diffusion pipelines for both Text to Image and Inpainting consist
 of three important parts:
@@ -96,7 +96,7 @@ which we’ll explore in this demo!
 Step 1.1: Retrieve components from HuggingFace
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s start by retrieving these components from HuggingFace!
 
@@ -140,7 +140,7 @@ using ``stable-diffusion-2-1``.
 Step 2: Convert the models to OpenVINO
 --------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now that we’ve retrieved the three parts for both of these pipelines, we
 now need to:
@@ -195,17 +195,17 @@ pipelines in OpenVINO on our own data!
 Step 3: Text-to-Image Generation Inference Pipeline
 ---------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Step 3.1: Load and Understand Text to Image OpenVINO models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Step 3.2: Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -298,7 +298,7 @@ As part of the ``OVStableDiffusionPipeline()`` class:
 Step 3.3: Run Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, let’s define some text prompts for image generation and run our
 inference pipeline.

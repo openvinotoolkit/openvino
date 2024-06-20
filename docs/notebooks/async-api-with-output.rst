@@ -14,36 +14,36 @@ requests) rather than wait for the current inference to complete first.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#imports>`__
+-  `Imports <#Imports>`__
 -  `Prepare model and data
-   processing <#prepare-model-and-data-processing>`__
+   processing <#Prepare-model-and-data-processing>`__
 
-   -  `Download test model <#download-test-model>`__
-   -  `Load the model <#load-the-model>`__
+   -  `Download test model <#Download-test-model>`__
+   -  `Load the model <#Load-the-model>`__
    -  `Create functions for data
-      processing <#create-functions-for-data-processing>`__
-   -  `Get the test video <#get-the-test-video>`__
+      processing <#Create-functions-for-data-processing>`__
+   -  `Get the test video <#Get-the-test-video>`__
 
 -  `How to improve the throughput of video
-   processing <#how-to-improve-the-throughput-of-video-processing>`__
+   processing <#How-to-improve-the-throughput-of-video-processing>`__
 
-   -  `Sync Mode (default) <#sync-mode-default>`__
-   -  `Test performance in Sync Mode <#test-performance-in-sync-mode>`__
-   -  `Async Mode <#async-mode>`__
+   -  `Sync Mode (default) <#Sync-Mode-(default)>`__
+   -  `Test performance in Sync Mode <#Test-performance-in-Sync-Mode>`__
+   -  `Async Mode <#Async-Mode>`__
    -  `Test the performance in Async
-      Mode <#test-the-performance-in-async-mode>`__
-   -  `Compare the performance <#compare-the-performance>`__
+      Mode <#Test-the-performance-in-Async-Mode>`__
+   -  `Compare the performance <#Compare-the-performance>`__
 
--  `AsyncInferQueue <#asyncinferqueue>`__
+-  ```AsyncInferQueue`` <#AsyncInferQueue>`__
 
-   -  `Setting Callback <#setting-callback>`__
+   -  `Setting Callback <#Setting-Callback>`__
    -  `Test the performance with
-      AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
+      ``AsyncInferQueue`` <#Test-the-performance-with-AsyncInferQueue>`__
 
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -86,12 +86,12 @@ Imports
 Prepare model and data processing
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download test model
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a pre-trained model from OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/2024/documentation/legacy-features/model-zoo.html>`__
@@ -126,7 +126,7 @@ the person in each frame of the video.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -154,7 +154,7 @@ Select inference device
 Load the model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -176,7 +176,7 @@ Load the model
 Create functions for data processing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -228,7 +228,7 @@ Create functions for data processing
 Get the test video
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -237,7 +237,7 @@ Get the test video
 How to improve the throughput of video processing
 -------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below, we compare the performance of the synchronous and async-based
 approaches:
@@ -245,7 +245,7 @@ approaches:
 Sync Mode (default)
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let us see how video processing works with the default approach. Using
 the synchronous approach, the frame is captured with OpenCV and then
@@ -337,7 +337,7 @@ immediately processed:
 Test performance in Sync Mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -352,13 +352,13 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 60.54 fps
+    average throuput in sync mode: 59.76 fps
 
 
 Async Mode
 ~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let us see how the OpenVINO Async API can improve the overall frame rate
 of an application. The key advantage of the Async approach is as
@@ -476,7 +476,7 @@ pipeline (decoding vs inference) and not by the sum of the stages.
 Test the performance in Async Mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -491,13 +491,13 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 103.70 fps
+    average throuput in async mode: 104.09 fps
 
 
 Compare the performance
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -527,10 +527,10 @@ Compare the performance
 ``AsyncInferQueue``
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Asynchronous mode pipelines can be supported with the
-`AsyncInferQueue <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-exclusives.html#asyncinferqueue>`__
+```AsyncInferQueue`` <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-exclusives.html#asyncinferqueue>`__
 wrapper class. This class automatically spawns the pool of
 ``InferRequest`` objects (also called “jobs”) and provides
 synchronization mechanisms to control the flow of the pipeline. It is a
@@ -539,7 +539,7 @@ simpler way to manage the infer request queue in Asynchronous mode.
 Setting Callback
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 When ``callback`` is set, any job that ends inference calls upon the
 Python function. The ``callback`` function must have two arguments: one
@@ -618,7 +618,7 @@ the possibility of passing runtime values.
 Test the performance with ``AsyncInferQueue``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -634,5 +634,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 148.11 fps
+    average throughput in async mode with async infer queue: 149.07 fps
 

@@ -41,25 +41,25 @@ below.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Get Pytorch model and OpenVINO IR
-   model <#get-pytorch-model-and-openvino-ir-model>`__
+   model <#Get-Pytorch-model-and-OpenVINO-IR-model>`__
 
    -  `Define validator and data
-      loader <#define-validator-and-data-loader>`__
+      loader <#Define-validator-and-data-loader>`__
    -  `Prepare calibration and validation
-      datasets <#prepare-calibration-and-validation-datasets>`__
-   -  `Prepare validation function <#prepare-validation-function>`__
+      datasets <#Prepare-calibration-and-validation-datasets>`__
+   -  `Prepare validation function <#Prepare-validation-function>`__
 
 -  `Run quantization with accuracy
-   control <#run-quantization-with-accuracy-control>`__
+   control <#Run-quantization-with-accuracy-control>`__
 -  `Compare Accuracy and Performance of the Original and Quantized
-   Models <#compare-accuracy-and-performance-of-the-original-and-quantized-models>`__
+   Models <#Compare-Accuracy-and-Performance-of-the-Original-and-Quantized-Models>`__
 
 Prerequisites
 ^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install necessary packages.
 
@@ -72,10 +72,10 @@ Install necessary packages.
 Get Pytorch model and OpenVINO IR model
 ---------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Generally, PyTorch models represent an instance of the
-`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv8 nano model (also known as ``yolov8n``) pre-trained on a COCO
 dataset, which is available in this
@@ -174,7 +174,7 @@ Load model.
 Define validator and data loader
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The original model repository uses a ``Validator`` wrapper, which
 represents the accuracy validation pipeline. It creates dataloader and
@@ -208,7 +208,7 @@ validator class instance.
 Prepare calibration and validation datasets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We can use one dataset as calibration and validation datasets. Name it
 ``quantization_dataset``.
@@ -236,7 +236,7 @@ We can use one dataset as calibration and validation datasets. Name it
 Prepare validation function
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -292,7 +292,7 @@ Prepare validation function
 Run quantization with accuracy control
 --------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You should provide the calibration dataset and the validation dataset.
 It can be the same dataset. - parameter ``max_drop`` defines the
@@ -515,7 +515,7 @@ value 25 to speed up the execution.
 Compare Accuracy and Performance of the Original and Quantized Models
 ---------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now we can compare metrics of the Original non-quantized OpenVINO IR
 model and Quantized OpenVINO IR model to make sure that the ``max_drop``

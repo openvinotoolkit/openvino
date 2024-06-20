@@ -26,35 +26,35 @@ like weights compression and quantization using
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Download PyTorch model <#download-pytorch-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Download PyTorch model <#Download-PyTorch-model>`__
 -  `Convert model to OpenVINO Intermediate
-   Representation <#convert-model-to-openvino-intermediate-representation>`__
+   Representation <#Convert-model-to-OpenVINO-Intermediate-Representation>`__
 
-   -  `Image Encoder <#image-encoder>`__
-   -  `Text Embedding <#text-embedding>`__
-   -  `Language Model <#language-model>`__
+   -  `Image Encoder <#Image-Encoder>`__
+   -  `Text Embedding <#Text-Embedding>`__
+   -  `Language Model <#Language-Model>`__
 
 -  `Compress Language Model Weights to 4
-   bits <#compress-language-model-weights-to-4-bits>`__
+   bits <#Compress-Language-Model-Weights-to-4-bits>`__
 -  `Quantize Image Encoder to 8
-   bits <#quantize-image-encoder-to-8-bits>`__
+   bits <#Quantize-Image-Encoder-to-8-bits>`__
 
-   -  `Prepare datasets <#prepare-datasets>`__
-   -  `Perform quantization <#perform-quantization>`__
+   -  `Prepare datasets <#Prepare-datasets>`__
+   -  `Perform quantization <#Perform-quantization>`__
 
 -  `Prepare model inference
-   pipeline <#prepare-model-inference-pipeline>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   pipeline <#Prepare-model-inference-pipeline>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
-   -  `Select device <#select-device>`__
+   -  `Select device <#Select-device>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -69,36 +69,36 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     MODEL_DIR = Path("model")
     IMAGE_ENCODER_PATH = MODEL_DIR / "image_encoder.xml"
     INPUT_EMBEDDING_PATH = MODEL_DIR / "input_embeddings.xml"
     LANGUAGE_MODEL_PATH = MODEL_DIR / "language_model.xml"
-
+    
     requires_pt_model_loading = not all([p.exists() for p in [IMAGE_ENCODER_PATH, INPUT_EMBEDDING_PATH, LANGUAGE_MODEL_PATH]])
 
 Download PyTorch model
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
     import torch
     import gc
-
+    
     processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
     image_encoder_model, input_embedding_model, language_model = None, None, None
-
-
+    
+    
     class ImageEncoder(torch.nn.Module):
         def __init__(self, config, vision_tower, multi_modal_projector):
             super().__init__()
             self.config = config
             self.vision_tower = vision_tower
             self.multi_modal_projector = multi_modal_projector
-
+    
         def forward(self, pixel_values):
             batch_size, num_patches, num_channels, height, width = pixel_values.shape
             reshaped_pixel_values = pixel_values.view(batch_size * num_patches, num_channels, height, width)
@@ -110,8 +110,8 @@ Download PyTorch model
                 selected_image_feature = selected_image_feature
             image_features = self.multi_modal_projector(selected_image_feature)
             return image_features
-
-
+    
+    
     if requires_pt_model_loading:
         model = LlavaNextForConditionalGeneration.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf", low_cpu_mem_usage=True)
         model.config.save_pretrained(MODEL_DIR)
@@ -136,8 +136,8 @@ Download PyTorch model
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
 
 
-Convert model to OpenVINO Intermediate Representation
------------------------------------------------------
+OpenVINO## Convert model to OpenVINO Intermediate Representation `back
+to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -199,7 +199,7 @@ Let’s convert each model part.
 Image Encoder
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Image Encoder is represented in LLaVA by pretrained CLIP model.
 
@@ -208,8 +208,8 @@ Image Encoder is represented in LLaVA by pretrained CLIP model.
     import torch
     import openvino as ov
     import gc
-
-
+    
+    
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -217,21 +217,21 @@ Image Encoder is represented in LLaVA by pretrained CLIP model.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-
-
+    
+    
     if not IMAGE_ENCODER_PATH.exists():
         ov_image_encoder = ov.convert_model(image_encoder_model, example_input=torch.zeros((1, 5, 3, 336, 336)))
         ov.save_model(ov_image_encoder, IMAGE_ENCODER_PATH)
         del ov_image_encoder
         cleanup_torchscript_cache()
-
+    
     del image_encoder_model
     gc.collect();
 
 Text Embedding
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In LLMs, input embedding is a part of language model, but for LLaVA the
 first step hidden state produced by this model part should be integrated
@@ -242,23 +242,23 @@ use it separately.
 .. code:: ipython3
 
     llm_input = None
-
+    
     if not LANGUAGE_MODEL_PATH.exists():
         llm_input = input_embedding_model(torch.ones((2, 2), dtype=torch.int64))
-
+    
     if not INPUT_EMBEDDING_PATH.exists():
         ov_input_embeddings_model = ov.convert_model(input_embedding_model, example_input=torch.ones((2, 2), dtype=torch.int64))
         ov.save_model(ov_input_embeddings_model, INPUT_EMBEDDING_PATH)
         del ov_input_embeddings_model
         cleanup_torchscript_cache()
-
+    
     del input_embedding_model
     gc.collect();
 
 Language Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Language Model is responsible for generation answer in LLaVA. This part
 is very similar to standard LLM for text generation. Our model uses
@@ -302,28 +302,28 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
     from typing import Optional, Tuple, List
     from openvino.runtime import opset13
     import numpy as np
-
-
+    
+    
     def model_has_state(ov_model: ov.Model):
         # TODO: Provide a better way based on the variables availability, but OV Python API doesn't expose required methods
         return len(ov_model.get_sinks()) > 0
-
-
+    
+    
     def model_has_input_output_name(ov_model: ov.Model, name: str):
         """
         Helper function for checking that model has specified input or output name
-
+    
         Parameters:
           ov_model (ov.Model):   # TODO: Can we derive the dimensions from the model topology?
           name (str):
               name of input or output
-
+    
         Returns:
           True if input or output with requested name exists else False
         """
         return name in sum([list(t.get_names()) for t in ov_model.inputs + ov_model.outputs], [])
-
-
+    
+    
     def fuse_cache_reorder(
         ov_model: ov.Model,
         not_kv_inputs: List[str],
@@ -332,14 +332,14 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
     ):
         """
         Fuses reored_cache during generate cycle into ov.Model. Used with stateful models, because we can not modify model state directly.
-
+    
         Adds a new beam_idx parameter and Gather op per each kv-cache input in a given model.
         Should be run before make_stateful. Implements optimumum's _reorder_cache
         inside the model in the beginning of each iteration.
         Gather works along given gather_dim dimension that may vary from model to model.
         KV-cache inputs are identified based on names in key_value_input_names.
         Append the new beam_idx parameter to not_kv_inputs.
-
+    
         Parameters:
           ov_model (`ov.Model`):
               openvino model for processing
@@ -350,7 +350,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
           gather_dim (int):
               dimension for gathering cache during reorder pass
         """
-
+    
         if model_has_input_output_name(ov_model, "beam_idx"):
             raise ValueError("Model already has fused cache")
         input_batch = ov_model.input("inputs_embeds").get_partial_shape()[0]
@@ -366,12 +366,12 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
             for consumer in consumers:
                 consumer.replace_source_output(gather.output(0))
         ov_model.validate_nodes_and_infer_types()
-
-
+    
+    
     def build_state_initializer(ov_model: ov.Model, batch_dim: int):
         """
         Build initialization ShapeOf Expression for all ReadValue ops
-
+    
         Parameters:
           ov_model (ov.Model):
               openvino model
@@ -393,8 +393,8 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
                 broadcast = opset13.broadcast(opset13.constant(0.0, dtype=op.get_output_element_type(0)), shape)
                 op.set_arguments([broadcast])
         ov_model.validate_nodes_and_infer_types()
-
-
+    
+    
     def make_stateful(
         ov_model: ov.Model,
         not_kv_inputs: List[str],
@@ -406,7 +406,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
     ):
         """
         Hides kv-cache inputs and outputs inside the model as variables.
-
+    
         Parameters:
             ov_model (ov.Model):
                 openvino model
@@ -424,9 +424,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
                 precalculated number of beams and batch for shapes initialization
         """
         from openvino._offline_transformations import apply_make_stateful_transformation
-
+    
         input_output_map = {}
-
+    
         if num_beams_and_batch is not None:
             # Set batch size for input_ids and attention mask to avoid dynamic dimension got propagated from the end of the model back to ReadValue
             for input in not_kv_inputs:
@@ -441,16 +441,16 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
                 shape = input.get_partial_shape()
                 shape[batch_dim] = num_beams_and_batch * num_attention_heads
                 input.get_node().set_partial_shape(shape)
-
+    
         if num_beams_and_batch is not None:
             # Re-validation model if shapes are altered above
             ov_model.validate_nodes_and_infer_types()
-
+    
         apply_make_stateful_transformation(ov_model, input_output_map)
         if num_beams_and_batch is None:
             build_state_initializer(ov_model, batch_dim)
-
-
+    
+    
     def patch_stateful(ov_model):
         key_value_input_names = [key.get_any_name() for key in ov_model.inputs[2:-1]]
         key_value_output_names = [key.get_any_name() for key in ov_model.outputs[1:]]
@@ -459,7 +459,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
             return
         batch_dim = 0
         num_attention_heads = 1
-
+    
         fuse_cache_reorder(ov_model, not_kv_inputs, key_value_input_names, batch_dim)
         make_stateful(
             ov_model,
@@ -475,7 +475,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
 
     make_stateful_model = True
     core = ov.Core()
-
+    
     if not LANGUAGE_MODEL_PATH.exists():
         pkv = language_model(inputs_embeds=llm_input, attention_mask=torch.ones((2, 2), dtype=torch.int64))[1]
         model_inputs = ["attention_mask", "position_ids"]
@@ -495,10 +495,10 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
                 "position_ids": position_ids,
             },
         )
-
+    
         for input, input_name in zip(ov_model.inputs, model_inputs):
             input.get_tensor().set_names({input_name})
-
+    
         for output, output_name in zip(ov_model.outputs, model_outputs):
             output.get_tensor().set_names({output_name})
         if make_stateful_model:
@@ -512,7 +512,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
 Compress Language Model Weights to 4 bits
 -----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -556,13 +556,13 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     to_compress_weights = widgets.Checkbox(
         value=True,
         description="Weights Compression",
         disabled=False,
     )
-
+    
     to_compress_weights
 
 
@@ -577,13 +577,13 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     import nncf
-
+    
     compression_configuration = {
         "mode": nncf.CompressWeightsMode.INT4_SYM,
         "group_size": 64,
         "ratio": 0.6,
     }
-
+    
     LANGUAGE_MODEL_PATH_INT4 = LANGUAGE_MODEL_PATH.parent / LANGUAGE_MODEL_PATH.name.replace(".xml", "-int4.xml")
     if to_compress_weights.value and not LANGUAGE_MODEL_PATH_INT4.exists():
         ov_model = core.read_model(LANGUAGE_MODEL_PATH)
@@ -602,7 +602,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Quantize Image Encoder to 8 bits
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The goal of this part of tutorial is to demonstrate how to speed up the
 image encoder by applying 8-bit post-training quantization from
@@ -631,7 +631,7 @@ inference faster. The optimization process contains the following steps:
         description="Quantization",
         disabled=False,
     )
-
+    
     to_quantize
 
 
@@ -646,21 +646,21 @@ inference faster. The optimization process contains the following steps:
 .. code:: ipython3
 
     IMAGE_ENCODER_PATH_INT8 = IMAGE_ENCODER_PATH.parent / IMAGE_ENCODER_PATH.name.replace(".xml", "-int8.xml")
-
-
+    
+    
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-
+    
     %load_ext skip_kernel_extension
 
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -670,15 +670,15 @@ model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import requests
     from io import BytesIO
     import numpy as np
     from PIL import Image
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
-
+    
+    
     def get_pil_from_url(url):
         """
         Downloads and converts an image from a URL to a PIL Image object.
@@ -686,7 +686,7 @@ model.
         response = requests.get(url, verify=False, timeout=20)
         image = Image.open(BytesIO(response.content))
         return image.convert("RGB")
-
+    
     def collate_fn(example, image_column="image_url"):
         """
         Preprocesses an example by loading and transforming image and text data.
@@ -705,18 +705,18 @@ model.
                 return None
         except Exception:
             return None
-
+    
         inputs = processor.image_processor(images=[image], return_tensors="pt")
         return inputs
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import torch
     from datasets import load_dataset
     from tqdm.notebook import tqdm
-
+    
     def prepare_calibration_data(dataloader, init_steps):
         """
         This function prepares calibration data from a dataloader for a specified number of initialization steps.
@@ -737,13 +737,13 @@ model.
                             }
                         )
         return data
-
-
+    
+    
     def prepare_dataset(opt_init_steps=50, max_train_samples=1000):
         """
         Prepares a vision-text dataset for quantization.
         """
-        dataset = load_dataset("conceptual_captions")
+        dataset = load_dataset("google-research-datasets/conceptual_captions", trust_remote_code=True)
         train_dataset = dataset["train"].shuffle(seed=42)
         dataloader = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn, batch_size=1)
         calibration_data = prepare_calibration_data(dataloader, opt_init_steps)
@@ -752,7 +752,7 @@ model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     vcalibration_data = []
     if not IMAGE_ENCODER_PATH_INT8.exists():
         calibration_data = prepare_dataset()
@@ -760,7 +760,7 @@ model.
 Perform quantization
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the pre-trained model.
 
@@ -770,14 +770,14 @@ Create a quantized model from the pre-trained model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
-
+    
+    
     if not IMAGE_ENCODER_PATH_INT8.exists():
         if len(calibration_data) == 0:
             raise RuntimeError(
                 'Calibration dataset is empty. Please check internet connection and try to download images manually.'
             )
-
+    
         ov_model = core.read_model(IMAGE_ENCODER_PATH)
         calibration_dataset = nncf.Dataset(calibration_data)
         quantized_model = nncf.quantize(
@@ -796,7 +796,7 @@ Create a quantized model from the pre-trained model.
 Prepare model inference pipeline
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 |image0|
 
@@ -821,8 +821,8 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
         unpad_image,
     )
     import openvino as ov
-
-
+    
+    
     class OVLlavaForCausalLM(GenerationMixin):
         def __init__(
             self,
@@ -851,11 +851,11 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.image_newline = torch.zeros(self.config.text_config.hidden_size, dtype=torch.float32)
             self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
             self.past_len = 0
-
+    
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
             return True
-
+    
         def __call__(
             self,
             input_ids: torch.LongTensor,
@@ -875,7 +875,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 image_sizes,
                 **kwargs,
             )
-
+    
         def forward(
             self,
             input_ids: torch.LongTensor,
@@ -900,49 +900,49 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 # inputs["attention_mask"] = attention_mask
                 if "beam_idx" in self.input_names:
                     inputs["beam_idx"] = self.next_beam_idx if self.next_beam_idx is not None else np.arange(batch_size, dtype=int)
-
+    
                 if not self.stateful:
                     first_layer_past_key_value = torch.from_numpy(past_key_values[0][0][:, :, :, 0])
                 else:
                     first_layer_past_key_value = torch.from_numpy(self.request.query_state()[0].state.data[:, :, :, 0])
-
+    
                 # Sum all dimensions of head_dim (-2) to avoid random errors such as: https://github.com/huggingface/transformers/pull/28032#issuecomment-1863691941
                 batch_index, non_attended_tokens = torch.where(first_layer_past_key_value.float().sum(-2) == 0)
-
+    
                 # Get the target length
                 target_length = input_ids.shape[1]
                 past_length = first_layer_past_key_value.shape[-1]
-
+    
                 extended_attention_mask = torch.ones(
                     (attention_mask.shape[0], past_length),
                     dtype=attention_mask.dtype,
                     device=attention_mask.device,
                 )
-
+    
                 # Filter out only the tokens that can be un-attended, this can happen
                 # if one uses Llava + Fused modules where the cache on the
                 # first iteration is already big enough, or if one passes custom cache
                 valid_indices = non_attended_tokens < extended_attention_mask.size(-1)
                 new_batch_index = batch_index[valid_indices]
                 new_non_attended_tokens = non_attended_tokens[valid_indices]
-
+    
                 # Zero-out the places where we don't need to attend
                 extended_attention_mask[new_batch_index, new_non_attended_tokens] = 0
-
+    
                 attention_mask = torch.cat((extended_attention_mask, attention_mask[:, -target_length:]), dim=1)
                 position_ids = torch.sum(attention_mask, dim=1).unsqueeze(-1) - 1
                 inputs["attention_mask"] = attention_mask
                 inputs["position_ids"] = position_ids
-
+    
             else:
                 inputs = self.prepare_multimodal_input(input_ids, pixel_values, attention_mask, position_ids, image_sizes)
-
+    
             # Run inference
             self.request.start_async(inputs, share_inputs=True)
             self.request.wait()
-
+    
             logits = torch.from_numpy(self.request.get_tensor(self.output_names[0]).data)
-
+    
             if not self.stateful:
                 # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
                 past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
@@ -952,7 +952,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 past_key_values = ((),)
             self.past_len += inputs["inputs_embeds"].shape[1]
             return CausalLMOutputWithPast(logits=logits, past_key_values=past_key_values)
-
+    
         def prepare_multimodal_input(self, input_ids, pixel_values, attention_mask, position_ids, image_sizes=None):
             """Preprocessing function for embedding multimodal data"""
             inputs = {}
@@ -974,7 +974,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 # Set initial value for the next beam_idx input that will be used at the current iteration
                 # and will be optionally updated by _reorder_cache at the next iterations if beam_search is used
                 self.next_beam_idx = np.arange(batch_size, dtype=int)
-
+    
             if "beam_idx" in self.input_names:
                 inputs["beam_idx"] = self.next_beam_idx if self.next_beam_idx is not None else np.arange(batch_size, dtype=int)
             if pixel_values is None:
@@ -988,16 +988,16 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             image_features = torch.from_numpy(res[0])
             split_sizes = [image.shape[0] for image in pixel_values]
             image_features = torch.split(image_features, split_sizes, dim=0)
-
+    
             # NOTE we only support multimodal_patch_merge_type == "spatial_unpad"
             height = width = self.config.vision_config.image_size // self.config.vision_config.patch_size
-
+    
             new_image_features = []
             for image_idx, image_feature in enumerate(image_features):
                 if image_feature.shape[0] > 1:
                     base_image_feature = image_feature[0]
                     image_feature = image_feature[1:]
-
+    
                     if height * width != base_image_feature.shape[0]:
                         raise ValueError("The number of patches is not consistent with the image size.")
                     num_patch_height, num_patch_width = get_anyres_image_grid_shape(
@@ -1023,7 +1023,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                     image_feature = torch.cat((image_feature, self.image_newline[None]), dim=0)
                 new_image_features.append(image_feature)
             image_features = torch.stack(new_image_features, dim=0)
-
+    
             (
                 inputs_embeds,
                 attention_mask,
@@ -1032,9 +1032,9 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             inputs["inputs_embeds"] = inputs_embeds
             inputs["attention_mask"] = attention_mask
             inputs["position_ids"] = position_ids
-
+    
             return inputs
-
+    
         def _merge_input_ids_with_image_features(self, image_features, inputs_embeds, input_ids, attention_mask, labels):
             num_images, num_image_patches, embed_dim = image_features.shape
             batch_size, sequence_length = input_ids.shape
@@ -1045,7 +1045,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             # Compute the maximum embed dimension
             max_embed_dim = (num_special_image_tokens.max() * (num_image_patches - 1)) + sequence_length
             batch_indices, non_image_indices = torch.where(input_ids != self.config.image_token_index)
-
+    
             # 2. Compute the positions where text should be written
             # Calculate new positions for text tokens in merged image-text sequence.
             # `special_image_token_mask` identifies image tokens. Each image token will be replaced by `nb_text_tokens_per_images - 1` text tokens.
@@ -1056,7 +1056,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             if left_padding:
                 new_token_positions += nb_image_pad[:, None]  # offset for left padding
             text_to_overwrite = new_token_positions[batch_indices, non_image_indices]
-
+    
             # 3. Create the full embedding, already padded to the maximum position
             final_embedding = torch.zeros(
                 batch_size,
@@ -1080,14 +1080,14 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 text_to_overwrite.to(target_device),
             )
             attention_mask = attention_mask.to(target_device)
-
+    
             # 4. Fill the embeddings based on the mask. If we have ["hey" "<image>", "how", "are"]
             # we need to index copy on [0, 577, 578, 579] for the text and [1:576] for the image features
             final_embedding[batch_indices, text_to_overwrite] = inputs_embeds[batch_indices, non_image_indices]
             final_attention_mask[batch_indices, text_to_overwrite] = attention_mask[batch_indices, non_image_indices]
             if labels is not None:
                 final_labels[batch_indices, text_to_overwrite] = labels[batch_indices, non_image_indices]
-
+    
             # 5. Fill the embeddings corresponding to the images. Anything that is still zeros needs filling
             image_to_overwrite = torch.all(final_embedding == 0, dim=-1)
             image_to_overwrite &= image_to_overwrite.cumsum(-1) - 1 >= nb_image_pad[:, None].to(target_device)
@@ -1096,19 +1096,19 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                     f"The input provided to the model are wrong. The number of image tokens is {torch.sum(special_image_token_mask)} while"
                     f" the number of image given to the model is {num_images}. This prevents correct indexing and breaks batch generation."
                 )
-
+    
             final_embedding[image_to_overwrite] = image_features.contiguous().reshape(-1, embed_dim).to(target_device)
             final_attention_mask |= image_to_overwrite
             position_ids = (final_attention_mask.cumsum(-1) - 1).masked_fill_((final_attention_mask == 0), 1)
-
+    
             # 6. Mask out the embedding at padding positions, as we later use the past_key_value value to determine the non-attended tokens.
             batch_indices, pad_indices = torch.where(input_ids == self.pad_token_id)
             indices_to_mask = new_token_positions[batch_indices, pad_indices]
-
+    
             final_embedding[batch_indices, indices_to_mask] = 0
-
+    
             return final_embedding, final_attention_mask, position_ids
-
+    
         def prepare_inputs_for_generation(
             self,
             input_ids,
@@ -1124,7 +1124,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                     cache_length = past_length = past_key_values[0][0].shape[2]
                 else:
                     cache_length = past_length = self.past_len
-
+    
                 # Keep only the unprocessed tokens:
                 # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where
                 # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as
@@ -1142,7 +1142,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 # older attention values, as their corresponding values are not part of the input.
                 if cache_length < past_length and attention_mask is not None:
                     attention_mask = attention_mask[:, -(cache_length + input_ids.shape[1]) :]
-
+    
             position_ids = kwargs.get("position_ids", None)
             if attention_mask is not None and position_ids is None:
                 # create position_ids on the fly for batch gllavaenerationsubset_siz
@@ -1150,13 +1150,13 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 position_ids.masked_fill_(attention_mask == 0, 1)
                 if past_key_values:
                     position_ids = position_ids[:, -input_ids.shape[1] :]
-
+    
             # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
             if inputs_embeds is not None and past_key_values is None:
                 model_inputs = {"inputs_embeds": inputs_embeds}
             else:
                 model_inputs = {"input_ids": input_ids}
-
+    
             model_inputs.update(
                 {
                     "position_ids": position_ids,
@@ -1172,28 +1172,28 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     support_devices = core.available_devices
     if "NPU" in support_devices:
         support_devices.remove("NPU")
-
+    
     device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -1212,7 +1212,7 @@ Select device
         description="INT4 language model",
         disabled=not LANGUAGE_MODEL_PATH_INT4.exists(),
     )
-
+    
     use_int4_lang_model
 
 
@@ -1231,7 +1231,7 @@ Select device
         description="INT8 image encoder",
         disabled=not IMAGE_ENCODER_PATH_INT8.exists(),
     )
-
+    
     use_int8_image_encoder
 
 
@@ -1247,23 +1247,23 @@ Select device
 
     lang_model_path = LANGUAGE_MODEL_PATH_INT4 if use_int4_lang_model.value else LANGUAGE_MODEL_PATH
     image_encoder_path = IMAGE_ENCODER_PATH_INT8 if use_int8_image_encoder.value else IMAGE_ENCODER_PATH
-
+    
     ov_llava_model = OVLlavaForCausalLM(core, image_encoder_path, INPUT_EMBEDDING_PATH, lang_model_path, device.value)
 
 .. code:: ipython3
 
     from PIL import Image
     import requests
-
-
+    
+    
     from transformers import TextStreamer
-
+    
     url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
     image = Image.open(requests.get(url, stream=True).raw)
     question = "What is unusual on this image?"
     prompt = f"[INST] <image>\n{question}[/INST]"
     streamer = TextStreamer(processor, skip_special_tokens=True, skip_prompt=True)
-
+    
     inputs = processor(prompt, image, return_tensors="pt")
     print(f"Question:\n{question}")
     image
@@ -1302,7 +1302,7 @@ Select device
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1311,7 +1311,7 @@ Interactive demo
     from threading import Thread
     from PIL import Image
     import torch
-
+    
     example_image_urls = [
         (
             "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/1d6a0188-5613-418d-a1fd-4560aae1d907",
@@ -1324,8 +1324,8 @@ Interactive demo
     ]
     for url, file_name in example_image_urls:
         Image.open(requests.get(url, stream=True).raw).save(file_name)
-
-
+    
+    
     def bot_streaming(message, history):
         print(message)
         if message["files"]:
@@ -1336,28 +1336,28 @@ Interactive demo
             for hist in history:
                 if isinstance(hist[0], tuple):
                     image = hist[0][0]
-
+    
         if image is None:
             gr.Error("You need to upload an image for LLaVA to work.")
         prompt = f"[INST] <image>\n{message['text']} [/INST]"
         image = Image.open(image).convert("RGB")
         inputs = processor(prompt, image, return_tensors="pt")
-
+    
         streamer = TextIteratorStreamer(processor, **{"skip_special_tokens": True})
         generation_kwargs = dict(inputs, streamer=streamer, max_new_tokens=100)
-
+    
         thread = Thread(target=ov_llava_model.generate, kwargs=generation_kwargs)
         thread.start()
-
+    
         text_prompt = f"[INST]  \n{message['text']} [/INST]"
-
+    
         buffer = ""
         for new_text in streamer:
             buffer += new_text
             generated_text_without_prompt = buffer[len(text_prompt) :]
             yield generated_text_without_prompt
-
-
+    
+    
     demo = gr.ChatInterface(
         fn=bot_streaming,
         title="LLaVA NeXT",
@@ -1369,7 +1369,7 @@ Interactive demo
         stop_btn="Stop Generation",
         multimodal=True,
     )
-
+    
     try:
         demo.launch(debug=False)
     except Exception:

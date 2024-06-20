@@ -19,35 +19,35 @@ This notebook works best with small images (up to 800x600 resolution).
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#imports>`__
--  `Settings <#settings>`__
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
 -  `Inference on PaddlePaddle
-   Model <#inference-on-paddlepaddle-model>`__
+   Model <#Inference-on-PaddlePaddle-Model>`__
 
-   -  `Investigate PaddleGAN Model <#investigate-paddlegan-model>`__
-   -  `Do Inference <#do-inference>`__
+   -  `Investigate PaddleGAN Model <#Investigate-PaddleGAN-Model>`__
+   -  `Do Inference <#Do-Inference>`__
 
 -  `Convert PaddleGAN Model to ONNX and OpenVINO
-   IR <#convert-paddlegan-model-to-onnx-and-openvino-ir>`__
+   IR <#Convert-PaddleGAN-Model-to-ONNX-and-OpenVINO-IR>`__
 
    -  `Convert PaddlePaddle Model to
-      ONNX <#convert-paddlepaddle-model-to-onnx>`__
+      ONNX <#Convert-PaddlePaddle-Model-to-ONNX>`__
    -  `Convert ONNX Model to OpenVINO IR with Model Conversion Python
-      API <#convert-onnx-model-to-openvino-ir-with-model-conversion-python-api>`__
+      API <#Convert-ONNX-Model-to-OpenVINO-IR-with-Model-Conversion-Python-API>`__
 
 -  `Do Inference on OpenVINO IR
-   Model <#do-inference-on-openvino-ir-model>`__
+   Model <#Do-Inference-on-OpenVINO-IR-Model>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Show an Animated GIF <#show-an-animated-gif>`__
-   -  `Create a Comparison Video <#create-a-comparison-video>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Show an Animated GIF <#Show-an-Animated-GIF>`__
+   -  `Create a Comparison Video <#Create-a-Comparison-Video>`__
 
-      -  `Download the video <#download-the-video>`__
+      -  `Download the video <#Download-the-video>`__
 
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -55,7 +55,7 @@ Imports
     
     %pip install -q "openvino>=2023.1.0"
     
-    %pip install -q "paddlepaddle>=2.5.1" "paddle2onnx>=0.6"
+    %pip install -q "paddlepaddle>=2.5.1" "paddle2onnx>=0.6,<1.2.4"
     
     %pip install -q "imageio==2.9.0" "imageio" "numba>=0.53.1" "easydict" "munch" "natsort" Pillow tqdm
     %pip install -q "git+https://github.com/PaddlePaddle/PaddleGAN.git" --no-deps
@@ -69,20 +69,20 @@ Imports
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.34.1 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.10.0.82 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -116,7 +116,7 @@ Imports
 Settings
 --------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -133,12 +133,12 @@ Settings
 Inference on PaddlePaddle Model
 -------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Investigate PaddleGAN Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `PaddleGAN
 documentation <https://github.com/PaddlePaddle/PaddleGAN>`__ explains
@@ -156,7 +156,7 @@ source code.
 
 .. parsed-literal::
 
-    [06/06 03:49:33] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
+    [06/20 02:56:05] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
 
 
 .. code:: ipython3
@@ -197,7 +197,7 @@ To get more information about how the model looks like, use the
 Do Inference
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To show inference on the PaddlePaddle model, set ``PADDLEGAN_INFERENCE``
 to ``True`` in the cell below. Keep in mind that performing inference
@@ -256,7 +256,7 @@ may take some time.
 Convert PaddleGAN Model to ONNX and OpenVINO IR
 -----------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To convert the PaddlePaddle model to OpenVINO IR, first convert the
 model to ONNX, and then convert the ONNX model to the OpenVINO IR
@@ -265,7 +265,7 @@ format.
 Convert PaddlePaddle Model to ONNX
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -282,12 +282,12 @@ Convert PaddlePaddle Model to ONNX
 
 .. parsed-literal::
 
-    2024-06-06 03:49:40 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-06-20 02:56:11 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
 
-    I0606 03:49:40.817200 3140277 program_interpreter.cc:212] New Executor is Running.
+    I0620 02:56:11.787541 1076664 program_interpreter.cc:212] New Executor is Running.
 
 
 .. parsed-literal::
@@ -298,13 +298,13 @@ Convert PaddlePaddle Model to ONNX
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 13 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2024-06-06 03:49:44 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
+    2024-06-20 02:56:15 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
 Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -324,7 +324,7 @@ Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://doc
 Do Inference on OpenVINO IR Model
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -337,7 +337,7 @@ Do Inference on OpenVINO IR Model
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -380,7 +380,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f5d265b8580>
+    <matplotlib.image.AxesImage at 0x7f8ee1967ca0>
 
 
 
@@ -432,7 +432,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f5d10058df0>
+    <matplotlib.image.AxesImage at 0x7f8ee10c0040>
 
 
 
@@ -443,7 +443,7 @@ select device from dropdown list for running inference using OpenVINO
 Show an Animated GIF
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To visualize the difference between the bicubic image and the
 superresolution image, create an animated GIF image that switches
@@ -479,7 +479,7 @@ between both versions.
 Create a Comparison Video
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a video with a “slider”, showing the bicubic image to the right
 and the superresolution image on the left.
@@ -535,7 +535,7 @@ open it directly from the images directory, and play it locally.
 Download the video
 ^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Please, click the link below to download the video or just run cell if
 you use the Google Colab

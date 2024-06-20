@@ -7,29 +7,29 @@ format to OpenVINO Intermediate Representation (IR).
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `OpenVINO IR format <#openvino-ir-format>`__
+-  `OpenVINO IR format <#OpenVINO-IR-format>`__
 -  `IR preparation with Python conversion API and Model Optimizer
    command-line
-   tool <#ir-preparation-with-python-conversion-api-and-model-optimizer-command-line-tool>`__
--  `Fetching example models <#fetching-example-models>`__
--  `Basic conversion <#basic-conversion>`__
--  `Model conversion parameters <#model-conversion-parameters>`__
+   tool <#IR-preparation-with-Python-conversion-API-and-Model-Optimizer-command-line-tool>`__
+-  `Fetching example models <#Fetching-example-models>`__
+-  `Basic conversion <#Basic-conversion>`__
+-  `Model conversion parameters <#Model-conversion-parameters>`__
 
-   -  `Setting Input Shapes <#setting-input-shapes>`__
-   -  `Cutting Off Parts of a Model <#cutting-off-parts-of-a-model>`__
+   -  `Setting Input Shapes <#Setting-Input-Shapes>`__
+   -  `Cutting Off Parts of a Model <#Cutting-Off-Parts-of-a-Model>`__
    -  `Embedding Preprocessing
-      Computation <#embedding-preprocessing-computation>`__
+      Computation <#Embedding-Preprocessing-Computation>`__
 
-      -  `Specifying Layout <#specifying-layout>`__
-      -  `Changing Model Layout <#changing-model-layout>`__
+      -  `Specifying Layout <#Specifying-Layout>`__
+      -  `Changing Model Layout <#Changing-Model-Layout>`__
       -  `Specifying Mean and Scale
-         Values <#specifying-mean-and-scale-values>`__
-      -  `Reversing Input Channels <#reversing-input-channels>`__
+         Values <#Specifying-Mean-and-Scale-Values>`__
+      -  `Reversing Input Channels <#Reversing-Input-Channels>`__
 
-   -  `Compressing a Model to FP16 <#compressing-a-model-to-fp16>`__
+   -  `Compressing a Model to FP16 <#Compressing-a-Model-to-FP16>`__
 
 -  `Convert Models Represented as Python
-   Objects <#convert-models-represented-as-python-objects>`__
+   Objects <#Convert-Models-Represented-as-Python-Objects>`__
 
 .. code:: ipython3
 
@@ -46,7 +46,7 @@ Table of contents:
 OpenVINO IR format
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO `Intermediate Representation
 (IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
@@ -62,7 +62,7 @@ binary data.
 IR preparation with Python conversion API and Model Optimizer command-line tool
 -------------------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 There are two ways to convert a model from the original framework format
 to OpenVINO IR: Python conversion API and Model Optimizer command-line
@@ -82,6 +82,9 @@ documentation.
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     usage: main.py [options]
     
     optional arguments:
@@ -119,7 +122,7 @@ documentation.
                             conversion into IR. The legacy Frontend is Python
                             based and is available for TensorFlow*, ONNX*, MXNet*,
                             Caffe*, and Kaldi* models.
-      --input_model INPUT_MODEL, -m INPUT_MODEL, -w INPUT_MODEL
+      --input_model INPUT_MODEL, -w INPUT_MODEL, -m INPUT_MODEL
                             Tensorflow*: a file with a pre-trained model (binary
                             or text .pb file after freezing). Caffe*: a model
                             proto file with model weights.
@@ -684,7 +687,7 @@ documentation.
 Fetching example models
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This notebook uses two models for conversion examples:
 
@@ -735,11 +738,11 @@ NLP model from Hugging Face and export it in ONNX format:
 
 .. parsed-literal::
 
-    2024-06-05 23:49:21.145736: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-05 23:49:21.179983: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-19 23:04:25.313921: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-19 23:04:25.347352: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-05 23:49:21.824078: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:231: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    2024-06-19 23:04:25.982730: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:231: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -976,7 +979,7 @@ Convert PyTorch model to ONNX format:
 Basic conversion
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To convert a model to OpenVINO IR, use the following command:
 
@@ -997,13 +1000,14 @@ To convert a model to OpenVINO IR, use the following command:
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
 
 
 .. code:: ipython3
@@ -1022,6 +1026,13 @@ To convert a model to OpenVINO IR, use the following command:
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
+.. parsed-literal::
+
     huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
@@ -1031,7 +1042,7 @@ To convert a model to OpenVINO IR, use the following command:
 Model conversion parameters
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Both Python conversion API and Model Optimizer command-line tool provide
 the following capabilities: \* overriding original input shapes for
@@ -1059,7 +1070,7 @@ mentioned above to override input shapes and cut the model.
 Setting Input Shapes
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model conversion is supported for models with dynamic input shapes that
 contain undefined dimensions. However, if the shape of data is not going
@@ -1093,13 +1104,14 @@ guide <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/setting
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
 
 
 .. parsed-literal::
@@ -1112,13 +1124,14 @@ guide <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/setting
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
 
 
 .. code:: ipython3
@@ -1135,6 +1148,17 @@ guide <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/setting
     
     # alternatively specify input shapes, using the input parameter
     ov_model = mo.convert_model(ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, 128]), ("attention_mask", [1, 128])])
+
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
 
 The input_shape parameter allows overriding original input shapes to
 ones compatible with a given model. Dynamic shapes, i.e. with dynamic
@@ -1161,13 +1185,14 @@ sequence length dimension for inputs:
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
 
 
 .. code:: ipython3
@@ -1181,6 +1206,14 @@ sequence length dimension for inputs:
         input=["input_ids", "attention_mask"],
         input_shape=[[1, -1], [1, -1]],
     )
+
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
 
 To optimize memory consumption for models with undefined dimensions in
 runtime, model conversion API provides the capability to define
@@ -1206,13 +1239,14 @@ dimension:
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
 
 
 .. code:: ipython3
@@ -1227,10 +1261,18 @@ dimension:
         input_shape=[[1, "10..128"], [1, "10..128"]],
     )
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Cutting Off Parts of a Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The following examples show when model cutting is useful or even
 required:
@@ -1274,13 +1316,14 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
 
 
 .. parsed-literal::
@@ -1293,13 +1336,14 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/distilbert.bin
 
 
 .. code:: ipython3
@@ -1317,10 +1361,21 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
         input=["/distilbert/embeddings/LayerNorm/Add_1", "attention_mask"],
     )
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Embedding Preprocessing Computation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Input data for inference can be different from the training dataset and
 requires additional preprocessing before inference. To accelerate the
@@ -1338,7 +1393,7 @@ article <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Additional_Optimiza
 Specifying Layout
 ^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Layout defines the meaning of dimensions in a shape and can be specified
 for both inputs and outputs. Some preprocessing requires to set input
@@ -1369,13 +1424,14 @@ Resnet50 model that was exported to the ONNX format:
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
 
 
 .. code:: ipython3
@@ -1386,10 +1442,18 @@ Resnet50 model that was exported to the ONNX format:
     
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw")
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Changing Model Layout
 ^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Changing the model layout may be necessary if it differs from the one
 presented by input data. Use either ``layout`` or ``source_layout`` with
@@ -1415,13 +1479,14 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
 
 
 .. parsed-literal::
@@ -1434,13 +1499,14 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
 
 
 .. code:: ipython3
@@ -1454,10 +1520,21 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
     # alternatively use source_layout and target_layout parameters
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc")
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Specifying Mean and Scale Values
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model conversion API has the following parameters to specify the values:
 ``mean_values``, ``scale_values``, ``scale``. Using these parameters,
@@ -1484,13 +1561,14 @@ that the preprocessing takes negligible time for inference.
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
 
 
 .. parsed-literal::
@@ -1503,13 +1581,14 @@ that the preprocessing takes negligible time for inference.
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
 
 
 .. code:: ipython3
@@ -1522,10 +1601,21 @@ that the preprocessing takes negligible time for inference.
     
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, mean_values=[123, 117, 104], scale_values=[255, 255, 255])
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Reversing Input Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Sometimes, input images for your application can be of the ``RGB`` (or
 ``BGR``) format, and the model is trained on images of the ``BGR`` (or
@@ -1550,13 +1640,14 @@ the color channels before inference.
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
 
 
 .. code:: ipython3
@@ -1567,10 +1658,18 @@ the color channels before inference.
     
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Compressing a Model to FP16
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Optionally all relevant floating-point weights can be compressed to FP16
 data type during the model conversion, creating a compressed FP16 model.
@@ -1595,13 +1694,14 @@ models, this decrease is negligible.
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release. Please use OpenVINO Model Converter (OVC). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/convert-to-openvino/model/resnet.bin
 
 
 .. code:: ipython3
@@ -1612,10 +1712,18 @@ models, this decrease is negligible.
     
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, compress_to_fp16=True)
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Convert Models Represented as Python Objects
 --------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Python conversion API can pass Python model objects, such as a Pytorch
 model or TensorFlow Keras model directly, without saving them into files
@@ -1633,6 +1741,9 @@ training scripts).
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
 
 
@@ -1656,3 +1767,17 @@ string analogs, similar to the command-line tool.
     ov_model = mo.convert_model(pytorch_model, source_layout="nchw", target_layout="nhwc")
     
     ov_model = mo.convert_model(pytorch_model, compress_to_fp16=True, reverse_input_channels=True)
+
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
