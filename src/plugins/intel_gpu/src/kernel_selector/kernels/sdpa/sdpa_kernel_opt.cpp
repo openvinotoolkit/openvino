@@ -4,7 +4,6 @@
 
 #include "sdpa_kernel_opt.h"
 #include "kernel_selector_utils.h"
-#include "common_types.h"
 #include <string>
 #include <vector>
 
@@ -51,7 +50,6 @@ static std::string GetKernelName(std::string base_name, KernelsTypes type, bool 
 
 ParamsKey SDPAKernelOpt::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::INT8);  // For KV cache compression
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
 
@@ -125,13 +123,11 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
                                   head_size * num_of_partitions };
             dispatch_data.lws = { 1, 1, head_size };
-            // std::cout << "non-finalization gws " << dispatch_data.gws[0] << "x" << dispatch_data.gws[1] << "x" << dispatch_data.gws[2] << " - head_size " << head_size << std::endl;
         } else if (kernel_idx == KernelsTypes::FINALIZATION) {
             dispatch_data.gws = { batch_size * heads_num,
                                   target_seq_len,
                                   16 };
             dispatch_data.lws = { 1, 1, 16 };
-            // std::cout << "finalization gws " << dispatch_data.gws[0] << "x" << dispatch_data.gws[1] << "x" << dispatch_data.gws[2] << std::endl;
         }
     }
 
@@ -278,6 +274,6 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 KernelsPriority SDPAKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_3;
+    return FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

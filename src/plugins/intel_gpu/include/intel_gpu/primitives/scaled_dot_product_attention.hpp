@@ -16,11 +16,9 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     /// @param id This primitive id.
     /// @param inputs Input data primitives id (query, keys, values, [attention_mask], [scale]).
     /// @param is_causal If true, assumes causal attention masking. In this case attention_mask input is ignored.
-    /// @param is_kv_compressed If true, assumes KV cache is compressed into int8.
     scaled_dot_product_attention(const primitive_id& id,
                                  const std::vector<cldnn::input_info> inputs,
                                  bool is_causal,
-                                 bool is_kv_compressed = false,
                                  int64_t indirect_axis = -1,
                                  const std::vector<int64_t>& input_q_transpose_order = {},
                                  const std::vector<int64_t>& input_k_transpose_order = {},
@@ -29,7 +27,6 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                                  const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding})
         , is_causal(is_causal)
-        , is_kv_compressed(is_kv_compressed)
         , indirect_axis(indirect_axis)
         , input_q_transpose_order(input_q_transpose_order)
         , input_k_transpose_order(input_k_transpose_order)
@@ -38,13 +35,12 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
             auto data_inputs_num = inputs.size();
             if (indirect_axis != -1)
                 data_inputs_num--;
-            size_t scale_value_cnt = is_kv_compressed ? 2 : 0;
-            has_attn_mask_input = data_inputs_num > 3 + scale_value_cnt;
-            has_scale_input = data_inputs_num > 4 + scale_value_cnt;
+
+            has_attn_mask_input = data_inputs_num > 3;
+            has_scale_input = data_inputs_num > 4;
         }
 
     bool is_causal = false;
-    bool is_kv_compressed = false;
     bool has_attn_mask_input = false;
     bool has_scale_input = false;
     int64_t indirect_axis = -1;
@@ -57,7 +53,6 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, is_causal);
-        seed = hash_combine(seed, is_kv_compressed);
         seed = hash_combine(seed, has_attn_mask_input);
         seed = hash_combine(seed, has_scale_input);
         seed = hash_combine(seed, indirect_axis);
@@ -75,7 +70,6 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         auto rhs_casted = downcast<const scaled_dot_product_attention>(rhs);
 
         return is_causal == rhs_casted.is_causal &&
-               is_kv_compressed == rhs_casted.is_kv_compressed &&
                has_attn_mask_input == rhs_casted.has_attn_mask_input &&
                has_scale_input == rhs_casted.has_scale_input &&
                indirect_axis == rhs_casted.indirect_axis &&
@@ -88,7 +82,6 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<scaled_dot_product_attention>::save(ob);
         ob << is_causal;
-        ob << is_kv_compressed;
         ob << has_attn_mask_input;
         ob << has_scale_input;
         ob << indirect_axis;
@@ -101,7 +94,6 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     void load(BinaryInputBuffer& ib) override {
         primitive_base<scaled_dot_product_attention>::load(ib);
         ib >> is_causal;
-        ib >> is_kv_compressed;
         ib >> has_attn_mask_input;
         ib >> has_scale_input;
         ib >> indirect_axis;

@@ -65,13 +65,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     const size_t concat_stage = 0;
     const size_t beam_table_stage = 1;
-    const size_t scale_stage = 2;
 
     cldnn::memory::ptr beam_table_prev = nullptr;
     cldnn::memory::ptr beam_table_new = nullptr;
-
-    cldnn::memory::ptr compression_scale_prev = nullptr;
-    cldnn::memory::ptr scale_new = nullptr;
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
@@ -79,16 +75,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernels_data[concat_stage].kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[concat_stage]);
-            if (_kernels_data.size() >= 2) {
+            if (_kernels_data.size() == 2) {
                 auto& bt_kernel_selector = bt_kernel_selector_t::Instance();
                 auto bt_kernel_impl = bt_kernel_selector.GetImplementation(_kernels_data[beam_table_stage].kernelName);
                 bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[beam_table_stage]);
-            }
-            // FIXME: indirectness and compression are orthogonal feature.
-            if (_kernels_data.size() == 3) {
-                auto& scale_kernel_selector = kernel_selector_t::Instance();
-                auto scale_kernel_impl = scale_kernel_selector.GetImplementation(_kernels_data[scale_stage].kernelName);
-                scale_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[scale_stage]);
             }
         }
     }
@@ -103,10 +93,6 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         } else if (stage == beam_table_stage) {
             args.inputs = { beam_table_prev, instance.input_memory_ptr(2) };
             args.outputs = { beam_table_new };
-        } else if (stage == scale_stage) {
-            // FIXME: indirectness and compression are orthogonal feature.
-            args.inputs = { compression_scale_prev, instance.input_memory_ptr(3) };
-            args.outputs = { scale_new };
         }
 
         return args;
@@ -116,7 +102,6 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         stream& stream = instance.get_network().get_stream();
         std::vector<event::ptr> tmp_events(events);
         size_t kernel_offset = 0;
-        // FIXME: indirectness and compression are orthogonal feature. stage execution does not happen in sequential order
         for (size_t s = 0; s < stage; s++) {
             kernel_offset += _kernels_data[s].kernels.size();
         }
@@ -199,47 +184,14 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             beam_table_state->set();
         }
 
-        if (desc->compressed) {
-            const auto scale_alloc_type = engine.get_preferred_memory_allocation_type(false);
-            // need to add scale state to VariableStateIndirectKVCache
-            auto comp_scale_state =
-                dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCache&>(variable).get_compression_scale_state();
-            auto comp_scale_layout = instance.get_impl_params()->output_layouts[1];
-            auto comp_scale_shape = comp_scale_layout.get_shape();
-            std::swap(compression_scale_prev, scale_new);
-
-            if (!scale_new || scale_new->count() < ov::shape_size(comp_scale_shape)) {
-                auto alloc_shape = comp_scale_shape;
-                alloc_shape[desc->concat_axis] += instance.get_prealloc_iter_num();
-                const layout comp_scale_alloc_layout = {alloc_shape, comp_scale_layout.data_type, comp_scale_layout.format};
-                GPU_DEBUG_TRACE_DETAIL << "Realloc compression scale table to " << comp_scale_alloc_layout.to_short_string() << std::endl;
-                scale_new = engine.allocate_memory(comp_scale_alloc_layout, scale_alloc_type, false);
-
-                // Alloc prev mem too as it will be needed in the future
-                // That also simplifies arguments setting a little bit as we don't need to handle an optional past state
-                if (!compression_scale_prev) {
-                    compression_scale_prev = engine.allocate_memory(comp_scale_alloc_layout, scale_alloc_type, false);
-                }
-            }
-
-            instance.set_output_memory(scale_new, false, 2);
-            comp_scale_state->set_memory(scale_new, instance.get_impl_params()->output_layouts[2]);
-
-            auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, comp_scale_state->is_set());
-            (_kernels_data[scale_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[scale_stage]);
-
-            execute_stage(events, instance, res_events, scale_stage);
-            comp_scale_state->set();
-        }
-
         variable.set();
         if (can_be_optimized) {
             GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Output is same as variable memory! Skip copying " << std::endl;
             // When primitive is optimized, concat kernel writes directly to variable memory
             return aggregate_events(res_events, stream, res_events.size() > 1);
         } else {
-            // Otherwise, we need to copy result from out buffer to state memory
-            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable memory" << std::endl;
+            // Othwerise, we need to copy result from out buffer to state memory
+            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable meomry" << std::endl;
 
             stream.enqueue_barrier();
             auto out = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(0), variable.get_memory()->get_layout());
@@ -262,21 +214,6 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         return layout{beam_table_shape, impl_param.output_layouts[1].data_type, format::get_default_format(beam_table_shape.size())};
     }
 
-    static layout get_compression_scale_layout(const kernel_impl_params& impl_param) {
-        // FIXME: it is implemented in multiple places
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        const auto& primitive = impl_param.typed_desc<kv_cache>();
-        auto kv_layout = impl_param.get_input_layout(0);
-        auto kv_shape = kv_layout.get_partial_shape();
-        auto comp_scale_shape = ov::PartialShape(std::vector<size_t>(kv_shape.size(), 1));
-        comp_scale_shape[0] = kv_shape[0];
-        comp_scale_shape[1] = kv_shape[1];
-        GPU_DEBUG_IF(debug_config->enable_kv_cache_compression == 1) { // per-head compression
-            comp_scale_shape[2] = kv_shape[2];
-        }
-        return layout{comp_scale_shape, impl_param.output_layouts[2].data_type, format::get_default_format(comp_scale_shape.size())};
-    }
-
     static kernel_params_t get_concat_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<kv_cache>();
         auto params = get_default_params<kernel_selector::concatenation_params>(impl_param, is_shape_agnostic);
@@ -284,15 +221,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         const auto inputs_count = 2;
         params.inputs.resize(inputs_count);
-
-        auto dt = data_types::undefined;
-        if (primitive->compressed)
-            dt = data_types::i8;
-
         for (size_t i = 0; i < inputs_count; ++i) {
-            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i], tensor {}, dt);
+            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
         }
-        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor {}, dt);
 
         params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
         params.kernelPerInput = true;
@@ -334,12 +265,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         params.is_state_set = is_state_set;
         params.indirect_axis = indirect_axis;
 
-        const bool compressed = impl_param.typed_desc<kv_cache>()->compressed;
-        const auto beam_table_past_idx = compressed ? 4 : 3;
-        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset; // [kv_past, kv_new_token, [beam_idx, compression_scale_past, beam_table_past, compression_scale_new]]
-        const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset; // [kv_present, beam_table_present, compression_scale_present]
+        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset; // [kv_past, kv_new_token, [beam_idx, beam_table_past]]
+        const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset; // [kv_present, beam_table_present]
         std::map<size_t, size_t> in_tensor_to_offset_map = {
-            {0, in_offsets_map.at(beam_table_past_idx)}, // beam_table_past
+            {0, in_offsets_map.at(3)}, // beam_table_past
             {1, in_offsets_map.at(2)}, // beam_idx
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
@@ -351,53 +280,16 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         return params;
     }
 
-    static kernel_params_t get_compression_scale_update_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        const auto& primitive = impl_param.typed_desc<kv_cache>();
-        auto params = get_default_params<kernel_selector::concatenation_params>(impl_param, is_shape_agnostic);
-
-        auto inputs_count = 2;
-        auto comp_scale_present_layout = impl_param.output_layouts[2];
-        layout comp_scale_past_layout = get_compression_scale_layout(impl_param);
-
-        params.inputs.resize(inputs_count);
-        params.inputs[0] = convert_data_tensor(comp_scale_past_layout);
-        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3]);
-        params.outputs[0] = convert_data_tensor(comp_scale_present_layout);
-
-        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
-        const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;
-        // FIXME: need to handle the index properly when indirect is off
-        std::map<size_t, size_t> in_tensor_to_offset_map = {
-            {0, in_offsets_map.at(5)}, // compression_scale_past
-            {1, in_offsets_map.at(3)}, // compression_scale_new
-        };
-        std::map<size_t, size_t> out_tensor_to_offset_map = {
-            {0, out_offsets_map.at(2)}, // compression_scale_present
-        };
-
-        params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
-
-        return params;
-    }
-
     static std::unique_ptr<primitive_impl> create(const typed_program_node<kv_cache>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
-        // if (arg.id().find("kvcache:__module.model.transformer.h.0.attn/aten::cat/Concat_4") != std::string::npos)
-        //     std::cout << "mingyuki: create " << arg.id() << std::endl;
         auto concat_kernel_params = get_concat_kernel_params(impl_param, impl_param.is_dynamic());
         auto& concat_kernel_selector = kernel_selector_t::Instance();
         kernels_data.push_back(concat_kernel_selector.get_best_kernel(concat_kernel_params));
         const bool indirect = impl_param.typed_desc<kv_cache>()->indirect;
-        const bool compressed = impl_param.typed_desc<kv_cache>()->compressed;
         if (indirect) {
             auto bt_update_kernel_params = get_bt_update_kernel_params(impl_param, false);
             auto& bt_update_kernel_selector = bt_kernel_selector_t::Instance();
             kernels_data.push_back(bt_update_kernel_selector.get_best_kernel(bt_update_kernel_params));
-        }
-        if (compressed) {
-            auto comp_scale_update_kernel_params = get_compression_scale_update_kernel_params(impl_param, false);
-            auto& comp_scale_update_kernel_selector = kernel_selector_t::Instance();
-            kernels_data.push_back(comp_scale_update_kernel_selector.get_best_kernel(comp_scale_update_kernel_params));
         }
         return cldnn::make_unique<kv_cache_impl>(kernels_data);
     }
@@ -409,17 +301,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         }
         auto& params = static_cast<kernel_params_t&>(*_kernels_data[concat_stage].params);
         const auto inputs_count = 2;
-
-        auto dt = data_types::undefined;
-        if (impl_param.output_layouts[0].data_type == data_types::i8) {
-            // std::cout << "mingyuki: found i8 output " << std::endl;
-            dt = data_types::i8;
-        }
-
         for (size_t i = 0; i < inputs_count; ++i) {
-            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i], tensor {}, dt);
+            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
         }
-        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor {}, dt);
+        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
 
         (_kernels_data[concat_stage].update_dispatch_data_func)(params, _kernels_data[concat_stage]);
         _kernels_data[concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(0).count() == 0;
@@ -429,7 +314,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 namespace detail {
 
 attach_kv_cache_impl::attach_kv_cache_impl() {
-    auto types = { data_types::i8, data_types::f16, data_types::f32 };
+    auto types = { data_types::f16, data_types::f32 };
     auto formats = { format::bfyx };
     implementation_map<kv_cache>::add(impl_types::ocl,
                                            shape_types::dynamic_shape,

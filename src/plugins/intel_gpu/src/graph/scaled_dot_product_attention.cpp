@@ -88,7 +88,6 @@ std::string scaled_dot_product_attention_inst::to_string(scaled_dot_product_atte
     json_composite scaled_dot_product_attention_info;
     scaled_dot_product_attention_info.add("input id", input.id());
     scaled_dot_product_attention_info.add("is_causal", desc->is_causal);
-    scaled_dot_product_attention_info.add("is_kv_compressed", desc->is_kv_compressed);
     scaled_dot_product_attention_info.add("has_attn_mask_input", desc->has_attn_mask_input);
     scaled_dot_product_attention_info.add("has_scale_input", desc->has_scale_input);
     scaled_dot_product_attention_info.add("input_q_transpose_order", desc->input_q_transpose_order);

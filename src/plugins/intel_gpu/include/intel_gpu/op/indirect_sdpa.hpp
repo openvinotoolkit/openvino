@@ -22,7 +22,6 @@ public:
     IndirectSDPA(const OutputVector& data_inputs,
                  const ov::Output<Node>& beam_table,
                  const bool is_causal,
-                 const bool is_kv_compressed,
                  const int64_t indirect_axis,
                  const std::vector<int64_t>& order_q,
                  const std::vector<int64_t>& order_k,

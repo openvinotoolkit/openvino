@@ -18,15 +18,14 @@ protected:
 };
 
 // This is multi-tensor state for Indirect KV-Cache + Gemm pattern
-// Internally it stores KV Cache state + Beam Table state (+ scale state for kv cache compression)
+// Internally it stores KV Cache state + Beam Table state
 class VariableStateIndirectKVCache : public MultiTensorState {
 public:
     VariableStateIndirectKVCache(const VariableStateInfo& info,
                                  std::shared_ptr<RemoteContextImpl> context,
                                  std::shared_ptr<cldnn::ShapePredictor> shape_predictor,
                                  size_t beam_idx,
-                                 size_t concat_idx,
-                                 bool has_compression_scale = false);
+                                 size_t concat_idx);
     using Ptr = std::shared_ptr<VariableStateIndirectKVCache>;
 
     void reset() override;
@@ -42,13 +41,9 @@ public:
     VariableState::Ptr get_beam_table_state() const;
     ov::PartialShape get_beam_table_shape(const ov::PartialShape& kv_cache_shape);
 
-    VariableState::Ptr get_compression_scale_state() const;
-    ov::PartialShape get_compression_scale_shape(const ov::PartialShape& kv_cache_shape);
-
 private:
     size_t m_beam_axis = 0;
     size_t m_concat_axis = 0;
-    bool m_has_compression_scale = false;
 };
 
 }  // namespace intel_gpu

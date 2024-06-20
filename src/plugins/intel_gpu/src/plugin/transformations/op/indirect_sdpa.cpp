@@ -12,14 +12,13 @@ namespace op {
 IndirectSDPA::IndirectSDPA(const OutputVector& data_inputs,
                            const ov::Output<Node>& beam_table,
                            const bool is_causal,
-                           const bool is_kv_compressed,
                            const int64_t indirect_axis,
                            const std::vector<int64_t>& order_q,
                            const std::vector<int64_t>& order_k,
                            const std::vector<int64_t>& order_v,
                            const std::vector<int64_t>& order_out,
                            const ov::element::Type output_type)
-    : ov::intel_gpu::op::SDPA(data_inputs, is_causal, is_kv_compressed, order_q, order_k, order_v, order_out, output_type)
+    : ov::intel_gpu::op::SDPA(data_inputs, is_causal, order_q, order_k, order_v, order_out, output_type)
     , m_indirect_axis(indirect_axis) {
     auto beam_table_idx = data_inputs.size();
     set_argument(beam_table_idx, beam_table);
@@ -35,7 +34,6 @@ std::shared_ptr<ov::Node> IndirectSDPA::clone_with_new_inputs(const ov::OutputVe
     return std::make_shared<IndirectSDPA>(data_inputs,
                                           new_args.back(),
                                           m_is_causal,
-                                          m_is_kv_compressed,
                                           m_indirect_axis,
                                           m_order_q,
                                           m_order_k,
@@ -46,15 +44,11 @@ std::shared_ptr<ov::Node> IndirectSDPA::clone_with_new_inputs(const ov::OutputVe
 
 void IndirectSDPA::validate_and_infer_types() {
     const auto input_size = get_input_size();
-    const size_t scale_data_cnt = m_is_kv_compressed ? 2 : 0;
     NODE_VALIDATION_CHECK(this,
-        input_size == 4 + scale_data_cnt || input_size == 5 + scale_data_cnt || input_size == 6 + scale_data_cnt,
+        input_size == 4 || input_size == 5 || input_size == 6,
         "Number of inputs is incorrect. Current value is: ",
         input_size,
-        ", expected 4, 5 or 6. (scale_data_cnt ",
-        scale_data_cnt,
-        ")"
-        );
+        ", expected 4, 5 or 6.");
 
     std::vector<ov::PartialShape> input_shapes;
     for (size_t i = 0; i < input_size - 1; i++) {

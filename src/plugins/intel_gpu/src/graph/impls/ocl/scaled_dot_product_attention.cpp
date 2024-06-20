@@ -216,7 +216,6 @@ protected:
             config.head_size = query_shape[query_shape.size() - 1].get_length();
 
         config.is_causal = desc->is_causal;
-        config.is_kv_compressed = desc->is_kv_compressed;
 
         return config;
     }
@@ -294,7 +293,6 @@ attach_scaled_dot_product_attention_impl::attach_scaled_dot_product_attention_im
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::i8,
     };
 
     auto formats = {

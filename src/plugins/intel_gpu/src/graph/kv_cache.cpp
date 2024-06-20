@@ -10,7 +10,6 @@
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
-#include "to_string_utils.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
@@ -26,7 +25,7 @@ layout kv_cache_inst::calc_output_layout(const kv_cache_node& node, kernel_impl_
 }
 
 template<typename ShapeType>
-std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& node, kernel_impl_params const& impl_param) {
+std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<kv_cache>();
 
     ov::intel_gpu::op::KVCache op;
@@ -44,15 +43,8 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& node
     const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
 
     std::vector<layout> out_layouts;
-    // std::cout << "node: " << node.id() << "  " << desc->num_outputs << " outputs" << std::endl;
     for (size_t i = 0; i < desc->num_outputs; i++) {
-        data_types out_type;
-        if (i == 0 && desc->compressed)         // compressed tensor
-            out_type = data_types::i8;
-        else if (i == 2 && desc->compressed)    // scale for compressed tensor
-            out_type = data_types::f16;
-        else
-            out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
+        auto out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
         out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));
     }
 
@@ -71,7 +63,6 @@ std::string kv_cache_inst::to_string(const kv_cache_node& node) {
     kv_cache_info.add("concat axis", node.get_primitive()->concat_axis);
     kv_cache_info.add("gather axis", node.get_primitive()->gather_axis);
     kv_cache_info.add("indirect", node.get_primitive()->indirect);
-    kv_cache_info.add("compressed", node.get_primitive()->compressed);
     node_info->add("kv_cache info", kv_cache_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
@@ -89,7 +80,6 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
 
     size_t i = 0;
     // [kv_state, kv_new_token, [beam_idx, bt_past]]
-    // FIXME: do we need to handle compression scale value?
     for (i = 0; i < _node->get_dependencies().size(); i++) {
         const auto& node_in_lay = _node->get_input_layout(i);
         const auto& runtime_in_lay = params.input_layouts[i];

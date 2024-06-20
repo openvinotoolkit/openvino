@@ -12,12 +12,10 @@ namespace kernel_selector {
 ParamsKey SDPAKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F32);
     // beam table input
     k.EnableInputDataType(Datatype::INT32);
 
-    // FIXME: support for compressed KV cache
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
 
@@ -112,7 +110,6 @@ void SDPAKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 KernelsPriority SDPAKernelRef::GetKernelsPriority(const Params& /*params*/) const {
-    // return FORCE_PRIORITY_1;
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector
