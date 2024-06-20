@@ -51,7 +51,7 @@ TEST_P(FrontEndLoadFromTest, load_model_not_exists_at_path) {
     error_msg += '"' + model_file_path + '"';
 
     auto fem = ov::frontend::FrontEndManager();
-    auto fe = fem.load_by_framework("ir");
+    auto fe = fem.load_by_framework("onnx");
 
     OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::HasSubstr(error_msg));
     OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::HasSubstr(error_msg));

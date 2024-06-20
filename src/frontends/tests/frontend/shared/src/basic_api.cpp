@@ -177,13 +177,13 @@ TEST_P(FrontEndBasicTest, testInputModel_overrideAll_empty) {
 
 TEST_P(FrontEndBasicTest, load_model_not_exists_at_path) {
     const auto model_name = "not_existing_model.tflite";
-    auto error_msg = std::string(".*Could not open the file: ");
-    auto model_file_path = FrontEndTestUtils::make_model_path(model_name);
-    error_msg += '"' + model_file_path + ".*\"";
+    auto error_msg = std::string("Could not open the file: \"");
+    const auto model_file_path = FrontEndTestUtils::make_model_path(model_name);
+    error_msg += model_file_path;
 
     auto fem = ov::frontend::FrontEndManager();
     auto fe = fem.load_by_framework(m_feName);
 
-    OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::ContainsRegex(error_msg));
-    OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::ContainsRegex(error_msg));
+    OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::HasSubstr(error_msg));
+    OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::HasSubstr(error_msg));
 }
