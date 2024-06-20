@@ -378,11 +378,11 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::string>()) {
         std::string suffix = ".pdmodel";
         std::string model_path = variants[0].as<std::string>();
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<char>() + "__model__";
         }
         std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
-        validate_file_stream(model_str, model_path);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
@@ -391,11 +391,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".pdmodel";
         std::wstring model_path = variants[0].as<std::wstring>();
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path),
+                                "Could not open the file: \"",
+                                util::path_to_string(model_path),
+                                '"');
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
         std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
-        validate_file_stream(model_str, model_path);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();

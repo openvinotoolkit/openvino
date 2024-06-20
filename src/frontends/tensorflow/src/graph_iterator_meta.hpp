@@ -45,6 +45,10 @@ public:
 
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
+        FRONT_END_GENERAL_CHECK(util::file_exists(path),
+                                "Could not open the file: \"",
+                                util::path_to_string(path),
+                                '"');
         try {
             std::ifstream mg_stream(path.c_str(), std::ios::in | std::ifstream::binary);
             auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
