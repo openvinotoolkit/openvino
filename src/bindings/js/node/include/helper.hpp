@@ -158,3 +158,5 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value);
 bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num);
 
 ov::AnyMap to_anyMap(const Napi::Env&, const Napi::Value&);
+
+std::string buffer_to_string(const Napi::Value& value);
