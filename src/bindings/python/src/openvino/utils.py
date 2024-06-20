@@ -42,11 +42,8 @@ def _add_openvino_libs_to_search_path() -> None:
 def get_cmake_path() -> str:
     """Searches for the directory containing CMake files within the package install directory.
 
-    Parameters:
-    None
-
-    Returns:
-    str: The path to the directory containing CMake files, if found. Otherwise, returns empty string.
+    :return: The path to the directory containing CMake files, if found. Otherwise, returns empty string.
+    :rtype: str
     """
     package_path = Path(__file__).parent
     cmake_file = "OpenVINOConfig.cmake"
