@@ -93,7 +93,7 @@ OutputVector translate_full_fx(const NodeContext& context) {
                 list_elems.push_back(converted_dim);
             }
         }
-        sizes = std::make_shared<ov::op::v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0);
+        sizes = std::make_shared<ov::op::v0::Concat>(list_elems, 0);
     } else {
         sizes = context.get_input(0);
     }
