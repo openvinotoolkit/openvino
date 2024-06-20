@@ -11,8 +11,8 @@ StringTensorUnpack
 
 **Category**: *Type*
 
-**Short description**: *StringTensorUnpack* operation transforms a given batch of strings into three tensors - one containing 
-the concatenated string data, and two other storing begin and end indices of the strings, respectively.
+**Short description**: *StringTensorUnpack* operation transforms a given batch of strings into three tensors - two storing begin 
+and end indices of the strings and another containing the concatenated string data, respectively.
 
 **Detailed description**
 
@@ -38,36 +38,20 @@ When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means t
 but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
 
 **Inputs**
-
-* **1**: *data*
-
-  * **Description**: A tensor containing a string to be unpacked. **Required.**
-  * **Range of values**: A string tensor.
-  * **Type**: ``string``
+  
+* **1**: ``data`` - ND tensor of type *string*. **Required.** 
 
 **Outputs**
 
-* **1**: *begins*:
+* **1**: ``begins`` - ND tensor of non-negative integer numbers of type *int32* and of the same shape as ``data``.
 
-  * **Description**: Indices of each string's beginnings.
-  * **Range of values**: ND tensor of non-negative integer numbers.
-  * **Type**: ``int32``
+* **2**: ``ends`` - ND tensor of non-negative integer numbers of type *int32* and of the same shape as ``data``.
 
-* **2**: *ends*:
-
-  * **Description**: Indices of each string's endings.
-  * **Range of values**: ND tensor of non-negative integer numbers.
-  * **Type**: ``int32``
-
-* **3**: *symbols*:
-
-  * **Description**: Concatenated ``input`` strings.
-  * **Range of values**: 1D tensor of concatenated strings data encoded in utf-8 bytes.
-  * **Type**: ``u8``
+* **3**: ``symbols`` - 1D tensor of concatenated strings data encoded in utf-8 bytes, of type *u8* and length ``[1]``.
 
 **Examples**
 
-*Example 1: input data as string*
+*Example 1: 1D input*
 
 For ``input = ["Intel", "OpenVINO"]``
 
@@ -76,7 +60,7 @@ For ``input = ["Intel", "OpenVINO"]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="string">
+            <port id="0" precision="STRING">
                 <dim>2</dim>     <!-- batch of strings -->
             </port>
         </input>
@@ -87,7 +71,7 @@ For ``input = ["Intel", "OpenVINO"]``
             <port id="1" precision="I32">
                 <dim>2</dim>     <!-- ends = [5, 13] -->
             </port>
-            <port id="2" precision="u8">
+            <port id="2" precision="U8">
                 <dim>13</dim>     <!-- symbols = "IntelOpenVINO" encoded in an utf-8 array -->
             </port>
         </output>
@@ -102,7 +86,7 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="string">
+            <port id="0" precision="STRING">
                 <dim>5</dim>     <!-- batch of strings -->
             </port>
         </input>
@@ -113,7 +97,7 @@ For ``input = ["OMZ", "", "GenAI", " ", "2024"]``
             <port id="1" precision="I32">
                 <dim>2</dim>     <!-- ends = [3, 3, 8, 9, 13] -->
             </port>
-            <port id="2" precision="u8">
+            <port id="2" precision="U8">
                 <dim>13</dim>    <!-- symbols = "OMZGenAI 2024" encoded in an utf-8 array -->
             </port>
         </output>
@@ -128,7 +112,7 @@ For ``input = [["Intel", "OpenVINO"], ["OMZ", "GenAI"]]``
 
     <layer ... type="StringTensorUnpack" ... >
         <input>
-            <port id="0" precision="string">
+            <port id="0" precision="STRING">
                 <dim>2</dim>
                 <dim>2</dim>
             </port>
@@ -142,7 +126,7 @@ For ``input = [["Intel", "OpenVINO"], ["OMZ", "GenAI"]]``
                 <dim>2</dim>     <!-- ends = [[5, 13], [16, 21]] -->
                 <dim>2</dim>
             </port>
-            <port id="2" precision="u8">
+            <port id="2" precision="U8">
                 <dim>21</dim>    <!-- symbols = "IntelOpenVINOOMZGenAI" encoded in an utf-8 array -->
             </port>
         </output>

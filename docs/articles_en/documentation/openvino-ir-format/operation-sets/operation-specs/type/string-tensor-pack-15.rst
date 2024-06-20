@@ -23,39 +23,22 @@ Consider inputs:
 * *symbols* = "IntelOpenVINO"
 
 *StringTensorPack* uses indices from ``begins`` and ``ends`` to transform concatenated string ``symbols`` into ``output``, 
-a batched string tensor. The ``output.shape`` is equal to ``begins.shape`` and ``ends.shape``, 
+a string tensor. The ``output.shape`` is equal to ``begins.shape`` and ``ends.shape``, 
 and in this case ``output`` holds values ``["Intel", "OpenVINO"]``.
 
 When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, 
 but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
 
 **Inputs**
+* **1**: ``begins`` - ND tensor of non-negative integer numbers of type *T_IDX*, containing indices of each string's beginnings. **Required.** 
 
-* **1**: *begins*:
+* **2**: ``ends`` - ND tensor of non-negative integer numbers of type *T_IDX*, containing indices of each string's endings. **Required.** 
 
-  * **Description**: Indices of each string's beginnings. **Required.**
-  * **Range of values**: ND tensor of non-negative integer numbers.
-  * **Type**: *T_IDX*
-
-* **2**: *ends*:
-
-  * **Description**: Indices of each string's endings. **Required.**
-  * **Range of values**: ND tensor of non-negative integer numbers.
-  * **Type**: *T_IDX*
-
-* **3**: *symbols*:
-
-  * **Description**: Concatenated ``input`` strings encoded in utf-8 bytes. **Required.**
-  * **Range of values**: 1D tensor of concatenated strings data encoded in utf-8 bytes.
-  * **Type**: ``u8``
+* **3**: ``symbols`` - 1D tensor of concatenated strings data encoded in utf-8 bytes, of type *u8*. **Required.** 
 
 **Outputs**
 
-* **1**: *output*
-
-  * **Description**: A string tensor.
-  * **Range of values**: ND string tensor of the same shape as *begins* and *ends*
-  * **Type**: ``string``
+* **1**: ``output`` - ND string tensor of the same shape as *begins* and *ends*.
 
 **Types**
 
@@ -63,7 +46,7 @@ but not including, ``b``. That is why in the example given the length of "IntelO
 
 **Examples**
 
-*Example 1: input data as string*
+*Example 1: 1D begins and ends*
 
 .. code-block:: xml
    :force:
@@ -76,12 +59,12 @@ but not including, ``b``. That is why in the example given the length of "IntelO
             <port id="1" precision="I64">
                 <dim>2</dim>     <!-- ends = [5, 13] -->
             </port>
-            <port id="2" precision="u8">
-                <dim>13</dim>    <!-- symbols = "IntelOpenVINO" -->
+            <port id="2" precision="U8">
+                <dim>13</dim>    <!-- symbols = "IntelOpenVINO" encoded in an utf-8 array -->
             </port>
         </input>
         <output>
-            <port id="0" precision="string">
+            <port id="0" precision="STRING">
                 <dim>2</dim>     <!-- output = ["Intel", "OpenVINO"] -->
             </port>
         </output>
@@ -100,12 +83,12 @@ but not including, ``b``. That is why in the example given the length of "IntelO
             <port id="1" precision="I64">
                 <dim>2</dim>     <!-- ends = [3, 3, 8, 9, 13] -->
             </port>
-            <port id="2" precision="u8">
-                <dim>13</dim>    <!-- symbols = "OMZGenAI 2024"-->
+            <port id="2" precision="U8">
+                <dim>13</dim>    <!-- symbols = "OMZGenAI 2024" encoded in an utf-8 array -->
             </port>
         </input>
         <output>
-            <port id="0" precision="string">
+            <port id="0" precision="STRING">
                 <dim>5</dim>     <!-- output = ["OMZ", "", "GenAI", " ", "2024"] -->
             </port>
         </output>
@@ -124,12 +107,12 @@ but not including, ``b``. That is why in the example given the length of "IntelO
             <port id="1" precision="I64">
                 <dim>2</dim>     <!-- ends = [1, 9] -->
             </port>
-            <port id="2" precision="u8">
-                <dim>13</dim>    <!-- symbols = "123456789"-->
+            <port id="2" precision="U8">
+                <dim>13</dim>    <!-- symbols = "123456789" encoded in an utf-8 array -->
             </port>
         </input>
         <output>
-            <port id="0" precision="string">
+            <port id="0" precision="STRING">
                 <dim>5</dim>     <!-- output = ["1", "9"] -->
             </port>
         </output>
@@ -150,12 +133,12 @@ but not including, ``b``. That is why in the example given the length of "IntelO
                 <dim>2</dim>     <!-- ends = [[5, 13], [16, 21]] -->
                 <dim>2</dim>
             </port>
-            <port id="2" precision="u8">
+            <port id="2" precision="U8">
                 <dim>21</dim>    <!-- symbols = "IntelOpenVINOOMZGenAI" -->
             </port>
         </input>
         <output>
-            <port id="0" precision="string">
+            <port id="0" precision="STRING">
                 <dim>2</dim>     <!-- output = [["Intel", "OpenVINO"], ["OMZ", "GenAI"]] -->
                 <dim>2</dim>
             </port>
