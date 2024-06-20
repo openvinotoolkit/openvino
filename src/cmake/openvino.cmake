@@ -146,6 +146,10 @@ ov_cpack_add_component(${OV_CPACK_COMP_CORE_DEV}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE} ${core_dev_components})
 
+ov_cpack_add_component(${OV_CPACK_COMP_LINKS}
+                       HIDDEN
+                       DEPENDS ${OV_CPACK_COMP_CORE_DEV})
+
 if(ENABLE_PLUGINS_XML)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
             DESTINATION ${OV_CPACK_PLUGINSDIR}
@@ -216,6 +220,11 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 #
 
 if(ENABLE_PKGCONFIG_GEN)
+
+    ov_cpack_add_component(${OV_CPACK_COMP_PKG_CONFIG}
+                        HIDDEN
+                        DEPENDS ${OV_CPACK_COMP_CORE_DEV})
+
     # fill in PKGCONFIG_OpenVINO_DEFINITIONS
     get_target_property(openvino_defs openvino INTERFACE_COMPILE_DEFINITIONS)
     foreach(openvino_def IN LISTS openvino_defs)
