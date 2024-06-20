@@ -30,6 +30,18 @@ PerfCounters& perf_counters() {
     return counters;
 }
 
+}  // namespace
+}  // namespace pass
+}  // namespace ov
+
+#endif  // ENABLE_PROFILING_ITT
+
+namespace {
+bool getenv_visualize_tracing() {
+    return ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
+}
+
+
 class stopwatch {
 public:
     void start() {
@@ -69,8 +81,8 @@ private:
 class Profiler {
 public:
     Profiler(bool visualize, bool profile_pass_enable)
-        : m_visualize(visualize),
-          m_profile_pass_enable(profile_pass_enable) {}
+            : m_visualize(visualize),
+              m_profile_pass_enable(profile_pass_enable) {}
 
     void start_timer(const std::string& name) {
         if (m_profile_pass_enable) {
@@ -97,7 +109,7 @@ public:
             auto base_filename = model->get_name() + std::string("_") + index_str + std::string("_") + name;
 
             auto file_ext = "svg";
-            pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
+            ov::pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
             vt.run_on_model(model);
         }
     }
@@ -110,16 +122,6 @@ private:
     bool m_profile_pass_enable;
 };
 
-}  // namespace
-}  // namespace pass
-}  // namespace ov
-
-#endif  // ENABLE_PROFILING_ITT
-
-namespace {
-bool getenv_visualize_tracing() {
-    return ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
-}
 }  // namespace
 
 ov::pass::Manager::Manager() : m_pass_config(std::make_shared<PassConfig>()), m_visualize(getenv_visualize_tracing()) {}
@@ -136,7 +138,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
 
 bool ov::pass::Manager::run_passes(const shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
-    ov::pass::Profiler profiler(m_visualize, ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE"));
+    Profiler profiler(m_visualize, ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE"));
 
     bool pass_applied = false;
     bool model_changed = false;
