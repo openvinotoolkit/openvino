@@ -491,8 +491,8 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
     }
     ov::element::Type inferencePrecision = ov::element::f32;
     bool inferencePrecisionSetExplicitly = false;
-    const std::string precison_key = ov::hint::inference_precision.name();
-    const auto& it = configuration.find(precison_key);
+    const std::string precisionKey = ov::hint::inference_precision.name();
+    const auto& it = configuration.find(precisionKey);
     if (it != configuration.end()) {
         auto inferencePrecisionConfig = it->second.as<ov::element::Type>();
         inferencePrecisionSetExplicitly = true;
@@ -505,9 +505,9 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
         }
     }
     if (!inferencePrecisionSetExplicitly) {
-        const std::string perf_key = ov::hint::execution_mode.name();
-        const auto& perf_it = configuration.find(perf_key);
-        if (perf_it != configuration.end() && perf_it->second.as<ov::hint::ExecutionMode>() == ov::hint::ExecutionMode::PERFORMANCE) {
+        const std::string executionModeKey = ov::hint::execution_mode.name();
+        const auto& configIt = configuration.find(executionModeKey);
+        if (configIt != configuration.end() && configIt->second.as<ov::hint::ExecutionMode>() == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
             if (ov::with_cpu_x86_bfloat16()) {
                 inferencePrecision = ov::element::bf16;
@@ -517,29 +517,29 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
         }
     }
 
-    ov::element::Type type = opPrecision;
+    ov::element::Type deducedType = opPrecision;
     // enforceInferPrecision stage
     if (inferencePrecision == ov::element::bf16) {
-        type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+        deducedType = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
     }
 
     // ngraph transform pipeline stage
     if (inferencePrecision == ov::element::f16) {
-        if (type == ov::element::f32) {
-            type = ov::element::f16;
+        if (deducedType == ov::element::f32) {
+            deducedType = ov::element::f16;
         }
     }
-    if (type == ov::element::bf16) {
-        type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
-    } else if (type == ov::element::f16) {
+    if (deducedType == ov::element::bf16) {
+        deducedType = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+    } else if (deducedType == ov::element::f16) {
         if (inferencePrecision != ov::element::f16 && inferencePrecision != ov::element::undefined) {
-            type = ov::element::f32;
+            deducedType = ov::element::f32;
         }
     } else {
-        type = ov::element::f32;
+        deducedType = ov::element::f32;
     }
 
-    return type;
+    return deducedType;
 #endif
 }
 }  // namespace CPUTestUtils
