@@ -9,7 +9,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
@@ -80,11 +79,11 @@ OutputVector translate_full_fx(const NodeContext& context) {
     num_inputs_check(context, 2, num_inputs);
     ov::Output<ov::Node> sizes;
     if (context.get_input_type(0).is<type::List>()) {
-        sizes = concat_dims_to_shape(context, 0, num_inputs-1);
+        sizes = concat_dims_to_shape(context, 0, num_inputs - 1);
     } else {
         sizes = context.get_input(0);
     }
-    auto value = context.get_input(num_inputs-1);
+    auto value = context.get_input(num_inputs - 1);
 
     auto filled_tensor = base_translate_full(context, sizes, value);
     if (context.has_attribute("dtype")) {

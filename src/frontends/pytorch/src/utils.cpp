@@ -565,7 +565,8 @@ Output<Node> concat_dims_to_shape(const NodeContext& context, size_t begin, size
             auto dim_const = ov::op::v0::Constant::create(element::i32, Shape{1}, dim_vec);
             list_elems.push_back(dim_const);
         } else {
-            auto converted_dim = context.mark_node(std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
+            auto converted_dim = context.mark_node(
+                std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
             list_elems.push_back(converted_dim);
         }
     }
