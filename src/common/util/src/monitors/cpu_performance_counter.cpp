@@ -181,7 +181,7 @@ class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
     std::map<std::string, double> get_load() {
         return {{"Total", 0.0}};
-    };
+    }
 };
 #endif
 CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
