@@ -88,13 +88,13 @@ public:
         }
     }
 
-    void visualize(const shared_ptr<ov::Model>& model, const std::string& pass_name) {
+    void visualize(const shared_ptr<ov::Model>& model, const std::string& name) {
         if (m_visualize) {
             // visualizations and serializations will be named after the outermost function
             const size_t num_digits_in_pass_index = 3;
             std::string index_str = std::to_string(m_index++);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
-            auto base_filename = model->get_name() + std::string("_") + index_str + std::string("_") + pass_name;
+            auto base_filename = model->get_name() + std::string("_") + index_str + std::string("_") + name;
 
             auto file_ext = "svg";
             pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
@@ -136,7 +136,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
 
 bool ov::pass::Manager::run_passes(const shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
-    Profiler profiler(m_visualize, ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE"));
+    ov::pass::Profiler profiler(m_visualize, ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE"));
 
     bool pass_applied = false;
     bool model_changed = false;

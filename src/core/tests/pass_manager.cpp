@@ -252,8 +252,8 @@ TEST(pass_manager, two_validations) {
     pass_manager.register_pass<TestMatcherPassFalse>();
     pass_manager.register_pass<TestModelPassFalse>();
     pass_manager.register_pass<TestValidate2>();
-    pass_manager.register_pass<TestMatcherPassTrue>();
-    pass_manager.register_pass<TestModelPassFalse>();
+    pass_manager.register_pass<TestMatcherPassFalse>();
+    pass_manager.register_pass<TestModelPassTrue>();
     pass_manager.register_pass<TestMatcherPassFalse>();
     pass_manager.register_pass<TestModelPassFalse>();
     pass_manager.register_pass<TestValidate>();
