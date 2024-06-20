@@ -15,25 +15,10 @@ OpenVINO has a powerful capabilities for performance analysis of the key stages,
 For performance analysis, follow the steps below:
 1. Run the CMake tool with the following option: `-DENABLE_PROFILING_ITT=ON` and build OpenVINO.
 2. Choose the tool for statistics collection using ITT counters.
-    1. [Intel SEAPI](https://github.com/vladislav-volkov/IntelSEAPI) should be built from sources. See the [Readme](https://github.com/vladislav-volkov/IntelSEAPI/blob/master/README.txt) file for details.
-    2. [Intel Vtune Profiler](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html)
-3. Run OpenVINO project with performance analysis tool.
 
-### Intel SEAPI
+    1. [Intel Vtune Profiler](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html)
 
-#### Example of running the tool:
-
-```sh
-python ~/tools/IntelSEAPI/runtool/sea_runtool.py -o trace -f gt ! ./benchmark_app -niter 1 -nireq 1 -nstreams 1 -api sync -m ./resnet-50-pytorch/resnest-50-pytorch.xml
-```
-
-#### Mandatory parameters:
-* -o trace – output file name
-* -f gt - statistics type to be generated (Google traces)
-
-#### Generated artifacts:
-`trace.pid-21725-0.json`
-Generated file can be opened with google chrome using "chrome://tracing" URL.
+3. Run an OpenVINO project with the performance analysis tool.
 
 ### Intel Vtune Profiler
 
@@ -56,8 +41,10 @@ Use API defined in [openvino/itt](https://docs.openvinotoolkit.org/latest/itt_2i
 
 ## See also
 
- * [OpenVINO™ README](../../../../README.md)
- * [OpenVINO Core Components](../../../README.md)
- * [OpenVINO Plugins](../../README.md)
- * [OpenVINO GPU Plugin](../README.md)
- * [Developer documentation](../../../../docs/dev/index.md)
+ * [OpenVINO™ README](../../README.md)
+ * [OpenVINO Core Components](../README.md)
+ * [OpenVINO Plugins](../plugins/README.md)
+ * [OpenVINO GPU Plugin](../plugins/intel_gpu/README.md)
+ * [OpenVINO CPU Plugin](../plugins/intel_cpu/README.md)
+ * [OpenVINO NPU Plugin](../plugins/intel_npu/README.md)
+ * [Developer documentation](../../docs/dev/index.md)
