@@ -687,6 +687,7 @@ def test_patched_16bit_model_converts():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     import copy
+    from transformers.pytorch_utils import Conv1D
 
     class ModelWithLinear(torch.nn.Module):
         def __init__(self):
@@ -698,7 +699,8 @@ def test_patched_16bit_model_converts():
                 torch.nn.ReLU()
             )
             self.branch2 = torch.nn.Sequential(
-                torch.nn.Linear(128, 64), torch.nn.ReLU()
+                Conv1D(256, 128),
+                torch.nn.Linear(256, 64), torch.nn.ReLU()
             )
             self.buffer = torch.ones(32)
 
