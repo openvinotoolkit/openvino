@@ -209,9 +209,6 @@ class JaxprPythonDecoder (Decoder):
             return ov_const.outputs()
         else:
             raise ValueError("This is not a constant node so it cannot be converted to a constant.")
-
-    def input_is_none(self, index) -> bool:
-        return self.jaxpr.invars[index] is None
         
     @staticmethod
     def convert_param_to_constant_node(jaxpr, param):
@@ -306,6 +303,3 @@ class _JaxprPythonConstantDecoder (Decoder):
     
     def as_constant(self):
         return self.constant
-
-    def input_is_none(self, index) -> bool:
-        return self.constant is None
