@@ -64,6 +64,7 @@ def test_deprecation_decorator():
 
 def test_cmake_file_found(monkeypatch):
     fake_package_path = "/fake/site-packages/openvino"
+
     def mock_walk(path):
         return [
             ("/fake/site-packages/openvino/dir1", ("subdir",), ("OpenVINOConfig.cmake", "otherfile.txt")),
@@ -80,6 +81,7 @@ def test_cmake_file_found(monkeypatch):
 
 def test_cmake_file_not_found(monkeypatch):
     fake_package_path = "/fake/site-packages/openvino"
+
     def mock_walk(path):
         return [
             ("/fake/site-packages/openvino/dir1", ("subdir",), ("otherfile.txt", "OpenVINOConfig")),
