@@ -12,10 +12,13 @@
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/config/npuw.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+
+#include "npuw/compiled_model.hpp"
 
 using namespace intel_npu;
 
@@ -206,6 +209,15 @@ Plugin::Plugin()
 
     // parse again env_variables after backend is initialized to get backend proprieties
     _globalConfig.parseEnvVars();
+
+    // initialize properties which have device-tied default values in global config
+    // *only if there is a driver available
+    if (_metrics->GetAvailableDevicesNames().size() > 0) {
+        _globalConfig.update({{ov::intel_npu::stepping.name(),
+                               std::to_string(_metrics->GetSteppingNumber(get_specified_device_name(_globalConfig)))}});
+        _globalConfig.update({{ov::intel_npu::max_tiles.name(),
+                               std::to_string(_metrics->GetMaxTiles(get_specified_device_name(_globalConfig)))}});
+    }
 
     // Map from name to function {Config -> ov::Any}
     // Note that some properties are RW before network is loaded, and become RO after network is loaded
@@ -511,7 +523,7 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
-          }}},
+          }}}
     };
 
     for (auto& property : _properties) {
@@ -560,6 +572,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "merge_configs");
+
+    // Before going any further: if
+    // ... 1 - NPUW mode is activated
+    // ... 2 - this request is NOT coming from NPUW,
+    // activate the NPUW path
+    auto useNpuwKey = ov::intel_npu::use_npuw.name();
+    if (properties.count(useNpuwKey) && properties.at(useNpuwKey).as<bool>()) {
+        return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), properties);
+    }
+
     auto localConfig = merge_configs(_globalConfig, any_copy(properties));
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
