@@ -31,7 +31,7 @@ inline std::shared_ptr<T> setName(std::shared_ptr<T> node, const std::string& na
 }
 
 
-std::shared_ptr<v0::Parameter> get_parameter_by_tensor_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+static std::shared_ptr<v0::Parameter> get_parameter_by_tensor_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     for (const auto& param : model->get_parameters()) {
         if (param->get_output_tensor(0).get_names().count(name))
             return param;
@@ -44,7 +44,7 @@ typedef std::string VariableID;
 typedef std::vector<VariableID> VariableIDs;
 
 
-void restore_kv_cache_order(VariableIDs& variables, const std::shared_ptr<ov::Model>& model) {
+static void restore_kv_cache_order(VariableIDs& variables, const std::shared_ptr<ov::Model>& model) {
     // Try to restore variable order based on the known naming convention from optimum-intel
     // If names are not satisfy the expected convention, fallback to use order of Assigns in the model->get_sinks()
 
@@ -52,13 +52,13 @@ void restore_kv_cache_order(VariableIDs& variables, const std::shared_ptr<ov::Mo
 }
 
 
-std::string variable_id_to_input_name(const VariableID variable_id) {
+static std::string variable_id_to_input_name(const VariableID variable_id) {
     // TODO: Restore original input name based on optimum-intel convention
     return "input_restored." + variable_id;
 }
 
 
-std::string variable_id_to_output_name(const VariableID variable_id) {
+static std::string variable_id_to_output_name(const VariableID variable_id) {
     // TODO: Restore original output name based on optimum-intel convention
     return "output_restored." + variable_id;
 }
@@ -117,9 +117,8 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
                 assign->input_value(0)),
             variable_id_to_output_name(variable_id));
 
-        replace_node(assign, result);
-
-        model->remove_sink(assign);
+        model->remove_sink(assign);  // Don't do replace_node(assign, result)! It will lead to silently incorrect model.
+        model->remove_variable(model->get_variable_by_id(variable_id));
         new_parameters.push_back(parameter);
         new_results.push_back(result);
     }
