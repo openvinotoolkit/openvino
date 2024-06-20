@@ -69,7 +69,7 @@ Prerequisites
     import random
     import torch
     import time
-    
+
     from diffusers import StableDiffusionPipeline, StableDiffusionImg2ImgPipeline
     import ipywidgets as widgets
 
@@ -103,7 +103,7 @@ The code below demonstrates how to create the
 .. code:: ipython3
 
     model_id = "stabilityai/stable-diffusion-2-1-base"
-    
+
     # Pipeline for text-to-image generation
     pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
 
@@ -130,14 +130,18 @@ lets you enable `OpenVINO <https://docs.openvino.ai/2024/home.html>`__
 support for PyTorch models with minimal changes to the original PyTorch
 script. It speeds up PyTorch code by JIT-compiling it into optimized
 kernels. By default, Torch code runs in eager-mode, but with the use of
-torch.compile it goes through the following steps: 1. Graph acquisition
-- the model is rewritten as blocks of subgraphs that are either: -
-compiled by TorchDynamo and “flattened”, - falling back to the
-eager-mode, due to unsupported Python constructs (like control-flow
-code). 2. Graph lowering - all PyTorch operations are decomposed into
-their constituent kernels specific to the chosen backend. 3. Graph
-compilation - the kernels call their corresponding low-level
-device-specific operations.
+torch.compile it goes through the following steps:
+
+1. Graph acquisition - the model is rewritten as blocks of subgraphs that are either:
+
+   - compiled by TorchDynamo and “flattened”,
+   - falling back to the eager-mode, due to unsupported Python constructs (like control-flow
+     code).
+
+2. Graph lowering - all PyTorch operations are decomposed into  their constituent kernels
+   specific to the chosen backend.
+3. Graph compilation - the kernels call their corresponding low-level
+   device-specific operations.
 
 Select device for inference and enable or disable saving the optimized
 model files to a hard drive, after the first application run. This makes
@@ -149,7 +153,7 @@ options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#opti
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -157,7 +161,7 @@ options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#opti
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -177,7 +181,7 @@ options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#opti
         description="Model caching:",
         disabled=False,
     )
-    
+
     model_caching
 
 
@@ -198,7 +202,7 @@ backend:
 
     # this import is required to activate the openvino backend for torchdynamo
     import openvino.torch  # noqa: F401
-    
+
     pipe.unet = torch.compile(
         pipe.unet,
         backend="openvino",
@@ -244,12 +248,12 @@ pipeline. Optionally, you can also change some input parameters.
 .. code:: ipython3
 
     time_stamps = []
-    
-    
+
+
     def callback(iter, t, latents):
         time_stamps.append(time.time())
-    
-    
+
+
     def error_str(error, title="Error"):
         return (
             f"""#### {title}
@@ -257,12 +261,12 @@ pipeline. Optionally, you can also change some input parameters.
             if error
             else ""
         )
-    
-    
+
+
     def on_mode_change(mode):
         return gr.update(visible=mode == modes["img2img"]), gr.update(visible=mode == modes["txt2img"])
-    
-    
+
+
     def inference(
         inf_mode,
         prompt,
@@ -279,7 +283,7 @@ pipeline. Optionally, you can also change some input parameters.
             seed = random.randint(0, 10000000)
         generator = torch.Generator().manual_seed(seed)
         res = None
-    
+
         global time_stamps, pipe
         time_stamps = []
         try:
@@ -324,7 +328,7 @@ pipeline. Optionally, you can also change some input parameters.
                 ).images
         except Exception as e:
             return None, None, gr.update(visible=True, value=error_str(e))
-    
+
         warmup_duration = time_stamps[1] - time_stamps[0]
         generation_rate = (steps - 1) / (time_stamps[-1] - time_stamps[1])
         res_info = "Warm up time: " + str(round(warmup_duration, 2)) + " secs "
@@ -332,23 +336,23 @@ pipeline. Optionally, you can also change some input parameters.
             res_info = res_info + ", Performance: " + str(round(generation_rate, 2)) + " it/s "
         else:
             res_info = res_info + ", Performance: " + str(round(1 / generation_rate, 2)) + " s/it "
-    
+
         return (
             res,
             gr.update(visible=True, value=res_info),
             gr.update(visible=False, value=None),
         )
-    
-    
+
+
     modes = {
         "txt2img": "Text to Image",
         "img2img": "Image to Image",
     }
-    
+
     with gr.Blocks(css="style.css") as demo:
         gr.HTML(
             f"""
-                Model used: {model_id}         
+                Model used: {model_id}
             """
         )
         with gr.Row():
@@ -365,13 +369,13 @@ pipeline. Optionally, you can also change some input parameters.
                     )
                     res_img = gr.Gallery(label="Generated images", show_label=False)
                 error_output = gr.Markdown(visible=False)
-    
+
             with gr.Column(scale=40):
                 generate = gr.Button(value="Generate")
-    
+
                 with gr.Group():
                     inf_mode = gr.Dropdown(list(modes.values()), label="Inference Mode", value=modes["txt2img"])
-    
+
                     with gr.Column(visible=False) as i2i:
                         image = gr.Image(label="Image", height=128, type="pil")
                         strength = gr.Slider(
@@ -381,23 +385,23 @@ pipeline. Optionally, you can also change some input parameters.
                             step=0.01,
                             value=0.5,
                         )
-    
+
                 with gr.Group():
                     with gr.Row() as txt2i:
                         width = gr.Slider(label="Width", value=512, minimum=64, maximum=1024, step=8)
                         height = gr.Slider(label="Height", value=512, minimum=64, maximum=1024, step=8)
-    
+
                 with gr.Group():
                     with gr.Row():
                         steps = gr.Slider(label="Steps", value=20, minimum=1, maximum=50, step=1)
                         guidance = gr.Slider(label="Guidance scale", value=7.5, maximum=15)
-    
+
                     seed = gr.Slider(-1, 10000000, label="Seed (-1 = random)", value=-1, step=1)
-    
+
                 res_info = gr.Markdown(visible=False)
-    
+
         inf_mode.change(on_mode_change, inputs=[inf_mode], outputs=[i2i, txt2i], queue=False)
-    
+
         inputs = [
             inf_mode,
             prompt,
@@ -410,16 +414,16 @@ pipeline. Optionally, you can also change some input parameters.
             strength,
             neg_prompt,
         ]
-    
+
         outputs = [res_img, res_info, error_output]
         prompt.submit(inference, inputs=inputs, outputs=outputs)
         generate.click(inference, inputs=inputs, outputs=outputs)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    
+
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -428,7 +432,7 @@ pipeline. Optionally, you can also change some input parameters.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
