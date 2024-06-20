@@ -6,7 +6,6 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/util/file_util.hpp"
 
 #define MOCK_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 
@@ -135,17 +134,8 @@ public:
     bool supported_impl(const std::vector<ov::Any>& variants) const override {
         // Last boolean flag in `variants` (if presented) is reserved for FE configuration
         size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
-        if (variants.size() == 1 + extra_variants_num &&
-            (variants[0].is<std::string>() || variants[0].is<std::wstring>())) {
-            std::string command;
-            if (variants[0].is<std::string>()) {
-                command = variants[0].as<std::string>();
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            } else if (variants[0].is<std::wstring>()) {
-                auto wcommand = variants[0].as<std::wstring>();
-                command = ov::util::wstring_to_string(wcommand);
-#endif
-            }
+        if (variants.size() == 1 + extra_variants_num && variants[0].is<std::string>()) {
+            std::string command = variants[0].as<std::string>();
             FRONT_END_GENERAL_CHECK(command != "throw_now", "Test exception");
         }
         return false;
@@ -159,17 +149,8 @@ public:
         // Last boolean flag in `variants` (if presented) is reserved for FE configuration
         size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
         auto input_model = std::make_shared<InputModelMock>();
-        if (variants.size() == 1 + extra_variants_num &&
-            (variants[0].is<std::string>() || variants[0].is<std::wstring>())) {
-            std::string command;
-            if (variants[0].is<std::string>()) {
-                command = variants[0].as<std::string>();
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            } else if (variants[0].is<std::wstring>()) {
-                auto wcommand = variants[0].as<std::wstring>();
-                command = ov::util::wstring_to_string(wcommand);
-#endif
-            }
+        if (variants.size() == 1 + extra_variants_num && variants[0].is<std::string>()) {
+            std::string command = variants[0].as<std::string>();
             if (command == "throw_now") {
                 OPENVINO_THROW("Test throw load input model");
             } else if (command == "throw_next") {

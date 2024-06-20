@@ -17,6 +17,7 @@ from common.layer_test_class import CommonLayerTest
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.utils.tf_utils import save_to_pb
 
+
 def create_tf_graph_def(tmp_dir):
     tf.compat.v1.reset_default_graph()
 
