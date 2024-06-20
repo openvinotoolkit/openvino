@@ -30,7 +30,6 @@ RUN apt-get update && \
         scons \
         ninja-build \
         build-essential \
-        cmake \
         # Python
         python3-dev \
         python3-venv \
@@ -62,15 +61,18 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Install Android SDK, NDK and Tools
-ENV ANDROID_TOOLS /android_tools
-ENV ANDROID_NDK_HOME ${ANDROID_TOOLS}/ndk-bundle
-RUN mkdir -p ${ANDROID_NDK_HOME}
-ENV ANDROID_SDK_VERSION 29
+# Install cmake, vcpkg requires 3.19 or later
+RUN python3 -m pip install cmake~=3.28.0
 
-RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
-    unzip commandlinetools-linux-7583922_latest.zip
-RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"
+# Install Android SDK, NDK and Tools
+#ENV ANDROID_TOOLS /android_tools
+#ENV ANDROID_NDK_HOME ${ANDROID_TOOLS}/ndk-bundle
+#RUN mkdir -p ${ANDROID_NDK_HOME}
+#ENV ANDROID_SDK_VERSION 29
+#
+#RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
+#    unzip commandlinetools-linux-7583922_latest.zip
+#RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"

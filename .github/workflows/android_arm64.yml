@@ -134,10 +134,15 @@ jobs:
       # Dependencies
       #
 
-#      - name: Install dependencies
-#        run: |
-#          # vcpkg requires cmake 3.19 or later
-#          python3 -m pip install -U pip cmake~=3.28.0
+      - name: Install dependencies
+        run: |
+          # vcpkg requires cmake 3.19 or later
+          # python3 -m pip install -U pip cmake~=3.28.0
+          # Install Android SDK, NDK and Tools
+          apt update && apt -y --no-install-recommends install unzip wget default-jdk
+          wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
+          unzip commandlinetools-linux-7583922_latest.zip
+          echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
 
       #
       # Build
