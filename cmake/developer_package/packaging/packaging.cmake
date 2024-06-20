@@ -179,7 +179,7 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES "install_dependencies")
     set(OV_CPACK_COMP_SETUPVARS "setupvars")
     # symbolic_links
-    set(OV_CPACK_COMP_LINKS "ov_links")
+    set(OV_CPACK_COMP_LINKS "core_dev_links")
     # pkgconfig
     set(OV_CPACK_COMP_PKG_CONFIG "core_dev_pkgconfig")
 endmacro()
