@@ -631,7 +631,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
-    SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineStart, ConvertToSwishCPU);
+    SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineStart, ConvertToSwishCPU);
     if (context->getConfig().inferencePrecision == ov::element::bf16 && subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
