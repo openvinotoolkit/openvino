@@ -28,16 +28,8 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     // older drivers
     pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
     ze_result_t retpci = zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &pci_properties);
-    if (ZE_RESULT_SUCCESS == retpci) {
-        // windows driver specific backwards compatibility
-        if (pci_properties.address.device == 0) {
-            log.warning("PCI information not available in driver. Falling back to deviceId");
-            pci_properties.address.device = device_properties.deviceId;
-        }
-    } else {
-        // general backwards compatibility
-        log.warning("PCI information not available in driver. Falling back to deviceId");
-        pci_properties.address.device = device_properties.deviceId;
+    if (ZE_RESULT_SUCCESS != retpci) {
+        log.warning("PCI bus information not available in driver.");
     }
 
     /// Calculate and store device GOPS with formula: frequency * number of tiles * ops per tile
@@ -154,7 +146,8 @@ ov::device::PCIInfo ZeroDevice::getPciInfo() const {
     return ov::device::PCIInfo{pci_properties.address.domain,
                                pci_properties.address.bus,
                                pci_properties.address.device,
-                               pci_properties.address.function};
+                               pci_properties.address.function,
+                               device_properties.deviceId};
 }
 
 std::map<ov::element::Type, float> ZeroDevice::getGops() const {
