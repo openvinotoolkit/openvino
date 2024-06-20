@@ -30,11 +30,12 @@ class JaxprPythonDecoder (Decoder):
                     - `aval`: the abstract value.
                 - `outvars`: the output variables of the equation.
                     - `aval`: the abstract value.
-            - `invars`: the input variables of the equation.
+                - `params`: the named params of this equation.
+            - `invars`: the inputs of the model (traced graph).
                 - `aval`: the abstract value.
-            - `outvars`: the output variables of the equation.
+            - `outvars`: the outputs of the model (traced graph).
                 - `aval`: the abstract value.
-            - `constvars`: the constant variables.
+            - `constvars`: the constant variables used in this model.
                 - `aval`: the abstract value.
         - `Literal`: the literal object that contains the value of the constants.
     '''
