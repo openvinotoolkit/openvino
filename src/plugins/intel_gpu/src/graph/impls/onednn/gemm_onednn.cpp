@@ -139,23 +139,18 @@ protected:
         };
 
         // Check whether transpose_order has transpose only to the last two elements.
-        // Retur true when transpose_order is 0, 1, 3, 2.
+        // Return true when transpose_order is 0, 1, 3, 2.
         auto has_transpose_order_xy_only = [](std::vector<int64_t> transpose_order) {
-            for (size_t i = 0; i < transpose_order.size(); i++) {
-                if (i < transpose_order.size() - 2) {
-                    if (i != static_cast<size_t>(transpose_order[i])) {
-                        return false;
-                    }
-                } else if (i == transpose_order.size() - 2) {   // last -1
-                    if (i != static_cast<size_t>(transpose_order[transpose_order.size() - 1])) {
-                        return false;
-                    }
-                } else {    // last
-                    if (i != static_cast<size_t>(transpose_order[transpose_order.size() - 2])) {
-                        return false;
-                    }
+            for (size_t i = 0; i < transpose_order.size() - 2; i++) {
+                if (i != static_cast<size_t>(transpose_order[i])) {
+                    return false;
                 }
             }
+            size_t last_idx = transpose_order.size() - 1;
+            if (static_cast<size_t>(transpose_order[last_idx]) != last_idx - 1)
+                return false;
+            if (static_cast<size_t>(transpose_order[last_idx - 1]) != last_idx)
+                return false;
             return true;
         };
 
