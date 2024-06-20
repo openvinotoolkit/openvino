@@ -176,7 +176,7 @@ void regmodule_properties(py::module m) {
     cls_pciinfo.def_readonly("bus", &ov::device::PCIInfo::bus);
     cls_pciinfo.def_readonly("device", &ov::device::PCIInfo::device);
     cls_pciinfo.def_readonly("function", &ov::device::PCIInfo::function);
-    cls_pciinfo.def_readonly("function", &ov::device::PCIInfo::product);
+    cls_pciinfo.def_readonly("product", &ov::device::PCIInfo::product);
     cls_pciinfo.def("__repr__", [](const ov::device::PCIInfo& info) {
         std::stringstream pciinfo_stream;
         pciinfo_stream << info;
