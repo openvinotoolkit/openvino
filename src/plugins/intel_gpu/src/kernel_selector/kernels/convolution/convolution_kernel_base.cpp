@@ -163,7 +163,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
 
 void ConvolutionKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        GPU_DEBUG_INFO << "kd.update_dispatch_data_func !!!" << std::endl;
         const auto& prim_params = static_cast<const convolution_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");

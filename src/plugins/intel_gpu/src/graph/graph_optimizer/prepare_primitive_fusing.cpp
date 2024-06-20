@@ -53,8 +53,6 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
-    // temporarily disable fusion because of conv_fsv16_1x1 has an issue with block_size > 1
-    // return;
     fuse_reorders(p);
     remove_redundant_reshape(p);
     fuse_bias(p);
@@ -198,30 +196,32 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
 
         if (node->get_output_layout().is_dynamic()) {
-            #if 0
-            auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
-            // if (!eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>())
-            //     continue;
-            if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
-                continue;
-            // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
-            // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
-            auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
-            int32_t count_elements_not_one = 0;
-            int32_t idx_element_not_one = -1;
-            for (size_t i = 0; i < const_shape.size(); ++i) {
-                if (const_shape[i] != 1) {
-                    count_elements_not_one++;
-                    idx_element_not_one = static_cast<int32_t>(i);
+            if (eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>()) {
+                auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
+                if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
+                    continue;
+
+                // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
+                // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
+                auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
+                int32_t count_elements_not_one = 0;
+                int32_t idx_element_not_one = -1;
+                for (size_t i = 0; i < const_shape.size(); ++i) {
+                    if (const_shape[i] != 1) {
+                        count_elements_not_one++;
+                        idx_element_not_one = static_cast<int32_t>(i);
+                    }
+                    if (count_elements_not_one > 1)
+                        break;
                 }
-                if (count_elements_not_one > 1)
-                    break;
-            }
-            if (count_elements_not_one != 1 ||
-                (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+
+                if (count_elements_not_one != 1 ||
+                    (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+                    continue;
+                }
+            } else if (!eltw_node.get_dependency(non_const_dep_idx).is_type<convolution>()) {
                 continue;
             }
-            #endif
         } else {
             cldnn::tensor::value_type out_features = node->get_output_layout().feature();
             bool is_3d_fc = false;

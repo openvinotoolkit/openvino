@@ -22,22 +22,28 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionKernel_b_fs_yx_fsv16_1x1() : Con
 
 ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16_1x1::GetAutoTuneOptions(const Params& params,
                                                                                                             int /*autoTuneIndex*/) const {
-    const convolution_params& cp = static_cast<const convolution_params&>(params);
+    if (!params.is_shape_agnostic) {
+        const convolution_params& cp = static_cast<const convolution_params&>(params);
 
-    auto x = cp.outputs[0].X().v;
-    auto y = cp.outputs[0].Y().v;
-    auto f = cp.outputs[0].Feature().v;
+        auto x = cp.outputs[0].X().v;
+        auto y = cp.outputs[0].Y().v;
+        auto f = cp.outputs[0].Feature().v;
 
-    if (x == 1 && y == 1) {
-        return { 1, EXE_MODE_DEFAULT };
-    } else if (x * f <= 256) {
-        if (x < 8 || x * f <= 128)
-            return { 2, EXE_MODE_DEFAULT };
-        else
+        if (x == 1 && y == 1) {
+            return { 1, EXE_MODE_DEFAULT };
+        } else if (x * f <= 256) {
+            if (x < 8 || x * f <= 128)
+                return { 2, EXE_MODE_DEFAULT };
+            else
+                return { 4, EXE_MODE_DEFAULT };
+        } else if (x * f <= 1536) {
             return { 4, EXE_MODE_DEFAULT };
-    } else if (x * f <= 1536) {
-        return { 4, EXE_MODE_DEFAULT };
+        } else {
+            return { 8, EXE_MODE_DEFAULT };
+        }
     } else {
+        // In shape agnostic kernel, the output shape cannot be specified at build time,
+        // So we set blockWidth to 8, which is the most commonly used.
         return { 8, EXE_MODE_DEFAULT };
     }
 }
@@ -60,33 +66,21 @@ float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_p
 ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetTuningParams(const convolution_params& params) const {
     ConvolutionTuningData tuning_data;
 
-    // GPU_DEBUG_INFO << params.has_dynamic_inputs() << ", " << params.has_dynamic_outputs() << ", " << params.has_dynamic_tensors() << std::endl;
-    // if (!params.has_dynamic_tensors()) {
+    if (!params.is_shape_agnostic) {
         const auto& input = params.inputs[0];
-
-        size_t ic_blocks = CeilDiv(input.Feature().v, tuning_data.feature_block_size);
-
-        size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
         bool block_size_one_is_better = params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && input.Feature().v >= 2048;
 
-        // clEnqueueNDRangeKernel, error code: -54
-        // because of invalid SLM_DIV_FACTOR in __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE * SLM_DIV_FACTOR, 1)))
-        // Need to update proper SLM_DIV_FACTOR after shape updated.
-        // // if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !block_size_one_is_better)
-        // if (params.engineInfo.supports_imad && !block_size_one_is_better)
-        //     while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
-        //         EstimateOccupancy(params, tuning_data) < 4.0)
-        //         tuning_data.slm_div_factor *= 2;
+        if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !block_size_one_is_better) {
+            size_t ic_blocks = CeilDiv(input.Feature().v, tuning_data.feature_block_size);
+            size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
 
-        tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;
+            while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
+                EstimateOccupancy(params, tuning_data) < 4.0)
+                tuning_data.slm_div_factor *= 2;
+        }
+    }
 
-        GPU_DEBUG_INFO << params.layerID << " : " << static_cast<int>(params.engineInfo.deviceType) << ", "
-                        << params.engineInfo.supports_imad << ", " << block_size_one_is_better << " : "
-                        << tuning_data.work_group_size << " = " << tuning_data.slm_div_factor << " * " << tuning_data.sub_group_size << " : "
-                        << params.outputs[0].X().v << " , " << params.outputs[0].Y().v << ", " << input.Feature().v << " : "
-                        << max_slm_div_factor << " =  " << params.engineInfo.maxWorkGroupSize << " / " << tuning_data.sub_group_size << " : "
-                        << ic_blocks << ", " << input.Feature().v << ", " << tuning_data.feature_block_size << std::endl;
-    // }
+    tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;
 
     return tuning_data;
 }
@@ -148,24 +142,28 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
 }
 
 KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Params& params) const {
-    const auto& p = static_cast<const convolution_params&>(params);
-    auto autoTune = GetAutoTuneOptions(params, -1);
+    if (!params.is_shape_agnostic) {
+        const auto& p = static_cast<const convolution_params&>(params);
+        auto autoTune = GetAutoTuneOptions(params, -1);
 
-    const auto& input = p.inputs[0];
-    const auto& out = p.outputs[0];
+        const auto& input = p.inputs[0];
+        const auto& out = p.outputs[0];
 
-    auto bBlockSizeX = out.X().v % autoTune.blockWidth == 0;
-    auto bBlockSizeXY = out.X().pad.Total() + out.Y().pad.Total() == 0;
-    auto bInputPad = input.X().pad.Total() + input.Y().pad.Total() != 0;
+        auto bBlockSizeX = out.X().v % autoTune.blockWidth == 0;
+        auto bBlockSizeXY = out.X().pad.Total() + out.Y().pad.Total() == 0;
+        auto bInputPad = input.X().pad.Total() + input.Y().pad.Total() != 0;
 
-    if (out.Batch().v == 1) {
-        if ((bBlockSizeX || bBlockSizeXY) && !bInputPad) {
-            return FORCE_PRIORITY_1;
+        if (out.Batch().v == 1) {
+            if ((bBlockSizeX || bBlockSizeXY) && !bInputPad) {
+                return FORCE_PRIORITY_1;
+            } else {
+                return FORCE_PRIORITY_3;
+            }
         } else {
-            return FORCE_PRIORITY_3;
+            return FORCE_PRIORITY_7;
         }
     } else {
-        return FORCE_PRIORITY_7;
+        return FORCE_PRIORITY_1;
     }
 }
 
@@ -181,7 +179,8 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    const bool bOutputSizes = output.X().v != input.X().v || output.Y().v != input.Y().v || output.Feature().v % 16 != 0;
+    const bool bOutputSizes = (!params.is_shape_agnostic && (output.X().v != input.X().v || output.Y().v != input.Y().v)) ||
+                                output.Feature().v % 16 != 0;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
     const bool bStride = params.stride.x != 1 || params.stride.y != 1;
     const bool bPadding = input.Feature().pad.before % tuning_data.feature_block_size != 0 ||
@@ -235,65 +234,78 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
 
     GPU_DEBUG_INFO << params.layerID << " : params.fused_ops.empty(): " << params.fused_ops.empty() << std::endl;
 
+    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", blockWidth));
+    jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", tuning_data.sub_group_size));
-    jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
+    jit.AddConstant(MakeJitConstant("WORK_GROUP_SIZE", tuning_data.work_group_size));
 
-    bool padded_output = params.outputs[0].X().pad.Total() != 0;
-    bool non_unit_fused_op_spatial = false;
+    if (!params.has_dynamic_inputs()) {
+        jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
 
-    // Set padded_output to true when fused inputs have paddings to have correct blocked loads
-    for (auto& fused_op : params.fused_ops) {
-        for (auto& t : fused_op.tensors) {
-            if (t.PitchesDifferFromLogicalDims()) {
-                padded_output = true;
-            }
-            if ((t.X().v > 1) ||
-                (t.Y().v > 1) ||
-                (t.Z().v > 1) ||
-                (t.W().v > 1)) {
-                non_unit_fused_op_spatial = true;
+        bool padded_output = params.outputs[0].X().pad.Total() != 0;
+        bool non_unit_fused_op_spatial = false;
+
+        // Set padded_output to true when fused inputs have paddings to have correct blocked loads
+        for (auto& fused_op : params.fused_ops) {
+            for (auto& t : fused_op.tensors) {
+                if (t.PitchesDifferFromLogicalDims()) {
+                    padded_output = true;
+                }
+                if ((t.X().v > 1) ||
+                    (t.Y().v > 1) ||
+                    (t.Z().v > 1) ||
+                    (t.W().v > 1)) {
+                    non_unit_fused_op_spatial = true;
+                }
             }
         }
-    }
 
-    jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", padded_output));
-    jit.AddConstant(MakeJitConstant("NON_UNIT_FUSED_OP_SPATIAL", non_unit_fused_op_spatial));
-    if (params.has_dynamic_tensors()) {
-        // const convolution_params& cp = static_cast<const convolution_params&>(params);
-        // DimensionAccessHelperJit dims0(cp.outputs[0]);
-        // auto x = dims0.x();
-        // auto y = dims0.y();
-        // auto f = dims0.f();
+        jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", padded_output));
+        jit.AddConstant(MakeJitConstant("NON_UNIT_FUSED_OP_SPATIAL", non_unit_fused_op_spatial));
 
-        // auto blockWidth_str = "(" + x
-
-        // if (x == 1 && y == 1) {
-        //     return { 1, EXE_MODE_DEFAULT };
-        // } else if (x * f <= 256) {
-        //     if (x < 8 || x * f <= 128)
-        //         return { 2, EXE_MODE_DEFAULT };
-        //     else
-        //         return { 4, EXE_MODE_DEFAULT };
-        // } else if (x * f <= 1536) {
-        //     return { 4, EXE_MODE_DEFAULT };
-        // } else {
-        //     return { 8, EXE_MODE_DEFAULT };
-        // }
-        jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", 8));
-        jit.AddConstant(MakeJitConstant("X_BLOCKS", 8));
+        jit.AddConstant(MakeJitConstant("IC_BLOCKS", CeilDiv(params.inputs[0].Feature().v, tuning_data.feature_block_size)));
+        if (params.outputs[0].Feature().v % tuning_data.feature_block_size != 0) {
+            jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
+        }
+        if (params.inputs[0].Feature().v % tuning_data.feature_block_size != 0) {
+            jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
+        }
     } else {
-        jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", blockWidth));
-        jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, blockWidth)));
-    }
+        DimensionAccessHelperJit input0_dims(params.inputs[0]);
+        DimensionAccessHelperJit input0_padded_dims(params.inputs[0], true);
+        DimensionAccessHelperJit output_dims(params.outputs[0]);
+        DimensionAccessHelperJit output_padded_dims(params.outputs[0], true);
 
-    jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
-    jit.AddConstant(MakeJitConstant("WORK_GROUP_SIZE", tuning_data.work_group_size));
-    jit.AddConstant(MakeJitConstant("IC_BLOCKS", CeilDiv(params.inputs[0].Feature().v, tuning_data.feature_block_size)));
-    if (params.outputs[0].Feature().v % tuning_data.feature_block_size != 0) {
-        jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
-    }
-    if (params.inputs[0].Feature().v % tuning_data.feature_block_size != 0) {
-        jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
+        const auto padded_input = "(" + input0_padded_dims.x_pad().first + "+" + input0_padded_dims.x_pad().first + ") != 0";
+        jit.AddConstant(MakeJitConstant("PADDED_INPUT", padded_input));
+
+        const auto padded_output = "(" + output_padded_dims.x_pad().first + "+" + output_padded_dims.x_pad().first + ") != 0";
+        jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", padded_output));
+
+        // In shape agnostic kernel, the fused shape cannot be specified at build time or run time.
+        // Currently simply check whether fused_op is dynmaic. Need to further follow up like static behavior.
+        bool non_unit_fused_op_spatial = false;
+        for (auto& fused_op : params.fused_ops) {
+            for (auto& t : fused_op.tensors) {
+                if (t.is_dynamic()) {
+                    non_unit_fused_op_spatial = true;
+                    break;
+                }
+            }
+        }
+        jit.AddConstant(MakeJitConstant("NON_UNIT_FUSED_OP_SPATIAL", non_unit_fused_op_spatial));
+
+        const auto feature_block_size = std::to_string(tuning_data.feature_block_size);
+        const auto ic_blocks = "(" + input0_dims.f() + "+" + feature_block_size + " - 1) / " + feature_block_size;
+        jit.AddConstant(MakeJitConstant("IC_BLOCKS", ic_blocks));
+
+        const auto output_leftover_num = "(" + output_dims.f() + "%" + feature_block_size + ")";
+        const auto output_leftover = "(" + output_leftover_num + "!= 0)";
+        jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", output_leftover));
+
+        const auto input_leftover_num = "(" + input0_dims.f() + "%" + feature_block_size + ")";
+        const auto input_leftover = "(" + input_leftover_num + "!= 0)";
+        jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", input_leftover));
     }
 
     return jit;
