@@ -21,6 +21,9 @@ class typed_primitive_inst<matrix_nms> : public typed_primitive_inst_base<matrix
 public:
     typed_primitive_inst(network& network, const matrix_nms_node& node) : parent(network, node) {}
 
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(matrix_nms_node const& /*node*/, const kernel_impl_params& impl_param);
+
     static layout calc_output_layout(const matrix_nms_node& node, const kernel_impl_params& impl_param);
     static std::string to_string(const matrix_nms_node& node);
 

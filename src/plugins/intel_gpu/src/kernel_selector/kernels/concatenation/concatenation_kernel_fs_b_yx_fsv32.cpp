@@ -122,7 +122,8 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         kernel.params.scalars.push_back(s);
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
-        size_t concatChannelIndex = (size_t)DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
+        auto concatChannelIndex = DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
+        OPENVINO_ASSERT(concatChannelIndex >= 0, "concatChannelIndex shouldn't be negative");
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
     }
 

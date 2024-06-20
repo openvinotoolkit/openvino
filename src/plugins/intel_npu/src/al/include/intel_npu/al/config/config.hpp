@@ -33,15 +33,11 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                    \
-    template <>                               \
-    struct TypePrinter<type> {                \
-        static constexpr bool hasName() {     \
-            return true;                      \
-        }                                     \
-        static constexpr const char* name() { \
-            return #type;                     \
-        }                                     \
+#define TYPE_PRINTER(type)                                    \
+    template <>                                               \
+    struct TypePrinter<type> {                                \
+        static constexpr bool hasName() { return true; }      \
+        static constexpr const char* name() { return #type; } \
     };
 
 TYPE_PRINTER(bool)
@@ -52,6 +48,7 @@ TYPE_PRINTER(unsigned int)
 TYPE_PRINTER(int64_t)
 TYPE_PRINTER(double)
 TYPE_PRINTER(std::string)
+TYPE_PRINTER(std::size_t)
 
 //
 // OptionParser
@@ -97,14 +94,36 @@ struct OptionParser<ov::log::Level> final {
     static ov::log::Level parse(std::string_view val);
 };
 
+template <>
+struct OptionParser<ov::hint::ExecutionMode> final {
+    static ov::hint::ExecutionMode parse(std::string_view val);
+};
+
 void splitAndApply(const std::string& str, char delim, std::function<void(std::string_view)> callback);
 
 template <typename T>
 struct OptionParser<std::vector<T>> final {
     static std::vector<T> parse(std::string_view val) {
         std::vector<T> res;
-        splitAndApply(val, ',', [&](std::string_view item) {
+        std::string val_str(val);
+        splitAndApply(val_str, ',', [&](std::string_view item) {
             res.push_back(OptionParser<T>::parse(item));
+        });
+        return res;
+    }
+};
+
+template <typename K, typename V>
+struct OptionParser<std::map<K, V>> final {
+    static std::map<K, V> parse(std::string_view val) {
+        std::map<K, V> res;
+        std::string val_str(val);
+        splitAndApply(val_str, ',', [&](std::string_view item) {
+            auto kv_delim_pos = item.find(":");
+            OPENVINO_ASSERT(kv_delim_pos != std::string::npos);
+            K key = OptionParser<K>::parse(std::string_view(item.substr(0, kv_delim_pos)));
+            V value = OptionParser<V>::parse(std::string_view(item.substr(kv_delim_pos + 1)));
+            res[key] = value;
         });
         return res;
     }
@@ -164,6 +183,11 @@ struct OptionPrinter<std::chrono::duration<Rep, Period>> final {
 template <>
 struct OptionPrinter<ov::log::Level> final {
     static std::string toString(ov::log::Level val);
+};
+
+template <>
+struct OptionPrinter<ov::hint::ExecutionMode> final {
+    static std::string toString(ov::hint::ExecutionMode val);
 };
 
 //

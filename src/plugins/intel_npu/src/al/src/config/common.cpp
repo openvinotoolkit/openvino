@@ -21,6 +21,7 @@ void intel_npu::registerCommonOptions(OptionsDesc& desc) {
     desc.add<DEVICE_ID>();
     desc.add<CACHE_DIR>();
     desc.add<LOADED_FROM_CACHE>();
+    desc.add<BATCH_MODE>();
 }
 
 //
@@ -52,4 +53,28 @@ ov::hint::PerformanceMode intel_npu::PERFORMANCE_HINT::parse(std::string_view va
     }
 
     OPENVINO_THROW("Value '", val, "' is not a valid PERFORMANCE_HINT option");
+}
+
+//
+// BATCH_MODE
+//
+
+ov::intel_npu::BatchMode intel_npu::BATCH_MODE::parse(std::string_view val) {
+    if (val == "AUTO") {
+        return ov::intel_npu::BatchMode::AUTO;
+    } else if (val == "COMPILER") {
+        return ov::intel_npu::BatchMode::COMPILER;
+    } else if (val == "PLUGIN") {
+        return ov::intel_npu::BatchMode::PLUGIN;
+    }
+
+    OPENVINO_THROW("Value '", val, "'is not a valid BATCH_MODE option");
+}
+
+std::string intel_npu::BATCH_MODE::toString(const ov::intel_npu::BatchMode& val) {
+    std::stringstream strStream;
+
+    strStream << val;
+
+    return strStream.str();
 }

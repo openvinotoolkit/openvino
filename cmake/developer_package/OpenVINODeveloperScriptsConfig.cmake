@@ -92,6 +92,7 @@ endfunction()
 #
 
 include(cross_compile/find_commands)
+include(cross_compile/python_helpers)
 include(cross_compile/native_compile)
 
 #
@@ -178,10 +179,6 @@ else()
 endif()
 add_definitions(-DOV_BUILD_POSTFIX=\"${OV_BUILD_POSTFIX}\")
 
-# for BW compatibility; removed before 2024.0
-set(IE_BUILD_POSTFIX ${OV_BUILD_POSTFIX})
-add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
-
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
@@ -214,6 +211,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 # CMake 3.13+: option() honors normal variables.
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.15+: export(PACKAGE) does not populate package registry by default.
+set(CMAKE_POLICY_DEFAULT_CMP0090 NEW)
 # CMake 3.15: Modules FindPython3, FindPython2 and FindPython use LOCATION for lookup strategy
 set(CMAKE_POLICY_DEFAULT_CMP0094 NEW)
 # CMake 3.19+: An imported target missing its location property fails during generation.
@@ -222,7 +221,14 @@ set(CMAKE_POLICY_DEFAULT_CMP0111 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 # CMake 3.24+ :prefers to set the timestamps of all extracted contents to the time of the extraction
 set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
+# CMake 3.27+ :Visual Studio Generators select latest Windows SDK by default.
+set(CMAKE_POLICY_DEFAULT_CMP0149 NEW)
 
+set(CMAKE_FIND_USE_PACKAGE_REGISTRY OFF CACHE BOOL "Disables search in user / system package registries")
+set(CMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY ON CACHE BOOL "Disables search in user package registries")
+set(CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY ON CACHE BOOL "Disables search in system package registries")
+set(CMAKE_EXPORT_PACKAGE_REGISTRY OFF CACHE BOOL "Disables package registry. Required for 3rd party projects like rapidjson, gflags")
+set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY ON CACHE BOOL "Disables package registry. Required for 3rd party projects like rapidjson, gflags")
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
 

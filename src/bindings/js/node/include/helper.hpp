@@ -19,87 +19,67 @@ const std::vector<std::string>& get_supported_types();
 typedef std::variant<napi_valuetype, napi_typedarray_type, js_type> napi_types;
 
 /**
+ * @brief Gets corresponding ov::element::Type_t to the passed TypedArray type
+ * @throw Exception if there is no corresponing or supported ov::element::Type_t
+ */
+const ov::element::Type_t& get_ov_type(napi_typedarray_type type);
+
+/**
  * @brief  Template function to convert Javascript data types into C++ data types
  * @tparam TargetType destinated C++ data type
  * @param info Napi::CallbackInfo contains all arguments passed to a function or method
  * @param idx specifies index of a argument inside info.
- * @param acceptable_types specifies napi types from which TargetType can be created
  * @return specified argument converted to a TargetType.
  */
 template <typename TargetType>
-TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx, const std::vector<napi_types>& acceptable_types);
+TargetType js_to_cpp(const Napi::Env& env, const Napi::Value& value);
 
 template <typename TargetType>
-TargetType js_to_cpp(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
-
-template <>
-int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
-                           const size_t idx,
-                           const std::vector<napi_types>& acceptable_types);
-
-/** @brief  A template specialization for TargetType int32_t */
-template <>
-int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
-                           const size_t idx,
-                           const std::vector<napi_types>& acceptable_types);
+TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType std::vector<size_t> */
 template <>
-std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info,
-                                                   const size_t idx,
-                                                   const std::vector<napi_types>& acceptable_types);
+std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType std::unordered_set<std::string> */
 template <>
-std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types);
+std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(const Napi::CallbackInfo& info,
+                                                                           const size_t idx);
 
 /** @brief  A template specialization for TargetType std::string */
 template <>
-std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info,
-                                   const size_t idx,
-                                   const std::vector<napi_types>& acceptable_types);
+std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::element::Type_T */
 template <>
-ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info,
-                                                   const size_t idx,
-                                                   const std::vector<napi_types>& acceptable_types);
+ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info, const size_t idx);
 
 /**
  * @brief  A template specialization for TargetType ov::Layout
- * @param  acceptable_types ov::Layout can be created from a napi_string
+ * ov::Layout has to be created from a napi_string
  */
 template <>
-ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info,
-                                 const size_t idx,
-                                 const std::vector<napi_types>& acceptable_types);
+ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::Shape */
 template <>
-ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
-                               const size_t idx,
-                               const std::vector<napi_types>& acceptable_types);
+ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::preprocess::ResizeAlgorithm */
 template <>
-ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types);
+ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const Napi::CallbackInfo& info,
+                                                                           const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::Any */
 template <>
-ov::Any js_to_cpp<ov::Any>(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
+ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value);
 
-/** @brief  A template specialization for TargetType std::map<std::string, ov::Any */
+/** @brief  A template specialization for TargetType std::map<std::string, ov::Any
+ * std::map<std::string, ov::Any> has to be created from napi_object
+ */
 template <>
-std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types);
+std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const Napi::CallbackInfo& info,
+                                                                         const size_t idx);
 
 /**
  * @brief  Template function to convert C++ data types into Javascript data types
@@ -168,10 +148,10 @@ ov::Tensor value_to_tensor(const Napi::Value& value, ov::InferRequest& infer_req
 
 napi_types napiType(const Napi::Value& val);
 
-bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable);
-
 Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value);
 
-ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value);
+bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num);
 
-bool is_napi_value_int(const Napi::CallbackInfo& info, Napi::Value& num);
+ov::AnyMap to_anyMap(const Napi::Env&, const Napi::Value&);
+
+std::string buffer_to_string(const Napi::Value& value);

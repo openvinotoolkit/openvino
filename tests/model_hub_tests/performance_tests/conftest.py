@@ -9,11 +9,14 @@ from py.xml import html
 from models_hub_common.utils import round_num
 import json
 import requests
+from datetime import datetime
 
 
 def pytest_sessionstart(session):
     print('pytest_sessionstart')
     session.results = []
+    current_datetime = datetime.now()
+    session.start_time = current_datetime.strftime('%Y-%m-%d %H:%M')
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -21,7 +24,7 @@ def pytest_sessionfinish(session, exitstatus):
     dump_data = []
     for item in session.results:
         dump_item = dict()
-        dump_item['version'] = '1'
+        dump_item['version'] = session.start_time
         dump_item['status'] = str(item.status)
         dump_item['ie_device'] = item.ie_device
         dump_item['model_name'] = item.model_name

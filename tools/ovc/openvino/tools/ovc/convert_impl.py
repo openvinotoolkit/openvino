@@ -12,6 +12,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
+
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
@@ -21,13 +22,13 @@ except ImportError:
 from openvino.tools.ovc.moc_frontend.check_config import any_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
-from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
+from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type
 from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_cli_options, depersonalize, \
     get_mo_convert_params, input_to_input_cut_info, parse_inputs
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 from openvino.tools.ovc.error import Error, FrameworkError
-from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_compression_message
+from openvino.tools.ovc.get_ov_update_message import get_compression_message
 from openvino.tools.ovc.version import VersionChecker
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
@@ -39,7 +40,7 @@ from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_fronten
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
-from openvino.runtime import Type, PartialShape
+from openvino.runtime import PartialShape
 
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
@@ -342,13 +343,8 @@ def normalize_inputs(argv: argparse.Namespace):
             else:
                 shape_dict[inp.name] = None
             if inp.type is not None:
-                # Convert type to numpy type for uniformity of stored values
-                if isinstance(inp.type, str):
-                    data_type_dict[inp.name] = destination_type_to_np_data_type(inp.type)
-                elif isinstance(inp.type, Type):
-                    data_type_dict[inp.name] = inp.type.to_dtype().type
-                else:
-                    data_type_dict[inp.name] = inp.type
+                # Convert type to ov.Type for uniformity of stored values
+                data_type_dict[inp.name] = to_ov_type(inp.type)
         argv.placeholder_shapes = shape_dict if shape_dict else None
         argv.placeholder_data_types = data_type_dict if data_type_dict else {}
     else:
@@ -360,13 +356,8 @@ def normalize_inputs(argv: argparse.Namespace):
                 # Wrap shape to PartialShape for uniformity of stored values
                 shape_list.append(PartialShape(inp.shape))
             if inp.type is not None:
-                # Convert type to numpy type for uniformity of stored values
-                if isinstance(inp.type, str):
-                    data_type_list.append(destination_type_to_np_data_type(inp.type))
-                elif isinstance(inp.type, Type):
-                    data_type_list.append(inp.type.to_dtype().type)
-                else:
-                    data_type_list.append(inp.type)
+                # Convert type to ov.Type for uniformity of stored values
+                data_type_list.append(to_ov_type(inp.type))
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
     if hasattr(argv, "framework") and argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
@@ -500,10 +491,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         if is_verbose(argv) or not python_api_used:
             if 'compress_to_fp16' in argv and argv.compress_to_fp16:
                 print(get_compression_message())
-
-            ov_update_message = get_ov_update_message()
-            if ov_update_message is not None:
-                print(ov_update_message)
 
         send_conversion_result('success')
 

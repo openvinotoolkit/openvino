@@ -102,14 +102,15 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
     }
 }
 
-void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
+bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
     if (d1 == d2 || d1 == 1 || is_dynamic_value(d2)) {
         dst = d2;
+        return true;
     } else if (d2 == 1 || is_dynamic_value(d1)) {
         dst = d1;
-    } else {
-        OPENVINO_THROW("Failed to broadcast dims: ", d1, " and ", d2);
+        return true;
     }
+    return false;
 }
 
 VectorDims pshape_to_vdims(const PartialShape& pshape) {
@@ -128,6 +129,17 @@ ov::PartialShape vdims_to_pshape(const VectorDims& vdims) {
         result.push_back(!is_dynamic_value(v) ? Dimension(static_cast<Dimension::value_type>(v))
                                               : Dimension());
     return result;
+}
+
+size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx) {
+    const auto& layout = port.get_descriptor_ptr()->get_layout();
+    if (port.get_type() == lowered::ExpressionPort::Type::Input)
+        return utils::get_input_dim_idx(layout, dim_idx);
+    else if (port.get_type() == lowered::ExpressionPort::Type::Output)
+        return utils::get_output_dim_idx(layout, dim_idx);
+    else
+        OPENVINO_THROW("Unsupported type of expression port");
+    return 0;
 }
 
 ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order) {

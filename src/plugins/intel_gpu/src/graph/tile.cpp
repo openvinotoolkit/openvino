@@ -40,7 +40,7 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
 
     auto output_type = input0_layout.data_type;
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ShapeType repeats_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()

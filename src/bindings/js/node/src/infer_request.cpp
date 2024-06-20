@@ -152,29 +152,23 @@ Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info)
 }
 
 Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
-    if (info.Length() == 0)
-        _infer_request.infer();
-    else if (info.Length() == 1 && info[0].IsTypedArray()) {
-        reportError(info.Env(), "TypedArray cannot be passed directly into infer() method.");
-        return info.Env().Null();
-    } else if (info.Length() == 1 && info[0].IsArray()) {
-        try {
+    try {
+        if (info.Length() == 0)
+            _infer_request.infer();
+        else if (info.Length() == 1 && info[0].IsTypedArray()) {
+            OPENVINO_THROW("TypedArray cannot be passed directly into infer() method.");
+        } else if (info.Length() == 1 && info[0].IsArray()) {
             infer(info[0].As<Napi::Array>());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return info.Env().Null();
-        }
-    } else if (info.Length() == 1 && info[0].IsObject()) {
-        try {
+        } else if (info.Length() == 1 && info[0].IsObject()) {
             infer(info[0].As<Napi::Object>());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return info.Env().Null();
+        } else {
+            OPENVINO_THROW("Infer method takes as an argument an array or an object.");
         }
-    } else {
-        reportError(info.Env(), "Infer method takes as an argument an array or an object.");
+        return get_output_tensors(info);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
     }
-    return get_output_tensors(info);
 }
 
 void InferRequestWrap::infer(const Napi::Array& inputs) {

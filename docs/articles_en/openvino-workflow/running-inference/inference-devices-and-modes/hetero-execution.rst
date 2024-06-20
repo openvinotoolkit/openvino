@@ -22,7 +22,7 @@ Execution via the heterogeneous mode can be divided into two independent steps:
 These two steps are not interconnected and affinities can be set in one of two ways, used separately or in combination (as described below): in the ``manual`` or the ``automatic`` mode.
 
 Defining and Configuring the Hetero Device
-++++++++++++++++++++++++++++++++++++++++++
+##########################################
 
 Following the OpenVINO™ naming convention, the Hetero execution plugin is assigned the label of ``"HETERO".`` It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options:
 
@@ -37,10 +37,10 @@ Following the OpenVINO™ naming convention, the Hetero execution plugin is assi
 
 
 Manual and Automatic modes for assigning affinities
-+++++++++++++++++++++++++++++++++++++++++++++++++++
+###################################################
 
 The Manual Mode
---------------------
++++++++++++++++++++++
 
 It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_node.html#doxid-classov-1-1-node-1a6941c753af92828d842297b74df1c45a>`__ with the ``"affinity"`` key.
 
@@ -53,20 +53,20 @@ Randomly selecting operations and setting affinities may lead to decrease in mod
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.py
          :language: Python
          :fragment: [set_manual_affinities]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.cpp
          :language: cpp
          :fragment: [set_manual_affinities]
 
 
 The Automatic Mode
---------------------
++++++++++++++++++++++
 
 It decides automatically which operation is assigned to which device according to the support from dedicated devices (``GPU``, ``CPU``, etc.) and query model step is called implicitly by Hetero device during model compilation.
 
@@ -79,20 +79,20 @@ It does not take into account device peculiarities such as the inability to infe
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.py
          :language: Python
          :fragment: [compile_model]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.cpp
          :language: cpp
          :fragment: [compile_model]
 
 
 Using Manual and Automatic Modes in Combination
------------------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++
 
 In some cases you may need to consider manually adjusting affinities which were set automatically. It usually serves minimizing the number of total subgraphs to optimize memory transfers. To do it, you need to "fix" the automatically assigned affinities like so:
 
@@ -102,14 +102,14 @@ In some cases you may need to consider manually adjusting affinities which were 
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.py
          :language: Python
          :fragment: [fix_automatic_affinities]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.cpp
          :language: cpp
          :fragment: [fix_automatic_affinities]
 
@@ -121,7 +121,7 @@ Importantly, the automatic mode will not work if any operation in a model has it
    `ov::Core::query_model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html#doxid-classov-1-1-core-1acdf8e64824fe4cf147c3b52ab32c1aab>`__ does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
 
 Configure fallback devices
-++++++++++++++++++++++++++
+##########################
 
 If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property `ov::device::properties <https://docs.openvino.ai/2024/api/c_cpp_api/structov_1_1device_1_1_properties.html#doxid-group-ov-runtime-cpp-prop-api-1ga794d09f2bd8aad506508b2c53ef6a6fc>`__:
 
@@ -131,14 +131,14 @@ If you want different devices in Hetero execution to have different device-speci
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.py
          :language: Python
          :fragment: [configure_fallback_devices]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_hetero.cpp
          :language: cpp
          :fragment: [configure_fallback_devices]
 
@@ -146,7 +146,7 @@ If you want different devices in Hetero execution to have different device-speci
 In the example above, the ``GPU`` device is configured to enable profiling data and uses the default execution precision, while ``CPU`` has the configuration property to perform inference in ``fp32``.
 
 Handling of Difficult Topologies
-++++++++++++++++++++++++++++++++
+################################
 
 Some topologies are not friendly to heterogeneous execution on some devices, even to the point of being unable to execute.
 For example, models having activation operations that are not supported on the primary device are split by Hetero into multiple sets of subgraphs which leads to suboptimal execution.
@@ -154,7 +154,7 @@ If transmitting data from one subgraph to another part of the model in the heter
 In such cases, you can define the heaviest part manually and set the affinity to avoid sending data back and forth many times during one inference.
 
 Analyzing Performance of Heterogeneous Execution
-++++++++++++++++++++++++++++++++++++++++++++++++
+################################################
 
 After enabling the ``OPENVINO_HETERO_VISUALIZE`` environment variable, you can dump GraphViz ``.dot`` files with annotations of operations per devices.
 
@@ -186,7 +186,7 @@ Here is an example of the output for Googlenet v1 running on HDDL (device no lon
 
 
 Sample Usage
-++++++++++++++++++++
+#####################
 
 OpenVINO™ sample programs can use the Heterogeneous execution used with the ``-d`` option:
 

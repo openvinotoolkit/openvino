@@ -50,14 +50,14 @@ In general, most throughput-oriented inference applications should:
        .. tab-item:: Python
           :sync: py
 
-          .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.py
              :language: python
              :fragment: [compile_model]
 
        .. tab-item:: C++
           :sync: cpp
 
-          .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto_batching.cpp
              :language: cpp
              :fragment: [compile_model]
 

@@ -42,18 +42,20 @@ _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 def einsum(
     inputs: List[Node],
     equation: str,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs Einsum operation.
 
     :param inputs: The list of input nodes
     :param equation: Einsum equation
+    :param name: Optional output node name.
     :return: The new node performing Einsum operation on the inputs
     """
     attributes = {
         "equation": equation,
     }
 
-    return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs), attributes)
+    return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs, name=name), attributes)
 
 
 @nameable_op
@@ -69,7 +71,7 @@ def gelu(
     :param name: Optional output node name.
     :return: The new node performing a Gelu activation with the input tensor.
     """
-    inputs = as_nodes(data)
+    inputs = as_nodes(data, name=name)
 
     attributes = {
         "approximation_mode": approximation_mode,
@@ -83,15 +85,17 @@ def roll(
     data: NodeInput,
     shift: NodeInput,
     axes: NodeInput,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs Roll operation.
 
     :param data: The node with data tensor.
     :param shift: The node with the tensor with numbers of places by which elements are shifted.
     :param axes: The node with the tensor with axes along which elements are shifted.
+    :param name: Optional output node name.
     :return: The new node performing a Roll operation on the input tensor.
     """
-    inputs = as_nodes(data, shift, axes)
+    inputs = as_nodes(data, shift, axes, name=name)
 
     return _get_node_factory_opset7().create("Roll", inputs)
 
@@ -102,6 +106,7 @@ def gather(
     indices: NodeInput,
     axis: NodeInput,
     batch_dims: Optional[int] = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs Gather.
 
@@ -109,9 +114,10 @@ def gather(
     :param indices:      N-D tensor with indices by which data is gathered
     :param axis:         axis along which elements are gathered
     :param batch_dims:   number of batch dimensions
+    :param name:         Optional output node name.
     :return:             The new node which performs Gather
     """
-    inputs = as_nodes(data, indices, axis)
+    inputs = as_nodes(data, indices, axis, name=name)
     attributes = {
         "batch_dims": batch_dims,
     }
@@ -122,18 +128,20 @@ def dft(
     data: NodeInput,
     axes: NodeInput,
     signal_size: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs DFT operation.
 
     :param data: Tensor with transformed data.
     :param axes: Tensor with axes to transform.
     :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
+    :param name: Optional output node name.
     :return: The new node which performs DFT operation on the input data tensor.
     """
     if signal_size is None:
-        inputs = as_nodes(data, axes)
+        inputs = as_nodes(data, axes, name=name)
     else:
-        inputs = as_nodes(data, axes, signal_size)
+        inputs = as_nodes(data, axes, signal_size, name=name)
 
     return _get_node_factory_opset7().create("DFT", inputs)
 
@@ -143,17 +151,19 @@ def idft(
     data: NodeInput,
     axes: NodeInput,
     signal_size: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs IDFT operation.
 
     :param data: Tensor with transformed data.
     :param axes: Tensor with axes to transform.
     :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
+    :param name: Optional output node name.
     :return: The new node which performs IDFT operation on the input data tensor.
     """
     if signal_size is None:
-        inputs = as_nodes(data, axes)
+        inputs = as_nodes(data, axes, name=name)
     else:
-        inputs = as_nodes(data, axes, signal_size)
+        inputs = as_nodes(data, axes, signal_size, name=name)
 
     return _get_node_factory_opset7().create("IDFT", inputs)

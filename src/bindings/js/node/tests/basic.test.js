@@ -14,15 +14,15 @@ const compiledModel = core.compileModelSync(model, 'CPU');
 const modelLike = [[model],
   [compiledModel]];
 
-it('Core.getAvailableDevices()', () => {    
-    const devices = core.getAvailableDevices();
-    
-    assert.ok(devices.includes('CPU'));
+it('Core.getAvailableDevices()', () => {
+  const devices = core.getAvailableDevices();
+
+  assert.ok(devices.includes('CPU'));
 });
 
 describe('Core.getVersions()', () => {
 
-  it('getVersions(validDeviceName: string)', () => {    
+  it('getVersions(validDeviceName: string)', () => {
     const deviceVersion = core.getVersions('CPU');
     assert.strictEqual(typeof deviceVersion, 'object');
     assert.strictEqual(typeof deviceVersion.CPU, 'object');
@@ -33,14 +33,14 @@ describe('Core.getVersions()', () => {
   it('getVersions() throws if no arguments are passed into the function', () => {
     assert.throws(
       () => core.getVersions(),
-      {message: 'getVersions() method expects 1 argument of string type.'}
+      { message: 'getVersions() method expects 1 argument of string type.' }
     );
   });
 
   it('getVersions() throws if non string coercable arguments are passed into the function', () => {
     assert.throws(
       () => core.getVersions({ deviceName: 'CPU' }),
-      {message: 'The argument in getVersions() method must be a string or convertible to a string.'}
+      { message: 'The argument in getVersions() method must be a string or convertible to a string.' }
     );
   });
 
@@ -75,26 +75,41 @@ describe('Core.compileModelSync()', () => {
   });
 
   it('compileModelSync(model, device, config) throws when config is a string', () => {
+    const expectedMsg = ("Method 'compileModelSync' called with incorrect parameters.\n" +
+      'Provided signature: (object, string, string) \n' +
+      'Allowed signatures:\n' +
+      '- (string, string)\n' +
+      '- (Model, string)\n' +
+      '- (string, string, object)\n' +
+      '- (Model, string, object)\n').replace(/[()]/g, '\\$&');
+
     assert.throws(
       () => core.compileModelSync(model, 'CPU', 'string'),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      new RegExp(expectedMsg),
     );
   });
 
   it('compileModelSync(model, device, config) throws when config value is not a string', () => {
     assert.throws(
       () => core.compileModelSync(model, 'CPU', { 'PERFORMANCE_HINT': tput }),
-      /Cannot convert Napi::Value to ov::Any/
+      /Cannot convert to ov::Any/
     );
   });
 
   it('compileModelSync(model) throws if the number of arguments is invalid', () => {
+    const expectedMsg = ("Method 'compileModelSync' called with incorrect parameters.\n" +
+      'Provided signature: (object) \n' +
+      'Allowed signatures:\n' +
+      '- (string, string)\n' +
+      '- (Model, string)\n' +
+      '- (string, string, object)\n' +
+      '- (Model, string, object)\n').replace(/[()]/g, '\\$&');
+
     assert.throws(
       () => core.compileModelSync(model),
-      /Invalid number of arguments/
+      new RegExp(expectedMsg),
     );
   });
-
 });
 
 describe('Core.compileModel()', () => {
@@ -124,14 +139,14 @@ describe('Core.compileModel()', () => {
   it('compileModel(model, device, config) throws when config isn\'t an object', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', 'string').then(),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      "Argument #3 must be an Object."
     );
   });
 
   it('compileModel(model, device, config) throws when config value is not a string', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', { 'PERFORMANCE_HINT': tput }).then(),
-      /Cannot convert Napi::Value to ov::Any/
+      /Cannot convert to ov::Any/
     );
   });
 
@@ -214,16 +229,62 @@ describe('Input class for ov::Input<const ov::Node>', () => {
 
 });
 
-it('Test exportModel()/importModel()', () => {
+describe('Test exportModel()/importModel()', () => {
   const userStream = compiledModel.exportModelSync();
-  const newCompiled = core.importModelSync(userStream, 'CPU');
   const epsilon = 0.5;
   const tensor = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
-
   const inferRequest = compiledModel.createInferRequest();
   const res1 = inferRequest.infer([tensor]);
-  const newInferRequest = newCompiled.createInferRequest();
-  const res2 = newInferRequest.infer([tensor]);
 
-  assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+  it('Test importModel(stream, device)', () => {
+    const newCompiled = core.importModelSync(userStream, 'CPU');
+    const newInferRequest = newCompiled.createInferRequest();
+    const res2 = newInferRequest.infer([tensor]);
+
+    assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+  });
+
+  it('Test importModel(stream, device, config)', () => {
+    const newCompiled = core.importModelSync(userStream, 'CPU', { 'NUM_STREAMS': 1 });
+    const newInferRequest = newCompiled.createInferRequest();
+    const res2 = newInferRequest.infer([tensor]);
+
+    assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+  });
+
+  it('Test importModel(stream, device) throws', () => {
+    assert.throws(
+      () => core.importModelSync(epsilon, 'CPU'),
+      /The first argument must be of type Buffer./
+    );
+  });
+
+  it('Test importModel(stream, device) throws', () => {
+    assert.throws(
+      () => core.importModelSync(userStream, tensor),
+      /The second argument must be of type String./
+    );
+  });
+  it('Test importModel(stream, device, config: tensor) throws', () => {
+    assert.throws(
+      () => core.importModelSync(userStream, 'CPU', tensor),
+      /NotFound: Unsupported property 0 by CPU plugin./
+    );
+  });
+
+  it('Test importModel(stream, device, config: string) throws', () => {
+    const testString = 'test';
+    assert.throws(
+      () => core.importModelSync(userStream, 'CPU', testString),
+      /Passed Napi::Value must be an object./
+    );
+  });
+
+  it('Test importModel(stream, device, config: unsupported property) throws', () => {
+    const tmpDir = '/tmp';
+    assert.throws(
+      () => core.importModelSync(userStream, 'CPU', { 'CACHE_DIR': tmpDir }),
+      /Unsupported property CACHE_DIR by CPU plugin./
+    );
+  });
 });

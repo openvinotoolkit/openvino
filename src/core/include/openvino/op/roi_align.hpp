@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/roi_align_base.hpp"
 
 namespace ov {
 namespace op {
@@ -12,23 +12,15 @@ namespace v3 {
 /// \brief ROIAlign operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ROIAlign : public Op {
+class OPENVINO_API ROIAlign : public util::ROIAlignBase {
 public:
-    OPENVINO_OP("ROIAlign", "opset3", op::Op);
+    OPENVINO_OP("ROIAlign", "opset3", util::ROIAlignBase);
     enum class PoolingMode { AVG, MAX };
 
     ROIAlign() = default;
     /// \brief Constructs a ROIAlign node matching the ONNX ROIAlign specification
+    /// Check util::ROIAlignBase for description of common params.
     ///
-    /// \param input           Input feature map {N, C, H, W}
-    /// \param rois            Regions of interest to pool over
-    /// \param batch_indices   Indices of images in the batch matching
-    ///                        the number or ROIs
-    /// \param pooled_h        Height of the ROI output features
-    /// \param pooled_w        Width of the ROI output features
-    /// \param sampling_ratio  Number of sampling points used to compute
-    ///                        an output element
-    /// \param spatial_scale   Spatial scale factor used to translate ROI coordinates
     /// \param mode            Method of pooling - 'avg' or 'max'
     ROIAlign(const Output<Node>& input,
              const Output<Node>& rois,
@@ -52,35 +44,8 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    int get_pooled_h() const {
-        return m_pooled_h;
-    }
-
-    void set_pooled_h(const int h) {
-        m_pooled_h = h;
-    }
-
-    int get_pooled_w() const {
-        return m_pooled_w;
-    }
-    void set_pooled_w(const int w) {
-        m_pooled_w = w;
-    }
-
-    int get_sampling_ratio() const {
-        return m_sampling_ratio;
-    }
-
-    void set_sampling_ratio(const int ratio) {
-        m_sampling_ratio = ratio;
-    }
-
-    float get_spatial_scale() const {
-        return m_spatial_scale;
-    }
-
-    void set_spatial_scale(const float scale) {
-        m_spatial_scale = scale;
+    int get_rois_input_second_dim_size() const override {
+        return 4;
     }
 
     PoolingMode get_mode() const {
@@ -98,24 +63,19 @@ private:
     PoolingMode mode_from_string(const std::string& mode) const;
 
 private:
-    int m_pooled_h;
-    int m_pooled_w;
-    int m_sampling_ratio;
-    float m_spatial_scale;
-    PoolingMode m_mode;
+    PoolingMode m_mode = PoolingMode::AVG;
 };
 }  // namespace v3
 
 namespace v9 {
-class OPENVINO_API ROIAlign : public Op {
+class OPENVINO_API ROIAlign : public util::ROIAlignBase {
 public:
-    OPENVINO_OP("ROIAlign", "opset9");
+    OPENVINO_OP("ROIAlign", "opset9", util::ROIAlignBase);
     enum class PoolingMode { AVG, MAX };
     enum class AlignedMode { ASYMMETRIC, HALF_PIXEL_FOR_NN, HALF_PIXEL };
 
     ROIAlign() = default;
     /// \brief Constructs a ROIAlign operation.
-    ///
     /// \param input           Input feature map {N, C, H, W}
     /// \param rois            Regions of interest to pool over
     /// \param batch_indices   Indices of images in the batch matching
@@ -125,6 +85,7 @@ public:
     /// \param sampling_ratio  Number of sampling points used to compute
     ///                        an output element
     /// \param spatial_scale   Spatial scale factor used to translate ROI coordinates
+    ///
     /// \param mode            Method of pooling - 'avg' or 'max'
     /// \param aligned_mode    Method of coordinates alignment - 'asymmetric', 'half_pixel_for_nn' or 'half_pixel'
     ROIAlign(const Output<Node>& input,
@@ -141,35 +102,8 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    int get_pooled_h() const {
-        return m_pooled_h;
-    }
-
-    void set_pooled_h(const int h) {
-        m_pooled_h = h;
-    }
-
-    int get_pooled_w() const {
-        return m_pooled_w;
-    }
-    void set_pooled_w(const int w) {
-        m_pooled_w = w;
-    }
-
-    int get_sampling_ratio() const {
-        return m_sampling_ratio;
-    }
-
-    void set_sampling_ratio(const int ratio) {
-        m_sampling_ratio = ratio;
-    }
-
-    float get_spatial_scale() const {
-        return m_spatial_scale;
-    }
-
-    void set_spatial_scale(const float scale) {
-        m_spatial_scale = scale;
+    int get_rois_input_second_dim_size() const override {
+        return 4;
     }
 
     PoolingMode get_mode() const {
@@ -190,12 +124,8 @@ public:
 
 private:
     PoolingMode mode_from_string(const std::string& mode) const;
-    int m_pooled_h;
-    int m_pooled_w;
-    int m_sampling_ratio;
-    float m_spatial_scale;
-    PoolingMode m_mode;
-    AlignedMode m_aligned_mode;
+    PoolingMode m_mode = PoolingMode::AVG;
+    AlignedMode m_aligned_mode = AlignedMode::ASYMMETRIC;
 };
 }  // namespace v9
 }  // namespace op

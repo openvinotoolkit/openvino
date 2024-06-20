@@ -98,12 +98,14 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
             return ov::element::f16;
         } else if (val == "i8") {
             return ov::element::i8;
+        } else if (val == "f32") {
+            return ov::element::f32;
         } else {
             OPENVINO_THROW("Wrong value ",
                            val.data(),
                            " for property key ",
                            ov::hint::inference_precision.name(),
-                           ". Supported values: f16, i8");
+                           ". Supported values: f32, f16, i8");
         }
     };
 };
@@ -236,6 +238,27 @@ struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPE
     static std::string defaultValue() {
         return {};
     }
+};
+
+//
+// BATCH_MODE
+//
+struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
+    static std::string_view key() {
+        return ov::intel_npu::batch_mode.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::BatchMode";
+    }
+
+    static ov::intel_npu::BatchMode defaultValue() {
+        return ov::intel_npu::BatchMode::AUTO;
+    }
+
+    static ov::intel_npu::BatchMode parse(std::string_view val);
+
+    static std::string toString(const ov::intel_npu::BatchMode& val);
 };
 
 }  // namespace intel_npu

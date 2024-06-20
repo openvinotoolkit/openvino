@@ -40,6 +40,8 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     std::vector<std::vector<element::Type>> prc = {
             {element::f32, element::f32},
     };
+// Note: TPP doesn't support low precisions yet
+#ifndef SNIPPETS_LIBXSMM_TPP
     if (!only_fp32) {
         auto quant = quantized_precisions();
         std::copy(quant.begin(), quant.end(), std::back_inserter(prc));
@@ -48,6 +50,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
             prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
         }
     }
+#endif
     return prc;
 }
 
@@ -71,7 +74,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulFQ, MatMulFQ,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 1, 69, 49}}),
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 1, 69, 49}},
+                                                   std::vector<ov::PartialShape>{{1, 2, 95, 1023}, {1, 2, 1023, 255}, {1, 2, 95, 255}}),
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
@@ -89,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulQuantized, MatMulQuantized,
                          ::testing::Combine(
                                  ::testing::Values(std::vector<ov::PartialShape>{{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}}),
                                  ::testing::ValuesIn(quantized_precisions()),
@@ -98,7 +102,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantizedSoftmax, MatMulsQuantizedSoftmax,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulQuantizedSoftmax, MatMulQuantizedSoftmax,
                          ::testing::Combine(
                                  ::testing::Values(std::vector<ov::PartialShape>{{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}}),
                                  ::testing::ValuesIn(quantized_precisions()),

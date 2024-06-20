@@ -4,8 +4,10 @@
 
 #pragma once
 #include "evaluate_node.hpp"
+#include "openvino/op/rms_norm.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/rms.hpp"
 
 extern template bool evaluate_node<ov::op::v0::Abs>(std::shared_ptr<ov::Node> node,
                                                     ov::TensorVector& outputs,
@@ -16,6 +18,10 @@ extern template bool evaluate_node<ov::op::v0::BatchNormInference>(std::shared_p
                                                                    const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v0::Ceiling>(std::shared_ptr<ov::Node> node,
+                                                        ov::TensorVector& outputs,
+                                                        const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v0::Convert>(std::shared_ptr<ov::Node> node,
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 
@@ -279,6 +285,10 @@ extern template bool evaluate_node<ov::op::v5::NonMaxSuppression>(std::shared_pt
                                                                   ov::TensorVector& outputs,
                                                                   const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::internal::RMSNorm>(std::shared_ptr<ov::Node> node,
+                                                              ov::TensorVector& outputs,
+                                                              const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v5::RNNSequence>(std::shared_ptr<ov::Node> node,
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs);
@@ -485,6 +495,21 @@ extern template bool evaluate_node<ov::op::v14::Inverse>(std::shared_ptr<ov::Nod
                                                          ov::TensorVector& outputs,
                                                          const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v15::Col2Im>(std::shared_ptr<ov::Node> node,
+                                                        ov::TensorVector& outputs,
+                                                        const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v15::ROIAlignRotated>(std::shared_ptr<ov::Node> node,
+                                                                 ov::TensorVector& outputs,
+                                                                 const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v15::EmbeddingBagOffsets>(std::shared_ptr<ov::Node> node,
+                                                                     ov::TensorVector& outputs,
+                                                                     const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v15::EmbeddingBagPacked>(std::shared_ptr<ov::Node> node,
+                                                                    ov::TensorVector& outputs,
+                                                                    const ov::TensorVector& inputs);
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,
                                                                 const ov::TensorVector& inputs);
@@ -492,3 +517,7 @@ extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<
 extern template bool evaluate_node<ov::op::internal::AUGRUSequence>(std::shared_ptr<ov::Node> node,
                                                                     ov::TensorVector& outputs,
                                                                     const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::internal::RMS>(std::shared_ptr<ov::Node> node,
+                                                          ov::TensorVector& outputs,
+                                                          const ov::TensorVector& inputs);

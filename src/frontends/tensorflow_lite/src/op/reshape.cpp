@@ -20,12 +20,10 @@ OutputVector reshape(const ov::frontend::tensorflow_lite::NodeContext& node) {
                             input_size,
                             ", for node ",
                             node.get_op_type());
-    const auto& decoder = get_decoder(node);
-    bool has_attribute = decoder->has_attribute(&tflite::ReshapeOptions::new_shape);
+    auto has_attribute = node.has_attribute("new_shape");
     Output<Node> shape;
     if (has_attribute) {
-        auto reshape_new_shape = decoder->get_attribute(&tflite::ReshapeOptions::new_shape);
-        const auto new_shape = std::vector<int64_t>(reshape_new_shape->begin(), reshape_new_shape->end());
+        auto new_shape = node.get_attribute<std::vector<int64_t>>("new_shape");
         shape = opset10::Constant::create(element::i64, ov::Shape{new_shape.size()}, new_shape);
     } else {
         FRONT_END_GENERAL_CHECK(

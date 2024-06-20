@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import numpy as np
 import os
 import platform
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -58,17 +57,6 @@ def generate_ir_python_api(coverage=False, **kwargs):
         serialize(ov_model, out_dir)
     else:
         from openvino import convert_model, save_model
-        try:
-            # noinspection PyUnresolvedReferences
-            import openvino_tokenizers  # do not delete, needed for validation of OpenVINO tokenizers extensions
-        except:
-            # TODO 132908: add build OpenVINO Tokenizers in GHA for MacOS and ARM64
-            # TODO 132909: add build OpenVINO Tokenizers in Jenkins for layer_ubuntu20_release tests
-            assert platform.system() in ('Linux', 'Darwin') or platform.machine() in ('arm', 'armv7l',
-                                                                                      'aarch64',
-                                                                                      'arm64', 'ARM64')
-            # CI Jenkins job and ARM64 has no openvino_tokenizers available
-            pass
 
         # cleanup parameters for convert
         if 'output_dir' in kwargs:
@@ -84,6 +72,16 @@ def generate_ir_python_api(coverage=False, **kwargs):
         save_model(ov_model, out_dir, compress_to_fp16)
 
     return 0, ""
+
+
+def generate_ir_ovc(input_model, opts):
+    params = ['ovc', input_model]
+    for key, value in opts.items():
+        # handle optional arguments
+        # both key and values are of string type
+        params.extend(("--{}".format(key), value))
+    exit_code, stdout, stderr = shell(params)
+    return exit_code, stdout, stderr
 
 
 def shell(cmd, env=None, cwd=None, out_format="plain"):

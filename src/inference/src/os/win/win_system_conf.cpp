@@ -51,6 +51,8 @@ CPU::CPU() {
             _socketid_mapping_table.insert({socket_id, socket_id});
         }
     }
+
+    cpu_debug();
 }
 
 void parse_processor_info_win(const char* base_ptr,

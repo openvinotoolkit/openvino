@@ -1357,21 +1357,22 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto crop_y_size = 1;
     auto feature_offset_1 = 0;
     auto feature_offset_2 = 2;
+    auto axis = 1;
 
     auto input_dyn_layout    = layout{ ov::PartialShape{ov::Dimension(1, 10), feature_num, y_size, x_size}, data_types::f32, format::bfyx };
     auto input_actual_layout = layout{ ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
 
     auto input_mem = engine.allocate_memory(input_actual_layout);
     auto data_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
-    set_values(data_mem, {1});
+    set_values<int64_t>(data_mem, {axis});
 
     cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::split;
     size_t num_splits = 2;
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
     topology.add(data("data", data_mem));
-    topology.add(crop("crop1", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0, num_splits));
-    topology.add(crop("crop2", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1, num_splits));
+    topology.add(crop("crop1", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0, axis, num_splits));
+    topology.add(crop("crop2", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1, axis, num_splits));
 
     std::vector<float> input_vec = { -1.0f, 2.0f, -3.0f, 4.0f };
     std::vector<float> out1 = { -1.0f, 2.0f };
@@ -1421,6 +1422,7 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     auto crop_y_size = 1;
     auto feature_offset_1 = 0;
     auto feature_offset_2 = 3;
+    auto axis = 1;
 
     auto input_dyn_layout    = layout{ ov::PartialShape{ov::Dimension(1, 10), feature_num, y_size, x_size}, data_types::f32, format::bfyx };
     auto input_actual_layout = layout{ ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
@@ -1434,8 +1436,8 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     topology.add(input_layout("input", input_dyn_layout));
     topology.add(data("axis", axis_mem));
     topology.add(data("splits_length", splits_length_mem));
-    topology.add(crop("crop1", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0));
-    topology.add(crop("crop2", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1));
+    topology.add(crop("crop1", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0, axis));
+    topology.add(crop("crop2", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1, axis));
 
     std::vector<float> input_vec = { -1.0f, 2.0f, -3.0f, 4.0f };
     std::vector<float> out1 = { -1.0f, 2.0f, -3.0f };
@@ -1443,7 +1445,7 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     std::vector<int64_t> splits_vec = {3, 1};
 
     set_values(input_mem, input_vec);
-    set_values(axis_mem, {1});
+    set_values<int64_t>(axis_mem, {axis});
     set_values(splits_length_mem, splits_vec);
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -1623,6 +1625,81 @@ TEST(crop_single_axis, simple_Baxis) {
     ASSERT_EQ(crop_prim->can_be_optimized(), true);
 }
 
+TEST(crop_single_axis, simple_Xaxis) {
+    auto& engine = get_test_engine();
+
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 3, 1 } });
+
+    set_values(input0, {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f,
+        7.f, 8.f, 9.f, 10.f, 11.f, 12.f,
+        13.f, 14.f, 15.f, 16.f, 17.f, 18.f,
+    });
+
+    topology topology;
+    topology.add(input_layout("Input", input0->get_layout()));
+    topology.add(crop("crop", input_info("Input"), tensor{3, 2, 1, 1}, tensor(0, 0, 1, 0)));
+    topology.add(reorder("reorder", input_info("crop"), format::bfyx, data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("Input", input0);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+
+    std::vector<int> expected_results = {
+        2, 5, 8, 11, 14, 17,
+    };
+
+    for (size_t i = 0; i < expected_results.size(); i++) {
+        ASSERT_EQ(output_ptr[i], expected_results[i]);
+    }
+
+    auto crop_prim = network.get_primitive("crop");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+}
+
+TEST(crop_single_axis, simple_all_axis) {
+    auto& engine = get_test_engine();
+
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 3, 3, 3 } });
+
+    std::vector<float> input0_vals;
+    for (uint32_t i = 0; i < 81; ++i)
+        input0_vals.push_back(i);
+
+    set_values(input0, input0_vals);
+
+    topology topology;
+    topology.add(input_layout("Input", input0->get_layout()));
+    topology.add(crop("crop", input_info("Input"), tensor{1, 1, 1, 1}, tensor(1, 1, 1, 1)));
+    topology.add(reorder("reorder", input_info("crop"), format::bfyx, data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("Input", input0);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+
+    std::vector<int> expected_results = {
+        40,
+    };
+
+    for (size_t i = 0; i < expected_results.size(); i++) {
+        ASSERT_EQ(output_ptr[i], expected_results[i]);
+    }
+
+    auto crop_prim = network.get_primitive("crop");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+}
 
 struct crop_input_test_params {
     data_types  input_type;

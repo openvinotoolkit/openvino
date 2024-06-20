@@ -18,23 +18,19 @@ namespace ov {
 namespace intel_gpu {
 
 namespace {
-std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin, const ExecutionConfig& config) {
+std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                   const ExecutionConfig& config) {
     if (config.get_property(ov::internal::exclusive_async_requests)) {
-        //exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
+        // exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with
+        // the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
     } else if (config.get_property(ov::hint::enable_cpu_pinning)) {
-        auto executor_config =
+        return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
                                                     config.get_property(ov::num_streams),
-                                                    0,
-                                                    ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
                                                     1,
-                                                    0,
-                                                    0,
-                                                    ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
-                                                    {{config.get_property(ov::num_streams), MAIN_CORE_PROC, 1, 0, 0}},
-                                                    true};
-        return std::make_shared<ov::threading::CPUStreamsExecutor>(executor_config);
+                                                    ov::hint::SchedulingCoreType::PCORE_ONLY,
+                                                    true});
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
@@ -261,7 +257,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
+            ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
         return decltype(ov::model_name)::value_type {m_model_name};

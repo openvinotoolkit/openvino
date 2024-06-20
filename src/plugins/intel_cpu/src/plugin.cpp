@@ -15,6 +15,7 @@
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
+#include "utils/precision_support.h"
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
@@ -125,7 +126,7 @@ public:
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
-    get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
+    get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
     auto& ov_version = ov::get_openvino_version();
@@ -209,10 +210,15 @@ static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
-    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
-                   op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model)
-               ? Config::ModelType::CNN
-               : Config::ModelType::Unknown;
+    if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
+        op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model))
+        return Config::ModelType::CNN;
+    
+    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) &&
+        model->get_variables().size() > 0)
+        return Config::ModelType::LLM;
+
+    return Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -239,7 +245,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // verification of supported input
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
-        static const std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u8,
+        static const std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u4,
+                                                                           ov::element::Type_t::i4,
+                                                                           ov::element::Type_t::u8,
                                                                            ov::element::Type_t::i8,
                                                                            ov::element::Type_t::u16,
                                                                            ov::element::Type_t::i16,
@@ -483,12 +491,14 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             capabilities.push_back(ov::device::capability::BF16);
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(ov::device::capability::WINOGRAD);
         capabilities.push_back(ov::device::capability::FP32);
-        capabilities.push_back(ov::device::capability::FP16);
+        if (hasHardwareSupport(ov::element::f16))
+            capabilities.push_back(ov::device::capability::FP16);
         capabilities.push_back(ov::device::capability::INT8);
         capabilities.push_back(ov::device::capability::BIN);
         capabilities.push_back(ov::device::capability::EXPORT_IMPORT);

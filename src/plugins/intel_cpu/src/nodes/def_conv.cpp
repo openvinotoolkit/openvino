@@ -13,6 +13,7 @@
 #include "openvino/core/parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/primitive_hashing_utils.hpp"
+#include "openvino/util/pp.hpp"
 
 #include "dnnl_types.h"
 #include "dnnl_extension_utils.h"
@@ -1129,7 +1130,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
 
     const int channel_per_deformable_group = (IC * G) / DG;
     const size_t group_wei_stride = weiStrides[0] * OC;
-    auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
+    auto compKer = [OV_CAPTURE_CPY_AND_THIS](int g, int mb, int oc, int oh, int ow) {
         float d = 0;
         for (int ic = 0; ic < IC; ic++) {
             const float *data_im_ptr = src + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];

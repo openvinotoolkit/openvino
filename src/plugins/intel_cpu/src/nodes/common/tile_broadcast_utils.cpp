@@ -90,7 +90,7 @@ bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, V
     return optimizedDims.size() <= maxNDims;
 }
 
-std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node) {
+std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node, size_t outSize) {
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     auto precision = node->getOriginalInputPrecisionAtPort(0);
     auto dataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
@@ -122,7 +122,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
         config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, node->getInputShapeAtPort(2)));
     }
 
-    config.outConfs.resize(node->getChildEdges().size());
+    config.outConfs.resize(outSize);
 
     auto pushDesc = [&](dnnl::memory::format_tag inFormat, dnnl::memory::format_tag outFormat) {
         config.inConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat));

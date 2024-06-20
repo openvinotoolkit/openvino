@@ -7,14 +7,13 @@
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
+#include "shared_test_classes/single_op/non_max_suppression.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 
-namespace ov {
-namespace test {
-
+namespace {
 enum {
     BATCHES,
     BOXES,
@@ -28,9 +27,9 @@ using TargetShapeParams = std::tuple<size_t,   // Number of batches
 using InputShapeParams = std::tuple<std::vector<ov::Dimension>,       // bounds for input dynamic shape
                                     std::vector<TargetShapeParams>>;  // target input dimensions
 
-using InputPrecisions = std::tuple<ElementType,  // boxes and scores precisions
-                                   ElementType,  // max_output_boxes_per_class precision
-                                   ElementType>; // iou_threshold, score_threshold, soft_nms_sigma precisions
+using InputPrecisions = std::tuple<ov::element::Type,  // boxes and scores precisions
+                                   ov::element::Type,  // max_output_boxes_per_class precision
+                                   ov::element::Type>; // iou_threshold, score_threshold, soft_nms_sigma precisions
 
 using ThresholdValues = std::tuple<float,  // IOU threshold
                                    float,  // Score threshold
@@ -43,10 +42,10 @@ using NmsParams = std::tuple<InputShapeParams,                                  
                              ov::test::utils::InputLayerType,                    // max_output_boxes_per_class input type
                              ov::op::v9::NonMaxSuppression::BoxEncodingType,     // Box encoding
                              bool,                                               // Sort result descending
-                             ElementType,                                        // Output type
+                             ov::element::Type,                                        // Output type
                              std::string>;                                       // Device name
 
-class NmsLayerCPUTest : public testing::WithParamInterface<NmsParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
+class NmsLayerCPUTest : public testing::WithParamInterface<NmsParams>, virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
         InputShapeParams inShapeParams;
@@ -57,13 +56,13 @@ public:
         float iouThr, scoreThr, softNmsSigma;
         ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
-        ElementType outType;
+        ov::element::Type outType;
         std::string targetDevice;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType, targetDevice) = obj.param;
 
         std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
 
-        ElementType paramsPrec, maxBoxPrec, thrPrec;
+        ov::element::Type paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
         std::vector<ov::Dimension> bounds;
@@ -103,7 +102,15 @@ public:
     }
 
     void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
-        CompareBBoxes(expected, actual);
+        std::pair<std::shared_ptr<ov::Node>, ov::Tensor> bboxes = *inputs.begin();
+        for (const auto &input : inputs) {
+            if (input.first->get_name() < bboxes.first->get_name()) {
+                bboxes = input;
+            }
+        }
+        size_t numBatches, numBoxes, numClasses;
+        std::tie(numBatches, numBoxes, numClasses) = targetInDims[inferRequestNum];
+        ov::test::compare_b_boxes(expected, actual, bboxes.second, numBatches, numBoxes);
         inferRequestNum++;
     }
 
@@ -116,10 +123,10 @@ protected:
         float iouThr, scoreThr, softNmsSigma;
         ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
-        ElementType outType;
+        ov::element::Type outType;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType,
                  targetDevice) = this->GetParam();
-        ElementType paramsPrec, maxBoxPrec, thrPrec;
+        ov::element::Type paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
         std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
@@ -155,16 +162,16 @@ protected:
 
         if (maxOutBoxesType == ov::test::utils::InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(ov::PartialShape{1});
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(ElementType::i32, inputDynamicShapes.back()));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i32, inputDynamicShapes.back()));
             params[1]->set_friendly_name("param_3");
             maxOutBoxesPerClassNode = params.back();
         } else {
-            maxOutBoxesPerClassNode = ov::test::utils::deprecated::make_constant(maxBoxPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+            maxOutBoxesPerClassNode = std::make_shared<ov::op::v0::Constant>(maxBoxPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
         }
 
-        auto iouThrNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
-        auto scoreThrNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
-        auto softNmsSigmaNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
+        auto iouThrNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
+        auto scoreThrNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
+        auto softNmsSigmaNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
         auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 
@@ -172,226 +179,6 @@ protected:
     }
 
 private:
-    typedef struct Rect {
-        int32_t x1;
-        int32_t y1;
-        int32_t x2;
-        int32_t y2;
-    } Rect;
-
-    class Box {
-    public:
-        Box() = default;
-
-        Box(int32_t batchId, int32_t classId, int32_t boxId, Rect rect, float score) {
-            this->batchId = batchId;
-            this->classId = classId;
-            this->boxId = boxId;
-            this->rect = rect;
-            this->score = score;
-        }
-
-        int32_t batchId;
-        int32_t classId;
-        int32_t boxId;
-        Rect rect;
-        float score;
-    };
-
-    /*
-     * 1: selected_indices - tensor of type T_IND and shape [number of selected boxes, 3] containing information about selected boxes as triplets
-     *    [batch_index, class_index, box_index].
-     * 2: selected_scores - tensor of type T_THRESHOLDS and shape [number of selected boxes, 3] containing information about scores for each selected box as triplets
-     *    [batch_index, class_index, box_score].
-     * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
-     */
-    void CompareBBoxes(const std::vector<ov::Tensor> &expectedOutputs, const std::vector<ov::Tensor> &actualOutputs) {
-        size_t numBatches, numBoxes, numClasses;
-        std::tie(numBatches, numBoxes, numClasses) = targetInDims[inferRequestNum];
-
-        auto iouFunc = [](const Box& boxI, const Box& boxJ) {
-            const Rect& rectI = boxI.rect;
-            const Rect& rectJ = boxJ.rect;
-
-            float areaI = (rectI.y2 - rectI.y1) * (rectI.x2 - rectI.x1);
-            float areaJ = (rectJ.y2 - rectJ.y1) * (rectJ.x2 - rectJ.x1);
-
-            if (areaI <= 0.0f || areaJ <= 0.0f) {
-                return 0.0f;
-            }
-
-            float intersection_ymin = std::max(rectI.y1, rectJ.y1);
-            float intersection_xmin = std::max(rectI.x1, rectJ.x1);
-            float intersection_ymax = std::min(rectI.y2, rectJ.y2);
-            float intersection_xmax = std::min(rectI.x2, rectJ.x2);
-
-            float intersection_area =
-                std::max(intersection_ymax - intersection_ymin, 0.0f) *
-                std::max(intersection_xmax - intersection_xmin, 0.0f);
-
-            return intersection_area / (areaI + areaJ - intersection_area);
-        };
-
-        // Get input bboxes' coords
-        std::vector<std::vector<Rect>> coordList(numBatches, std::vector<Rect>(numBoxes));
-        {
-            std::pair<std::shared_ptr<ov::Node>, ov::Tensor> bboxes = *inputs.begin();
-            for (const auto &input : inputs) {
-                if (input.first->get_name() < bboxes.first->get_name()) {
-                    bboxes = input;
-                }
-            }
-
-            const auto buffer = bboxes.second.data<float>();
-            for (size_t i = 0; i < numBatches; ++i) {
-                for (size_t j = 0; j < numBoxes; ++j) {
-                    const int32_t y1 = static_cast<int32_t>(buffer[(i*numBoxes+j)*4+0]);
-                    const int32_t x1 = static_cast<int32_t>(buffer[(i*numBoxes+j)*4+1]);
-                    const int32_t y2 = static_cast<int32_t>(buffer[(i*numBoxes+j)*4+2]);
-                    const int32_t x2 = static_cast<int32_t>(buffer[(i*numBoxes+j)*4+3]);
-
-                    coordList[i][j] = { std::min(y1, y2),
-                                        std::min(x1, x2),
-                                        std::max(y1, y2),
-                                        std::max(x1, x2) };
-                }
-            }
-        }
-
-        auto compareBox = [](const Box& boxA, const Box& boxB) {
-            return (boxA.batchId < boxB.batchId) ||
-                    (boxA.batchId == boxB.batchId && boxA.classId < boxB.classId) ||
-                    (boxA.batchId == boxB.batchId && boxA.classId == boxB.classId && boxA.boxId < boxB.boxId);
-        };
-
-        // Get expected bboxes' index/score
-        std::vector<Box> expectedList;
-        {
-            const auto indeces_iter = expectedOutputs.begin();
-            const auto scores_iter = expectedOutputs.begin() + 1;
-            size_t selected_indices_size = indeces_iter->get_size();
-            size_t selected_scores_size = scores_iter->get_size();
-            ASSERT_TRUE(selected_indices_size == selected_scores_size);
-
-            expectedList.resize(selected_indices_size);
-
-            if (indeces_iter->get_element_type() == ElementType::i32) {
-                auto selected_indices_data = indeces_iter->data<int32_t>();
-
-                for (size_t i = 0; i < selected_indices_size; i += 3) {
-                    expectedList[i/3].batchId = selected_indices_data[i+0];
-                    expectedList[i/3].classId = selected_indices_data[i+1];
-                    expectedList[i/3].boxId   = selected_indices_data[i+2];
-                    expectedList[i/3].rect    = coordList[expectedList[i/3].batchId][expectedList[i/3].boxId];
-                }
-            } else {
-                auto selected_indices_data = indeces_iter->data<int64_t>();
-
-                for (size_t i = 0; i < selected_indices_size; i += 3) {
-                    expectedList[i/3].batchId = static_cast<int32_t>(selected_indices_data[i+0]);
-                    expectedList[i/3].classId = static_cast<int32_t>(selected_indices_data[i+1]);
-                    expectedList[i/3].boxId   = static_cast<int32_t>(selected_indices_data[i+2]);
-                    expectedList[i/3].rect    = coordList[expectedList[i/3].batchId][expectedList[i/3].boxId];
-                }
-            }
-
-            if (scores_iter->get_element_type() == ElementType::f32) {
-                auto selected_scores_data = scores_iter->data<float>();
-                for (size_t i = 0; i < selected_scores_size; i += 3) {
-                    expectedList[i/3].score = selected_scores_data[i+2];
-                }
-            } else {
-                auto selected_scores_data = scores_iter->data<double>();
-                for (size_t i = 0; i < selected_scores_size; i += 3) {
-                    expectedList[i/3].score = static_cast<float>(selected_scores_data[i+2]);
-                }
-            }
-
-            std::sort(expectedList.begin(), expectedList.end(), compareBox);
-        }
-
-        // Get actual bboxes' index/score
-        std::vector<Box> actualList;
-        {
-            const auto indeces_iter = actualOutputs.begin();
-            const auto scores_iter = actualOutputs.begin() + 1;
-            size_t selected_indices_size = indeces_iter->get_size();
-            const auto selected_scores_data = scores_iter->data<float>();
-
-            if (indeces_iter->get_element_type() == ElementType::i32) {
-                const auto selected_indices_data = indeces_iter->data<int32_t>();
-                for (size_t i = 0; i < selected_indices_size; i += 3) {
-                    const int32_t batchId = selected_indices_data[i+0];
-                    const int32_t classId = selected_indices_data[i+1];
-                    const int32_t boxId   = selected_indices_data[i+2];
-                    const float score = selected_scores_data[i+2];
-                    if (batchId == -1 || classId == -1 || boxId == -1)
-                        break;
-
-                    actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
-                }
-            } else {
-                const auto selected_indices_data = indeces_iter->data<int64_t>();
-                for (size_t i = 0; i < selected_indices_size; i += 3) {
-                    const int32_t batchId = selected_indices_data[i+0];
-                    const int32_t classId = selected_indices_data[i+1];
-                    const int32_t boxId   = selected_indices_data[i+2];
-                    const float score = selected_scores_data[i+2];
-                    if (batchId == -1 || classId == -1 || boxId == -1)
-                        break;
-
-                    actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
-                }
-            }
-            std::sort(actualList.begin(), actualList.end(), compareBox);
-        }
-
-        std::vector<Box> intersectionList;
-        std::vector<Box> differenceList;
-        {
-            std::list<Box> tempExpectedList(expectedList.size()), tempActualList(actualList.size());
-            std::copy(expectedList.begin(), expectedList.end(), tempExpectedList.begin());
-            std::copy(actualList.begin(), actualList.end(), tempActualList.begin());
-            auto sameBox = [](const Box& boxA, const Box& boxB) {
-                return (boxA.batchId == boxB.batchId) && (boxA.classId == boxB.classId) && (boxA.boxId == boxB.boxId);
-            };
-
-            for (auto itA = tempActualList.begin(); itA != tempActualList.end(); ++itA) {
-                bool found = false;
-                for (auto itB = tempExpectedList.begin(); itB != tempExpectedList.end(); ++itB) {
-                    if (sameBox(*itA, *itB)) {
-                        intersectionList.emplace_back(*itB);
-                        tempExpectedList.erase(itB);
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    differenceList.emplace_back(*itA);
-                }
-            }
-            differenceList.insert(differenceList.end(), tempExpectedList.begin(), tempExpectedList.end());
-
-            for (auto& item : differenceList) {
-                if ((item.rect.x1 == item.rect.x2) || (item.rect.y1 == item.rect.y2))
-                    continue;
-
-                float maxIou = 0.f;
-                for (auto& refItem : intersectionList) {
-                    maxIou = std::max(maxIou, iouFunc(item, refItem));
-
-                    if (maxIou > 0.3f) break;
-                }
-
-                ASSERT_TRUE(maxIou > 0.3f) << "MaxIOU: " << maxIou
-                    << ", expectedList.size(): " << expectedList.size() << ", actualList.size(): " << actualList.size()
-                    << ", intersectionList.size(): " << intersectionList.size() << ", diffList.size(): " << differenceList.size()
-                    << ", batchId: " << item.batchId << ", classId: " << item.classId << ", boxId: " << item.boxId
-                    << ", score: " << item.score << ", coord: " << item.rect.x1 << ", " << item.rect.y1 << ", " << item.rect.x2 << ", " << item.rect.y2;
-            }
-        }
-    }
     std::vector<TargetShapeParams> targetInDims;
     size_t inferRequestNum = 0;
     int32_t maxOutBoxesPerClass;
@@ -417,13 +204,13 @@ const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
 const std::vector<ov::op::v9::NonMaxSuppression::BoxEncodingType> encodType = {ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                                ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
 const std::vector<bool> sortResDesc = {true, false};
-const std::vector<ElementType> outType = {ElementType::i32, ElementType::i64};
+const std::vector<ov::element::Type> outType = {ov::element::i32, ov::element::i64};
 const std::vector<ov::test::utils::InputLayerType> maxBoxInputTypes = {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT};
 
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
-                                          ::testing::Combine(::testing::Values(ElementType::f32),
-                                                             ::testing::Values(ElementType::i32),
-                                                             ::testing::Values(ElementType::f32)),
+                                          ::testing::Combine(::testing::Values(ov::element::f32),
+                                                             ::testing::Values(ov::element::i32),
+                                                             ::testing::Values(ov::element::f32)),
                                           ::testing::ValuesIn(maxOutBoxPerClass),
                                           ::testing::Combine(::testing::ValuesIn(threshold),
                                                              ::testing::ValuesIn(threshold),
@@ -437,5 +224,4 @@ const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
 
 INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerCPUTest, NmsLayerCPUTest, nmsParams, NmsLayerCPUTest::getTestCaseName);
 
-}  // namespace test
-}  // namespace ov
+}  // namespace

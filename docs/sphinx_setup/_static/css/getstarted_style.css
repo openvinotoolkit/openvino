@@ -1,9 +1,6 @@
 /* overrides */
 .switcher-set {display: none;}
 
-
-
-
 /* === INTRO TEXT ======================================================================== */
 
 #GSG_introtext a {
@@ -16,6 +13,7 @@
 	color: #fff;
 	text-align: center;
 }
+
 #GSG_introtext a::after {
 	display: block;
 	font-size: 0.8em;
@@ -27,7 +25,6 @@
 #GSG_introtext a:nth-of-type(1)::after {content: "Estimate image depth (no install required)";}
 #GSG_introtext a:nth-of-type(2)::after {content: "View options";}
 #GSG_introtext a:nth-of-type(3)::after {content: "Tutorials, basics, and features";}
-
 #GSG_introtext a:nth-of-type(1) {margin-left: 0;}
 #GSG_introtext a:nth-of-type(3) {margin-right: 0;}
 
@@ -39,11 +36,13 @@
 	margin: 0 auto;
 	width: 100%;
 }
+
 #GSG_nextstepchoice a {
 	display: block;
 	width: 100%;
 	padding: 10px 15px;
 }
+
 #GSG_nextstepchoice a h4 {
 	display: inline-block;
     height: 30px;	
@@ -52,16 +51,14 @@
     line-height: 2em;
     font-weight: bold;
     margin: 0;
-
     border-bottom: 1px solid #0068B5;
-	
 	transition: all 0.5s;
 	-webkit-transition: all 0.5s;
 	-moz-transition: all 0.5s;
 	-o-transition: all 0.5s;
 	-ms-transition: all 0.5s;
-	
 }
+
 #GSG_nextstepchoice a p {
 	color: #0068B5;
 	text-align: left;
@@ -76,13 +73,6 @@
 #GSG_nextstepchoice a:hover p {
 	text-decoration:none;	
 }
-
-
-
-
-
-
-
 
 /* === screen narrow =========================================================================== */
 @media only screen and (max-width: 800px) {

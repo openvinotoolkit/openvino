@@ -12,6 +12,9 @@
 
 #include <transformations/utils/utils.hpp>
 
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -814,23 +817,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return meta_devices;
     }
 
-    std::vector<DeviceInformation> filter_device;
     std::vector<std::string> stateful_node_names;
-
-    // Check if CPU is in candidate list
-    auto cpuiter = std::find_if(meta_devices.begin(), meta_devices.end(), [](const DeviceInformation& device_info) {
-        return device_info.device_name.find("CPU") != std::string::npos;
-    });
-    // If CPU is in candidate list, load dynamic model to CPU first
-    // For MULTI do not only load stateful model to CPU
-    // For AUTO CTPUT only load stateful model to CPU
-    if (model->is_dynamic() && cpuiter != meta_devices.end()) {
-        filter_device.push_back(*cpuiter);
-        return filter_device;
-    }
-    // If CPU is not in candidate list, continue to run selection logic regardless of whether the input model is a
-    // dynamic model or not
-
     for (auto& op : model->get_ops()) {
         if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
             std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
@@ -845,31 +832,15 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     // disable CPU_HELP and runtime fallback if model is stateful
     disable_startup_runtime_fallback();
 
-    auto is_supported_stateful = [&](const std::string& device_name, const ov::AnyMap& config) {
-        auto device_qm = get_core()->query_model(model, device_name, config);
-        for (auto&& node_name : stateful_node_names) {
-            if (device_qm.find(node_name) == device_qm.end())
-                return false;
-        }
-        return true;
-    };
-
-    for (auto& item : meta_devices) {
-        if (is_supported_stateful(item.device_name, item.config))
-            filter_device.push_back(item);
-    }
     bool isCumulative = (get_device_name() == "MULTI") || (load_config.get_property(ov::hint::performance_mode) ==
                                                            ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
     if (isCumulative) {
-        if (filter_device.empty() || filter_device.size() > 1)
+        if (meta_devices.size() > 1)
             OPENVINO_THROW("AUTO cumulative model doesn't support stateful model.");
         else
-            return filter_device;
+            return meta_devices;
     }
-    if (filter_device.empty()) {
-        return meta_devices;
-    }
-    return filter_device;
+    return meta_devices;
 }
 
 std::string Plugin::get_log_tag() const noexcept {

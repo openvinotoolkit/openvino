@@ -22,6 +22,7 @@ on:
       - Webassembly
       - Windows (VS 2019, Python 3.11)
       - Windows Conditional Compilation (VS 2022, Python 3.11)
+      - Rerun Workflow with Known Errors
     types:
       - completed
 
@@ -34,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: '.github'
 

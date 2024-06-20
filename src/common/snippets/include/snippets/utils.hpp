@@ -8,9 +8,13 @@
  */
 #pragma once
 
-#include "snippets_isa.hpp"
-#include "emitter.hpp"
-#include "shape_types.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/constant.hpp"
 
 
 namespace ov {
@@ -19,10 +23,10 @@ namespace utils {
 
 // Get non-scalar Constant count that will be created after FakeQuantize decomposition.
 // This count is needed to know exact count of non-scalar Constants during tokenization.
-auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::opset1::FakeQuantize>& fq) -> size_t;
+auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t;
 
 inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_node) -> bool {
-    return ov::is_type<ov::opset1::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
+    return ov::is_type<ov::op::v0::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
 }
 
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
@@ -69,7 +73,46 @@ inline bool is_dynamic_vdims(const VectorDims& shape) {
     return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_value(v); });
 }
 
-void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
+inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
+    return is_dynamic_vdims(*shape);
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+inline T dynamic_safe_add(const T& lhs, const T& rhs) {
+    if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
+        return utils::get_dynamic_value<T>();
+    }
+    return lhs + rhs;
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+inline T dynamic_safe_mul(const T& lhs, const T& rhs) {
+    if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
+        return utils::get_dynamic_value<T>();
+    }
+    return lhs * rhs;
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+inline std::string value2str(const T& value) {
+    return utils::is_dynamic_value(value) ? "?" : std::to_string(value);
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+std::string vector2str(const std::vector<T>& values) {
+    std::ostringstream str;
+    bool first = true;
+    for (auto& v : values) {
+        if (!first) {
+            str << ",";
+        }
+        str << value2str(v);
+        first = false;
+    }
+    return str.str();
+}
+
+bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
 VectorDims pshape_to_vdims(const PartialShape&);
 ov::PartialShape vdims_to_pshape(const VectorDims&);
@@ -84,6 +127,9 @@ inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_i
     OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
     return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
 }
+
+// dim_idx starts from the layout end
+size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
 
 /* ----- Shape `getters` ----- */
 /**

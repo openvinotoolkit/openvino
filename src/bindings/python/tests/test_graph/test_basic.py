@@ -348,15 +348,12 @@ def test_result():
 
 def test_node_friendly_name():
     dummy_node = ops.parameter(shape=[1], name="dummy_name")
-
     assert (dummy_node.friendly_name == "dummy_name")
 
     dummy_node.set_friendly_name("changed_name")
-
     assert (dummy_node.get_friendly_name() == "changed_name")
 
     dummy_node.friendly_name = "new_name"
-
     assert (dummy_node.get_friendly_name() == "new_name")
 
 
@@ -393,30 +390,20 @@ def test_node_output():
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
 
 
-def test_node_input_size():
-    node = ops.add([1], [2])
-    assert node.get_input_size() == 2
-
-
 def test_node_input_values():
     shapes = [Shape([3]), Shape([3])]
-    data1 = np.array([1, 2, 3])
-    data2 = np.array([3, 2, 1])
+    data1 = np.array([1, 2, 3], dtype=np.int64)
+    data2 = np.array([3, 2, 1], dtype=np.int64)
 
     node = ops.add(data1, data2)
 
     assert node.get_input_size() == 2
+    assert node.get_input_element_type(0) == Type.i64
+    assert node.get_input_partial_shape(0) == PartialShape([3])
+    assert node.get_input_shape(1) == Shape([3])
 
-    assert np.equal(
-        [input_node.get_shape() for input_node in node.input_values()],
-        shapes,
-    ).all()
-
-    assert np.equal(
-        [node.input_value(i).get_shape() for i in range(node.get_input_size())],
-        shapes,
-    ).all()
-
+    assert np.equal([input_node.get_shape() for input_node in node.input_values()], shapes,).all()
+    assert np.equal([node.input_value(i).get_shape() for i in range(node.get_input_size())], shapes,).all()
     assert np.allclose(
         [input_node.get_node().get_vector() for input_node in node.input_values()],
         [data1, data2],

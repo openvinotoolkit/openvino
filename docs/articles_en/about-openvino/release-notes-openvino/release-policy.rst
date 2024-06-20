@@ -1,48 +1,41 @@
 Release Policy
 =============================================================================
 
-OpenVINO offers releases of three different types: Regular, Long-Term Support, and Nightly,
-each targeting a different use case.
+OpenVINO offers releases of three different types, each targeting a different use case:
 
-| `Regular releases <#regular-releases>`__
-|    OpenVINO™ is published multiple times a year. Each regular release is supported until the
-     next version arrives, making it suitable for:
+* `Regular releases <#regular-releases>`__
+* `Long-Term Support <#long-term-support-releases>`__
+* `Nightly <#nightly-releases>`__
 
-* Most typical use cases (the recommended release type).
-* Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
-
-| `Long-Term Support <#long-term-support-policy>`__:
-|    Each year’s final release becomes a Long-Term Support (LTS) version, which continues to
-     receive bug fixes and security updates, even after newer versions are published.
-     Therefore, LTS may be used for production environments where:
-
-* There is no need for frequent changes in hardware or model support.
-* New optimizations are not prioritized.
-* Upgrading is challenging, e.g., due to high software complexity.
-* A legacy feature, discontinued in newer OpenVINO versions, is still required.
-
-| `Nightly <#nightly-releases>`__:
-|    OpenVINO also offers nightly releases, as a preview of the most recent changes.
-     Since their validation scope is limited, they should never be used for production purposes.
-     Instead, they may serve:
-
-* Early integration testing.
-* Community contribution development and integration.
-* Tracking development progress.
 
 Regular releases
 ####################
 
-Regular releases are published when significant new features and bug fixes have been completed
-and validated. For each of them, a dedicated development branch in GitHub is created.
-Their target changes are:
+OpenVINO™ is published multiple times a year, when significant new features and bug fixes have
+been completed and validated. For each regular release, a dedicated development branch in GitHub
+is created, targeting changes such as:
 
 * New features of gold quality, as well as Beta features, labeled as “preview.”
 * Key bug fixes.
 * Newest hardware support.
 
-Long-Term Support Policy
+Each regular release is supported until the next version arrives, making it suitable for:
+
+* Most typical use cases (the recommended release type).
+* Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
+
+
+Long-Term Support releases
 ###########################
+
+Each year's final release becomes a Long-Term Support (LTS) version, which continues to receive
+bug fixes and security updates, even after newer versions are published. Therefore, LTS may be
+used for production environments where:
+
+* There is no need for frequent changes in hardware or model support.
+* New optimizations are not prioritized.
+* Upgrading is challenging, e.g., due to high software complexity.
+* A legacy feature, discontinued in newer OpenVINO versions, is still required.
 
 **LTS Lifecycle**
 
@@ -71,13 +64,20 @@ The following elements are not guaranteed to receive updates:
 Nightly releases
 ###########################
 
-OpenVINO nightly packages are the first source of newly added features and ofpriority bug fixes
-reported for the previous versions. They are:
+OpenVINO nightly releases are the first source of newly added features and priority bug fixes
+reported for the previous versions, as a preview of the most recent changes. They are:
 
 * Released every workday.
 * Based on the master branch of the OpenVINO GitHub repository.
 * Not fit for production environments.
 * Offered with limited distribution options:
+
+Since their validation scope is limited, **they should never be used for production purposes**.
+Instead, they may serve:
+
+* Early integration testing.
+* Community contribution development and integration.
+* Tracking development progress.
 
 .. tab-set::
 

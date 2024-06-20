@@ -15,6 +15,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/strides_property.hpp"

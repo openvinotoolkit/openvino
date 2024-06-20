@@ -44,7 +44,7 @@ def unique(name: str, x, **op_args):
         saveModel(
             name,
             exe,
-            feedkeys=["x"],
+            feed_vars=[node_x],
             fetchlist=fetch_vars,
             inputs=[x],
             outputs=outs,

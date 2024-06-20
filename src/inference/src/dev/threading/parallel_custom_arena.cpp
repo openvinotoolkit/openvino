@@ -9,18 +9,6 @@
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
 
-#    ifndef TBBBIND_2_5_AVAILABLE
-#        define TBBBIND_2_5_AVAILABLE 0
-#    endif
-
-// On Ubuntu22.04, system tbb is 2021.5 oneTBB and tbbbind dynamic library doesn't exist.
-// In this case, tbbbind static library is needed.
-#    define USE_TBBBIND_2_5 TBBBIND_2_5_AVAILABLE
-#    if USE_TBBBIND_2_5
-#        pragma message("USE_TBBBIND_2_5 is enabled")
-#    else
-#        pragma message("USE_TBBBIND_2_5 is disabled")
-#    endif
 #    define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100)
 #    if defined(__APPLE__)
 // 2021.2 TBB doesn't export for macOS symbol:
@@ -246,19 +234,17 @@ task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
 
 task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_masters)
 #    if USE_TBBBIND_2_5
-    : my_task_arena {
-    info::default_concurrency(constraints_), reserved_for_masters
-}
+    : my_task_arena{info::default_concurrency(constraints_), reserved_for_masters}
 #    elif TBB_NUMA_SUPPORT_PRESENT || TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    : my_task_arena {
-    convert_constraints(constraints_), reserved_for_masters
-}
+    : my_task_arena{convert_constraints(constraints_), reserved_for_masters}
 #    else
-    : my_task_arena {
-    constraints_.max_concurrency, reserved_for_masters
-}
+    : my_task_arena{constraints_.max_concurrency, reserved_for_masters}
 #    endif
-, my_initialization_state{}, my_constraints{constraints_}, my_binding_observer{} {}
+      ,
+      my_initialization_state{},
+      my_constraints{constraints_},
+      my_binding_observer{} {
+}
 
 task_arena::task_arena(const task_arena& s)
     : my_task_arena{s.my_task_arena},
