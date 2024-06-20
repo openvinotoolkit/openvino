@@ -174,15 +174,7 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
             results.push_back(result);
         }
 
-        // Since parameters can be added we need to list all current parameters
-        std::set<size_t> param_names;
-        for (const auto& param : *parameters) {
-            auto input_idx = decode_tensor_name(param->output(0));
-            param_names.insert(input_idx);
-        }
         resulting_model = std::make_shared<Model>(results, *parameters);
-        // Did a conversion in a nested scope to automatically remove any holders of
-        // nodes except those in the graph
     }
 
     return resulting_model;
