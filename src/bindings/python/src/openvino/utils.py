@@ -48,7 +48,6 @@ def get_cmake_path() -> str:
     Returns:
     str: The path to the directory containing CMake files, if found. Otherwise, returns empty string.
     """
-
     package_path = Path(__file__).parent
     cmake_file = "OpenVINOConfig.cmake"
 
