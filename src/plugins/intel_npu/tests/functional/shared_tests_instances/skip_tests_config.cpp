@@ -273,8 +273,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*InferRequestCheckTensorPrecision.*type=boolean.*",
                 ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=f64.*",
-                ".*InferRequestCheckTensorPrecision.*type=i4.*",
-                ".*InferRequestCheckTensorPrecision.*type=u4.*",
                 ".*InferRequestCheckTensorPrecision.*type=u1\\D.*",
                 // [Track number: E#97469]
                 ".*InferRequestCheckTensorPrecision.*type=i64.*",
@@ -543,6 +541,13 @@ std::vector<std::string> disabledTestPatterns() {
                 "Tests fail with: ZE_RESULT_ERROR_DEVICE_LOST, code 0x70000001", {
                 // [Tracking number: E#111369]
                 ".*OVInferRequestMultithreadingTests.canRun3SyncRequestsConsistently.*"
+        });
+
+        // [Tracking number: E#107154]
+        _skipRegistry.addPatterns(
+                "Can't disable ELF Backend since Graphfile does not work on linux", {
+                ".*NPU_USE_ELF_COMPILER_BACKEND:NO.*",
+                ".*USE_ELF_COMPILER_BACKEND_NO.*"
         });
 #endif
 
