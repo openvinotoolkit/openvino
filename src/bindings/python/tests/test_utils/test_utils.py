@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-import unittest
-from unittest.mock import patch, MagicMock
+import os
+from pathlib import Path
 from openvino.utils import deprecated, get_cmake_path
 from tests.utils.helpers import compare_models, get_relu_model
 
@@ -62,29 +62,33 @@ def test_deprecation_decorator():
         deprecated_function4()
 
 
-class TestGetCmakePath(unittest.TestCase):
-    @patch("os.walk")
-    @patch("pathlib.Path.parent", new_callable=MagicMock)
-    def test_cmake_file_found(self, mock_parent, mock_walk):
-        # Setup the mocks
-        mock_parent.return_value = "/fake/site-packages/openvino"
-        mock_walk.return_value = [
+def test_cmake_file_found(monkeypatch):
+    fake_package_path = "/fake/site-packages/openvino"
+    def mock_walk(path):
+        return [
             ("/fake/site-packages/openvino/dir1", ("subdir",), ("OpenVINOConfig.cmake", "otherfile.txt")),
             ("/fake/site-packages/openvino/dir2", ("subdir",), ("otherfile.txt",)),
         ]
-        result = get_cmake_path()
 
-        assert result == "/fake/site-packages/openvino/dir1"
+    monkeypatch.setattr(Path, "parent", fake_package_path)
+    monkeypatch.setattr(os, "walk", mock_walk)
 
-    @patch("os.walk")
-    @patch("pathlib.Path.parent", new_callable=MagicMock)
-    def test_cmake_file_not_found(self, mock_parent, mock_walk):
-        # Setup the mocks
-        mock_parent.return_value = "/fake/site-packages/openvino"
-        mock_walk.return_value = [
+    result = get_cmake_path()
+
+    assert result == f"{fake_package_path}/dir1"
+
+
+def test_cmake_file_not_found(monkeypatch):
+    fake_package_path = "/fake/site-packages/openvino"
+    def mock_walk(path):
+        return [
             ("/fake/site-packages/openvino/dir1", ("subdir",), ("otherfile.txt", "OpenVINOConfig")),
             ("/fake/site-packages/openvino/dir2", ("subdir",), ("otherfile.txt", "OpenVINO.cmake")),
         ]
-        result = get_cmake_path()
 
-        assert result == ""
+    monkeypatch.setattr(Path, "parent", fake_package_path)
+    monkeypatch.setattr(os, "walk", mock_walk)
+
+    result = get_cmake_path()
+
+    assert result == ""
