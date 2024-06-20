@@ -41,15 +41,15 @@ void StringTensorPack::validate_and_infer_types() {
         " and ",
         ends_element_type);
 
-    const auto& data_element_type = get_input_element_type(0);
+    const auto& data_element_type = get_input_element_type(2);
     NODE_VALIDATION_CHECK(
         this,
-        data_element_type == ov::element::string,
-        "StringTensorUnpack expects a tensor with string elements. Got: ",
+        data_element_type == ov::element::u8,
+        "StringTensorUnpack expects a tensor with ov::element::u8 elements. Got: ",
         data_element_type);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
-    set_output_type(0, data_element_type, output_shapes[0]);
+    set_output_type(0, ov::element::string, output_shapes[0]);
 }
 
 std::shared_ptr<Node> StringTensorPack::clone_with_new_inputs(const ov::OutputVector& new_args) const {

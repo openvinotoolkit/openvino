@@ -20,19 +20,20 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
     const auto& data_shape = input_shapes[0];
     auto output_shapes = std::vector<TRShape>(3);
     
-    if (data_shape.is_static()) {
+    // output 1 and 2: begins and ends
+    output_shapes[0] = data_shape;
+    output_shapes[1] = data_shape;
+
+    // output 3: symbols
+    const auto strings = ov::op::get_input_const_data_as<TRShape, uint8_t>(op, 0, tensor_accessor);
+    if (data_shape.is_static() && strings) {
         const uint64_t string_count = data_shape[0].get_length();
-
-        // output 1 and 2: begins and ends
-        output_shapes[0] = ov::Shape{string_count};
-        output_shapes[1] = ov::Shape{string_count};
-
-        // output 3: symbols
-        const auto strings = ov::op::get_input_const_data_as<TRShape, uint8_t>(op, 0, tensor_accessor);
         size_t total_length = 0;
         for(size_t i = 0; i <= string_count; ++i)
             total_length += (*strings)[i];
         output_shapes[2] = ov::Shape{total_length};
+    } else {
+        output_shapes[2] = ov::PartialShape{ov::Dimension::dynamic()};
     }
     return output_shapes;
 }

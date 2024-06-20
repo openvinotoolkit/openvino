@@ -18,7 +18,7 @@ public:
     StringTensorPack() = default;
     /// \brief Constructs a StringTensorPack operation.
     ///
-    /// \param begins Indices of each string's begginings
+    /// \param begins Indices of each string's beginnings
     /// \param ends Indices of each string's endings
     /// \param symbols Concatenated input strings encoded in utf-8 bytes
     StringTensorPack(const Output<Node>& begins,
