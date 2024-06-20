@@ -23,11 +23,11 @@ DeviceMonitor::DeviceMonitor(unsigned historySize) : samplesNumber{0}, historySi
         collect_data(device);
     }
 }
-DeviceMonitor::DeviceMonitor(const std::shared_ptr<ov::util::monitor::PerformanceCounter>& performanceCounter,
+DeviceMonitor::DeviceMonitor(const std::shared_ptr<ov::util::monitor::PerformanceCounter>& performance_counter,
                              unsigned historySize)
     : samplesNumber{0},
       historySize{historySize > 0 ? historySize : 1},
-      performanceCounter{performanceCounter} {
+      performance_counter{performance_counter} {
     while (deviceLoadHistory.size() < historySize)
         collect_data();
 }
@@ -44,7 +44,7 @@ void DeviceMonitor::collect_data() {
     samplesNumber = 0;
     deviceLoadHistory.clear();
     while (deviceLoadHistory.size() < historySize) {
-        auto devicesLoad = performanceCounter->get_load();
+        auto devicesLoad = performance_counter->get_load();
         if (!devicesLoad.empty()) {
             for (auto item : devicesLoad) {
                 if (deviceLoadHistory.size() == 0)

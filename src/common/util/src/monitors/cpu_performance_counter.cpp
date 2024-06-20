@@ -188,13 +188,13 @@ CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
     : PerformanceCounter("CPU"),
       nCores(numCores >= 0 ? numCores : 0) {}
 CpuPerformanceCounter::~CpuPerformanceCounter() {
-    delete performanceCounter;
+    delete performance_counter;
 }
 std::map<std::string, double> CpuPerformanceCounter::get_load() {
-    if (!performanceCounter)
-        performanceCounter = new PerformanceCounterImpl();
+    if (!performance_counter)
+        performance_counter = new PerformanceCounterImpl();
     if (nCores == 0)
-        return performanceCounter->get_load();
+        return performance_counter->get_load();
     std::map<std::string, double> ret;
     ret["Total"] = 0.0;
     for (int i = 0; i < nCores; i++) {

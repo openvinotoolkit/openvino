@@ -222,12 +222,12 @@ public:
 #endif
 GpuPerformanceCounter::GpuPerformanceCounter() : PerformanceCounter("GPU") {}
 GpuPerformanceCounter::~GpuPerformanceCounter() {
-    delete performanceCounter;
+    delete performance_counter;
 }
 std::map<std::string, double> GpuPerformanceCounter::get_load() {
-    if (!performanceCounter)
-        performanceCounter = new PerformanceCounterImpl();
-    return performanceCounter->get_load();
+    if (!performance_counter)
+        performance_counter = new PerformanceCounterImpl();
+    return performance_counter->get_load();
 }
 }
 }

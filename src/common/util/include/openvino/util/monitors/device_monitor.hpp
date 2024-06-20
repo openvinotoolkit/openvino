@@ -33,7 +33,7 @@ private:
     std::map<std::string, double> deviceLoadSum;
     const std::vector<std::string> supportedDevices = {"CPU", "GPU"};
     std::deque<std::map<std::string, double>> deviceLoadHistory;
-    const std::shared_ptr<ov::util::monitor::PerformanceCounter> performanceCounter;
+    const std::shared_ptr<ov::util::monitor::PerformanceCounter> performance_counter;
     std::map<std::string, std::shared_ptr<ov::util::monitor::PerformanceCounter>> devicesPerformanceCounters;
 };
 }  // namespace monitor
