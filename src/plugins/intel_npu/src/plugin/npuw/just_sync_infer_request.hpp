@@ -49,13 +49,12 @@ private:
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);
 
-    void bind_next_global_parameters(std::size_t idx_base);
-
     void function_prologue(std::size_t idx);
     void unpack_closure(std::size_t idx, RqPtr request);
 
-    void connect_subrequests();
+    void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
+    void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
     using LinkFrom = std::pair<std::size_t /* Subrequest index */

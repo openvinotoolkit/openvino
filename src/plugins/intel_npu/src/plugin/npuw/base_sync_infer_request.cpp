@@ -283,7 +283,6 @@ std::string ov::npuw::IBaseInferRequest::iter_path_suffix(std::size_t idx) const
     return "_iter_" + ov::npuw::util::fmt(m_run_iter, 1000);
 }
 
-
 bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx) const {
     // Answer if the given subgraph needs copy for I/O or tolerates
     // the set/get_ tensor API
