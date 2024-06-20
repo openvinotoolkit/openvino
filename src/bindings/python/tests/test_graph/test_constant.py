@@ -502,6 +502,7 @@ def test_float_to_f8e8m0_constant(ov_type, numpy_dtype):
 
     assert np.allclose(result, target, equal_nan=True)
 
+
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f16, np.float16),
