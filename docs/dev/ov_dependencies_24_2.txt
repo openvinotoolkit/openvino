@@ -35,7 +35,6 @@ clang
 click
 CNPY
 colorama
-colorama
 ComputeLibrary
 coverage
 cycler
