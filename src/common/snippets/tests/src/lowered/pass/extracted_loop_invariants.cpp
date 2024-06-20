@@ -71,6 +71,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithParams) {
                                          LoopPort((*multiply.first)->get_input_port(1)),
                                          LoopPort((*sub.first)->get_input_port(0))},
                                         {LoopPort((*sub.first)->get_output_port(0))});
+        linear_ir->set_loop_depth(1);
     }
     {
         auto param00 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape0);
@@ -127,6 +128,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithScalar) {
                                         {LoopPort((*multiply.first)->get_input_port(0)),
                                          LoopPort((*sub.first)->get_input_port(0))},
                                         {LoopPort((*sub.first)->get_output_port(0))});
+        linear_ir->set_loop_depth(1);
     }
     {
         auto param0 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape0);
@@ -199,6 +201,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsOutputLoopUpdateNotNeed
                                          LoopPort((*sub.first)->get_input_port(0), true, 1)},
                                         {LoopPort((*add.first)->get_output_port(0), true, 1),
                                          LoopPort((*sub.first)->get_output_port(0), true, 1)});
+        linear_ir->set_loop_depth(2);
     }
     {
         auto param0 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_a);
@@ -268,6 +271,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
                                         {LoopPort((*broadcastmove.first)->get_input_port(0), true, 0),
                                          LoopPort((*add.first)->get_input_port(0), true, 0)},
                                         {LoopPort((*add.first)->get_output_port(0), true, 0)});
+        linear_ir->set_loop_depth(2);
     }
     {
         auto param_0 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
@@ -378,6 +382,7 @@ TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLo
                                          LoopPort((*add.first)->get_input_port(1), true, 0)},
                                         {LoopPort((*multiply.first)->get_output_port(0), true, 1)});
         loop_end->set_id((*loop_end_expr)->get_loop_ids().back());
+        linear_ir->set_loop_depth(2);
     }
     {
         auto param = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape);

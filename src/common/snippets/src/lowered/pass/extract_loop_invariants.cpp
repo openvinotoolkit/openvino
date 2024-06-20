@@ -167,51 +167,27 @@ bool ExtractLoopInvariants::run(LinearIR& linear_ir, lowered::LinearIR::constExp
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractLoopInvariants")
     bool modified = false;
 
+    const auto& loop_depth = linear_ir.get_config().m_loop_depth;
+    std::vector<std::set<size_t>> loop_ids_need_extract(loop_depth);
     // move invariant expr to top(outside) of current loop
+    const auto& loop_manager = linear_ir.get_loop_manager();
     for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto& next_expr_it = std::next(expr_it);
-        if (next_expr_it == linear_ir.end())
-            break;
         const auto& expr = *expr_it;
-        const auto& next_expr = *next_expr_it;
         const auto& current_loop_ids = expr->get_loop_ids();
-        const auto& next_loop_ids = next_expr->get_loop_ids();
-        const auto& current_loop_ids_size = current_loop_ids.size();
-        const auto& next_loop_ids_size = next_loop_ids.size();
+        for (size_t i = 0; i < current_loop_ids.size(); i++) {
+            const auto& loop_info = loop_manager->get_loop_info(current_loop_ids[i]);
+            const auto& loop_dim = loop_info->get_dim_idx();
+            if (loop_dim != LoopInfo::UNDEFINED_DIM_IDX) {
+                OPENVINO_ASSERT(loop_dim < loop_depth, "dim_idx of loop should be smaller than loop_depth");
+                loop_ids_need_extract[loop_dim].insert(current_loop_ids[i]);
+            }
+        }
+    }
 
-        if (next_loop_ids_size < current_loop_ids_size) {
-            // expr is the last expr of inner loop
-            // cover all loops, from inner to outer
-            // for example LIR in this case: expr0, [expr1, [expr2, [expr3], [expr4]], [expr5, [expr6], [expr7]]], expr8
-            // loop1:[expr1, [expr2, [expr3], [expr4]], [expr5, [expr6], [expr7]]]
-            // loop2:[expr2, [expr3], [expr4]]
-            // loop3:[expr5, [expr6], [expr7]]
-            // loop4:[expr3]
-            // loop5:[expr4]
-            // loop6:[expr6]
-            // loop7:[expr7]
-            // analyze expr7(loop_id:[1,3,7]), should identify 7 loops in order [loop4,loop5,loop6,loop7,loop2,loop3,loop1] to extract
-            const auto& depth = current_loop_ids_size - next_loop_ids_size;
-            std::vector<std::set<size_t>> loop_ids(depth);
-            const auto& first_depth_loop_id = current_loop_ids[next_loop_ids_size];
-            const auto& loop_manager = linear_ir.get_loop_manager();
-            LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-            std::tie(loop_begin_pos, loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, first_depth_loop_id);
-            for (auto& expr_it = loop_begin_pos; expr_it != loop_end_pos; expr_it++) {
-                const auto& expr_loop_ids = (*expr_it)->get_loop_ids();
-                size_t d = 0;
-                for (size_t i = next_loop_ids_size; i < expr_loop_ids.size(); i++) {
-                    loop_ids[d].insert(expr_loop_ids[i]);
-                    d++;
-                }
-            }
-            // from inner to outer
-            for (auto d = depth; d > 0; d--) {
-                const auto& loops_in_this_depth = loop_ids[d - 1];
-                for (const auto& loop_id : loops_in_this_depth) {
-                    modified |= extract_from_loop(loop_id, linear_ir);
-                }
-            }
+    for (size_t d = 0; d < loop_depth; d++) {
+        const auto& loops_in_this_depth = loop_ids_need_extract[d];
+        for (const auto& loop_id : loops_in_this_depth) {
+            modified |= extract_from_loop(loop_id, linear_ir);
         }
     }
 
