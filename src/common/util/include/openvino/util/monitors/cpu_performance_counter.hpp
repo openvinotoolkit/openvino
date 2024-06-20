@@ -23,7 +23,7 @@ public:
 private:
     int nCores;
     class PerformanceCounterImpl;
-    PerformanceCounterImpl* performance_counter = NULL;
+    PerformanceCounterImpl* performance_counter = nullptr;
 };
 }  // namespace monitor
 }  // namespace util
