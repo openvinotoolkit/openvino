@@ -31,20 +31,7 @@ OutputVector translate_reshape_fx(const NodeContext& context) {
     num_inputs_check(context, 2, num_inputs);
     std::vector<int32_t> shape_vec;
     if (context.get_input_type(1).is<type::List>()) {
-        std::deque<Output<Node>> list_elems;
-        for (size_t i = 1; i < num_inputs; i++) {
-            if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
-                auto const_val = context.const_input<int32_t>(i);
-                std::vector<int32_t> dim_vec;
-                dim_vec.push_back(const_val);
-                auto dim_const = ov::op::v0::Constant::create(element::i32, Shape{1}, dim_vec);
-                list_elems.push_back(dim_const);
-            } else {
-                auto converted_dim = context.mark_node(std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
-                list_elems.push_back(converted_dim);
-            }
-        }
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0);
+        auto concat = concat_dims_to_shape(context, 1, num_inputs);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), concat, true);
         return {context.mark_node(reshape)};
     } else {
