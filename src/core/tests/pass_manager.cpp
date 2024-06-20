@@ -167,6 +167,7 @@ public:
                 return validate->is_applied();
             }
         }
+        return false;
     }
 };
 }  // namespace
