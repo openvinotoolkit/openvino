@@ -106,7 +106,7 @@ std::vector<TRShape> shape_infer(const util::GatherBase* op,
         auto out_rank = data_rank + indices_rank - 1 - batch_dims;
         if (batch_dims < 0)
             out_rank = out_rank - indices_rank.get_max_length();
-        output_pshape = PartialShape::dynamic(out_rank);
+        output_pshape = PartialShape::dynamic(std::move(out_rank));
     }
     return output_shapes;
 }
