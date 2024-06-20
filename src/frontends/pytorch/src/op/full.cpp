@@ -80,7 +80,7 @@ OutputVector translate_full_fx(const NodeContext& context) {
     num_inputs_check(context, 2, num_inputs);
     ov::Output<ov::Node> sizes;
     if (context.get_input_type(0).is<type::List>()) {
-        std::deque<Output<Node>> list_elems;
+        OutputVector list_elems;
         for (size_t i = 0; i < num_inputs-1; i++) {
             if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
                 auto const_val = context.const_input<int32_t>(i);
