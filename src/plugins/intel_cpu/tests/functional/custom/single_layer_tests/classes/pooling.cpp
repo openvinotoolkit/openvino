@@ -96,7 +96,7 @@ void PoolingLayerCPUTest::SetUp() {
     if (isInt8)
         selectedType = selectedType + "_I8";
     else
-        selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(inPrc, configuration));
+        selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 
@@ -190,7 +190,7 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
     }
-    selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(inPrc, configuration));
+    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 

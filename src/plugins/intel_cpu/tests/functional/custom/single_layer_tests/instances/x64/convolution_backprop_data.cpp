@@ -14,7 +14,6 @@ using namespace ov::test;
 namespace ov {
 namespace test {
 namespace DeConvolution {
-namespace {
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> brgDeconvFusingParamsSet{
     emptyFusingSpec,
@@ -580,7 +579,6 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(cpu_f16_plugin_config)),
         DeconvolutionLayerCPUTest::getTestCaseName);
 
-}  // namespace
 }  // namespace DeConvolution
 }  // namespace test
 }  // namespace ov

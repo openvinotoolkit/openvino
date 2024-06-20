@@ -133,7 +133,7 @@ void MatMulLayerCPUTest::SetUp() {
     }
 
     cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
-    selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(outType, configuration));
+    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(outType, configuration));
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 

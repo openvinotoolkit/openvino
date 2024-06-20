@@ -476,18 +476,18 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
 
 // deduce the actual precision of the operation given the ngraph level operation precision and the plugin config
 ov::element::Type
-CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& op_prc,
+CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
                                              const ov::AnyMap& configuration) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    return op_prc;
+    return opPrecision;
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
-    return op_prc;
+    return opPrecision;
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
     // if is not float
-    if (!op_prc.is_real()) {
-        return op_prc;
+    if (!opPrecision.is_real()) {
+        return opPrecision;
     }
     ov::element::Type inferencePrecision = ov::element::f32;
     bool inferencePrecisionSetExplicitly = false;
@@ -517,7 +517,7 @@ CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& op_prc,
         }
     }
 
-    ov::element::Type type = op_prc;
+    ov::element::Type type = opPrecision;
     // enforceInferPrecision stage
     if (inferencePrecision == ov::element::bf16) {
         type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;

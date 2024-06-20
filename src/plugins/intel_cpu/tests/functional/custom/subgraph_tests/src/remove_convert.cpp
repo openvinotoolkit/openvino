@@ -126,7 +126,7 @@ TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
 
 using RemoveUselessFP16ConvertCPUTest = RemoveUselessBF16ConvertCPUTest;
 TEST_P(RemoveUselessFP16ConvertCPUTest, CompareWithRefs) {
-    auto implType = get_default_imp_precision_type(ov::element::f16, configuration);
+    auto implType = deduce_expected_precision(ov::element::f16, configuration);
     selectedType = makeSelectedTypeStr("ref", implType);
     run();
     CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
