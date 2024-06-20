@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from openvino.utils import deprecated
+import unittest
+from unittest.mock import patch, MagicMock
+from openvino.utils import deprecated, get_cmake_path
 from tests.utils.helpers import compare_models, get_relu_model
 
 
@@ -58,3 +60,30 @@ def test_deprecation_decorator():
         deprecated_function3()
     with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
         deprecated_function4()
+
+class TestGetCmakePath(unittest.TestCase):
+    @patch('os.walk')
+    @patch('pathlib.Path.parent', new_callable=MagicMock)
+    def test_cmake_file_found(self, mock_parent, mock_walk):
+        # Setup the mocks
+        mock_parent.return_value = '/fake/site-packages/openvino'
+        mock_walk.return_value = [
+            ('/fake/site-packages/openvino/dir1', ('subdir',), ('OpenVINOConfig.cmake', 'otherfile.txt')),
+            ('/fake/site-packages/openvino/dir2', ('subdir',), ('otherfile.txt',)),
+        ]
+        result = get_cmake_path()
+
+        self.assertEqual(result, '/fake/site-packages/openvino/dir1')
+
+    @patch('os.walk')
+    @patch('pathlib.Path.parent', new_callable=MagicMock)
+    def test_cmake_file_not_found(self, mock_parent, mock_walk):
+        # Setup the mocks
+        mock_parent.return_value = '/fake/site-packages/openvino'
+        mock_walk.return_value = [
+            ('/fake/site-packages/openvino/dir1', ('subdir',), ('otherfile.txt', 'OpenVINOConfig')),
+            ('/fake/site-packages/openvino/dir2', ('subdir',), ('otherfile.txt', 'OpenVINO.cmake')),
+        ]
+        result = get_cmake_path()
+
+        self.assertEqual(result, '')
