@@ -99,11 +99,12 @@ public:
         }
     }
 
-    void visualize(const shared_ptr<ov::Model>& model, const std::string& name) {
+    void visualize(const shared_ptr<ov::Model>& model, const std::string& name) const {
+        static size_t index = 0;
         if (m_visualize) {
             // visualizations and serializations will be named after the outermost function
             const size_t num_digits_in_pass_index = 3;
-            std::string index_str = std::to_string(m_index++);
+            std::string index_str = std::to_string(index++);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
             auto base_filename = model->get_name() + std::string("_") + index_str + std::string("_") + name;
 
@@ -114,7 +115,6 @@ public:
     }
 
 private:
-    size_t m_index = 0;
     std::unordered_map<std::string, stopwatch> stopwatches;
 
     bool m_visualize;
