@@ -385,8 +385,7 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     case f4e2m1:
         return _get_byte_strides(self.get_shape(), 8);
     default:
-        const auto& t = self.get_output_tensor(0).get_lower_value();
-        return t ? t.get_strides() : std::vector<size_t>{};
+        return self.get_strides();
     }
 }
 };  // namespace constant_helpers

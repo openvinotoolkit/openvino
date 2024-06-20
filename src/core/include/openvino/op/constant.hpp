@@ -399,6 +399,13 @@ public:
      */
     void alloc_buffer_on_visit_attributes(bool val);
 
+    /// @brief Get view on constant data as tensor.
+    /// @return OV::Tensor with constant data.
+    const Tensor get_tensor_view() const;
+
+    /// @return Constant's strides in bytes.
+    const Strides& get_strides() const;
+
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
