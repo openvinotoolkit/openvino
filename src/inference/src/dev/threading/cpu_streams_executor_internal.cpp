@@ -123,7 +123,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                 streams_table[streams_table.size() - 1][NUMBER_OF_STREAMS] =
                     std::abs(_streams_info_table[i][NUMBER_OF_STREAMS]);
             }
-        } else {
+        } else if (_streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
             continue;
         }
         if (last_all_proc && _streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
