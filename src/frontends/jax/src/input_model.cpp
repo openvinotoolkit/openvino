@@ -4,6 +4,7 @@
 
 #include "input_model.hpp"
 
+#include "openvino/frontend/exception.hpp"
 #include "place.hpp"
 #include "utils.hpp"
 
@@ -79,30 +80,7 @@ ov::element::Type InputModel::get_element_type(const Place::Ptr& place) const {
 }
 
 void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
-    // TODO: remove this API and mark it as unimplemented.
-    FRONT_END_GENERAL_CHECK(place && place->is_input(),
-                            "Provided place is invalid, only inputs are supported for setting tensor value.");
-    auto jax_place = std::dynamic_pointer_cast<jax::Place>(place);
-    FRONT_END_GENERAL_CHECK(jax_place, "Only place produced by Jax Frontend is supported");
-    const auto& el_type = jax_place->m_type;
-    const auto& p_shape = jax_place->m_pshape;
-    FRONT_END_GENERAL_CHECK(el_type.is_static() && p_shape.is_static(),
-                            "Shape and type must be statically defined before calling set_tensor_value");
-    auto const_node = ov::op::v0::Constant::create(el_type, p_shape.to_shape(), value);
-    const auto tensor_id = jax_place->get_tensor_index();
-    auto it = m_descriptors.find(tensor_id);
-    if (it != m_descriptors.end()) {
-        it->second.m_value = const_node;
-    } else {
-        m_descriptors.emplace(tensor_id, PlaceDesc(const_node));
-    }
-    // remove place from inputs
-    m_inputs.erase(std::remove_if(m_inputs.begin(),
-                                  m_inputs.end(),
-                                  [&](const Place::Ptr& p) {
-                                      return p->is_equal(place);
-                                  }),
-                   m_inputs.end());
+    FRONT_END_NOT_IMPLEMENTED("set_tensor_value");
 }
 
 void InputModel::override_all_outputs(const std::vector<Place::Ptr>& outputs) {

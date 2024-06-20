@@ -101,11 +101,6 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
             (*tensor_map)[tensor_id] = parameter;
         }
 
-        // Add all tensors that were frozen
-        for (auto& desc : input_model->m_descriptors) {
-            (*tensor_map)[desc.first] = desc.second.m_value;
-        }
-
         auto node_visitor = [&](std::shared_ptr<JaxDecoder> node) {
             // Get named params, if there's any.
             std::unordered_map<std::string, size_t> param_name_to_id;
