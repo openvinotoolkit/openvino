@@ -234,10 +234,10 @@ Known Issues
 | **Component: TBB**
 | ID: TBB-1400/ TBB-1401
 | Description:
-|   In 2024.2, oneTBB 2021.2.x is used for Intel Distribution OpenVINO Ubuntu and Red Hat
-    archives, instead of system TBB/oneTBB, which improved the performance on some platforms
-    (EMR for example), but the latency of some models drop on SPR, user can build OpenVINO with
-    **-DSYSTEM_TBB=ON** to get better latency performance for these models.
+|   In 2024.2, oneTBB 2021.2.x is used for Intel Distribution of OpenVINO Ubuntu and Red Hat
+    archives, instead of system TBB/oneTBB. This improves performance on the new generation of
+    Xeon platforms but may increase latency of some models on the previous generation. You can
+    build OpenVINO with **-DSYSTEM_TBB=ON** to get better latency performance for these models.
 
 | **Component: python API**
 | ID: CVS-141744
