@@ -19,13 +19,13 @@ public:
 
     DeviceMonitor(unsigned historySize = 1);
     ~DeviceMonitor();
-    void setHistorySize(std::size_t size);
-    std::size_t getHistorySize() const;
-    void collectData();
-    void collectData(const std::string& deviceName);
-    std::deque<std::map<std::string, double>> getLastHistory() const;
-    std::map<std::string, double> getMeanDeviceLoad() const;
-    std::map<std::string, double> getMeanDeviceLoad(const std::string& deviceName);
+    void set_history_size(std::size_t size);
+    std::size_t get_history_size() const;
+    void collect_data();
+    void collect_data(const std::string& deviceName);
+    std::deque<std::map<std::string, double>> get_last_history() const;
+    std::map<std::string, double> get_mean_device_load() const;
+    std::map<std::string, double> get_mean_device_load(const std::string& deviceName);
 
 private:
     unsigned samplesNumber;

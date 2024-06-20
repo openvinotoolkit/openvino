@@ -150,7 +150,7 @@ public:
         return CounterList;
     }
 
-    std::map<std::string, double> getLoad() {
+    std::map<std::string, double> get_load() {
         PDH_STATUS status;
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {
@@ -203,7 +203,7 @@ class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() {}
 
-    std::map<std::string, double> getLoad() {
+    std::map<std::string, double> get_load() {
         // TODO: Implement.
         return {{"00000000", 0}};
     }
@@ -216,7 +216,7 @@ namespace monitor {
 // not implemented
 class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    std::map<std::string, double> getLoad() {
+    std::map<std::string, double> get_load() {
         return {{"00000000", 0}};
     };
 #endif
@@ -224,10 +224,10 @@ GpuPerformanceCounter::GpuPerformanceCounter() : PerformanceCounter("GPU") {}
 GpuPerformanceCounter::~GpuPerformanceCounter() {
     delete performanceCounter;
 }
-std::map<std::string, double> GpuPerformanceCounter::getLoad() {
+std::map<std::string, double> GpuPerformanceCounter::get_load() {
     if (!performanceCounter)
         performanceCounter = new PerformanceCounterImpl();
-    return performanceCounter->getLoad();
+    return performanceCounter->get_load();
 }
 }
 }

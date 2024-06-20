@@ -14,7 +14,7 @@ namespace monitor {
 class PerformanceCounter {
 public:
     PerformanceCounter(std::string deviceName) {}
-    virtual std::map<std::string, double> getLoad() = 0;
+    virtual std::map<std::string, double> get_load() = 0;
     std::string name() {
         return deviceName;
     }

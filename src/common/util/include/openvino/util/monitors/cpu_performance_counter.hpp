@@ -18,7 +18,7 @@ class CpuPerformanceCounter : public PerformanceCounter {
 public:
     CpuPerformanceCounter(int nCores = 0);
     ~CpuPerformanceCounter();
-    std::map<std::string, double> getLoad() override;
+    std::map<std::string, double> get_load() override;
 
 private:
     int nCores;

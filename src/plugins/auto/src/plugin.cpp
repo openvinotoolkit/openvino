@@ -529,7 +529,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     auto utilization_threshold = m_plugin_config.get_property(ov::intel_auto::device_utilization_threshold);
     for (auto&& device_info : meta_devices) {
         auto device_utilization =
-            devices_monitor.getMeanDeviceLoad(ov::DeviceIDParser(device_info.device_name).get_device_name());
+            devices_monitor.get_mean_device_load(ov::DeviceIDParser(device_info.device_name).get_device_name());
         if (device_info.device_priority > 0)
             is_default_list = false;
         // check if device support this model precision

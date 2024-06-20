@@ -19,7 +19,7 @@ class GpuPerformanceCounter : public ov::util::monitor::PerformanceCounter {
 public:
     GpuPerformanceCounter();
     ~GpuPerformanceCounter();
-    std::map<std::string, double> getLoad() override;
+    std::map<std::string, double> get_load() override;
 
 private:
     class PerformanceCounterImpl;
