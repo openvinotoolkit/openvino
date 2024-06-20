@@ -1563,6 +1563,8 @@ TEST_F(gemm_gpu_tests, transpose_matmul_transpose_static_3d) {
     this->test_transpose_matmul_transpose(3, false, false);
 }
 
+#ifndef ENABLE_ONEDNN_FOR_GPU
+// Disable onednn test because onednn does not support format_tag::cbda, format_tag::badc.
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d) {
     this->test_transpose_matmul_transpose(4, true, false);
 }
@@ -1570,6 +1572,7 @@ TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d) {
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_static_4d) {
     this->test_transpose_matmul_transpose(4, false, false);
 }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_t1t2,
@@ -2802,6 +2805,159 @@ public:
             ASSERT_EQ(res_lock[i], res_ref_lock[i]) << i;
         }
     }
+
+    void test_dynamic_padding_transpose() {
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        auto& engine = get_test_engine();
+
+        if (!engine.get_device_info().supports_immad)
+            return;
+
+        const unsigned long BATCH_SIZE = 31;
+        const unsigned long M_SIZE = 11;
+        const unsigned long K_SIZE = 37;
+        const unsigned long N_SIZE = 49;
+
+        auto fill_mem = [&](cldnn::memory_ptr mem, std::vector<ov::float16>& data) {
+            cldnn::mem_lock<ov::float16> mem_ptr(mem, get_test_stream());
+            auto&& l = mem->get_layout();
+            auto data_idx = 0;
+            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
+                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
+                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
+                            mem_ptr[buffer_idx] = data[data_idx++];
+                        }
+                    }
+                }
+            }
+        };
+
+        const auto align_size_n = 15;
+
+        const auto aligned_n_size = align_to(N_SIZE, align_size_n);
+        auto padding_size_n = static_cast<int>(aligned_n_size - N_SIZE);
+
+        ov::Shape in1_shape = { 1, BATCH_SIZE, M_SIZE, K_SIZE };
+        ov::Shape in2_shape = { 1, BATCH_SIZE, N_SIZE, K_SIZE };
+        ov::Shape in1_shape_aligned = in1_shape;
+        ov::Shape in2_shape_aligned = { 1, BATCH_SIZE, aligned_n_size, K_SIZE };
+
+        tensor dyn_pad_dims_input2({0, 0, 0, 0}, 0);
+        dyn_pad_dims_input2 = tensor({0, 0, 0, 1}, 0);
+
+
+        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
+        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input2)};
+
+        auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
+
+        auto input1_mem = engine.allocate_memory({ov::PartialShape(in1_shape_aligned), data_types::f16, format::bfyx});
+
+        auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
+                                                                                data_types::f16,
+                                                                                format::bfyx,
+                                                                                padding({0, 0, 0, 0}, {0, 0, 0, padding_size_n}, 0.0f, dyn_pad_dims_input2)});
+
+        auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
+        auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
+
+        fill_mem(input1_mem, input_1_data);
+        fill_mem(input2_mem, input_2_data);
+
+        auto get_ref_results = [&]() {
+            ov::Shape in1_shape = { 1, BATCH_SIZE, M_SIZE, K_SIZE };
+            ov::Shape in2_shape = { 1, BATCH_SIZE, N_SIZE, K_SIZE };
+            auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
+            auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
+
+            auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f16, format::bfyx});
+            auto input2_mem = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f16, format::bfyx});
+
+            fill_mem(input1_mem, input_1_data);
+            fill_mem(input2_mem, input_2_data);
+
+            topology topology;
+            topology.add(input_layout("input1", in1_layout),
+                         input_layout("input2", in2_layout),
+                         gemm("gemm_ref", { input_info("input1"), input_info("input2") }, data_types::f16, false, true, 1.0f, 0.0f, 4, 4),
+                         permute("permute", input_info("gemm_ref"), {0, 2, 1, 3}),
+                         reorder("reorder", input_info("permute"), format::bfyx, data_types::f32)
+            );
+
+            ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
+            ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
+                                 ov::intel_gpu::optimize_data(true),
+                                 ov::intel_gpu::allow_new_shape_infer(true) };
+
+            network network(engine, topology, cfg);
+            network.set_input_data("input1", input1_mem);
+            network.set_input_data("input2", input2_mem);
+
+            auto outputs = network.execute();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            OPENVINO_ASSERT(outputs.begin()->first == "reorder");
+
+            auto inst = network.get_primitive("reorder");
+
+            auto output_mem = outputs.at("reorder").get_memory();
+            auto output_layout = outputs.at("reorder").get_layout();
+
+            return engine.reinterpret_buffer(*output_mem, output_layout);
+        };
+
+        topology topology;
+        topology.add(input_layout("input1", in1_layout),
+                     input_layout("input2", in2_layout),
+                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, false, true, 1.0f, 0.0f, 4, 4),
+                     permute("permute", input_info("gemm"), {0, 2, 1, 3}),
+                     reorder("reorder", input_info("permute"), format::bfyx, data_types::f32)
+        );
+
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
+        ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
+                             ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
+                             ov::intel_gpu::optimize_data(true),
+                             ov::intel_gpu::allow_new_shape_infer(true) };
+        network network(engine, topology, cfg);
+        network.set_input_data("input1", input1_mem);
+        network.set_input_data("input2", input2_mem);
+
+        auto outputs = network.execute();
+
+        auto output_mem = outputs.at("reorder").get_memory();
+        auto output_layout = outputs.at("reorder").get_layout();
+
+        auto res = engine.reinterpret_buffer(*output_mem, output_layout);
+
+        auto ref_res = get_ref_results();
+
+        mem_lock<ov::float16> res_lock(res, get_test_stream());
+        mem_lock<ov::float16> res_ref_lock(ref_res, get_test_stream());
+        for (size_t i = 0; i < res->count(); i++) {
+            ASSERT_EQ(res_lock[i], res_ref_lock[i]) << i;
+        }
+
+        // WA: Call wait_all() to wait for all queued kernels compilation finish
+        network.get_program()->get_compilation_context().wait_all();
+        auto outputs_onednn = network.execute();
+
+        auto output_mem_onednn = outputs_onednn.at("reorder").get_memory();
+        auto output_layout_onednn = outputs_onednn.at("reorder").get_layout();
+
+        auto res_onednn = engine.reinterpret_buffer(*output_mem_onednn, output_layout_onednn);
+
+        mem_lock<ov::float16> res_lock_onednn(res_onednn, get_test_stream());
+        for (size_t i = 0; i < res->count(); i++) {
+            ASSERT_EQ(res_lock_onednn[i], res_ref_lock[i]) << i;
+        }
+
+    }
 };
 
 TEST_F(gemm_onednn, impl_replacement_with_cldnn) {
@@ -2823,6 +2979,10 @@ TEST_F(gemm_onednn, dynamic_padding_all_dim) {
 
 TEST_F(gemm_onednn, dynamic_padding_n_dim_only) {
     this->test_dynamic_padding(true);
+}
+
+TEST_F(gemm_onednn, dynamic_padding_input_transpose) {
+    this->test_dynamic_padding_transpose();
 }
 
 template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>
@@ -3224,7 +3384,10 @@ TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_cached) {
     this->test_transpose_matmul_f16(4, true, true, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
 }
 
+#ifndef ENABLE_ONEDNN_FOR_GPU
+// Disable onednn test because onednn does not support format_tag::cbda, format_tag::badc.
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d_cached) {
     this->test_transpose_matmul_transpose(4, true, true);
 }
+#endif
 } // namespace
