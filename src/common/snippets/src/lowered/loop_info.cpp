@@ -338,6 +338,8 @@ void UnifiedLoopInfo::remove_loop_ports(const std::vector<ExpressionPort>& ports
     auto& loop_ports = is_input ? m_input_ports : m_output_ports;
     auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
     for (size_t i = 0; i < ports.size(); i++) {
+        OPENVINO_ASSERT(is_input ? (ports[i].get_type() == ExpressionPort::Input) : (ports[i].get_type() == ExpressionPort::Output),
+            "ports in remove_loop_ports have different type.");
         auto port_it = find_loop_port(ports[i]);
         // if not in loop ports, skip
         if (port_it == loop_ports.end())
@@ -357,6 +359,8 @@ void UnifiedLoopInfo::add_loop_ports(const std::vector<ExpressionPort>& ports) {
     auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
     size_t loop_dim_idx = get_dim_idx();
     for (size_t i = 0; i < ports.size(); i++) {
+        OPENVINO_ASSERT(is_input ? (ports[i].get_type() == ExpressionPort::Input) : (ports[i].get_type() == ExpressionPort::Output),
+            "ports in add_loop_ports have different type.");
         // if already in loop ports, skip
         auto loop_port = find_loop_port(ports[i]);
         if (loop_port != loop_ports.end())

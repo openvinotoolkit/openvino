@@ -217,7 +217,7 @@ public:
      * @param loop_end_pos the next iterator after the last expression
      * @param loop_id target Loop ID
      */
-    void sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id);
+    void sort_loop_ports(const LinearIR::constExprIt& loop_begin_pos, const LinearIR::constExprIt& loop_end_pos, size_t loop_id);
     /**
      * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
      *        If ports of decomposed expression were the Loop ports, these Loop ports may be updated by parameters `entries` and `exits`

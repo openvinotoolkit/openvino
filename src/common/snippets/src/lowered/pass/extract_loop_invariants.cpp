@@ -62,7 +62,8 @@ bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPt
     return true;
 }
 
-void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir, LinearIR::constExprIt& inner_loop_begin_pos, LinearIR::constExprIt& inner_loop_end_pos) {
+void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir,
+                  LinearIR::constExprIt& inner_loop_begin_pos, const LinearIR::constExprIt& inner_loop_end_pos) {
     // update expr loop id
     remove_last_loop_id(expr);
     // move if it is not the first
@@ -76,7 +77,7 @@ void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir, LinearIR::cons
 }
 
 void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id,
-                       LinearIR::constExprIt& inner_loop_begin_pos, LinearIR::constExprIt& inner_loop_end_pos) {
+                       const LinearIR::constExprIt& inner_loop_begin_pos, const LinearIR::constExprIt& inner_loop_end_pos) {
     const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loop_id);
     // delete expr input ports from loop input points, add expr output ports' consumers if
     // consumed in inner loop to loop input ports.
@@ -94,16 +95,16 @@ void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_man
     inner_loop_info->update_loop_ports(expr_input_ports, new_loop_input_ports);
 
     // delete expr out ports from loop out ports directly if it's in loop output ports
-    std::vector<ExpressionPort> exp_out_ports;
+    std::vector<ExpressionPort> out_ports_to_delete;
     for (size_t i = 0; i < expr->get_output_count(); ++i) {
         const auto& out_port = expr->get_output_port(i);
         if (inner_loop_info->is_loop_port(out_port)) {
-            exp_out_ports.push_back(out_port);
+            out_ports_to_delete.push_back(out_port);
         }
     }
-    if (!exp_out_ports.empty()) {
+    if (!out_ports_to_delete.empty()) {
         std::vector<ExpressionPort> new_ports;
-        inner_loop_info->update_loop_ports(exp_out_ports, new_ports);
+        inner_loop_info->update_loop_ports(out_ports_to_delete, new_ports);
     }
     // TODO: 142990.
     // Need sort after update loop ports. There are possibility that all exprs are moved to outer loop.
@@ -149,7 +150,7 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
             }
         }
         if (inner_loop_input_ports.size() == 0 && inner_loop_info->get_output_ports().size() == 0) {
-            // become a empty(inner_loop_input_ports is ref) loop after extraction, let remove it from loop_manager
+            // If the loop becomes empty (inner_loop_input_ports is ref) after extraction, remove it from loop_manager
             loop_manager->remove_loop_info(inner_loop_id);
             continue_to_extract = false;
             break;
@@ -180,12 +181,36 @@ bool ExtractLoopInvariants::run(LinearIR& linear_ir, lowered::LinearIR::constExp
 
         if (next_loop_ids_size < current_loop_ids_size) {
             // expr is the last expr of inner loop
-            std::vector<size_t> identified_loop_ids(
-                current_loop_ids.crbegin(),
-                current_loop_ids.crbegin() + (current_loop_ids_size - next_loop_ids_size));
-
-            for (size_t i = 0; i < identified_loop_ids.size(); i++) {
-                modified |= extract_from_loop(identified_loop_ids[i], linear_ir);
+            // cover all loops, from inner to outer
+            // for example LIR in this case: expr0, [expr1, [expr2, [expr3], [expr4]], [expr5, [expr6], [expr7]]], expr8
+            // loop1:[expr1, [expr2, [expr3], [expr4]], [expr5, [expr6], [expr7]]]
+            // loop2:[expr2, [expr3], [expr4]]
+            // loop3:[expr5, [expr6], [expr7]]
+            // loop4:[expr3]
+            // loop5:[expr4]
+            // loop6:[expr6]
+            // loop7:[expr7]
+            // analyze expr7(loop_id:[1,3,7]), should identify 7 loops in order [loop4,loop5,loop6,loop7,loop2,loop3,loop1] to extract
+            const auto& depth = current_loop_ids_size - next_loop_ids_size;
+            std::vector<std::set<size_t>> loop_ids(depth);
+            const auto& first_depth_loop_id = current_loop_ids[next_loop_ids_size];
+            const auto& loop_manager = linear_ir.get_loop_manager();
+            LinearIR::constExprIt loop_begin_pos, loop_end_pos;
+            std::tie(loop_begin_pos, loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, first_depth_loop_id);
+            for (auto& expr_it = loop_begin_pos; expr_it != loop_end_pos; expr_it++) {
+                const auto& expr_loop_ids = (*expr_it)->get_loop_ids();
+                size_t d = 0;
+                for (size_t i = next_loop_ids_size; i < expr_loop_ids.size(); i++) {
+                    loop_ids[d].insert(expr_loop_ids[i]);
+                    d++;
+                }
+            }
+            // from inner to outer
+            for (auto d = depth; d > 0; d--) {
+                const auto& loops_in_this_depth = loop_ids[d - 1];
+                for (const auto& loop_id : loops_in_this_depth) {
+                    modified |= extract_from_loop(loop_id, linear_ir);
+                }
             }
         }
     }
