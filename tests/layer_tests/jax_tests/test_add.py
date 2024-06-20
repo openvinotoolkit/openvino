@@ -7,10 +7,16 @@ import pytest
 from jax_layer_test_class import JaxLayerTest
 import jax.numpy as jnp
 
+def get_rand_jnp_array(shape, dtype):
+    if dtype in [np.float32, np.float16, np.float64]:
+        return jnp.array(np.random.uniform(-1000, 1000, shape).astype(dtype))
+    else:
+        return jnp.array(np.random.randint(-10, 10, shape).astype(dtype))
+
 class TestAdd(JaxLayerTest):
     def _prepare_input(self):
-        lhs = jnp.array(np.random.randint(-10, 10, self.lhs_shape).astype(self.lhs_type))
-        rhs = jnp.array(np.random.randint(-10, 10, self.rhs_shape).astype(self.rhs_type))
+        lhs = get_rand_jnp_array(self.lhs_shape, self.lhs_type)
+        rhs = get_rand_jnp_array(self.rhs_shape, self.rhs_type)
         return (lhs, rhs)
 
     def create_model(self, lhs_shape, rhs_shape, lhs_type, rhs_type):
@@ -47,8 +53,8 @@ class TestAdd(JaxLayerTest):
 
 class TestAddWithConstant(JaxLayerTest):
     def _prepare_input(self):
-        lhs = jnp.array(np.random.randint(-10, 10, self.lhs_shape).astype(self.lhs_type))
-        rhs = jnp.array(np.random.randint(-10, 10, self.rhs_shape).astype(self.rhs_type))
+        lhs = get_rand_jnp_array(self.lhs_shape, self.lhs_type)
+        rhs = get_rand_jnp_array(self.rhs_shape, self.rhs_type)
         return (lhs, rhs)
 
     def create_model(self, lhs_shape, rhs_shape, lhs_type, rhs_type):
@@ -86,8 +92,8 @@ class TestAddWithConstant(JaxLayerTest):
         
 class TestAddWithLiteralInvar(JaxLayerTest):
     def _prepare_input(self):
-        lhs = jnp.array(np.random.randint(-10, 10, self.lhs_shape).astype(self.lhs_type))
-        rhs = jnp.array(np.random.randint(-10, 10, self.rhs_shape).astype(self.rhs_type))
+        lhs = get_rand_jnp_array(self.lhs_shape, self.lhs_type)
+        rhs = get_rand_jnp_array(self.rhs_shape, self.rhs_type)
         return (lhs, rhs)
 
     def create_model(self, lhs_shape, rhs_shape, lhs_type, rhs_type):
