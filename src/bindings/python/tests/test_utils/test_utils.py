@@ -74,7 +74,7 @@ class TestGetCmakePath(unittest.TestCase):
         ]
         result = get_cmake_path()
 
-        self.assertEqual(result, "/fake/site-packages/openvino/dir1")
+        assert result == "/fake/site-packages/openvino/dir1"
 
     @patch("os.walk")
     @patch("pathlib.Path.parent", new_callable=MagicMock)
@@ -87,4 +87,4 @@ class TestGetCmakePath(unittest.TestCase):
         ]
         result = get_cmake_path()
 
-        self.assertEqual(result, "")
+        assert result == ""
