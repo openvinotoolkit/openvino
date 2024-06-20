@@ -351,7 +351,7 @@ void regclass_graph_Model(py::module m) {
                 GIL is released while running this function.
 
                 :param partial_shape: New shape or list of shapes.
-                :type partial_shape: list or list of lists
+                :type partial_shape: Union[List[int], List[List[int]]]
                 :return : void
 
                 If a list of integers is provided, the model input will be reshaped to the specified shape.
