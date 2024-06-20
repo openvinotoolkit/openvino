@@ -547,7 +547,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     //  we need to replace cloned expression pointers to original ones in the KernelExecutorTable
     const auto& exec_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
     for (const auto& expr : *m_linear_ir)
-        exec_table->replace_reference_expression(expression_map.at(expr.get()), expr);
+        exec_table->replace_key_expression(expression_map.at(expr.get()), expr);
     // Some kernel executors might've been registered during code emission.
     //  We need to update them, so appropriate kernels will be compiled.
     exec_table->update_state();

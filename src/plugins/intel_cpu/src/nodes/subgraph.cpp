@@ -127,6 +127,8 @@ public:
         OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
         OPENVINO_ASSERT(data_offsets.front().size() == m_parallel_exec_domain.size(), "Data offsets with invalid ranks detected");
 
+        // Note: we need to reset KernelExecutorTable to the state that was recorded in the SubgraphDynamicSpecializedExecutor
+        // constructor because the table might've been used for other shapes
         reset_exec_table_state();
 
         std::vector<const uint8_t*> src_ptrs;

@@ -21,7 +21,7 @@ public:
          size_t hash() const { return config->hash(); }
          bool operator==(const Key& rhs) const { return *config == *rhs.config; }
      };
-    void update_kernel(const std::shared_ptr<const Conf>& config, std::shared_ptr<KernelType>& kernel) const override {
+    void update_kernel(const std::shared_ptr<const Conf>& config, std::shared_ptr<KernelType>& kernel) const override final { // NOLINT
         const auto& cache = m_kernel_cache.lock();
         OPENVINO_ASSERT(cache, "Invalid kernel cache pointer in CPUKernelExecutor::update_kernel()");
         const auto& lookup_result = cache->getOrCreate(Key(config),

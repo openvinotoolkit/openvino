@@ -42,10 +42,14 @@ public:
 #endif
     };
     /**
-    * @brief update current kernel config and recompile kernel if necessary.
+    * @brief Update current kernel config in accordance with the passed expression. Corresponding kernel is recompiled if necessary.
      * This method should be called to update KernelExecutor based on runtime info (e.g. shapes) available through expression ptr
     */
     virtual void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) = 0;
+    /**
+    * @brief Replace current kernel config with the provided value. Corresponding kernel is recompiled if necessary.
+     * This method should be called to restore a saved state of the executor, that was configured using update_by_expression().
+    */
     virtual void update_by_config(const std::shared_ptr<const GenericConfig>& new_config) = 0;
 
     virtual std::shared_ptr<const GenericConfig> get_config() const = 0;
@@ -146,7 +150,7 @@ public:
      * be accessible from RuntimeConfigurator. In order to replace these cloned ExpressionPtrs with the original ones,
      * we need to call this method.
     */
-    bool replace_reference_expression(const snippets::lowered::ExpressionPtr& from, const snippets::lowered::ExpressionPtr& to);
+    void replace_key_expression(const snippets::lowered::ExpressionPtr& from, const snippets::lowered::ExpressionPtr& to);
 
     virtual ~KernelExecutorTable() = default;
 

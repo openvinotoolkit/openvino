@@ -136,8 +136,10 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     // Matrix B (second input)
     // Non float input 1 => with data repacking
     auto LDB = DIM_CAST(snippets::utils::get_in_leading_dim(input_pds[1]));
-    if (config->get_dt_in1() != dnnl_f32) {
-        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+
+    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
+    if (brgemm_node->is_with_data_repacking()) {
         const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
         OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
         LDB = DIM_CAST(repacking_buffer_shape.back());
@@ -148,9 +150,9 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     config->update(M, N, K, LDA, LDB, LDC);
 }
 
-void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* args) {
-    const auto& kernel = desc->get_kernel();
-    const auto& config = std::static_pointer_cast<const BrgemmKernelConfig>(desc->get_config());
+void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_args* args) {
+    const auto& kernel = executor->get_kernel();
+    const auto& config = std::static_pointer_cast<const BrgemmKernelConfig>(executor->get_config());
     OV_CPU_JIT_EMITTER_ASSERT(kernel && config, "has nullptr compiler kernel or invalid config");
 
     const auto tile_config = args->amx_tile_config;

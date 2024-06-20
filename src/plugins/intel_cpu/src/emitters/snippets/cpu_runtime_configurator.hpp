@@ -5,7 +5,6 @@
 #pragma once
 
 #include "snippets/runtime_configurator.hpp"
-#include "snippets/kernel_executor_table.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"

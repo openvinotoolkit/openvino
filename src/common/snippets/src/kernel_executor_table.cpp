@@ -7,15 +7,13 @@
 namespace ov {
 namespace snippets {
 
-bool KernelExecutorTable::replace_reference_expression(const snippets::lowered::ExpressionPtr& from, const snippets::lowered::ExpressionPtr& to) {
+void KernelExecutorTable::replace_key_expression(const snippets::lowered::ExpressionPtr& from, const snippets::lowered::ExpressionPtr& to) {
     const auto& found = m_table.find(from);
     if (found != m_table.end()) {
         OPENVINO_ASSERT(m_table.count(to) == 0, "Attempt to replace a value that is already in the KernelExecutorTable");
         m_table.insert({to, found->second});
         m_table.erase(found);
-        return true;
     }
-    return false;
 }
 
 void KernelExecutorTable::reset_state(const ExecTableState& state) {

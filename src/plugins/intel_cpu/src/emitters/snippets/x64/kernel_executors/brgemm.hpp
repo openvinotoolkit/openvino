@@ -81,7 +81,7 @@ public:
                          const std::shared_ptr<BrgemmKernelConfig>& config);
 
     /** Function that will be called in runtime to execute the kernel */
-    static void execute(const BrgemmKernelExecutor* desc, call_args* args);
+    static void execute(const BrgemmKernelExecutor* executor, call_args* args);
 
 protected:
     std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const std::shared_ptr<const BrgemmKernelConfig>& c) const override;

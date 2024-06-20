@@ -18,12 +18,9 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
     size_t num_nodes, num_subgraphs;
     std::tie(input_shapes, elem_types, num_nodes, num_subgraphs, targetDevice) = obj.param;
     std::ostringstream result;
-    for (size_t i = 0; i < input_shapes.size(); i++) {
-        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({input_shapes[i].first}) << "_";
-        result << "TS[" << i << "]=";
-        for (const auto& shape : input_shapes[i].second)
-             result << "(" << ov::test::utils::vec2str(shape) << ")_";
-    }
+    for (size_t i = 0; i < input_shapes.size(); i++)
+        result << "IS[" << i << "]=" << input_shapes[i] << "_";
+
     for (size_t i = 0; i < elem_types.size(); i++)
         result << "T[" << i <<"]=" << elem_types[i] << "_";
     result << "#N=" << num_nodes << "_";

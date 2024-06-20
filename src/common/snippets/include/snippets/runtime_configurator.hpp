@@ -44,7 +44,7 @@ public:
 
     size_t buffer_scratchpad_size = 0;
     std::vector<size_t> buffer_cluster_offsets {};
-    std::shared_ptr<KernelExecutorTable> kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
+    KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
 };
 
 /**

@@ -68,9 +68,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
 
 std::vector<std::vector<ov::test::InputShape>> input_shapes_dynamic{
         {
-            {PartialShape("[?, ?, ?, ?]"), {{2, 1, 32, 64}, {2, 2, 10, 20}, {2, 2, 100, 80},
+            {PartialShape{-1, -1, -1, -1}, {{2, 1, 32, 64}, {2, 2, 10, 20}, {2, 2, 100, 80},
                                                            {2, 2, 10, 20}, {2, 1, 32, 64}}},
-            {PartialShape("[?, ?, ?, ?]"), {{1, 3, 64, 128}, {2, 2, 20, 30}, {2, 2, 80, 120},
+            {PartialShape{-1, -1, -1, -1}, {{1, 3, 64, 128}, {2, 2, 20, 30}, {2, 2, 80, 120},
                                                            {2, 2, 20, 30}, {1, 3, 64, 128}}}
         },
 };
