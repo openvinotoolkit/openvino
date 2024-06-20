@@ -112,14 +112,6 @@ static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type || memory::data_type::f16 == type;
 }
 
-static bool convert_i32_to_f32(memory::data_type src_dt, bool support_intermediate_int) {
-    return !isFloatCompatible(src_dt) && !support_intermediate_int;
-}
-
-static bool convert_f32_to_i32(memory::data_type dst_dt, bool support_intermediate_int) {
-    return !isFloatCompatible(dst_dt) && !support_intermediate_int;
-}
-
 template <cpu_isa_t isa>
 struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
@@ -672,7 +664,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (convert_i32_to_f32(src_dt, support_intermediate_int))
+        if (convert_i32_to_f32(src_dt))
             uni_vcvtdq2ps(vmm_val, vmm_val);
         add(rsp, vlen);
     }
@@ -937,7 +929,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (convert_i32_to_f32(src_dt, support_intermediate_int))
+        if (convert_i32_to_f32(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -966,7 +958,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (convert_i32_to_f32(src_dt, support_intermediate_int)) {
+        if (convert_i32_to_f32(src_dt)) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
@@ -975,7 +967,7 @@ private:
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
-        if (convert_f32_to_i32(dst_dt, support_intermediate_int)) {
+        if (convert_f32_to_i32(dst_dt)) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
@@ -1026,7 +1018,7 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (convert_f32_to_i32(dst_dt, support_intermediate_int)) {
+        if (convert_f32_to_i32(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
@@ -1127,6 +1119,14 @@ private:
             default:
                 assert(!"unsupported reduce mode");
         }
+    }
+
+    inline bool convert_i32_to_f32(memory::data_type src_dt) {
+        return !isFloatCompatible(src_dt) && !support_intermediate_int;
+    }
+
+    inline bool convert_f32_to_i32(memory::data_type dst_dt) {
+        return !isFloatCompatible(dst_dt) && !support_intermediate_int;
     }
 
     void prepare_aux_table() {
