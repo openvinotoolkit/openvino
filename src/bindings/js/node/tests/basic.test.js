@@ -22,7 +22,7 @@ it('Core.getAvailableDevices()', () => {
 
 describe('Core.getVersions()', () => {
 
-  it('getVersions(validDeviceName: string)', () => {    
+  it('getVersions(validDeviceName: string)', () => {
     const deviceVersion = core.getVersions('CPU');
     assert.strictEqual(typeof deviceVersion, 'object');
     assert.strictEqual(typeof deviceVersion.CPU, 'object');
@@ -33,14 +33,14 @@ describe('Core.getVersions()', () => {
   it('getVersions() throws if no arguments are passed into the function', () => {
     assert.throws(
       () => core.getVersions(),
-      {message: 'getVersions() method expects 1 argument of string type.'}
+      { message: 'getVersions() method expects 1 argument of string type.' }
     );
   });
 
   it('getVersions() throws if non string coercable arguments are passed into the function', () => {
     assert.throws(
       () => core.getVersions({ deviceName: 'CPU' }),
-      {message: 'The argument in getVersions() method must be a string or convertible to a string.'}
+      { message: 'The argument in getVersions() method must be a string or convertible to a string.' }
     );
   });
 
@@ -75,9 +75,17 @@ describe('Core.compileModelSync()', () => {
   });
 
   it('compileModelSync(model, device, config) throws when config is a string', () => {
+    const expectedMsg = ("Method 'compileModelSync' called with incorrect parameters.\n" +
+      'Provided signature: (object, string, string) \n' +
+      'Allowed signatures:\n' +
+      '- (string, string)\n' +
+      '- (Model, string)\n' +
+      '- (string, string, object)\n' +
+      '- (Model, string, object)\n').replace(/[()]/g, '\\$&');
+
     assert.throws(
       () => core.compileModelSync(model, 'CPU', 'string'),
-      "Argument #3 must be an Object."
+      new RegExp(expectedMsg),
     );
   });
 
@@ -89,12 +97,19 @@ describe('Core.compileModelSync()', () => {
   });
 
   it('compileModelSync(model) throws if the number of arguments is invalid', () => {
+    const expectedMsg = ("Method 'compileModelSync' called with incorrect parameters.\n" +
+      'Provided signature: (object) \n' +
+      'Allowed signatures:\n' +
+      '- (string, string)\n' +
+      '- (Model, string)\n' +
+      '- (string, string, object)\n' +
+      '- (Model, string, object)\n').replace(/[()]/g, '\\$&');
+
     assert.throws(
       () => core.compileModelSync(model),
-      /Invalid number of arguments/
+      new RegExp(expectedMsg),
     );
   });
-
 });
 
 describe('Core.compileModel()', () => {
@@ -268,7 +283,7 @@ describe('Test exportModel()/importModel()', () => {
   it('Test importModel(stream, device, config: unsupported property) throws', () => {
     const tmpDir = '/tmp';
     assert.throws(
-      () => core.importModelSync(userStream, 'CPU', {'CACHE_DIR': tmpDir}),
+      () => core.importModelSync(userStream, 'CPU', { 'CACHE_DIR': tmpDir }),
       /Unsupported property CACHE_DIR by CPU plugin./
     );
   });

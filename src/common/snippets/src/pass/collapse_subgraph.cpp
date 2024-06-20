@@ -124,6 +124,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ov::op::v0::Erf>(n)
             || ov::is_type<ov::op::v0::Exp>(n)
             || ov::is_type<ov::op::v1::LogicalNot>(n)
+            || ov::is_type<ov::op::v4::Mish>(n)
             || ov::is_type<ov::op::v0::Negative>(n)
             || ov::is_type<ov::op::v0::Relu>(n)
             || ov::is_type<ov::op::v5::Round>(n)

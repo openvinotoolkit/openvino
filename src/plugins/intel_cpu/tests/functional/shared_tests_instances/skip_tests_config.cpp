@@ -331,13 +331,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 123321
         retVector.emplace_back(
             R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=1.*relu.*direction=reverse.*)");
-        // Ticket: 122769
-        retVector.emplace_back(R"(.*smoke_nonzero/NonZeroLayerTest.Inference/IS.*)");
-        retVector.emplace_back(R"(.*smoke_NormalizeL2_.*)");
-        retVector.emplace_back(R"(.*Extension.XmlModelWithExtensionFromDSO.*)");
-        retVector.emplace_back(R"(.*Extension.OnnxModelWithExtensionFromDSO.*)");
-        retVector.emplace_back(R"(.*ONNXQuantizedModels/QuantizedModelsTests.MaxPool.*)");
-        retVector.emplace_back(R"(.*ONNXQuantizedModels/QuantizedModelsTests.Convolution.*)");
         // Ticket: 134601
         retVector.emplace_back(R"(.*smoke_GroupNormalization.*)");
         // by calc abs_threshold with expected value
@@ -354,10 +347,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
-
-    // Issue: 123019
-    retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
-    retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
     // Issue: 124309
     retVector.emplace_back(R"(.*InferRequestPreprocessConversionTest.*oLT=NHWC.*)");
     retVector.emplace_back(R"(.*smoke_NoReshape/OVCompiledModelGraphUniqueNodeNamesTest.CheckUniqueNodeNames.*)");
