@@ -4,12 +4,16 @@
 
 #include "graph_transformations.hpp"
 
+#include <cstdint>
 #include <istream>
 #include <mutex>
 #include <streambuf>
 
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+
+// Windows has a limitation on the size of the stream buffer from its implementation
+#define MAX_WIN_STREAMBUF_SIZE INT32_MAX
 
 namespace intel_npu::driverCompilerAdapter {
 
@@ -23,9 +27,8 @@ IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpse
     _model = std::const_pointer_cast<ov::Model>(origModel);
 
 #ifdef _WIN32
-    // Only use fstream for Windows
-    if (_model->get_graph_size() > 1024U * 1024 * 1024 * 2) {
-        // Force model larger than 2G to use FILE mode
+    // Only use custom stream buffer for Windows
+    if (_model->get_graph_size() > MAX_WIN_STREAMBUF_SIZE) {
         _logger.warning("Force large model %s to use custom stream to do serialize", _model->get_friendly_name());
         _isLargeModel = true;
     }
