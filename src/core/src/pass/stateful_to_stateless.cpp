@@ -13,12 +13,20 @@
 
 using namespace ov::op;
 
-static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const std::string& name) {
+static std::shared_ptr<ov::Node> setName(std::shared_ptr<ov::Node> node, const std::string& name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
     OPENVINO_ASSERT(node->get_output_size() == 1);
     node->get_output_tensor(0).set_names({name});
+    return node;
+}
+
+
+// Templated method that has the same effect as not templated `setName` but saves Op type for convenient calls chaining
+template <typename T>
+inline std::shared_ptr<T> setName(std::shared_ptr<T> node, const std::string& name) {
+    setName(std::dynamic_pointer_cast<ov::Node>(node), name);
     return node;
 }
 
@@ -32,12 +40,37 @@ std::shared_ptr<v0::Parameter> get_parameter_by_tensor_name(const std::shared_pt
 }
 
 
+typedef std::string VariableID;
+typedef std::vector<VariableID> VariableIDs;
+
+
+void restore_kv_cache_order(VariableIDs& variables, const std::shared_ptr<ov::Model>& model) {
+    // Try to restore variable order based on the known naming convention from optimum-intel
+    // If names are not satisfy the expected convention, fallback to use order of Assigns in the model->get_sinks()
+
+    // TODO...
+}
+
+
+std::string variable_id_to_input_name(const VariableID variable_id) {
+    // TODO: Restore original input name based on optimum-intel convention
+    return "input_restored." + variable_id;
+}
+
+
+std::string variable_id_to_output_name(const VariableID variable_id) {
+    // TODO: Restore original output name based on optimum-intel convention
+    return "output_restored." + variable_id;
+}
+
+
 bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(StatefulToStateless);
 
     auto beam_idx = get_parameter_by_tensor_name(model, "beam_idx");
-    ov::NodeVector future_params;  // to collect nodes, each with a single output that will be replaced by new parameters
-    std::vector<std::shared_ptr<op::util::Variable>> variables; // to collect variables corresponding to future_params
+    typedef std::string VariableID;
+    VariableIDs variable_ids; // to collect variables corresponding to future_params
+    std::unordered_map<VariableID, std::shared_ptr<ov::Node>> future_params;  // to collect nodes, each with a single output that will be replaced by new parameters
     if(beam_idx) {
         for(const ov::Input<ov::Node>& input: beam_idx->get_output_target_inputs(0)) {
             if(auto gather = std::dynamic_pointer_cast<op::util::GatherBase>(input.get_node()->shared_from_this())) {
@@ -45,38 +78,54 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
                 OPENVINO_ASSERT(
                     read_value,
                     "Unexpected model topology in StatefulToStateless: no ReadValue is found at the first input of Gather by `beam_idx` parameter");
-                future_params.push_back(gather);
-                variables.push_back(read_value->get_variable());
+                auto variable_id = read_value->get_variable_id();
+                variable_ids.push_back(variable_id);
+                future_params[variable_id] = gather;
             }
         }
     } else {
         OPENVINO_THROW("Stateful models without `beam_idx` input are not supported in StatefulToStateless transformation");
     }
+    model->remove_parameter(beam_idx);
 
-    // TODO: Use naming convention for variables to sort them in the orignal order and assing name for new Parameter's/Result's
+    restore_kv_cache_order(variable_ids, model);
 
-    std::unordered_map<std::string, std::shared_ptr<op::util::AssignBase>> assign_by_var_name;
+    typedef std::shared_ptr<op::util::AssignBase> PAssign;
+    std::unordered_map<VariableID, PAssign> assigns_by_var_id;
     for(auto sink: model->get_sinks()) {
         if(auto assign = std::dynamic_pointer_cast<op::util::AssignBase>(sink)) {
-            assign_by_var_name[assign->get_variable_id()] = assign;
+            assigns_by_var_id[assign->get_variable_id()] = assign;
         }
     }
 
-    model->remove_parameter(beam_idx);
-    for(size_t i = 0; i < future_params.size(); ++i) {
-        auto future_param = future_params[i];
-        std::string variable_id = variables[i]->get_info().variable_id;
+    ov::ParameterVector new_parameters;
+    ov::ResultVector new_results;
+    new_parameters.reserve(variable_ids.size());
+    new_results.reserve(variable_ids.size());
+
+    for(const auto& variable_id: variable_ids) {
+        auto future_param = future_params[variable_id];
         auto parameter = setName(std::make_shared<v0::Parameter>(
-            future_param->get_output_element_type(0),
-            future_param->get_output_partial_shape(0)),
-            variable_id + ".restored_input");
-        model->add_parameters({parameter});
+                future_param->get_output_element_type(0),
+                future_param->get_output_partial_shape(0)),
+            variable_id_to_input_name(variable_id));
+
         replace_node(future_param, parameter);
-        auto assign = assign_by_var_name[variable_id];
-        auto result = std::make_shared<v0::Result>(assign->input_value(0));
+
+        auto assign = assigns_by_var_id[variable_id];
+        auto result = setName(std::make_shared<v0::Result>(
+                assign->input_value(0)),
+            variable_id_to_output_name(variable_id));
+
         replace_node(assign, result);
+
         model->remove_sink(assign);
+        new_parameters.push_back(parameter);
+        new_results.push_back(result);
     }
+
+    model->add_parameters(new_parameters);
+    model->add_results(new_results);
 
     return true;
 }
