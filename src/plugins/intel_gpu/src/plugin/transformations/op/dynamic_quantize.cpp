@@ -40,10 +40,8 @@ std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op, std::vector
     out_shapes.push_back(input_shapes[0]);
     // FIXME: generalize to N-dim case
     auto scale_shape = input_shapes[0];
-    GPU_DEBUG_IF(debug_config->enable_kv_cache_compression != 1) { // per-token compression
-        scale_shape[2] = 1;
-    }
-    scale_shape[3] = 1;
+    for (size_t i = 2; i < scale_shape.size(); i++)
+        scale_shape[i] = 1;
     out_shapes.push_back(scale_shape);
     return out_shapes;
 }

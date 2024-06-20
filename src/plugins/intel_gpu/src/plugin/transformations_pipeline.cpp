@@ -64,10 +64,10 @@
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
-#include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -811,24 +811,27 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
-        manager.register_pass<ov::intel_gpu::KVCacheCompression>();
-
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
-        // manager.register_pass<ov::pass::RoPEFusion>();
-        // pass_config->disable<ov::pass::RoPEFusionGPTNEOX>();
-        // pass_config->disable<ov::pass::RoPEFusionGPTJ>();
-        // pass_config->disable<ov::pass::RoPEFusionCosSinPreprocess>();
-        // pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
-        // pass_config->disable<ov::pass::RoPEFusionPreprocess>();
-        // pass_config->disable<ov::pass::RoPEShareCosSin>();
+        manager.register_pass<ov::pass::RoPEFusion>();
+        pass_config->disable<ov::pass::RoPEFusionGPTNEOX>();
+        pass_config->disable<ov::pass::RoPEFusionGPTJ>();
+        pass_config->disable<ov::pass::RoPEFusionCosSinPreprocess>();
+        pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
+        pass_config->disable<ov::pass::RoPEFusionPreprocess>();
+        pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
+        
+        manager.register_pass<ov::pass::VisualizeTree>("before.dot");
+
+        manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>();
+        manager.register_pass<ov::pass::VisualizeTree>("after.dot");
 
         manager.run_passes(func);
     }

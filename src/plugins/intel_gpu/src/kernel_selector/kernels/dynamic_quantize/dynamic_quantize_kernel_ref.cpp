@@ -56,9 +56,6 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
     CommonDispatchData dispatchData;
 
     dispatchData.gws = {params.outputs[0].Batch().v * params.outputs[0].Feature().v, 1, 1};
-    GPU_DEBUG_IF(debug_config->enable_kv_cache_compression == 1) { // per-head compression
-        dispatchData.gws[1] = params.outputs[0].Y().v;
-    }
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
