@@ -77,6 +77,8 @@ bool validate_list(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
     return rc;
 }
 
+}  // namespace
+
 class TestMatcherPassTrue : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TestMatcherPassTrue");
@@ -170,7 +172,6 @@ public:
         return false;
     }
 };
-}  // namespace
 
 TEST(pass_manager, add) {
     pass::Manager pass_manager;
