@@ -85,12 +85,12 @@ void ModelRange::find_mode_ranges(const std::shared_ptr<ov::Model>& model) {
             std::cout << ex.what() << std::endl;
 #endif
         }
-// #ifndef NDEBUG
+#ifndef NDEBUG
         std::cout << "RANGE FOR PARAMETER: " << param->get_friendly_name()
                   << "  start from: " << std::to_string(data->start_from) << "  range: " << std::to_string(data->range)
                   << "  resolution: " << std::to_string(data->resolution) << "  seed: " << std::to_string(data->seed)
                   << std::endl;
-// #endif
+#endif
 
         std::string range_id = get_range_id(param);
         node_ranges[range_id] = data;
