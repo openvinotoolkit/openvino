@@ -219,6 +219,7 @@ public:
     std::map<std::string, double> get_load() {
         return {{"00000000", 0}};
     }
+};
 #endif
 GpuPerformanceCounter::GpuPerformanceCounter() : PerformanceCounter("GPU") {}
 GpuPerformanceCounter::~GpuPerformanceCounter() {
