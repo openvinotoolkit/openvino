@@ -98,7 +98,7 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
     remove_plugin_xml(ov_file_path);
 }
 
-#    if defined(__linux__) && !defined(__ANDROID__)
+#    if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
 TEST(CoreBaseTest, ReadModelwithSymlink) {
     fs::create_directory("test_link");
     std::string modelName = "test_link/test.xml";
