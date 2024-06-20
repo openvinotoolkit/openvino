@@ -306,6 +306,8 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
+    LOG_DEBUG("Real idx is..." << real_idx);
+
     const bool do_copy = needs_copy(idx);
     const auto& iodesc = m_subrequests_gio.at(idx);
 
@@ -314,33 +316,42 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
 
     // pick which subrequest we actually work on here
     auto subr = [&]() {
-        if (real_idx == real(now_idx())) {
+        if (now_idx() != static_cast<std::size_t>(-1)
+            && real_idx == real(now_idx())
+            && m_use_function_pipelining) {
+            LOG_DEBUG("Accessing the pipeline subrequest");
             // The real index of request we need to prepare IS
-            // the same request which executes now. Happens only when
-            // it is a function and the function pipelining is ON.
-            NPUW_ASSERT(m_use_function_pipelining);
+            // the same request which executes now AND
+            // function_pipelining enabled - select the reserve request.
             NPUW_ASSERT(m_funcall_pipeline[real_idx].subrequest);
             return m_funcall_pipeline[real_idx].subrequest;
         }
         // Otherwise: Just a return a subrequest which is in place.
         // If it is a function call and we have function pipelining ON,
         // it is still the right subrequest we can use.
+        LOG_DEBUG("Accessing the primary subrequest");
         return m_subrequests[real_idx];
     } ();
 
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
+        LOG_DEBUG("Processing " << param_idx << " -> " << sub_in_idx << std::endl);
         const auto& g_port = m_npuw_model->inputs()[param_idx];
         const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
         const auto& s_port = subr->get_inputs()[sub_in_idx];
+        LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
+        LOG_BLOCK();
         if (do_copy) {
+            LOG_DEBUG("Will be copied");
             copy_list.emplace_back(g_tnsr, s_port);
         } else {
+            LOG_DEBUG("Will be set");
             subr->set_tensor(s_port, g_tnsr);
         }
     }
 
+    LOG_DEBUG("Running copy...");
     ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
         auto &it = copy_list[idx];
         ov::SoPtr<ov::ITensor> dst = subr->get_tensor(it.second);
@@ -582,12 +593,21 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
                     // Trigger execution of the current one
                     // FIXME: pipelining?
                     if (next_idx == 0) {
+                        // Note: even if m_function_pipelining is ON,
+                        // SWAP won't happen here - see the below check for .next
                         m_subrequests[real_idx]->infer();
                     } else {
                         m_subrequests[real_idx]->start_async();
                         if (!next_prepared) {
                             bind_global_parameters(next_idx);
                             next_prepared = true;
+                        }
+                        if (m_use_function_pipelining
+                            && m_funcall_pipeline[idx].next) {
+                            const auto my_next_idx = m_funcall_pipeline[idx].next.value();
+                            LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << my_next_idx << "]...");
+                            LOG_BLOCK();
+                            unpack_closure(my_next_idx, m_funcall_pipeline[real_idx].subrequest);
                         }
                         m_subrequests[real_idx]->wait();
                     }
