@@ -179,7 +179,7 @@ namespace monitor {
 // not implemented
 class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    std::vector<double> get_load() {
+    std::map<std::string, double> get_load() {
         return {{"Total", 0.0}};
     };
 };
