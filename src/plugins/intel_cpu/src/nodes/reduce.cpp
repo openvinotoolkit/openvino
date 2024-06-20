@@ -347,8 +347,13 @@ private:
             // init dst, dst loading is embedded in horiz_reduce_store
             switch (jcp_.reduce_mode) {
                 case Algorithm::ReduceAnd:
-                case Algorithm::ReduceProd:
                     uni_vmovups(vmm_dst, table_val(0));
+                    break;
+                case Algorithm::ReduceProd:
+                    if (isFloatCompatible(jcp_.src_dt))
+                        uni_vmovups(vmm_dst, table_val(0));
+                    else
+                        uni_vmovups(vmm_dst, table_val(6));
                     break;
                 case Algorithm::ReduceL1:
                     uni_vmovups(vmm_aux, table_val(1));
@@ -587,7 +592,9 @@ private:
                         vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
                     } else {
                         vpgatherdd(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
-                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                        if (!support_intermediate_int) {
+                            uni_vcvtdq2ps(vmm_src, vmm_src);
+                        }
                     }
                 } else if (isa == cpu::x64::avx2) {
                     uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
@@ -595,7 +602,9 @@ private:
                         vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
                     } else {
                         vpgatherdd(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
-                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                        if (!support_intermediate_int) {
+                            uni_vcvtdq2ps(vmm_src, vmm_src);
+                        }
                     }
                 } else {
                     pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
@@ -876,7 +885,7 @@ private:
                 if (isFloatCompatible(jcp_.src_dt)) {
                     uni_vmulps(xmm_dst, xmm_dst, xmm_src);
                 } else {
-                    uni_vpmulld(vmm_dst, vmm_dst, vmm_src);
+                    uni_vpmulld(xmm_dst, xmm_dst, xmm_src);
                 }
                 break;
             default:
@@ -1110,7 +1119,10 @@ private:
                 uni_vorps(xmm, xmm, op);
                 break;
             case Algorithm::ReduceProd:
-                uni_vmulps(xmm, xmm, op);
+                if (isFloatCompatible(jcp_.src_dt))
+                    uni_vmulps(xmm, xmm, op);
+                else
+                    uni_vpmulld(xmm, xmm, op);
                 break;
             default:
                 assert(!"unsupported reduce mode");
@@ -1133,6 +1145,7 @@ private:
         broadcast_int(aux_vals.float_max);
         broadcast_int(aux_vals.int32_min);
         broadcast_int(aux_vals.int32_max);
+        broadcast_int(aux_vals.int32_one);
     }
 
     const struct aux_vals_type {
@@ -1142,6 +1155,7 @@ private:
         int float_max = 0x7f7fffff; // float maximum
         int int32_min = 0xcf000000; // -2^31 presented in float
         int int32_max = 0x4effffff; // 2^31-1 presented in float
+        int int32_one = 0x00000001; // integer 1
     } aux_vals;
 };
 

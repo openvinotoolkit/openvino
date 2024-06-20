@@ -39,6 +39,10 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_NativeInt32_dyn = {
     {{{{1, 5}, 2, {1, 5}, {1, 10}}, {{2, 2, 2, 2}, {2, 2, 2, 3}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_NativeInt32Gather_dyn = {
+    {{{{1, 5}, 6, {1, 5}, {1, 10}}, {{1, 6, 4, 3}, {1, 6, 4, 4}}}},
+};
+
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel_dyn = {
     {{{{1, 5}, 3, {1, 5}, {1, 10}}, {{2, 3, 2, 2}, {2, 3, 2, 9}}}},
 };
@@ -87,6 +91,10 @@ const std::vector<std::vector<int>> axes5DFusing = {
 
 const std::vector<std::vector<int>> axesHW = {
         {2, 3}
+};
+
+const std::vector<std::vector<int>> axesGather = {
+        {3}
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
@@ -273,6 +281,20 @@ const auto params_NativeInt32 = testing::Combine(
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
 
+const auto params_NativeInt32Gather = testing::Combine(
+        testing::Combine(
+            testing::ValuesIn(axesGather),
+            testing::Values(ov::test::utils::OpType::VECTOR),
+            testing::ValuesIn(keepDims()),
+            testing::ValuesIn(reductionTypesNativeInt32()),
+            testing::Values(ElementType::i32),
+            testing::Values(ElementType::undefined),
+            testing::Values(ElementType::undefined),
+            testing::ValuesIn(inputShapes_NativeInt32Gather_dyn)),
+        testing::Values(emptyCPUSpec),
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfigFP32()));
+
 const auto params_NHWC_SmallChannel = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesHW),
@@ -354,6 +376,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_NativeInt32_CPU,
         ReduceCPULayerTest,
         params_NativeInt32,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_NativeInt32Gather_CPU,
+        ReduceCPULayerTest,
+        params_NativeInt32Gather,
         ReduceCPULayerTest::getTestCaseName
 );
 
