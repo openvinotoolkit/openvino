@@ -30,6 +30,7 @@ RUN apt-get update && \
         scons \
         ninja-build \
         build-essential \
+        cmake \
         # Python
         python3-dev \
         python3-venv \

@@ -134,10 +134,10 @@ jobs:
       # Dependencies
       #
 
-      - name: Install dependencies
-        run: |
-          # vcpkg requires cmake 3.19 or later
-          python3 -m pip install -U pip cmake~=3.28.0
+#      - name: Install dependencies
+#        run: |
+#          # vcpkg requires cmake 3.19 or later
+#          python3 -m pip install -U pip cmake~=3.28.0
 
       #
       # Build
