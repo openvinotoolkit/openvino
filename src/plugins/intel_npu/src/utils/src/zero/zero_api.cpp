@@ -12,7 +12,7 @@ namespace intel_npu {
 ZeroApi::ZeroApi() {
     const std::string baseName = "ze_loader";
     try {
-        auto libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
+        auto libpath = ov::util::make_plugin_library_name({}, baseName);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
 #else
