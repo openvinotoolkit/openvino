@@ -173,11 +173,14 @@ private:
 };
 
 #else
+namespace ov {
+namespace util {
+namespace monitor {
 // not implemented
-class CpuMonitor::PerformanceCounterImpl {
+class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
     std::vector<double> getLoad() {
-        return {};
+        return {{"Total", 0.0}};
     };
 };
 #endif

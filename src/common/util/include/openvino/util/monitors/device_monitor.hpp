@@ -29,7 +29,7 @@ public:
 
 private:
     unsigned samplesNumber;
-    unsigned historySize;
+    std::size_t historySize;
     std::map<std::string, double> deviceLoadSum;
     const std::vector<std::string> supportedDevices = {"CPU", "GPU"};
     std::deque<std::map<std::string, double>> deviceLoadHistory;

@@ -210,15 +210,14 @@ public:
 };
 
 #else
+namespace ov {
+namespace util {
+namespace monitor {
 // not implemented
-namespace {
-const std::size_t nCores{0};
-}
-
 class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
     std::map<std::string, double> getLoad() {
-        return {{"0", 0}};
+        return {{"00000000", 0}};
     };
 #endif
 GpuPerformanceCounter::GpuPerformanceCounter() : PerformanceCounter("GPU") {}
