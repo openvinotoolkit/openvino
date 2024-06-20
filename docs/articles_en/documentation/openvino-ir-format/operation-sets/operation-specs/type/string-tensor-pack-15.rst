@@ -30,6 +30,7 @@ When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means t
 but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
 
 **Inputs**
+
 * **1**: ``begins`` - ND tensor of non-negative integer numbers of type *T_IDX*, containing indices of each string's beginnings. **Required.** 
 
 * **2**: ``ends`` - ND tensor of non-negative integer numbers of type *T_IDX*, containing indices of each string's endings. **Required.** 
