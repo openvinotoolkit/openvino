@@ -79,7 +79,7 @@ void regclass_frontend_FrontEndManager(py::module m) {
     fem.def(
         "load_by_model",
         [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem, const py::object& model) {
-            if (py::isinstance(model, py::module_::import("pathlib").attr("Path"))) {
+            if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model)) {
                 std::string model_path = Common::utils::convert_path_to_string(model);
 
             // Fix unicode path
