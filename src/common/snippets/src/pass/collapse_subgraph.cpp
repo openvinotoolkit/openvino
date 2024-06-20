@@ -59,8 +59,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
-        const auto& out_shape = n->get_output_partial_shape(0);
-        if (transpose && out_shape.is_static()) {
+        if (transpose) {
             const auto parent = transpose->get_input_node_shared_ptr(0);
             const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             auto is_brgemm_case = ov::is_type<opset1::MatMul>(parent) || ov::is_type<opset1::MatMul>(child);
@@ -125,6 +124,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ov::op::v0::Erf>(n)
             || ov::is_type<ov::op::v0::Exp>(n)
             || ov::is_type<ov::op::v1::LogicalNot>(n)
+            || ov::is_type<ov::op::v4::Mish>(n)
             || ov::is_type<ov::op::v0::Negative>(n)
             || ov::is_type<ov::op::v0::Relu>(n)
             || ov::is_type<ov::op::v5::Round>(n)
