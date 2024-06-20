@@ -24,23 +24,23 @@ consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Imports <#Imports>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Imports <#imports>`__
 
    -  `Download, quantize and sparsify the model, using Hugging Face
       Optimum
-      API <#Download,-quantize-and-sparsify-the-model,-using-Hugging-Face-Optimum-API>`__
+      API <#download-quantize-and-sparsify-the-model-using-hugging-face-optimum-api>`__
 
 -  `Benchmark quantized dense inference
-   performance <#Benchmark-quantized-dense-inference-performance>`__
+   performance <#benchmark-quantized-dense-inference-performance>`__
 -  `Benchmark quantized sparse inference
-   performance <#Benchmark-quantized-sparse-inference-performance>`__
--  `When this might be helpful <#When-this-might-be-helpful>`__
+   performance <#benchmark-quantized-sparse-inference-performance>`__
+-  `When this might be helpful <#when-this-might-be-helpful>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -59,7 +59,7 @@ Prerequisites
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -85,7 +85,7 @@ Imports
 Download, quantize and sparsify the model, using Hugging Face Optimum API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The first step is to download a quantized sparse transformers which has
 been translated to OpenVINO IR. Then, it will be put through a
@@ -152,7 +152,7 @@ the IRs into a single folder.
 Benchmark quantized dense inference performance
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Benchmark dense inference performance using parallel execution on four
 CPU cores to simulate a small instance in the cloud infrastructure.
@@ -270,7 +270,7 @@ as an example. It is recommended to tune based on your applications.
 Benchmark quantized sparse inference performance
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To enable sparse weight decompression feature, users can add it to
 runtime config like below. ``CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE``
@@ -389,7 +389,7 @@ for which a layer will be enabled.
 When this might be helpful
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This feature can improve inference performance for models with sparse
 weights in the scenarios when the model is deployed to handle multiple

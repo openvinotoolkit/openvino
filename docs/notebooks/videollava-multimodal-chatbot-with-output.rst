@@ -30,37 +30,37 @@ The tutorial consists from following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `About model <#About-model>`__
--  `Prerequisites <#Prerequisites>`__
+-  `About model <#about-model>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Build model and convert it to OpenVINO IR
-   format <#Build-model-and-convert-it-to-OpenVINO-IR-format>`__
+   format <#build-model-and-convert-it-to-openvino-ir-format>`__
 
    -  `Prepare helpers for model
-      conversion <#Prepare-helpers-for-model-conversion>`__
-   -  `Convert and Optimize Model <#Convert-and-Optimize-Model>`__
+      conversion <#prepare-helpers-for-model-conversion>`__
+   -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
       -  `Instantiate PyTorch model
-         :math:`\Uparrow`\ (#Table-of-content:) <#Instantiate-PyTorch-model-\Uparrow(#Table-of-content:)>`__
+          <#instantiate-pytorch-model-uparrow#table-of-content>`__
       -  `Compress Model weights to 4 and 8 bits using NNCF
-         :math:`\Uparrow`\ (#Table-of-content:) <#Compress-Model-weights-to-4-and-8-bits-using-NNCF-\Uparrow(#Table-of-content:)>`__
+          <#compress-model-weights-to-4-and-8-bits-using-nncf-uparrow#table-of-content>`__
       -  `Convert model to OpenVINO IR format
-         :math:`\Uparrow`\ (#Table-of-content:) <#Convert-model-to-OpenVINO-IR-format-\Uparrow(#Table-of-content:)>`__
+          <#convert-model-to-openvino-ir-format-uparrow#table-of-content>`__
 
 -  `Prepare OpenVINO based inference
-   pipeline <#Prepare-OpenVINO-based-inference-pipeline>`__
--  `Run model inference <#Run-model-inference>`__
+   pipeline <#prepare-openvino-based-inference-pipeline>`__
+-  `Run model inference <#run-model-inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Load OpenVINO model <#Load-OpenVINO-model>`__
-   -  `Prepare input data <#Prepare-input-data>`__
-   -  `Test model inference <#Test-model-inference>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Load OpenVINO model <#load-openvino-model>`__
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Test model inference <#test-model-inference>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 About model
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Video-LLaVA connects pre-trained `CLIP
 ViT-L/14 <https://openai.com/research/clip>`__ visual encoders and large
@@ -77,7 +77,7 @@ More details about model can be found in original
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
@@ -189,7 +189,7 @@ Install required dependencies
 Build model and convert it to OpenVINO IR format
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Video-LLaVA is autoregressive transformer generative model, it means
 that each next model step depends from model output from previous step.
@@ -229,7 +229,7 @@ model. More details about how it works can be found in this
 Prepare helpers for model conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below prepares function for converting Video-LLaVA model to
 OpenVINO Intermediate Representation format. It splits model on parts
@@ -376,7 +376,7 @@ on disk using ``ov.save_model``.
 Convert and Optimize Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Our model conversion and optimization consist of following steps: 1.
 Download original PyTorch model. 2. Compress model weights using NNCF 3.
@@ -384,10 +384,10 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model `:math:`\Uparrow` <#Table-of-content:>`__
+Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For creating PyTorch model we should use ``from_pretrained`` method of
 ``LlavaLlamaForCausalLM`` model class. Model weights will be downloaded
@@ -395,10 +395,10 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#Table-of-content:>`__
+Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -438,10 +438,10 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
    **Note**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format `:math:`\Uparrow` <#Table-of-content:>`__
+Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Convert model to OpenVINO format using conversion helper function
 defined above.
@@ -640,7 +640,7 @@ compression instead of INT8 weight compression.
 Prepare OpenVINO based inference pipeline
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OVLlavaLlamaForCausalLM`` class provides ease-to-use interface for
 using model in generation scenario. It is based on
@@ -784,7 +784,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when we have model and defined generation pipeline, we can run
 model inference.
@@ -792,7 +792,7 @@ model inference.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -825,7 +825,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Load OpenVINO model
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -834,7 +834,7 @@ Load OpenVINO model
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For preparing input data, we will use tokenizer and image processor
 defined in the begging of our tutorial. For alignment with original
@@ -883,7 +883,7 @@ PyTorch implementation we will use PyTorch tensors as input.
 Test model inference
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generation process for long response maybe time consuming, for accessing
 partial result as soon as it is generated without waiting when whole
@@ -953,7 +953,7 @@ accumulating history of provided messages and images.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

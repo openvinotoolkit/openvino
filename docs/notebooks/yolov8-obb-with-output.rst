@@ -16,27 +16,27 @@ don’t need to know exactly where the object is or its exact shape.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Get PyTorch model <#Get-PyTorch-model>`__
--  `Prepare dataset and dataloader <#Prepare-dataset-and-dataloader>`__
--  `Run inference <#Run-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Get PyTorch model <#get-pytorch-model>`__
+-  `Prepare dataset and dataloader <#prepare-dataset-and-dataloader>`__
+-  `Run inference <#run-inference>`__
 -  `Convert PyTorch model to OpenVINO
-   IR <#Convert-PyTorch-model-to-OpenVINO-IR>`__
+   IR <#convert-pytorch-model-to-openvino-ir>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Compile model <#Compile-model>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Compile model <#compile-model>`__
    -  `Prepare the model for
-      inference <#Prepare-the-model-for-inference>`__
-   -  `Run inference <#Run-inference>`__
+      inference <#prepare-the-model-for-inference>`__
+   -  `Run inference <#run-inference>`__
 
--  `Quantization <#Quantization>`__
+-  `Quantization <#quantization>`__
 -  `Compare inference time and model
-   sizes. <#Compare-inference-time-and-model-sizes>`__
+   sizes. <#compare-inference-time-and-model-sizes>`__
 
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -70,10 +70,10 @@ notebook_utils Python module from GitHub.
 Get PyTorch model
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generally, PyTorch models represent an instance of the
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv8 pretrained OBB large model (also known as ``yolov8l-obbn``)
 pre-trained on a DOTAv1 dataset, which is available in this
@@ -89,7 +89,7 @@ also applicable to other YOLOv8 models.
 Prepare dataset and dataloader
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 YOLOv8-obb is pre-trained on the DOTA dataset. Also, Ultralytics
 provides DOTA8 dataset. It is a small, but versatile oriented object
@@ -177,7 +177,7 @@ instance.
 Run inference
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -203,7 +203,7 @@ Run inference
 Convert PyTorch model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 YOLOv8 provides API for convenient model exporting to different formats
 including OpenVINO IR. ``model.export`` is responsible for model
@@ -245,7 +245,7 @@ preserve dynamic shapes in the model.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -277,7 +277,7 @@ Select device from dropdown list for running inference using OpenVINO
 Compile model
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -294,7 +294,7 @@ Compile model
 Prepare the model for inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We can reuse the base model pipeline for pre- and postprocessing just
 replacing the inference method where we will use the IR model for
@@ -315,7 +315,7 @@ inference.
 Run inference
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -339,7 +339,7 @@ Run inference
 Quantization
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -530,7 +530,7 @@ large car was also identified, unlike the original model.
 Compare inference time and model sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

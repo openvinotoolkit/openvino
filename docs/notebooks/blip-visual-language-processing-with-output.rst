@@ -33,47 +33,47 @@ The tutorial consists of the following parts:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Background <#Background>`__
+-  `Background <#background>`__
 
-   -  `Image Captioning <#Image-Captioning>`__
-   -  `Visual Question Answering <#Visual-Question-Answering>`__
+   -  `Image Captioning <#image-captioning>`__
+   -  `Visual Question Answering <#visual-question-answering>`__
 
--  `Instantiate Model <#Instantiate-Model>`__
--  `Convert Models to OpenVINO IR <#Convert-Models-to-OpenVINO-IR>`__
+-  `Instantiate Model <#instantiate-model>`__
+-  `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
 
-   -  `Vision Model <#Vision-Model>`__
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `Text Decoder <#Text-Decoder>`__
+   -  `Vision Model <#vision-model>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `Text Decoder <#text-decoder>`__
 
--  `Run OpenVINO Model <#Run-OpenVINO-Model>`__
+-  `Run OpenVINO Model <#run-openvino-model>`__
 
-   -  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Image Captioning <#Image-Captioning>`__
-   -  `Question Answering <#Question-Answering>`__
+   -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Image Captioning <#image-captioning>`__
+   -  `Question Answering <#question-answering>`__
 
--  `Optimize model using NNCF <#Optimize-model-using-NNCF>`__
+-  `Optimize model using NNCF <#optimize-model-using-nncf>`__
 
-   -  `Prepare dataset <#Prepare-dataset>`__
-   -  `Quantize vision model <#Quantize-vision-model>`__
-   -  `Quantize text encoder <#Quantize-text-encoder>`__
+   -  `Prepare dataset <#prepare-dataset>`__
+   -  `Quantize vision model <#quantize-vision-model>`__
+   -  `Quantize text encoder <#quantize-text-encoder>`__
    -  `Compress weights of text
-      decoder <#Compress-weights-of-text-decoder>`__
-   -  `Run optimized OpenVINO model <#Run-optimized-OpenVINO-model>`__
+      decoder <#compress-weights-of-text-decoder>`__
+   -  `Run optimized OpenVINO model <#run-optimized-openvino-model>`__
 
-      -  `Image captioning <#Image-captioning>`__
-      -  `Question answering <#Question-answering>`__
+      -  `Image captioning <#image-captioning>`__
+      -  `Question answering <#question-answering>`__
 
-   -  `Compare file sizes <#Compare-file-sizes>`__
+   -  `Compare file sizes <#compare-file-sizes>`__
    -  `Compare inference time of the FP16 and optimized
-      models <#Compare-inference-time-of-the-FP16-and-optimized-models>`__
+      models <#compare-inference-time-of-the-fp16-and-optimized-models>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Background
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Visual language processing is a branch of artificial intelligence that
 focuses on creating algorithms designed to enable computers to more
@@ -105,7 +105,7 @@ considers Image Captioning and Visual Question Answering.
 Image Captioning
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Image Captioning is the task of describing the content of an image in
 words. This task lies at the intersection of computer vision and natural
@@ -119,7 +119,7 @@ decoded into a descriptive text sequence.
 Visual Question Answering
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Visual Question Answering (VQA) is the task of answering text-based
 questions about image content.
@@ -219,7 +219,7 @@ There are a lot of applications for visual question answering:
 Instantiate Model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The BLIP model was proposed in the `BLIP: Bootstrapping Language-Image
 Pre-training for Unified Vision-Language Understanding and
@@ -254,7 +254,7 @@ model
 documentation <https://huggingface.co/docs/transformers/model_doc/blip>`__.
 
 In this tutorial, you will use the
-```blip-vqa-base`` <https://huggingface.co/Salesforce/blip-vqa-base>`__
+`blip-vqa-base <https://huggingface.co/Salesforce/blip-vqa-base>`__
 model available for download from `Hugging
 Face <https://huggingface.co/>`__. The same actions are also applicable
 to other similar models from the BLIP family. Although this model class
@@ -339,7 +339,7 @@ text and vision modalities and postprocessing of generation results.
 Convert Models to OpenVINO IR
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from OpenVINO 2023.0 release, OpenVINO supports direct PyTorch
 models conversion to OpenVINO Intermediate Representation (IR) format to
@@ -363,7 +363,7 @@ you should convert each part independently.
 Vision Model
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The vision model accepts float input tensors with the [1,3,384,384]
 shape, containing RGB image pixel values normalized in the [0,1] range.
@@ -408,7 +408,7 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text encoder is used by visual question answering tasks to build a
 question embedding representation. It takes ``input_ids`` with a
@@ -452,7 +452,7 @@ model and attention masks for them.
 Text Decoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text decoder is responsible for generating the sequence of tokens to
 represent model output (answer to question or caption), using an image
@@ -548,12 +548,12 @@ shapes.
 Run OpenVINO Model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Prepare Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As discussed before, the model consists of several blocks which can be
 reused for building pipelines for different tasks. In the diagram below,
@@ -588,7 +588,7 @@ The next step is implementing both pipelines using OpenVINO models.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -657,7 +657,7 @@ Now, the model is ready for generation.
 Image Captioning
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -673,7 +673,7 @@ Image Captioning
 Question Answering
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -701,7 +701,7 @@ Question Answering
 Optimize model using NNCF
 -------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -760,9 +760,9 @@ The optimization process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-The ```VQAv2`` <https://visualqa.org/>`__ is a dataset containing
+
+The `VQAv2 <https://visualqa.org/>`__ is a dataset containing
 open-ended questions about images. These questions require an
 understanding of vision, language and commonsense knowledge to answer.
 
@@ -853,7 +853,7 @@ time and depends on your internet connection.
 Quantize vision model
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -964,7 +964,7 @@ Quantize vision model
 Quantize text encoder
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1074,7 +1074,7 @@ Quantize text encoder
 Compress weights of text decoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The quantization of the text decoder leads to significant accuracy loss.
 Instead of post-training quantization, we can use data free weights
@@ -1130,7 +1130,7 @@ The optimization process contains the following steps:
 Run optimized OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the optimized OpenVINO BLIP model
 are similar to the PyTorch model. Let us check the model result using
@@ -1243,7 +1243,7 @@ Compare file sizes
 Compare inference time of the FP16 and optimized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on 100 samples of the calibration
@@ -1325,7 +1325,7 @@ quantized models.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select below whether you would like to use the quantized model to
 launch the interactive demo.

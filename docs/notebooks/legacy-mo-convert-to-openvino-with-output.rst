@@ -7,29 +7,29 @@ format to OpenVINO Intermediate Representation (IR).
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `OpenVINO IR format <#OpenVINO-IR-format>`__
+-  `OpenVINO IR format <#openvino-ir-format>`__
 -  `IR preparation with Python conversion API and Model Optimizer
    command-line
-   tool <#IR-preparation-with-Python-conversion-API-and-Model-Optimizer-command-line-tool>`__
--  `Fetching example models <#Fetching-example-models>`__
--  `Basic conversion <#Basic-conversion>`__
--  `Model conversion parameters <#Model-conversion-parameters>`__
+   tool <#ir-preparation-with-python-conversion-api-and-model-optimizer-command-line-tool>`__
+-  `Fetching example models <#fetching-example-models>`__
+-  `Basic conversion <#basic-conversion>`__
+-  `Model conversion parameters <#model-conversion-parameters>`__
 
-   -  `Setting Input Shapes <#Setting-Input-Shapes>`__
-   -  `Cutting Off Parts of a Model <#Cutting-Off-Parts-of-a-Model>`__
+   -  `Setting Input Shapes <#setting-input-shapes>`__
+   -  `Cutting Off Parts of a Model <#cutting-off-parts-of-a-model>`__
    -  `Embedding Preprocessing
-      Computation <#Embedding-Preprocessing-Computation>`__
+      Computation <#embedding-preprocessing-computation>`__
 
-      -  `Specifying Layout <#Specifying-Layout>`__
-      -  `Changing Model Layout <#Changing-Model-Layout>`__
+      -  `Specifying Layout <#specifying-layout>`__
+      -  `Changing Model Layout <#changing-model-layout>`__
       -  `Specifying Mean and Scale
-         Values <#Specifying-Mean-and-Scale-Values>`__
-      -  `Reversing Input Channels <#Reversing-Input-Channels>`__
+         Values <#specifying-mean-and-scale-values>`__
+      -  `Reversing Input Channels <#reversing-input-channels>`__
 
-   -  `Compressing a Model to FP16 <#Compressing-a-Model-to-FP16>`__
+   -  `Compressing a Model to FP16 <#compressing-a-model-to-fp16>`__
 
 -  `Convert Models Represented as Python
-   Objects <#Convert-Models-Represented-as-Python-Objects>`__
+   Objects <#convert-models-represented-as-python-objects>`__
 
 .. code:: ipython3
 
@@ -46,7 +46,7 @@ Table of contents:
 OpenVINO IR format
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO `Intermediate Representation
 (IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
@@ -62,7 +62,7 @@ binary data.
 IR preparation with Python conversion API and Model Optimizer command-line tool
 -------------------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are two ways to convert a model from the original framework format
 to OpenVINO IR: Python conversion API and Model Optimizer command-line
@@ -687,7 +687,7 @@ documentation.
 Fetching example models
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This notebook uses two models for conversion examples:
 
@@ -979,7 +979,7 @@ Convert PyTorch model to ONNX format:
 Basic conversion
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To convert a model to OpenVINO IR, use the following command:
 
@@ -1042,7 +1042,7 @@ To convert a model to OpenVINO IR, use the following command:
 Model conversion parameters
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Both Python conversion API and Model Optimizer command-line tool provide
 the following capabilities: \* overriding original input shapes for
@@ -1070,7 +1070,7 @@ mentioned above to override input shapes and cut the model.
 Setting Input Shapes
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model conversion is supported for models with dynamic input shapes that
 contain undefined dimensions. However, if the shape of data is not going
@@ -1272,7 +1272,7 @@ dimension:
 Cutting Off Parts of a Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following examples show when model cutting is useful or even
 required:
@@ -1375,7 +1375,7 @@ guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert
 Embedding Preprocessing Computation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Input data for inference can be different from the training dataset and
 requires additional preprocessing before inference. To accelerate the
@@ -1393,7 +1393,7 @@ article <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Additional_Optimiza
 Specifying Layout
 ^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Layout defines the meaning of dimensions in a shape and can be specified
 for both inputs and outputs. Some preprocessing requires to set input
@@ -1453,7 +1453,7 @@ Resnet50 model that was exported to the ONNX format:
 Changing Model Layout
 ^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Changing the model layout may be necessary if it differs from the one
 presented by input data. Use either ``layout`` or ``source_layout`` with
@@ -1534,7 +1534,7 @@ presented by input data. Use either ``layout`` or ``source_layout`` with
 Specifying Mean and Scale Values
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model conversion API has the following parameters to specify the values:
 ``mean_values``, ``scale_values``, ``scale``. Using these parameters,
@@ -1615,7 +1615,7 @@ that the preprocessing takes negligible time for inference.
 Reversing Input Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Sometimes, input images for your application can be of the ``RGB`` (or
 ``BGR``) format, and the model is trained on images of the ``BGR`` (or
@@ -1669,7 +1669,7 @@ the color channels before inference.
 Compressing a Model to FP16
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optionally all relevant floating-point weights can be compressed to FP16
 data type during the model conversion, creating a compressed FP16 model.
@@ -1723,7 +1723,7 @@ models, this decrease is negligible.
 Convert Models Represented as Python Objects
 --------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Python conversion API can pass Python model objects, such as a Pytorch
 model or TensorFlow Keras model directly, without saving them into files

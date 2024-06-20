@@ -45,33 +45,33 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model for inference <#Select-model-for-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
 -  `Convert model using Optimum-CLI
-   tool <#Convert-model-using-Optimum-CLI-tool>`__
--  `Compress model weights <#Compress-model-weights>`__
+   tool <#convert-model-using-optimum-cli-tool>`__
+-  `Compress model weights <#compress-model-weights>`__
 
    -  `Weights Compression using
-      Optimum-CLI <#Weights-Compression-using-Optimum-CLI>`__
-   -  `Weight compression with AWQ <#Weight-compression-with-AWQ>`__
+      Optimum-CLI <#weights-compression-using-optimum-cli>`__
+   -  `Weight compression with AWQ <#weight-compression-with-awq>`__
 
       -  `Select device for inference and model
-         variant <#Select-device-for-inference-and-model-variant>`__
+         variant <#select-device-for-inference-and-model-variant>`__
 
 -  `Instantiate pipeline with OpenVINO Generate
-   API <#Instantiate-pipeline-with-OpenVINO-Generate-API>`__
--  `Run Chatbot <#Run-Chatbot>`__
+   API <#instantiate-pipeline-with-openvino-generate-api>`__
+-  `Run Chatbot <#run-chatbot>`__
 
    -  `Prepare text streamer to get results
-      runtime <#Prepare-text-streamer-to-get-results-runtime>`__
+      runtime <#prepare-text-streamer-to-get-results-runtime>`__
    -  `Setup of the chatbot life process
-      function <#Setup-of-the-chatbot-life-process-function>`__
-   -  `Next Step <#Next-Step>`__
+      function <#setup-of-the-chatbot-life-process-function>`__
+   -  `Next Step <#next-step>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
@@ -136,7 +136,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -173,7 +173,7 @@ The available options are:
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -222,7 +222,7 @@ The available options are:
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -254,7 +254,7 @@ The available options are:
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -288,7 +288,7 @@ The available options are:
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -465,10 +465,10 @@ The available options are:
 Convert model using Optimum-CLI tool
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 🤗
+
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the 
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -495,7 +495,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Weights
 Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
@@ -509,7 +509,7 @@ introduces a minor drop in prediction quality.
 Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -581,7 +581,7 @@ sacrifice of the model size and inference latency.
 Weight compression with AWQ
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `Activation-aware Weight
 Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
@@ -827,7 +827,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 '''''''''''''''''''''''''''''''''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -894,7 +894,7 @@ variant of model weights and inference device
 Instantiate pipeline with OpenVINO Generate API
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__
@@ -943,7 +943,7 @@ LLMPipeline.
 Run Chatbot
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__. The diagram below illustrates how
@@ -1041,7 +1041,7 @@ done easily with ``LLMPipeline``.
 Prepare text streamer to get results runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the ``detokenizer``, use it to convert token_id to string output
 format. We will collect print-ready text in a queue and give the text
@@ -1089,7 +1089,7 @@ when it is needed. It will help estimate performance.
 Setup of the chatbot life process function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``bot`` function is the entry point for starting chat. We setup config
 here, collect history to string and put it to ``generate()`` method.
@@ -1370,14 +1370,14 @@ After that it’s generate new chatbot message and we add it to history.
 
 
 
-.. raw:: html
-
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 
 
-.. parsed-literal::
+
+
+
+
 
     
 
@@ -1391,7 +1391,7 @@ After that it’s generate new chatbot message and we add it to history.
 Next Step
 ~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Besides chatbot, we can use LangChain to augmenting LLM knowledge with
 additional data, which allow you to build AI applications that can

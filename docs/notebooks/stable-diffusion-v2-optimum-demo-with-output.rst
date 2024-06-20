@@ -11,10 +11,10 @@ running multiple times.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Showing Info Available Devices <#Showing-Info-Available-Devices>`__
--  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
+-  `Showing Info Available Devices <#showing-info-available-devices>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 -  `Using full precision model in choice device with
-   OVStableDiffusionPipeline <#Using-full-precision-model-in-choice-device-with-OVStableDiffusionPipeline>`__
+   OVStableDiffusionPipeline <#using-full-precision-model-in-choice-device-with-ovstablediffusionpipeline>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
@@ -53,7 +53,7 @@ OpenVINO’s integration into Optimum.
 Showing Info Available Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -85,7 +85,7 @@ If you just have either an iGPU or dGPU that will be assigned to
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -114,7 +114,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Using full precision model in choice device with ``OVStableDiffusionPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

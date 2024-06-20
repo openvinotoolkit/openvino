@@ -101,25 +101,25 @@ as higher conformity to the input image.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Load the original model <#Load-the-original-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load the original model <#load-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 
-   -  `Convert CLIP text encoder <#Convert-CLIP-text-encoder>`__
-   -  `Convert CLIP image encoder <#Convert-CLIP-image-encoder>`__
-   -  `Convert AE encoder <#Convert-AE-encoder>`__
-   -  `Convert Diffusion U-Net model <#Convert-Diffusion-U-Net-model>`__
-   -  `Convert AE decoder <#Convert-AE-decoder>`__
+   -  `Convert CLIP text encoder <#convert-clip-text-encoder>`__
+   -  `Convert CLIP image encoder <#convert-clip-image-encoder>`__
+   -  `Convert AE encoder <#convert-ae-encoder>`__
+   -  `Convert Diffusion U-Net model <#convert-diffusion-u-net-model>`__
+   -  `Convert AE decoder <#convert-ae-decoder>`__
 
--  `Compiling models <#Compiling-models>`__
--  `Building the pipeline <#Building-the-pipeline>`__
--  `Interactive inference <#Interactive-inference>`__
+-  `Compiling models <#compiling-models>`__
+-  `Building the pipeline <#building-the-pipeline>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -171,7 +171,7 @@ Prerequisites
 Load and run the original pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use model for 256x256 resolution as example. Also, models for
 320x512 and 576x1024 are
@@ -233,7 +233,7 @@ We will use model for 256x256 resolution as example. Also, models for
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -276,7 +276,7 @@ Let’s convert models from the pipeline one by one.
 Convert CLIP text encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -305,7 +305,7 @@ Convert CLIP text encoder
 Convert CLIP image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 ``FrozenOpenCLIPImageEmbedderV2`` model accepts images of various
 resolutions.
 
@@ -365,7 +365,7 @@ resolutions.
 Convert AE encoder
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -390,7 +390,7 @@ Convert AE encoder
 Convert Diffusion U-Net model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -437,7 +437,7 @@ Convert Diffusion U-Net model
 Convert AE decoder
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ ``Decoder`` receives a
+ ``Decoder`` receives a
 ``bfloat16`` tensor. numpy doesn’t support this type. To avoid problems
 with the conversion lets replace ``decode`` method to convert bfloat16
 to float32.
@@ -472,7 +472,7 @@ to float32.
 Compiling models
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -510,7 +510,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original pipelines. Note that all of wrapper classes
@@ -598,7 +598,7 @@ And insert wrappers instances in the pipeline:
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -758,7 +758,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

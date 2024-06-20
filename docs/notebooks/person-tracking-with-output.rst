@@ -96,24 +96,24 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Download the Model <#Download-the-Model>`__
--  `Load model <#Load-model>`__
+-  `Imports <#imports>`__
+-  `Download the Model <#download-the-model>`__
+-  `Load model <#load-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Data Processing <#Data-Processing>`__
+-  `Data Processing <#data-processing>`__
 -  `Test person reidentification
-   model <#Test-person-reidentification-model>`__
+   model <#test-person-reidentification-model>`__
 
-   -  `Visualize data <#Visualize-data>`__
-   -  `Compare two persons <#Compare-two-persons>`__
+   -  `Visualize data <#visualize-data>`__
+   -  `Compare two persons <#compare-two-persons>`__
 
--  `Main Processing Function <#Main-Processing-Function>`__
--  `Run <#Run>`__
+-  `Main Processing Function <#main-processing-function>`__
+-  `Run <#run>`__
 
-   -  `Initialize tracker <#Initialize-tracker>`__
-   -  `Run Live Person Tracking <#Run-Live-Person-Tracking>`__
+   -  `Initialize tracker <#initialize-tracker>`__
+   -  `Run Live Person Tracking <#run-live-person-tracking>`__
 
 .. code:: ipython3
 
@@ -138,7 +138,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -180,7 +180,7 @@ Imports
 Download the Model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use pre-trained models from OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/2024/documentation/legacy-features/model-zoo.html>`__
@@ -263,7 +263,7 @@ replace the name of the model in the code below.
 Load model
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Define a common class for model loading and predicting.
 
@@ -327,7 +327,7 @@ performance, but slightly longer startup time).
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -362,7 +362,7 @@ select device from dropdown list for running inference using OpenVINO
 Data Processing
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Data Processing includes data preprocess and postprocess functions. -
 Data preprocess function is used to change the layout and shape of input
@@ -484,7 +484,7 @@ network’s original output and visualize it.
 Test person reidentification model
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The reidentification network outputs a blob with the ``(1, 256)`` shape
 named ``reid_embedding``, which can be compared with other descriptors
@@ -493,7 +493,7 @@ using the cosine distance.
 Visualize data
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -543,7 +543,7 @@ Visualize data
 Compare two persons
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -567,7 +567,7 @@ Compare two persons
 Main Processing Function
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Run person tracking on the specified source. Either a webcam feed or a
 video file.
@@ -721,12 +721,12 @@ video file.
 Run
 ---
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Initialize tracker
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Before running a new tracking task, we have to reinitialize a Tracker
 object
@@ -741,7 +741,7 @@ object
 Run Live Person Tracking
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be

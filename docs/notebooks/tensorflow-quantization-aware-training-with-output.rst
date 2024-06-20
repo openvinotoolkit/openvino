@@ -24,23 +24,23 @@ download time.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports and Settings <#Imports-and-Settings>`__
--  `Dataset Preprocessing <#Dataset-Preprocessing>`__
--  `Define a Floating-Point Model <#Define-a-Floating-Point-Model>`__
+-  `Imports and Settings <#imports-and-settings>`__
+-  `Dataset Preprocessing <#dataset-preprocessing>`__
+-  `Define a Floating-Point Model <#define-a-floating-point-model>`__
 -  `Pre-train a Floating-Point
-   Model <#Pre-train-a-Floating-Point-Model>`__
+   Model <#pre-train-a-floating-point-model>`__
 -  `Create and Initialize
-   Quantization <#Create-and-Initialize-Quantization>`__
--  `Fine-tune the Compressed Model <#Fine-tune-the-Compressed-Model>`__
+   Quantization <#create-and-initialize-quantization>`__
+-  `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__
 -  `Export Models to OpenVINO Intermediate Representation
-   (IR) <#Export-Models-to-OpenVINO-Intermediate-Representation-(IR)>`__
+   (IR) <#export-models-to-openvino-intermediate-representation-ir>`__
 -  `Benchmark Model Performance by Computing Inference
-   Time <#Benchmark-Model-Performance-by-Computing-Inference-Time>`__
+   Time <#benchmark-model-performance-by-computing-inference-time>`__
 
 Imports and Settings
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Import NNCF and all auxiliary packages from your Python code. Set a name
 for the model, input image size, used batch size, and the learning rate.
@@ -140,7 +140,7 @@ models will be stored.
 Dataset Preprocessing
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download and prepare Imagenette 160px dataset. - Number of classes: 10 -
 Download size: 94.18 MiB
@@ -203,7 +203,7 @@ Download size: 94.18 MiB
 Define a Floating-Point Model
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -291,7 +291,7 @@ Define a Floating-Point Model
 Pre-train a Floating-Point Model
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Using NNCF for model compression assumes that the user has a pre-trained
 model and a training pipeline.
@@ -337,7 +337,7 @@ model and a training pipeline.
 Create and Initialize Quantization
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -413,7 +413,7 @@ demonstrated here.
 Fine-tune the Compressed Model
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -455,7 +455,7 @@ training pipeline are required. Here is a simple example.
 Export Models to OpenVINO Intermediate Representation (IR)
 ----------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Use model conversion Python API to convert the models to OpenVINO IR.
 
@@ -491,7 +491,7 @@ Executing this command may take a while.
 Benchmark Model Performance by Computing Inference Time
 -------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark

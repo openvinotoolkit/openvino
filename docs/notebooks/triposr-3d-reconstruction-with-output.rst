@@ -21,18 +21,18 @@ from a Single Image <https://arxiv.org/abs/2403.02151>`__.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Get the original model <#Get-the-original-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Get the original model <#get-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 -  `Compiling models and prepare
-   pipeline <#Compiling-models-and-prepare-pipeline>`__
--  `Interactive inference <#Interactive-inference>`__
+   pipeline <#compiling-models-and-prepare-pipeline>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -218,7 +218,7 @@ Get the original model
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -356,7 +356,7 @@ models one by one.
 Compiling models and prepare pipeline
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -508,7 +508,7 @@ Replace all models in the original model by wrappers instances:
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -623,7 +623,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="680" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

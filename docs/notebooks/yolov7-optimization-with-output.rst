@@ -41,40 +41,40 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Get Pytorch model <#Get-Pytorch-model>`__
--  `Prerequisites <#Prerequisites>`__
--  `Check model inference <#Check-model-inference>`__
--  `Export to ONNX <#Export-to-ONNX>`__
+-  `Get Pytorch model <#get-pytorch-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Check model inference <#check-model-inference>`__
+-  `Export to ONNX <#export-to-onnx>`__
 -  `Convert ONNX Model to OpenVINO Intermediate Representation
-   (IR) <#Convert-ONNX-Model-to-OpenVINO-Intermediate-Representation-(IR)>`__
--  `Verify model inference <#Verify-model-inference>`__
+   (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
+-  `Verify model inference <#verify-model-inference>`__
 
-   -  `Preprocessing <#Preprocessing>`__
-   -  `Postprocessing <#Postprocessing>`__
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Preprocessing <#preprocessing>`__
+   -  `Postprocessing <#postprocessing>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Verify model accuracy <#Verify-model-accuracy>`__
+-  `Verify model accuracy <#verify-model-accuracy>`__
 
-   -  `Download dataset <#Download-dataset>`__
-   -  `Create dataloader <#Create-dataloader>`__
-   -  `Define validation function <#Define-validation-function>`__
+   -  `Download dataset <#download-dataset>`__
+   -  `Create dataloader <#create-dataloader>`__
+   -  `Define validation function <#define-validation-function>`__
 
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
 -  `Validate Quantized model
-   inference <#Validate-Quantized-model-inference>`__
+   inference <#validate-quantized-model-inference>`__
 -  `Validate quantized model
-   accuracy <#Validate-quantized-model-accuracy>`__
+   accuracy <#validate-quantized-model-accuracy>`__
 -  `Compare Performance of the Original and Quantized
-   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+   Models <#compare-performance-of-the-original-and-quantized-models>`__
 
 Get Pytorch model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generally, PyTorch models represent an instance of the
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv7 tiny model pre-trained on a COCO dataset, which is available
 in this `repo <https://github.com/WongKinYiu/yolov7>`__. Typical steps
@@ -91,7 +91,7 @@ the YOLOv7 model to ONNX, so we do not need to do these steps manually.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -179,7 +179,7 @@ Prerequisites
 Check model inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``detect.py`` script run pytorch model inference and save image as
 result,
@@ -222,7 +222,7 @@ result,
 Export to ONNX
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To export an ONNX format of the model, we will use ``export.py`` script.
 Let us check its arguments.
@@ -320,7 +320,7 @@ an end2end ONNX model, you can check this
 Convert ONNX Model to OpenVINO Intermediate Representation (IR)
 ---------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ While ONNX models are directly
+ While ONNX models are directly
 supported by OpenVINO runtime, it can be useful to convert them to IR
 format to take the advantage of OpenVINO model conversion API features.
 The ``ov.convert_model`` python function of `model conversion
@@ -341,7 +341,7 @@ However, it can also be save on device in OpenVINO IR format using
 Verify model inference
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To test model work, we create inference pipeline similar to
 ``detect.py``. The pipeline consists of preprocessing step, inference of
@@ -350,7 +350,7 @@ OpenVINO model, and results post-processing to get bounding boxes.
 Preprocessing
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model input is a tensor with the ``[1, 3, 640, 640]`` shape in
 ``N, C, H, W`` format, where
@@ -513,7 +513,7 @@ To keep specific shape, preprocessing automatically enables padding.
 Postprocessing
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model output contains detection boxes candidates. It is a tensor with
 the ``[1,25200,85]`` shape in the ``B, N, 85`` format, where:
@@ -607,7 +607,7 @@ algorithm and rescale boxes coordinates to original image size.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -655,12 +655,12 @@ select device from dropdown list for running inference using OpenVINO
 Verify model accuracy
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download dataset
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 YOLOv7 tiny is pre-trained on the COCO dataset, so in order to evaluate
 the model accuracy, we need to download it. According to the
@@ -702,7 +702,7 @@ the original model evaluation scripts.
 Create dataloader
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -731,7 +731,7 @@ Create dataloader
 Define validation function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will reuse validation metrics provided in the YOLOv7 repo with a
 modification for this case (removing extra steps). The original model
@@ -920,7 +920,7 @@ Validation function reports following list of accuracy metrics:
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -1039,7 +1039,7 @@ asymmetric quantization of activations.
 Validate Quantized model inference
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1071,7 +1071,7 @@ Validate Quantized model inference
 Validate quantized model accuracy
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1115,7 +1115,7 @@ significant.
 Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
