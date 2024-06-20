@@ -52,7 +52,7 @@ const std::vector<size_t> activationShapes();
 const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypes();
 const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesSnippets();
 
-const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesFp16();
+const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesF16();
 
 const std::vector<ov::element::Type>& netPrc();
 
