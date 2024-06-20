@@ -79,6 +79,7 @@ ov::element::Type InputModel::get_element_type(const Place::Ptr& place) const {
 }
 
 void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
+    // TODO: remove this API and mark it as unimplemented.
     FRONT_END_GENERAL_CHECK(place && place->is_input(),
                             "Provided place is invalid, only inputs are supported for setting tensor value.");
     auto jax_place = std::dynamic_pointer_cast<jax::Place>(place);

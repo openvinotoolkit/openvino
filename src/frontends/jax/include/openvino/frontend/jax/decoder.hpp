@@ -36,10 +36,6 @@ public:
 
     virtual OutputVector get_named_param_as_constant(const std::string& name) const = 0;
 
-    virtual PartialShape get_named_param_shape(const std::string& name) const = 0;
-
-    virtual Any get_named_param_type(const std::string& name) const = 0;
-
     virtual const std::vector<std::string>& get_param_names() const = 0;
 
     // Return name of the output tensor

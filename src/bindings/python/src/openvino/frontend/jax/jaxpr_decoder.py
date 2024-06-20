@@ -110,18 +110,27 @@ class JaxprPythonDecoder (Decoder):
             return get_ov_type_for_value(self.jaxpr.invars[index])
         
     def get_named_param(self, name):
+        '''
+        Get the object id of the named parameter by the name.
+        '''
         return self.params[name].output(0)
     
     def get_named_param_as_constant(self, name):
+        '''
+        The named parameter in JAX is a python object but we want to use its value in cpp.
+        Therefore this API is used to get the named parameter as a constant, which can be used
+        to extract the value of it in cpp-level.
+        '''
         return self.params[name].as_constant()
     
-    def get_named_param_shape(self, name):
-        return self.params[name].get_output_shape(0)
-    
-    def get_named_param_type(self, name):
-        return self.params[name].get_output_type(0)
-    
     def get_param_names(self):
+        '''
+        In JAX, the named parameters may exist in `params` attribute of `JaxEqn`.
+        For example, the `jax.lax.cat` operation has a named parameter `dim`, 
+        which is used to indicate the dimension to concatenate the tensors.
+        
+        Here we return the names of all the named params that appear in the model for the current `JaxEqn`.
+        '''
         return list(self.params.keys())
     
     def get_output_type(self, index) -> OVType:
@@ -213,20 +222,21 @@ class JaxprPythonDecoder (Decoder):
     @staticmethod
     def convert_param_to_constant_node(jaxpr, param):
         assert hasattr(jaxpr, 'params'), "The jaxpr does not have params."
-        dtype, shape, constant = ivalue_to_constant(jaxpr.params[param], shared_memory=False)
-        return _JaxprPythonConstantDecoder(constant=constant, dtype=dtype, shape=shape)
+        constant = ivalue_to_constant(jaxpr.params[param], shared_memory=False)
+        return _JaxprPythonConstantDecoder(constant=constant)
     
     @staticmethod
     def convert_literal_to_constant_node(literal):
         assert isinstance(literal, jax.core.Literal)
-        dtype, shape, constant = ivalue_to_constant(literal.val, shared_memory=False)
-        return _JaxprPythonConstantDecoder(constant=constant, dtype=dtype, shape=shape)
+        constant = ivalue_to_constant(literal.val, shared_memory=False)
+        return _JaxprPythonConstantDecoder(constant=constant)
         
 class _JaxprPythonConstantDecoder (Decoder):
-    def __init__(self, name=None, constant=None, dtype=None, shape=None):
+    def __init__(self, name=None, constant=None):
         '''
-        Inputs: 
-            - jaxpr: for users, `ClosedJaxpr` is expected here. See https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L197
+        A decoder specially for constants and named parameters.
+        
+        Inputs:
             - name: the name for the model.
             - literals: the literals (constants) that are used in the model.
         '''
@@ -234,8 +244,6 @@ class _JaxprPythonConstantDecoder (Decoder):
         
         self.name = name
         self.constant = constant
-        self.dtype = dtype
-        self.shape = shape
         
     def inputs(self) -> List[int]:
         return []
@@ -258,23 +266,27 @@ class _JaxprPythonConstantDecoder (Decoder):
     def get_named_param_as_constant(self, name):
         raise ValueError("This is a constant node so it does not have named param.")
     
-    def get_named_param_shape(self, name):
-        raise ValueError("This is a constant node so it does not have named param.")
-    
-    def get_named_param_type(self, name):
-        raise ValueError("This is a constant node so it does not have named param.")
-    
     def get_param_names(self):
+        '''
+        In JAX, the named parameters may exist in `params` attribute of `JaxEqn`.
+        For example, the `jax.lax.cat` operation has a named parameter `dim`, 
+        which is used to indicate the dimension to concatenate the tensors.
+        
+        However, `_JaxprPythonConstantDecoder` is already a named param or a constant.
+        So it will never have a named param.
+        '''
         return []
     
     def get_output_type(self, index) -> OVType:
-        return OVAny(self.dtype)
+        assert len(self.constant) == 1
+        return OVAny(self.constant[0].element_type)
         
     def get_output_name(self, index) -> str:
         return "jaxpr_outvar_" + str(index)
     
     def get_output_shape(self, index):
-        return PartialShape(self.shape)
+        assert len(self.constant) == 1
+        return PartialShape(self.constant[0].shape)
     
     def visit_subgraph(self, node_visitor) -> None:
         return

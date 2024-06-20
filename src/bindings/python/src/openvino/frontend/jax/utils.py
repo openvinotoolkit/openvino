@@ -104,24 +104,25 @@ def jax_array_to_ov_const(arr: np.ndarray, shared_memory=True):
         raise ValueError(f"Constant is expected to be a numpy array or jax array but got {type(arr)}")
 
 def ivalue_to_constant(ivalue, shared_memory=True):
+    '''
+    Convert a python object to an openvino constant.
+    '''
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
-        return ov_type, Shape([]), op.Constant(ov_type, Shape([]), [ivalue]).outputs()
+        return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
 
     if isinstance(ivalue, (list, tuple)):
         assert len(ivalue) > 0, "Can't deduce type for empty list"
         ov_type = get_type_from_py_type(ivalue[0])
         assert ov_type.is_static(), "Can't deduce type for list"
-        return ov_type, Shape([len(ivalue)]), op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
+        return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, (jax.Array, np.ndarray)):
-        return get_ov_type_from_jax_type(ivalue.dtype), Shape(ivalue.shape), \
-            jax_array_to_ov_const(ivalue, shared_memory=shared_memory).outputs()
+        return jax_array_to_ov_const(ivalue, shared_memory=shared_memory).outputs()
             
     ov_dtype_value = get_ov_type_from_jax_type(ivalue)
     if ov_dtype_value is not None:
-        return ov_dtype_value, Shape([]), \
-            op.Constant(OVType.i64, Shape([]), [ov_type_to_int_map[ov_dtype_value]]).outputs()
+        return op.Constant(OVType.i64, Shape([]), [ov_type_to_int_map[ov_dtype_value]]).outputs()
     
     print(f"[WARNING][JAX FE] Cannot get constant from value {ivalue}")
-    return OVAny(None), None, None
+    return None

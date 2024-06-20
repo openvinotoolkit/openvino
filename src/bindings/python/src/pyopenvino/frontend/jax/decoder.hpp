@@ -53,14 +53,6 @@ class PyDecoder : public ov::frontend::jax::JaxDecoder {
         PYBIND11_OVERRIDE_PURE(ov::OutputVector, JaxDecoder, get_named_param_as_constant, name);
     }
 
-    ov::PartialShape get_named_param_shape(const std::string& name) const override {
-        PYBIND11_OVERRIDE_PURE(ov::PartialShape, JaxDecoder, get_named_param_shape, name);
-    }
-
-    ov::Any get_named_param_type(const std::string& name) const override {
-        PYBIND11_OVERRIDE_PURE(ov::Any, JaxDecoder, get_named_param_type, name);
-    }
-
     const std::vector<std::string>& get_param_names() const override {
         PYBIND11_OVERRIDE_PURE(const std::vector<std::string>&, JaxDecoder, get_param_names);
     }
