@@ -17,7 +17,7 @@ namespace monitor {
 class CpuPerformanceCounter : public PerformanceCounter {
 public:
     CpuPerformanceCounter(int nCores = 0);
-    ~CpuPerformanceCounter();
+    virtual ~CpuPerformanceCounter();
     std::map<std::string, double> get_load() override;
 
 private:
