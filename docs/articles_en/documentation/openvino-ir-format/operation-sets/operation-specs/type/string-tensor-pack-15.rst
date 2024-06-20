@@ -27,7 +27,7 @@ a string tensor. The ``output.shape`` is equal to ``begins.shape`` and ``ends.sh
 and in this case ``output`` holds values ``["Intel", "OpenVINO"]``.
 
 When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, 
-but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
+but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13. The shapes of ``begins`` and ``ends`` are required to be equal.
 
 **Inputs**
 
