@@ -1370,6 +1370,18 @@ void primitive_inst::do_runtime_in_place_crop() {
                 u->update_shape();
                 u->update_shape_done_by_other = true;
 
+                const auto& crop_users = u->get_user_insts();
+                std::vector<layout> reshape_layouts;
+                if (crop_users.size() == 1 && crop_users.front()->get_node().is_type<reshape>()) {
+                    auto reshape_inst = crop_users.front();
+                    if (!reshape_inst->update_shape_done_by_other) {
+                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
+                        reshape_inst->update_shape();
+                        reshape_inst->update_shape_done_by_other = true;
+                        reshape_layouts.push_back(reshape_inst->_impl_params->get_output_layout());
+                    }
+                }
+
                 layout crop_layout = u->_impl_params->get_output_layout();
                 auto pred_layout = _impl_params->get_output_layout();
                 if (!crop_in_place_optimization::match(u->get_node(), *u->_impl_params, pred_layout, true)) {
@@ -1383,7 +1395,13 @@ void primitive_inst::do_runtime_in_place_crop() {
                 if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
-                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, offsets, crop_axis, true);
+                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, reshape_layouts,
+                                                                                                offsets, crop_axis, true);
+                    if (crop_users.size() == 1 && crop_users.front()->get_node().is_type<reshape>() && reshape_layouts.size() > 0) {
+                        auto reshape_inst = crop_users.front();
+                        reshape_inst->_impl_params->output_layouts[0] = reshape_layouts[0];
+                        reshape_inst->set_shape_change();
+                    }
                 } else {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;

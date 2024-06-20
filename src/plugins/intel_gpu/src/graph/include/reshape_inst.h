@@ -29,7 +29,9 @@ public:
     program_node& input() const { return get_dependency(0); }
 
     bool has_padding() const {
-        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding || input().get_output_layout(false).has_dynamic_pad());
+        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding);
+        // TODO: Just for debug
+        // || input().get_output_layout(false).has_dynamic_pad());
     }
 
     bool has_outer_padding_offset() const {
@@ -61,9 +63,10 @@ public:
         if (this->is_output() || this->has_fused_primitives())
             return false;
 
-        if (input().get_output_layout(false).has_dynamic_pad()) {
-            return typed_desc()->mode != reshape::reshape_mode::base;
-        }
+        // TODO: Just for debug
+        // if (input().get_output_layout(false).has_dynamic_pad()) {
+        //     return typed_desc()->mode != reshape::reshape_mode::base;
+        // }
 
         if (has_padding())
             return false;

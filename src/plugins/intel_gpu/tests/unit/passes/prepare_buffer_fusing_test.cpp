@@ -714,7 +714,7 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
     set_values(input_mem, { -0.5f,  2.0f,  0.5f,  1.0f,
                              0.5f, -2.0f, -0.5f, -1.0f });
     set_values<int64_t>(axis_mem, {axis});
-    set_values<int64_t>(splits_length_mem, { 4, 4 });
+    set_values<int64_t>(splits_length_mem, { 2, 6 });
     set_values<uint8_t>(weights_mem, { 1,  2,  3,  4,
                                        5,  6,  7,  8,
                                        9, 10, 11, 12,
@@ -727,8 +727,8 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
     set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
     set_values(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f });
 
-    std::vector<float> out1 = { 13.f, 58.f, -51.f, -108.f, -11.f, -62.f, 57.f, 100.f };
-    std::vector<float> out2 = { 18.5f, -18.f, 1.f, -4.f, -8.5f, 6.f, 13.f, 8.f };
+    std::vector<float> out1 = { 13.f, 58.f, -11.f, -62.f };
+    std::vector<float> out2 = { -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
     std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, -11.f, -62.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
 
     cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
@@ -744,7 +744,8 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
         crop("crop1", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
         reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
         crop("crop2", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
-        reorder("output2", input_info("crop2"), format::bfyx, data_types::f32),
+        reshape("reshape", input_info("crop2"), true, std::vector<int64_t>{0, 0, 3, 2}, ov::PartialShape{-1, -1, 3, 2}, cldnn::reshape::reshape_mode::base),
+        reorder("output2", input_info("reshape"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
         reorder("output3", input_info("fc"), format::bfyx, data_types::f32)
     );
 
