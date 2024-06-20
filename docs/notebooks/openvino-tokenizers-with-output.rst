@@ -95,7 +95,6 @@ use ``pip install openvino-tokenizers[transformers]``.
 .. code:: ipython3
 
     %pip install -Uq pip
-    %pip uninstall -y openvino openvino-nightly openvino-dev
     %pip install --pre -Uq openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
 
@@ -103,36 +102,27 @@ use ``pip install openvino-tokenizers[transformers]``.
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-    Found existing installation: openvino 2024.1.0
-    Uninstalling openvino-2024.1.0:
-      Successfully uninstalled openvino-2024.1.0
-    WARNING: Skipping openvino-nightly as it is not installed.
-    Found existing installation: openvino-dev 2024.1.0
-    Uninstalling openvino-dev-2024.1.0:
-      Successfully uninstalled openvino-dev-2024.1.0
-    Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.0+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.0+cpu which is incompatible.
+    openvino-dev 2024.1.0 requires openvino==2024.1.0, but you have openvino 2024.3.0.dev20240605 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cpu
-    Requirement already satisfied: torch>=2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.3.0+cpu)
-    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.14.0)
-    Requirement already satisfied: typing-extensions>=4.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (4.11.0)
-    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (1.12)
-    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1)
-    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1.4)
-    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (2024.3.1)
-    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1) (2.1.5)
-    Requirement already satisfied: mpmath>=0.19 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1) (1.3.0)
+    Requirement already satisfied: torch>=2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.3.1+cpu)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.14.0)
+    Requirement already satisfied: typing-extensions>=4.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (4.12.1)
+    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (1.12.1)
+    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1)
+    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1.4)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (2024.3.1)
+    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1) (2.1.5)
+    Requirement already satisfied: mpmath<1.4.0,>=1.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1) (1.3.0)
     Note: you may need to restart the kernel to use updated packages.
 
 
 .. code:: ipython3
 
     from pathlib import Path
-    
-    
+
+
     tokenizer_dir = Path("tokenizer/")
     model_id = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
 
@@ -157,8 +147,6 @@ constructor.
 .. parsed-literal::
 
     Loading Huggingface Tokenizer...
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
     Converting Huggingface Tokenizer to OpenVINO...
     Saved OpenVINO Tokenizer: tokenizer/openvino_tokenizer.xml, tokenizer/openvino_tokenizer.bin
     Saved OpenVINO Detokenizer: tokenizer/openvino_detokenizer.xml, tokenizer/openvino_detokenizer.bin
@@ -184,17 +172,11 @@ The other method is to pass HuggingFace ``hf_tokenizer`` object to
 
     from transformers import AutoTokenizer
     from openvino_tokenizers import convert_tokenizer
-    
-    
+
+
     hf_tokenizer = AutoTokenizer.from_pretrained(model_id)
     ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
     ov_tokenizer, ov_detokenizer
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
 
 
 
@@ -225,8 +207,8 @@ from OpenVINO to reuse converted tokenizers later:
 .. code:: ipython3
 
     from openvino import save_model
-    
-    
+
+
     save_model(ov_tokenizer, tokenizer_dir / "openvino_tokenizer.xml")
     save_model(ov_detokenizer, tokenizer_dir / "openvino_detokenizer.xml")
 
@@ -244,14 +226,14 @@ tasks, but not suitable for text generation.
 .. code:: ipython3
 
     from openvino import compile_model
-    
-    
+
+
     tokenizer, detokenizer = compile_model(ov_tokenizer), compile_model(ov_detokenizer)
     test_strings = ["Test", "strings"]
-    
+
     token_ids = tokenizer(test_strings)["input_ids"]
     print(f"Token ids: {token_ids}")
-    
+
     detokenized_text = detokenizer(token_ids)["string_output"]
     print(f"Detokenized text: {detokenized_text}")
 
@@ -260,7 +242,7 @@ tasks, but not suitable for text generation.
 
     Token ids: [[   1 4321]
      [   1 6031]]
-    Detokenized text: ['<s> Test' '<s> strings']
+    Detokenized text: ['Test' 'strings']
 
 
 We can compare the result of converted (de)tokenizer with the original
@@ -270,7 +252,7 @@ one:
 
     hf_token_ids = hf_tokenizer(test_strings).input_ids
     print(f"Token ids: {hf_token_ids}")
-    
+
     hf_detokenized_text = hf_tokenizer.batch_decode(hf_token_ids)
     print(f"Detokenized text: {hf_detokenized_text}")
 
@@ -282,10 +264,10 @@ one:
 
 .. parsed-literal::
 
-    2024-05-07 00:39:47.665228: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-07 00:39:47.699909: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-06 00:58:07.002270: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-06 00:58:07.036768: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-07 00:39:48.279101: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:58:07.614844: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -312,15 +294,15 @@ command is commented.
 .. code:: ipython3
 
     model_dir = Path(Path(model_id).name)
-    
+
     if not model_dir.exists():
         # converting the original model
         # %pip install -U "git+https://github.com/huggingface/optimum-intel.git" "nncf>=2.8.0" onnx
         # %optimum-cli export openvino -m $model_id --task text-generation-with-past $model_dir
-    
+
         # load already converted model
         from huggingface_hub import hf_hub_download
-    
+
         hf_hub_download(
             "chgk13/TinyLlama-1.1B-intermediate-step-1431k-3T",
             filename="openvino_model.xml",
@@ -353,10 +335,10 @@ command is commented.
     from openvino_tokenizers import add_greedy_decoding
     from openvino_tokenizers.constants import EOS_TOKEN_ID_NAME
     from openvino import Core
-    
-    
+
+
     core = Core()
-    
+
     # add the greedy decoding subgraph on top of LLM to get the most probable token as an output
     ov_model = add_greedy_decoding(core.read_model(model_dir / "openvino_model.xml"))
     compiled_model = core.compile_model(ov_model)
@@ -370,34 +352,34 @@ distinct and separate state..
 .. code:: ipython3
 
     text_input = ["Quick brown fox jumped"]
-    
+
     model_input = {name.any_name: output for name, output in tokenizer(text_input).items()}
-    
+
     if "position_ids" in (input.any_name for input in infer_request.model_inputs):
         model_input["position_ids"] = np.arange(model_input["input_ids"].shape[1], dtype=np.int64)[np.newaxis, :]
-    
+
     # no beam search, set idx to 0
     model_input["beam_idx"] = np.array([0], dtype=np.int32)
     # end of sentence token is that model signifies the end of text generation
     # read EOS token ID from rt_info of tokenizer/detokenizer ov.Model object
     eos_token = ov_tokenizer.get_rt_info(EOS_TOKEN_ID_NAME).value
-    
+
     tokens_result = np.array([[]], dtype=np.int64)
-    
+
     # reset KV cache inside the model before inference
     infer_request.reset_state()
     max_infer = 10
-    
+
     for _ in trange(max_infer):
         infer_request.start_async(model_input)
         infer_request.wait()
-    
+
         # get a prediction for the last token on the first inference
         output_token = infer_request.get_output_tensor().data[:, -1:]
         tokens_result = np.hstack((tokens_result, output_token))
         if output_token[0, 0] == eos_token:
             break
-    
+
         # prepare input for new inference
         model_input["input_ids"] = output_token
         model_input["attention_mask"] = np.hstack((model_input["attention_mask"].data, [[1]]))
@@ -407,7 +389,7 @@ distinct and separate state..
                 [[model_input["position_ids"].data.shape[-1]]],
             )
         )
-    
+
     text_result = detokenizer(tokens_result)["string_output"]
     print(f"Prompt:\n{text_input[0]}")
     print(f"Generated:\n{text_result[0]}")
@@ -425,11 +407,11 @@ distinct and separate state..
     Quick brown fox jumped
     Generated:
     over the fence.
-    
-    
-    
-    
-    
+
+
+
+
+
 
 
 Merge Tokenizer into a Model
@@ -467,7 +449,7 @@ models and tokenizers simplifies memory management.
 
     model_id = "mrm8488/bert-tiny-finetuned-sms-spam-detection"
     model_dir = Path(Path(model_id).name)
-    
+
     if not model_dir.exists():
         %pip install -qU git+https://github.com/huggingface/optimum-intel.git onnx
         !optimum-cli export openvino --model $model_id --task text-classification $model_dir
@@ -497,17 +479,17 @@ models and tokenizers simplifies memory management.
 
 .. parsed-literal::
 
-    2024-05-07 00:40:23.074270: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-06 00:58:44.506889: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
     Framework not specified. Using pt to export the model.
-    Using framework PyTorch: 2.3.0+cpu
+    Using framework PyTorch: 2.3.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> False
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4481: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     Detokenizer is not supported, convert tokenizer only.
 
@@ -523,8 +505,6 @@ models and tokenizers simplifies memory management.
 .. parsed-literal::
 
     Loading Huggingface Tokenizer...
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
     Converting Huggingface Tokenizer to OpenVINO...
     Saved OpenVINO Tokenizer: bert-tiny-finetuned-sms-spam-detection/openvino_tokenizer.xml, bert-tiny-finetuned-sms-spam-detection/openvino_tokenizer.bin
 
@@ -533,19 +513,19 @@ models and tokenizers simplifies memory management.
 
     from openvino import Core, save_model
     from openvino_tokenizers import connect_models
-    
-    
+
+
     core = Core()
     text_input = ["Free money!!!"]
-    
+
     ov_tokenizer = core.read_model(model_dir / "openvino_tokenizer.xml")
     ov_model = core.read_model(model_dir / "openvino_model.xml")
     combined_model = connect_models(ov_tokenizer, ov_model)
     save_model(combined_model, model_dir / "combined_openvino_model.xml")
-    
+
     compiled_combined_model = core.compile_model(combined_model)
     openvino_output = compiled_combined_model(text_input)
-    
+
     print(f"Logits: {openvino_output['logits']}")
 
 
@@ -577,6 +557,6 @@ Links
    Types <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#supported-tokenizer-types>`__
 -  `OpenVINO.GenAI repository with the C++ example of OpenVINO
    Tokenizers
-   usage <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
+   usage <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__
 -  `HuggingFace Tokenizers Comparison
    Table <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#output-match-by-model>`__

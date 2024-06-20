@@ -11,6 +11,28 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_detection_output)
 
+template<typename ShapeType>
+std::vector<layout> experimental_detectron_detection_output_inst::calc_output_layouts(experimental_detectron_detection_output_node const& /*node*/,
+                                                                                      const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<experimental_detectron_detection_output>();
+
+    const ov::PartialShape boxes_shape = {static_cast<int64_t>(desc->max_detections_per_image), 4};
+    const ov::PartialShape classes_shape = {static_cast<int64_t>(desc->max_detections_per_image)};
+    const ov::PartialShape scores_shape = {static_cast<int64_t>(desc->max_detections_per_image)};
+
+    std::vector<ShapeType> out_shapes = { boxes_shape, classes_shape, scores_shape };
+    std::vector<layout> out_layouts;
+    for (size_t i = 0; i < desc->output_size(); i++) {
+        out_layouts.push_back(layout(out_shapes[i].get_max_shape(), desc->output_data_types[i].value(), format::get_default_format(out_shapes[i].size())));
+    }
+
+    return out_layouts;
+}
+
+template std::vector<layout>
+experimental_detectron_detection_output_inst::calc_output_layouts<ov::PartialShape>(
+        experimental_detectron_detection_output_node const& node, const kernel_impl_params& impl_param);
+
 layout experimental_detectron_detection_output_inst::calc_output_layout(
     const experimental_detectron_detection_output_node& node, kernel_impl_params const& impl_param) {
     const layout data_layout = impl_param.get_input_layout();

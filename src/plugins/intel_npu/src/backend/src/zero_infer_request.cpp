@@ -155,6 +155,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _profilingQuery(0,
                       _executor->getInitStructs()->getDevice(),
                       _executor->getInitStructs()->getProfilingDdiTable()) {
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors =
         _executor->inputs_desc_map();
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
@@ -162,6 +163,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
+        _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
         _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_executor->getInitStructs()->getContext(),
                                                                            _executor->getInitStructs()->getDevice(),
                                                                            _config.get<LOG_LEVEL>());
@@ -178,6 +180,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - performing I/O buffer allocation using Level Zero API");
     for (const std::string& inputName : _metadata.inputNames) {
         if (!executorInputDescriptors.count(inputName)) {
             OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
@@ -230,6 +233,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
     }
 
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocate tensor");
     for (const std::string& outputName : _metadata.outputNames) {
         IONodeDescriptor& resultDescriptor = _metadata.results.at(outputName);
         checkLevelZeroAttributesMatch(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
@@ -257,6 +261,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
     }
 
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - capturing latest tensor value in output");
     for (const std::string& stateName : _metadata.stateNames) {
         const std::string& stateInputBufferName = READVALUE_PREFIX + stateName;
         const std::string& stateOutputBufferName = ASSIGN_PREFIX + stateName;
@@ -281,6 +286,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         allocate_tensor(stateName, stateDescriptor, TensorType::State, allocator);
     }
 
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - constructing pipeline");
     /// Construct pipepline
     _pipeline = makePipeline(_executorPtr,
                              _config,
@@ -289,6 +295,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                              _npuProfiling,
                              _copyAllTensors,
                              _batchSize);
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest completed");
 }
 
 void ZeroInferRequest::infer() {
@@ -382,6 +389,10 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::f16:
         break;
+    case ov::element::Type_t::u4:
+        break;
+    case ov::element::Type_t::i4:
+        break;
     case ov::element::Type_t::u8:
         break;
     case ov::element::Type_t::i8:
@@ -398,16 +409,20 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::i64:
         break;
+    case ov::element::Type_t::f64:
+        break;
     default:
         OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-                       "! Supported precisions: FP32, FP16, U8, I8, U16, I16, U32, I32, U64, I64");
+                       "! Supported precisions: FP32, FP16, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
     }
 }
 
 std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
+    _logger.debug("InferRequest::get_profiling_info started");
     const auto& compiledModel = *std::dynamic_pointer_cast<const ICompiledModel>(_compiledModel);
     const auto& compilerConfig = compiledModel.get_config();
     if (!compilerConfig.get<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
+        _logger.debug("InferRequest::get_profiling_info complete with empty {}.");
         return {};
     }
 
@@ -419,12 +434,15 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
         const auto& compiler = compiledModel.get_compiler();
         const auto& blob = networkDesc->compiledNetwork;
         auto profData = get_raw_profiling_data();
+        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
         return compiler->process_profiling_output(profData, blob, compilerConfig);
     } else {
         auto proftype = _config.get<PROFILING_TYPE>();
         if (proftype == ov::intel_npu::ProfilingType::INFER) {
+            _logger.debug("InferRequest::get_profiling_info complete with _npuProfiling->getNpuInferStatistics().");
             return _npuProfiling->getNpuInferStatistics();
         } else {  /// proftype = MODEL or undefined = fallback to model profiling
+            _logger.debug("InferRequest::get_profiling_info complete with _profilingQuery.getLayerStatistics().");
             return _profilingQuery.getLayerStatistics();
         }
     }

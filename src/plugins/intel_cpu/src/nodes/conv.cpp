@@ -512,12 +512,13 @@ void Convolution::getSupportedDescriptors() {
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
 
-        SetPostOpsAndZeroPoints(attrs);
-
         // so far oneDNN INT8 convolution only support s8,u8,s32,f32,bf16 output types
         if (outputDataType == memory::data_type::f16) {
             outputDataType = memory::data_type::f32;
+            eltwisePrecision = ov::element::f32;
         }
+
+        SetPostOpsAndZeroPoints(attrs);
 
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, nspc);

@@ -364,6 +364,16 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDeviceType(get_specified_device_name(config));
           }}},
+        {ov::execution_devices.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              if (_metrics->GetAvailableDevicesNames().size() > 1) {
+                  return std::string("NPU." + config.get<DEVICE_ID>());
+              } else {
+                  return std::string("NPU");
+              }
+          }}},
         // OV Internals
         // =========
         {ov::internal::caching_properties.name(),
@@ -471,6 +481,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.getString<USE_ELF_COMPILER_BACKEND>();
+          }}},
+        {ov::intel_npu::create_executor.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<CREATE_EXECUTOR>();
           }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,

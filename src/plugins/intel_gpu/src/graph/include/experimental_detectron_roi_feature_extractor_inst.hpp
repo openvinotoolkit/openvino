@@ -19,6 +19,8 @@ public:
     size_t inputs_memory_count() const;
     void copy_rois_input_to_second_output() const;
 
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(experimental_detectron_roi_feature_extractor_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(experimental_detectron_roi_feature_extractor_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(experimental_detectron_roi_feature_extractor_node const& node);
 

@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include "cpu_types.h"
 #include "input.h"
-#include "memory_state.h"
-#include "node.h"
+#include "memory_state_base.h"
 #include "ov_optional.hpp"
 #include "proxy_mem_mgr.h"
 
@@ -21,51 +19,27 @@ class MemoryOutputBase;
 class MemoryInputBase;
 class ScaledDotProductAttention;
 
-class MemoryNode {
- public:
-    explicit MemoryNode(std::string id) : m_id(id) {}
-    explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
-    virtual ~MemoryNode() = default;
-    std::string getId() const {
-        return m_id;
+class MemoryStatesRegister {
+public:
+    using InputNodesMap = std::unordered_map<std::string, MemoryStateNode*>;
+    using OutputNodesMap = std::unordered_map<std::string, MemoryNode*>;
+
+public:
+    void registerOutput(MemoryOutputBase * node);
+    void registerInput(MemoryInputBase * node);
+    void remove(MemoryNode* node);
+
+    const InputNodesMap& getMemoryStates() const {
+        return memory_inputs;
     }
 
 private:
-    std::string m_id;
-};
+    MemoryInputBase* getMemoryInputByName(const std::string& name);
+    MemoryOutputBase* getMemoryOutputByName(const std::string& name);
 
-class MemoryStateNode : public MemoryNode {
-public:
-    using MemoryNode::MemoryNode;
-    virtual void assignState(MemStatePtr newState) = 0;
-    virtual MemStatePtr makeState() const = 0;
-};
-
-/**
- * @brief
- * TODO: ATTENTION: this is a temporary solution, this connection should be keep in graph
- * WARNING: thread_local and holderMutex are not needed if moved into graph
- */
-class MemoryNodeVirtualEdge {
-public:
-    using Holder = std::map<std::string, MemoryNode*>;
-    static Holder & getExisted() {
-        thread_local static Holder existed;
-        return existed;
-    }
-
-    static MemoryNode * getByName(Holder& holder, std::string name) {
-        auto result = holder.find(name);
-        if (result != holder.end()) {
-            return result->second;
-        }
-        return nullptr;
-    }
-
-    static Holder* registerOutput(MemoryOutputBase * node);
-    static Holder* registerInput(MemoryInputBase * node);
-    static void remove(MemoryNode * node, Holder* holder);
-    static std::mutex holderMutex;
+private:
+    InputNodesMap memory_inputs;
+    OutputNodesMap memory_outputs;
 };
 
 class MemoryOutputBase : public Node, public MemoryNode {
@@ -88,15 +62,22 @@ public:
         return getType() == Type::MemoryOutput;
     }
 
+    void execute(dnnl::stream strm) override final; // NOLINT
+    void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
+    bool isExecutable() const override final; // NOLINT
+
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
 
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
 
-    virtual void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) = 0;
+    void assignState(MemStatePtr newState);
 
 protected:
+    virtual void runStatic(dnnl::stream strm) = 0;
+    virtual void runDynamic(dnnl::stream strm) = 0;
+    virtual void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) = 0;
     MemoryInputBase& getInputNode();
 
 private:
@@ -104,7 +85,7 @@ private:
      * @brief keeps reference to input sibling node
      */
     MemoryInputBase* inputNode = nullptr;
-    MemoryNodeVirtualEdge::Holder* holder = nullptr;
+    MemStatePtr state = nullptr; //keep reference to call commit()
 };
 
 class MemoryOutput : public MemoryOutputBase {
@@ -112,11 +93,11 @@ public:
     using MemoryOutputBase::MemoryOutputBase;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
+protected:
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
     void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
 
 private:
@@ -130,13 +111,12 @@ public:
     using MemoryOutputBase::MemoryOutputBase;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
+protected:
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
     void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
-    bool isExecutable() const override;
 };
 
 class MemoryInputBase : public Input, public MemoryStateNode {
@@ -160,17 +140,32 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
+    void execute(dnnl::stream strm) override final; // NOLINT
+    void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
+    bool isExecutable() const override final; // NOLINT
+
     void registerOutputNode(MemoryOutputBase* node);
     void deregisterSibling(MemoryOutputBase* node);
 
     MemoryOutputBase& getOutputNode();
+    void assignState(MemStatePtr newState) override final; // NOLINT
+
+protected:
+    virtual void runStatic(dnnl::stream strm) = 0;
+    virtual void runDynamic(dnnl::stream strm) = 0;
+    virtual void assignStateHook() = 0;
+    MemStatePtr getAssignedState() const {
+        return state;
+    }
 
 private:
     /**
      * @brief keeps reference to output sibling node
      */
     MemoryOutputBase* outputNode = nullptr;
-    MemoryNodeVirtualEdge::Holder* holder = nullptr;
+    MemStatePtr state = nullptr;
 };
 
 class MemoryInput : public MemoryInputBase {
@@ -178,21 +173,20 @@ public:
     using MemoryInputBase::MemoryInputBase;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool needShapeInfer() const override;
-    bool isExecutable() const override;
     void initOptimalPrimitiveDescriptor() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void assignState(MemStatePtr newState) override;
     MemStatePtr makeState() const override;
 
 private:
-    bool isExecutableFlag = true;
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
+    void assignStateHook() override {/*pass*/}
+    bool needInitGraphProcessing() const;
+
+private:
     ProxyMemoryMngrPtr memMngr = nullptr;
-    MemoryPtr assignedMem = nullptr;
 };
 
 class MemoryInputSDPA : public MemoryInputBase {
@@ -209,25 +203,21 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool needShapeInfer() const override;
-    bool isExecutable() const override;
-
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
-
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void assignState(MemStatePtr newState) override;
     MemStatePtr makeState() const override;
+
+private:
+    void assignStateHook() override;
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
 
 private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
-    bool m_needShapeInfer = false;
 };
 }   // namespace node
 }   // namespace intel_cpu

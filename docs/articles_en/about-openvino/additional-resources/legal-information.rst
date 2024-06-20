@@ -1,7 +1,7 @@
 .. {#openvino_docs_Legal_Information}
 
-Legal Information
-=================
+Legal and Responsible AI Information
+=====================================
 
 
 .. meta::
@@ -47,3 +47,11 @@ Intel is committed to respecting human rights and avoiding causing or contributi
 impacts on human rights. See `Intel's Global Human Rights Principles <https://www.intel.com/content/dam/www/central-libraries/us/en/documents/policy-human-rights.pdf>`__.
 Intel's products and software are intended only to be used in applications that do not cause or
 contribute to adverse impacts on human rights.
+
+Model Card Statement
+###########################################################
+
+We recommend that users, wherever you are sourcing the model from, should check for a model card,
+consult the model card for each model you access and use, and create one if you are developing
+or updating a model. A model card is a short document that provides key information to assess
+performance and validation and ensure appropriate use.

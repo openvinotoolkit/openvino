@@ -129,6 +129,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
                 auto input = raw_inputs.at(i);
+                // If inputs are inlined (possible only for fx decoder) we shouldn't add a Parameter for it
+                if (input == 0 && node->is_input_inlined(i)) {
+                    continue;
+                }
                 if (tensor_map->find(input) == tensor_map->end()) {
                     // Input refers value in the outer scope, need to create a new Parameter in the current scope
                     // Linkage to external scope will be performed on the level of the parent operation (if or loop)

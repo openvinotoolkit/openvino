@@ -73,7 +73,7 @@ input/output or :doc:`stateful operations <../stateful-models>`
 will be loaded to the CPU if it is in the candidate list. Otherwise,
 these models will follow the normal flow and be loaded to the device based on priority.
 
-.. image:: ../../../_static/images/autoplugin_accelerate.svg
+.. image:: ../../../assets/images/autoplugin_accelerate.svg
 
 
 This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app sample <using-auto-with-openvino-samples-and-benchmark-app>`

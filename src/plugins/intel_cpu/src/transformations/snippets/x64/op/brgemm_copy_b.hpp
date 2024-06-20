@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "snippets/op/memory_access.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
-#include <snippets/shape_inference/shape_inference.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -22,7 +23,7 @@ class BrgemmCopyB : public snippets::modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("BrgemmCopyB", "SnippetsOpset");
 
-    enum Type {
+    enum class Type {
         OnlyRepacking,     // Just data repacking - one output
         WithCompensations, // Repack data and caclulate compensations - 2 outputs (is needed for BrgemmCPU with compensations)
     };
@@ -30,8 +31,8 @@ public:
     BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type = Type::OnlyRepacking,
                 const size_t offset_in = 0lu, const size_t offset_out0 = 0lu, const size_t offset_out1 = 0lu,
                 std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
-    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type = Type::OnlyRepacking,
-                const PortDescriptor& desc_in0 = {}, const PortDescriptor& desc_out0 = {}, const PortDescriptor& desc_out1 = {},
+    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
+                const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
                 std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCopyB() = default;
 
@@ -81,6 +82,12 @@ private:
     size_t m_inner_n_block = 0;
     size_t m_brgemmVNNIFactor = 1;
 };
-
 } // namespace intel_cpu
+
+template <>
+class AttributeAdapter<intel_cpu::BrgemmCopyB::Type> : public EnumAttributeAdapterBase<intel_cpu::BrgemmCopyB::Type> {
+public:
+    AttributeAdapter(intel_cpu::BrgemmCopyB::Type& value) : EnumAttributeAdapterBase<intel_cpu::BrgemmCopyB::Type>(value) {}
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::BrgemmCopyB::Type>");
+};
 } // namespace ov

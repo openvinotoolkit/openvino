@@ -16,6 +16,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     : _initStructs(initStructs),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
+    log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
@@ -23,27 +24,20 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     // Query PCI information
     // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
     // zero values. If this is detected, we populate only device with ID from device_properties for backwards
-    // compatibility
+    // compatibility. For any other error, we just fall-back to device ID to assure backwards compatibilty with even
+    // older drivers
     pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
     ze_result_t retpci = zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &pci_properties);
     if (ZE_RESULT_SUCCESS == retpci) {
-        // win backwards compatibility
+        // windows driver specific backwards compatibility
         if (pci_properties.address.device == 0) {
             log.warning("PCI information not available in driver. Falling back to deviceId");
             pci_properties.address.device = device_properties.deviceId;
         }
-    } else if (ZE_RESULT_ERROR_UNSUPPORTED_FEATURE == retpci) {
-        log.warning("PCI information not available in driver. Falling back to deviceId");
-        // linux backwards compatibilty
-        pci_properties.address.device = device_properties.deviceId;
     } else {
-        OPENVINO_THROW("L0 zeDevicePciGetPropertiesExt result: ",
-                       ze_result_to_string(retpci),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(retpci),
-                       " - ",
-                       ze_result_to_description(retpci));
+        // general backwards compatibility
+        log.warning("PCI information not available in driver. Falling back to deviceId");
+        pci_properties.address.device = device_properties.deviceId;
     }
 
     /// Calculate and store device GOPS with formula: frequency * number of tiles * ops per tile
@@ -70,6 +64,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(), &command_queue_group_count, nullptr));
 
+    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
     command_group_properties.resize(command_queue_group_count);
 
     for (auto& prop : command_group_properties) {
@@ -83,7 +78,9 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
                                                                   command_group_properties.data()));
 
     // Find the corresponding command queue group.
+    log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
+    log.debug("ZeroDevice::ZeroDevice - init completed");
 }
 
 std::shared_ptr<IExecutor> ZeroDevice::createExecutor(

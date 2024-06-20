@@ -115,7 +115,7 @@ std::vector<layout> loop_inst::calc_output_layouts(loop_node const& /*node*/, ke
     if (impl_param.inner_nets.empty()) {
         OPENVINO_ASSERT(impl_param.inner_progs.size() == 1, "Loop(", prim->id, ") should have only one inner network");
         const auto& body_outputs = impl_param.inner_progs.front()->get_outputs();
-        output_layouts = get_output_layouts<program_node*>(impl_param, body_outputs);
+        output_layouts = get_output_layouts<program_node*>(impl_param, body_outputs, prim->max_num_iterations);
     } else {
         auto& memory_deps = impl_param.memory_deps;
         const size_t current_iteration_idx = 0;
@@ -479,11 +479,18 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
 
             if (input_map->axis < 0) {
                 auto input_inst = body_network->get_primitive(internal_id.pid);
-                if (memory->get_layout() != input_inst->get_output_layout()) {
-                    input_inst->set_output_layout(memory->get_layout());
+                if (!input_inst->get_output_layout().identical(_impl_params->get_input_layout(memory_num))) {
+                    input_inst->set_output_layout(_impl_params->get_input_layout(memory_num));
+                }
+
+                if (!input_inst->get_output_layout().is_dynamic() && !memory->get_layout().identical(input_inst->get_output_layout())) {
+                    OPENVINO_ASSERT(input_inst->get_output_layout().bytes_count() <= memory->get_layout().bytes_count(),
+                                    "input layout size(", input_inst->get_output_layout().to_short_string(),
+                                    ") should not exceed memory size(", memory->get_layout().to_short_string(), ")");
+                    memory = body_network->get_engine().reinterpret_buffer(*memory, input_inst->get_output_layout());
                     GPU_DEBUG_LOG << input_inst->id() << " is changed memory because layout is changed from "
-                                        << input_inst->get_output_layout().to_short_string()
-                                        << " to " << memory->get_layout().to_short_string() << std::endl;
+                                        << memory->get_layout().to_short_string()
+                                        << " to " << input_inst->get_output_layout().to_short_string() << std::endl;
                 }
 
                 auto internal_input_memory = memory;
@@ -526,6 +533,15 @@ void loop_inst::preprocess_backedge_memory() {
         OPENVINO_ASSERT(!input_map_ptrs.empty(), id(), " has no input_mapping for backedged input");
         auto& external_id = input_map_ptrs.front()->external_id;
         initial_mem = get_external_memory(external_id.pid, external_id.idx);
+        // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
+        // so memory layout needs to be re-interprete according to original layout.
+        auto initial_layout = get_external_output_layout(external_id.pid, external_id.idx);
+        if (initial_mem != nullptr && !initial_mem->get_layout().identical(initial_layout)) {
+            OPENVINO_ASSERT(initial_layout.bytes_count() <= initial_mem->get_layout().bytes_count(),
+                            "initial layout size(", initial_layout.to_short_string(),
+                            ") should not exceed initial memory size(", initial_mem->get_layout().to_short_string(), ")");
+            initial_mem = body_network->get_engine().reinterpret_buffer(*initial_mem, initial_layout);
+        }
 
         GPU_DEBUG_LOG << idx << ") back_edge mapping - back_edge.from " << back_edge.from << std::endl;
         GPU_DEBUG_LOG << idx << ") back_edge mapping - back_edge.to   " << back_edge.to << std::endl;
@@ -985,7 +1001,17 @@ int64_t loop_inst::get_num_iterations() {
 void loop_inst::set_memory_in_body_network(cldnn::network::ptr body_network,
                 const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) {
     if (inst->is_input()) {
-        body_network->set_input_data(inst->id(), mem);
+        // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
+        // so memory layout needs to be re-interprete according to original layout.
+        memory::ptr updated_mem = mem;
+        layout impl_layout = inst->get_impl_params()->get_output_layout();
+        OPENVINO_ASSERT(impl_layout.bytes_count() <= updated_mem->get_layout().bytes_count(),
+                        "impl_params layout size(", impl_layout.to_short_string(),
+                        ") should not exceed memory size(", updated_mem->get_layout().to_short_string(), ")");
+        if (impl_layout.bytes_count() < updated_mem->get_layout().bytes_count()) {
+            updated_mem = body_network->get_engine().reinterpret_buffer(*updated_mem, impl_layout);
+        }
+        body_network->set_input_data(inst->id(), updated_mem);
     } else if (inst->is_output()) {
         body_network->set_output_memory(inst->id(), mem);
     } else {
@@ -1053,7 +1079,7 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
             if (iter == 0) {
                 auto to_id = mapping.to_primitive->id();
                 // Check backedge_to shape needs to be updated by initial_mem
-                if (!mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
+                if (mapping.initial_mem != nullptr && !mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
                     to_mem = body_network->get_engine().allocate_memory(mapping.initial_mem->get_layout(), false);
                     body_network->set_input_data(to_id, to_mem);
                     ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));

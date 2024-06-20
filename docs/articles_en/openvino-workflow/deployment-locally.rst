@@ -1,5 +1,3 @@
-.. {#openvino_deployment_guide}
-
 Deploy Locally
 ==============
 
@@ -8,8 +6,10 @@ Deploy Locally
    :maxdepth: 1
    :hidden:
 
-   Local Distribution Libraries <deployment-locally/local-distribution-libraries>
-   Optimize Binaries Size <deployment-locally/optimial-binary-size-conditional-compilation>
+   Local Distribution Libraries <./deployment-locally/local-distribution-libraries>
+   Optimize Binaries Size <./deployment-locally/optimial-binary-size-conditional-compilation>
+   Integrate OpenVINO with Ubuntu Snap <./deployment-locally/integrate-openvino-with-ubuntu-snap>
+
 
 .. meta::
    :description: There are several ways of deploying OpenVINO™ application once
@@ -43,11 +43,11 @@ The table below shows which distribution type can be used for what target operat
    * - Distribution type
      - Operating systems
    * - Debian packages
-     - Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit
+     - Ubuntu 18.04, 20.04, 22.04, 24.04 (64-bit)
    * - RPM packages
      - Red Hat Enterprise Linux 8, 64-bit
    * - Docker images
-     - Ubuntu 22.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit
+     - Ubuntu 20.04, 22.04, 24.04 (64-bit); Red Hat Enterprise Linux 8, 64-bit
    * - PyPI (PIP package manager)
      - See https://pypi.org/project/openvino
    * - :doc:`Libraries for Local Distribution <deployment-locally/local-distribution-libraries>`
@@ -61,7 +61,7 @@ Granularity of Major Distribution Types
 
 The granularity of OpenVINO packages may vary for different distribution types. For example, the PyPI distribution of OpenVINO has a `single 'openvino' package <https://pypi.org/project/openvino/>`__ that contains all the runtime libraries and plugins, while a :doc:`local distribution <deployment-locally/local-distribution-libraries>` is a more configurable type providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
-.. image:: ../_static/images/deployment_simplified.svg
+.. image:: ../assets/images/deployment_simplified.svg
 
 
 - The main library ``openvino`` is used by users' C++ applications to link against with. For C language applications, ``openvino_c`` is additionally required for distribution. The library includes OpenVINO API 2.0.

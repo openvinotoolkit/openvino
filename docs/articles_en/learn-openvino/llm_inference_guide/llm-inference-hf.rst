@@ -1,16 +1,18 @@
 .. {#llm_inference}
 
-Inference with Hugging Face and Optimum Intel
+Run LLMs with Hugging Face and Optimum Intel
 =====================================================
 
-The steps below show how to load and infer LLMs from Hugging Face using Optimum Intel.
-They also show how to convert models into OpenVINO IR format so they can be optimized
-by NNCF and used with other OpenVINO tools.
+The steps below show how to load and infer LLMs from
+`Hugging Face <https://huggingface.co/models>`__ using Optimum Intel. They also show how to
+convert models into OpenVINO IR format so they can be optimized by NNCF and used with
+other OpenVINO tools.
 
 Prerequisites
 ############################################################
 
-* Create a Python environment by following the instructions on the :doc:`Install OpenVINO PIP <../../get-started/install-openvino>` page.
+* Create a Python environment by following the instructions on the
+  :doc:`Install OpenVINO PIP <../../get-started/install-openvino>` page.
 * Install the necessary dependencies for Optimum Intel:
 
 .. code-block:: console
@@ -20,7 +22,8 @@ Prerequisites
 Loading a Hugging Face Model to Optimum Intel
 ############################################################
 
-To start using OpenVINO as a backend for Hugging Face, change the original Hugging Face code in two places:
+To start using OpenVINO as a backend for Hugging Face, change the original Hugging Face
+code in two places:
 
 .. code-block:: diff
 
@@ -225,10 +228,15 @@ OpenVINO runtime provides a set of optimizations for more efficient LLM inferenc
 includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls and
 **KV-cache quantization**.
 
-* **Dynamic quantization** enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see :doc:`LLM Weight Compression <../../openvino-workflow/model-optimization-guide/weight-compression>`).
-  It improves inference latency and throughput of LLMs, though it may cause insignificant deviation in generation accuracy.  Quantization is performed in a
-  group-wise manner, with configurable group size. It means that values in a group share quantization parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended group size values are ``32``, ``64``, or ``128``. To enable Dynamic quantization, use the corresponding
-  inference property as follows:
+* **Dynamic quantization** enables quantization of activations of MatMul operations
+  that have 4 or 8-bit quantized weights (see
+  :doc:`LLM Weight Compression <../../openvino-workflow/model-optimization-guide/weight-compression>`).
+  It improves inference latency and throughput of LLMs, though it may cause
+  insignificant deviation in generation accuracy.  Quantization is performed in a group-wise
+  manner, with configurable group size. It means that values in a group share quantization
+  parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended
+  group size values are ``32``, ``64``, or ``128``. To enable Dynamic quantization, use
+  the corresponding inference property as follows:
 
 
   .. code-block:: python
@@ -238,9 +246,12 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
          ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
      )
 
-* **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs. This helps reduce memory consumption during inference, improving latency and throughput. KV-cache can be quantized into the following precisions:
-  ``u8``, ``bf16``, ``f16``.  If ``u8`` is used, KV-cache quantization is also applied in a group-wise manner. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if defined.
-  Otherwise, the group size ``32`` is used by default. KV-cache quantization can be enabled as follows:
+* **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs.
+  This helps reduce memory consumption during inference, improving latency and throughput.
+  KV-cache can be quantized into the following precisions: ``u8``, ``bf16``, ``f16``.
+  If ``u8`` is used, KV-cache quantization is also applied in a group-wise manner. Thus,
+  it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if defined. Otherwise, the group
+  size ``32`` is used by default. KV-cache quantization can be enabled as follows:
 
 
   .. code-block:: python

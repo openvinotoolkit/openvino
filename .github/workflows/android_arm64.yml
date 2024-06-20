@@ -13,6 +13,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-arm64-vcpkg
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -21,7 +23,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -75,7 +77,7 @@ jobs:
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           path: 'openvino'
 
@@ -90,7 +92,7 @@ jobs:
           popd
 
       - name: Clone vcpkg
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'microsoft/vcpkg'
           # Keep in sync with <root>/vcpkg.json <builtin-baseline>
@@ -130,7 +132,7 @@ jobs:
           echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@89e9040de88b577a072e3760aaf59f585da083af # v0.0.5
         with:
           version: "v0.7.5"
 
@@ -182,7 +184,7 @@ jobs:
       # Upload build logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
           name: build_logs
