@@ -306,7 +306,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
 
     // pick which subrequest we actually work on here
     auto subr = [&]() {
-        if (now_idx() != static_cast<std::size_t>(-1) && real_idx == real(now_idx()) && m_use_function_pipelining) {
+        if (now_idx() && real_idx == real(now_idx().value()) && m_use_function_pipelining) {
             LOG_DEBUG("Accessing the pipeline subrequest");
             // The real index of request we need to prepare IS
             // the same request which executes now AND
@@ -588,6 +588,15 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     }
 }
 
+namespace {
+template <typename R, typename F>
+void during(R&& r, F&& f) {
+    r->start_async();
+    f();  // expect noexcept
+    r->wait();
+}
+}  // namespace
+
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -603,14 +612,14 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (m_use_function_pipelining) {
                 // function pipelining is here! and the next rq is ours.
                 NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
-                this_subr->start_async();
-                LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
-                LOG_BLOCK();
-                // Note: do it here unconditionally - if this request fails,
-                // have to resubmit all the data to the recompiled pair anyway
-                bind_global_parameters(next_idx);
-                unpack_closure(next_idx, m_funcall_pipeline[real_idx].subrequest);
-                this_subr->wait();
+                during(this_subr, [&]() {
+                    LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
+                    LOG_BLOCK();
+                    // Note: do it here unconditionally - if this request fails,
+                    // have to resubmit all the data to the recompiled pair anyway
+                    bind_global_parameters(next_idx);
+                    unpack_closure(next_idx, m_funcall_pipeline[real_idx].subrequest);
+                });
             } else {
                 // Function pipelining is not used. THIS infer request
                 // is also the NEXT one. Nothing much to do here
@@ -626,18 +635,18 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
                 // SWAP won't happen here - see the below check for .next
                 this_subr->infer();
             } else {
-                this_subr->start_async();
-                if (!next_prepared) {
-                    bind_global_parameters(next_idx);
-                    next_prepared = true;
-                }
-                if (m_use_function_pipelining && m_funcall_pipeline[idx].next) {
-                    const auto my_next_idx = m_funcall_pipeline[idx].next.value();
-                    LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << my_next_idx << "]...");
-                    LOG_BLOCK();
-                    unpack_closure(my_next_idx, m_funcall_pipeline[real_idx].subrequest);
-                }
-                this_subr->wait();
+                during(this_subr, [&]() {
+                    if (!next_prepared) {
+                        bind_global_parameters(next_idx);
+                        next_prepared = true;
+                    }
+                    if (m_use_function_pipelining && m_funcall_pipeline[idx].next) {
+                        const auto my_next_idx = m_funcall_pipeline[idx].next.value();
+                        LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << my_next_idx << "]...");
+                        LOG_BLOCK();
+                        unpack_closure(my_next_idx, m_funcall_pipeline[real_idx].subrequest);
+                    }
+                });
             }
         }
     } else {
@@ -646,12 +655,12 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
         if (next_idx == 0) {
             this_subr->infer();
         } else {
-            this_subr->start_async();
-            if (!next_prepared) {
-                bind_global_parameters(next_idx);
-                next_prepared = true;
-            }
-            this_subr->wait();
+            during(this_subr, [&]() {
+                if (!next_prepared) {
+                    bind_global_parameters(next_idx);
+                    next_prepared = true;
+                }
+            });
         }
     }  // if (replaced_by)
 }

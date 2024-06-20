@@ -179,7 +179,7 @@ void ov::npuw::IBaseInferRequest::check_tensors() const {
 }
 
 void ov::npuw::IBaseInferRequest::infer() {
-    m_now_idx = static_cast<std::size_t>(-1);
+    m_now_idx.reset();
     prepare_for_infer();
     bool failover_happened = false;
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
@@ -206,7 +206,7 @@ void ov::npuw::IBaseInferRequest::infer() {
         LOG_BLOCK();
         m_npuw_model->log_device_dist();
     }
-    m_now_idx = static_cast<std::size_t>(-1);
+    m_now_idx.reset();
 }
 
 void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
@@ -319,6 +319,6 @@ std::size_t ov::npuw::IBaseInferRequest::real(std::size_t idx) const {
     return comp_model_desc.replaced_by.value_or(idx);
 }
 
-std::size_t ov::npuw::IBaseInferRequest::now_idx() const {
+ov::npuw::IBaseInferRequest::now_t ov::npuw::IBaseInferRequest::now_idx() const {
     return m_now_idx;
 }

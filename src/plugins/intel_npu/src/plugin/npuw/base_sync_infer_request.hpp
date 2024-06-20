@@ -116,10 +116,11 @@ protected:
 
     RqPtrs m_ref_subrequests;
 
-    std::size_t now_idx() const;
+    using now_t = std::optional<std::size_t>;
+    now_t now_idx() const;
 
 private:
-    std::size_t m_now_idx = 0u;
+    now_t m_now_idx;
 };
 
 }  // namespace npuw
