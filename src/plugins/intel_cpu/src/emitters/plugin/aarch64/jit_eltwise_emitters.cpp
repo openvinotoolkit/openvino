@@ -899,7 +899,7 @@ void jit_is_inf_emitter::register_table_entries() {
     push_arg_entry_of("inf", 0x7F800000, true);
     push_arg_entry_of("inf_neg", 0xFF800000, true);
 }
-  
+
 /// IS_NAN ///
 jit_is_nan_emitter::jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -961,7 +961,7 @@ void jit_is_nan_emitter::register_table_entries() {
     // Registers constant values that comply with the IEEE 754 standard.
     push_arg_entry_of("one", 0x3f800000, true);
     push_arg_entry_of("zero", 0x00000000, true);
-}  
+}
 
 /// MAX ///
 jit_maximum_emitter::jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
