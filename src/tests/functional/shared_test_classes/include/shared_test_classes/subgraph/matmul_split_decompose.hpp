@@ -16,6 +16,7 @@ struct MatMulGatherDecomposeShapeParams {
     ov::Shape input_shape;
     ov::Shape weights_shape;
     bool trans_b;
+    bool have_bias;
     ov::Shape bias_shape;
     ov::Shape reshape_shape;
 };
@@ -32,6 +33,7 @@ public:
 
 protected:
     void SetUp() override;
+    void check_results();
 };
 
 struct MatMulSplitDecomposeShapeParams {
@@ -56,6 +58,7 @@ public:
 
 protected:
     void SetUp() override;
+    void check_results();
 };
 
 }  // namespace test
