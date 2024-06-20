@@ -328,6 +328,9 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const py::list& partial_shape) {
             if (py::len(partial_shape) > 0 && py::isinstance<py::list>(partial_shape[0])) {
+                if (py::len(partial_shape) != self.inputs().size()) {
+                    throw py::value_error("Reshape failed due to mismatched lengths");
+                }
                 std::map<ov::Output<ov::Node>, ov::PartialShape> shapes_map;
 
                 for (size_t i = 0; i < py::len(partial_shape); ++i) {
