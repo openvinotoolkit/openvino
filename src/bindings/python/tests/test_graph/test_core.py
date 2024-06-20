@@ -6,11 +6,29 @@ import copy
 
 import numpy as np
 import pytest
+import pytest
+import numpy as np 
+import openvino as ov
 
 from openvino import Dimension, Model, PartialShape, Shape
 
 import openvino.runtime.opset8 as ov
 
+def test_mytensor_creation():
+    tensor = ov.MyTensor([1, 2, 3])
+    assert tensor is not None
+
+def test_mytensor_values():
+    tensor = ov.MyTensor([1, 2, 3])
+    assert np.array_equal(tensor.values, [1, 2, 3])
+
+def test_mytensor_shape():
+    tensor = ov.MyTensor([1, 2, 3])
+    assert tensor.shape == (3,)
+
+def test_mytensor_dtype():
+    tensor = ov.MyTensor([1, 2, 3])
+    assert tensor.dtype == np.int64
 
 def test_dimension():
     dim = Dimension()
