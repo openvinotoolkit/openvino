@@ -10,6 +10,55 @@ import jax.numpy as jnp
 
 from openvino.runtime import op, Type as OVType, Shape, OVAny
 
+import openvino
+openvino.runtime
+
+numpy_to_ov_type_map = {
+    np.dtypes.Float32DType: OVType.f32,
+    np.dtypes.BoolDType: OVType.boolean,
+    jax.dtypes.bfloat16: OVType.bf16, # TODO: check this
+    np.dtypes.Float16DType: OVType.f16,
+    np.dtypes.Float32DType: OVType.f32,
+    np.dtypes.Float64DType: OVType.f64,
+    np.dtypes.UInt8DType: OVType.u8,
+    np.dtypes.Int8DType: OVType.i8,
+    np.dtypes.Int16DType: OVType.i16,
+    np.dtypes.Int32DType: OVType.i32,
+    np.dtypes.Int64DType: OVType.i64,
+}
+
+jax_to_ov_type_map = {
+    jnp.float32: OVType.f32,
+    jnp.bool: OVType.boolean,
+    jnp.bfloat16: OVType.bf16, # TODO: check this
+    jnp.float16: OVType.f16,
+    jnp.float64: OVType.f64,
+    jnp.uint8: OVType.u8,
+    jnp.int8: OVType.i8,
+    jnp.int16: OVType.i16,
+    jnp.int32: OVType.i32,
+    jnp.int64: OVType.i64,
+}
+
+basic_to_ov_type_map = {
+    int: OVType.i64,
+    float: OVType.f32,
+    bool: OVType.boolean,
+}
+
+ov_type_to_int_map = {
+    OVType.u8: 0,
+    OVType.i8: 1,
+    OVType.i16: 2,
+    OVType.i32: 3,
+    OVType.i64: 4,
+    OVType.f16: 5,
+    OVType.f32: 6,
+    OVType.f64: 7,
+    OVType.boolean: 11,
+    OVType.bf16: 15,
+}
+
 def get_type_from_py_type(value):
     if isinstance(value, float):
         return OVType.f32
@@ -76,49 +125,3 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     
     print(f"[WARNING][JAX FE] Cannot get constant from value {ivalue}")
     return OVAny(None), None, None
-
-numpy_to_ov_type_map = {
-    np.dtypes.Float32DType: OVType.f32,
-    np.dtypes.BoolDType: OVType.boolean,
-    jax.dtypes.bfloat16: OVType.bf16, # TODO: check this
-    np.dtypes.Float16DType: OVType.f16,
-    np.dtypes.Float32DType: OVType.f32,
-    np.dtypes.Float64DType: OVType.f64,
-    np.dtypes.UInt8DType: OVType.u8,
-    np.dtypes.Int8DType: OVType.i8,
-    np.dtypes.Int16DType: OVType.i16,
-    np.dtypes.Int32DType: OVType.i32,
-    np.dtypes.Int64DType: OVType.i64,
-}
-
-jax_to_ov_type_map = {
-    jnp.float32: OVType.f32,
-    jnp.bool: OVType.boolean,
-    jnp.bfloat16: OVType.bf16, # TODO: check this
-    jnp.float16: OVType.f16,
-    jnp.float64: OVType.f64,
-    jnp.uint8: OVType.u8,
-    jnp.int8: OVType.i8,
-    jnp.int16: OVType.i16,
-    jnp.int32: OVType.i32,
-    jnp.int64: OVType.i64,
-}
-
-basic_to_ov_type_map = {
-    int: OVType.i64,
-    float: OVType.f32,
-    bool: OVType.boolean,
-}
-
-ov_type_to_int_map = {
-    OVType.u8: 0,
-    OVType.i8: 1,
-    OVType.i16: 2,
-    OVType.i32: 3,
-    OVType.i64: 4,
-    OVType.f16: 5,
-    OVType.f32: 6,
-    OVType.f64: 7,
-    OVType.boolean: 11,
-    OVType.bf16: 15,
-}
