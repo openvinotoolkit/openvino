@@ -43,9 +43,10 @@ void regclass_frontend_FrontEnd(py::module m) {
                 py::isinstance<py::str>(py_obj) || py::isinstance<py::bytes>(py_obj)) {
                 // check if model path is either a string/pathlib.Path/bytes
                 std::string model_path = Common::utils::convert_path_to_string(py_obj);
-                if (py::isinstance(py_obj, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(py_obj)) {
+                if (py::isinstance(py_obj, py::module_::import("pathlib").attr("Path")) ||
+                    py::isinstance<py::str>(py_obj)) {
 
-                    // Fix unicode path
+                // Fix unicode path
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                     return self.load(ov::util::string_to_wstring(model_path.c_str()));
 #else
@@ -80,13 +81,14 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def(
         "supported",
         [](FrontEnd& self, const py::object& model) {
-        if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) ||
-                py::isinstance<py::str>(model) || py::isinstance<py::bytes>(model)) {
+            if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model) ||
+                py::isinstance<py::bytes>(model)) {
                 // check if model path is either a string/pathlib.Path/bytes
                 std::string model_path = Common::utils::convert_path_to_string(model);
-                if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model)) {
+                if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) ||
+                    py::isinstance<py::str>(model)) {
 
-                    // Fix unicode path
+                // Fix unicode path
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                     return self.supported(ov::util::string_to_wstring(model_path.c_str()));
 #else

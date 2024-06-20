@@ -82,11 +82,12 @@ void regclass_frontend_FrontEndManager(py::module m) {
             if (py::isinstance(model, py::module_::import("pathlib").attr("Path"))) {
                 std::string model_path = Common::utils::convert_path_to_string(model);
 
-                    // Fix unicode path
+            // Fix unicode path
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                 return fem->load_by_model(ov::util::string_to_wstring(model_path.c_str()));
 #else
-                return fem->load_by_model(str(model_path));
+                std::string model_path_str = model_path;
+                return fem->load_by_model(model_path_str);
 #endif
             }
             return fem->load_by_model({Common::utils::py_object_to_any(model)});

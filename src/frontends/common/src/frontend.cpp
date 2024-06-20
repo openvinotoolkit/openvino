@@ -44,8 +44,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     FRONT_END_CHECK_IMPLEMENTED(m_actual, load_impl);
     auto model = std::make_shared<InputModel>();
     model->m_shared_object = m_shared_object;
-    FRONTEND_CALL_STATEMENT("Loading input model",
-                            model->m_actual = m_actual->load_impl(variants))
+    FRONTEND_CALL_STATEMENT("Loading input model", model->m_actual = m_actual->load_impl(variants))
     return model;
 }
 
