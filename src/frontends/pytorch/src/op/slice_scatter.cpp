@@ -26,7 +26,7 @@ OutputVector translate_slice_scatter_fx(const NodeContext& context) {
     ov::Output<ov::Node> dim;
     if (!context.input_is_none(2)) {
         dim = context.get_input(2);
-        if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
+        if (!(dim.get_partial_shape().rank().is_dynamic()) && dim.get_partial_shape().rank().get_length() == 0) {
             dim = context.mark_node(std::make_shared<v0::Unsqueeze>(dim, axis_0));
         }
     } else {
@@ -35,7 +35,7 @@ OutputVector translate_slice_scatter_fx(const NodeContext& context) {
     ov::Output<ov::Node> start;
     if (!context.input_is_none(3)) {
         start = context.get_input(3);
-        if (start.get_partial_shape().rank().is_dynamic() || start.get_partial_shape().rank().get_length() == 0) {
+        if (!(start.get_partial_shape().rank().is_dynamic()) && start.get_partial_shape().rank().get_length() == 0) {
             start = context.mark_node(std::make_shared<v0::Unsqueeze>(start, axis_0));
         }
     } else {
@@ -53,7 +53,7 @@ OutputVector translate_slice_scatter_fx(const NodeContext& context) {
     ov::Output<ov::Node> step;
     if (!context.input_is_none(5)) {
         step = context.get_input(5);
-        if (step.get_partial_shape().rank().is_dynamic() || step.get_partial_shape().rank().get_length() == 0) {
+        if (!(step.get_partial_shape().rank().is_dynamic()) && step.get_partial_shape().rank().get_length() == 0) {
             step = context.mark_node(std::make_shared<v0::Unsqueeze>(step, axis_0));
         }
     } else {
