@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/squeeze.hpp"
-
-#include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/op/constant.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -26,6 +25,7 @@ ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
     }
 }
 
+static bool registered = register_translator("Squeeze", VersionRange{1, 12}, squeeze);
 }  // namespace set_1
 
 namespace set_13 {
@@ -38,6 +38,7 @@ ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
     }
 }
 
+static bool registered = register_translator("Squeeze", VersionRange::since(13), squeeze);
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx

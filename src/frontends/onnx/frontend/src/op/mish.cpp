@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/mish.hpp"
-
 #include "openvino/op/mish.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -18,6 +17,7 @@ ov::OutputVector mish(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v4::Mish>(data)};
 }
+static bool registered = register_translator("Mish", VersionRange::single_version_for_all_opsets(), mish);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

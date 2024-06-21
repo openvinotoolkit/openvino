@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/size.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/shape_of.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -23,6 +21,7 @@ ov::OutputVector size(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::ReduceProd>(input_shape, axes)};
 }
 
+static bool registered = register_translator("Size", VersionRange::single_version_for_all_opsets(), size);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

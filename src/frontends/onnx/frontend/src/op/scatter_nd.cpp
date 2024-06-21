@@ -5,11 +5,9 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
-#include "op/scatter_nd.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -33,6 +31,7 @@ ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::ScatterNDUpdate>(data, indices, updates)};
 }
 
+static bool registered = register_translator("ScatterND", VersionRange::single_version_for_all_opsets(), scatter_nd);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

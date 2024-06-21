@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/mmdeploy_roi_align_rotated.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/op/slice.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -65,6 +63,10 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
                                                    spatial_scale,
                                                    clockwise)};
 }
+static bool registered = register_translator("MMCVRoIAlignRotated",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             mmdeploy_roi_align_rotated,
+                                             "mmdeploy");
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

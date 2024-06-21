@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/global_max_pool.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -43,6 +41,8 @@ ov::OutputVector global_max_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::ReduceMax>(data, reduce_axes, true)};
 }
 
+static bool registered =
+    register_translator("GlobalMaxPool", VersionRange::single_version_for_all_opsets(), global_max_pool);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

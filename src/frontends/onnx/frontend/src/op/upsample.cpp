@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/upsample.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -78,6 +76,7 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     return std::make_shared<v11::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
 
+static bool registered = register_translator("Upsample", VersionRange{1, 6}, upsample);
 }  // namespace set_1
 
 namespace set_7 {
@@ -99,6 +98,7 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     return std::make_shared<v11::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
 
+static bool registered = register_translator("Upsample", VersionRange{7, 8}, upsample);
 }  // namespace set_7
 
 namespace set_9 {
@@ -110,6 +110,7 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     return std::make_shared<v11::Interpolate>(inputs.at(0), inputs.at(1), get_attributes(mode))->outputs();
 }
 
+static bool registered = register_translator("Upsample", VersionRange::since(9), upsample);
 }  // namespace set_9
 }  // namespace op
 }  // namespace onnx

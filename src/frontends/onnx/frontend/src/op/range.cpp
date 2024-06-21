@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/range.hpp"
-
-#include "exceptions.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/squeeze.hpp"
 
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "openvino/op/squeeze.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -41,6 +40,7 @@ ov::OutputVector range(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v4::Range>(start, stop, step, start.get_element_type())};
 }
 
+static bool registered = register_translator("Range", VersionRange::single_version_for_all_opsets(), range);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

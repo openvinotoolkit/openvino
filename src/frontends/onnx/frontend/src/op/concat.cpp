@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/concat.hpp"
-
 #include "openvino/op/concat.hpp"
-#include "utils/common.hpp"
 
+#include "core/operator_set.hpp"
+#include "utils/common.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -24,6 +23,7 @@ ov::OutputVector concat(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Concat>(valid_inputs, axis)};
 }
 
+static bool registered = register_translator("Concat", VersionRange::single_version_for_all_opsets(), concat);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

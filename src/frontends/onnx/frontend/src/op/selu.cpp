@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/selu.hpp"
-
-#include "openvino/op/constant.hpp"
 #include "openvino/op/selu.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/op/constant.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -26,6 +25,7 @@ ov::OutputVector selu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Selu>(data, alpha_node, gamma_node)};
 }
 
+static bool registered = register_translator("Selu", VersionRange::single_version_for_all_opsets(), selu);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

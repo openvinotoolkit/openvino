@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/shrink.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -12,7 +11,6 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -64,6 +62,7 @@ ov::OutputVector shrink(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(input_plus_bias, input_minus_bias)};
 }
 
+static bool registered = register_translator("Shrink", VersionRange::single_version_for_all_opsets(), shrink);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/constant_fill.hpp"
-
 #include <onnx/onnx_pb.h>  // onnx types
 
+#include "core/operator_set.hpp"
 using namespace ::ONNX_NAMESPACE;
 
 #include "exceptions.hpp"
@@ -46,6 +45,8 @@ ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::Broadcast>(const_val_to_fill, target_shape)};
 }
 
+static bool registered =
+    register_translator("ConstantFill", VersionRange::single_version_for_all_opsets(), constant_fill);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

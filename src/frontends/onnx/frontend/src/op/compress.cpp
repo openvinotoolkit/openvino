@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/compress.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -39,6 +37,7 @@ ov::OutputVector compress(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
+static bool registered = register_translator("Compress", VersionRange::single_version_for_all_opsets(), compress);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

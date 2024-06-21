@@ -2,20 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/qlinear_matmul.hpp"
-
-#include "dequantize_linear.hpp"
-#include "matmul.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/op/convert.hpp"
-#include "quantize_linear.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
 namespace op {
+// Link with an existing translator
+namespace set_13 {
+namespace detail {
+extern ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
+                                          const ov::Output<ov::Node>& scale,
+                                          const std::shared_ptr<ov::Node>& zero_point,
+                                          int64_t axis,
+                                          const Node& node);
+}  // namespace detail
+}  // namespace set_13
+namespace detail {
+extern ov::OutputVector matmul(const ov::Output<ov::Node>& a, const ov::Output<ov::Node>& b);
+extern std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
+                                             const ov::Output<ov::Node>& y_zero_point,
+                                             const ov::Output<ov::Node>& data);
+}  // namespace detail
+
 namespace set_1 {
 ov::OutputVector qlinear_matmul(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
@@ -48,6 +60,8 @@ ov::OutputVector qlinear_matmul(const ov::frontend::onnx::Node& node) {
 
     return {quantized_result};
 }
+static bool registered =
+    register_translator("QLinearMatMul", VersionRange::single_version_for_all_opsets(), qlinear_matmul);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

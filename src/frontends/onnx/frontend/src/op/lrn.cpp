@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/lrn.hpp"
-
 #include "openvino/op/lrn.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -23,6 +22,7 @@ ov::OutputVector lrn(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::LRN>(data, alpha, beta, bias, size)};
 }
 
+static bool registered = register_translator("LRN", VersionRange::single_version_for_all_opsets(), lrn);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

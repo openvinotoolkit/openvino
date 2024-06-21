@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/dropout.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/op_types.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -49,6 +47,7 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     }
     return build_dropout(node, training_mode);
 }
+static bool registered = register_translator("Dropout", VersionRange::since(12), dropout);
 }  // namespace set_12
 
 namespace set_7 {
@@ -59,6 +58,7 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
 
     return build_dropout(node, training_mode);
 }
+static bool registered = register_translator("Dropout", VersionRange{7, 11}, dropout);
 }  // namespace set_7
 
 namespace set_1 {
@@ -69,6 +69,7 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
 
     return build_dropout(node, training_mode);
 }
+static bool registered = register_translator("Dropout", VersionRange{1, 6}, dropout);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

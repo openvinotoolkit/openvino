@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/instance_norm.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
@@ -11,7 +10,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -77,6 +75,8 @@ ov::OutputVector instance_norm(const ov::frontend::onnx::Node& node) {
     return {result};
 }
 
+static bool registered =
+    register_translator("InstanceNormalization", VersionRange::single_version_for_all_opsets(), instance_norm);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

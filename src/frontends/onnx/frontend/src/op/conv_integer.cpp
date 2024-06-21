@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/conv_integer.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/range.hpp"
@@ -13,7 +12,6 @@
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -80,6 +78,8 @@ ov::OutputVector conv_integer(const ov::frontend::onnx::Node& node) {
 
     return {conv_node};
 }
+static bool registered =
+    register_translator("ConvInteger", VersionRange::single_version_for_all_opsets(), conv_integer);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

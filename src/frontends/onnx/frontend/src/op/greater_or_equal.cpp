@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/greater_or_equal.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -26,6 +24,7 @@ ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
 
     return {C};
 }
+static bool registered = register_translator("GreaterOrEqual", VersionRange{1, 15}, greater_or_equal);
 }  // namespace set_1
 
 namespace set_16 {
@@ -37,6 +36,7 @@ ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
 
     return {C};
 }
+static bool registered = register_translator("GreaterOrEqual", VersionRange::since(16), greater_or_equal);
 }  // namespace set_16
 }  // namespace op
 }  // namespace onnx

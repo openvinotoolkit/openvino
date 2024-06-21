@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/aten.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -16,7 +15,6 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset8.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -96,6 +94,7 @@ ov::OutputVector aten(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector(node.get_outputs_size(), embedding_bag);
 }
 
+static bool registered = register_translator("ATen", VersionRange::single_version_for_all_opsets(), aten);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

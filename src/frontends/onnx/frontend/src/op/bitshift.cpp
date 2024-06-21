@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/bitshift.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -41,6 +39,7 @@ ov::OutputVector bitshift(const ov::frontend::onnx::Node& node) {
     }
 }
 
+static bool registered = register_translator("BitShift", VersionRange::single_version_for_all_opsets(), bitshift);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

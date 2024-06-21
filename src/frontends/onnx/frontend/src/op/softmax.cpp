@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/softmax.hpp"
+#include "openvino/op/softmax.hpp"
 
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/softmax.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -49,6 +48,7 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
+static bool registered = register_translator("Softmax", VersionRange{1, 10}, softmax);
 }  // namespace set_1
 namespace set_11 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
@@ -72,6 +72,7 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
+static bool registered = register_translator("Softmax", VersionRange{11, 12}, softmax);
 }  // namespace set_11
 namespace set_13 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
@@ -81,6 +82,7 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v8::Softmax>(data, axis)};
 }
+static bool registered = register_translator("Softmax", VersionRange::since(13), softmax);
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx

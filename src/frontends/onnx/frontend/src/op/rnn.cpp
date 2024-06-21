@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/rnn.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "utils/recurrent.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -52,6 +50,7 @@ ov::OutputVector rnn(const ov::frontend::onnx::Node& node) {
 
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }
+static bool registered = register_translator("RNN", VersionRange::single_version_for_all_opsets(), rnn);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/group_normalization.hpp"
+#include "openvino/op/group_normalization.hpp"
 
+#include "core/operator_set.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/group_normalization.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -52,6 +51,8 @@ ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v12::GroupNormalization>(data, c_scale, c_bias, num_groups, eps)};
 }
+static bool registered =
+    register_translator("GroupNormalization", VersionRange::single_version_for_all_opsets(), group_normalization);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

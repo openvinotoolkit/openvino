@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/image_scaler.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -42,6 +40,8 @@ ov::OutputVector image_scaler(const ov::frontend::onnx::Node& node) {
 
     return {scaler};
 }
+static bool registered =
+    register_translator("ImageScaler", VersionRange::single_version_for_all_opsets(), image_scaler);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

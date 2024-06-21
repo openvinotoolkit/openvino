@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/softsign.hpp"
-
 #include "openvino/op/softsign.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -16,6 +15,7 @@ namespace set_1 {
 ov::OutputVector softsign(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v9::SoftSign>(node.get_ov_inputs().at(0))};
 }
+static bool registered = register_translator("Softsign", VersionRange::single_version_for_all_opsets(), softsign);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

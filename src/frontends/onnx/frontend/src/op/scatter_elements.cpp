@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/scatter_elements.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -46,6 +44,8 @@ ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v12::ScatterElementsUpdate>(data, indices, updates, axis_node, reduction_ov)};
 }
+static bool registered =
+    register_translator("ScatterElements", VersionRange::single_version_for_all_opsets(), scatter_elements);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

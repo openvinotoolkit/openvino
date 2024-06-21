@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/log_softmax.hpp"
+#include "openvino/op/log_softmax.hpp"
 
+#include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/log.hpp"
-#include "openvino/op/log_softmax.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -65,6 +64,7 @@ namespace set_1 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     return ov::frontend::onnx::log_softmax(node, 1);
 }
+static bool registered = register_translator("LogSoftmax", VersionRange{1, 12}, log_softmax);
 }  // namespace set_1
 
 namespace set_13 {
@@ -72,6 +72,7 @@ ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
     return {std::make_shared<v5::LogSoftmax>(node.get_ov_inputs()[0], axis)};
 }
+static bool registered = register_translator("LogSoftmax", VersionRange::since(13), log_softmax);
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx

@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/dft.hpp"
-
-#include "core/null_node.hpp"
-#include "utils/common.hpp"
 #include "utils/dft.hpp"
 
+#include "core/null_node.hpp"
+#include "core/operator_set.hpp"
+#include "utils/common.hpp"
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -29,6 +28,7 @@ ov::OutputVector dft(const ov::frontend::onnx::Node& node) {
                           onesided == 1)};
 }
 
+static bool registered = register_translator("DFT", VersionRange::single_version_for_all_opsets(), dft);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

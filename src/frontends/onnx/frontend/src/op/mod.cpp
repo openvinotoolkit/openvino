@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/mod.hpp"
+#include "openvino/op/mod.hpp"
 
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/floor_mod.hpp"
-#include "openvino/op/mod.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -35,6 +34,7 @@ ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
     return output;
 }
 
+static bool registered = register_translator("Mod", VersionRange::single_version_for_all_opsets(), mod);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/if.hpp"
-
-#include "core/graph.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/if.hpp"
 
+#include "core/graph.hpp"
+#include "core/operator_set.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/frontend/exception.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -67,6 +66,7 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
 
     return if_node->outputs();
 }
+static bool registered = register_translator("If", VersionRange::single_version_for_all_opsets(), if_op);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

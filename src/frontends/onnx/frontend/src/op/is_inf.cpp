@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/is_inf.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/opsets/opset10.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -22,6 +20,7 @@ ov::OutputVector is_inf(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v10::IsInf>(data, attributes)};
 }
+static bool registered = register_translator("IsInf", VersionRange::single_version_for_all_opsets(), is_inf);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

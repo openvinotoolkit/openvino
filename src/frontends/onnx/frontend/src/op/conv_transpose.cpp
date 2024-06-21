@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/conv_transpose.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/op/add.hpp"
@@ -18,7 +17,6 @@
 #include "openvino/op/subtract.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::CoordinateDiff;
 using ov::Shape;
@@ -213,7 +211,7 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v1::Add>(conv_node, reshaped_bias)};
 }
-
+static bool registered = register_translator("ConvTranspose", VersionRange::single_version_for_all_opsets(), conv_transpose);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

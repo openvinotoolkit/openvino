@@ -3,10 +3,9 @@
 
 #define _USE_MATH_DEFINES
 
-#include "op/hannwindow.hpp"
-
 #include <math.h>
 
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
@@ -15,7 +14,6 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -63,6 +61,7 @@ ov::OutputVector hannwindow(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v0::Convert>(y_values, output_datatype)};
     }
 }
+static bool registered = register_translator("HannWindow", VersionRange::single_version_for_all_opsets(), hannwindow);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

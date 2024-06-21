@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/layer_normalization.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,14 +14,13 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 using namespace ov::op::v0;
 using namespace ov::op::v1;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
-inline ov::Output<ov::Node> rank(const ov::Output<ov::Node>& source) {
+ov::Output<ov::Node> rank(const ov::Output<ov::Node>& source) {
     return std::make_shared<Squeeze>(std::make_shared<v3::ShapeOf>(std::make_shared<v3::ShapeOf>(source)));
 }
 
@@ -83,6 +81,8 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector{biased};
 }
 
+static bool registered =
+    register_translator("LayerNormalization", VersionRange::single_version_for_all_opsets(), layer_normalization);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

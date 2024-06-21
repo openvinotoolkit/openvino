@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/random_uniform.hpp"
-
-#include "exceptions.hpp"
 #include "openvino/op/random_uniform.hpp"
-#include "utils/common.hpp"
 
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "utils/common.hpp"
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 
@@ -41,6 +40,8 @@ ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
                                                 seed_uint64)};
 }
 
+static bool registered =
+    register_translator("RandomUniform", VersionRange::single_version_for_all_opsets(), random_uniform);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

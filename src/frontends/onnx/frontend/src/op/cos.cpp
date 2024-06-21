@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/cos.hpp"
-
 #include "openvino/op/cos.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -16,6 +15,7 @@ namespace set_1 {
 ov::OutputVector cos(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Cos>(node.get_ov_inputs().at(0))};
 }
+static bool registered = register_translator("Cos", VersionRange::single_version_for_all_opsets(), cos);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

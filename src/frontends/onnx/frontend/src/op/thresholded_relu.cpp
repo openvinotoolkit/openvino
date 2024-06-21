@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/thresholded_relu.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/multiply.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -28,6 +26,8 @@ ov::OutputVector thresholded_relu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Multiply>(data, data_map)};
 }
 
+static bool registered =
+    register_translator("ThresholdedRelu", VersionRange::single_version_for_all_opsets(), thresholded_relu);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

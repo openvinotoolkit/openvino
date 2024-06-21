@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/cum_sum.hpp"
-
-#include "openvino/op/constant.hpp"
 #include "openvino/op/cum_sum.hpp"
-#include "utils/reshape.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/op/constant.hpp"
+#include "utils/reshape.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -32,6 +31,7 @@ ov::OutputVector cum_sum(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector{std::make_shared<v0::CumSum>(data, axis, exclusive, reverse)};
 }
 
+static bool registered = register_translator("CumSum", VersionRange::single_version_for_all_opsets(), cum_sum);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

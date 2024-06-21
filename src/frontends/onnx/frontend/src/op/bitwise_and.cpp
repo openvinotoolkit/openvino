@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/bitwise_and.hpp"
-
 #include "openvino/op/bitwise_and.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -18,6 +17,7 @@ ov::OutputVector bitwise_and(const ov::frontend::onnx::Node& node) {
     OPENVINO_ASSERT(inputs.size() == 2);
     return {std::make_shared<v13::BitwiseAnd>(inputs[0], inputs[1])};
 }
+static bool registered = register_translator("BitwiseAnd", VersionRange::single_version_for_all_opsets(), bitwise_and);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

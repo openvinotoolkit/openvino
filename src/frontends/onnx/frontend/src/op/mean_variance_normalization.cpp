@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/mean_variance_normalization.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -23,6 +21,8 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
     return {std::make_shared<v0::MVN>(data, across_channels, normalize_variance)};
 }
 
+static bool registered =
+    register_translator("MeanVarianceNormalization", VersionRange{1, 8}, mean_variance_normalization);
 }  // namespace set_1
 
 namespace set_9 {
@@ -35,6 +35,8 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
     return {std::make_shared<v6::MVN>(data, const_axes, true, 1e-09f, ov::op::MVNEpsMode::OUTSIDE_SQRT)};
 }
 
+static bool registered =
+    register_translator("MeanVarianceNormalization", VersionRange::since(9), mean_variance_normalization);
 }  // namespace set_9
 }  // namespace op
 }  // namespace onnx

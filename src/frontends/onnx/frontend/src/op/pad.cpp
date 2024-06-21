@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/pad.hpp"
+#include "openvino/op/pad.hpp"
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/pad.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
-
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {
     ov::op::PadMode pad_mode;
@@ -60,6 +59,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
         pad_mode)};
 }
 
+static bool registered = register_translator("Pad", VersionRange{1, 10}, pad);
 }  // namespace set_1
 namespace set_11 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
@@ -99,6 +99,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v12::Pad>(data, padding_begin, padding_end, values, pad_mode)};
 }
 
+static bool registered = register_translator("Pad", VersionRange::since(11), pad);
 }  // namespace set_11
 }  // namespace op
 }  // namespace onnx

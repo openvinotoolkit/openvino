@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/max_pool.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/util/log.hpp"
 #include "utils/pooling_factory.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -24,12 +22,14 @@ ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     return max_pool;
 }
 
+static bool registered = register_translator("MaxPool", VersionRange{1, 7}, max_pool);
 }  // namespace set_1
 
 namespace set_8 {
 ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     return pooling::PoolingFactory(node).make_max_pool_with_indices();
 }
+static bool registered = register_translator("MaxPool", VersionRange::since(8), max_pool);
 }  // namespace set_8
 }  // namespace op
 }  // namespace onnx

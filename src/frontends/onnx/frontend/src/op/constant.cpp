@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/constant.hpp"
+#include "openvino/op/constant.hpp"
 
 #include <vector>
 
 #include "core/attribute.hpp"
+#include "core/operator_set.hpp"
 #include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/op/constant.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -112,6 +111,7 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     return {tensor.get_ov_constant()};
 }
 
+static bool registered = register_translator("Constant", VersionRange{1, 12}, constant);
 }  // namespace set_1
 
 namespace set_13 {
@@ -183,6 +183,7 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto tensor = node.get_attribute_value<Tensor>(attributes_names[0]);
     return {tensor.get_ov_constant()};
 }
+static bool registered = register_translator("Constant", VersionRange::since(13), constant);
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx

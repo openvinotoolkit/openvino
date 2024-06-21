@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "core/operator_set.hpp"
 #include "openvino/op/acos.hpp"
+
+#include "core/operator_set.hpp"
 
 namespace ov {
 namespace frontend {

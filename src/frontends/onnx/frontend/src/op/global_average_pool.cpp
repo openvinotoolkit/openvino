@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/global_average_pool.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -43,6 +41,8 @@ ov::OutputVector global_average_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::ReduceMean>(data, reduce_axes, true)};
 }
 
+static bool registered =
+    register_translator("GlobalAveragePool", VersionRange::single_version_for_all_opsets(), global_average_pool);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

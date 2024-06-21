@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/matmul_integer.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -49,6 +47,8 @@ ov::OutputVector matmul_integer(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
+static bool registered =
+    register_translator("MatMulInteger", VersionRange::single_version_for_all_opsets(), matmul_integer);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

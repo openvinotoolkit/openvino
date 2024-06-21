@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/affine.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -33,6 +31,7 @@ ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(data, alpha_const), beta_const)};
 }
 
+static bool registered = register_translator("Affine", VersionRange::single_version_for_all_opsets(), affine);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

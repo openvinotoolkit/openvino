@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/split.hpp"
-
-#include "openvino/op/constant.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "utils/split.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/variadic_split.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -28,6 +27,7 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     }
 }
 
+static bool registered = register_translator("Split", VersionRange{1, 12}, split);
 }  // namespace set_1
 
 namespace set_13 {
@@ -44,6 +44,7 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     }
 }
 
+static bool registered = register_translator("Split", VersionRange{13, 12}, split);
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx

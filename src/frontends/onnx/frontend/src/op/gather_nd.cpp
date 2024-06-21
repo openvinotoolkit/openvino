@@ -5,10 +5,9 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
-#include "op/gather_nd.hpp"
-
 #include "openvino/op/gather_nd.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -25,6 +24,7 @@ ov::OutputVector gather_nd(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v8::GatherND>(data, indices, batch_dims)};
 }
 
+static bool registered = register_translator("GatherND", VersionRange::single_version_for_all_opsets(), gather_nd);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

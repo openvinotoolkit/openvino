@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/random_uniform_like.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -46,6 +44,8 @@ ov::OutputVector random_uniform_like(const ov::frontend::onnx::Node& node) {
                                                 seed_uint64)};
 }
 
+static bool registered =
+    register_translator("RandomUniformLike", VersionRange::single_version_for_all_opsets(), random_uniform_like);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

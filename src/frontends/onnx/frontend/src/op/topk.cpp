@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/topk.hpp"
-
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/topk.hpp"
-#include "utils/reshape.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "utils/reshape.hpp"
 namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
 ov::Output<ov::Node> get_k(const ov::frontend::onnx::Node& node) {
@@ -43,6 +42,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     return {top_k->output(0), top_k->output(1)};
 }
+static bool registered = register_translator("TopK", VersionRange{1, 9}, topk);
 }  // namespace set_1
 
 namespace set_10 {
@@ -60,6 +60,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     return {top_k->output(0), top_k->output(1)};
 }
+static bool registered = register_translator("TopK", VersionRange{10, 10}, topk);
 }  // namespace set_10
 
 namespace set_11 {
@@ -83,6 +84,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     return {top_k->output(0), top_k->output(1)};
 }
+static bool registered = register_translator("TopK", VersionRange::since(11), topk);
 }  // namespace set_11
 }  // namespace op
 }  // namespace onnx

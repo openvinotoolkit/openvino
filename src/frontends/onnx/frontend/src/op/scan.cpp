@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/scan.hpp"
-
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -13,7 +12,6 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -167,6 +165,7 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     return import_onnx_scan(node, 1, 1, "directions");
 }
 
+static bool registered = register_translator("Scan", VersionRange{1, 8}, scan);
 }  // namespace set_1
 
 namespace set_9 {
@@ -177,6 +176,7 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     return import_onnx_scan(node, 0, 0, "scan_input_directions");
 }
 
+static bool registered = register_translator("Scan", VersionRange::since(9), scan);
 }  // namespace set_9
 }  // namespace op
 }  // namespace onnx

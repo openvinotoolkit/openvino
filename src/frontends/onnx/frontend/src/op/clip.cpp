@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/clip.hpp"
-
 #include <limits>
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -29,6 +27,7 @@ ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Clamp>(data, min_value, max_value)};
 }
 
+static bool registered = register_translator("Clip", VersionRange{1, 10}, clip);
 }  // namespace set_1
 
 namespace set_11 {

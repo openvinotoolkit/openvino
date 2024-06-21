@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/trilu.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,7 +17,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -112,6 +110,7 @@ ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
         std::make_shared<v1::Select>(mask, input, v0::Constant::create(input.get_element_type(), ov::Shape{}, {0}))};
 }
 
+static bool registered = register_translator("Trilu", VersionRange::single_version_for_all_opsets(), trilu);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

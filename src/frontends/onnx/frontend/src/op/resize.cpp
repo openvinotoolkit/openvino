@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/resize.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -130,6 +128,7 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v11::Interpolate>(data, scales, attrs)};
     }
 }
+static bool registered = register_translator("Resize", VersionRange::since(11), resize);
 }  // namespace set_11
 
 namespace set_1 {
@@ -150,6 +149,7 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v11::Interpolate>(data, scales, attrs)};
 }
 
+static bool registered = register_translator("Resize", VersionRange{1, 10}, resize);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

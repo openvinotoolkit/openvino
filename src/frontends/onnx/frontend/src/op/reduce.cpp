@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/reduce.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "identity.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -31,6 +29,12 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace op {
+
+// Link with an existing translator
+namespace set_1 {
+extern ov::OutputVector identity(const ov::frontend::onnx::Node& node);
+}  // namespace set_1
+
 namespace {
 std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const Node& node) {
     const auto input = node.get_ov_inputs().at(0);
@@ -190,6 +194,18 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v1)};
 }
+static bool registered_reduce_log_sum = register_translator("ReduceLogSum", VersionRange{1, 12}, reduce_log_sum);
+static bool registered_reduce_log_sum_exp =
+    register_translator("ReduceLogSumExp", VersionRange{1, 12}, reduce_log_sum_exp);
+static bool registered_reduce_l1 = register_translator("ReduceL1", VersionRange{1, 12}, reduce_l1);
+static bool registered_reduce_l2 = register_translator("ReduceL2", VersionRange{1, 12}, reduce_l2);
+static bool registered_reduce_max = register_translator("ReduceMax", VersionRange{1, 12}, reduce_max);
+static bool registered_reduce_mean = register_translator("ReduceMean", VersionRange{1, 12}, reduce_mean);
+static bool registered_reduce_min = register_translator("ReduceMin", VersionRange{1, 12}, reduce_min);
+static bool registered_reduce_prod = register_translator("ReduceProd", VersionRange{1, 12}, reduce_prod);
+static bool registered_reduce_sum = register_translator("ReduceSum", VersionRange{1, 12}, reduce_sum);
+static bool registered_reduce_sum_square =
+    register_translator("ReduceSumSquare", VersionRange{1, 12}, reduce_sum_square);
 }  // namespace set_1
 
 /*
@@ -223,6 +239,12 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2)};
 }
+static bool registered_reduce_l2 = register_translator("ReduceL2", VersionRange{13, 17}, reduce_l2);
+static bool registered_reduce_max = register_translator("ReduceMax", VersionRange{13, 17}, reduce_max);
+static bool registered_reduce_mean = register_translator("ReduceMean", VersionRange{13, 17}, reduce_mean);
+static bool registered_reduce_min = register_translator("ReduceMin", VersionRange{13, 17}, reduce_min);
+static bool registered_reduce_sum = register_translator("ReduceSum", VersionRange{13, 17}, reduce_sum);
+static bool registered = register_translator("ReduceSumSquare", VersionRange{13, 17}, reduce_sum_square);
 }  // namespace set_13
 
 namespace set_18 {
@@ -243,10 +265,15 @@ ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
         make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false);
     return {std::make_shared<v0::Log>(sum_node)};
 }
-
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2, false)};
 }
+static bool registered_reduce_log_sum = register_translator("ReduceLogSum", VersionRange::since(18), reduce_log_sum);
+static bool registered_reduce_l2 = register_translator("ReduceL2", VersionRange::since(18), reduce_l2);
+static bool registered_reduce_max = register_translator("ReduceMax", VersionRange{18, 19}, reduce_max);
+static bool registered_reduce_mean = register_translator("ReduceMean", VersionRange::since(18), reduce_mean);
+static bool registered_reduce_min = register_translator("ReduceMin", VersionRange{18, 19}, reduce_min);
+static bool registered = register_translator("ReduceSumSquare", VersionRange::since(18), reduce_sum_square);
 }  // namespace set_18
 
 namespace set_20 {
@@ -279,6 +306,8 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
             element::boolean)};
     }
 }
+static bool registered_reduce_max = register_translator("ReduceMax", VersionRange::since(20), reduce_max);
+static bool registered_reduce_min = register_translator("ReduceMin", VersionRange::since(20), reduce_min);
 }  // namespace set_20
 }  // namespace op
 }  // namespace onnx

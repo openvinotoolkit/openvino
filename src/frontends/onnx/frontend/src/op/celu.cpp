@@ -1,17 +1,15 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "op/celu.hpp"
-
 #include <memory>
 
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/multiply.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -28,6 +26,7 @@ ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v1::Multiply>(alpha_node, elu_node)};
 }
+static bool registered = register_translator("Celu", VersionRange::single_version_for_all_opsets(), celu);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

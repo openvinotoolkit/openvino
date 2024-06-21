@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/depth_to_space.hpp"
-
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/depth_to_space.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -31,6 +30,8 @@ ov::OutputVector depth_to_space(const ov::frontend::onnx::Node& node) {
     const auto block_size = node.get_attribute_value<std::int64_t>("blocksize");
     return ov::OutputVector{std::make_shared<v0::DepthToSpace>(data, ov_mode, block_size)};
 }
+static bool registered =
+    register_translator("DepthToSpace", VersionRange::single_version_for_all_opsets(), depth_to_space);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

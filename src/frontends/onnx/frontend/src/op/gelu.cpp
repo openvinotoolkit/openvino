@@ -1,12 +1,11 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "op/gelu.hpp"
-
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/gelu.hpp"
-#include "utils/common.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "utils/common.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -32,6 +31,7 @@ ov::OutputVector gelu(const ov::frontend::onnx::Node& node) {
         inputs[0],
         approximate == "none" ? ov::op::GeluApproximationMode::ERF : ov::op::GeluApproximationMode::TANH)};
 }
+static bool registered = register_translator("Gelu", VersionRange::single_version_for_all_opsets(), gelu);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

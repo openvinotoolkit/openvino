@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/lstm.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -17,7 +16,6 @@
 #include "openvino/util/common_util.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -255,6 +253,7 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
             ov::op::util::reorder_axes(Y_h, {1, 0, 2}),
             ov::op::util::reorder_axes(Y_c, {1, 0, 2})};
 }
+static bool registered = register_translator("LSTM", VersionRange::single_version_for_all_opsets(), lstm);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

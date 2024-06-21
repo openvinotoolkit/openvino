@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/constant_of_shape.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "core/tensor.hpp"
-#include "op/constant.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -36,6 +33,8 @@ ov::OutputVector constant_of_shape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::Broadcast>(constant_value, inputs[0])};
 }
 
+static bool registered =
+    register_translator("ConstantOfShape", VersionRange::single_version_for_all_opsets(), constant_of_shape);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

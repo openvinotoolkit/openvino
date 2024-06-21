@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/conv.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
@@ -12,7 +11,6 @@
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -76,6 +74,7 @@ ov::OutputVector conv(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }
+static bool registered = register_translator("Conv", VersionRange::single_version_for_all_opsets(), conv);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

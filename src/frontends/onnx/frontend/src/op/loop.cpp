@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/loop.hpp"
+#include "openvino/op/loop.hpp"
 
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/loop.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -173,6 +172,7 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     }
     return node_outputs;
 }
+static bool registered = register_translator("Loop", VersionRange::single_version_for_all_opsets(), loop);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

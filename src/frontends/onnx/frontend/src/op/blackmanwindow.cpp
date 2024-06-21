@@ -3,10 +3,9 @@
 
 #define _USE_MATH_DEFINES
 
-#include "op/blackmanwindow.hpp"
-
 #include <math.h>
 
+#include "core/operator_set.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -16,7 +15,6 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -76,6 +74,8 @@ ov::OutputVector blackmanwindow(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v0::Convert>(y_values, output_datatype)};
     }
 }
+static bool registered =
+    register_translator("BlackmanWindow", VersionRange::single_version_for_all_opsets(), blackmanwindow);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

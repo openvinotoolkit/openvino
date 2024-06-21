@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/hardmax.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,7 +14,6 @@
 #include "openvino/op/topk.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -60,6 +58,7 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(converted_results, output_shape, false)};
 }
 
+static bool registered = register_translator("Hardmax", VersionRange{1, 12}, hardmax);
 }  // namespace set_1
 namespace set_13 {
 ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
@@ -92,6 +91,7 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(converted_results, output_shape, false)};
 }
 
+static bool registered = register_translator("Hardmax", VersionRange::since(13), hardmax);
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx

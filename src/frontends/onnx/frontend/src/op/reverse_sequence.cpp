@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/reverse_sequence.hpp"
+#include "openvino/op/reverse_sequence.hpp"
 
-#include "core/node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/reverse_sequence.hpp"
 
 using namespace ov::op;
 
@@ -47,6 +46,8 @@ ov::OutputVector reverse_sequence(const ov::frontend::onnx::Node& node) {
         std::make_shared<v0::ReverseSequence>(data, sequence_lengths_i32, normalized_batch_axis, normalized_time_axis)};
 }
 
+static bool registered =
+    register_translator("ReverseSequence", VersionRange::single_version_for_all_opsets(), reverse_sequence);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

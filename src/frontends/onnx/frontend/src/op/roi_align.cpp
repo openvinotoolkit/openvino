@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/roi_align.hpp"
-
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/roi_align.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -41,6 +40,7 @@ ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
                                            pooling_mode,
                                            aligned_mode)};
 }
+static bool registered = register_translator("RoiAlign", VersionRange{1, 15}, roi_align);
 }  // namespace set_1
 namespace set_16 {
 ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
@@ -77,6 +77,7 @@ ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
                                            pooling_mode,
                                            aligned_mode)};
 }
+static bool registered = register_translator("RoiAlign", VersionRange::since(16), roi_align);
 }  // namespace set_16
 }  // namespace op
 }  // namespace onnx

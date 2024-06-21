@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/transpose.hpp"
-
+#include "core/operator_set.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -21,6 +19,7 @@ ov::OutputVector transpose(const ov::frontend::onnx::Node& node) {
     return {(permute_axes.empty()) ? ov::op::util::transpose(data) : ov::op::util::reorder_axes(data, permute_axes)};
 }
 
+static bool registered = register_translator("Transpose", VersionRange::single_version_for_all_opsets(), transpose);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

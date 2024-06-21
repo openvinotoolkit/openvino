@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/max_roi_pool.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/roi_pooling.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -28,6 +26,7 @@ ov::OutputVector max_roi_pool(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v0::ROIPooling>(X, rois, ov::Shape(pooled_shape), spatial_scale, "max")};
 }
+static bool registered = register_translator("MaxRoiPool", VersionRange::single_version_for_all_opsets(), max_roi_pool);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

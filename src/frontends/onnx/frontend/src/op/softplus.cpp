@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/softplus.hpp"
-
 #include "openvino/op/softplus.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -18,6 +17,7 @@ ov::OutputVector softplus(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v4::SoftPlus>(data)};
 }
 
+static bool registered = register_translator("Softplus", VersionRange::single_version_for_all_opsets(), softplus);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

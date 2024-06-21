@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/dequantize_linear.hpp"
-
 #include <cstdint>
 #include <memory>
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
@@ -16,7 +15,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -60,6 +58,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v1::Multiply>(converted_x, scale)};
     }
 }
+static bool registered = register_translator("DequantizeLinear", VersionRange{1, 12}, dequantize_linear);
 }  // namespace set_1
 
 namespace set_13 {
@@ -189,6 +188,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     // these reshapes make sure that dequantization happens over the specified axis
     return detail::dequantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
+static bool registered = register_translator("DequantizeLinear", VersionRange::since(13), dequantize_linear);
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx

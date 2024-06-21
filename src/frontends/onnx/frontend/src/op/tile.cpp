@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/tile.hpp"
-
-#include "core/node.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/tile.hpp"
+
+#include "core/operator_set.hpp"
+#include "openvino/op/convert.hpp"
 
 using namespace ov::op;
 
@@ -26,6 +25,7 @@ ov::OutputVector tile(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Tile>(input, repeats)};
 }
 
+static bool registered = register_translator("Tile", VersionRange::single_version_for_all_opsets(), tile);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

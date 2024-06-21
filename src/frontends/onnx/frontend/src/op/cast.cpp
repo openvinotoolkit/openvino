@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/cast.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/convert.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -23,6 +21,7 @@ ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Convert>(data, elem_type)};
 }
 
+static bool registered = register_translator("Cast", VersionRange::single_version_for_all_opsets(), cast);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/quantize_linear.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -13,7 +12,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -151,6 +149,7 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
+static bool registered = register_translator("QuantizeLinear", VersionRange{1, 12}, quantize_linear);
 }  // namespace set_1
 
 namespace set_13 {

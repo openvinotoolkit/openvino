@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/flatten.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -30,6 +28,7 @@ ov::OutputVector flatten(const ov::frontend::onnx::Node& node) {
     return {ov::op::util::flatten(data, static_cast<int>(axis))};
 }
 
+static bool registered = register_translator("Flatten", VersionRange::single_version_for_all_opsets(), flatten);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/lp_norm.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "utils/norm.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -38,6 +36,7 @@ ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Divide>(data, norm)};
 }
 
+static bool registered = register_translator("LpNormalization", VersionRange::single_version_for_all_opsets(), lp_norm);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

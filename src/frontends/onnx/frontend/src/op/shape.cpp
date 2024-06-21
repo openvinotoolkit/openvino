@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/shape.hpp"
-
 #include <cstdint>
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -41,6 +39,7 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v8::Slice>(input_shape, start, end, default_step)};
 }
 
+static bool registered = register_translator("Shape", VersionRange::since(15), shape);
 }  // namespace set_15
 
 namespace set_1 {
@@ -50,6 +49,7 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::ShapeOf>(data)};
 }
 
+static bool registered = register_translator("Shape", VersionRange{1, 14}, shape);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

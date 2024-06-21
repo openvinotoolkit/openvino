@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/einsum.hpp"
-
 #include "openvino/op/einsum.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -19,6 +18,7 @@ ov::OutputVector einsum(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v7::Einsum>(node.get_ov_inputs(), equation)};
 }
 
+static bool registered = register_translator("Einsum", VersionRange::single_version_for_all_opsets(), einsum);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

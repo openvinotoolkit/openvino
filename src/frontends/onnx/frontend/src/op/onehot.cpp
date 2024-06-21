@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/onehot.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/one_hot.hpp"
 #include "openvino/op/split.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -33,6 +31,7 @@ ov::OutputVector onehot(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::OneHot>(indices, depth, on_value, off_value, axis)};
 }
 
+static bool registered = register_translator("OneHot", VersionRange::single_version_for_all_opsets(), onehot);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

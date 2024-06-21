@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/dynamic_quantize_linear.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -21,7 +20,6 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -106,6 +104,9 @@ ov::OutputVector dynamic_quantize_linear(const ov::frontend::onnx::Node& node) {
 
     return {y, y_scale, y_zero_point};
 }
+static bool registered = register_translator("DynamicQuantizeLinear",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             dynamic_quantize_linear);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

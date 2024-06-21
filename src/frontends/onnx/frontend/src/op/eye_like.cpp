@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/eye_like.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/eye.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -63,6 +61,7 @@ ov::OutputVector eye_like(const ov::frontend::onnx::Node& node) {
     return {output};
 }
 
+static bool registered = register_translator("EyeLike", VersionRange::single_version_for_all_opsets(), eye_like);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

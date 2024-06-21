@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/pow.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/power.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -35,6 +33,7 @@ ov::OutputVector pow(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Power>(base, exponent)};
 }
 
+static bool registered = register_translator("Pow", VersionRange::single_version_for_all_opsets(), pow);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

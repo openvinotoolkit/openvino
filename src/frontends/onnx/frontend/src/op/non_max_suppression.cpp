@@ -5,10 +5,10 @@
 #include "openvino/op/non_max_suppression.hpp"
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -65,6 +65,8 @@ ov::OutputVector non_max_suppression(const ov::frontend::onnx::Node& node) {
                                                     false)};
 }
 
+static bool registered =
+    register_translator("NonMaxSuppression", VersionRange::single_version_for_all_opsets(), non_max_suppression);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

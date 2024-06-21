@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/grid_sample.hpp"
-
 #include "openvino/op/grid_sample.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -28,6 +27,7 @@ ov::OutputVector grid_sample(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v9::GridSample>(data, grid, attributes)};
 }
+static bool registered = register_translator("GridSample", VersionRange::single_version_for_all_opsets(), grid_sample);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

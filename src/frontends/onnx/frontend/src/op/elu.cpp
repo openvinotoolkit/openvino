@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/elu.hpp"
-
 #include "openvino/op/elu.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -20,6 +19,7 @@ ov::OutputVector elu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Elu>(data, alpha)};
 }
 
+static bool registered = register_translator("Elu", VersionRange::single_version_for_all_opsets(), elu);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

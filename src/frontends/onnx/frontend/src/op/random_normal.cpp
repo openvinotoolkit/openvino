@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/random_normal.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/common/random_normal_helper.hpp"
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
@@ -38,6 +36,8 @@ ov::OutputVector random_normal(const ov::frontend::onnx::Node& node) {
     return res.first;
 }
 
+static bool registered =
+    register_translator("RandomNormal", VersionRange::single_version_for_all_opsets(), random_normal);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

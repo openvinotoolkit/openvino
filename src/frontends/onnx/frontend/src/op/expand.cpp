@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/expand.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -31,6 +29,7 @@ ov::OutputVector expand(const ov::frontend::onnx::Node& node) {
     }
 }
 
+static bool registered = register_translator("Expand", VersionRange::single_version_for_all_opsets(), expand);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

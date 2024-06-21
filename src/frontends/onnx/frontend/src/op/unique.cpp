@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/unique.hpp"
-
 #include "openvino/op/unique.hpp"
 
+#include "core/operator_set.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -24,6 +23,7 @@ ov::OutputVector unique(const ov::frontend::onnx::Node& node) {
         return std::make_shared<v10::Unique>(data, sorted)->outputs();
     }
 }
+static bool registered = register_translator("Unique", VersionRange::single_version_for_all_opsets(), unique);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

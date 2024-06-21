@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/gemm.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -59,6 +57,7 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector{std::make_shared<v1::Add>(matmul_node, beta_times_input_c)};
 }
 
+static bool registered = register_translator("Gemm", VersionRange{1, 5}, gemm);
 }  // namespace set_1
 
 namespace set_6 {
@@ -89,6 +88,7 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(matmul_times_alpha, beta_times_input_c)};
 }
 
+static bool registered = register_translator("Gemm", VersionRange::since(6), gemm);
 }  // namespace set_6
 }  // namespace op
 }  // namespace onnx

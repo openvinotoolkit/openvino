@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/batch_norm.hpp"
+#include "openvino/op/batch_norm.hpp"
 
 #include <cstdint>
 #include <memory>
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "openvino/op/batch_norm.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -51,6 +50,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
 
     OPENVINO_THROW("Cannot create OpenVINO batch norm with unsupported number of inputs");
 }
+static bool registered = register_translator("BatchNormalization", VersionRange{1, 6}, batch_norm);
 }  // namespace set_1
 /*
      Opset 6 is skipped because there are no significant difference between opset1 and opset6.
@@ -77,6 +77,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
+static bool registered = register_translator("BatchNormalization", VersionRange{7, 13}, batch_norm);
 }  // namespace set_7
 /*
     Opset 9 is skipped because there are no significant difference between opset7 and opset9.
@@ -105,6 +106,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
                      "Training mode of BatchNormalization is not supported.");
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
+static bool registered = register_translator("BatchNormalization", VersionRange::since(14), batch_norm);
 }  // namespace set_14
 /*
      Opset 15 is skipped because there are no significant difference between opset14 and opset15.

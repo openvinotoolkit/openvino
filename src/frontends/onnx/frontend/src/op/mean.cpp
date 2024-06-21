@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/mean.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "utils/variadic.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -23,6 +21,7 @@ ov::OutputVector mean(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Divide>(sum, count)};
 }
 
+static bool registered = register_translator("Mean", VersionRange::single_version_for_all_opsets(), mean);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

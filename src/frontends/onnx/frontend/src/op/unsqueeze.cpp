@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/unsqueeze.hpp"
-
-#include "exceptions.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -20,6 +19,7 @@ ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Unsqueeze>(data, axes_node)};
 }
 
+static bool registered = register_translator("Unsqueeze", VersionRange{1, 12}, unsqueeze);
 }  // namespace set_1
 
 namespace set_13 {
@@ -28,6 +28,7 @@ ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Unsqueeze>(inputs.at(0), inputs.at(1))};
 }
 
+static bool registered = register_translator("Unsqueeze", VersionRange::since(13), unsqueeze);
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx

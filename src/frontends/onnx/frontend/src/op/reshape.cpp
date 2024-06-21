@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/reshape.hpp"
-
-#include "exceptions.hpp"
 #include "openvino/op/reshape.hpp"
-#include "utils/reshape.hpp"
 
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "utils/reshape.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -34,6 +33,7 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(data, pattern, special_zero)};
 }
 
+static bool registered = register_translator("Reshape", VersionRange::single_version_for_all_opsets(), reshape);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx
