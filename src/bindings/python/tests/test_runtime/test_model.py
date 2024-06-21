@@ -146,27 +146,32 @@ def test_get_result_index_invalid():
     assert model.get_result_index(invalid_output) == -1
 
 
-def test_get_result_index_with_result():
-    input_shape = PartialShape([1])
+@pytest.mark.parametrize("input_shape, expected_outputs_length, expected_result_index", [
+    (PartialShape([1]), 1, 0)
+])
+def test_get_result_index_with_result(input_shape, expected_outputs_length, expected_result_index):
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu = ops.relu(param, name="relu")
-    result = ops.result(relu, "res")
     model = Model(relu, [param], "TestModel")
-    assert len(model.outputs) == 1
-    assert model.get_result_index(result) == 0
+    
+    assert len(model.outputs) == expected_outputs_length
+    assert model.get_result_index(model.get_results()[0]) == expected_result_index
 
-
-def test_get_result_index_invalid_with_result():
-    shape1 = PartialShape([1])
+@pytest.mark.parametrize("shape1, shape2, expected_outputs_length, expected_result_index", [
+    (PartialShape([1]), PartialShape([4]), 1, -1)
+])
+def test_get_result_index_invalid_with_result(shape1, shape2, expected_outputs_length, expected_result_index):
     param1 = ops.parameter(shape1, dtype=np.float32, name="data1")
     relu1 = ops.relu(param1, name="relu1")
     model1 = Model(relu1, [param1], "TestModel1")
-    shape2 = PartialShape([4])
+    
     param2 = ops.parameter(shape2, dtype=np.float32, name="data2")
     relu2 = ops.relu(param2, name="relu2")
     invalid_result_node = Result(relu2.outputs()[0])
-    assert len(model1.outputs) == 1
-    assert model1.get_result_index(invalid_result_node) == -1
+    
+    assert len(model1.outputs) == expected_outputs_length
+    assert model1.get_result_index(invalid_result_node) == expected_result_index
+
 
 
 def test_parameter_index():
