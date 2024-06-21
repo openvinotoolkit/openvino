@@ -157,11 +157,16 @@ jobs:
           
           cat ${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake
 
+      - name: Setup Variables
+        run: |
+          echo "ANDROID_TOOLS=$GITHUB_WORKSPACE/android_tools" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$GITHUB_WORKSPACE/android_tools/ndk-bundle" >> "$GITHUB_ENV"
+
       - name: CMake - configure
         run: |
           
-          export ANDROID_TOOLS=/__w/openvino/openvino/android_tools
-          export ANDROID_NDK_HOME=/__w/openvino/openvino/android_tools/ndk-bundle
+          echo $ANDROID_TOOLS
+          echo $ANDROID_NDK_HOME
           
           cmake \
             -G '${{ env.CMAKE_GENERATOR }}' \
