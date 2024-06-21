@@ -452,8 +452,8 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
     auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
 
     auto callback = [dcoff_mode = std::move(dcoff_mode),
-                    dcoff_type = std::move(dcoff_type),
-                    pref = std::move(pref),
+                     dcoff_type = std::move(dcoff_type),
+                     pref = std::move(pref),
                      paramA = std::move(paramA),
                      constB = std::move(constB),
                      paramC = std::move(paramC),
