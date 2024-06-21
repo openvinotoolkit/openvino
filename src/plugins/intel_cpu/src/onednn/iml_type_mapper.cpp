@@ -13,10 +13,14 @@ namespace intel_cpu {
 impl_desc_type parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
 
-#define REPLACE_WORD(_wrd, _sub) auto pos = impl_desc_name.find(#_wrd); \
-    if (pos != std::string::npos) impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub);
+#define REPLACE_WORD(_wrd, _sub) { auto pos = impl_desc_name.find(#_wrd); \
+    if (pos != std::string::npos) impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub); }
+    // Replace the ONEDNN pd name with OV definition.
+    REPLACE_WORD(brg_conv, brgconv);
+    REPLACE_WORD(avx10_1_512, avx512);
 
     REPLACE_WORD(simple, ref);
+
 #undef REPLACE_WORD
 
 #define SEARCH_WORD(_wrd) if (impl_desc_name.find(#_wrd) != std::string::npos) \

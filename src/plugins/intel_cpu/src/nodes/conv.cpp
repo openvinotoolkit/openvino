@@ -804,7 +804,14 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
-
+#ifdef CPU_DEBUG_CAPS
+    {
+       if (!customImplPriorities.empty()) {
+            DEBUG_LOG("#", getName(), " customImplPriorities [", 0 , "/", customImplPriorities.size(),
+                        "]: ", impl_type_to_string(customImplPriorities[0]));
+       }
+    }
+#endif
     for (size_t dIdx = 0; dIdx < descs.size(); dIdx++) {
         auto& desc = descs[dIdx];
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
@@ -815,6 +822,10 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         };
 
         const bool first_match = customImplPriorities.empty();
+        DEBUG_LOG("#", getName(),
+                       ", itpd.impl_info_str(): ", desc.impl_info_str(),
+                    ", parsed imp_type: ", impl_type_to_string(parse_impl_name(desc.impl_info_str())),
+                    ", first_match: ", first_match ? "true" : "false");
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {

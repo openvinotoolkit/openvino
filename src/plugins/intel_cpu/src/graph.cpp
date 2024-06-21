@@ -389,7 +389,23 @@ void Graph::InitDescriptors() {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.initSupportedPrimitiveDescriptors);
         DEBUG_LOG("Init supported primitive descriptors for node: ", node->getName());
         node->initSupportedPrimitiveDescriptors();
-
+#ifdef CPU_DEBUG_CAPS
+        {
+            const auto& SPDs = node->getSupportedPrimitiveDescriptors();
+            for (size_t i = 0; i < SPDs.size(); i++) {
+                DEBUG_LOG("#",
+                        node->getExecIndex(),
+                        " ",
+                        node->getName(),
+                        " Before filter, SupportedPrimitiveDescriptors [",
+                        i,
+                        "/",
+                        SPDs.size(),
+                        "]: \n",
+                        SPDs[i]);
+            }
+        }
+#endif
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
         DEBUG_LOG("Filter supported primitive descriptors for node: ", node->getName());
         node->filterSupportedPrimitiveDescriptors();
@@ -401,7 +417,7 @@ void Graph::InitDescriptors() {
                       node->getExecIndex(),
                       " ",
                       node->getName(),
-                      "  SupportedPrimitiveDescriptors [",
+                      " After filter,  SupportedPrimitiveDescriptors [",
                       i,
                       "/",
                       SPDs.size(),
