@@ -828,10 +828,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
         
-        manager.register_pass<ov::pass::VisualizeTree>("before.dot");
+        auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
+        GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->dynamic_quantization_group_size > 0) {
+            dynamic_quantization_group_size = cldnn::debug_configuration::get_instance()->dynamic_quantization_group_size;
+        }
 
-        manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>();
-        manager.register_pass<ov::pass::VisualizeTree>("after.dot");
+        // if (device_info.supports_immad && dynamic_quantization_group_size > 0) {
+            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
+        // }
 
         manager.run_passes(func);
     }

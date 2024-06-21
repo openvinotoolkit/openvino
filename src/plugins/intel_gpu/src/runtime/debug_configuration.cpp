@@ -165,6 +165,7 @@ static void print_help_messages() {
                               " For example fc:onednn gemm:onednn reduce:ocl do:cpu"
                               " For primitives fc, gemm, do, reduce, concat are supported. Separated by space.");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
+    message_list.emplace_back("OV_GPU_DynamicQuantizationGroupSize", "Set dynamic quantization group size");
     message_list.emplace_back("OV_GPU_ImplsCacheCapacity", "The maximum number of entries in the kernel impl cache");
     message_list.emplace_back("OV_GPU_DisableAsyncCompilation", "Disable async compilation");
     message_list.emplace_back("OV_GPU_DisableWinogradConv", "Disable Winograd convolution");
@@ -233,6 +234,7 @@ debug_configuration::debug_configuration()
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
         , max_kernels_per_batch(0)
+        , dynamic_quantization_group_size(0)
         , impls_cache_capacity(-1)
         , enable_sdpa(-1)
         , disable_async_compilation(0)
@@ -282,6 +284,7 @@ debug_configuration::debug_configuration()
     std::string forced_impl_types_str;
     get_gpu_debug_env_var("ForceImplTypes", forced_impl_types_str);
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
+    get_gpu_debug_env_var("DynamicQuantizationGroupSize", dynamic_quantization_group_size);
     get_gpu_debug_env_var("ImplsCacheCapacity", impls_cache_capacity);
     get_gpu_debug_env_var("EnableSDPA", enable_sdpa);
     get_gpu_debug_env_var("DisableAsyncCompilation", disable_async_compilation);

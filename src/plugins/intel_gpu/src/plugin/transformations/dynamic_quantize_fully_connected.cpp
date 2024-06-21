@@ -15,7 +15,7 @@
 namespace ov {
 namespace intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected() {
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) {
     using namespace ov::pass::pattern;
 
     auto data = any_input();
@@ -26,7 +26,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected() {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
-        // FIXME: only for OneDNN case
         // FIXME: need to handle group size
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
@@ -34,7 +33,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected() {
         const auto& m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(pattern_map.at(fully_connected_compressed).get_node_shared_ptr());
         std::cout << "pattern matched " << m_fc->get_friendly_name() << std::endl;
         OutputVector fc_inputs;
-        auto dyn_quan = std::make_shared<op::DynamicQuantize>(m_data);
+        auto dyn_quan = std::make_shared<op::DynamicQuantize>(m_data, group_size);
         for (size_t i = 0; i < m_fc->get_input_size(); i++)
             fc_inputs.push_back(m_fc->get_input_node_shared_ptr(i));
         fc_inputs[0] = dyn_quan->output(0);

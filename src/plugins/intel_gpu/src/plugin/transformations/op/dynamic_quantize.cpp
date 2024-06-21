@@ -13,8 +13,9 @@ namespace ov {
 namespace intel_gpu {
 namespace op {
 
-DynamicQuantize::DynamicQuantize(const Output<Node>& data)
-    : Op({data}) {
+DynamicQuantize::DynamicQuantize(const Output<Node>& data, size_t group_size)
+    : Op({data})
+    , m_group_size(group_size) {
     set_output_size(2);
     validate_and_infer_types();
 }
@@ -31,7 +32,7 @@ void DynamicQuantize::validate_and_infer_types() {
 
 std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<DynamicQuantize>(new_args.at(0));
+    return std::make_shared<DynamicQuantize>(new_args.at(0), m_group_size);
 }
 
 std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op, std::vector<ov::PartialShape> input_shapes) {
