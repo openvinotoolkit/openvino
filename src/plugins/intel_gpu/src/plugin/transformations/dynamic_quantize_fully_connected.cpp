@@ -29,8 +29,12 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
         // FIXME: need to handle group size
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
-        
+
         const auto& m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(pattern_map.at(fully_connected_compressed).get_node_shared_ptr());
+
+        const auto innermost_size = m_fc->get_input_partial_shape(0)[m_fc->get_input_partial_shape(0).size() - 1].get_length();
+        if (group_size == 0 || (innermost_size % group_size != 0 && static_cast<size_t>(innermost_size) > group_size))
+            return false;
         std::cout << "pattern matched " << m_fc->get_friendly_name() << std::endl;
         OutputVector fc_inputs;
         auto dyn_quan = std::make_shared<op::DynamicQuantize>(m_data, group_size);
