@@ -103,7 +103,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         PRINT << "Matched 2:==========\n\n";
         const auto& pattern_map = m.get_pattern_value_map();
-
+        PRINT << "Matched 2.0:==========\n";
         // Heuristics: there should be only 3 gathers to split
         const auto& transpose = pattern_map.at(transpose_pattern).get_node_shared_ptr();
         auto children = transpose->get_output_target_inputs(0);
@@ -277,8 +277,9 @@ pass::MatmulVariadicSplitDecomposition::MatmulVariadicSplitDecomposition() {
     auto variadic_split_pattern =
         wrap_type<opset13::VariadicSplit>({matmul_pattern, wrap_type<v0::Constant>(), wrap_type<v0::Constant>()});
 
-    PRINT << "1: =======================\n\n";
+    PRINT << "Matched 1: =======================\n\n";
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        PRINT << "Matched 2: callback=======================\n\n";
         const auto& pattern_map = m.get_pattern_value_map();
         auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
         auto weights = matmul->input_value(1);
@@ -291,7 +292,7 @@ pass::MatmulVariadicSplitDecomposition::MatmulVariadicSplitDecomposition() {
             return false;
         }
         if (mm_ptr->get_transpose_a() != false) {
-            PRINT << "mm_ptr->get_transpose_a() != false FAIL\n\n";
+            PRINT << "Matched 1: Exit. mm_ptr->get_transpose_a() != false FAIL\n\n";
             return false;
         }
         auto transpose_b = mm_ptr->get_transpose_b();

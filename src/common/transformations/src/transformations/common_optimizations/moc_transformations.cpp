@@ -263,8 +263,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         REGISTER_PASS(manager, ConstantFolding)
         // manager.register_pass<ov::pass::VisualizeTree>("before_MatmulSplitDecomposition_moc.svg");
         // manager.run_passes(f);
-        // ov::pass::Serialize serializer1("before_matmul_gathers.xml", "before_matmul_gathers.bin");
-        // serializer1.run_on_model(f);
+        ov::pass::Serialize serializer1("before_matmul_gathers.xml", "before_matmul_gathers.bin");
+        serializer1.run_on_model(f);
 
         // auto decomp_tmp = manager.register_pass<GraphRewrite>();
         // ADD_MATCHER(decomp_tmp, MatmulGatherDecomposition)
@@ -274,11 +274,12 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
 
         // manager.register_pass<ov::pass::VisualizeTree>("after_MatmulSplitDecomposition_moc.svg");
         // manager.run_passes(f);
-        // ov::pass::Serialize serializer2("after_matmul_gathers.xml", "after_matmul_gathers.bin");
-        // serializer2.run_on_model(f);
 
         ADD_MATCHER(decomp, MatmulGatherDecomposition)
         ADD_MATCHER(decomp, MatmulVariadicSplitDecomposition)
+        ov::pass::Serialize serializer2("after_matmul_gathers.xml", "after_matmul_gathers.bin");
+        serializer2.run_on_model(f);
+
     }
 
     auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
