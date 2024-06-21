@@ -477,7 +477,7 @@ class PrepareLibs(build_clib):
                     self.announce(f"Move {file_path} to {dst_file}", level=3)
 
             if os.path.isdir(src) and os.listdir(src):
-                 # copy the rest of the files to the package directly
+                # copy the rest of the files to the package directly
                 shutil.copytree(src, dst, dirs_exist_ok=True)
 
                 # patch cmake configurations
