@@ -469,7 +469,7 @@ class PrepareLibs(build_clib):
             src, dst = Path(src_dir), Path(package_dir)
 
             # move the static libs to the directory with the shared libraries
-            for file_path in Path(dst).rglob("*.lib"):
+            for file_path in Path(src).rglob("*.lib"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_file():
                     dst_file = os.path.join(package_clibs_dir, file_name)
