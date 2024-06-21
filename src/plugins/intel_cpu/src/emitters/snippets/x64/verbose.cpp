@@ -87,7 +87,7 @@ static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emi
 std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_emitter"
-       <<  emitter->m_kernel_executor->config_to_string()
+       <<  emitter->m_kernel_executor->to_string()
        << " m_load_offset_a:" << emitter->m_load_offset_a
        << " m_load_offset_b:" << emitter->m_load_offset_b
        << " m_load_offset_scratch:" << emitter->m_load_offset_scratch

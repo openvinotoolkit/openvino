@@ -65,11 +65,10 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 }
 }  // namespace
 
-std::shared_ptr<LinearIR> LinearIRBuilder::clone(const std::shared_ptr<LinearIR>& linear_ir) const {
+std::shared_ptr<LinearIR> LinearIRBuilder::clone(const std::shared_ptr<LinearIR>& linear_ir, ExpressionMap& expression_map) const {
     auto cloned = std::make_shared<LinearIR>();
     cloned->m_config = linear_ir->m_config;
 
-    ExpressionMap expression_map;
     cloned->m_expressions = clone_range(linear_ir->m_expressions.cbegin(), linear_ir->m_expressions.cend(), expression_map);
     for (const auto& expr : cloned->m_expressions) {
         cloned->register_expression(expr, true);

@@ -20,9 +20,6 @@ public:
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
-    static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
-    static size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
-
 private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;

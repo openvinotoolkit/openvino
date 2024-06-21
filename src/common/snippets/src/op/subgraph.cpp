@@ -530,7 +530,8 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     // actual code emission
     // Note: to not corrupt the lowered linear IR for the shape-dependent passes, we have to make a copy
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
-    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir);
+    ov::snippets::lowered::ExpressionMap expression_map;
+    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
 
     if (is_dynamic()) {
         ov::snippets::lowered::pass::PassPipeline shape_dependent_pipeline;
@@ -542,6 +543,14 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
 
+    // Note: Since the code emission is performed on a copy of LIR, but RuntimeConfigurator works with the initial instance,
+    //  we need to replace cloned expression pointers to original ones in the KernelExecutorTable
+    const auto& exec_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
+    for (const auto& expr : *m_linear_ir)
+        exec_table->replace_key_expression(expression_map.at(expr.get()), expr);
+    // Some kernel executors might've been registered during code emission.
+    //  We need to update them, so appropriate kernels will be compiled.
+    exec_table->update_state();
     return {std::move(lowering_result)};
 }
 
