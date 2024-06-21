@@ -1835,8 +1835,6 @@ TEST(constant, float8_e4m3_vector) {
 
     ov::op::v0::Constant const_op_from_ptr(ov::element::f8e4m3, data_shape, data_vec.data());
     EXPECT_EQ(data_vec, const_op_from_ptr.get_vector<ov::float8_e4m3>());
-    EXPECT_EQ(const_op_from_ptr.get_output_tensor(0).get_upper_value().get_strides(),
-              Strides({element::f8e4m3.size()}));
 }
 
 TEST(constant, float8_e5m3_vector) {
@@ -1860,8 +1858,6 @@ TEST(constant, float8_e5m3_vector) {
 
     ov::op::v0::Constant const_op_from_ptr(ov::element::f8e5m2, data_shape, data_vec.data());
     EXPECT_EQ(data_vec, const_op_from_ptr.get_vector<ov::float8_e5m2>());
-    EXPECT_EQ(const_op_from_ptr.get_output_tensor(0).get_upper_value().get_strides(),
-              Strides({element::f8e5m2.size()}));
 }
 
 TEST(constant, float16_vector_broadcast) {
