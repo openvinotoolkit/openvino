@@ -594,7 +594,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // Check fusing primitives based on preferred format or layout optimization
     if (optimize_data) {
-        apply_opt_pass<fuse_primitives_with_layout>();
+        apply_opt_pass<fuse_primitives_with_layout>(lo);
     }
 
     // add optimization attributes for onednn primitives
