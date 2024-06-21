@@ -19,24 +19,14 @@ namespace intel_npu::driverCompilerAdapter {
 
 class IR {
 public:
-    IR(const std::shared_ptr<const ov::Model>& origModel,
-       uint32_t supportedVersionByCompiler = 11,
-       bool largeModel = false);
+    IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedVersionByCompiler = 11);
 
     std::istream& getXml() {
-        if (!_isLargeModel) {
-            return _xml;
-        } else {
-            return _xmlStream;
-        }
+        return _xmlStream;
     }
 
     std::istream& getWeights() {
-        if (!_isLargeModel) {
-            return _weights;
-        } else {
-            return _weightsStream;
-        }
+        return _weightsStream;
     }
 
 private:
@@ -46,14 +36,10 @@ private:
     void serializeOVModelToIR(std::shared_ptr<ov::Model> model, uint32_t supportedVersionByCompiler);
 
     // Streams for normal model
-    std::stringstream _xml;
-    std::stringstream _weights;
+    std::stringstream _xmlStream;
 
-    // Streams that use custom StreamBuf for large model
-    bool _isLargeModel;
-    CustomStreamBuf _xmlCache;
+    // Use custom stream buffer for weights to support 2G+ files on Windows
     CustomStreamBuf _weightsCache;
-    std::iostream _xmlStream;
     std::iostream _weightsStream;
 };
 

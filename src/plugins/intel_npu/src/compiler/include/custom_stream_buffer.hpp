@@ -119,6 +119,7 @@ protected:
     }
 
 private:
+    // TODO: Use deque as a buffer to avoid reallocation
     std::vector<char> _buffer;
     size_t _readPos;
     size_t _writePos;

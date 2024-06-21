@@ -98,7 +98,7 @@ protected:
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     auto model = createModelWithLargeSize();
-    IR irModel(model, 11, true);
+    IR irModel(model, 11);
     std::istream& xmlStream = irModel.getXml();
     std::istream& weightsStream = irModel.getWeights();
     size_t xmlSize = getFileSize(xmlStream);

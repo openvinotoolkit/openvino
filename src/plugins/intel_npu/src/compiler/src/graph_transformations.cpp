@@ -17,22 +17,10 @@
 
 namespace intel_npu::driverCompilerAdapter {
 
-IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset, bool largeModel)
-    : _isLargeModel(largeModel),
-      _xmlStream(&_xmlCache),
-      _weightsStream(&_weightsCache) {
+IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset) : _weightsStream(&_weightsCache) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
     auto model = std::const_pointer_cast<ov::Model>(origModel);
-
-#ifdef _WIN32
-    // Only use custom stream buffer for Windows
-    if (model->get_graph_size() > MAX_WIN_STREAMBUF_SIZE) {
-        Logger::global().warning("Force large model %s to use custom stream to do serialize",
-                                 model->get_friendly_name());
-        _isLargeModel = true;
-    }
-#endif
 
     serializeOVModelToIR(model, supportedOpset);
 }
@@ -50,13 +38,7 @@ void IR::serializeOVModelToIR(std::shared_ptr<ov::Model> model, uint32_t support
         manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     }
 
-    if (_isLargeModel) {
-        manager.register_pass<ov::pass::Serialize>(_xmlStream, _weightsStream);
-        logger.info("Serialize to custom stream");
-    } else {
-        manager.register_pass<ov::pass::Serialize>(_xml, _weights);
-        logger.info("Serialize to normal stream");
-    }
+    manager.register_pass<ov::pass::Serialize>(_xmlStream, _weightsStream);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
     // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
