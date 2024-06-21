@@ -327,16 +327,24 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const py::list& partial_shape) {
-            if (py::len(partial_shape) > 0 && py::isinstance<py::list>(partial_shape[0])) {
+            if (py::len(partial_shape) > 0 && (py::isinstance<py::list>(partial_shape[0]) || py::isinstance<ov::PartialShape>(partial_shape[0]) || py::isinstance<py::str>(partial_shape[0]) || py::isinstance<py::tuple>(partial_shape[0]))) {
                 if (py::len(partial_shape) != self.inputs().size()) {
                     throw py::value_error("Reshape failed due to mismatched lengths");
                 }
                 std::map<ov::Output<ov::Node>, ov::PartialShape> shapes_map;
 
                 for (size_t i = 0; i < py::len(partial_shape); ++i) {
-                    py::list shape_list = partial_shape[i].cast<py::list>();
-                    ov::PartialShape shape = Common::partial_shape_from_list(shape_list);
-                    shapes_map[self.input(i)] = shape;
+                    if (py::isinstance<ov::PartialShape>(partial_shape[i])) {
+                        shapes_map[self.input(i)] = partial_shape[i].cast<ov::PartialShape>();
+                    } else if (py::isinstance<py::list>(partial_shape[i]) || py::isinstance<py::tuple>(partial_shape[i])) {
+                        shapes_map[self.input(i)] = Common::partial_shape_from_list(partial_shape[i].cast<py::list>());
+                    } else if (py::isinstance<py::str>(partial_shape[i])) {
+                        shapes_map[self.input(i)] = ov::PartialShape(partial_shape[i].cast<std::string>());
+                    } else {
+                        throw py::type_error(
+                            "Incorrect value type " + std::string(py::str(partial_shape[i].get_type())) +
+                            " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
+                    }
                 }
 
                 py::gil_scoped_release release;

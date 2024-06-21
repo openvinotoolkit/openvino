@@ -371,7 +371,9 @@ def test_reshape_with_python_types(device):
     ([[]], [[2], [3]], pytest.raises(ValueError), "Reshape failed due to mismatched lengths"),
     ([[1, 3, 224, 224]], [[1, 3, 224, 224]], does_not_raise(), ""),
     ([[1], [2], [3], [4]], [[1], [2], [3], [4]], does_not_raise(), ""),
-    ([[1], [2], [3], [4]], [[2, 2], [2, 3, 224, 224], [10], [4]], does_not_raise(), "")
+    ([[1], [2], [3], [4]], [[2, 2], [2, 3, 224, 224], [10], [4]], does_not_raise(), ""),
+    ([[1], [2], [3], [4]], [(2, 2), "5, 5, 6, ?, ..5", [10], PartialShape([4, 7])], does_not_raise(), ""),
+    ([[], [], [], []], [PartialShape([9, 10])], pytest.raises(ValueError), "Reshape failed due to mismatched lengths")
 ])
 def test_reshape_with_list_of_shapes(input_shapes, new_shapes_list, expectation, raise_msg):
 
@@ -384,11 +386,9 @@ def test_reshape_with_list_of_shapes(input_shapes, new_shapes_list, expectation,
 
     with expectation as e:
         model.reshape(new_shapes_list)
-        if not isinstance(e, type(pytest.raises(ValueError))):
-            assert len(model.inputs) == len(new_shapes_list)
-
-            for model_input, expected_shape in zip(model.inputs, new_shapes_list):
-                assert model_input.partial_shape == PartialShape(expected_shape)
+        assert len(model.inputs) == len(new_shapes_list)
+        for model_input, expected_shape in zip(model.inputs, new_shapes_list):
+            assert model_input.partial_shape == PartialShape(expected_shape)
     if e is not None:
         assert raise_msg in str(e.value)
 
