@@ -482,6 +482,7 @@ class PrepareLibs(build_clib):
                     copyfile(file_path, dst_file)
                     self.announce(f"Copy {file_path} to {dst_file}", level=3)
 
+
 def copy_file(src, dst, verbose=False, dry_run=False):
     """Custom file copy."""
     if dry_run:
