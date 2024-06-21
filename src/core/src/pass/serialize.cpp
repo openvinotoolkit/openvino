@@ -886,7 +886,10 @@ public:
 };
 
 void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
-    auto child = root.append_child(name.c_str());
+    // Name may brake XML-naming specification, so better to store it as an attribute of typical
+    // node
+    auto child = root.append_child("info");
+    child.append_attribute("name").set_value(name.c_str());
     if (data.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
         ov::AnyMap& map = *meta;
