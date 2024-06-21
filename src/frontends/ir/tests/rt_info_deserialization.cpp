@@ -854,6 +854,10 @@ TEST_F(RTInfoDeserialization, node_naming_v11) {
 			<item0 value="0" /> <!-- Old-style notation, may cause an issue if starts with an unexpected character. Compatibility. -->
 			<info name="item1" value="1" /> <!-- New-style notation, name can contain any characters -->
 		</framework>
+		<info name="conversion_parameters"> <!-- New-style whole block -->
+			<info name="input_model" value="DIR\model.onnx" />
+			<info name="is_python_api_used" value="True" />
+		</info>
 	</rt_info>
 </net>
 )V0G0N";
@@ -870,10 +874,14 @@ TEST_F(RTInfoDeserialization, node_naming_v11) {
 
     auto& rt_info = f->get_rt_info();
     ASSERT_TRUE(rt_info.count("framework"));
+    ASSERT_TRUE(rt_info.count("conversion_parameters"));
 
     auto& item0 = f->get_rt_info<std::string>("framework", "item0");
     ASSERT_EQ(item0, "0");
 
     auto& item1 = f->get_rt_info<std::string>("framework", "item1");
     ASSERT_EQ(item1, "1");
+
+    auto& is_python_api_used = f->get_rt_info<std::string>("conversion_parameters", "is_python_api_used");
+    ASSERT_EQ(is_python_api_used, "True");
 }
