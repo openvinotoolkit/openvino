@@ -138,56 +138,79 @@ protected:
             return false;
         };
 
-        if (batched_dims_can_be_removed) {
-            if (has_transpose_order(prim->input0_transpose_order)) {
+        // Check whether transpose_order has transpose only to the last two elements.
+        // Return true when transpose_order is 0, 1, 3, 2.
+        auto has_transpose_order_xy_only = [](std::vector<int64_t> transpose_order) {
+            for (size_t i = 0; i < transpose_order.size() - 2; i++) {
+                if (i != static_cast<size_t>(transpose_order[i])) {
+                    return false;
+                }
+            }
+            size_t last_idx = transpose_order.size() - 1;
+            if (static_cast<size_t>(transpose_order[last_idx]) != last_idx - 1)
+                return false;
+            if (static_cast<size_t>(transpose_order[last_idx - 1]) != last_idx)
+                return false;
+            return true;
+        };
+
+        auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
+                                                dnnl::memory::dims& dims,
+                                                dnnl::memory::format_tag& tag,
+                                                bool is_input = true) {
+            std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
+            if (dims.size() > order.size()) {
+                size_t orders_to_add = dims.size() - order.size();
+                for (size_t i = 0; i < orders_to_add; ++i)
+                    order.insert(order.begin(), i);
+                for (size_t i = orders_to_add; i < order.size(); ++i)
+                    order[i] = order[i] + orders_to_add;
+            }
+
+            bool ret = false;
+            format transposed_format = format::bfyx;
+            if (is_input) {
+                ret = gemm_inst::is_fusable_permute_input_order_onednn(order, transposed_format);
+            } else {
+                ret = gemm_inst::is_fusable_permute_output_order_onednn(order, transposed_format);
+            }
+
+            if (ret) {
+                tag = convert_data_format(transposed_format);
+                dnnl::memory::dims original_dims = dims;
+                for (size_t i = 0; i < original_dims.size(); ++i) {
+                    dims[i] = original_dims[order[i]];
+                }
+            } else {
+                std::ostringstream ostream;
+                std::copy(order.begin(), order.end(), std::ostream_iterator<size_t>(ostream, ", "));
+                OPENVINO_ASSERT(false, "[GPU] Can't find fusable transpose format: ", ostream.str());
+            }
+        };
+
+        if (has_transpose_order(prim->input0_transpose_order)) {
+            if (has_transpose_order_xy_only(prim->input0_transpose_order)) {
                 in0_fmt = transpose_format(in0_fmt);
                 std::swap(in0_dims[in0_dims.size() - 1], in0_dims[in0_dims.size() - 2]);
+            } else {
+                transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_fmt);
             }
-            if (has_transpose_order(prim->input1_transpose_order)) {
+        }
+        if (has_transpose_order(prim->input1_transpose_order)) {
+            if (has_transpose_order_xy_only(prim->input1_transpose_order)) {
                 in1_fmt = transpose_format(in1_fmt);
                 std::swap(in1_dims[in1_dims.size() - 1], in1_dims[in1_dims.size() - 2]);
+            } else {
+                transpose_dims_and_format_tag(prim->input1_transpose_order, in1_dims, in1_fmt);
             }
-            if (has_transpose_order(prim->output_transpose_order)) {
+        }
+        if (has_transpose_order(prim->output_transpose_order)) {
+            if (has_transpose_order_xy_only(prim->output_transpose_order)) {
                 out_fmt = transpose_format(out_fmt);
                 std::swap(out_dims[out_dims.size() - 1], out_dims[out_dims.size() - 2]);
+            } else {
+                transpose_dims_and_format_tag(prim->output_transpose_order, out_dims, out_fmt, false);
             }
-        } else {
-            auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
-                                                    dnnl::memory::dims& dims,
-                                                    dnnl::memory::format_tag& tag,
-                                                    bool is_input = true) {
-                std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
-                if (dims.size() > order.size()) {
-                    size_t orders_to_add = dims.size() - order.size();
-                    for (size_t i = 0; i < orders_to_add; ++i)
-                        order.insert(order.begin(), i);
-                    for (size_t i = orders_to_add; i < order.size(); ++i)
-                        order[i] = order[i] + orders_to_add;
-                }
-
-                bool ret = false;
-                format transposed_format = format::bfyx;
-                if (is_input) {
-                    ret = gemm_inst::is_fusable_permute_input_order_onednn(order, transposed_format);
-                } else {
-                    ret = gemm_inst::is_fusable_permute_output_order_onednn(order, transposed_format);
-                }
-
-                if (ret) {
-                    tag = convert_data_format(transposed_format);
-                    dnnl::memory::dims original_dims = dims;
-                    for (size_t i = 0; i < original_dims.size(); ++i) {
-                        dims[i] = original_dims[order[i]];
-                    }
-                } else {
-                    std::ostringstream ostream;
-                    std::copy(order.begin(), order.end() - 1, std::ostream_iterator<size_t>(ostream, ", "));
-                    OPENVINO_ASSERT(false, "[GPU] Can't find fusable transpoed format: ", ostream.str());
-                }
-            };
-            if (has_transpose_order(prim->input0_transpose_order)) transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_fmt);
-            if (has_transpose_order(prim->input1_transpose_order)) transpose_dims_and_format_tag(prim->input1_transpose_order, in1_dims, in1_fmt);
-            if (has_transpose_order(prim->output_transpose_order)) transpose_dims_and_format_tag(prim->output_transpose_order, out_dims, out_fmt, false);
         }
 
         if (gemm_with_bias) {
