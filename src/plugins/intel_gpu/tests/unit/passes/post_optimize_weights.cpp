@@ -5,7 +5,9 @@
 #include "test_utils.h"
 #include "program_wrapper.h"
 #include "fully_connected_inst.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
+#endif
 
 using namespace cldnn;
 using namespace ::tests;
@@ -235,9 +237,11 @@ TEST(post_optimize_weights, fuse_reorder_to_onednn_weights_reorder_test) {
     ASSERT_TRUE(has_node(*prog, "reorder_dt"));
     auto& fc_node = prog->get_node("fc");
     auto weights_param = fc_node.as<fully_connected>().get_selected_impl()->get_weights_reorder_params();
-    auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_param);
     ASSERT_TRUE(format::is_weights_format(prog->get_node("reorder_dt").get_output_layout().format));
     ASSERT_TRUE(prog->get_node("reorder_dt").get_input_layout().data_type == data_types::f32);
+#ifdef ENABLE_ONEDNN_FOR_GPU
     // Check onednn_weights_params->_in_desc data_type is properly updated
+    auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_param);
     ASSERT_TRUE(onednn_weights_params->_in_desc.get_data_type() == onednn::convert_data_type(data_types::f32));
+#endif
 }
