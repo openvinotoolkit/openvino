@@ -451,7 +451,9 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
     auto scalar = opp::wrap_type<ov::op::v0::Constant>();
     auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
 
-    auto callback = [&,
+    auto callback = [dcoff_mode = std::move(dcoff_mode),
+                    dcoff_type = std::move(dcoff_type),
+                    pref = std::move(pref),
                      paramA = std::move(paramA),
                      constB = std::move(constB),
                      paramC = std::move(paramC),
@@ -555,7 +557,7 @@ CWAI1::CWAI1(CWAI1::Results scales) {
     auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
 
-    auto matcher_callback = [&,
+    auto matcher_callback = [scales = std::move(scales),
                              constA = std::move(constA),
                              constB = std::move(constB),
                              constC = std::move(constC),
@@ -616,7 +618,7 @@ CWAI2::CWAI2(CWAI2::Results scales) {
     auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
 
-    auto matcher_callback = [&,
+    auto matcher_callback = [scales = std::move(scales),
                              constA = std::move(constA),
                              constB = std::move(constB),
                              constC = std::move(constC),

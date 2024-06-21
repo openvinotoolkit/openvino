@@ -247,7 +247,7 @@ public:
             Group::GPtr group = graph->meta(nh).get<Group::GPtr>();
             LOG_DEBUG("Group " << group->getId() << ", size " << group->size());
         }
-        throw 42;
+
         LOG_INFO("Done");
     }
 
