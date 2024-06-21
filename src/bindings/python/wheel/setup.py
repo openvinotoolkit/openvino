@@ -14,7 +14,7 @@ import multiprocessing
 import logging as log
 from fnmatch import fnmatchcase
 from pathlib import Path
-from shutil import copyfile, rmtree
+from shutil import copyfile, rmtree, move
 from setuptools import setup, find_namespace_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
@@ -467,20 +467,23 @@ class PrepareLibs(build_clib):
 
         for src_dir in src_dirs:
             src, dst = Path(src_dir), Path(package_dir)
-            shutil.copytree(src, dst, dirs_exist_ok=True)
-
-            # patch cmake configurations
-            for file_path in Path(dst).rglob("*.cmake"):
-                if file_path.is_file():
-                    replace_strings_in_file(file_path, replacements)
 
             # move the static libs to the directory with the shared libraries
             for file_path in Path(dst).rglob("*.lib"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_file():
                     dst_file = os.path.join(package_clibs_dir, file_name)
-                    copyfile(file_path, dst_file)
-                    self.announce(f"Copy {file_path} to {dst_file}", level=3)
+                    move(file_path, dst_file)
+                    self.announce(f"Move {file_path} to {dst_file}", level=3)
+
+            if os.path.isdir(src) and os.listdir(src):
+                 # copy the rest of the files to the package directly
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+
+                # patch cmake configurations
+                for file_path in Path(dst).rglob("*.cmake"):
+                    if file_path.is_file():
+                        replace_strings_in_file(file_path, replacements)
 
 
 def copy_file(src, dst, verbose=False, dry_run=False):
