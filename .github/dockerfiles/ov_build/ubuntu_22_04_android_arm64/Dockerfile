@@ -29,6 +29,7 @@ RUN apt update && \
         scons \
         ninja-build \
         make \
+        cmake \
         build-essential \
         # Python
         python3-dev \
@@ -63,9 +64,6 @@ ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
-
-# Install cmake, vcpkg requires 3.19 or later
-RUN python3 -m pip install cmake~=3.28.0
 
 # Install Android SDK, NDK and Tools
 #ENV ANDROID_TOOLS /android_tools
