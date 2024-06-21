@@ -67,7 +67,7 @@ void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
         }
     }
 
-    PRINT << "==split_weights 1=============\n\n";
+    PRINT << "Matched 3.1=============\n\n";
     // Decompose weights
     auto axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));  // axis 0
     auto split = register_new_node<opset1::Split>(weights, axis, 3);
@@ -76,7 +76,7 @@ void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
     }
 
     if (have_bias) {
-        PRINT << "==split_bias 1=============\n\n";
+        PRINT << "Matched 3.2 split_bias =============\n\n";
         // Decompose bias
         auto axis2 = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));  // axis -1
         auto split2 = register_new_node<opset1::Split>(bias, axis2, 3);
@@ -103,29 +103,31 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         PRINT << "Matched 2:==========\n\n";
         const auto& pattern_map = m.get_pattern_value_map();
-        auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
-        auto weights = matmul->input_value(1);
 
-        PRINT << "Matched 2.1:==========\n\n";
-        auto add = pattern_map.at(add_pattern).get_node_shared_ptr();
-        PRINT << "Matched 2.2:==========\n\n";
-        bool have_bias = add == nullptr ? false : true;
-
-        PRINT << "Matched 2.3.0:==========\n\n";
-        const auto& reshape = pattern_map.at(reshape_pattern);
-        PRINT << "Matched 2.3:==========\n\n";
-        auto concat = reshape.get_node_shared_ptr()->input_value(1);
-        PRINT << "Matched 2.4:==========\n\n";
+        // Heuristics: there should be only 3 gathers to split
         const auto& transpose = pattern_map.at(transpose_pattern).get_node_shared_ptr();
-        
-        PRINT << "== matmul->get_friendly_name()=" << matmul->get_friendly_name() << "\n\n";
-
-        // Heuristics: there should be only 3 gathers to split transpose
         auto children = transpose->get_output_target_inputs(0);
         if (children.size() != 3u) {
             PRINT << "Matched 2: EXIT: children.size() != 3, children.size() =" << children.size() << std::endl;
             return false;
         }
+
+        auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
+        auto weights = matmul->input_value(1);
+        std::shared_ptr<ov::Node> add = nullptr;
+        bool have_bias = false;
+        for (auto& consumer : matmul->get_output_target_inputs(0)) {
+            if (ov::is_type<opset1::Add>(consumer.get_node()->shared_from_this())) {
+                PRINT << "Matched 2.1 with bias :==========\n\n";
+                add = pattern_map.at(add_pattern).get_node_shared_ptr();
+                have_bias = true;
+                break;
+            }
+        }
+        PRINT << "Matched 2.1: matmul=" << matmul->get_friendly_name() << "\n\n";
+
+        const auto& reshape = pattern_map.at(reshape_pattern);
+        auto concat = reshape.get_node_shared_ptr()->input_value(1);
 
         NodeVector gathers;
         gathers.resize(3);
@@ -137,7 +139,8 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                     const auto& axis_val = axis_node->cast_vector<int32_t>();
                     if (axis_val.size() != 1u || axis_val[0] != 0) {
                         PRINT << "Matched 2: EXIT: axis_val.size() != 1 || axis_val[0] != 0" << std::endl;
-                        PRINT << "Matched 2: EXIT: axis_val.size()=" << axis_val.size() << ", axis_val[0]=" << axis_val[0] << std::endl;
+                        PRINT << "Matched 2: EXIT: axis_val.size()=" << axis_val.size()
+                              << ", axis_val[0]=" << axis_val[0] << std::endl;
                         return false;
                     }
                 } else {
@@ -161,8 +164,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                     PRINT << "Matched 2: EXIT:indices_node is not Constant" << std::endl;
                     return false;
                 }
-            }
-            else {
+            } else {
                 PRINT << "Matched 2: EXIT:child is not gather\n\n";
                 return false;
             }
@@ -175,13 +177,19 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
             return false;
         }
 
+        PRINT << "Matched 3: split_weights====================\n\n";
         OutputVector new_weights, new_bias;
         split_weights(weights,
                       new_weights,
                       have_bias,
                       have_bias ? pattern_map.at(bias_pattern) : Output<Node>(),
                       new_bias);
-        if (new_weights.size() != 3u || new_bias.size() != 3u) {
+        if (new_weights.size() != 3u || (have_bias && new_bias.size() != 3u)) {
+            PRINT << "Matched 3: Exit\n\n";
+            PRINT << "new_weights.size()=" << new_weights.size() << ", have_bias=" << have_bias << "\n";
+            if (have_bias) {
+                PRINT << "new_bias.size()=" << new_bias.size() << std::endl;
+            }
             return false;
         }
 
@@ -189,12 +197,19 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         auto const_axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
         auto new_shape = register_new_node<v1::Gather>(concat, const_indices, const_axis);
 
+        PRINT << "Matched 4: replace ===================\n\n";
         const auto& input = pattern_map.at(input_pattern);
-        for (size_t i = 0 ; i < 3u; i++) {
-            PRINT << "Matched 3: =========replace=======" << i << "=============\n\n";
+        for (size_t i = 0; i < 3u; i++) {
+            PRINT << "Matched 4.1: replace " << i << "=============\n";
             auto mm0 = register_new_node<v0::MatMul>(input, new_weights[i], false, true);
-            auto add0 = register_new_node<v1::Add>(mm0, new_bias[i]);
-            auto reshape0 = register_new_node<v1::Reshape>(add0, new_shape, true);
+            PRINT << "Matched 4.2: replace " << i << "=============\n";
+            std::shared_ptr<ov::Node> reshape_productor = mm0;
+            PRINT << "Matched 4.3: replace " << i << "=============\n";
+            if (have_bias) {
+                reshape_productor = register_new_node<v1::Add>(mm0, new_bias[i]);
+            }
+            auto reshape0 = register_new_node<v1::Reshape>(reshape_productor, new_shape, true);
+            PRINT << "Matched 4.4: replace " << i << "=============\n";
             auto transpose_order = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
             auto transpose0 = register_new_node<v1::Transpose>(reshape0, transpose_order);
             transpose0->set_friendly_name(gathers[i]->get_friendly_name());
@@ -207,15 +222,15 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                                    transpose},
                                   get_new_nodes());
             } else {
-                copy_runtime_info({gathers[i], weights.get_node_shared_ptr(), matmul, add, transpose}, get_new_nodes());
+                copy_runtime_info({gathers[i], weights.get_node_shared_ptr(), matmul, transpose}, get_new_nodes());
             }
 
             replace_node(gathers[i], transpose0);  // replace gatherX by transposeX
 
-            PRINT << "Matched 3: =========replace done=======" << i << " done =========\n\n";
+            PRINT << "Matched 4: replace " << i << " done =========\n\n";
         }
 
-        PRINT << "Matched: Absolutely matched finish.:==========\n\n";
+        PRINT << "Matched 5: Absolutely matched finish.:==========\n\n";
         return true;
     };
 
