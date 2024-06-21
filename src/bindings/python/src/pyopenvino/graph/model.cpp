@@ -340,10 +340,6 @@ void regclass_graph_Model(py::module m) {
                         shapes_map[self.input(i)] = Common::partial_shape_from_list(partial_shape[i].cast<py::list>());
                     } else if (py::isinstance<py::str>(partial_shape[i])) {
                         shapes_map[self.input(i)] = ov::PartialShape(partial_shape[i].cast<std::string>());
-                    } else {
-                        throw py::type_error(
-                            "Incorrect value type " + std::string(py::str(partial_shape[i].get_type())) +
-                            " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
                     }
                 }
 
