@@ -136,7 +136,7 @@ const size_t BrgemmKernel::get_scratch_b_size() const {
 void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
                                  std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
                                  bool use_amx) {
-    brgemm_t brgDesc;
+    brgemm_desc_t brgDesc;
 
     const bool is_int8 =
         one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
