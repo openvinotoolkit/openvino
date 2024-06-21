@@ -58,7 +58,7 @@ ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
     const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     // The approach here is to create a mask, that later can be used in Select operator
-    // to choose appropiate values from the input
+    // to choose appropriate values from the input
     //
     // For example N = 4, M = 5, k = -1, upper = false
     // horizontal_range = [[0, 1, 2, 3, 4]]
