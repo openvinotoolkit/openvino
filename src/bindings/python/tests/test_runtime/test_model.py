@@ -150,6 +150,7 @@ def test_get_result_index_with_result():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu = ops.relu(param, name="relu")
+    result = ops.result(relu, "res")
     model = Model(relu, [param], "TestModel")
     assert len(model.outputs) == 1
     assert model.get_result_index(model.get_results()[0]) == 0
