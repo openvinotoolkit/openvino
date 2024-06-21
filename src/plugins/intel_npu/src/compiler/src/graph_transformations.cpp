@@ -27,9 +27,9 @@ IR::IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpse
 
 #ifdef _WIN32
     // Only use custom stream buffer for Windows
-    if (_model->get_graph_size() > MAX_WIN_STREAMBUF_SIZE) {
-        Logger::g;
-        obal().warning("Force large model %s to use custom stream to do serialize", _model->get_friendly_name());
+    if (model->get_graph_size() > MAX_WIN_STREAMBUF_SIZE) {
+        Logger::global().warning("Force large model %s to use custom stream to do serialize",
+                                 model->get_friendly_name());
         _isLargeModel = true;
     }
 #endif

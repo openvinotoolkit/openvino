@@ -42,7 +42,7 @@ public:
         std::stringstream ss;
         auto now = std::chrono::high_resolution_clock::now();
         auto seed = now.time_since_epoch().count();
-        std::mt19937 mt_rand(seed);
+        std::mt19937 mt_rand(static_cast<unsigned int>(seed));
         std::uniform_int_distribution<int> dist(0, 15);
 
         for (unsigned int i = 0; i < 16; ++i) {
@@ -125,7 +125,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     }
     ov::Core core;
     EXPECT_NO_THROW(model = core.read_model(xmlFileName));
-    if (std::remove(xmlFileName) != 0 || std::remove(binFileName) != 0) {
+    if (std::remove(xmlFileName.c_str()) != 0 || std::remove(binFileName.c_str()) != 0) {
         OPENVINO_THROW("Failed to remove serialized files");
     }
 }
