@@ -1015,6 +1015,12 @@ void primitive_inst::update_paddings() {
             reset_pad(*_impl_params, _node);
         return;
     }
+    // Reset paddings used in the previous iteration for crop before executing do_runtime_in_place_crop
+    if (_node->is_type<crop>() && _impl_params->output_layouts[0].data_padding.get_dynamic_pad_dims() != tensor(0)) {
+        if (_node->can_be_optimized()) {
+            reset_pad(*_impl_params, _node);
+        }
+    }
 }
 
 void primitive_inst::do_runtime_skip_reorder() {
