@@ -141,6 +141,16 @@ size_t getFileSize(std::istream& stream) {
     return streamEnd - streamStart;
 }
 
+void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
+    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
+    if (it != propertiesMap.end()) {
+        std::istringstream is(it->second);
+        ov::log::Level level;
+        is >> level;
+        Logger::global().setLevel(level);
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -535,6 +545,7 @@ Plugin::Plugin()
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     const std::map<std::string, std::string> config = any_copy(properties);
+    update_log_level(config);
     for (const auto& configEntry : config) {
         if (_properties.find(configEntry.first) == _properties.end()) {
             OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
@@ -546,7 +557,6 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     _globalConfig.update(config);
-    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
     if (_backends != nullptr) {
         _backends->setup(_globalConfig);
     }
@@ -583,13 +593,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
-    if (it != propertiesMap.end()) {
-        std::istringstream is(it->second);
-        ov::log::Level level;
-        is >> level;
-        Logger::global().setLevel(level);
-    }
+    update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
@@ -684,13 +688,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
-    if (it != propertiesMap.end()) {
-        std::istringstream is(it->second);
-        ov::log::Level level;
-        is >> level;
-        Logger::global().setLevel(level);
-    }
+    update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
@@ -758,8 +756,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /*stream*
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-
-    auto localConfig = merge_configs(_globalConfig, any_copy(properties), OptionMode::CompileTime);
+    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    update_log_level(propertiesMap);
+    auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::CompileTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
