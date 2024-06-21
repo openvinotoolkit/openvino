@@ -153,7 +153,7 @@ def test_get_result_index_with_result():
     result = ops.result(relu, "res")
     model = Model(relu, [param], "TestModel")
     assert len(model.outputs) == 1
-    assert model.get_result_index(model.get_results()[0]) == 0
+    assert model.get_result_index(result) == 0
 
 
 def test_get_result_index_invalid_with_result():
