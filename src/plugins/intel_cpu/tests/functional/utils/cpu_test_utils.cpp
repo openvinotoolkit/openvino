@@ -477,7 +477,7 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
 // deduce the actual precision of the operation given the ngraph level operation precision and the plugin config
 ov::element::Type
 CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
-                                             const ov::AnyMap& configuration) {
+                                        const ov::AnyMap& configuration) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     return opPrecision;
 #endif
