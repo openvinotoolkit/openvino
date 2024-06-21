@@ -108,8 +108,8 @@ public:
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
             auto base_filename = model->get_name() + std::string("_") + index_str + std::string("_") + name;
 
-            auto file_ext = "svg";
-            ov::pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
+            auto file_ext = ".svg";
+            ov::pass::VisualizeTree vt(base_filename + file_ext);
             vt.run_on_model(model);
         }
     }
