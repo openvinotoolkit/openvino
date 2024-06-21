@@ -6,8 +6,8 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -58,10 +58,12 @@ OutputVector translate_expand_fx(const NodeContext& context) {
                 auto dim_const = ov::op::v0::Constant::create(element::i32, Shape{1}, dim_vec);
                 list_elems.push_back(dim_const);
             } else {
-                auto converted_dim = context.mark_node(std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
+                auto converted_dim = context.mark_node(
+                    std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
                 if (converted_dim->get_output_partial_shape(0).rank() == 0) {
                     auto dims_1d_shape = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {-1}));
-                    auto reshape_dim = context.mark_node(std::make_shared<ov::op::v1::Reshape>(converted_dim, dims_1d_shape, false));
+                    auto reshape_dim =
+                        context.mark_node(std::make_shared<ov::op::v1::Reshape>(converted_dim, dims_1d_shape, false));
                     list_elems.push_back(reshape_dim);
                 } else {
                     list_elems.push_back(converted_dim);
@@ -78,7 +80,6 @@ OutputVector translate_expand_fx(const NodeContext& context) {
                                     "Unexpected value of implicit for expand operation");
         return base_expand(context, x, sizes);
     }
-
 };
 
 }  // namespace op
