@@ -62,10 +62,6 @@ public:
         ze_result_t result,
         ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
 
-    std::vector<uint8_t> getSerializedIR(std::string& buildFlags,
-                                         const std::shared_ptr<const ov::Model>& model,
-                                         const Config& config) const;
-
     /**
      * @brief Serialize input / output information to string format.
      * @details Format:

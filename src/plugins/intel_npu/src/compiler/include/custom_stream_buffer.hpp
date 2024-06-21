@@ -87,7 +87,9 @@ protected:
             }
             this->setg(_buffer.data(), _buffer.data() + _readPos, _buffer.data() + _buffer.size());
             return std::streampos(_readPos);
-        } else if (which & std::ios_base::out) {
+        }
+
+        if (which & std::ios_base::out) {
             switch (way) {
             case std::ios_base::beg:
                 _writePos = off;

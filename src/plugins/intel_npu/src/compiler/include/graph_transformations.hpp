@@ -41,17 +41,15 @@ public:
 
 private:
     /**
-     * @brief Serialize OpenVINO model to IR
+     * @brief Serialize OpenVINO model to IR, get xml and bin data
      */
-    void serializeToIR(uint32_t supportedVersionByCompiler);
+    void serializeOVModelToIR(std::shared_ptr<ov::Model> model, uint32_t supportedVersionByCompiler);
 
-    Logger _logger;
-    std::shared_ptr<ov::Model> _model;
-
+    // Streams for normal model
     std::stringstream _xml;
     std::stringstream _weights;
 
-    // Streams that use local stream_buf
+    // Streams that use custom StreamBuf for large model
     bool _isLargeModel;
     CustomStreamBuf _xmlCache;
     CustomStreamBuf _weightsCache;

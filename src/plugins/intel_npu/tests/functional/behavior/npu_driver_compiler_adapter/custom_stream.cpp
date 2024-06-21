@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <chrono>
+#include <random>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
@@ -15,9 +17,7 @@ using CompilationParams = std::tuple<std::string,  // Device name
 
 using IR = intel_npu::driverCompilerAdapter::IR;
 
-namespace ov {
-namespace test {
-namespace behavior {
+namespace ov::test::behavior {
 
 class DriverCompilerAdapterCustomStreamTestNPU : public ov::test::behavior::OVPluginTestBase,
                                                  public testing::WithParamInterface<CompilationParams> {
@@ -36,6 +36,20 @@ public:
 
         /// Create the OpenVINO model
         return std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
+    }
+
+    std::string generateRandomFileName() {
+        std::stringstream ss;
+        auto now = std::chrono::high_resolution_clock::now();
+        auto seed = now.time_since_epoch().count();
+        std::mt19937 mt_rand(seed);
+        std::uniform_int_distribution<int> dist(0, 15);
+
+        for (unsigned int i = 0; i < 16; ++i) {
+            int random_number = dist(mt_rand);
+            ss << std::hex << random_number;
+        }
+        return ss.str();
     }
 
     size_t getFileSize(std::istream& strm) {
@@ -89,10 +103,13 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     std::istream& weightsStream = irModel.getWeights();
     size_t xmlSize = getFileSize(xmlStream);
     size_t weightsSize = getFileSize(weightsStream);
+    std::string fileName = generateRandomFileName();
+    std::string xmlFileName = fileName + ".xml";
+    std::string binFileName = fileName + ".bin";
     {
         std::vector<char> xml(xmlSize);
         xmlStream.read(xml.data(), xmlSize);
-        std::ofstream xmlFile("./model-dump.xml", std::ios::binary);
+        std::ofstream xmlFile(xmlFileName, std::ios::binary);
         if (xmlFile) {
             xmlFile.write(xml.data(), xmlSize);
             xmlFile.close();
@@ -100,15 +117,15 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
 
         std::vector<char> weights(weightsSize);
         weightsStream.read(weights.data(), weightsSize);
-        std::ofstream binFile("./model-dump.bin", std::ios::binary);
+        std::ofstream binFile(binFileName, std::ios::binary);
         if (binFile) {
             binFile.write(weights.data(), weightsSize);
             binFile.close();
         }
     }
     ov::Core core;
-    EXPECT_NO_THROW(model = core.read_model("./model-dump.xml"));
-    if (std::remove("model-dump.xml") != 0 || std::remove("model-dump.bin") != 0) {
+    EXPECT_NO_THROW(model = core.read_model(xmlFileName));
+    if (std::remove(xmlFileName) != 0 || std::remove(binFileName) != 0) {
         OPENVINO_THROW("Failed to remove serialized files");
     }
 }
@@ -123,6 +140,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                                             ::testing::ValuesIn(configs)),
                          DriverCompilerAdapterCustomStreamTestNPU::getTestCaseName);
 
-}  // namespace behavior
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::behavior
