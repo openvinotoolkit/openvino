@@ -11,19 +11,21 @@ namespace ov {
 namespace test {
 namespace snippets {
 
+#define STATIC_SHAPE(...) {{}, {{__VA_ARGS__}}}
 
 namespace {
-std::vector<std::vector<ov::PartialShape>> input_shapes{
-        {{2, 1, 3, 5}, {1, 3, 5, 3}},
-        {{3, 1, 32, 14}, {1, 2, 14, 32}},
-        {{1, 2, 37, 23}, {2, 1, 23, 37}},
-        {{1, 1, 37, 23}, {1, 2, 23, 33}},
-        {{1, 1, 32, 23}, {1, 1, 23, 68}},
-        {{1, 16, 384, 64}, {1, 16, 64, 384}},
-        {{1, 1, 100, 700}, {1, 1, 700, 100}},
-        {{1, 1, 100, 1024}, {1, 1, 1024, 100}},
-        {{1, 1, 100, 2500}, {1, 1, 2500, 100}},
-        {{1, 1, 100, 4500}, {1, 1, 4500, 100}},
+std::vector<std::vector<ov::test::InputShape>> input_shapes{
+        {STATIC_SHAPE(2, 1, 3, 5), STATIC_SHAPE(1, 3, 5, 3)},
+        {STATIC_SHAPE(3, 1, 32, 14), STATIC_SHAPE(1, 2, 14, 32)},
+        {STATIC_SHAPE(1, 2, 37, 23), STATIC_SHAPE(2, 1, 23, 37)},
+        {STATIC_SHAPE(1, 1, 37, 23), STATIC_SHAPE(1, 2, 23, 33)},
+
+        {STATIC_SHAPE(1, 1, 32, 23), STATIC_SHAPE(1, 1, 23, 68)},
+        {STATIC_SHAPE(1, 16, 384, 64), STATIC_SHAPE(1, 16, 64, 384)},
+        {STATIC_SHAPE(1, 1, 100, 700), STATIC_SHAPE(1, 1, 700, 100)},
+        {STATIC_SHAPE(1, 1, 100, 1024), STATIC_SHAPE(1, 1, 1024, 100)},
+        {STATIC_SHAPE(1, 1, 100, 2500), STATIC_SHAPE(1, 1, 2500, 100)},
+        {STATIC_SHAPE(1, 1, 100, 4500), STATIC_SHAPE(1, 1, 4500, 100)},
 };
 
 static inline std::vector<std::vector<element::Type>> quantized_precisions() {
@@ -63,6 +65,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
+
+std::vector<std::vector<ov::test::InputShape>> input_shapes_dynamic{
+        {
+            {PartialShape{-1, -1, -1, -1}, {{2, 1, 32, 64}, {2, 2, 10, 20}, {2, 2, 100, 80},
+                                                           {2, 2, 10, 20}, {2, 1, 32, 64}}},
+            {PartialShape{-1, -1, -1, -1}, {{1, 3, 64, 128}, {2, 2, 20, 30}, {2, 2, 80, 120},
+                                                           {2, 2, 20, 30}, {1, 3, 64, 128}}}
+        },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, MatMul,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(input_shapes_dynamic),
+                                 ::testing::ValuesIn(precisions(true)),
+                                 ::testing::Values(1), // MatMul
+                                 ::testing::Values(1), // Tokenized MatMul
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulFQ, MatMulFQ,
                          ::testing::Combine(
                                  ::testing::ValuesIn(input_shapes),
@@ -74,8 +95,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulFQ, MatMulFQ,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 1, 69, 49}},
-                                                   std::vector<ov::PartialShape>{{1, 2, 95, 1023}, {1, 2, 1023, 255}, {1, 2, 95, 255}}),
+                                 ::testing::Values(std::vector<ov::test::InputShape>{STATIC_SHAPE(1, 2, 69, 43),
+                                                                                     STATIC_SHAPE(2, 1, 43, 49),
+                                                                                     STATIC_SHAPE(1, 1, 69, 49)},
+                                                   std::vector<ov::test::InputShape>{STATIC_SHAPE(1, 2, 95, 1023),
+                                                                                     STATIC_SHAPE(1, 2, 1023, 255),
+                                                                                     STATIC_SHAPE(1, 2, 95, 255)}),
                                  ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
@@ -84,9 +109,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(std::vector<std::vector<ov::PartialShape>>{
-                                        std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 2, 1, 1}},
-                                        std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 2, 69, 49}}}),
+                                 ::testing::ValuesIn(std::vector<std::vector<ov::test::InputShape>>{
+                                        std::vector<ov::test::InputShape>{STATIC_SHAPE(1, 2, 69, 43),
+                                                                          STATIC_SHAPE(2, 1, 43, 49),
+                                                                          STATIC_SHAPE(1, 2, 1, 1)},
+                                        std::vector<ov::test::InputShape>{STATIC_SHAPE(1, 2, 69, 43),
+                                                                          STATIC_SHAPE(2, 1, 43, 49),
+                                                                          STATIC_SHAPE(1, 2, 69, 49)}}),
                                  ::testing::ValuesIn(quantized_precisions()),
                                  ::testing::Values(1), // Subgraph
                                  ::testing::Values(1), // Tokenized MatMul+Bias
@@ -95,7 +124,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulQuantized, MatMulQuantized,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}}),
+                                 ::testing::Values(std::vector<ov::test::InputShape>{STATIC_SHAPE(1, 16, 128, 64),
+                                                                                      STATIC_SHAPE(1, 16, 64, 128),
+                                                                                      STATIC_SHAPE(128, 64)}),
                                  ::testing::ValuesIn(quantized_precisions()),
                                  ::testing::Values(3), // Subgraph + Reshape + Subgraph
                                  ::testing::Values(2), // Tokenized [MatMul+FQ+Matmul] and [FQ]
@@ -104,7 +135,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulQuantized, MatMulQuantized,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulQuantizedSoftmax, MatMulQuantizedSoftmax,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 16, 128, 64}, {1, 16, 64, 128}, {128, 64}}),
+                                 ::testing::Values(std::vector<ov::test::InputShape>{STATIC_SHAPE(1, 16, 128, 64),
+                                                                                     STATIC_SHAPE(1, 16, 64, 128),
+                                                                                     STATIC_SHAPE(128, 64)}),
                                  ::testing::ValuesIn(quantized_precisions()),
                                  ::testing::Values(3), // Subgraph + Reshape + Subgraph
                                  ::testing::Values(2), // Tokenized [MatMul+FQ+Matmul] and [FQ]
