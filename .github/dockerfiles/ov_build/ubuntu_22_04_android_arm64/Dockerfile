@@ -66,11 +66,11 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
 
 # Install Android SDK, NDK and Tools
-#ENV ANDROID_TOOLS /android_tools
-#ENV ANDROID_NDK_HOME ${ANDROID_TOOLS}/ndk-bundle
-#RUN mkdir -p ${ANDROID_NDK_HOME}
-#ENV ANDROID_SDK_VERSION 29
-#
-#RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
-#    unzip commandlinetools-linux-7583922_latest.zip
-#RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"
+ENV ANDROID_TOOLS /deps/android_tools
+ENV ANDROID_NDK_HOME ${ANDROID_TOOLS}/ndk-bundle
+RUN mkdir -p ${ANDROID_NDK_HOME}
+ENV ANDROID_SDK_VERSION 29
+
+RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
+    unzip commandlinetools-linux-7583922_latest.zip
+RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"
