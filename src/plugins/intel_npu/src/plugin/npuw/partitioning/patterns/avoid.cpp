@@ -48,7 +48,12 @@ RMSNormPattern::RMSNormPattern(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [power = std::move(power),
+                     reduce = std::move(reduce),
+                     add = std::move(add),
+                     sqrt = std::move(sqrt),
+                     avoid_device = std::move(avoid_device),
+                     node_to_gptr = std::move(node_to_gptr)](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_power = node_to_output.at(power).get_node_shared_ptr();
         auto matched_reduce = node_to_output.at(reduce).get_node_shared_ptr();
@@ -62,7 +67,7 @@ RMSNormPattern::RMSNormPattern(const std::shared_ptr<ov::npuw::online::Snapshot>
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(sqrt, "TagRMSNorm"), callback);
+    register_matcher(std::make_shared<opp::Matcher>(sqrt, "TagRMSNorm"), std::move(callback));
 }
 
 }  // namespace patterns

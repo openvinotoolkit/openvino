@@ -66,7 +66,7 @@ void Snapshot::buildGraph() {
 
         auto nh = m_graph->create();
         auto group = std::make_shared<Group>(ov_node, gid, nh, m_graph, shared_from_this());
-        m_graph->meta(nh).set(group);
+        m_graph->meta(std::move(nh)).set(group);
         m_node_to_gr->emplace(std::make_pair(ov_node, group));
         ++gid;
     }
@@ -135,7 +135,7 @@ void Snapshot::collectLHF() {
             if (producers.size() == 1) {
                 auto prod = producers.at(0);
                 if (m_graph->contains(prod) && prod->dstNodes().size() == 1) {
-                    Group::GPtr prod_group = m_graph->meta(prod).get<Group::GPtr>();
+                    Group::GPtr prod_group = m_graph->meta(std::move(prod)).get<Group::GPtr>();
                     if (group->isFrozen() || prod_group->isFrozen()) {
                         continue;
                     }
@@ -234,7 +234,7 @@ void Snapshot::fuseInputs() {
             if (!m_graph->contains(prod_nh)) {  // should be there, but check just in case
                 continue;
             }
-            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
+            Group::GPtr group_prod = m_graph->meta(std::move(prod_nh)).get<Group::GPtr>();
             if (group_prod->isFrozen()) {
                 continue;
             }
@@ -246,13 +246,13 @@ void Snapshot::fuseInputs() {
                 if (!m_graph->contains(prod_nh_other)) {  // should be there, but check just in case
                     continue;
                 }
-                Group::GPtr group_prod_other = m_graph->meta(prod_nh_other).get<Group::GPtr>();
+                Group::GPtr group_prod_other = m_graph->meta(std::move(prod_nh_other)).get<Group::GPtr>();
                 if (group_prod_other->isFrozen()) {
                     continue;
                 }
                 if (!group_prod->hasCycle(group_prod_other) && !group_prod_other->hasCycle(group_prod)) {
                     // no cycles -> fusion allowed
-                    inputs_to_fuse.second = group_prod_other;
+                    inputs_to_fuse.second = std::move(group_prod_other);
                     break;
                 }
             }
@@ -335,7 +335,7 @@ void Snapshot::identifyUniques() {
         // thus check and use only the single initial layer
         auto ov_node = group->getInitialNode();
         auto metadesc = ov::npuw::online::util::getMetaDesc(ov_node);
-        auto avoids = group->avoidedTargets();
+        const auto& avoids = group->avoidedTargets();
         uniques[{metadesc, avoids}].insert(group);
     }
 
@@ -393,7 +393,7 @@ void Snapshot::mergeUniques() {
 
 std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet& repeating_groups) {
     auto this_rep_tag = (*(repeating_groups.begin()))->repeated();  // should be the same for each group inside
-    auto this_avoided = (*(repeating_groups.begin()))->avoidedTargets();
+    const auto& this_avoided = (*(repeating_groups.begin()))->avoidedTargets();
 
     std::unordered_map<std::vector<MetaInterconnect>, std::vector<std::pair<Group::GPtr, Group::GPtr>>> mics;
 
@@ -579,9 +579,9 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
 
     for (const auto& gptr : gset) {
         for (const auto& layer : gptr->getContent()) {  // FIXME: should it be a part of group's API instead?
-            auto metadesc = ov::npuw::online::util::getMetaDesc(layer);
-            auto archetype = gptr->getReptrack(layer);
-            matches[{metadesc, archetype}].insert(layer);
+            const auto& metadesc = ov::npuw::online::util::getMetaDesc(layer);
+            const auto& archetype = gptr->getReptrack(layer);
+            matches[{std::move(metadesc), std::move(archetype)}].insert(layer);
         }
     }
 
@@ -590,7 +590,7 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
     //    equal to the number of groups.
     // 2. Total count of archetypes must be equal to size of every individual group
     for (const auto& elem : matches) {
-        auto node_set = elem.second;
+        const auto& node_set = elem.second;
         if (node_set.size() != gset.size()) {
             OPENVINO_THROW("Online partitioning couldn't match properly "
                            "during repeated blocks pass (node archetype). "

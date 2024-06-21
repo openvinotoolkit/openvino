@@ -622,14 +622,14 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
     // Only single-size ZP is supported
     NPUW_ASSERT(zerop->get_size() == 1);
 
-    const auto from_shape = from->get_shape();
+    const auto& from_shape = from->get_shape();
     NPUW_ASSERT(from_shape.back() % 64 == 0);
 
     // 2-channel (Symmetric) and 3-channel (group-wise)
     // scale factors are supported. The scale/value loop
     // iteration is based on stotal, so should work for
     // both cases.
-    const auto scale_shape = scale->get_shape();
+    const auto& scale_shape = scale->get_shape();
     NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
     if (scale_shape.size() == 3) {
         NPUW_ASSERT(scale_shape[0] == from_shape[0]);
@@ -799,10 +799,10 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
     // Only single-size ZP is supported
     NPUW_ASSERT(zerop->get_size() == 1);
 
-    const auto from_shape = from->get_shape();
+    const auto& from_shape = from->get_shape();
     NPUW_ASSERT(from_shape.back() % 64 == 0);
 
-    const auto scale_shape = scale->get_shape();
+    const auto& scale_shape = scale->get_shape();
     NPUW_ASSERT(scale_shape.size() == 3);
     NPUW_ASSERT(scale_shape[0] == from_shape[0]);
     NPUW_ASSERT(scale_shape[2] == from_shape[2]);
@@ -1049,8 +1049,8 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     // Unsupported Case for scale tensor:
     //     - [s1, 1, s2, 1, s3]
 
-    const auto from_shape = from->get_shape();
-    const auto scale_shape = scale->get_shape();
+    const auto& from_shape = from->get_shape();
+    const auto& scale_shape = scale->get_shape();
 
     if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1 &&
         scale_shape[2] == from_shape[2]) {

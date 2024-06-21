@@ -133,7 +133,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
 
     LOG_INFO("Found " << repeated.size() << " different repeated block(s)");
 
-    return ov::npuw::Ensemble{get_float_attr(root, "gflops"), partitions, repeated};
+    return ov::npuw::Ensemble{get_float_attr(root, "gflops"), std::move(partitions), std::move(repeated)};
 }
 
 class Partitioner {
@@ -447,7 +447,7 @@ void Partitioner::identifySubgraphs() {
                     // so it is a cut-off point (see above, parameter_from()):
                     // - record connectivity between subgraphs.
                     // Exception: param is registered via slice
-                    const auto link_from = result_cache.at(src_node);
+                    const auto& link_from = result_cache.at(src_node);
                     const auto link_to = LinkPtrTo{this_group_idx, this_param};
                     subgraph_ptr_links[link_to] = link_from;
                 }
@@ -498,7 +498,7 @@ void Partitioner::identifySubgraphs() {
                     // at the npuw::CompiledModel level)
                     auto reader_node_ptr = r.get_node()->shared_from_this();
                     if (ov::op::util::is_output(reader_node_ptr)) {
-                        maybe_result = reader_node_ptr;
+                        maybe_result = std::move(reader_node_ptr);
                     } else if (group_nodes.find(reader_node_ptr) == group_nodes.end()) {
                         has_external_readers = true;
                     }
@@ -569,11 +569,11 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     for (auto&& part_sg : P.subgraphs) {
         if (!part_sg._repeated_id.empty()) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
-            auto fcid = func_pipeline_type == FunctionPipelineType::FOLD
-                            ? part_sg._repeated_id          // with folding, functions of the
-                                                            // same group have the same id
-                            : part_sg._repeated_id + pfix;  // with CWAI (which is not checked here)
-                                                            // every function gets its own id
+            const auto& fcid = func_pipeline_type == FunctionPipelineType::FOLD
+                                   ? part_sg._repeated_id          // with folding, functions of the
+                                                                   // same group have the same id
+                                   : part_sg._repeated_id + pfix;  // with CWAI (which is not checked here)
+                                                                   // every function gets its own id
             auto& u = all_functions[fcid];
             u.refs.push_back(std::ref(part_sg));
             u.mdls.push_back(
@@ -1279,7 +1279,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(prod_output.get_element_type(),
                                                                          prod_output.get_partial_shape());
                 input_desc.replace_source_output(new_param);  // (n)/1/i/a
-                function._model->add_parameters({new_param});
+                function._model->add_parameters({std::move(new_param)});
                 LOG_DEBUG("Register Parameter[" << new_param_idx << "] as input to " << iport.first << " / "
                                                 << iport.second);
                 function._param_mapping[iport] = new_param_idx;  // (n)/1/i/b
@@ -1603,7 +1603,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
         subgraph._parameters = model->get_parameters();
         subgraph._results = model->get_results();
         subgraph._sinks = model->get_sinks();
-        return Partitioning{std::vector<Subgraph>{subgraph}};
+        return Partitioning{std::vector<Subgraph>{std::move(subgraph)}};
     }
 
     // Handle funcall everywhere, if needed
@@ -1617,10 +1617,10 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 auto new_id = fcew.register_new();
                 LOG_INFO("Turning block " << gid << " into a function " << this_group.repeated_id << "...");
                 LOG_BLOCK();
-                this_group.repeated_id = new_id;
+                this_group.repeated_id = std::move(new_id);
                 ov::npuw::RepeatedBlock this_block;
                 for (auto&& layer : this_group.all_layers) {
-                    this_block.matches.push_back(ov::npuw::RepeatedBlock::MatchedLayers{layer});
+                    this_block.matches.push_back(ov::npuw::RepeatedBlock::MatchedLayers{std::move(layer)});
                 }
                 ens.repeated[this_group.repeated_id] = std::move(this_block);
                 LOG_INFO("Done.");

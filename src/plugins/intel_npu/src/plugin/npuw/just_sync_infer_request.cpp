@@ -128,9 +128,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         LOG_INFO("Produced by Subgraph[" << from_submodel.first << "] / " << from_submodel.second);
         auto funcall_result_iter = m_funcall_result.find(from_submodel);
 
-        auto tensor = funcall_result_iter != m_funcall_result.end()
-                          ? funcall_result_iter->second  // Function calls have their tensors allocated, so just use one
-                          : ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
+        const auto& tensor =
+            funcall_result_iter != m_funcall_result.end()
+                ? funcall_result_iter->second  // Function calls have their tensors allocated, so just use one
+                : ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
 
         m_output_tensors.push_back(tensor);
         m_port_to_tensor[port] = TensorStorage{tensor, true};
@@ -666,7 +667,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
 }
 
 void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
-    get_real_subrequest(idx)->set_callback(cb);
+    get_real_subrequest(idx)->set_callback(std::move(cb));
 }
 
 void ov::npuw::JustInferRequest::complete_subrequest(std::size_t idx) {
