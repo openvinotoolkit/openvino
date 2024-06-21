@@ -279,6 +279,13 @@ const std::vector<ov::test::utils::ReductionType>& reductionTypesInt32() {
     return reductionTypesInt32;
 }
 
+const std::vector<ov::test::utils::ReductionType>& reductionTypesNativeInt32() {
+    static const std::vector<ov::test::utils::ReductionType> reductionTypesNativeInt32 = {
+            ov::test::utils::ReductionType::Prod,
+    };
+    return reductionTypesNativeInt32;
+}
+
 }  // namespace Reduce
 }  // namespace test
 }  // namespace ov
