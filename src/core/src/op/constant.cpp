@@ -503,11 +503,6 @@ void Constant::update_identical_flags(bool is_checked, bool identical_value) con
 
 void Constant::validate_and_infer_types() {
     set_output_type(0, m_element_type, m_shape);
-    if (const auto tensor = get_tensor_view()) {
-        auto& output_tensor = get_output_tensor(0);
-        output_tensor.set_lower_value(tensor);
-        output_tensor.set_upper_value(tensor);
-    }
 }
 
 bool Constant::visit_attributes(AttributeVisitor& visitor) {
