@@ -460,7 +460,7 @@ class PrepareLibs(build_clib):
             # change the path where the include files are installed (runtime/include -> openvino/include)
             r"({_IMPORT_PREFIX})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
             # changed the lib version (2024.3.0 -> 2430)
-            r"(.so).(\d\d)(\d\d).(\d+).(\d+)": r"\1.\3\4\5"
+            r"(.so|.dylib).(\d\d)(\d\d).(\d+).(\d+)": r"\1.\3\4\5"
         }
 
         for src_dir in src_dirs:
