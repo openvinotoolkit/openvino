@@ -37,12 +37,7 @@ ov::OutputVector random_uniform_like(const ov::frontend::onnx::Node& node) {
 
     const uint64_t global_seed = 0;
 
-    return {std::make_shared<v8::RandomUniform>(target_shape,
-                                                low_const,
-                                                high_const,
-                                                target_type,
-                                                global_seed,
-                                                seed)};
+    return {std::make_shared<v8::RandomUniform>(target_shape, low_const, high_const, target_type, global_seed, seed)};
 }
 
 }  // namespace set_1

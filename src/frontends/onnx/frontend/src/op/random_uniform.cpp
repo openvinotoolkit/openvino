@@ -31,12 +31,8 @@ ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
     const auto target_type = common::get_ov_element_type(dtype);
     const uint64_t global_seed = 0;
 
-    return {std::make_shared<v8::RandomUniform>(target_shape_const,
-                                                low_const,
-                                                high_const,
-                                                target_type,
-                                                global_seed,
-                                                seed)};
+    return {
+        std::make_shared<v8::RandomUniform>(target_shape_const, low_const, high_const, target_type, global_seed, seed)};
 }
 
 }  // namespace set_1

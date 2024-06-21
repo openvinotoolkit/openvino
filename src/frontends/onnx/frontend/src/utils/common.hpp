@@ -181,7 +181,6 @@ inline uint32_t convert_float_seed(const float seed) {
     return *static_cast<const uint32_t*>(seed_ptr);
 }
 
-
 }  // namespace  common
 }  // namespace onnx
 }  // namespace frontend
