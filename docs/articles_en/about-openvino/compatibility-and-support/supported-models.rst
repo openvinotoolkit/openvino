@@ -1,10 +1,10 @@
 Supported Models
 ========================
 
-The following table lists a selection of models that are validated against various hardware
-devices. The list includes only models used in validation, other models from frameworks supported
-by OpenVINO may also work properly.
+The following table lists only the models that are validated against various hardware devices.
+Mind you, other models from frameworks supported by OpenVINO may also work properly.
 
+**500+ AI Models that run on Intel® Core Ultra™ Processors with OpenVINO™ toolkit:**
 
 .. raw:: html
 
@@ -17,12 +17,12 @@ by OpenVINO may also work properly.
    </label>
    <label class="column-container">
       GPU
-      <input type="checkbox" checked id="AI PC GPU" name="AI PC GPU" value="AI PC GPU" data-column="4" class="toggle-vis"/>
+      <input type="checkbox" id="AI PC GPU" name="AI PC GPU" value="AI PC GPU" data-column="4" class="toggle-vis"/>
       <label for="AI PC GPU" class="checkmark"></label>
    </label>
    <label class="column-container">
       NPU
-      <input type="checkbox" checked id="AI PC NPU" name="AI PC NPU" value="AI PC NPU" data-column="5" class="toggle-vis"/>
+      <input type="checkbox" id="AI PC NPU" name="AI PC NPU" value="AI PC NPU" data-column="5" class="toggle-vis"/>
       <label for="AI PC NPU" class="checkmark"></label>
    </label>
 
@@ -42,7 +42,7 @@ by OpenVINO may also work properly.
   finishes, the model receives the **passed** status (indicated by a check mark in the table).
   The models that are not tested are indicated by **empty** status cells.
 
-| The models come from different public model repositories, such as, OpenVINO Model Zoo,
+| The models come from different public model repositories, such as,
   ONNX Model Zoo, Pytorch Model Zoo, and HuggingFace.
 
 | In the precision column, the "optimum-intel default" label corresponds to FP32 for small
