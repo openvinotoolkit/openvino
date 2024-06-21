@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+FROM ubuntu:22.04
 
 USER root
 
@@ -14,7 +14,6 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 RUN apt-get update && \
     apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
-    add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
         curl \
@@ -26,25 +25,25 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
-        ccache \
+#        ccache \
         scons \
-        ninja-build \
-        build-essential \
+#        ninja-build \
+#        build-essential \
         # Python
         python3-dev \
         python3-venv \
         python3-distutils \
         # vcpkg 'python3' port dependencies
-        autoconf \
-        libtool \
-        autoconf-archive \
+#        autoconf \
+#        libtool \
+#        autoconf-archive \
         # vcpkg tree of dependencies require extra packages
-        pkgconf \
-        linux-libc-dev \
+#        pkgconf \
+#        linux-libc-dev \
         # Install jdk
-        default-jdk \
-        gcc-10 \
-        g++-10 \
+#        default-jdk \
+#        gcc-10 \
+#        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -65,7 +64,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
 
 # Install cmake, vcpkg requires 3.19 or later
-RUN python3 -m pip install cmake~=3.28.0
+# RUN python3 -m pip install cmake~=3.28.0
 
 # Install Android SDK, NDK and Tools
 #ENV ANDROID_TOOLS /android_tools
