@@ -14,12 +14,12 @@ namespace test {
 using ov::op::v0::Parameter;
 using testing::HasSubstr;
 
-class TypePropStringTensorUnpackTest : public TypePropOpTest<op::v15::StringTensorUnpack> {};
+class TypePropStringTensorUnpackTestSuite : public ::testing::TestWithParam<ov::PartialShape> {};
 
-TEST_F(TypePropStringTensorUnpackTest, 1D_static_input) {
-    const auto data_shape = PartialShape{3};
+TEST_P(TypePropStringTensorUnpackTestSuite, TypePropStringTensorUnpackTestSuite) {
+    const auto& data_shape = GetParam();
     const auto data = std::make_shared<Parameter>(element::string, data_shape);
-    const auto op = make_op(data);
+    const auto op = std::make_shared<op::v15::StringTensorUnpack>(data);
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
@@ -30,92 +30,23 @@ TEST_F(TypePropStringTensorUnpackTest, 1D_static_input) {
     EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{Dimension::dynamic()});
 }
 
-TEST_F(TypePropStringTensorUnpackTest, 2D_static_input) {
-    const auto data_shape = PartialShape{3, 9};
-    const auto data = std::make_shared<Parameter>(element::string, data_shape);
-    const auto op = make_op(data);
-    op->validate_and_infer_types();
+INSTANTIATE_TEST_SUITE_P(
+    TypePropStringTensorUnpackTestSuite,
+    TypePropStringTensorUnpackTestSuite,
+    ::testing::Values(
+        PartialShape{3},
+        PartialShape{3, 9},
+        PartialShape{3, 9, 1},
+        PartialShape::dynamic(),
+        PartialShape{{4, 5}, {5, 6}},
+        PartialShape{{4, 5}, 5},
+        PartialShape{3, Dimension::dynamic()}
+    )
+);
 
-    EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_element_type(2), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(1), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{Dimension::dynamic()});
-}
-
-TEST_F(TypePropStringTensorUnpackTest, 3D_static_input) {
-    const auto data_shape = PartialShape{3, 9, 1};
-    const auto data = std::make_shared<Parameter>(element::string, data_shape);
-    const auto op = make_op(data);
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_element_type(2), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(1), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{Dimension::dynamic()});
-}
-
-TEST_F(TypePropStringTensorUnpackTest, dynamic_data_rank) {
-    const auto data = std::make_shared<Parameter>(element::string, PartialShape::dynamic());
-    const auto op = make_op(data);
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_element_type(2), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
-    EXPECT_EQ(op->get_output_partial_shape(1), PartialShape::dynamic());
-    EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{Dimension::dynamic()});
-}
-
-TEST_F(TypePropStringTensorUnpackTest, interval_data_shape) {
-    const auto data_shape = PartialShape{{4, 5}, {5, 6}};
-    const auto data = std::make_shared<Parameter>(element::string, data_shape);
-    const auto op = make_op(data);
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_element_type(2), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(1), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{Dimension::dynamic()});
-}
-
-TEST_F(TypePropStringTensorUnpackTest, single_interval_shape) {
-    const auto data_shape = PartialShape{{4, 5}, 5};
-    const auto data = std::make_shared<Parameter>(element::string, data_shape);
-    const auto op = make_op(data);
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_element_type(2), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(1), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{Dimension::dynamic()});
-}
-
-TEST_F(TypePropStringTensorUnpackTest, single_dynamic_dim) {
-    const auto data_shape = PartialShape{3, Dimension::dynamic()};
-    const auto data = std::make_shared<Parameter>(element::string, data_shape);
-    const auto op = make_op(data);
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_element_type(2), element::u8);
-    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(1), data_shape);
-    EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{Dimension::dynamic()});
-}
-
-TEST_F(TypePropStringTensorUnpackTest, incorrect_data_type) {
+TEST(type_prop, StringTensorUnpack_incorrect_data_type) {
     const auto data = std::make_shared<Parameter>(element::u8, PartialShape{3, 6});
-    OV_EXPECT_THROW(std::ignore = make_op(data),
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::StringTensorUnpack>(data),
                     NodeValidationFailure,
                     HasSubstr("StringTensorUnpack expects a tensor with string elements"));
 }

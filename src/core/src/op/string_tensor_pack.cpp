@@ -32,7 +32,7 @@ void StringTensorPack::validate_and_infer_types() {
     const auto& ends_element_type = get_input_element_type(1);
     const bool is_valid_index_type =
         (begins_element_type == element::i32 || begins_element_type == element::i64) &&
-        ends_element_type == ends_element_type;
+        begins_element_type == ends_element_type;
     NODE_VALIDATION_CHECK(
         this,
         is_valid_index_type,
@@ -45,7 +45,7 @@ void StringTensorPack::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(
         this,
         data_element_type == ov::element::u8,
-        "StringTensorUnpack expects a tensor with ov::element::u8 elements. Got: ",
+        "StringTensorPack expects a tensor with ov::element::u8 elements. Got: ",
         data_element_type);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
