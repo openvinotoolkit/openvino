@@ -51,7 +51,7 @@ RMSNormPattern::RMSNormPattern(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto callback = [power = std::move(power),
                      reduce = std::move(reduce),
                      add = std::move(add),
-                     sqrt = std::move(sqrt),
+                     sqrt,
                      avoid_device = std::move(avoid_device),
                      node_to_gptr = std::move(node_to_gptr)](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
