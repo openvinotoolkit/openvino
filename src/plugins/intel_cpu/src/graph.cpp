@@ -962,19 +962,18 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
     auto end = std::chrono::steady_clock::now();
-    std::cout << "Classic solver time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "[us]" << std::endl;
+    std::cout << "Classic solver time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " [us]" << std::endl;
     std::cout << "Classic solver memory: " << total_size << " bytes" << std::endl;
+    std::cout << "Box count: " << definedBoxes.size() << std::endl;
 
     GreedyMemorySolver testMemSolver(definedBoxes);
 
     start = std::chrono::steady_clock::now();
     size_t test_total_size = testMemSolver.solve()  * alignment;
     end = std::chrono::steady_clock::now();
-    std::cout << "New solver time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "[us]" << std::endl;
+    std::cout << "New solver time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " [us]" << std::endl;
     std::cout << "New solver memory: " << test_total_size << " bytes" << std::endl;
-    std::cout << "New optimal memory: " << testMemSolver.get_optimal_size() * alignment << " bytes" << std::endl;
-
-    //total_size = test_total_size;
+    std::cout << "Optimal memory: " << testMemSolver.get_optimal_size() * alignment << " bytes" << std::endl;
 
     memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(ov::element::i8, Shape(VectorDims{total_size})));
 
