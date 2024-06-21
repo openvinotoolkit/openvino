@@ -20,7 +20,6 @@ knowledge-graphs-conve
 language-quantize-bert
 magika-content-type-recognition
 mobileclip-video-search
-model-tools
 music-generation
 named-entity-recognition
 nano-llava-multimodal-chatbot
@@ -51,7 +50,6 @@ tensorflow-hub
 tensorflow-instance-segmentation-to-openvino
 tensorflow-object-detection-to-openvino
 tensorflow-quantization-aware-training
-text-prediction
 tflite-selfie-segmentation
 tflite-to-openvino
 tiny-sd-image-generation
@@ -59,7 +57,7 @@ vision-background-removal
 vision-monodepth
 vision-paddlegan-anime
 vision-paddlegan-superresolution
-whisper-convert
+whisper-subtitles-generation
 yolov8-instance-segmentation
 yolov8-keypoint-detection
 yolov8-obb

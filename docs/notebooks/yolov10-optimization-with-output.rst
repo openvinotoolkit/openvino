@@ -91,8 +91,7 @@ Prerequisites
     
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
     
-    %pip install -Uq pip
-    %pip install -q "git+https://github.com/openvinotoolkit/nncf.git"
+    %pip install -q "nncf>=2.11.0"
     %pip install --pre -Uq openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q "git+https://github.com/THU-MIG/yolov10.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "torch>=2.1" "torchvision>=0.16" tqdm opencv-python "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu

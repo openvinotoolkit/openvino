@@ -93,6 +93,12 @@ Prerequisites
 
 .. parsed-literal::
 
+    README.md:   0%|          | 0.00/3.47k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
 
 
@@ -111,18 +117,6 @@ Prerequisites
 
 .. parsed-literal::
 
-    README.md:   0%|          | 0.00/3.47k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     config.json:   0%|          | 0.00/1.28k [00:00<?, ?B/s]
 
 
@@ -135,19 +129,13 @@ Prerequisites
 
 .. parsed-literal::
 
+    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     generation_config.json:   0%|          | 0.00/172 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    special_tokens_map.json:   0%|          | 0.00/510 [00:00<?, ?B/s]
 
 
 
@@ -165,7 +153,19 @@ Prerequisites
 
 .. parsed-literal::
 
+    special_tokens_map.json:   0%|          | 0.00/510 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
 
 
 
@@ -200,10 +200,10 @@ previous step.
 
 .. parsed-literal::
 
-    2024-06-06 00:55:00.994609: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-06 00:55:01.029081: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-19 13:21:30.264248: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-19 13:21:30.299571: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-06 00:55:01.640957: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-19 13:21:30.903182: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
@@ -252,8 +252,7 @@ Run PyTorch Model Inference
 
 .. parsed-literal::
 
-    The image showcases a charming, white lamb, with its body painted in shades of pink and yellow. The lamb's fur appears fluffy and fluffy, with its ears and legs slightly darker than the rest of its body. The lamb's face is particularly cute, with its black nose and small black eyes adding a touch of contrast to its white fur. The lamb's face is lit up with a radiant smile, making it seem even more endearing. The lamb's eyes are a captivating shade of brown, adding a touch of warmth to its overall appearance.
-    The lamb is positioned in the middle of the image, and its body fills a large part
+    The image features a white lama, a cute kitten, and a fire. The lama is standing on a blue carpet and is in the center of the image. It has a small white ear and a pink nose. The kitten is also white and appears to be holding the fire. The fire is orange and has a red flame, and it is so bright that it's almost illuminating the scene. The kitten is standing on the carpet, and the fire is on the ground, creating a contrast between the bright orange fire and the blue carpet.
 
 
 Convert and Optimize model

@@ -49,6 +49,9 @@ Table of contents:
 
    -  `LLM conversion and Weights Compression using
       Optimum-CLI <#llm-conversion-and-weights-compression-using-optimum-cli>`__
+
+      -  `Weight compression with AWQ <#weight-compression-with-awq>`__
+
    -  `Convert embedding model using
       Optimum-CLI <#convert-embedding-model-using-optimum-cli>`__
    -  `Convert rerank model using
@@ -94,7 +97,7 @@ Install required dependencies
     "datasets"\
     "accelerate"\
     "gradio"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes" "faiss-cpu" "sentence_transformers" "langchain>=0.2.0" "langchain-community>=0.2.0" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pypdf" 
+    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes" "faiss-cpu" "sentence_transformers" "langchain>=0.2.0" "langchain-community>=0.2.0" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pypdf" 
 
 
 .. parsed-literal::
@@ -129,7 +132,7 @@ Install required dependencies
                 shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
-            with open("llm_config.py", "w") as f:
+            with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
     elif not os.path.islink(config_dst_path):
         print("LLM config will be updated")
@@ -137,7 +140,7 @@ Install required dependencies
             shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
-            with open("llm_config.py", "w") as f:
+            with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
     
     
@@ -152,6 +155,12 @@ Install required dependencies
         content = io.BytesIO(r.content)
         with open("text_example_cn.pdf", "wb") as f:
             f.write(content.read())
+
+
+.. parsed-literal::
+
+    LLM config will be updated
+
 
 Select model for inference
 --------------------------
@@ -259,7 +268,7 @@ quality.
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', index=9, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', 'g…
+    Dropdown(description='Model:', index=4, options=('qwen1.5-7b-chat', 'qwen-7b-chat', 'chatglm3-6b', 'baichuan2-…
 
 
 
@@ -271,7 +280,7 @@ quality.
 
 .. parsed-literal::
 
-    Selected LLM model neural-chat-7b-v3-1
+    Selected LLM model qwen1.5-1.8b-chat
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
@@ -371,6 +380,39 @@ sacrifice of the model size and inference latency.
 
     Checkbox(value=False, description='Prepare FP16 model')
 
+
+Weight compression with AWQ
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+`Activation-aware Weight
+Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
+that tunes model weights for more accurate INT4 compression. It slightly
+improves generation quality of compressed LLMs, but requires significant
+additional time for tuning weights on a calibration dataset. We use
+``wikitext-2-raw-v1/train`` subset of the
+`Wikitext <https://huggingface.co/datasets/Salesforce/wikitext>`__
+dataset for calibration.
+
+Below you can enable AWQ to be additionally applied during model export
+with INT4 precision.
+
+   **Note**: Applying AWQ requires significant memory and time.
+
+..
+
+   **Note**: It is possible that there will be no matching patterns in
+   the model to apply AWQ, in such case it will be skipped.
+
+.. code:: ipython3
+
+    enable_awq = widgets.Checkbox(
+        value=False,
+        description="Enable AWQ",
+        disabled=not prepare_int4_model.value,
+    )
+    display(enable_awq)
 
 .. code:: ipython3
 
@@ -481,6 +523,8 @@ sacrifice of the model size and inference latency.
         int4_compression_args = " --group-size {} --ratio {}".format(model_compression_params["group_size"], model_compression_params["ratio"])
         if model_compression_params["sym"]:
             int4_compression_args += " --sym"
+        if enable_awq.value:
+            int4_compression_args += " --awq --dataset wikitext2 --num-samples 128"
         export_command_base += int4_compression_args
         if remote_code:
             export_command_base += " --trust-remote-code"
@@ -516,7 +560,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 5069.90 MB
+    Size of model with INT4 compressed weights is 1343.75 MB
 
 
 Convert embedding model using Optimum-CLI
@@ -545,7 +589,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Dropdown(description='Embedding Model:', options=('bge-small-en-v1.5', 'bge-large-en-v1.5'), value='bge-small-…
+    Dropdown(description='Embedding Model:', options=('bge-small-zh-v1.5', 'bge-large-zh-v1.5'), value='bge-small-…
 
 
 
@@ -557,7 +601,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Selected bge-small-en-v1.5 model
+    Selected bge-small-zh-v1.5 model
 
 
 OpenVINO embedding model and tokenizer can be exported by
@@ -639,8 +683,6 @@ Select device for embedding model inference
     core = ov.Core()
     
     support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
     
     embedding_device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
@@ -669,6 +711,26 @@ Select device for embedding model inference
 
     Embedding model will be loaded to CPU device for text embedding
 
+
+Optimize the BGE embedding model’s parameter precision when loading
+model to NPU device.
+
+.. code:: ipython3
+
+    USING_NPU = embedding_device.value == "NPU"
+    
+    npu_embedding_dir = embedding_model_id.value + "-npu"
+    npu_embedding_path = Path(npu_embedding_dir) / "openvino_model.xml"
+    if USING_NPU and not Path(npu_embedding_dir).exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        with open("notebook_utils.py", "w") as f:
+            f.write(r.text)
+        import notebook_utils as utils
+    
+        shutil.copytree(embedding_model_id.value, npu_embedding_dir)
+        utils.optimize_bge_embedding(Path(embedding_model_id.value) / "openvino_model.xml", npu_embedding_path)
 
 Select device for rerank model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -760,11 +822,13 @@ of LangChain.
 
     from langchain_community.embeddings import OpenVINOBgeEmbeddings
     
-    embedding_model_name = embedding_model_id.value
-    embedding_model_kwargs = {"device": embedding_device.value}
+    embedding_model_name = npu_embedding_dir if USING_NPU else embedding_model_id.value
+    batch_size = 1 if USING_NPU else 4
+    embedding_model_kwargs = {"device": embedding_device.value, "compile": False}
     encode_kwargs = {
         "mean_pooling": embedding_model_configuration["mean_pooling"],
         "normalize_embeddings": embedding_model_configuration["normalize_embeddings"],
+        "batch_size": batch_size,
     }
     
     embedding = OpenVINOBgeEmbeddings(
@@ -772,6 +836,9 @@ of LangChain.
         model_kwargs=embedding_model_kwargs,
         encode_kwargs=encode_kwargs,
     )
+    if USING_NPU:
+        embedding.ov_model.reshape(1, 512)
+    embedding.ov_model.compile()
     
     text = "This is a test document."
     embedding_result = embedding.embed_query(text)
@@ -893,6 +960,9 @@ inference framework.
     print(f"Loading model from {model_dir}")
     
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+    
+    if "GPU" in llm_device.value and "qwen2-7b-instruct" in llm_model_id.value:
+        ov_config["GPU_ENABLE_SDPA_OPTIMIZATION"] = "NO"
     
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".

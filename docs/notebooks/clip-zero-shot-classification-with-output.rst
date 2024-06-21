@@ -474,7 +474,7 @@ model.
         """
         Prepares a vision-text dataset for quantization.
         """
-        dataset = load_dataset("conceptual_captions")
+        dataset = load_dataset("google-research-datasets/conceptual_captions", trust_remote_code=True)
         train_dataset = dataset["train"].shuffle(seed=42)
         dataloader = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn, batch_size=1)
         calibration_data = prepare_calibration_data(dataloader, opt_init_steps)
@@ -739,6 +739,7 @@ up of the dynamic quantized models.
 
 Interactive demo
 ----------------
+
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification.
