@@ -41,7 +41,6 @@ RUN apt update && \
         autoconf-archive \
         # vcpkg tree of dependencies require extra packages
         pkgconf \
-        pkg-config \
         linux-libc-dev \
         # Install jdk
         default-jdk \
