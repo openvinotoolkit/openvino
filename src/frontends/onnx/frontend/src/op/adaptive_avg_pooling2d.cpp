@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/adaptive_avg_pooling2d.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/adaptive_avg_pool.hpp"
 
@@ -22,7 +21,10 @@ ov::OutputVector adaptive_avg_pooling2d(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v8::AdaptiveAvgPool>(inputs[0], inputs[1])};
 }
-
+static bool registered = register_translator("adaptive_avg_pool2d",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             adaptive_avg_pooling2d,
+                                             "org.pytorch.aten");
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx
