@@ -6,6 +6,7 @@ import os
 import sys
 from functools import wraps
 from typing import Callable, Any
+from pathlib import Path
 
 
 def _add_openvino_libs_to_search_path() -> None:
@@ -36,6 +37,22 @@ def _add_openvino_libs_to_search_path() -> None:
             if os.path.isdir(lib_path):
                 # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
                 os.add_dll_directory(os.path.abspath(lib_path))
+
+
+def get_cmake_path() -> str:
+    """Searches for the directory containing CMake files within the package install directory.
+
+    :return: The path to the directory containing CMake files, if found. Otherwise, returns empty string.
+    :rtype: str
+    """
+    package_path = Path(__file__).parent
+    cmake_file = "OpenVINOConfig.cmake"
+
+    for dirpath, _, filenames in os.walk(package_path):
+        if cmake_file in filenames:
+            return dirpath
+
+    return ""
 
 
 def deprecated(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[..., Any]:
