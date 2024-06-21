@@ -24,7 +24,8 @@ static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<op:
     std::string primitive_name = layer_type_name_ID(op);
 
     auto prim = cldnn::dynamic_quantize(primitive_name,
-                                inputs[0]);
+                                inputs[0],
+                                op->get_group_size());
     prim.output_data_types = get_output_data_types(op);
     prim.num_outputs = op->get_output_size();
     p.add_primitive(*op, prim);
