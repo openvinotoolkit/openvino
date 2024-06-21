@@ -400,6 +400,13 @@ public:
      */
     void alloc_buffer_on_visit_attributes(bool val);
 
+    /// @brief Get view on constant data as tensor.
+    /// @return OV::Tensor with constant data.
+    const Tensor get_tensor_view() const;
+
+    /// @return Constant's strides in bytes.
+    const Strides& get_strides() const;
+
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
@@ -765,6 +772,7 @@ private:
 
     element::Type m_element_type{};
     Shape m_shape{};
+    Strides m_byte_strides{};
     std::shared_ptr<ov::AlignedBuffer> m_data{};
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
