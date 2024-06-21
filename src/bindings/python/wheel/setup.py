@@ -458,7 +458,7 @@ class PrepareLibs(build_clib):
 
         replacements = {
             # change the path where the libraries are installed (runtime/lib/intel64/Release -> openvino/libs)
-            r"({_IMPORT_PREFIX})\/(.*)\/(.*.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3"
+            r"({_IMPORT_PREFIX})\/(.*)\/(.*.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
             # change the path where the include files are installed (runtime/include -> openvino/include)
             r"({_IMPORT_PREFIX})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
             # changed the lib version (2024.3.0 -> 2430)
