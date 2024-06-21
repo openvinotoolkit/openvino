@@ -24,8 +24,8 @@ const params = [
 ];
 
 test('Test for number of arguments in tensor', () => {
-  assert.throws( () => new ov.Tensor(ov.element.f32),
-    {message: 'Invalid number of arguments for Tensor constructor.'});
+  assert.throws( () => new ov.Tensor(ov.element.f32, shape, data, params),
+    {message: /Invalid number of arguments for Tensor constructor./});
 });
 
 describe('Tensor without data parameters', () => {
@@ -42,6 +42,32 @@ describe('Tensor data', () => {
       const tensor = new ov.Tensor(type, shape, data);
       assert.deepStrictEqual(tensor.data, data);
     });
+  });
+
+  it('Create string tensor', () => {
+    const str_arr = ['text', 'more text', 'even more text'];
+    const tensor = new ov.Tensor(str_arr);
+    assert.deepStrictEqual(tensor.data, str_arr);
+  });
+
+  it('Create string tensor', () => {
+    const str_arr = ['text', 'more text', 'even more text'];
+    const tensor = new ov.Tensor(str_arr);
+    assert.deepStrictEqual(tensor.data, str_arr);
+  });
+
+  it('String tensor - passed array does not contain string elements', () => {
+    const str_arr = ['text', true];
+    assert.throws(() => { new ov.Tensor(str_arr);},
+      /The array passed to create string tensor must contain only strings./
+    );
+  });
+
+  it('Set string tensor data', () => {
+    const str_arr = ['H', 'e', 'l', 'l', 'o'];
+    const tensor = new ov.Tensor(ov.element.string, [1, 1, 1, 5]);
+    tensor.data = str_arr;
+    assert.deepStrictEqual(tensor.data, str_arr);
   });
 
   it('Test tensor getData()', () => {
@@ -67,12 +93,12 @@ describe('Tensor data', () => {
     );
   });
 
-  it('Test tensor.data setter - not TypedArray arg throws', () => {
+  it('Test tensor.data setter', () => {
     const testString = 'test';
     const tensor = new ov.Tensor(ov.element.f64, [1, 2]);
     assert.throws(() => {
       tensor.data = testString;},
-    /Passed argument must be a TypedArray./
+    /Passed argument must be TypedArray, or Array if the tensor type is string./
     );
   });
 
@@ -103,13 +129,13 @@ describe('Tensor data', () => {
   it('Third argument of a tensor cannot be an ArrayBuffer', () => {
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape, new ArrayBuffer(1234)),
-      {message: 'Third argument of a tensor must be of type TypedArray.'});
+      {message: /Third argument of a tensor must be TypedArray./});
   });
 
   it('Third argument of a tensor cannot be an array object', () => {
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape, [1, 2, 3, 4]),
-      {message: 'Third argument of a tensor must be of type TypedArray.'});
+      {message: /Third argument of a tensor must be TypedArray./});
   });
 });
 
@@ -178,7 +204,6 @@ describe('Tensor element type', () => {
   });
 });
 
-
 describe('Tensor getSize', () => {
 
   it('getSize returns the correct total number of elements', () => {
@@ -222,4 +247,3 @@ describe('Tensor getSize for various shapes', () => {
     assert.strictEqual(tensor.getSize(), expectedSize);
   });
 });
-
