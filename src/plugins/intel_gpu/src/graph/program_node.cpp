@@ -1508,8 +1508,7 @@ void program_node::create_onednn_primitive_attributes(
             auto in_origin = in;
             auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
                 if (is_type<fully_connected>()) {
-                    std::unique_ptr<const kernel_impl_params> impl_params = get_kernel_impl_params();
-                    auto prim = impl_params->typed_desc<fully_connected>();
+                    auto prim = this->as<fully_connected>().get_primitive();
                     if (prim->input_size == 3) {
                         cldnn::onednn::combine_bf_with_first_spatial_dim(in);
                     }
