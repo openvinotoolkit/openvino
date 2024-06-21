@@ -146,31 +146,23 @@ def test_get_result_index_invalid():
     assert model.get_result_index(invalid_output) == -1
 
 
-@pytest.mark.parametrize("input_shape, expected_outputs_length, expected_result_index", [
-    (PartialShape([1]), 1, 0)
+@pytest.mark.parametrize("shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index", [
+    ([PartialShape([1])], ["relu"], "TestModel", 1, False, 0),
+    ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
 ])
-def test_get_result_index_with_result(input_shape, expected_outputs_length, expected_result_index):
-    param = ops.parameter(input_shape, dtype=np.float32, name="data")
-    relu = ops.relu(param, name="relu")
-    model = Model(relu, [param], "TestModel")
+def test_result_index(shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index):
+    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i+1}") for i, shape in enumerate(shapes)]
+    relus = [ops.relu(param, name=relu_name) for param, relu_name in zip(params, relu_names)]
     
-    assert len(model.outputs) == expected_outputs_length
-    assert model.get_result_index(model.get_results()[0]) == expected_result_index
-
-@pytest.mark.parametrize("shape1, shape2, expected_outputs_length, expected_result_index", [
-    (PartialShape([1]), PartialShape([4]), 1, -1)
-])
-def test_get_result_index_invalid_with_result(shape1, shape2, expected_outputs_length, expected_result_index):
-    param1 = ops.parameter(shape1, dtype=np.float32, name="data1")
-    relu1 = ops.relu(param1, name="relu1")
-    model1 = Model(relu1, [param1], "TestModel1")
-    
-    param2 = ops.parameter(shape2, dtype=np.float32, name="data2")
-    relu2 = ops.relu(param2, name="relu2")
-    invalid_result_node = Result(relu2.outputs()[0])
-    
-    assert len(model1.outputs) == expected_outputs_length
-    assert model1.get_result_index(invalid_result_node) == expected_result_index
+    if is_invalid:
+        model = Model(relus[0], [params[0]], model_name)
+        invalid_result_node = Result(relus[1].outputs()[0])
+        assert len(model.outputs) == expected_outputs_length
+        assert model.get_result_index(invalid_result_node) == expected_result_index
+    else:
+        model = Model(relus[0], [params[0]], model_name)
+        assert len(model.outputs) == expected_outputs_length
+        assert model.get_result_index(model.get_results()[0]) == expected_result_index
 
 
 
