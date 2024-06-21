@@ -292,7 +292,7 @@ def fetchAppOutput(cfg, commit):
                 {"src": cfg["appPath"], "dst": "appPath"},
                 {"src": sys.executable, "dst": "py"}
                 ]:
-            appCmd = multistepStrFormat(
+            appCmd = CfgManager.multistepStrFormat(
                 appCmd,
                 item["dst"],
                 item["src"]
@@ -684,7 +684,7 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
         dstPos = formatJSON(
             dstPos,
             lambda content:
-            multistepStrFormat(
+            CfgManager.multistepStrFormat(
                 content,
                 rule["placeholder"],
                 getMapValueByShortHash(srcPos, commit)\
@@ -702,12 +702,6 @@ def getMapValueByShortHash(map: dict, commit: str):
     raise Exception("No {} in {}".format(
         commit, map.keys()
     ))
-
-def multistepStrFormat(input: str, placeholder: str, substitution: str):
-    return input.replace(
-        '{}{}{}'.format('{', placeholder, '}'),
-        substitution
-    )
 
 def deepMapUpdate(content: map, path: list, substitution):
     if not path:
