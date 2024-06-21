@@ -159,6 +159,10 @@ jobs:
 
       - name: CMake - configure
         run: |
+          
+          export ANDROID_TOOLS=/__w/openvino/openvino/android_tools
+          export ANDROID_NDK_HOME=/__w/openvino/openvino/android_tools/ndk-bundle
+          
           cmake \
             -G '${{ env.CMAKE_GENERATOR }}' \
             -DENABLE_INTEL_GPU=ON \
