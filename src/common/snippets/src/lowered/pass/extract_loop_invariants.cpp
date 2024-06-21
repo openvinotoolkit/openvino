@@ -152,7 +152,6 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
         if (inner_loop_input_ports.size() == 0 && inner_loop_info->get_output_ports().size() == 0) {
             // If the loop becomes empty (inner_loop_input_ports is ref) after extraction, remove it from loop_manager
             loop_manager->remove_loop_info(inner_loop_id);
-            continue_to_extract = false;
             break;
         }
         // no more extractable expr in this loop after go through all potential_extractable_exprs, done for this loop.
