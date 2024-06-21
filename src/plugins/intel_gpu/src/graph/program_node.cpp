@@ -1491,7 +1491,7 @@ void program_node::create_onednn_primitive_attributes(
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
                 if (alg == dnnl::algorithm::undef)
                     OPENVINO_THROW("Activations that are undef algorithms must be converted to other activations before "
-                                    "pushing to post-op.");
+                                   "pushing to post-op.");
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
@@ -1575,7 +1575,7 @@ void program_node::create_onednn_primitive_attributes(
                             dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                        in_scale_desc.get_dims(), in_scale_desc.get_data_type());
+                                                       in_scale_desc.get_dims(), in_scale_desc.get_data_type());
                         }
 
                         if (q_param->_need_pre_shift) {
@@ -1587,7 +1587,7 @@ void program_node::create_onednn_primitive_attributes(
                                 dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                            in_shift_desc.get_dims(), in_shift_desc.get_data_type());
+                                                           in_shift_desc.get_dims(), in_shift_desc.get_data_type());
                             }
                         }
                     }
@@ -1619,7 +1619,7 @@ void program_node::create_onednn_primitive_attributes(
                                 dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                            out_scale_desc.get_dims(), out_scale_desc.get_data_type());
+                                                           out_scale_desc.get_dims(), out_scale_desc.get_data_type());
                             }
                         }
 
@@ -1632,7 +1632,7 @@ void program_node::create_onednn_primitive_attributes(
                                 dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                            out_shift_desc.get_dims(), out_shift_desc.get_data_type());
+                                                           out_shift_desc.get_dims(), out_shift_desc.get_data_type());
                             }
                         }
                     }
@@ -1661,10 +1661,10 @@ void program_node::create_onednn_primitive_attributes(
 
                         post_ops.append_binary(clamp_max, in_lo_desc);
                         update_onednn_post_op_list(onednn_post_op_type::binary_max, dep_idx - 2, dnnl::memory::format_tag::ab, true,
-                                                     in_lo_desc.get_dims(), in_lo_desc.get_data_type());
+                                                   in_lo_desc.get_dims(), in_lo_desc.get_data_type());
                         post_ops.append_binary(clamp_min, in_hi_desc);
                         update_onednn_post_op_list(onednn_post_op_type::binary_min, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                     in_hi_desc.get_dims(), in_hi_desc.get_data_type());
+                                                   in_hi_desc.get_dims(), in_hi_desc.get_data_type());
                     }
                 }
 
@@ -1682,7 +1682,7 @@ void program_node::create_onednn_primitive_attributes(
                             dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                        in_scale_desc.get_dims(), in_scale_desc.get_data_type());
+                                                       in_scale_desc.get_dims(), in_scale_desc.get_data_type());
                         }
 
                         if (q_param->_need_pre_shift) {
@@ -1694,7 +1694,7 @@ void program_node::create_onednn_primitive_attributes(
                                 dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                            in_shift_desc.get_dims(), in_shift_desc.get_data_type());
+                                                           in_shift_desc.get_dims(), in_shift_desc.get_data_type());
                             }
                         }
                     }
@@ -1722,7 +1722,7 @@ void program_node::create_onednn_primitive_attributes(
                                 dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                            out_scale_desc.get_dims(), out_scale_desc.get_data_type());
+                                                           out_scale_desc.get_dims(), out_scale_desc.get_data_type());
                             }
                         }
 
@@ -1735,7 +1735,7 @@ void program_node::create_onednn_primitive_attributes(
                                 dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true,
-                                                            out_shift_desc.get_dims(), out_shift_desc.get_data_type());
+                                                           out_shift_desc.get_dims(), out_shift_desc.get_data_type());
                             }
                         }
                     }

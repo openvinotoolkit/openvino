@@ -576,9 +576,4 @@ struct typed_program_node : public typed_program_node_base<PType> {
     program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
 };
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-
-
-#endif
-
 }  // namespace cldnn
