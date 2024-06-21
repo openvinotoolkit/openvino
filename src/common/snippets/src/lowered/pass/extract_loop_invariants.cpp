@@ -168,21 +168,15 @@ bool ExtractLoopInvariants::run(LinearIR& linear_ir, lowered::LinearIR::constExp
 
     const auto& loop_depth = linear_ir.get_config().m_loop_depth;
     std::vector<std::set<size_t>> loop_ids_need_extract(loop_depth);
-    // move invariant expr to top(outside) of current loop
-    const auto& loop_manager = linear_ir.get_loop_manager();
-    for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto& expr = *expr_it;
-        const auto& current_loop_ids = expr->get_loop_ids();
-        for (size_t i = 0; i < current_loop_ids.size(); i++) {
-            const auto& loop_info = loop_manager->get_loop_info(current_loop_ids[i]);
-            const auto& loop_dim = loop_info->get_dim_idx();
-            if (loop_dim != LoopInfo::UNDEFINED_DIM_IDX) {
-                OPENVINO_ASSERT(loop_dim < loop_depth, "dim_idx of loop should be smaller than loop_depth");
-                loop_ids_need_extract[loop_dim].insert(current_loop_ids[i]);
-            }
+    const auto& loop_map = linear_ir.get_loop_manager()->get_map();
+    for (const auto& loop : loop_map) {
+        const auto& loop_dim = loop.second->get_dim_idx();
+        if (loop_dim != LoopInfo::UNDEFINED_DIM_IDX) {
+            OPENVINO_ASSERT(loop_dim < loop_depth, "dim_idx of loop should be smaller than loop_depth");
+            loop_ids_need_extract[loop_dim].insert(loop.first);
         }
     }
-
+    // move invariant expr to top(outside) of current loop
     for (size_t d = 0; d < loop_depth; d++) {
         const auto& loops_in_this_depth = loop_ids_need_extract[d];
         for (const auto& loop_id : loops_in_this_depth) {
