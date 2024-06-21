@@ -98,17 +98,23 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
 
     auto reshape_pattern = wrap_type<opset1::Reshape>({reshape_productor_pattern, any_input()});
     auto transpose_pattern = wrap_type<opset6::Transpose>({reshape_pattern, any_input()});
+    auto reshape2_pattern = wrap_type<opset1::Reshape>({reshape_pattern, any_input()});
+
+    auto reshape_or_transpose_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape2_pattern, transpose_pattern});
 
     PRINT << "Matched 1:==========\n\n";
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         PRINT << "Matched 2:==========\n\n";
         const auto& pattern_map = m.get_pattern_value_map();
-        PRINT << "Matched 2.0:==========\n";
+        
         // Heuristics: there should be only 3 gathers to split
-        const auto& transpose = pattern_map.at(transpose_pattern).get_node_shared_ptr();
-        auto children = transpose->get_output_target_inputs(0);
+        auto root_node = m.get_match_root();
+        bool have_transpose = as_type<opset1::Transpose>(root_node.get()) != nullptr;
+        PRINT << "Matched 2.0 have_transpose = " << have_transpose << " :==========\n\n";
+        auto children = root_node->get_output_target_inputs(0);
         if (children.size() != 3u) {
-            PRINT << "Matched 2: EXIT: children.size() != 3, children.size() =" << children.size() << std::endl;
+            PRINT << "Matched 2: EXIT: children.size() =" << children.size() << ", but expected = 3" << std::endl;
+            std::cout << children.begin()->get_node()->shared_from_this()->get_type_name() << std::endl;
             return false;
         }
 
@@ -210,21 +216,22 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
             }
             auto reshape0 = register_new_node<v1::Reshape>(reshape_productor, new_shape, true);
             PRINT << "Matched 4.4: replace " << i << "=============\n";
+            ov::NodeVector from_nodes = {gathers[i],
+                                         weights.get_node_shared_ptr(),
+                                         matmul};
+            if (have_bias) {
+                from_nodes.emplace_back(add);
+                from_nodes.emplace_back(pattern_map.at(bias_pattern).get_node_shared_ptr());
+            }
+            if (have_transpose)
+                from_nodes.emplace_back(root_node);
+
+            copy_runtime_info(from_nodes, get_new_nodes());
             auto transpose_order = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
             auto transpose0 = register_new_node<v1::Transpose>(reshape0, transpose_order);
             transpose0->set_friendly_name(gathers[i]->get_friendly_name());
-            if (have_bias) {
-                copy_runtime_info({gathers[i],
-                                   weights.get_node_shared_ptr(),
-                                   pattern_map.at(bias_pattern).get_node_shared_ptr(),
-                                   matmul,
-                                   add,
-                                   transpose},
-                                  get_new_nodes());
-            } else {
-                copy_runtime_info({gathers[i], weights.get_node_shared_ptr(), matmul, transpose}, get_new_nodes());
-            }
 
+            PRINT << "Matched 4.5: replace transpose =============\n";
             replace_node(gathers[i], transpose0);  // replace gatherX by transposeX
 
             PRINT << "Matched 4: replace " << i << " done =========\n\n";
@@ -234,7 +241,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(transpose_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(reshape_or_transpose_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
