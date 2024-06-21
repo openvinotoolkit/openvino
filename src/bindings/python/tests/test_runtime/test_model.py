@@ -166,22 +166,20 @@ def test_result_index(shapes, relu_names, model_name, expected_outputs_length, i
 
 
 
-def test_parameter_index():
-    input_shape = PartialShape([1])
-    param = ops.parameter(input_shape, dtype=np.float32, name="data")
-    relu = ops.relu(param, name="relu")
-    model = Model(relu, [param], "TestModel")
-    assert model.get_parameter_index(param) == 0
-
-
-def test_parameter_index_invalid():
-    shape1 = PartialShape([1])
-    param1 = ops.parameter(shape1, dtype=np.float32, name="data1")
+@pytest.mark.parametrize("shapes, param_names, model_name, expected_index, is_invalid", [
+    ([PartialShape([1]), None], ["data", None], "TestModel", 0, False),
+    ([PartialShape([1]), PartialShape([2])], ["data1", "data2"], "TestModel", -1, True)
+])
+def test_parameter_index(shapes, param_names, model_name, expected_index, is_invalid):
+    param1 = ops.parameter(shapes[0], dtype=np.float32, name=param_names[0])
     relu = ops.relu(param1, name="relu")
-    model = Model(relu, [param1], "TestModel")
-    shape2 = PartialShape([2])
-    param2 = ops.parameter(shape2, dtype=np.float32, name="data2")
-    assert model.get_parameter_index(param2) == -1
+    model = Model(relu, [param1], model_name)
+
+    if is_invalid:
+        param2 = ops.parameter(shapes[1], dtype=np.float32, name=param_names[1])
+        assert model.get_parameter_index(param2) == expected_index
+    else:
+        assert model.get_parameter_index(param1) == expected_index
 
 
 def test_replace_parameter():
