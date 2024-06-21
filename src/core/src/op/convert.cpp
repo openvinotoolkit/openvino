@@ -30,7 +30,7 @@ namespace convert {
 struct Evaluate : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
 
-    // convert from any (except F16, bf16, f32, NF4) to any except NF4
+    // convert from any (except F16, bf16, f32, NF4, f8e8m0) to any except NF4
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN != element::f16 && ET_IN != element::bf16 && ET_IN != element::f32 &&
@@ -225,12 +225,16 @@ bool Convert::has_evaluate() const {
         return (from == element::nf4) && (to == element::f16 || to == element::f32 || to == element::nf4);
     };
 
-    const auto can_convert_f4e2m1 = [](const element::Type& et) {
-        return et == element::f16 || et == element::bf16 || et == element::f32 || et == element::f4e2m1;
+    const auto can_convert_f16_bf16_f32 = [](const element::Type& et) {
+        return et == element::f16 || et == element::bf16 || et == element::f32;
     };
 
-    const auto can_convert_f8e8m0 = [](const element::Type& et) {
-        return et == element::f16 || et == element::bf16 || et == element::f32 || et == element::f8e8m0;
+    const auto can_convert_f4e2m1 = [&](const element::Type& et) {
+        return can_convert_f16_bf16_f32(et) || et == element::f4e2m1;
+    };
+
+    const auto can_convert_f8e8m0 = [&](const element::Type& et) {
+        return can_convert_f16_bf16_f32(et) || et == element::f8e8m0;
     };
 
     const auto is_valid_type = [](const element::Type& et) -> bool {
