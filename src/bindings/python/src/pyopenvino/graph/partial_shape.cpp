@@ -43,6 +43,36 @@ void regclass_graph_PartialShape(py::module m) {
                        :return: A PartialShape with the given rank (or undefined rank if not provided), and all dimensions are dynamic.
                     )");
 
+    // Added code
+    shape.def(py::init([](const py::list& lst) {
+        std::vector<ov::Dimension> vec(lst.size());
+        for (int i = 0; i < lst.size(); ++i) {
+            vec[i] = lst[i].cast<int64_t>(); 
+        }       
+        return ov::PartialShape(vec);
+    }))
+    .def(py::init([](const py::tuple& tpl) {
+        std::vector<ov::Dimension> vec(tpl.size());
+        for (int i = 0; i < tpl.size(); ++i) {
+            vec[i] = tpl[i].cast<int64_t>(); 
+        }
+        return ov::PartialShape(vec);
+    }))
+    .def("__eq__", [](const ov::PartialShape& self, const py::list& lst) {
+        if (self.rank().is_static() && self.rank().get_length() != lst.size()) return false;
+        for (size_t i = 0; i < self.rank().get_length(); ++i) {
+            if (!self[i].is_dynamic() && self[i].get_length() != lst[i].cast<int64_t>()) return false;
+        }
+        return true;
+    })
+    .def("__eq__", [](const ov::PartialShape& self, const py::tuple& tpl) {
+        if (self.rank().is_static() && self.rank().get_length() != tpl.size()) return false;
+        for (size_t i = 0; i < self.rank().get_length(); ++i) {
+            if (!self[i].is_dynamic() && self[i].get_length() != tpl[i].cast<int64_t>()) return false;
+        }
+        return true;
+    });
+
     shape.def_static(
         "dynamic",
         [](int64_t rank) {
