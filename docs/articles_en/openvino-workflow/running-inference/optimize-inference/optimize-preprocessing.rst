@@ -35,7 +35,7 @@ Consider the following standard example: deep learning model expects input with 
 * For each pixel, subtract mean values and divide by scale factor.
 
 
-.. image:: ../../../_static/images/preprocess_not_fit.png
+.. image:: ../../../assets/images/preprocess_not_fit.png
 
 
 Even though it is relatively easy to implement all these steps in the application code manually, before actual inference, it is also possible with the use of Preprocessing API. Advantages of using the API are:
@@ -66,14 +66,14 @@ The ``ov::preprocess::PrePostProcessor`` class allows specifying preprocessing a
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
          :language: python
          :fragment: ov:preprocess:create
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:create
 
@@ -89,14 +89,14 @@ To address particular input of a model/preprocessor, use the ``ov::preprocess::P
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
          :language: python
          :fragment: ov:preprocess:tensor
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:tensor
 
@@ -122,14 +122,14 @@ Model input already has information about precision and shape. Preprocessing API
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
          :language: python
          :fragment: ov:preprocess:model
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:model
 
@@ -147,14 +147,14 @@ Now, the sequence of preprocessing steps can be defined:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
          :language: python
          :fragment: ov:preprocess:steps
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:steps
 
@@ -179,14 +179,14 @@ Once the preprocessing steps have been finished the model can be finally built. 
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.py
          :language: python
          :fragment: ov:preprocess:build
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:build
 

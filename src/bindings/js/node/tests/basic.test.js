@@ -77,7 +77,7 @@ describe('Core.compileModelSync()', () => {
   it('compileModelSync(model, device, config) throws when config is a string', () => {
     assert.throws(
       () => core.compileModelSync(model, 'CPU', 'string'),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      "Argument #3 must be an Object."
     );
   });
 
@@ -124,7 +124,7 @@ describe('Core.compileModel()', () => {
   it('compileModel(model, device, config) throws when config isn\'t an object', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', 'string').then(),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      "Argument #3 must be an Object."
     );
   });
 

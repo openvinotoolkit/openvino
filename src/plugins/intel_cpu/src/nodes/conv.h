@@ -157,7 +157,7 @@ private:
     const size_t X_AXIS = 0;
     const size_t Y_AXIS = 1;
 
-    static const bool isBrgConvAvailable();
+    const bool isBrgConvAvailable();
     std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;
@@ -170,7 +170,7 @@ private:
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
     ov::element::Type sumPrc = ov::element::undefined;
-
+    bool useJitPlanar = false;
     // TODO: migrate on convolution_auto algorithm for x64
 #if defined(OPENVINO_ARCH_X86_64)
     const dnnl::algorithm baseConvAlgorithm = dnnl::algorithm::convolution_direct;

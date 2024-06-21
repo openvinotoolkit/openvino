@@ -8,7 +8,7 @@ Tokenizers convert the input text into a sequence of tokens with corresponding I
 the model can understand and process it during inference. The transformation of a sequence of numbers into a
 string is called detokenization.
 
-.. image:: ../../_static/images/tokenization.svg
+.. image:: ../../assets/images/tokenization.svg
    :align: center
 
 There are two important points in the tokenizer-model relation:

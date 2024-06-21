@@ -54,7 +54,6 @@ pipeline.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
-
 - `Prerequisites <#prerequisites>`__
 - `Convert and prepare Face IdentityNet <#convert-and-prepare-face-identitynet>`__
 
@@ -65,9 +64,9 @@ Table of contents:
 - `Convert InstantID pipeline components to OpenVINO Intermediate Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
 
   - `ControlNet <#controlnet>`__
-  - `unet <#unet>`__
+  - `Unet <#unet>`__
   - `VAE Decoder <#vae-decoder>`__
-  - `text encoders <#text-encoders>`__
+  - `Text Encoders <#text-encoders>`__
   - `Image Projection Model <#image-projection-model>`__
 
 - `Prepare OpenVINO InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__
@@ -75,7 +74,7 @@ Table of contents:
 
   - `Select inference device for InstantID <#select-inference-device-for-instantid>`__
   - `Create pipeline <#create-pipeline>`__
-  - `run inference <#run-inference>`__
+  - `Run inference <#run-inference>`__
 
 - `Quantization <#quantization>`__
 
@@ -499,9 +498,6 @@ Now, let’s see models inference result
 
 Select Inference Device for Face Recognition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
- ### Select Inference Device for
-Face Recognition
 
 .. code:: ipython3
 
@@ -1693,7 +1689,6 @@ Select inference device for InstantID
 Create pipeline
 ~~~~~~~~~~~~~~~
 
- ### Create pipeline
 
 .. code:: ipython3
 
@@ -1712,7 +1707,6 @@ Create pipeline
 Run inference
 ~~~~~~~~~~~~~
 
- ### Run inference
 
 .. code:: ipython3
 
@@ -1774,8 +1768,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(value=True, description="Quantization")
-
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 

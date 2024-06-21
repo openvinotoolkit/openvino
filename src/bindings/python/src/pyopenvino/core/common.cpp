@@ -29,6 +29,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
         {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
+        {ov::element::f4e2m1, py::dtype("uint8")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -37,8 +38,8 @@ py::dtype get_dtype(const ov::element::Type& ov_type) {
     return ov_type_to_dtype().at(ov_type);
 }
 
-const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
-    static const std::map<std::string, ov::element::Type> dtype_to_ov_type_mapping = {
+std::map<int, ov::element::Type> init_num_to_ov_type() {
+    static const std::map<std::string, ov::element::Type> str_to_type_mapping = {
         {"float16", ov::element::f16},
         {"float32", ov::element::f32},
         {"float64", ov::element::f64},
@@ -56,6 +57,18 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
         {"bytes", ov::element::string},
         {"str", ov::element::string},
     };
+
+    std::map<int, ov::element::Type> int_to_type_mapping;
+
+    for (const auto& e : str_to_type_mapping) {
+        int_to_type_mapping[py::dtype(e.first).num()] = e.second;
+    }
+
+    return int_to_type_mapping;
+}
+
+const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
+    static const std::map<int, ov::element::Type> dtype_to_ov_type_mapping = init_num_to_ov_type();
     return dtype_to_ov_type_mapping;
 }
 
@@ -66,7 +79,7 @@ ov::element::Type get_ov_type(const py::array& array) {
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
     }
-    return dtype_to_ov_type().at(py::str(array.dtype()));
+    return dtype_num_to_ov_type().at(array.dtype().num());
 }
 
 ov::element::Type get_ov_type(py::dtype& dtype) {
@@ -76,7 +89,7 @@ ov::element::Type get_ov_type(py::dtype& dtype) {
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
     }
-    return dtype_to_ov_type().at(py::str(dtype));
+    return dtype_num_to_ov_type().at(dtype.num());
 }
 
 };  // namespace type_helpers
@@ -375,7 +388,7 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     } else if (element_type == ov::element::i64) {
         return _get_byte_strides<int64_t>(shape);
     } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
-               element_type == ov::element::nf4) {
+               element_type == ov::element::nf4 || element_type == ov::element::f4e2m1) {
         // WA for u1, u4, nf4, all returned as packed uint8 arrays
         return _get_byte_strides<uint8_t>(shape);
     } else if (element_type == ov::element::u16) {
@@ -421,10 +434,14 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
     if (array_helpers::is_contiguous(array)) {
-        auto memory = std::make_shared<ov::SharedBuffer<py::array>>(
+        auto buffer = new ov::SharedBuffer<py::array>(
             static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
+        std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
+            py::gil_scoped_acquire acquire;
+            delete buffer;
+        });
         return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
@@ -602,7 +619,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        auto t = request.m_request.get_tensor(out);
+        auto t = request.m_request->get_tensor(out);
         if (t.get_element_type() == ov::element::string) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);

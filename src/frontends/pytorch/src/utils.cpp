@@ -18,9 +18,9 @@ namespace frontend {
 namespace pytorch {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
-    auto inputs = context.inputs();
-    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs, "Got less inputs than expected");
-    for (auto i = max_inputs; i < inputs.size(); i++) {
+    auto num_inputs = context.get_input_size();
+    FRONT_END_OP_CONVERSION_CHECK(num_inputs >= min_inputs, "Got less inputs than expected");
+    for (auto i = max_inputs; i < num_inputs; i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
 }
@@ -213,8 +213,9 @@ namespace {
 std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext& context,
                                                                const ov::OutputVector& inputs,
                                                                size_t num_outputs,
-                                                               const std::string& exception_message) {
-    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs);
+                                                               const std::string& exception_message,
+                                                               bool skip_subgraphs = false) {
+    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs, false, skip_subgraphs);
     context.mark_node(fw_node);
     auto attrs = fw_node->get_attrs();
     std::string message(exception_message);
@@ -229,7 +230,8 @@ std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext
 }  // namespace
 
 OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception) {
-    auto fw_node = create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
+    auto fw_node =
+        create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception, true);
     return fw_node->outputs();
 }
 

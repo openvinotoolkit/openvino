@@ -10,6 +10,11 @@ except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.cli_parser import get_model_name_from_args
+from openvino.tools.ovc.utils import import_openvino_tokenizers
+
+# TODO 131000: temporal workaround to patch OpenVINO Core and frontends with tokenizers extensions
+# make OVC tool to convert models requiring openvino-tokenizers extensions
+import_openvino_tokenizers()
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import save_model

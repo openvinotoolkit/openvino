@@ -15,7 +15,7 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     const auto& input = params.inputs[0];
     if (input.is_dynamic()) {
-        DimensionAccessHelper dims(input);
+        DimensionAccessHelperJit dims(input);
         jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f()})));
     } else {
         const auto x_size = input.LogicalSize() / input.Batch().v;

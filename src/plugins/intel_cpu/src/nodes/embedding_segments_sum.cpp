@@ -27,12 +27,12 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ov::
 
 EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, PortMask(NUM_SEGMENTS_IDX))),
-      EmbeddingBagSum(op, 4lu, 1lu, 5lu, 4lu) {
+      EmbeddingBag(op, 4lu, 1lu, 5lu, 4lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-
+    _reduction = Reduction::SUM;
     std::string errPrefix = std::string("EmbeddingSegmentsSum layer with name '") + _layerName + "' ";
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
         OPENVINO_THROW(errPrefix, "has indices data with invalid rank: ", getInputShapeAtPort(INDICES_IDX).getRank());
@@ -45,7 +45,7 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
+    std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     static const std::set<ov::element::Type> supportedPrecisions =
             {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
 
@@ -75,7 +75,7 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
 }
 
 void EmbeddingSegmentsSum::prepareParams() {
-    EmbeddingBagSum::prepareParams(getParentEdgeAt(EMB_TABLE_IDX)->getMemory().getStaticDims());
+    EmbeddingBag::prepareParams(getParentEdgeAt(EMB_TABLE_IDX)->getMemory().getStaticDims());
 }
 
 void EmbeddingSegmentsSum::initFromInputs() {
@@ -149,7 +149,7 @@ void EmbeddingSegmentsSum::execute(dnnl::stream strm) {
         weightsData = getSrcDataAtPortAs<const uint8_t>(PER_SAMPLE_WEIGHTS_IDX);
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
+    EmbeddingBag::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
                                        inputMem.getStaticDims(), getDstMemoryAtPort(0));
 }
 

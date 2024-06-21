@@ -54,16 +54,21 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
+    import os
+    
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+    
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "torch>=2.1"\
     "datasets"\
     "accelerate"\
-    "openvino-nightly"\
     "gradio"\
-    "transformers>=4.38.1" "langchain>=0.1.14" "wikipedia"
+    "transformers>=4.38.1" "langchain>=0.2.0" "langchain-community>=0.2.0" "wikipedia"
 
 Create a tools
 --------------
@@ -233,8 +238,13 @@ Select inference device for LLM
     import ipywidgets as widgets
     
     core = ov.Core()
+    
+    support_devices = core.available_devices
+    if "NPU" in support_devices:
+        support_devices.remove("NPU")
+    
     device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
+        options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,

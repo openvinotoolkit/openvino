@@ -7,7 +7,9 @@ from it. In this tutorial we consider how to convert and run Stable
 Video Diffusion using OpenVINO. We will use
 `stable-video-diffusion-img2video-xt <https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt>`__
 model as example. Additionally, to speedup video generation process we
-apply `AnimateLCM <https://arxiv.org/abs/2402.00769>`__ LoRA weights.
+apply `AnimateLCM <https://arxiv.org/abs/2402.00769>`__ LoRA weights and
+run optimization with
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 
 Table of contents:
 ------------------
@@ -26,6 +28,15 @@ Table of contents:
 
    -  `Select Inference Device <#select-inference-device>`__
 
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Hybrid Model Quantization <#run-hybrid-model-quantization>`__
+   -  `Run Weight Compression <#run-weight-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Compare inference time of the FP16 and INT8
+      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+
 -  `Interactive Demo <#interactive-demo>`__
 
 Prerequisites
@@ -36,14 +47,12 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" "diffusers>=0.25" "peft==0.6.2" "transformers" "openvino>=2024.1.0" Pillow opencv-python tqdm  "gradio>=4.19" safetensors --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q datasets "nncf>=2.10.0"
 
 
 .. parsed-literal::
 
-    WARNING: Skipping openvino-dev as it is not installed.
-    WARNING: Skipping openvino as it is not installed.
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: torchsde 0.2.5 has a non-standard dependency specifier numpy>=1.19.*; python_version >= "3.7". pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of torchsde or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -133,34 +142,6 @@ apply Consistency Distilled AnimateLCM weights.
     image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/svd/rocket.png?download=true")
     image = image.resize((512, 256))
 
-
-.. parsed-literal::
-
-    2024-04-22 20:18:36.486796: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-22 20:18:36.488610: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-22 20:18:36.524343: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-22 20:18:36.525356: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-22 20:18:37.277389: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-      warn("The installed version of bitsandbytes was compiled without GPU support. "
-
-
-.. parsed-literal::
-
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
-
-
-.. parsed-literal::
-
-    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
-        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.1.2+cpu)
-        Python  3.8.18 (you have 3.8.10)
-      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
-      Memory-efficient attention, SwiGLU, sparse and more won't be available.
-      Set XFORMERS_MORE_DETAILS=1 for more details
-
-
 Convert Model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
@@ -221,8 +202,6 @@ U-net
 
 .. code:: ipython3
 
-    import openvino as ov
-    
     if not UNET_PATH.exists():
         unet_inputs = {
             "sample": torch.ones([2, 2, 8, 32, 32]),
@@ -391,7 +370,7 @@ frames.
             self.vae_encoder = vae_encoder
             self.vae_decoder = vae_decoder
             self.image_encoder = image_encoder
-            self.unet = unet
+            self.register_to_config(unet=unet)
             self.scheduler = scheduler
             self.feature_extractor = feature_extractor
             self.vae_scale_factor = 2 ** (4 - 1)
@@ -919,7 +898,7 @@ Select Inference Device
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
 
 
 
@@ -1006,8 +985,505 @@ parameters into pipeline.
 
 
 
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``OVStableVideoDiffusionPipeline`` structure, the diffusion
+model takes up significant portion of the overall pipeline execution
+time. Now we will show you how to optimize the UNet part using
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to reduce
+computation cost and speed up the pipeline. Quantizing the rest of the
+pipeline does not significantly improve inference performance but can
+lead to a substantial degradation of accuracy. That’s why we use only
+weight compression for the ``vae encoder`` and ``vae decoder`` to reduce
+the memory footprint.
+
+For the UNet model we apply quantization in hybrid mode which means that
+we quantize: (1) weights of MatMul and Embedding layers and (2)
+activations of other layers. The steps are the following:
+
+1. Create a calibration dataset for quantization.
+2. Collect operations with weights.
+3. Run ``nncf.compress_model()`` to compress only the model weights.
+4. Run ``nncf.quantize()`` on the compressed model with weighted
+   operations ignored by providing ``ignored_scope`` parameter.
+5. Save the ``INT8`` model using ``openvino.save_model()`` function.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    to_quantize = widgets.Checkbox(
+        value=True,
+        description="Quantization",
+        disabled=False,
+    )
+    
+    to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+.. code:: ipython3
+
+    # Fetch `skip_kernel_extension` module
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+    )
+    open("skip_kernel_extension.py", "w").write(r.text)
+    
+    ov_int8_pipeline = None
+    OV_INT8_UNET_PATH = MODEL_DIR / "unet_int8.xml"
+    OV_INT8_VAE_ENCODER_PATH = MODEL_DIR / "vae_encoder_int8.xml"
+    OV_INT8_VAE_DECODER_PATH = MODEL_DIR / "vae_decoder_int8.xml"
+    
+    %load_ext skip_kernel_extension
+
+Prepare calibration dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use a portion of
+`fusing/instructpix2pix-1000-samples <https://huggingface.co/datasets/fusing/instructpix2pix-1000-samples>`__
+dataset from Hugging Face as calibration data. To collect intermediate
+model inputs for UNet optimization we should customize
+``CompiledModel``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from typing import Any
+    
+    import datasets
+    import numpy as np
+    from tqdm.notebook import tqdm
+    from IPython.utils import io
+    
+    
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model: ov.CompiledModel, data_cache: List[Any] = None, keep_prob: float = 0.5):
+            super().__init__(compiled_model)
+            self.data_cache = data_cache if data_cache is not None else []
+            self.keep_prob = keep_prob
+    
+        def __call__(self, *args, **kwargs):
+            if np.random.rand() <= self.keep_prob:
+                self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+    
+    
+    def collect_calibration_data(ov_pipe, calibration_dataset_size: int, num_inference_steps: int = 50) -> List[Dict]:
+        original_unet = ov_pipe.unet
+        calibration_data = []
+        ov_pipe.unet = CompiledModelDecorator(original_unet, calibration_data, keep_prob=1)
+    
+        dataset = datasets.load_dataset("fusing/instructpix2pix-1000-samples", split="train", streaming=False).shuffle(seed=42)
+        # Run inference for data collection
+        pbar = tqdm(total=calibration_dataset_size)
+        for batch in dataset:
+            image = batch["input_image"]
+    
+            with io.capture_output() as captured:
+                ov_pipe(
+                    image,
+                    num_inference_steps=4,
+                    motion_bucket_id=60,
+                    num_frames=8,
+                    height=256,
+                    width=256,
+                    generator=torch.manual_seed(12342),
+                )
+            pbar.update(len(calibration_data) - pbar.n)
+            if len(calibration_data) >= calibration_dataset_size:
+                break
+    
+        ov_pipe.unet = original_unet
+        return calibration_data[:calibration_dataset_size]
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    if not OV_INT8_UNET_PATH.exists():
+        subset_size = 200
+        calibration_data = collect_calibration_data(ov_pipe, calibration_dataset_size=subset_size)
+
+Run Hybrid Model Quantization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from collections import deque
+    
+    def get_operation_const_op(operation, const_port_id: int):
+        node = operation.input_value(const_port_id).get_node()
+        queue = deque([node])
+        constant_node = None
+        allowed_propagation_types_list = ["Convert", "FakeQuantize", "Reshape"]
+    
+        while len(queue) != 0:
+            curr_node = queue.popleft()
+            if curr_node.get_type_name() == "Constant":
+                constant_node = curr_node
+                break
+            if len(curr_node.inputs()) == 0:
+                break
+            if curr_node.get_type_name() in allowed_propagation_types_list:
+                queue.append(curr_node.input_value(0).get_node())
+    
+        return constant_node
+    
+    
+    def is_embedding(node) -> bool:
+        allowed_types_list = ["f16", "f32", "f64"]
+        const_port_id = 0
+        input_tensor = node.input_value(const_port_id)
+        if input_tensor.get_element_type().get_type_name() in allowed_types_list:
+            const_node = get_operation_const_op(node, const_port_id)
+            if const_node is not None:
+                return True
+    
+        return False
+    
+    
+    def collect_ops_with_weights(model):
+        ops_with_weights = []
+        for op in model.get_ops():
+            if op.get_type_name() == "MatMul":
+                constant_node_0 = get_operation_const_op(op, const_port_id=0)
+                constant_node_1 = get_operation_const_op(op, const_port_id=1)
+                if constant_node_0 or constant_node_1:
+                    ops_with_weights.append(op.get_friendly_name())
+            if op.get_type_name() == "Gather" and is_embedding(op):
+                ops_with_weights.append(op.get_friendly_name())
+    
+        return ops_with_weights
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    import logging
+    from nncf.quantization.advanced_parameters import AdvancedSmoothQuantParameters
+    
+    nncf.set_log_level(logging.ERROR)
+    
+    if not OV_INT8_UNET_PATH.exists():
+        diffusion_model = core.read_model(UNET_PATH)
+        unet_ignored_scope = collect_ops_with_weights(diffusion_model)
+        compressed_diffusion_model = nncf.compress_weights(diffusion_model, ignored_scope=nncf.IgnoredScope(types=['Convolution']))
+        quantized_diffusion_model = nncf.quantize(
+            model=diffusion_model,
+            calibration_dataset=nncf.Dataset(calibration_data),
+            subset_size=subset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+            # We additionally ignore the first convolution to improve the quality of generations
+            ignored_scope=nncf.IgnoredScope(names=unet_ignored_scope + ["__module.conv_in/aten::_convolution/Convolution"]),
+            advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alphas=AdvancedSmoothQuantParameters(matmul=-1))
+        )
+        ov.save_model(quantized_diffusion_model, OV_INT8_UNET_PATH)
+
+Run Weight Compression
+~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+Quantizing of the ``vae encoder`` and ``vae decoder`` does not
+significantly improve inference performance but can lead to a
+substantial degradation of accuracy. Only weight compression will be
+applied for footprint reduction.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    nncf.set_log_level(logging.INFO)
+    
+    if not OV_INT8_VAE_ENCODER_PATH.exists():
+        text_encoder_model = core.read_model(VAE_ENCODER_PATH)
+        compressed_text_encoder_model = nncf.compress_weights(text_encoder_model, mode=nncf.CompressWeightsMode.INT4_SYM, group_size=64)
+        ov.save_model(compressed_text_encoder_model, OV_INT8_VAE_ENCODER_PATH)
+    
+    if not OV_INT8_VAE_DECODER_PATH.exists():
+        decoder_model = core.read_model(VAE_DECODER_PATH)
+        compressed_decoder_model = nncf.compress_weights(decoder_model, mode=nncf.CompressWeightsMode.INT4_SYM, group_size=64)
+        ov.save_model(compressed_decoder_model, OV_INT8_VAE_DECODER_PATH)
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 98% (29 / 32)               │ 0% (0 / 3)                             │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 2% (3 / 32)                 │ 100% (3 / 3)                           │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 99% (65 / 68)               │ 0% (0 / 3)                             │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 1% (3 / 68)                 │ 100% (3 / 3)                           │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+Let’s compare the video generated by the original and optimized
+pipelines.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    ov_int8_vae_encoder = core.compile_model(OV_INT8_VAE_ENCODER_PATH, device.value)
+    ov_int8_unet = core.compile_model(OV_INT8_UNET_PATH, device.value)
+    ov_int8_decoder = core.compile_model(OV_INT8_VAE_DECODER_PATH, device.value)
+    
+    ov_int8_pipeline = OVStableVideoDiffusionPipeline(
+        ov_int8_vae_encoder, image_encoder, ov_int8_unet, ov_int8_decoder, scheduler, feature_extractor
+    )
+    
+    int8_frames = ov_int8_pipeline(
+        image,
+        num_inference_steps=4,
+        motion_bucket_id=60,
+        num_frames=8,
+        height=320,
+        width=512,
+        generator=torch.manual_seed(12342),
+    ).frames[0]
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/4 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    /home/ltalamanova/env_ci/lib/python3.8/site-packages/diffusers/configuration_utils.py:139: FutureWarning: Accessing config attribute `unet` directly via 'OVStableVideoDiffusionPipeline' object attribute is deprecated. Please access 'unet' over 'OVStableVideoDiffusionPipeline's config object instead, e.g. 'scheduler.config.unet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
+
+.. parsed-literal::
+
+    denoise currently
+    tensor(128.5637)
+    denoise currently
+    tensor(13.6784)
+    denoise currently
+    tensor(0.4969)
+    denoise currently
+    tensor(0.)
+
+
+.. code:: ipython3
+
+    int8_out_path = Path("generated_int8.mp4")
+    
+    export_to_video(frames, str(out_path), fps=7)
+    int8_frames[0].save(
+        "generated_int8.gif",
+        save_all=True,
+        append_images=int8_frames[1:],
+        optimize=False,
+        duration=120,
+        loop=0,
+    )
+    HTML('<img src="generated_int8.gif">')
+
+
+
+
+.. raw:: html
+
+    <img src="generated_int8.gif">
+
+
+
+Compare model file sizes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp16_model_paths = [VAE_ENCODER_PATH, UNET_PATH, VAE_DECODER_PATH]
+    int8_model_paths = [OV_INT8_VAE_ENCODER_PATH, OV_INT8_UNET_PATH, OV_INT8_VAE_DECODER_PATH]
+    
+    for fp16_path, int8_path in zip(fp16_model_paths, int8_model_paths):
+        fp16_ir_model_size = fp16_path.with_suffix(".bin").stat().st_size
+        int8_model_size = int8_path.with_suffix(".bin").stat().st_size
+        print(f"{fp16_path.stem} compression rate: {fp16_ir_model_size / int8_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    vae_encoder compression rate: 2.018
+    unet compression rate: 1.996
+    vae_decoder compression rate: 2.007
+
+
+Compare inference time of the FP16 and INT8 pipelines
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To measure the inference performance of the ``FP16`` and ``INT8``
+pipelines, we use median inference time on calibration subset.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import time
+    
+    def calculate_inference_time(pipeline, validation_data):
+        inference_time = []
+        for prompt in validation_data:
+            start = time.perf_counter()
+            with io.capture_output() as captured:
+                _ = pipeline(
+                    image,
+                    num_inference_steps=4,
+                    motion_bucket_id=60,
+                    num_frames=8,
+                    height=320,
+                    width=512,
+                    generator=torch.manual_seed(12342),
+                )
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        return np.median(inference_time)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    validation_size = 3
+    validation_dataset = datasets.load_dataset("fusing/instructpix2pix-1000-samples", split="train", streaming=True).shuffle(seed=42).take(validation_size)
+    validation_data = [data["input_image"] for data in validation_dataset]
+    
+    fp_latency = calculate_inference_time(ov_pipe, validation_data)
+    int8_latency = calculate_inference_time(ov_int8_pipeline, validation_data)
+    print(f"Performance speed-up: {fp_latency / int8_latency:.3f}")
+
+
+.. parsed-literal::
+
+    Performance speed-up: 1.243
+
+
 Interactive Demo
 ----------------
+
+
+
+Please select below whether you would like to use the quantized model to
+launch the interactive demo.
+
+.. code:: ipython3
+
+    quantized_model_present = ov_int8_pipeline is not None
+    
+    use_quantized_model = widgets.Checkbox(
+        value=quantized_model_present,
+        description="Use quantized model",
+        disabled=not quantized_model_present,
+    )
+    
+    use_quantized_model
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use quantized model')
 
 
 
@@ -1017,6 +1493,7 @@ Interactive Demo
     import random
     
     max_64_bit_int = 2**63 - 1
+    pipeline = ov_int8_pipeline if use_quantized_model.value else ov_pipe
     
     example_images_urls = [
         "https://huggingface.co/spaces/wangfuyun/AnimateLCM-SVD/resolve/main/test_imgs/ship-7833921_1280.jpg?download=true",
@@ -1063,7 +1540,7 @@ Interactive Demo
         base_count = len(list(output_folder.glob("*.mp4")))
         video_path = output_folder / f"{base_count:06d}.mp4"
     
-        frames = ov_pipe(
+        frames = pipeline(
             image,
             decode_chunk_size=decoding_t,
             generator=generator,
@@ -1194,11 +1671,3 @@ Interactive Demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    Rerunning server... use `close()` to stop if you need to change `launch()` parameters.
-    ----
-

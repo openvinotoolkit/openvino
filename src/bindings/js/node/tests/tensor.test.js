@@ -142,7 +142,7 @@ describe('Tensor shape', () => {
     const shape = Float32Array.from([1, 224, 224, 3]);
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape, data),
-      /Cannot convert argument./
+      /Passed argument must be an Int32Array or a Uint32Array./
     );
   });
 
@@ -150,7 +150,7 @@ describe('Tensor shape', () => {
     const shape = Int32Array.from([1, 224, 224, 3]);
     assert.throws(
       () => new ov.Tensor(ov.element.f32, shape.buffer, data),
-      /Cannot convert argument./
+      /Passed argument must be of type Array or TypedArray./
     );
   });
 

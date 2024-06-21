@@ -89,6 +89,32 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
 };
 
 //
+// EXECUTION_MODE_HINT
+//
+
+struct EXECUTION_MODE_HINT final : OptionBase<EXECUTION_MODE_HINT, ov::hint::ExecutionMode> {
+    static std::string_view key() {
+        return ov::hint::execution_mode.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::hint::ExecutionMode";
+    }
+
+    static ov::hint::ExecutionMode defaultValue() {
+        return ov::hint::ExecutionMode::PERFORMANCE;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
+//
 // DYNAMIC_SHAPE_TO_STATIC
 //
 

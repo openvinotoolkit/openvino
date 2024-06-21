@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_from_archive_linux}
-
 Install OpenVINO™ Runtime on Linux from an Archive File
 =========================================================
 
@@ -28,11 +26,11 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        Ubuntu20 arm64        V     n/a    n/a
        CentOS7 x86_64        V      V     n/a
        Ubuntu18 x86_64       V      V     n/a
-       Ubuntu20 x86_64       V      V      V
+       Ubuntu20 x86_64       V      V     n/a
        Ubuntu22 x86_64       V      V      V
+       Ubuntu24 x86_64       V      V      V
        RHEL8 x86_64          V      V     n/a
       ===================  =====  =====  =====
-
 
 .. tab-set::
 
@@ -95,8 +93,6 @@ Install OpenVINO™ Runtime on Linux from an Archive File
 
 
 
-
-
 Installing OpenVINO Runtime
 ############################################################
 
@@ -129,6 +125,16 @@ Step 1: Download and Install the OpenVINO Core Components
          :sync: x86-64
 
          .. tab-set::
+
+            .. tab-item:: Ubuntu 24.04
+               :sync: ubuntu-24
+
+               .. code-block:: sh
+
+
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_ubuntu22_2024.1.0.15008.f4afc983258_x86_64.tgz --output openvino_2024.1.0.tgz
+                  tar -xf openvino_2024.1.0.tgz
+                  sudo mv l_openvino_toolkit_ubuntu24_2024.1.0.15008.f4afc983258_x86_64 /opt/intel/openvino_2024.1.0
 
             .. tab-item:: Ubuntu 22.04
                :sync: ubuntu-22
