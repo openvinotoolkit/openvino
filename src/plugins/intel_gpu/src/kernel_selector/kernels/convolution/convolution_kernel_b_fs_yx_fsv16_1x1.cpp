@@ -179,6 +179,9 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
+    GPU_DEBUG_INFO << "input: " << input.Batch().v << ", " << input.Feature().v << ", " << input.Y().v << ", " << input.X().v << std::endl;
+    GPU_DEBUG_INFO << "output: " << output.Batch().v << ", " << output.Feature().v << ", " << output.Y().v << ", " << output.X().v << std::endl;
+
     const bool bOutputSizes = (!params.is_shape_agnostic && (output.X().v != input.X().v || output.Y().v != input.Y().v)) ||
                                 output.Feature().v % 16 != 0;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
@@ -186,6 +189,11 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
     const bool bPadding = input.Feature().pad.before % tuning_data.feature_block_size != 0 ||
                           output.Feature().pad.before % tuning_data.feature_block_size != 0;
 
+    GPU_DEBUG_INFO << bOutputSizes << ", " << bFilterSize << ", " << bStride << ", " << bPadding << std::endl;
+    if (bOutputSizes) {
+        GPU_DEBUG_INFO << params.is_shape_agnostic << " && " << output.X().v << " != " << input.X().v << ", "
+                        << output.Y().v << " != " << input.Y().v << " || "  <<  output.Feature().v  << "% 16 != 0" << std::endl;
+    }
     if  (bOutputSizes || bFilterSize || bStride || bPadding) {
         return false;
     }

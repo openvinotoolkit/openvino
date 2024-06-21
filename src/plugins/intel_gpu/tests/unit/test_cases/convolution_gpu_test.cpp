@@ -10326,6 +10326,125 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     }
 }
 
+TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
+    auto& engine = get_test_engine();
+    auto p = GetParam();
+
+    auto is_grouped = p.wei_shape.size() == 5;
+
+    if (is_grouped) {
+        std::cout << "[ SKIPPED ] The test is skipped (group convolution is not supported)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+    auto groups_num = 1;
+
+    auto is_weight_1x1 = (p.wei_shape[p.wei_shape.size() - 1] == 1 && p.wei_shape[p.wei_shape.size() - 2] == 1);
+    auto is_valid_output = p.wei_shape[0] % 16 == 0;
+    auto is_valid_strid = p.stride[0] == 1 && p.stride[1] == 1;
+    auto is_valid_padding = p.pad_begin[0] == 0 && p.pad_begin[1] == 0 && p.pad_end[0] == 0 && p.pad_end[1] == 0;
+
+    if (!is_weight_1x1 || !is_valid_output || !is_valid_strid || !is_valid_padding) {
+        std::cout << "[ SKIPPED ] The test is skipped (is_weight_1x1:" << is_weight_1x1 << ", is_valid_output" << is_valid_output
+                  << ", is_valid_strid: " << is_valid_strid << ", is_valid_padding: " << is_valid_padding << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+
+    auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
+        auto in_layout = input->get_layout();
+
+        topology topology_ref(
+            input_layout("input", in_layout),
+            data("weights", weights),
+            convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, is_grouped));
+
+        network network_ref(engine, topology_ref, config);
+        network_ref.set_input_data("input", input);
+
+        auto outputs_ref = network_ref.execute();
+
+        return outputs_ref.at("conv").get_memory();
+    };
+
+    auto in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    auto input = engine.allocate_memory({ p.in_shape, data_types::f16, format::b_fs_yx_fsv16 });
+    auto weights = engine.allocate_memory({p.wei_shape, data_types::f16, is_grouped ? format::bfzyx : format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    VF<ov::float16> input_rnd = rg.generate_random_1d<ov::float16>(ov::shape_size(p.in_shape), -10, 10);
+    VF<ov::float16> weights_rnd = rg.generate_random_1d<ov::float16>(ov::shape_size(p.wei_shape), -10, 10);
+
+    set_values(input, input_rnd);
+    set_values(weights, weights_rnd);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", no_bias, groups_num, p.stride, p.dilation, p.pad_begin, p.pad_end, is_grouped));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_1x1", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::enable_profiling(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("conv");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output_memory = outputs.at("conv").get_memory();
+
+    // Convolution_fsv16_1x1 static kernel has an accuracy issue when feature size is bigger 16.
+    // So we use reference data from convolution reference kernel.
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc ref_conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_ref", impl_types::ocl };
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", ref_conv_impl } }));
+
+    auto output_memory_ref = calculate_ref(input, weights, ref_config);
+
+    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
+
+
+    ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
+    for (size_t i = 0; i < output_ptr.size(); i++) {
+        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
+
+    {
+        // Change original shape for the second run
+        auto new_shape = p.in_shape;
+        new_shape[2] += 4;
+        new_shape[3] += 8;
+
+        auto input = engine.allocate_memory({ new_shape, data_types::f16, format::b_fs_yx_fsv16 });
+
+        VF<ov::float16> input_rnd = rg.generate_random_1d<ov::float16>(ov::shape_size(p.in_shape), -10, 10);
+        set_values(input, input_rnd);
+
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+
+        auto output_memory = outputs.at("conv").get_memory();
+        auto output_memory_ref = calculate_ref(input, weights, config);
+
+        cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
+
+        ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_test,
     testing::ValuesIn(std::vector<conv_dyn_test_params>{
     { ov::Shape{1, 8, 14, 14}, ov::Shape{16, 8, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
@@ -10347,4 +10466,8 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_test,
     { ov::Shape{1, 3, 32, 32}, ov::Shape{96, 3, 4, 4}, ov::Strides{4, 4}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
     { ov::Shape{1, 768, 7, 7}, ov::Shape{768, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{1, 1}, ov::CoordinateDiff{1, 1} },
     { ov::Shape{1, 48, 56, 56}, ov::Shape{48, 48, 8, 8}, ov::Strides{8, 8}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
+    { ov::Shape{1, 4, 16, 16}, ov::Shape{16, 4, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
+    { ov::Shape{1, 16, 15, 17}, ov::Shape{16, 16, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
+    { ov::Shape{1, 16, 17, 18}, ov::Shape{16, 16, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
+    { ov::Shape{1, 32, 64, 64}, ov::Shape{32, 32, 1, 1}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0} },
 }));

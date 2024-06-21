@@ -27,15 +27,6 @@
 
 using namespace cldnn;
 
-int get_env(std::string key, int &val);
-int get_env(std::string key, int &val) {
-        if (const auto env_var = std::getenv(key.c_str())) {
-            val = std::atoi(env_var);
-            return true;
-        }
-        return false;
-}
-
 void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::CompileGraph");
     for (auto& node : p.get_processing_order()) {
@@ -53,9 +44,6 @@ void compile_graph::run(program& p) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_onednn_permute_fusion == 1)
         disable_permute_fuse_onednn_gemm = true;
-
-    int conv_sa = 0;
-    get_env("CONV_SA", conv_sa);
 
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
@@ -82,37 +70,12 @@ void compile_graph::run(program& p) {
                 }
             }
             if (node->is_type<convolution>()) {
-                if (!conv_sa) {
-                    std::vector<std::string> conv_list = {
-                        // "__module.conv_in/aten::_convolution/Convolution",
-                        // "__module.down_blocks.0.resnets.0.conv1/aten::_convolution/Convolution",
-                        // "__module.down_blocks.0.resnets.0.conv2/aten::_convolution/Convolution",
-                        // "__module.down_blocks.0.attentions.0.proj_in/aten::_convolution/Convolution",
-                        // "__module.down_blocks.0.attentions.0.proj_out/aten::_convolution/Convolution",
-                        // "__module.down_blocks.0.resnets.1.conv1/aten::_convolution/Convolution",
-                        // "__module.down_blocks.0.resnets.1.conv2/aten::_convolution/Convolution",
-                        // "__module.down_blocks.1.resnets.0.conv_shortcut/aten::_convolution/Convolution",
-                    };
-                    bool is_hit = false;
-                    for (auto conv_id : conv_list) {
-                        if (node->id().find(conv_id) != std::string::npos) {
-                            is_hit = true;
-                            break;
-                        }
-                    }
-                    if (!is_hit) {
-                        change_initial_impl = false;
-                    }
+                auto w_layout = node->as<convolution>().weights().get_output_layout();
+                if (w_layout.spatial(0) != 1 || w_layout.spatial(1) != 1) {
+                    change_initial_impl = false;
                 } else {
-                    bool is_hit = false;
-                    auto w_layout = node->as<convolution>().weights().get_output_layout();
-                    if (w_layout.spatial(0) == 1 && w_layout.spatial(1) == 1) {
-                        is_hit = true;
-                        GPU_DEBUG_INFO << node->id() << ": " << w_layout.to_short_string() << std::endl;
-                    }
-                    if (!is_hit) {
-                        change_initial_impl = false;
-                    }
+                    // will be removed..
+                    GPU_DEBUG_INFO << node->id() << ": " << w_layout.to_short_string() << std::endl;
                 }
             }
         }
