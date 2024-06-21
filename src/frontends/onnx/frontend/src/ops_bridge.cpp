@@ -11,11 +11,6 @@
 #include <unordered_map>
 
 #include "core/attribute.hpp"
-#include "op/abs.hpp"
-#include "op/acos.hpp"
-#include "op/acosh.hpp"
-#include "op/adaptive_avg_pooling2d.hpp"
-#include "op/add.hpp"
 #include "op/affine.hpp"
 #include "op/and.hpp"
 #include "op/argmax.hpp"
@@ -202,8 +197,6 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
-const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
-
 namespace {
 template <typename Container = std::map<int64_t, Operator>>
 typename Container::const_iterator find(int64_t version, const Container& map) {
@@ -220,6 +213,39 @@ typename Container::const_iterator find(int64_t version, const Container& map) {
     return std::end(map);
 }
 }  // namespace
+
+// Central storage of operators
+static std::shared_ptr<std::unordered_map<std::string, DomainOpset>> default_map;
+
+bool register_translator_exact(const std::string& name,
+                               const int64_t exact_version,
+                               const Operator fn,
+                               const std::string& domain) {
+    if (!default_map) {
+        default_map = std::make_shared<std::unordered_map<std::string, DomainOpset>>();
+    }
+    auto it = (*default_map)[domain][name].find(exact_version);
+    if (it == (*default_map)[domain][name].end()) {
+        (*default_map)[domain][name].emplace(exact_version, std::bind(fn, std::placeholders::_1));
+        return true;
+    } else {
+        // Left this option to be able create some custom operators which overwrites existing
+        it->second = std::move(fn);
+    }
+    return false;
+}
+
+bool register_translator(const std::string name,
+                         const VersionRange range,
+                         const Operator fn,
+                         const std::string domain) {
+    for (int version = range.m_since; version <= range.m_until; ++version) {
+        register_translator_exact(name, version, fn, domain);
+    }
+    return true;
+}
+
+const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
 void OperatorsBridge::register_operator_in_custom_domain(std::string name,
                                                          VersionRange range,
@@ -339,15 +365,15 @@ static const char* const MMDEPLOY_DOMAIN = "mmdeploy";
     m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 OperatorsBridge::OperatorsBridge() {
-    register_operator("Abs", VersionRange{1, 5}, op::set_1::abs, "Legacy consumed_inputs is not supported");
-    register_operator("Abs", VersionRange::since(6), op::set_6::abs);
-    register_operator("Acos", VersionRange::single_version_for_all_opsets(), op::set_7::acos);
-    register_operator("Acosh", VersionRange::single_version_for_all_opsets(), op::set_9::acosh);
-    register_operator("Add", VersionRange{1, 5}, op::set_1::add, "Legacy consumed_inputs is not supported");
-    register_operator("Add", VersionRange::in(6), op::set_6::add);
-    register_operator("Add", VersionRange{7, 12}, op::set_7::add);
-    register_operator("Add", VersionRange::in(13), op::set_13::add);
-    register_operator("Add", VersionRange::since(14), op::set_14::add);
+    // Deep copy of default map to local
+    for (auto& domain : *default_map) {
+        for (auto& operation : domain.second) {
+            for (auto& version : operation.second) {
+                m_map[domain.first][operation.first].emplace(version.first, version.second);
+            }
+        }
+    }
+
     register_operator("And", VersionRange{1, 6}, op::set_1::logical_and);
     register_operator("And", VersionRange::since(6), op::set_7::logical_and);
     // 101468 - Use the VersionRange-based approach for all operators
@@ -630,7 +656,6 @@ OperatorsBridge::OperatorsBridge() {
                                        op::set_13::quantize_linear,
                                        "com.microsoft");
 
-    REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "MMCVRoIAlignRotated", 1, mmdeploy_roi_align_rotated);
 }
