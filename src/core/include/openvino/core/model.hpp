@@ -224,6 +224,7 @@ public:
     /// This method returns -1 if an the passed output is not related to the Results of a model.
     /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
+    int64_t get_result_index(const ov::op::v0::Result& result) const;
 
     /// \brief Evaluate the model on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
