@@ -24,23 +24,16 @@ ov::OutputVector multinomial(const ov::frontend::onnx::Node& node) {
     const auto dtype =
         node.get_attribute_value<int64_t>("dtype",
                                           static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_INT32));
-    const auto seed = node.get_attribute_value<float>("seed", 0.0f);
+    const auto seed = common::convert_float_seed(node.get_attribute_value<float>("seed", 0.0f));
     const auto target_type = common::get_ov_element_type(dtype);
     const uint64_t global_seed = 0;
-    // OpenVINO supports only uint64 seeds with a meaningful 0 value (seed will be auto-generated).
-    // Because we use a seed as a just meaningful identifier we may
-    // just interpret its value as a 32-bit value (float zero value is same with
-    // uint32 zero value).
-    // Float -0 value will be interpreted as a valid uint32 value.
-    const void* seed_ptr = &seed;  // To prevent strict-aliasing error
-    const uint64_t seed_uint64 = *static_cast<const uint32_t*>(seed_ptr);
 
     auto multinomial_op = std::make_shared<ov::op::v13::Multinomial>(input,
                                                                      sample_size,
                                                                      target_type,
                                                                      true,
                                                                      true,
-                                                                     seed_uint64,
+                                                                     seed,
                                                                      global_seed);
 
     return {multinomial_op};
