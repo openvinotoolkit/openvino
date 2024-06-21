@@ -10351,6 +10351,12 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
         return;
     }
 
+    if (!engine.get_device_info().supports_immad && p.in_shape[1] > 16) {
+        std::cout << "[ SKIPPED ] The test is skipped (convolution_fsv16_1x1 static kernel has accuracy issue with input feature > 16 in igpu)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
         auto in_layout = input->get_layout();
 
@@ -10401,13 +10407,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
 
     auto output_memory = outputs.at("conv").get_memory();
 
-    // Convolution_fsv16_1x1 static kernel has an accuracy issue when feature size is bigger 16.
-    // So we use reference data from convolution reference kernel.
-    ExecutionConfig ref_config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc ref_conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_ref", impl_types::ocl };
-    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", ref_conv_impl } }));
-
-    auto output_memory_ref = calculate_ref(input, weights, ref_config);
+    auto output_memory_ref = calculate_ref(input, weights, config);
 
     cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());

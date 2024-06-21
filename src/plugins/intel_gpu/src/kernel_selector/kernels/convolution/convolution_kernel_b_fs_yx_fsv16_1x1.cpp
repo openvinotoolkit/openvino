@@ -70,6 +70,7 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_f
         const auto& input = params.inputs[0];
         bool block_size_one_is_better = params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && input.Feature().v >= 2048;
 
+        // Accuracy issue is found with input.Feature() > 16 in static kernel, Need to fix later.
         if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !block_size_one_is_better) {
             size_t ic_blocks = CeilDiv(input.Feature().v, tuning_data.feature_block_size);
             size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
