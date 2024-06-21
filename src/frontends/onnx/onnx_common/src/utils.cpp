@@ -60,7 +60,8 @@ const std::map<ov::element::Type_t, TensorProto_DataType> OV_2_ONNX_TYPES = {
     {ov::element::Type_t::u16, TensorProto_DataType::TensorProto_DataType_UINT16},
     {ov::element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
     {ov::element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
-    {ov::element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL}};
+    {ov::element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL},
+    {ov::element::Type_t::string, TensorProto_DataType::TensorProto_DataType_STRING}};
 
 ov::element::Type_t onnx_to_ov_data_type(const TensorProto_DataType& onnx_type) {
     const auto result = std::find_if(OV_2_ONNX_TYPES.begin(),
