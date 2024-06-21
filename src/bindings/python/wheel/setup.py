@@ -453,10 +453,12 @@ class PrepareLibs(build_clib):
         """Collect package data files from preinstalled dirs and put to the subpackage."""
         package_dir = os.path.join(PACKAGE_DIR, WHEEL_PACKAGE_DIR)
         os.makedirs(package_dir, exist_ok=True)
+        package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
+        os.makedirs(package_clibs_dir, exist_ok=True)
 
         replacements = {
             # change the path where the libraries are installed (runtime/lib/intel64/Release -> openvino/libs)
-            f"{OV_RUNTIME_LIBS_DIR}": f"{WHEEL_LIBS_INSTALL_DIR}",
+            r"({_IMPORT_PREFIX})\/(.*)\/(.*.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3"
             # change the path where the include files are installed (runtime/include -> openvino/include)
             r"({_IMPORT_PREFIX})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
             # changed the lib version (2024.3.0 -> 2430)
@@ -472,6 +474,13 @@ class PrepareLibs(build_clib):
                 if file_path.is_file():
                     replace_strings_in_file(file_path, replacements)
 
+            # move the static libs to the directory with the shared libraries
+            for file_path in Path(dst).rglob("*.lib"):
+                file_name = os.path.basename(file_path)
+                if file_path.is_file():
+                    dst_file = os.path.join(package_clibs_dir, file_name)
+                    copyfile(file_path, dst_file)
+                    self.announce(f"Copy {file_path} to {dst_file}", level=3)
 
 def copy_file(src, dst, verbose=False, dry_run=False):
     """Custom file copy."""
