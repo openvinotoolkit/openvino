@@ -37,6 +37,7 @@
 #include "broadcast_inst.h"
 #include "loop_inst.h"
 #include "dft_inst.h"
+#include "group_normalization_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -1905,6 +1906,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             node.as<dft>().get_primitive()->direction == dft_direction::forward) {
             node.set_preferred_input_fmt(0, format::get_default_format(node.get_input_layouts()[0].get_rank()));
         }
+    } else if (node.is_type<group_normalization>()) {
+        expected = format::get_default_format(node.get_output_layout().get_rank());
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
