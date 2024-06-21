@@ -772,7 +772,7 @@ void Partitioner::propagateConverts(const std::string& func_name) {
     // The propagation procedure is generic, but the matching isn't.
     auto& bank = ens.repeated.at(func_name).matches;
     auto match_fcn = [&](const std::shared_ptr<ov::Node>& node_ptr) -> bool {
-        const auto& this_layer_name = ov::is_type<ov::op::v0::Constant>(node_ptr) ? get_unique_name(node_ptr) : node_ptr->get_friendly_name();
+        const auto& this_layer_name = node_ptr->get_friendly_name();
         return ov::is_type<ov::op::v0::Convert>(node_ptr) &&
                bank.end() == std::find_if(bank.begin(), bank.end(), BankContains{this_layer_name})         // (0)
                && ov::op::util::is_constant(node_ptr->input(0).get_source_output().get_node_shared_ptr())  // (1)
