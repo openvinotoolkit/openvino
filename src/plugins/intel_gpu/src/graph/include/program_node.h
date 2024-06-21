@@ -403,6 +403,11 @@ public:
     std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() { return fused_prims_onednn; }
 
     void init_onednn_primitive_attributes();
+    void create_onednn_primitive_attributes(
+                                const std::vector<fused_primitive_desc>& cldnn_post_ops,
+                                std::shared_ptr<dnnl::primitive_attr>& attrs,
+                                std::vector<fused_primitive_desc_onednn>& fused_ops,
+                                kernel_impl_params* impl_params) const;
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     size_t get_fused_inputs_count() const {
@@ -521,6 +526,11 @@ private:
     void add_onednn_attrs(std::shared_ptr<dnnl::primitive_attr> attrs) {
         onednn_attrs = attrs;
     }
+
+    dnnl::post_ops try_optimize_post_ops(std::vector<fused_primitive_desc_onednn>& cur_post_ops,
+                                                    dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr,
+                                                    bool& optimization_is_completed) const;
+
 #endif // ENABLE_ONEDNN_FOR_GPU
     size_t num_outputs = 1;
 };
@@ -567,12 +577,7 @@ struct typed_program_node : public typed_program_node_base<PType> {
 };
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-void create_onednn_primitive_attributes(
-                            const cldnn::program_node& node,
-                            const std::vector<fused_primitive_desc>& cldnn_post_ops,
-                            std::shared_ptr<dnnl::primitive_attr>& attrs,
-                            std::vector<fused_primitive_desc_onednn>& fused_ops,
-                            kernel_impl_params* impl_params);
+
 
 #endif
 

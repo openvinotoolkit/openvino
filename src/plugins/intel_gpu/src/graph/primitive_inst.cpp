@@ -862,11 +862,10 @@ bool primitive_inst::update_impl() {
         if (get_node().get_preferred_impl_type() == impl_types::onednn) {
             auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
             std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
-            cldnn::create_onednn_primitive_attributes(get_node(),
-                                                        _impl_params->fused_desc,
-                                                        attrs_onednn,
-                                                        fused_desc_onednn,
-                                                        _impl_params.get());
+            get_node().create_onednn_primitive_attributes(_impl_params->fused_desc,
+                                                            attrs_onednn,
+                                                            fused_desc_onednn,
+                                                            _impl_params.get());
             _impl_params->attrs_onednn = attrs_onednn;
             {
                 auto& fused_prims_onednn = _impl_params->fused_desc_onednn;
