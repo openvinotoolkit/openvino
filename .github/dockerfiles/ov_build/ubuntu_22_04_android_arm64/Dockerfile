@@ -67,8 +67,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 # Install cmake, vcpkg requires 3.19 or later
 RUN python3 -m pip install cmake~=3.28.0
 
-RUN ln -s /usr/bin/ninja /usr/bin/ninja-build
-
 # Install Android SDK, NDK and Tools
 #ENV ANDROID_TOOLS /android_tools
 #ENV ANDROID_NDK_HOME ${ANDROID_TOOLS}/ndk-bundle

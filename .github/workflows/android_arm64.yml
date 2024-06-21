@@ -162,6 +162,7 @@ jobs:
           cmake \
             -G '${{ env.CMAKE_GENERATOR }}' \
             -DENABLE_INTEL_GPU=ON \
+            -DCMAKE_MAKE_PROGRAM=/usr/bin/ninja \
             -DENABLE_TESTS=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DENABLE_SYSTEM_PROTOBUF=ON \
