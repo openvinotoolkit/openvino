@@ -1508,7 +1508,8 @@ void program_node::create_onednn_primitive_attributes(
             auto in_origin = in;
             auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
                 if (is_type<fully_connected>()) {
-                    auto prim = as<fully_connected>().get_primitive();
+                    std::unique_ptr<const kernel_impl_params> impl_params = get_kernel_impl_params();
+                    auto prim = impl_params->typed_desc<fully_connected>();
                     if (prim->input_size == 3) {
                         cldnn::onednn::combine_bf_with_first_spatial_dim(in);
                     }
@@ -1770,12 +1771,14 @@ void program_node::create_onednn_primitive_attributes(
 }
 
 void program_node::init_onednn_primitive_attributes() {
-    const std::vector<fused_primitive_desc>& cldnn_post_ops = get_fused_primitives();
     auto attrs = std::make_shared<dnnl::primitive_attr>();
     // Create onednn post-ops list related to the current node
     std::vector<fused_primitive_desc_onednn> fused_ops;
-
-    create_onednn_primitive_attributes(cldnn_post_ops, attrs, fused_ops, nullptr);
+    // Can't create onednn attirbute on dynamic shape
+    if (!is_dynamic()) {
+        const std::vector<fused_primitive_desc>& cldnn_post_ops = get_fused_primitives();
+        create_onednn_primitive_attributes(cldnn_post_ops, attrs, fused_ops, nullptr);
+    }
 
     add_onednn_fused_primitives(fused_ops);
     add_onednn_attrs(attrs);
