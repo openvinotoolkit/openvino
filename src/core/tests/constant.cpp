@@ -69,6 +69,8 @@ TEST(constant, boolean_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+
+    EXPECT_EQ(c.get_strides(), Strides({1}));
 }
 
 TEST(constant, boolean_string_broadcast) {
@@ -148,6 +150,8 @@ TEST(constant, float_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+
+    EXPECT_EQ(c.get_strides(), Strides({4}));
 }
 
 TEST(constant, float_string_broadcast) {
@@ -227,6 +231,7 @@ TEST(constant, double_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::f64.size()}));
 }
 
 TEST(constant, double_string_broadcast) {
@@ -303,6 +308,7 @@ TEST(constant, int4_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_THROW(c.get_strides(), Exception);
 }
 
 TEST(constant, int4_string_broadcast_negative_number) {
@@ -446,6 +452,7 @@ TEST(constant, int8_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::i8.size()}));
 }
 
 TEST(constant, int8_string_broadcast) {
@@ -527,6 +534,7 @@ TEST(constant, int16_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::i16.size()}));
 }
 
 TEST(constant, int16_string_broadcast) {
@@ -784,6 +792,7 @@ TEST(constant, uint1_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_THROW(c.get_strides(), Exception);
 }
 
 TEST(constant, uint1_string_broadcast) {
@@ -870,6 +879,7 @@ TEST(constant, uint2_string) {
 
     EXPECT_EQ(c.convert_value_to_string(1), "0");
     EXPECT_THAT(c.get_value_strings(), ElementsAre("3", "0", "1", "2"));
+    EXPECT_THROW(c.get_strides(), Exception);
 }
 
 TEST(constant, uint2_string_broadcast) {
@@ -980,6 +990,7 @@ TEST(constant, uint3_string) {
 
     EXPECT_EQ(c.convert_value_to_string(6), "5");
     EXPECT_THAT(c.get_value_strings(), ElementsAre("3", "0", "1", "2", "4", "7", "5", "6"));
+    EXPECT_THROW(c.get_strides(), Exception);
 }
 
 TEST(constant, uint3_string_broadcast) {
@@ -1104,6 +1115,7 @@ TEST(constant, uint4_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_THROW(c.get_strides(), Exception);
 }
 
 TEST(constant, uint4_string_broadcast) {
@@ -1198,6 +1210,7 @@ TEST(constant, uint6_string) {
 
     EXPECT_EQ(c.convert_value_to_string(2), "15");
     EXPECT_THAT(c.get_value_strings(), ElementsAre("4", "9", "15", "16"));
+    EXPECT_THROW(c.get_strides(), Exception);
 }
 
 TEST(constant, uint6_string_broadcast) {
@@ -1324,6 +1337,7 @@ TEST(constant, uint8_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::u8.size()}));
 }
 
 TEST(constant, uint8_string_broadcast) {
@@ -1403,6 +1417,7 @@ TEST(constant, uint16_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::u16.size()}));
 }
 
 TEST(constant, uint16_string_broadcast) {
@@ -1482,6 +1497,7 @@ TEST(constant, uint32_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::u32.size()}));
 }
 
 TEST(constant, uint32_string_broadcast) {
@@ -1561,6 +1577,7 @@ TEST(constant, uint64_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::u64.size()}));
 }
 
 TEST(constant, uint64_string_broadcast) {
@@ -1651,6 +1668,7 @@ TEST(constant, nf4_write_custom_type) {
 
     EXPECT_EQ(p[0], 0x20);
     EXPECT_EQ(p[1] & 0x0f, 0x0f);
+    EXPECT_THROW(c.get_strides(), Exception);
 }
 
 //
@@ -1679,6 +1697,7 @@ TEST(constant, bfloat16_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::bf16.size()}));
 }
 
 TEST(constant, bfloat16_string_broadcast) {
@@ -1758,6 +1777,7 @@ TEST(constant, float16_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::f16.size()}));
 }
 
 TEST(constant, float16_string_broadcast) {
@@ -1892,6 +1912,7 @@ TEST(constant, ov_string) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+    EXPECT_EQ(c.get_strides(), Strides({element::string.size()}));
 }
 
 TEST(constant, ov_string_broadcast) {
@@ -2409,6 +2430,8 @@ TEST(constant, hold_tensor) {
     }
     const void* constDataPtr = constOp->get_data_ptr();
     ASSERT_EQ(constDataPtr, hostDataPtr);
+    EXPECT_EQ(constOp->get_strides(), Strides({72, 36, 12, 4}));
+    EXPECT_EQ(constOp->get_tensor_view().get_strides(), Strides({72, 36, 12, 4}));
 }
 
 TEST(constant, hold_tensor_ov_string) {
@@ -2422,6 +2445,46 @@ TEST(constant, hold_tensor_ov_string) {
     }
     const void* constDataPtr = constOp->get_data_ptr();
     ASSERT_EQ(constDataPtr, hostDataPtr);
+}
+
+TEST(constant, hold_tensor_custom_strides) {
+    const auto shape = Shape{1, 2, 3, 4};
+    const auto strides = Strides{192, 96, 32, 8};
+    void* shared_data_ptr = nullptr;
+    std::shared_ptr<op::v0::Constant> const_op;
+    auto storage = std::vector<float>(shape_size(shape));
+    {
+        auto strided_view = Tensor(element::f32, shape, storage.data(), strides);
+        shared_data_ptr = strided_view.data();
+        const_op = std::make_shared<op::v0::Constant>(strided_view);
+    }
+
+    ASSERT_EQ(const_op->get_data_ptr(), shared_data_ptr);
+    EXPECT_EQ(const_op->get_strides(), strides);
+    EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
+}
+
+TEST(constant, hold_tensor_custom_strides_revalidate) {
+    const auto shape = Shape{1, 2, 3, 4};
+    const auto strides = Strides{192, 96, 32, 8};
+    void* shared_data_ptr = nullptr;
+    std::shared_ptr<op::v0::Constant> const_op;
+    auto storage = std::vector<float>(shape_size(shape));
+    {
+        auto strided_view = Tensor(element::f32, shape, storage.data(), strides);
+        shared_data_ptr = strided_view.data();
+        const_op = std::make_shared<op::v0::Constant>(strided_view);
+    }
+
+    ASSERT_EQ(const_op->get_data_ptr(), shared_data_ptr);
+    EXPECT_EQ(const_op->get_strides(), strides);
+    EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
+
+    const_op->revalidate_and_infer_types();
+
+    ASSERT_EQ(const_op->get_data_ptr(), shared_data_ptr);
+    EXPECT_EQ(const_op->get_strides(), strides);
+    EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
 }
 
 // Test verifies 2 things:
