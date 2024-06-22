@@ -89,7 +89,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& bias,
                     const primitive_id& decompression_scale,
                     const primitive_id& decompression_zero_point,
-                    const primitive_id& activation_scale,
+                    const input_info& activation_scale,
                     const data_types data_type,
                     const padding& output_padding = padding(),
                     const size_t input_size = 2,
@@ -104,8 +104,9 @@ struct fully_connected : public primitive_base<fully_connected> {
           activation_scale(activation_scale),
           input_size(input_size),
           weights_rank(weights_rank) {        
-        if (!activation_scale.empty())
+        if (activation_scale.is_valid())
             dynamic_quantized_activation = true;
+
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
 
@@ -118,7 +119,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     primitive_id decompression_scale = "";
     primitive_id decompression_zero_point = "";
     bool dynamic_quantized_activation = false;
-    primitive_id activation_scale = "";
+    input_info activation_scale = {"", 0};
     optional_value<float> decompression_zero_point_scalar = optional_value<float>();
 
     /// @brief Primitive dimension size.
@@ -134,7 +135,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, compressed_weights);
         seed = hash_combine(seed, !decompression_scale.empty());
         seed = hash_combine(seed, !decompression_zero_point.empty());
-        seed = hash_combine(seed, !activation_scale.empty());
+        seed = hash_combine(seed, activation_scale.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
         seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
         return seed;
@@ -152,7 +153,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.empty() == rhs_casted.decompression_scale.empty() &&
                decompression_zero_point.empty() == rhs_casted.decompression_zero_point.empty() &&
-               activation_scale.empty() == rhs_casted.activation_scale.empty() &&
+               activation_scale.is_valid() == rhs_casted.activation_scale.is_valid() &&
                decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
@@ -211,7 +212,7 @@ protected:
         if (!decompression_zero_point.empty())
             ret.push_back(decompression_zero_point);
 
-        if (!activation_scale.empty())
+        if (activation_scale.is_valid())
             ret.push_back(activation_scale);
 
         return ret;

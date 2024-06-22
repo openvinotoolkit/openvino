@@ -262,7 +262,7 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
         }
     }
     if (desc->dynamic_quantized_activation) {
-        fc_info.add("activation scale id", desc->activation_scale);
+        fc_info.add("activation scale id", desc->activation_scale.pid);
     }
 
     node_info->add("fully connected info", fc_info);
