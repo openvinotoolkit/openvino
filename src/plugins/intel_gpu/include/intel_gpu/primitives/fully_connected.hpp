@@ -103,6 +103,39 @@ struct fully_connected : public primitive_base<fully_connected> {
           dynamic_quantized_activation(false),
           activation_scale(activation_scale),
           input_size(input_size),
+          weights_rank(weights_rank) {
+        if (!activation_scale.empty())
+            dynamic_quantized_activation = true;
+        OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
+    }
+
+    // [TODO] Remove temproal impl : added 'activation_scale' is not applied to all tests.
+    /// @brief Constructs fully connected compressed layer.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param weights Primitive id containing weights data.
+    /// @param bias Primitive id containing bias data.
+    /// @param compression_scale Primitive id containing scale factors for weights decompression.
+    /// @param compression_zero_point Primitive id containing zero points for weights decompression.
+    fully_connected(const primitive_id& id,
+                    const input_info& input,
+                    const primitive_id& weights,
+                    const primitive_id& bias,
+                    const primitive_id& decompression_scale,
+                    const primitive_id& decompression_zero_point,
+                    const data_types data_type,
+                    const padding& output_padding = padding(),
+                    const size_t input_size = 2,
+                    const size_t weights_rank = 2)
+        : primitive_base(id, { input }, {output_padding}, {optional_data_type{data_type}}),
+          weights(weights),
+          bias(bias),
+          compressed_weights(true),
+          decompression_scale(decompression_scale),
+          decompression_zero_point(decompression_zero_point),
+          dynamic_quantized_activation(false),
+          activation_scale(""),
+          input_size(input_size),
           weights_rank(weights_rank) {        
         if (activation_scale.is_valid())
             dynamic_quantized_activation = true;
