@@ -26,7 +26,6 @@ from openvino import (
 )
 from openvino.runtime import Output
 from openvino.runtime.op.util import VariableInfo, Variable
-from openvino.runtime.op import Result
 from tests.utils.helpers import generate_add_model, generate_model_with_memory, create_filename_for_test
 
 
@@ -156,7 +155,7 @@ def test_result_index(shapes, relu_names, model_name, expected_outputs_length, i
 
     model = Model(relus[0], [params[0]], model_name)
     if is_invalid:
-        invalid_result_node = Result(relus[1].outputs()[0])
+        invalid_result_node = ops.result(relus[1].outputs()[0])
         assert len(model.outputs) == expected_outputs_length
         assert model.get_result_index(invalid_result_node) == expected_result_index
     else:
