@@ -44,8 +44,14 @@ ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v12::ScatterElementsUpdate>(data, indices, updates, axis_node, reduction_ov)};
 }
-static bool registered =
+
+static bool register_multiple_translators(void) {
     register_translator("ScatterElements", VersionRange::single_version_for_all_opsets(), scatter_elements);
+    register_translator("Scatter", VersionRange::single_version_for_all_opsets(), scatter_elements); // deprecated
+    return true;
+}
+
+static bool registered = register_multiple_translators();
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

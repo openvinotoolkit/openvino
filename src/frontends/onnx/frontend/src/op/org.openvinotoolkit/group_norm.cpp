@@ -36,8 +36,19 @@ ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v12::GroupNormalization>(data, scale, bias, num_groups, eps)};
 }
 
-static bool registered =
-    register_translator("ExperimentalDetectronGroupNorm", VersionRange{1, 0}, group_norm, OPENVINO_ONNX_DOMAIN);
+static bool register_multiple_translators(void) {
+    register_translator("ExperimentalDetectronGroupNorm",
+                        VersionRange::single_version_for_all_opsets(),
+                        group_norm,
+                        OPENVINO_ONNX_DOMAIN);
+    register_translator("GroupNorm",
+                        VersionRange::single_version_for_all_opsets(),
+                        group_norm,
+                        OPENVINO_ONNX_DOMAIN);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

@@ -104,10 +104,16 @@ ov::OutputVector prior_box_clustered(const ov::frontend::onnx::Node& node) {
         axes)};
 }
 
-static bool registered = register_translator("PriorBoxClustered",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             prior_box_clustered,
-                                             OPENVINO_ONNX_DOMAIN);
+static bool register_multiple_translators(void) {
+    register_translator("PriorBox", VersionRange::single_version_for_all_opsets(), prior_box, OPENVINO_ONNX_DOMAIN);
+    register_translator("PriorBoxClustered",
+                        VersionRange::single_version_for_all_opsets(),
+                        prior_box_clustered,
+                        OPENVINO_ONNX_DOMAIN);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx
