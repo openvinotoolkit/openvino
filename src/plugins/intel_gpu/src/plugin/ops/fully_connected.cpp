@@ -54,7 +54,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      bias_name,
                                      scale_name,
                                      has_scalar_zp ? "" : zp_name,
-                                     op->get_has_activation_scale() ? activation_scale_name : "",
+                                     activation_scale_name,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      cldnn::padding(),
                                      op->get_input_partial_shape(0).size(),
