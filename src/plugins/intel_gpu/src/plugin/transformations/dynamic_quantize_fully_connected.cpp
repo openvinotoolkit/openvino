@@ -44,7 +44,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
         fc_inputs.push_back(dyn_quan->output(1));
         auto new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_inputs,
                                                                      m_fc->get_has_zp(),
-                                                                     group_size,
+                                                                     true,
                                                                      m_fc->get_output_type());
         ov::replace_node(m_fc, new_fc);
 

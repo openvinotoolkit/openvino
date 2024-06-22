@@ -15,7 +15,7 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::Output<Node>& decompression_zero_point,
                                                    const ov::element::Type output_type)
     : FullyConnected(A, B, bias, output_type)
-    , m_has_zp(false)
+    , m_has_zp(true)
     , m_has_activation_scale(false) {
     set_argument(3, decompression_scale);
     set_argument(4, decompression_zero_point);
