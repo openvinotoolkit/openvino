@@ -104,17 +104,17 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
 
     PRINT << "Matched 1:==========\n\n";
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        PRINT << "Matched 2:==========\n\n";
+        PRINT << "Matched 2: callback==========\n\n";
         const auto& pattern_map = m.get_pattern_value_map();
         
         // Heuristics: there should be only 3 gathers to split
         auto root_node = m.get_match_root();
         bool have_transpose = as_type<opset1::Transpose>(root_node.get()) != nullptr;
-        PRINT << "Matched 2.0 have_transpose = " << have_transpose << " :==========\n\n";
         auto children = root_node->get_output_target_inputs(0);
         if (children.size() != 3u) {
             PRINT << "Matched 2: EXIT: children.size() =" << children.size() << ", but expected = 3" << std::endl;
-            std::cout << children.begin()->get_node()->shared_from_this()->get_type_name() << std::endl;
+            PRINT << "Matched 2: EXIT: root type=" << children.begin()->get_node()->shared_from_this()->get_type_name()
+                  << std::endl;
             return false;
         }
 
@@ -130,8 +130,6 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                 break;
             }
         }
-        PRINT << "Matched 2.1: matmul=" << matmul->get_friendly_name() << "\n\n";
-
         const auto& reshape = pattern_map.at(reshape_pattern);
         auto concat = reshape.get_node_shared_ptr()->input_value(1);
 
@@ -206,16 +204,13 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         PRINT << "Matched 4: replace ===================\n\n";
         const auto& input = pattern_map.at(input_pattern);
         for (size_t i = 0; i < 3u; i++) {
-            PRINT << "Matched 4.1: replace " << i << "=============\n";
-            auto mm0 = register_new_node<v0::MatMul>(input, new_weights[i], false, true);
-            PRINT << "Matched 4.2: replace " << i << "=============\n";
-            std::shared_ptr<ov::Node> reshape_productor = mm0;
-            PRINT << "Matched 4.3: replace " << i << "=============\n";
+            PRINT << "Matched 4." << i << ": replace =============\n";
+            auto new_mm = register_new_node<v0::MatMul>(input, new_weights[i], false, true);
+            std::shared_ptr<ov::Node> reshape_productor = new_mm;
             if (have_bias) {
-                reshape_productor = register_new_node<v1::Add>(mm0, new_bias[i]);
+                reshape_productor = register_new_node<v1::Add>(new_mm, new_bias[i]);
             }
-            auto reshape0 = register_new_node<v1::Reshape>(reshape_productor, new_shape, true);
-            PRINT << "Matched 4.4: replace " << i << "=============\n";
+            auto new_reshape = register_new_node<v1::Reshape>(reshape_productor, new_shape, true);
             ov::NodeVector from_nodes = {gathers[i],
                                          weights.get_node_shared_ptr(),
                                          matmul};
@@ -228,13 +223,11 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
 
             copy_runtime_info(from_nodes, get_new_nodes());
             auto transpose_order = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
-            auto transpose0 = register_new_node<v1::Transpose>(reshape0, transpose_order);
-            transpose0->set_friendly_name(gathers[i]->get_friendly_name());
+            auto new_transpose = register_new_node<v1::Transpose>(new_reshape, transpose_order);
+            new_transpose->set_friendly_name(gathers[i]->get_friendly_name());
+            replace_node(gathers[i], new_transpose);
 
-            PRINT << "Matched 4.5: replace transpose =============\n";
-            replace_node(gathers[i], transpose0);  // replace gatherX by transposeX
-
-            PRINT << "Matched 4: replace " << i << " done =========\n\n";
+            PRINT << "Matched 4." << i << ": replace done=============\n";
         }
 
         PRINT << "Matched 5: Absolutely matched finish.:==========\n\n";
@@ -255,25 +248,16 @@ void pass::MatmulVariadicSplitDecomposition::split_weights(const Output<Node>& w
     const auto& split_length_shape = split_length.get_partial_shape();
     int64_t split_length_rank = static_cast<int64_t>(split_length_shape.rank().get_length());
 
-    // const auto& bias_shape = bias.get_partial_shape();
-    // int64_t bias_rank = static_cast<int64_t>(bias_shape.rank().get_length());
-    PRINT << "weights_rank=" << weights_rank << ", weights_shape=" << weights_shape << "\n\n";
-    PRINT << "split_length_rank=" << split_length_rank << ", split_length_shape=" << split_length_shape << "\n\n";
     if (weights_rank != 2) {
-        PRINT << "weights_rank != 2, return." << "\n\n";
+        PRINT << "Merged exit: weights_rank=" << weights_rank << ", but expected = 2, return." << "\n\n";
+        PRINT << "split_length_rank=" << split_length_rank << ", split_length_shape=" << split_length_shape << "\n\n";
         return;
     }
 
-    PRINT << " 1=============\n\n";
     auto axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {transpose_b ? 0 : 1}));  // axis 0
     auto variadic_split = register_new_node<opset13::VariadicSplit>(weights, axis, split_length);
-
-    // Constantfold new weights
     for (auto& out : variadic_split->outputs()) {
-        if (auto constant = ov::util::get_constant_from_source(out)) {  // TODO: why Convert cannot be constfolded?
-            new_weights.emplace_back(constant->shared_from_this());
-        } else
-            new_weights.emplace_back(out);
+        new_weights.emplace_back(out);
     }
 }
 
@@ -296,18 +280,19 @@ pass::MatmulVariadicSplitDecomposition::MatmulVariadicSplitDecomposition() {
         // Heuristics: MatMul transpose_a==false
         auto mm_ptr = ov::as_type_ptr<opset1::MatMul>(matmul);
         if (!mm_ptr) {
+            PRINT << "Matched 2: Exit. =======================\n\n";
             return false;
         }
         if (mm_ptr->get_transpose_a() != false) {
-            PRINT << "Matched 1: Exit. mm_ptr->get_transpose_a() != false FAIL\n\n";
+            PRINT << "Matched 2: Exit. mm_ptr->get_transpose_a() != false FAIL\n\n";
             return false;
         }
         auto transpose_b = mm_ptr->get_transpose_b();
 
         // Heuristics: Must be split into 3 nodes.
         if (variadic_split->get_output_size() != 3u) {
-            PRINT << "variadic_split->get_output_size()[" << variadic_split->get_output_size()
-                   << "] != 3u ==========================\n\n";
+            PRINT << "Matched 2: Exit. variadic_split->get_output_size()[" << variadic_split->get_output_size()
+                  << "] != 3u ==========================\n\n";
             return false;
         }
         // axis = matmal output shape size - 1
@@ -315,13 +300,14 @@ pass::MatmulVariadicSplitDecomposition::MatmulVariadicSplitDecomposition() {
         if (axis_node) {
             const auto& axis_val = axis_node->cast_vector<int32_t>();
             if (axis_val.size() != 1u || static_cast<size_t>(axis_val[0]) != matmul->get_output_shape(0).size() - 1u) {
-                PRINT << "axis_val.size() != 1u || axis_val[0] != " << matmul->get_output_shape(0).size() << std::endl;
-                PRINT << "axis_val.size() = " << axis_val.size() << std::endl;
-                PRINT << "axis_val[0] = " << axis_val[0] << std::endl;
+                PRINT << "Matched 2: Exit. axis_val.size() != 1u || axis_val[0] != " << matmul->get_output_shape(0).size() << std::endl;
+                PRINT << "Matched 2: Exit. axis_val.size() = " << axis_val.size() << std::endl;
+                PRINT << "Matched 2: Exit. axis_val[0] = " << axis_val[0] << std::endl;
                 return false;
             }
         }
         else {
+            PRINT << "Matched 2: Exit. axis_node is not const" << std::endl;
             return false;
         }
 
@@ -333,29 +319,34 @@ pass::MatmulVariadicSplitDecomposition::MatmulVariadicSplitDecomposition() {
                 if (ov::is_type<opset1::Reshape>(consumer.get_node())) {
                     reshapes.push_back(consumer);
                 } else {
-                    PRINT << "variadic_splic_consumers is not Reshape." << std::endl;
-                    PRINT << "consumer.get_node() type=" << consumer.get_node()->get_type_name() << std::endl;
+                    PRINT << "Matched 2: Exit. variadic_splic_consumers is not Reshape." << std::endl;
+                    PRINT << "Matched 2: Exit. consumer.get_node() type=" << consumer.get_node()->get_type_name()
+                          << std::endl;
                     return false;
                 }
             }
         }
 
+        PRINT << "Matched 3: split_weights==================\n\n" << std::endl;
         OutputVector new_weights;
         split_weights(weights, transpose_b, new_weights, split_length);
         if (new_weights.size() != 3u || reshapes.size() != 3u) {
-            PRINT << "new_weights.size(),reshapes.size() = " << new_weights.size() << ", " << reshapes.size()
-                   << std::endl;
+            PRINT << "Matched 3: Exit. new_weights.size(),reshapes.size() = " << new_weights.size() << ", "
+                  << reshapes.size() << std::endl;
             return false;
         }
 
         // Replace MatMul+Split with 3 MatMul
         const auto& input = pattern_map.at(input_pattern);
-        for (size_t i = 0 ; i < 3u; i++) {
-            PRINT << "Replace MatMul:" << i << std::endl; 
+        for (size_t i = 0; i < 3u; i++) {
+            PRINT << "Matched 4." << i << ", Replace MatMul:" << std::endl;
             auto mm_new = register_new_node<v0::MatMul>(input, new_weights[i], false, transpose_b);
             reshapes[i].get_node()->set_argument(0, mm_new->output(0));
-            PRINT << "Replace MatMul:" << i << ", Done" << std::endl;
+            copy_runtime_info({weights.get_node_shared_ptr(), matmul}, get_new_nodes());
+            PRINT << "Matched 4." << i << ", Replace MatMul done" << std::endl;
         }
+
+        PRINT << "Matched 5: Absolutely matched finish.:==========\n\n";
         return true;
     };
 
