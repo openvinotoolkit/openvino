@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector pow(const ov::frontend::onnx::Node& node) {
     auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Power operation requires 2 inputs. Got: ", inputs.size());
@@ -34,8 +34,8 @@ ov::OutputVector pow(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Pow", VersionRange::single_version_for_all_opsets(), pow);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

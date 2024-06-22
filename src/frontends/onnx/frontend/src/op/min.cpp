@@ -9,23 +9,23 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector min(const ov::frontend::onnx::Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Minimum>(node, ov::op::AutoBroadcastType::NONE);
 }
 
 static bool registered = register_translator("Min", VersionRange{1, 7}, min);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_8 {
+namespace opset_8 {
 ov::OutputVector min(const ov::frontend::onnx::Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Minimum>(node);
 }
 
 static bool registered = register_translator("Min", VersionRange::since(8), min);
-}  // namespace set_8
-}  // namespace op
+}  // namespace opset_8
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

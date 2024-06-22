@@ -15,8 +15,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
     auto alpha_node = node.get_attribute_as_constant<float>("alpha", 1.0f);
     auto x_celu = node.get_ov_inputs().at(0);
@@ -27,8 +27,8 @@ ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Multiply>(alpha_node, elu_node)};
 }
 static bool registered = register_translator("Celu", VersionRange::single_version_for_all_opsets(), celu);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

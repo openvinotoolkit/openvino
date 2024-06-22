@@ -16,8 +16,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector shrink(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
     const float bias = node.get_attribute_value<float>("bias", 0.0f);
@@ -63,8 +63,8 @@ ov::OutputVector shrink(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Shrink", VersionRange::single_version_for_all_opsets(), shrink);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

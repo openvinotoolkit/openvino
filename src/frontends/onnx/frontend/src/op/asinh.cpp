@@ -9,14 +9,14 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector asinh(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v3::Asinh>(node.get_ov_inputs().at(0))};
 }
 static bool registered = register_translator("Asinh", VersionRange::single_version_for_all_opsets(), asinh);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

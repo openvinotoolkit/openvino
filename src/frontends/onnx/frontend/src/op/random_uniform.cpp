@@ -13,8 +13,8 @@ using ::ONNX_NAMESPACE::TensorProto_DataType;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("shape"), "RandomUniform operator must specify a 'shape' attribute.");
@@ -42,8 +42,8 @@ ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
 
 static bool registered =
     register_translator("RandomUniform", VersionRange::single_version_for_all_opsets(), random_uniform);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

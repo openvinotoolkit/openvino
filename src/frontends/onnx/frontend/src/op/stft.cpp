@@ -22,8 +22,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_17 {
+namespace ai_onnx {
+namespace opset_17 {
 
 ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector ov_inputs{node.get_ov_inputs()};
@@ -122,8 +122,8 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("STFT", VersionRange::single_version_for_all_opsets(), stft);
-}  // namespace set_17
-}  // namespace op
+}  // namespace opset_17
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

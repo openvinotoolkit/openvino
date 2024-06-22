@@ -12,7 +12,7 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace {
 static const std::unordered_set<std::string> supported_modes = {"nearest", "linear", "cubic"};
 
@@ -109,7 +109,7 @@ InterpolateAttrs get_resize_attrs(const ov::frontend::onnx::Node& node) {
 }
 }  // namespace
 
-namespace set_11 {
+namespace opset_11 {
 ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     // roi input (inputs.at(2)) is ignored because it is used only
     // in "tf_crop_and_resize" which is not handled now
@@ -129,9 +129,9 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     }
 }
 static bool registered = register_translator("Resize", VersionRange::since(11), resize);
-}  // namespace set_11
+}  // namespace opset_11
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto& data = inputs.at(0);
@@ -150,8 +150,8 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Resize", VersionRange{1, 10}, resize);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

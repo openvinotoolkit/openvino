@@ -101,8 +101,8 @@ static bool registered = register_translator("EmbedLayerNormalization",
                                              VersionRange::single_version_for_all_opsets(),
                                              embed_layer_normalization,
                                              MICROSOFT_DOMAIN);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace com_microsoft
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

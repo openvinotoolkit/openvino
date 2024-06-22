@@ -59,22 +59,22 @@ ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node, const int64_t
 }
 }  // namespace
 
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     return ov::frontend::onnx::log_softmax(node, 1);
 }
 static bool registered = register_translator("LogSoftmax", VersionRange{1, 12}, log_softmax);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_13 {
+namespace opset_13 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
     return {std::make_shared<v5::LogSoftmax>(node.get_ov_inputs()[0], axis)};
 }
 static bool registered = register_translator("LogSoftmax", VersionRange::since(13), log_softmax);
-}  // namespace set_13
-}  // namespace op
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

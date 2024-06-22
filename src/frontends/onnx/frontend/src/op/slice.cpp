@@ -15,8 +15,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_10 {
+namespace ai_onnx {
+namespace opset_10 {
 ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
 
@@ -44,9 +44,9 @@ ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     }
 }
 static bool registered = register_translator("Slice", VersionRange::since(10), slice);
-}  // namespace set_10
+}  // namespace opset_10
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> data = node.get_ov_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
@@ -67,8 +67,8 @@ ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     }
 }
 static bool registered = register_translator("Slice", VersionRange{1, 9}, slice);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

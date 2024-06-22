@@ -9,23 +9,23 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector mul(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Multiply>(node);
 }
 
 static bool registered = register_translator("Mul", VersionRange{1, 6}, mul);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_7 {
+namespace opset_7 {
 ov::OutputVector mul(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v1::Multiply>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 
 static bool registered = register_translator("Mul", VersionRange::since(7), mul);
-}  // namespace set_7
-}  // namespace op
+}  // namespace opset_7
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

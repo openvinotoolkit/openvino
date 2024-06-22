@@ -13,8 +13,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> dividend{node.get_ov_inputs().at(0)};
     ov::Output<ov::Node> divisor{node.get_ov_inputs().at(1)};
@@ -35,8 +35,8 @@ ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Mod", VersionRange::single_version_for_all_opsets(), mod);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

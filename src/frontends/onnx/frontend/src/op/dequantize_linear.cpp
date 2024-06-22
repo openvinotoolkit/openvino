@@ -20,7 +20,7 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace detail {
 std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
@@ -35,7 +35,7 @@ std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     return nullptr;
 }
 }  // namespace detail
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ov_inputs()};
 
@@ -59,9 +59,9 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     }
 }
 static bool registered = register_translator("DequantizeLinear", VersionRange{1, 12}, dequantize_linear);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_13 {
+namespace opset_13 {
 namespace detail {
 void validate_scale(const ov::Output<ov::Node> scale, const ov::Output<ov::Node> x, const int64_t axis) {
     const auto& scale_shape = scale.get_partial_shape();
@@ -177,20 +177,20 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     if ((scale_shape.rank().is_static() && scale_shape.size() == 0) ||
         (scale_shape.is_static() && shape_size(scale_shape.get_shape()) == 1)) {
         if (!zero_point) {
-            return set_1::dequantize_linear(node);
+            return ai_onnx::opset_::dequantize_linear(node);
         }
         const auto& zero_point_shape = zero_point->get_output_partial_shape(0);
         if ((zero_point_shape.rank().is_static() && zero_point_shape.size() == 0) ||
             (zero_point_shape.is_static() && shape_size(zero_point_shape.get_shape()) == 1)) {
-            return set_1::dequantize_linear(node);
+            return ai_onnx::opset_::dequantize_linear(node);
         }
     }
     // these reshapes make sure that dequantization happens over the specified axis
     return detail::dequantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
 static bool registered = register_translator("DequantizeLinear", VersionRange::since(13), dequantize_linear);
-}  // namespace set_13
-}  // namespace op
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

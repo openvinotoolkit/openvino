@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     if (node.get_outputs_size() > 1) {
         OPENVINO_WARN << "MaxPool: Indices output is not supported and was ignored";
@@ -23,15 +23,15 @@ ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("MaxPool", VersionRange{1, 7}, max_pool);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_8 {
+namespace opset_8 {
 ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     return pooling::PoolingFactory(node).make_max_pool_with_indices();
 }
 static bool registered = register_translator("MaxPool", VersionRange::since(8), max_pool);
-}  // namespace set_8
-}  // namespace op
+}  // namespace opset_8
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

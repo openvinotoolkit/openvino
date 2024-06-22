@@ -12,8 +12,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector mean(const ov::frontend::onnx::Node& node) {
     auto sum = variadic::make_ng_variadic_op<v1::Add>(node).front();
     auto count = v0::Constant::create(sum.get_element_type(), ov::Shape{}, {node.get_ov_inputs().size()});
@@ -22,8 +22,8 @@ ov::OutputVector mean(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Mean", VersionRange::single_version_for_all_opsets(), mean);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

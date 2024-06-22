@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     bool across_channels = node.get_attribute_value<std::int64_t>("across_channels", 0);
@@ -23,9 +23,9 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
 
 static bool registered =
     register_translator("MeanVarianceNormalization", VersionRange{1, 8}, mean_variance_normalization);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_9 {
+namespace opset_9 {
 ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {0, 2, 3});
@@ -37,8 +37,8 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
 
 static bool registered =
     register_translator("MeanVarianceNormalization", VersionRange::since(9), mean_variance_normalization);
-}  // namespace set_9
-}  // namespace op
+}  // namespace opset_9
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

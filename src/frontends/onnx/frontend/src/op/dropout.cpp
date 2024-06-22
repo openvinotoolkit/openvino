@@ -14,7 +14,7 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace {
 ov::OutputVector build_dropout(const ov::frontend::onnx::Node& node, bool training_mode) {
     CHECK_VALID_NODE(node, !training_mode, "Training mode is not supported for Dropout op");
@@ -33,7 +33,7 @@ ov::OutputVector build_dropout(const ov::frontend::onnx::Node& node, bool traini
 }
 }  // namespace
 
-namespace set_12 {
+namespace opset_12 {
 ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     const auto ng_inputs = node.get_ov_inputs();
     // seed attribute and ratio input are ignored because traning mode is not
@@ -48,9 +48,9 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     return build_dropout(node, training_mode);
 }
 static bool registered = register_translator("Dropout", VersionRange::since(12), dropout);
-}  // namespace set_12
+}  // namespace opset_12
 
-namespace set_7 {
+namespace opset_7 {
 ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     // "is_test" attribute was removed
     // ratio attribute is ignored because traning mode is not supported
@@ -59,9 +59,9 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     return build_dropout(node, training_mode);
 }
 static bool registered = register_translator("Dropout", VersionRange{7, 11}, dropout);
-}  // namespace set_7
+}  // namespace opset_7
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     // legacy consumed_inputs attribute ignored
     // ratio attribute is ignored because traning mode is not supported
@@ -70,8 +70,8 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     return build_dropout(node, training_mode);
 }
 static bool registered = register_translator("Dropout", VersionRange{1, 6}, dropout);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

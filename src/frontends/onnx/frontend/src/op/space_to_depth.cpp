@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector space_to_depth(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     const auto& shape = data.get_partial_shape();
@@ -23,8 +23,8 @@ ov::OutputVector space_to_depth(const ov::frontend::onnx::Node& node) {
 }
 static bool registered =
     register_translator("SpaceToDepth", VersionRange::single_version_for_all_opsets(), space_to_depth);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

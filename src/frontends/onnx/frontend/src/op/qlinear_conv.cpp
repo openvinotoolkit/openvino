@@ -16,9 +16,9 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 // Link with an existing translator
-namespace set_13 {
+namespace opset_13 {
 namespace detail {
 extern ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
                                           const ov::Output<ov::Node>& scale,
@@ -26,15 +26,15 @@ extern ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
                                           int64_t axis,
                                           const Node& node);
 }  // namespace detail
-}  // namespace set_13
-namespace set_1 {
+}  // namespace opset_13
+namespace opset_1 {
 namespace detail {
 ov::OutputVector conv(const ov::frontend::onnx::Node& node,
                       ov::Output<ov::Node> data,
                       ov::Output<ov::Node> filters,
                       ov::Output<ov::Node> bias);
 }  // namespace detail
-}  // namespace set_1
+}  // namespace opset_1
 namespace detail {
 extern ov::OutputVector matmul(const ov::Output<ov::Node>& a, const ov::Output<ov::Node>& b);
 extern std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
@@ -42,7 +42,7 @@ extern std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& 
                                                     const ov::Output<ov::Node>& data);
 }  // namespace detail
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
 
@@ -56,16 +56,16 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
     auto y_zero_point = inputs.at(7);
     ov::Output<ov::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
 
-    x = set_13::detail::dequantize_linear(x,
-                                          x_scale,
-                                          std::make_shared<v0::Convert>(x_zero_point, ov::element::f32),
-                                          1,
-                                          node)[0];
-    w = set_13::detail::dequantize_linear(w,
-                                          w_scale,
-                                          std::make_shared<v0::Convert>(w_zero_point, ov::element::f32),
-                                          1,
-                                          node)[0];
+    x = ai_onnx::opset_::detail::dequantize_linear(x,
+                                                   x_scale,
+                                                   std::make_shared<v0::Convert>(x_zero_point, ov::element::f32),
+                                                   1,
+                                                   node)[0];
+    w = ai_onnx::opset_::detail::dequantize_linear(w,
+                                                   w_scale,
+                                                   std::make_shared<v0::Convert>(w_zero_point, ov::element::f32),
+                                                   1,
+                                                   node)[0];
 
     if (!ov::op::util::is_null(B)) {
         B = std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(B, x_scale.get_element_type()),
@@ -82,8 +82,8 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
 
 static bool registered =
     register_translator("QLinearConv", VersionRange::single_version_for_all_opsets(), qlinear_conv);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

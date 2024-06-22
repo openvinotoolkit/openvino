@@ -8,25 +8,25 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector argmin(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_min()};
 }
 
 static bool registered = register_translator("ArgMin", VersionRange{1, 11}, argmin);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_12 {
+namespace opset_12 {
 ov::OutputVector argmin(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
     return {arg_factory.make_arg_min()};
 }
 
 static bool registered = register_translator("ArgMin", VersionRange::since(12), argmin);
-}  // namespace set_12
-}  // namespace op
+}  // namespace opset_12
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

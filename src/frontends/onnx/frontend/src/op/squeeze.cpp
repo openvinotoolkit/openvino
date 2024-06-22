@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     const auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
@@ -26,9 +26,9 @@ ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Squeeze", VersionRange{1, 12}, squeeze);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_13 {
+namespace opset_13 {
 ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     if (inputs.size() < 2) {
@@ -39,8 +39,8 @@ ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Squeeze", VersionRange::since(13), squeeze);
-}  // namespace set_13
-}  // namespace op
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

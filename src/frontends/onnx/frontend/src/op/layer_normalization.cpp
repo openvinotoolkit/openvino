@@ -27,8 +27,8 @@ ov::Output<ov::Node> rank(const ov::Output<ov::Node>& source) {
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     // Operator definition: https://github.com/onnx/onnx/blob/main/onnx/defs/nn/defs.cc#L2562:L2611
@@ -83,8 +83,8 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
 
 static bool registered =
     register_translator("LayerNormalization", VersionRange::single_version_for_all_opsets(), layer_normalization);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

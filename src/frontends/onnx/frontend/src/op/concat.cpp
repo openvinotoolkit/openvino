@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector concat(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     std::int64_t axis = node.get_attribute_value<std::int64_t>("axis");
@@ -24,8 +24,8 @@ ov::OutputVector concat(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Concat", VersionRange::single_version_for_all_opsets(), concat);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

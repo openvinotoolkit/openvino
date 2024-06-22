@@ -15,8 +15,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector non_max_suppression(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
     // TODO: this op will not be tested until at least
@@ -67,8 +67,8 @@ ov::OutputVector non_max_suppression(const ov::frontend::onnx::Node& node) {
 
 static bool registered =
     register_translator("NonMaxSuppression", VersionRange::single_version_for_all_opsets(), non_max_suppression);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

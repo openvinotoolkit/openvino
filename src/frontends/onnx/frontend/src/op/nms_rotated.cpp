@@ -12,8 +12,8 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
     auto iou_threshold = node.get_attribute_value<float>("iou_threshold");
     auto score_threshold = node.get_attribute_value<float>("score_threshold");
@@ -33,8 +33,8 @@ ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
 }
 static bool registered =
     register_translator("NMSRotated", VersionRange::single_version_for_all_opsets(), nms_rotated, "mmdeploy");
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

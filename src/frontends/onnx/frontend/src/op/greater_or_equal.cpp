@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
     const auto A = node.get_ov_inputs().at(0);
     const auto B = node.get_ov_inputs().at(1);
@@ -25,9 +25,9 @@ ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
     return {C};
 }
 static bool registered = register_translator("GreaterOrEqual", VersionRange{1, 15}, greater_or_equal);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_16 {
+namespace opset_16 {
 ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
     const auto A = node.get_ov_inputs().at(0);
     const auto B = node.get_ov_inputs().at(1);
@@ -37,8 +37,8 @@ ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
     return {C};
 }
 static bool registered = register_translator("GreaterOrEqual", VersionRange::since(16), greater_or_equal);
-}  // namespace set_16
-}  // namespace op
+}  // namespace opset_16
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

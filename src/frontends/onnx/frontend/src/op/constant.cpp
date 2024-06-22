@@ -17,7 +17,7 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace {
 template <typename T>
 std::vector<T> get_dense_vector(const std::vector<T>& values, const std::vector<int64_t>& indices, const size_t size) {
@@ -105,16 +105,16 @@ std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const ov
 }
 }  // namespace
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto tensor = node.get_attribute_value<Tensor>("value");
     return {tensor.get_ov_constant()};
 }
 
 static bool registered = register_translator("Constant", VersionRange{1, 12}, constant);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_13 {
+namespace opset_13 {
 ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto attributes_names = node.get_attribute_names();
     FRONT_END_GENERAL_CHECK(attributes_names.size() == 1,
@@ -184,8 +184,8 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     return {tensor.get_ov_constant()};
 }
 static bool registered = register_translator("Constant", VersionRange::since(13), constant);
-}  // namespace set_13
-}  // namespace op
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
     // Affine is an obsolete experimental ONNX operation.
     // It takes one input tensor and produces one output tensor where
@@ -32,8 +32,8 @@ ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Affine", VersionRange::single_version_for_all_opsets(), affine);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

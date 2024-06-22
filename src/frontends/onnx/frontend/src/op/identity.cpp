@@ -8,8 +8,8 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector identity(const ov::frontend::onnx::Node& node) {
     ov::OutputVector outputs = node.get_ov_inputs();
     for (auto& out : outputs) {
@@ -18,8 +18,8 @@ ov::OutputVector identity(const ov::frontend::onnx::Node& node) {
     return outputs;
 }
 static bool registered = register_translator("Identity", VersionRange::single_version_for_all_opsets(), identity);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

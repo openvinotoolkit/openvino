@@ -13,8 +13,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
     const auto& ng_inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
@@ -67,8 +67,8 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
     return if_node->outputs();
 }
 static bool registered = register_translator("If", VersionRange::single_version_for_all_opsets(), if_op);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

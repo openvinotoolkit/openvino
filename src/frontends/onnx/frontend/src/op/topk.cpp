@@ -26,8 +26,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     const auto k_node = node.get_attribute_as_constant<std::int64_t>("k");
@@ -43,9 +43,9 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     return {top_k->output(0), top_k->output(1)};
 }
 static bool registered = register_translator("TopK", VersionRange{1, 9}, topk);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_10 {
+namespace opset_10 {
 ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     auto k = get_k(node);
@@ -61,9 +61,9 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     return {top_k->output(0), top_k->output(1)};
 }
 static bool registered = register_translator("TopK", VersionRange{10, 10}, topk);
-}  // namespace set_10
+}  // namespace opset_10
 
-namespace set_11 {
+namespace opset_11 {
 ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     // Process inputs
     auto data = node.get_ov_inputs().at(0);
@@ -85,8 +85,8 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
     return {top_k->output(0), top_k->output(1)};
 }
 static bool registered = register_translator("TopK", VersionRange::since(11), topk);
-}  // namespace set_11
-}  // namespace op
+}  // namespace opset_11
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

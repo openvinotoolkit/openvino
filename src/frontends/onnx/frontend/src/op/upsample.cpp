@@ -11,7 +11,7 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace {
 constexpr unsigned version_1{1};
 constexpr unsigned version_7{7};
@@ -52,7 +52,7 @@ v11::Interpolate::InterpolateAttrs get_attributes(const std::string& mode) {
 }
 }  // namespace
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     const auto height_scale = node.get_attribute_value<float>("height_scale");
     const auto width_scale = node.get_attribute_value<float>("width_scale");
@@ -77,9 +77,9 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Upsample", VersionRange{1, 6}, upsample);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_7 {
+namespace opset_7 {
 ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     const auto scales = node.get_attribute_value<std::vector<float>>("scales");
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
@@ -99,9 +99,9 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Upsample", VersionRange{7, 8}, upsample);
-}  // namespace set_7
+}  // namespace opset_7
 
-namespace set_9 {
+namespace opset_9 {
 ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_9);
@@ -111,8 +111,8 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Upsample", VersionRange::since(9), upsample);
-}  // namespace set_9
-}  // namespace op
+}  // namespace opset_9
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

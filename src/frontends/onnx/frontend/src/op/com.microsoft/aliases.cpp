@@ -7,35 +7,41 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 extern ov::OutputVector gather_nd(const ov::frontend::onnx::Node& node);
 extern ov::OutputVector trilu(const ov::frontend::onnx::Node& node);
 extern ov::OutputVector gelu(const ov::frontend::onnx::Node& node);
-}  // namespace set_1
-namespace set_13 {
+}  // namespace opset_1
+namespace opset_13 {
 extern ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node);
 extern ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node);
-}  // namespace set_13
-}  // namespace op
+}  // namespace opset_13
+}  // namespace ai_onnx
 
 namespace com_microsoft {
 namespace opset_1 {
 static bool register_multiple_translators(void) {
     register_translator("DequantizeLinear",
                         VersionRange::single_version_for_all_opsets(),
-                        op::set_13::dequantize_linear,
+                        ai_onnx::opset_op:: ::dequantize_linear,
                         "com.microsoft");
     register_translator("GatherND",
                         VersionRange::single_version_for_all_opsets(),
-                        op::set_1::gather_nd,
+                        ai_onnx::opset_op:: ::gather_nd,
                         "com.microsoft");
-    register_translator("Gelu", VersionRange::single_version_for_all_opsets(), op::set_1::gelu, "com.microsoft");
+    register_translator("Gelu",
+                        VersionRange::single_version_for_all_opsets(),
+                        ai_onnx::opset_op:: ::gelu,
+                        "com.microsoft");
     register_translator("QuantizeLinear",
                         VersionRange::single_version_for_all_opsets(),
-                        op::set_13::quantize_linear,
+                        ai_onnx::opset_op:: ::quantize_linear,
                         "com.microsoft");
-    register_translator("Trilu", VersionRange::single_version_for_all_opsets(), op::set_1::trilu, "com.microsoft");
+    register_translator("Trilu",
+                        VersionRange::single_version_for_all_opsets(),
+                        ai_onnx::opset_op:: ::trilu,
+                        "com.microsoft");
     return true;
 }
 

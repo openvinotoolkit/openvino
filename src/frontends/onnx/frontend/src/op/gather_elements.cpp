@@ -8,8 +8,8 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector gather_elements(const ov::frontend::onnx::Node& node) {
     ov::OutputVector ng_inputs{node.get_ov_inputs()};
     auto data = ng_inputs.at(0);
@@ -20,8 +20,8 @@ ov::OutputVector gather_elements(const ov::frontend::onnx::Node& node) {
 }
 static bool registered =
     register_translator("GatherElements", VersionRange::single_version_for_all_opsets(), gather_elements);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

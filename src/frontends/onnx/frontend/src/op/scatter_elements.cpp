@@ -10,8 +10,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
     const auto indices = node.get_ov_inputs().at(1);
@@ -46,8 +46,8 @@ ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
 }
 static bool registered =
     register_translator("ScatterElements", VersionRange::single_version_for_all_opsets(), scatter_elements);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

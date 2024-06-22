@@ -14,8 +14,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector global_average_pool(const ov::frontend::onnx::Node& node) {
     // Generate axes for reduce operation which contain all spatial dims indexes.
     // Examples:
@@ -43,8 +43,8 @@ ov::OutputVector global_average_pool(const ov::frontend::onnx::Node& node) {
 
 static bool registered =
     register_translator("GlobalAveragePool", VersionRange::single_version_for_all_opsets(), global_average_pool);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

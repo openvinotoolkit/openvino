@@ -10,8 +10,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector lrn(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     double alpha = node.get_attribute_value<double>("alpha", 1e-4);
@@ -23,8 +23,8 @@ ov::OutputVector lrn(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("LRN", VersionRange::single_version_for_all_opsets(), lrn);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

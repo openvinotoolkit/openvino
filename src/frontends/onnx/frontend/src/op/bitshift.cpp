@@ -13,8 +13,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector bitshift(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> input_x = node.get_ov_inputs().at(0);
     const ov::Output<ov::Node> input_y = node.get_ov_inputs().at(1);
@@ -40,8 +40,8 @@ ov::OutputVector bitshift(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("BitShift", VersionRange::single_version_for_all_opsets(), bitshift);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

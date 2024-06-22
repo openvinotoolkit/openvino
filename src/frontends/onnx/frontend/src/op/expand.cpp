@@ -12,8 +12,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector expand(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> data{node.get_ov_inputs().at(0)};
     const ov::Output<ov::Node> shape{node.get_ov_inputs().at(1)};
@@ -30,8 +30,8 @@ ov::OutputVector expand(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Expand", VersionRange::single_version_for_all_opsets(), expand);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

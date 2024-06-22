@@ -14,8 +14,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
@@ -58,9 +58,9 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Gemm", VersionRange{1, 5}, gemm);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_6 {
+namespace opset_6 {
 ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
@@ -89,8 +89,8 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Gemm", VersionRange::since(6), gemm);
-}  // namespace set_6
-}  // namespace op
+}  // namespace opset_6
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

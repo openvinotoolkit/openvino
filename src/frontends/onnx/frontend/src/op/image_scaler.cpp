@@ -12,8 +12,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector image_scaler(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 1, "ImageScaler 1 input tensor. Got: ", inputs.size());
@@ -42,8 +42,8 @@ ov::OutputVector image_scaler(const ov::frontend::onnx::Node& node) {
 }
 static bool registered =
     register_translator("ImageScaler", VersionRange::single_version_for_all_opsets(), image_scaler);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

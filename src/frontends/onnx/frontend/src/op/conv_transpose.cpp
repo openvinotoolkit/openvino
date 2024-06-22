@@ -25,8 +25,8 @@ using ov::Strides;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 namespace {
 ov::Output<ov::Node> make_group_conv_backprop(const ov::Output<ov::Node>& data,
                                               const ov::Output<ov::Node>& filters,
@@ -213,8 +213,8 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
 }
 static bool registered =
     register_translator("ConvTranspose", VersionRange::single_version_for_all_opsets(), conv_transpose);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

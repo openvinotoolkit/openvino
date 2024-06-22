@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
     const auto& input = node.get_ov_inputs();
     const auto a = input.at(0);
@@ -22,9 +22,9 @@ ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::LessEqual>(a, b)};
 }
 static bool registered = register_translator("LessOrEqual", VersionRange{1, 15}, less_or_equal);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_16 {
+namespace opset_16 {
 ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
     const auto& input = node.get_ov_inputs();
     const auto a = input.at(0);
@@ -32,8 +32,8 @@ ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::LessEqual>(a, b)};
 }
 static bool registered = register_translator("LessOrEqual", VersionRange::since(16), less_or_equal);
-}  // namespace set_16
-}  // namespace op
+}  // namespace opset_16
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

@@ -12,8 +12,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
@@ -28,9 +28,9 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Split", VersionRange{1, 12}, split);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_13 {
+namespace opset_13 {
 ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
@@ -45,8 +45,8 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Split", VersionRange{13, 12}, split);
-}  // namespace set_13
-}  // namespace op
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

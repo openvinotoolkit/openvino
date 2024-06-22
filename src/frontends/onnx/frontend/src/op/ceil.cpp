@@ -8,15 +8,15 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector ceil(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Ceiling>(node.get_ov_inputs().at(0))};
 }
 
 static bool registered = register_translator("Ceil", VersionRange::single_version_for_all_opsets(), ceil);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

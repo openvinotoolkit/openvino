@@ -17,8 +17,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> data{node.get_ov_inputs().at(0)};
     const std::size_t channel_axis{1};
@@ -57,8 +57,8 @@ ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
 
 static bool registered =
     register_translator("GlobalLpPool", VersionRange::single_version_for_all_opsets(), global_lp_pool);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

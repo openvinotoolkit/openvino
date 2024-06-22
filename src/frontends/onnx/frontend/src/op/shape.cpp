@@ -15,9 +15,9 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 
-namespace set_15 {
+namespace opset_15 {
 
 ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
@@ -40,9 +40,9 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Shape", VersionRange::since(15), shape);
-}  // namespace set_15
+}  // namespace opset_15
 
-namespace set_1 {
+namespace opset_1 {
 
 ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
@@ -50,8 +50,8 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Shape", VersionRange{1, 14}, shape);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

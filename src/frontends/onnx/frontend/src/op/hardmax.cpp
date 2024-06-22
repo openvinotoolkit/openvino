@@ -20,8 +20,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
@@ -59,8 +59,8 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Hardmax", VersionRange{1, 12}, hardmax);
-}  // namespace set_1
-namespace set_13 {
+}  // namespace opset_1
+namespace opset_13 {
 ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
     const auto& input_shape = input.get_partial_shape();
@@ -92,8 +92,8 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Hardmax", VersionRange::since(13), hardmax);
-}  // namespace set_13
-}  // namespace op
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

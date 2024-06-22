@@ -10,8 +10,8 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector abs(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
                      !node.has_attribute("consumed_inputs"),
@@ -19,16 +19,16 @@ ov::OutputVector abs(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Abs>(node.get_ov_inputs().at(0))};
 }
 static bool registered = register_translator("Abs", VersionRange{1, 5}, abs);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_6 {
-static bool registered = register_translator("Abs", VersionRange{6, 12}, set_1::abs);
-}  // namespace set_6
+namespace opset_6 {
+static bool registered = register_translator("Abs", VersionRange{6, 12}, ai_onnx::opset_::abs);
+}  // namespace opset_6
 
-namespace set_13 {
-static bool registered = register_translator("Abs", VersionRange::since(13), set_1::abs);
-}  // namespace set_13
-}  // namespace op
+namespace opset_13 {
+static bool registered = register_translator("Abs", VersionRange::since(13), ai_onnx::opset_::abs);
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

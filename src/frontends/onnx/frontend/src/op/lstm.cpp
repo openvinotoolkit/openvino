@@ -22,7 +22,7 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -205,7 +205,7 @@ struct LSTMAttributes {
 
 }  // anonymous namespace
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
     LSTMNgInputMap input_map{node};
     LSTMAttributes attributes{node};
@@ -254,8 +254,8 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
             ov::op::util::reorder_axes(Y_c, {1, 0, 2})};
 }
 static bool registered = register_translator("LSTM", VersionRange::single_version_for_all_opsets(), lstm);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

@@ -22,16 +22,16 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 extern ov::OutputVector conv(const ov::frontend::onnx::Node& node);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 
 namespace com_microsoft {
 namespace opset_1 {
 ov::OutputVector fused_conv(const ov::frontend::onnx::Node& node) {
-    auto conv_res = op::set_1::conv(node).at(0);
+    auto conv_res = ai_onnx::opset_op:: ::conv(node).at(0);
 
     if (node.get_ov_inputs().size() == 4) {  // Z input provided
         conv_res = std::make_shared<v1::Add>(conv_res, node.get_ov_inputs()[3]);

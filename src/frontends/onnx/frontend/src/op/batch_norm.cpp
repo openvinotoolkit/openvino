@@ -15,8 +15,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 // This version supports ONNX BatchNormalization-1 and BatchNormalization-6
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -51,7 +51,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     OPENVINO_THROW("Cannot create OpenVINO batch norm with unsupported number of inputs");
 }
 static bool registered = register_translator("BatchNormalization", VersionRange{1, 6}, batch_norm);
-}  // namespace set_1
+}  // namespace opset_1
 /*
      Opset 6 is skipped because there are no significant difference between opset1 and opset6.
      Found difference is:
@@ -59,7 +59,7 @@ static bool registered = register_translator("BatchNormalization", VersionRange{
         to avoid overflow for float16 inputs.
  */
 
-namespace set_7 {
+namespace opset_7 {
 // This version supports ONNX BatchNormalization-7 and BatchNormalization-9
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -78,7 +78,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
 static bool registered = register_translator("BatchNormalization", VersionRange{7, 13}, batch_norm);
-}  // namespace set_7
+}  // namespace opset_7
 /*
     Opset 9 is skipped because there are no significant difference between opset7 and opset9.
     Found difference is:
@@ -88,7 +88,7 @@ static bool registered = register_translator("BatchNormalization", VersionRange{
 
  */
 
-namespace set_14 {
+namespace opset_14 {
 // This version supports ONNX BatchNormalization-14 BatchNormalization-15
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -107,7 +107,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
 static bool registered = register_translator("BatchNormalization", VersionRange::since(14), batch_norm);
-}  // namespace set_14
+}  // namespace opset_14
 /*
      Opset 15 is skipped because there are no significant difference between opset14 and opset15.
      Found difference is:
@@ -115,7 +115,7 @@ static bool registered = register_translator("BatchNormalization", VersionRange:
         to avoid overflow for float16 inputs.
  */
 
-}  // namespace op
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

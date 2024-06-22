@@ -10,8 +10,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector max_roi_pool(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ov_inputs();
     const auto X = inputs.at(0);
@@ -27,8 +27,8 @@ ov::OutputVector max_roi_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::ROIPooling>(X, rois, ov::Shape(pooled_shape), spatial_scale, "max")};
 }
 static bool registered = register_translator("MaxRoiPool", VersionRange::single_version_for_all_opsets(), max_roi_pool);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

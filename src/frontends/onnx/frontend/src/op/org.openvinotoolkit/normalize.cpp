@@ -64,8 +64,8 @@ ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
 
 static bool registered =
     register_translator("Normalize", VersionRange::single_version_for_all_opsets(), normalize, OPENVINO_ONNX_DOMAIN);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

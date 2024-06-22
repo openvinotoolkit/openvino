@@ -17,7 +17,7 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 
 namespace {
 
@@ -154,7 +154,7 @@ ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
 
 }  // namespace
 
-namespace set_1 {
+namespace opset_1 {
 
 ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     // ONNX Scan-8 can have optional `sequence_lens` input,
@@ -166,9 +166,9 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Scan", VersionRange{1, 8}, scan);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_9 {
+namespace opset_9 {
 
 ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     // Since ONNX Scan-9 the optional `sequence_lens input` was removed,
@@ -177,8 +177,8 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Scan", VersionRange::since(9), scan);
-}  // namespace set_9
-}  // namespace op
+}  // namespace opset_9
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

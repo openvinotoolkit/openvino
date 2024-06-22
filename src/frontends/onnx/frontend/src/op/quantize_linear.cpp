@@ -18,7 +18,7 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace detail {
 namespace {
 ov::Output<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
@@ -136,7 +136,7 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 }
 }  // namespace detail
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
@@ -150,9 +150,9 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
 static bool registered = register_translator("QuantizeLinear", VersionRange{1, 12}, quantize_linear);
-}  // namespace set_1
+}  // namespace opset_1
 
-namespace set_13 {
+namespace opset_13 {
 namespace {
 ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                                  ov::Output<ov::Node> y_scale,
@@ -221,13 +221,13 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     // per-tensor quantization, axis attribute ignored
     if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0 &&
         zero_point.get_partial_shape().rank().is_static() && zero_point.get_partial_shape().rank().get_length() == 0) {
-        return set_1::quantize_linear(node);
+        return ai_onnx::opset_::quantize_linear(node);
     }
 
     return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
-}  // namespace set_13
-}  // namespace op
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

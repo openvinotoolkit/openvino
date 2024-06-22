@@ -28,12 +28,12 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 
 // Link with an existing translator
-namespace set_1 {
+namespace opset_1 {
 extern ov::OutputVector identity(const ov::frontend::onnx::Node& node);
-}  // namespace set_1
+}  // namespace opset_1
 
 namespace {
 std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const Node& node) {
@@ -137,7 +137,7 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
     if (reduction_axes != nullptr) {
         return std::make_shared<OpType>(ov_input, reduction_axes, static_cast<bool>(keepdims));
     } else {
-        return set_1::identity(node).at(0).get_node_shared_ptr();
+        return ai_onnx::opset_::identity(node).at(0).get_node_shared_ptr();
     }
 }
 
@@ -150,7 +150,7 @@ std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node&
 }
 }  // namespace
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> sum_node =
         make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2);
@@ -210,7 +210,7 @@ static bool register_multiple_translators(void) {
 }
 
 static bool registered = register_multiple_translators();
-}  // namespace set_1
+}  // namespace opset_1
 
 /*
     Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
@@ -221,7 +221,7 @@ static bool registered = register_multiple_translators();
        Same time Reduce* operations in OpenVINO has same requirement from first version
 */
 
-namespace set_13 {
+namespace opset_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
@@ -257,9 +257,9 @@ static bool register_multiple_translators(void) {
 }
 
 static bool registered = register_multiple_translators();
-}  // namespace set_13
+}  // namespace opset_13
 
-namespace set_18 {
+namespace opset_18 {
 ov::OutputVector reduce_l2(const Node& node) {
     return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
@@ -297,9 +297,9 @@ static bool register_multiple_translators(void) {
 }
 
 static bool registered = register_multiple_translators();
-}  // namespace set_18
+}  // namespace opset_18
 
-namespace set_20 {
+namespace opset_20 {
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     if (data.get_element_type() != element::boolean) {
@@ -337,8 +337,8 @@ static bool register_multiple_translators(void) {
 }
 
 static bool registered = register_multiple_translators();
-}  // namespace set_20
-}  // namespace op
+}  // namespace opset_20
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

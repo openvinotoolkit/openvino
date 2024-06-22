@@ -11,8 +11,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector flatten(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto data = inputs.at(0);
@@ -29,8 +29,8 @@ ov::OutputVector flatten(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered = register_translator("Flatten", VersionRange::single_version_for_all_opsets(), flatten);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
