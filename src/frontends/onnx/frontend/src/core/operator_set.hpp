@@ -5,8 +5,8 @@
 #pragma once
 
 #include <functional>
-#include <string>
 #include <map>
+#include <string>
 #include <unordered_map>
 
 #include "core/node.hpp"
