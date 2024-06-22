@@ -41,19 +41,22 @@ const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 const char* MICROSOFT_DOMAIN = "com.microsoft";
 const char* PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 const char* MMDEPLOY_DOMAIN = "mmdeploy";
-// Central storage of operators
-static std::shared_ptr<std::unordered_map<std::string, DomainOpset>> default_map;
+
+// Central storage of supported translators for operations
+typedef std::unordered_map<std::string, DomainOpset> SupportedOps;
+SupportedOps* get_supported_ops(void) {
+    static SupportedOps supported_ops;
+    return &supported_ops;
+}
 
 bool register_translator_exact(const std::string& name,
                                const int64_t exact_version,
                                const Operator fn,
                                const std::string& domain) {
-    if (!default_map) {
-        default_map = std::make_shared<std::unordered_map<std::string, DomainOpset>>();
-    }
-    auto it = (*default_map)[domain][name].find(exact_version);
-    if (it == (*default_map)[domain][name].end()) {
-        (*default_map)[domain][name].emplace(exact_version, std::bind(fn, std::placeholders::_1));
+    auto& supported_ops = *get_supported_ops();
+    auto it = supported_ops[domain][name].find(exact_version);
+    if (it == supported_ops[domain][name].end()) {
+        supported_ops[domain][name].emplace(exact_version, std::bind(fn, std::placeholders::_1));
         return true;
     } else {
         // Left this option to be able create some custom operators which overwrites existing
@@ -187,7 +190,7 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 
 OperatorsBridge::OperatorsBridge() {
     // Deep copy of default map to local
-    for (auto& domain : *default_map) {
+    for (auto& domain : *get_supported_ops()) {
         for (auto& operation : domain.second) {
             for (auto& version : operation.second) {
                 m_map[domain.first][operation.first].emplace(version.first, version.second);
