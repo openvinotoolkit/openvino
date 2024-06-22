@@ -60,7 +60,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     return {top_k->output(0), top_k->output(1)};
 }
-static bool registered = register_translator("TopK", VersionRange{10, 10}, topk);
+static bool registered = register_translator("TopK", VersionRange::in(10), topk);
 }  // namespace opset_10
 
 namespace opset_11 {
