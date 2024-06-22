@@ -11,13 +11,6 @@
 #include <unordered_map>
 
 #include "core/attribute.hpp"
-#include "op/com.microsoft/attention.hpp"
-#include "op/com.microsoft/bias_gelu.hpp"
-#include "op/com.microsoft/embed_layer_normalization.hpp"
-#include "op/com.microsoft/fused_conv.hpp"
-#include "op/com.microsoft/fusedgemm.hpp"
-#include "op/com.microsoft/pad.hpp"
-#include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
@@ -245,18 +238,6 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBoxClustered", 1, prior_box_clustered);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
-
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedConv", 1, fused_conv);
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
-
-    register_operator_in_custom_domain("Pad",
-                                       VersionRange::single_version_for_all_opsets(),
-                                       op::custom::set_1::pad,
-                                       "com.microsoft");
 }
 
 #undef REGISTER_OPERATOR
