@@ -86,8 +86,6 @@ private:
     std::unordered_map<std::string, DomainOpset> m_map;
 };
 
-extern const char* OPENVINO_ONNX_DOMAIN;
-
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

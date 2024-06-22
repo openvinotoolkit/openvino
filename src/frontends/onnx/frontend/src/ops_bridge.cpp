@@ -56,6 +56,11 @@ typename Container::const_iterator find(int64_t version, const Container& map) {
 }
 }  // namespace
 
+// Known domains (see operator_set.hpp for a declaration)
+const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+const char* MICROSOFT_DOMAIN = "com.microsoft";
+const char* PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
+const char* MMDEPLOY_DOMAIN = "mmdeploy";
 // Central storage of operators
 static std::shared_ptr<std::unordered_map<std::string, DomainOpset>> default_map;
 
@@ -86,8 +91,6 @@ bool register_translator(const std::string name,
     }
     return true;
 }
-
-const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
 void OperatorsBridge::register_operator_in_custom_domain(std::string name,
                                                          VersionRange range,
@@ -195,10 +198,6 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
     }
     register_operator(name, 1, domain, std::move(fn));
 }
-
-static const char* const MICROSOFT_DOMAIN = "com.microsoft";
-static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
-static const char* const MMDEPLOY_DOMAIN = "mmdeploy";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));

@@ -25,6 +25,11 @@ using OperatorSet = std::unordered_map<std::string, Operator>;
 /// \brief      Map with map of versioned operators, accessible like map["Operation"][Version]
 using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, Operator>>;
 
+extern const char* OPENVINO_ONNX_DOMAIN;
+extern const char* MICROSOFT_DOMAIN;
+extern const char* PYTORCH_ATEN_DOMAIN;
+extern const char* MMDEPLOY_DOMAIN;
+
 /// \brief Registering a versions range of translator in global map of translators (preferred to use)
 extern bool register_translator(const std::string name,
                                 const VersionRange range,
