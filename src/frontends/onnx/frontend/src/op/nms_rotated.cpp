@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "openvino/op/nms_rotated.hpp"
 
 #include <numeric>
@@ -33,10 +31,8 @@ ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
 
     return {nms->output(0)};
 }
-static bool registered = register_translator("NMSRotated",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             nms_rotated,
-                                             "mmdeploy");
+static bool registered =
+    register_translator("NMSRotated", VersionRange::single_version_for_all_opsets(), nms_rotated, "mmdeploy");
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

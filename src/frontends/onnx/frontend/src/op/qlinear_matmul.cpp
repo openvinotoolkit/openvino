@@ -24,8 +24,8 @@ extern ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 namespace detail {
 extern ov::OutputVector matmul(const ov::Output<ov::Node>& a, const ov::Output<ov::Node>& b);
 extern std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
-                                             const ov::Output<ov::Node>& y_zero_point,
-                                             const ov::Output<ov::Node>& data);
+                                                    const ov::Output<ov::Node>& y_zero_point,
+                                                    const ov::Output<ov::Node>& data);
 }  // namespace detail
 
 namespace set_1 {

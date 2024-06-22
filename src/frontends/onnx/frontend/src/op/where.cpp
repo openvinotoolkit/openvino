@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "core/operator_set.hpp"
 #include "openvino/op/select.hpp"
 
