@@ -533,6 +533,7 @@ void program::init_graph() {
     }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
+    apply_opt_pass<mark_state_init_subgraphs>();
 }
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }

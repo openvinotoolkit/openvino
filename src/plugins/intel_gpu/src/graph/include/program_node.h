@@ -301,6 +301,11 @@ public:
     void set_in_shape_of_subgraph(bool val = true) { in_shape_of_subgraph = val; }
     bool is_in_shape_of_subgraph() const { return in_shape_of_subgraph; }
 
+    void set_state_init_subgraph(program_node* state_node) { state_of_init_subgraph = state_node; }
+    bool is_in_state_init_subgraph() const { return state_of_init_subgraph != nullptr; }
+    const program_node* get_state_of_init_subgraph() const { return state_of_init_subgraph; }
+
+
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
@@ -503,9 +508,13 @@ protected:
     bool constant = false;
     bool data_flow = false;
     bool in_shape_of_subgraph = false;
-    bool runtime_skippable = false;
 
     std::set<const program_node*> dependant_shape_of_nodes;
+
+//    int32_t state_init_subgraph_group = -1;
+    const program_node* state_of_init_subgraph = nullptr;
+
+    bool runtime_skippable = false;
 
     bool output = false;
     uint8_t user_mark = 0;
