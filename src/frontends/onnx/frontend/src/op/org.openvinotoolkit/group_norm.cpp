@@ -41,10 +41,7 @@ static bool register_multiple_translators(void) {
                         VersionRange::single_version_for_all_opsets(),
                         group_norm,
                         OPENVINO_ONNX_DOMAIN);
-    register_translator("GroupNorm",
-                        VersionRange::single_version_for_all_opsets(),
-                        group_norm,
-                        OPENVINO_ONNX_DOMAIN);
+    register_translator("GroupNorm", VersionRange::single_version_for_all_opsets(), group_norm, OPENVINO_ONNX_DOMAIN);
     return true;
 }
 
