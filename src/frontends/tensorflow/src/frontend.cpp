@@ -569,11 +569,16 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::TensorArrayV3Replacer>();
     manager.register_pass<pass::ConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();
+
     // apply EliminateLoopInputsOutputs to avoid extra Results
     // that output the same value as receiving on input
-    // it is needed for applying TensorListOperationsResolver
+    // it is needed for applying TensorListInLoopOptimization
     manager.register_pass<ov::pass::EliminateLoopInputsOutputs>();
-    manager.register_pass<pass::TensorListOperationsResolver>();
+    manager.register_pass<pass::TensorListReplacer>();
+    manager.register_pass<pass::TensorListInLoopOptimization>();
+    manager.register_pass<pass::TensorListSetItemReplacer>();
+    manager.register_pass<pass::TensorListGetItemReplacer>();
+
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();

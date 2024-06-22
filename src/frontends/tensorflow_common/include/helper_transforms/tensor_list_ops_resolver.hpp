@@ -40,17 +40,12 @@ public:
     TensorListSliceInputAndConcatOutputReplacer();
 };
 
-// Replace and optimize sub-graphs with TensorList operations such as TensorListReserve,
-// TensorListSetItem, TensorListGetItem
-class TensorListOperationsResolver : public ov::pass::GraphRewrite {
+// Optimize sub-graphs with TensorList operations in Loop body graph
+// Replace TensorListSetItem and TensorListGetItem with ConcatOutput and SlicedInput
+class TensorListInLoopOptimization : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TensorListOperationsResolver", "0");
-    TensorListOperationsResolver() {
-        add_matcher<TensorListReplacer>();
-        add_matcher<TensorListSliceInputAndConcatOutputReplacer>();
-        add_matcher<TensorListSetItemReplacer>();
-        add_matcher<TensorListGetItemReplacer>();
-    }
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorListInLoopOptimization");
+    TensorListInLoopOptimization();
 };
 
 }  // namespace pass

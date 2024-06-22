@@ -355,8 +355,7 @@ ov::frontend::tensorflow::pass::TensorListGetItemReplacer::TensorListGetItemRepl
     register_matcher(m, callback);
 }
 
-ov::frontend::tensorflow::pass::TensorListSliceInputAndConcatOutputReplacer::
-    TensorListSliceInputAndConcatOutputReplacer() {
+ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOptimization() {
     auto loop_label = pattern::wrap_type<v5::Loop>();
 
     // pattern for condition sub-graph in Loop operarion
@@ -650,8 +649,7 @@ ov::frontend::tensorflow::pass::TensorListSliceInputAndConcatOutputReplacer::
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(
-        loop_label,
-        "ov::frontend::tensorflow::pass::TensorListSliceInputAndConcatOutputReplacer");
+    auto m =
+        std::make_shared<pattern::Matcher>(loop_label, "ov::frontend::tensorflow::pass::TensorListInLoopOptimization");
     register_matcher(m, callback);
 }
