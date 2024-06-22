@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/normalize.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
@@ -11,15 +10,14 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
     auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
@@ -64,6 +62,8 @@ ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
                                            weights)};
 }
 
+static bool registered =
+    register_translator("Normalize", VersionRange::single_version_for_all_opsets(), normalize, OPENVINO_ONNX_DOMAIN);
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

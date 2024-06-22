@@ -11,19 +11,6 @@
 #include <unordered_map>
 
 #include "core/attribute.hpp"
-#include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
-#include "op/org.openvinotoolkit/detection_output.hpp"
-#include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
-#include "op/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.hpp"
-#include "op/org.openvinotoolkit/experimental_detectron/prior_grid_generator.hpp"
-#include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
-#include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
-#include "op/org.openvinotoolkit/fake_quantize.hpp"
-#include "op/org.openvinotoolkit/generate_proposals.hpp"
-#include "op/org.openvinotoolkit/group_norm.hpp"
-#include "op/org.openvinotoolkit/normalize.hpp"
-#include "op/org.openvinotoolkit/prior_box.hpp"
-#include "op/org.openvinotoolkit/swish.hpp"
 #include "openvino/util/log.hpp"
 
 using namespace ov::frontend::onnx;
@@ -208,36 +195,6 @@ OperatorsBridge::OperatorsBridge() {
         }
     }
     // custom ops
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "DeformableConv2D", 1, deformable_conv_2d);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
-                                  "ExperimentalDetectronDetectionOutput",
-                                  1,
-                                  experimental_detectron_detection_output);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
-                                  "ExperimentalDetectronGenerateProposalsSingleImage",
-                                  1,
-                                  experimental_detectron_generate_proposals);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronGroupNorm", 1, group_norm);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
-                                  "ExperimentalDetectronPriorGridGenerator",
-                                  1,
-                                  experimental_detectron_prior_grid_generator);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
-                                  "ExperimentalDetectronROIFeatureExtractor",
-                                  1,
-                                  experimental_detectron_roi_feature_extractor);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
-                                  "ExperimentalDetectronTopKROIs",
-                                  1,
-                                  experimental_detectron_topk_rois);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GenerateProposals", 1, generate_proposals);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBoxClustered", 1, prior_box_clustered);
-    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
 }
 
 #undef REGISTER_OPERATOR
