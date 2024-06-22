@@ -137,7 +137,7 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
     if (reduction_axes != nullptr) {
         return std::make_shared<OpType>(ov_input, reduction_axes, static_cast<bool>(keepdims));
     } else {
-        return ai_onnx::opset_::identity(node).at(0).get_node_shared_ptr();
+        return ai_onnx::opset_1::identity(node).at(0).get_node_shared_ptr();
     }
 }
 

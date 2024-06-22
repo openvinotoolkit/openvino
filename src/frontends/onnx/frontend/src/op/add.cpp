@@ -39,11 +39,11 @@ static bool registered = register_translator("Add", VersionRange{7, 12}, add);
 }  // namespace opset_7
 
 namespace opset_13 {
-static bool registered = register_translator("Add", VersionRange::in(13), ai_onnx::opset_op:: ::add);
+static bool registered = register_translator("Add", VersionRange::in(13), ai_onnx::opset_7::add);
 }  // namespace opset_13
 
 namespace opset_14 {
-static bool registered = register_translator("Add", VersionRange::since(14), ai_onnx::opset_op:: ::add);
+static bool registered = register_translator("Add", VersionRange::since(14), ai_onnx::opset_7::add);
 }  // namespace opset_14
 
 }  // namespace ai_onnx

@@ -56,16 +56,16 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
     auto y_zero_point = inputs.at(7);
     ov::Output<ov::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
 
-    x = ai_onnx::opset_::detail::dequantize_linear(x,
-                                                   x_scale,
-                                                   std::make_shared<v0::Convert>(x_zero_point, ov::element::f32),
-                                                   1,
-                                                   node)[0];
-    w = ai_onnx::opset_::detail::dequantize_linear(w,
-                                                   w_scale,
-                                                   std::make_shared<v0::Convert>(w_zero_point, ov::element::f32),
-                                                   1,
-                                                   node)[0];
+    x = ai_onnx::opset_13::detail::dequantize_linear(x,
+                                                     x_scale,
+                                                     std::make_shared<v0::Convert>(x_zero_point, ov::element::f32),
+                                                     1,
+                                                     node)[0];
+    w = ai_onnx::opset_13::detail::dequantize_linear(w,
+                                                     w_scale,
+                                                     std::make_shared<v0::Convert>(w_zero_point, ov::element::f32),
+                                                     1,
+                                                     node)[0];
 
     if (!ov::op::util::is_null(B)) {
         B = std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(B, x_scale.get_element_type()),
@@ -75,7 +75,7 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
 
     auto result = detail::conv(node, x, w, B)[0];
 
-    result = op::detail::make_fake_quantize(y_scale, y_zero_point, result);
+    result = ai_onnx::detail::make_fake_quantize(y_scale, y_zero_point, result);
 
     return {result};
 }

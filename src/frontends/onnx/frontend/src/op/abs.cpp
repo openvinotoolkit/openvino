@@ -22,11 +22,11 @@ static bool registered = register_translator("Abs", VersionRange{1, 5}, abs);
 }  // namespace opset_1
 
 namespace opset_6 {
-static bool registered = register_translator("Abs", VersionRange{6, 12}, ai_onnx::opset_::abs);
+static bool registered = register_translator("Abs", VersionRange{6, 12}, ai_onnx::opset_1::abs);
 }  // namespace opset_6
 
 namespace opset_13 {
-static bool registered = register_translator("Abs", VersionRange::since(13), ai_onnx::opset_::abs);
+static bool registered = register_translator("Abs", VersionRange::since(13), ai_onnx::opset_1::abs);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

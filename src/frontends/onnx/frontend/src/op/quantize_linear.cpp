@@ -159,7 +159,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                                  ov::Output<ov::Node> y_zero_point,
                                  int64_t axis,
                                  Node node) {
-    namespace detail = ov::frontend::onnx::op::detail;
+    namespace detail = ov::frontend::onnx::ai_onnx::detail;
 
     x = detail::validate_data(node, x);
     detail::validate_zero_point_type(node, y_zero_point);
@@ -216,12 +216,12 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
-    const auto zero_point = op::detail::get_zero_point(inputs);
+    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
     // per-tensor quantization, axis attribute ignored
     if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0 &&
         zero_point.get_partial_shape().rank().is_static() && zero_point.get_partial_shape().rank().get_length() == 0) {
-        return ai_onnx::opset_::quantize_linear(node);
+        return ai_onnx::opset_1::quantize_linear(node);
     }
 
     return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);

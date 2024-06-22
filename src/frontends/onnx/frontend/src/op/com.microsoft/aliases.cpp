@@ -24,23 +24,20 @@ namespace opset_1 {
 static bool register_multiple_translators(void) {
     register_translator("DequantizeLinear",
                         VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_op:: ::dequantize_linear,
+                        ai_onnx::opset_13::dequantize_linear,
                         "com.microsoft");
     register_translator("GatherND",
                         VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_op:: ::gather_nd,
+                        ai_onnx::opset_1::gather_nd,
                         "com.microsoft");
-    register_translator("Gelu",
-                        VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_op:: ::gelu,
-                        "com.microsoft");
+    register_translator("Gelu", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::gelu, "com.microsoft");
     register_translator("QuantizeLinear",
                         VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_op:: ::quantize_linear,
+                        ai_onnx::opset_13::quantize_linear,
                         "com.microsoft");
     register_translator("Trilu",
                         VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_op:: ::trilu,
+                        ai_onnx::opset_1::trilu,
                         "com.microsoft");
     return true;
 }

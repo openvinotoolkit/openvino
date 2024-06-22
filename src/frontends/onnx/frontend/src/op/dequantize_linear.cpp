@@ -170,19 +170,19 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
                             inputs.size());
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
-    const auto zero_point = op::detail::get_zero_point(inputs);
+    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
     const auto& scale_shape = scale.get_partial_shape();
     // per-tensor quantization, axis attribute ignored
     if ((scale_shape.rank().is_static() && scale_shape.size() == 0) ||
         (scale_shape.is_static() && shape_size(scale_shape.get_shape()) == 1)) {
         if (!zero_point) {
-            return ai_onnx::opset_::dequantize_linear(node);
+            return ai_onnx::opset_1::dequantize_linear(node);
         }
         const auto& zero_point_shape = zero_point->get_output_partial_shape(0);
         if ((zero_point_shape.rank().is_static() && zero_point_shape.size() == 0) ||
             (zero_point_shape.is_static() && shape_size(zero_point_shape.get_shape()) == 1)) {
-            return ai_onnx::opset_::dequantize_linear(node);
+            return ai_onnx::opset_1::dequantize_linear(node);
         }
     }
     // these reshapes make sure that dequantization happens over the specified axis
