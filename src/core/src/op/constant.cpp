@@ -12,6 +12,7 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
@@ -147,6 +148,20 @@ template <element::Type_t ET, class T>
 void write_buffer(const std::vector<T>& source, void* buffer) {
     std::transform(source.begin(), source.end(), element::iterator<ET>(buffer), convert_if_in_element_range<ET, T>);
 }
+
+Strides calc_byte_strides(const Shape& shape, const element::Type& et) {
+    Strides strides;
+    if (!shape.empty() && et.bitwidth() >= 8) {
+        strides.resize(shape.size());
+        strides.back() = et.size();
+        std::transform(shape.crbegin(),
+                       shape.crend() - 1,
+                       strides.rbegin(),
+                       strides.rbegin() + 1,
+                       std::multiplies<size_t>());
+    }
+    return strides;
+}
 }  // namespace
 
 namespace v0 {
@@ -154,6 +169,7 @@ namespace v0 {
 Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
       m_shape{tensor.get_shape()},
+      m_byte_strides{m_element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{}},
       m_data{
           std::make_shared<SharedBuffer<Tensor>>(static_cast<char*>(tensor.data()), tensor.get_byte_size(), tensor)} {
     constructor_validate_and_infer_types();
@@ -191,7 +207,8 @@ Constant::Constant(const element::Type& type, const Shape& shape) : Constant(tru
 
 Constant::Constant(bool memset_allocation, const element::Type& type, const Shape& shape)
     : m_element_type(type),
-      m_shape(shape) {
+      m_shape(shape),
+      m_byte_strides{calc_byte_strides(m_shape, m_element_type)} {
     allocate_buffer(memset_allocation);
     constructor_validate_and_infer_types();
 }
@@ -225,6 +242,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
 Constant::Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data)
     : m_element_type(type),
       m_shape(shape),
+      m_byte_strides(calc_byte_strides(m_shape, m_element_type)),
       m_data(data) {
     constructor_validate_and_infer_types();
 }
@@ -232,6 +250,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
 Constant::Constant(const Constant& other)
     : m_element_type{other.m_element_type},
       m_shape{other.m_shape},
+      m_byte_strides{other.m_byte_strides},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
       m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()} {
@@ -241,6 +260,7 @@ Constant::Constant(const Constant& other)
 Constant::Constant(const Constant& other, const Shape& new_shape)
     : m_element_type{other.m_element_type},
       m_shape{new_shape},
+      m_byte_strides{calc_byte_strides(m_shape, m_element_type)},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
       m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()} {
@@ -564,6 +584,17 @@ bool Constant::evaluate_upper(TensorVector& outputs) const {
 
 bool Constant::constant_fold(OutputVector&, const OutputVector&) {
     return false;
+}
+
+const Tensor Constant::get_tensor_view() const {
+    return m_data ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
+}
+
+const Strides& Constant::get_strides() const {
+    OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
+                    "Could not get strides for types with bit widths less then 8 bit. Type: ",
+                    m_element_type);
+    return m_byte_strides;
 }
 
 template <>
