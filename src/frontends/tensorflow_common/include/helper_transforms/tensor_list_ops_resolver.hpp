@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <memory>
-#include <utility>
-
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -36,6 +33,13 @@ public:
     TensorListGetItemReplacer();
 };
 
+// Replace TensorListSetItem with concatenated output and TensorListGetItem with sliced input in Loop operation
+class TensorListSliceInputAndConcatOutputReplacer : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorListSliceInputAndConcatOutputReplacer");
+    TensorListSliceInputAndConcatOutputReplacer();
+};
+
 // Replace and optimize sub-graphs with TensorList operations such as TensorListReserve,
 // TensorListSetItem, TensorListGetItem
 class TensorListOperationsResolver : public ov::pass::GraphRewrite {
@@ -43,6 +47,7 @@ public:
     OPENVINO_RTTI("TensorListOperationsResolver", "0");
     TensorListOperationsResolver() {
         add_matcher<TensorListReplacer>();
+        add_matcher<TensorListSliceInputAndConcatOutputReplacer>();
         add_matcher<TensorListSetItemReplacer>();
         add_matcher<TensorListGetItemReplacer>();
     }
