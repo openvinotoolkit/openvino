@@ -43,8 +43,8 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     GPU_DEBUG_GET_INSTANCE(debug_config);
     CommonDispatchData dispatchData;
 
-    dispatchData.gws = {params.outputs[0].Batch().v * params.outputs[0].Feature().v, 1, 1};
-    dispatchData.lws = {1, 1, 1};
+    dispatchData.gws = {16, 1, params.inputs[0].Batch().v * params.inputs[0].Feature().v};
+    dispatchData.lws = {16, 1, 1};
 
     return dispatchData;
 }
@@ -92,7 +92,7 @@ KernelsData DynamicQuantizeKernelOpt::GetKernelsData(const Params& params) const
                      static_cast<int>(prim_params.outputs.size()),
                      prim_params.is_shape_agnostic);
 
-    std::cout << "Select dynamic_quantize_kernel_opt : " << prim_params.outputs.size() << std::endl;
+    // std::cout << ">> Select dynamic_quantize_kernel_opt : " << prim_params.outputs.size() << std::endl;
 
     return {kd};
 }
@@ -113,6 +113,12 @@ Datatype DynamicQuantizeKernelOpt::GetAccumulatorType(const dynamic_quantize_par
 
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
+        return false;
+
+    const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
+
+    // Todo : Add proper exception here
+    if ((dq_params.outputs[0].X().v * dq_params.outputs[0].Y().v % 32) != 0)
         return false;
 
     return true;

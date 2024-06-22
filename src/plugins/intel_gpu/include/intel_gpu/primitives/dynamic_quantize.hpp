@@ -33,6 +33,7 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
     /// @param output_padding Output data size of the primitive
     dynamic_quantize(const primitive_id& id,
            const input_info& input,
+           const size_t group_size,
            const data_types data_type,
            const padding& output_padding = padding())
            : primitive_base(id, {input}, {output_padding}, {optional_data_type{data_type}}, 2)

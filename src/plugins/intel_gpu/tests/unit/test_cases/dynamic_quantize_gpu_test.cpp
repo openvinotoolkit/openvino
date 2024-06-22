@@ -38,8 +38,8 @@ public:
 
         bool is_4d = true;
 
-        auto input_ps = is_4d ?  ov::PartialShape{ batch_num, 1, ifm_num, 1 } : ov::PartialShape{ batch_num, ifm_num};
-        auto dyn_input_ps = is_4d ?  ov::PartialShape{ -1, 1, ifm_num, 1 } : ov::PartialShape{ -1, ifm_num};
+        auto input_ps = is_4d ?  ov::PartialShape{ batch_num, 1, 1, ifm_num } : ov::PartialShape{ batch_num, ifm_num};
+        auto dyn_input_ps = is_4d ?  ov::PartialShape{ -1, 1, 1, ifm_num } : ov::PartialShape{ -1, ifm_num};
         auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -16.0f, 16.0f);
@@ -48,7 +48,7 @@ public:
         auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
                                     : layout{ input_ps, data_types::f16, format::bfyx };
 
-        auto dyn_quan_prim = dynamic_quantize("dyn_quan_prim", input_info("input"), data_types::i8);
+        auto dyn_quan_prim = dynamic_quantize("dyn_quan_prim", input_info("input"), 32, data_types::i8);
 
         // Implemented dynamic quantize kernel
         auto get_ref_results = [&]() {
