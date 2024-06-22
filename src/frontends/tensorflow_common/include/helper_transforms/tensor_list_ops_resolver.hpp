@@ -33,13 +33,6 @@ public:
     TensorListGetItemReplacer();
 };
 
-// Replace TensorListSetItem with concatenated output and TensorListGetItem with sliced input in Loop operation
-class TensorListSliceInputAndConcatOutputReplacer : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorListSliceInputAndConcatOutputReplacer");
-    TensorListSliceInputAndConcatOutputReplacer();
-};
-
 // Optimize sub-graphs with TensorList operations in Loop body graph
 // Replace TensorListSetItem and TensorListGetItem with ConcatOutput and SlicedInput
 class TensorListInLoopOptimization : public ov::pass::MatcherPass {
