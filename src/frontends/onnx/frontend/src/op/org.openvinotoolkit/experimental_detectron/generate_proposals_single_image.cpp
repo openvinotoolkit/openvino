@@ -41,8 +41,8 @@ static bool registered = register_translator("ExperimentalDetectronGeneratePropo
                                              VersionRange::single_version_for_all_opsets(),
                                              experimental_detectron_generate_proposals,
                                              OPENVINO_ONNX_DOMAIN);
-}  // namespace set_1
-}  // namespace op
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
