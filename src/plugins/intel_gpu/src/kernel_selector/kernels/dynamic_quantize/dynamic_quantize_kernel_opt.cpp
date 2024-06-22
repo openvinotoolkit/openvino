@@ -2,25 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dynamic_quantize_kernel_ref.h"
+#include "dynamic_quantize_kernel_opt.h"
 #include "kernel_selector_utils.h"
 #include <string>
 
 namespace kernel_selector {
-ParamsKey DynamicQuantizeKernelRef::GetSupportedKey() const {
+ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     ParamsKey k;
-    // k.EnableInputDataType(Datatype::F16);
-    // k.EnableInputDataType(Datatype::INT8);
-    // k.EnableOutputDataType(Datatype::F16);
-    // k.EnableOutputDataType(Datatype::INT8);
-    // k.EnableInputLayout(DataLayout::bfyx);
-    // k.EnableOutputLayout(DataLayout::bfyx);
-    // k.EnableTensorOffset();
-    // k.EnableTensorPitches();
-    // k.EnableBatching();
-    // k.EnableDifferentTypes();
-    // k.EnableDynamicShapesSupport();
-
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
@@ -43,7 +31,7 @@ ParamsKey DynamicQuantizeKernelRef::GetSupportedKey() const {
     return k;
 }
 
-JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_params& params) const {
+JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
@@ -51,7 +39,7 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
     return jit;
 }
 
-CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_params& params) const {
+CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_params& params) const {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     CommonDispatchData dispatchData;
 
@@ -61,7 +49,7 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
     return dispatchData;
 }
 
-void DynamicQuantizeKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+void DynamicQuantizeKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const dynamic_quantize_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -72,7 +60,7 @@ void DynamicQuantizeKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData DynamicQuantizeKernelRef::GetKernelsData(const Params& params) const {
+KernelsData DynamicQuantizeKernelOpt::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::DYNAMIC_QUANTIZE);
 
     if (!Validate(params))
@@ -104,14 +92,16 @@ KernelsData DynamicQuantizeKernelRef::GetKernelsData(const Params& params) const
                      static_cast<int>(prim_params.outputs.size()),
                      prim_params.is_shape_agnostic);
 
+    std::cout << "Select dynamic_quantize_kernel_opt : " << prim_params.outputs.size() << std::endl;
+
     return {kd};
 }
 
-KernelsPriority DynamicQuantizeKernelRef::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_8;
+KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
+    return FORCE_PRIORITY_2;
 }
 
-Datatype DynamicQuantizeKernelRef::GetAccumulatorType(const dynamic_quantize_params& params) const {
+Datatype DynamicQuantizeKernelOpt::GetAccumulatorType(const dynamic_quantize_params& params) const {
     Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types)
@@ -121,7 +111,7 @@ Datatype DynamicQuantizeKernelRef::GetAccumulatorType(const dynamic_quantize_par
     return Datatype::F32;
 }
 
-bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
+bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
         return false;
 
