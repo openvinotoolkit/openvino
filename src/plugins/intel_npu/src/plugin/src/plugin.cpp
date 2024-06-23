@@ -160,6 +160,10 @@ static Config merge_configs(const Config& globalConfig,
                             OptionMode mode = OptionMode::Both) {
     Config localConfig = globalConfig;
     localConfig.update(rawConfig, mode);
+    if(rawConfig.find(std::string(LOG_LEVEL::key())) != rawConfig.end()) {
+        Logger::global().setLevel(localConfig.get<LOG_LEVEL>());
+    }
+
     return localConfig;
 }
 
@@ -556,6 +560,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     _globalConfig.update(config);
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
     if (_backends != nullptr) {
         _backends->setup(_globalConfig);
     }
@@ -686,6 +691,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& /*re
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
+
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
     update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
@@ -776,6 +782,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
+    _logger.setLevel(_globalConfig.get<LOG_LEVEL>());
     return createCompiler(compilerType, _logger);
 }
 
