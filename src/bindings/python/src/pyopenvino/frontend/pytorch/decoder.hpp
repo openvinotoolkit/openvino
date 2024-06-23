@@ -82,6 +82,10 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(size_t, TorchDecoder, num_of_outputs);
     }
 
+    size_t num_of_users() const override {
+        PYBIND11_OVERRIDE_PURE(size_t, TorchDecoder, num_of_users);
+    }
+
     const std::vector<size_t>& outputs() const override {
         PYBIND11_OVERRIDE_PURE(const std::vector<size_t>&, TorchDecoder, outputs);
     }

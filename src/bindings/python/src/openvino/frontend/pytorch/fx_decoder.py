@@ -316,6 +316,9 @@ class TorchFXPythonDecoder (Decoder):
     def num_of_outputs(self):
         return len(self.outputs())
 
+    def num_of_users(self):
+        return len(self.pt_module.users)
+
     def output(self, index):
         return self.outputs()[index]
 

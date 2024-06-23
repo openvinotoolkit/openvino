@@ -82,6 +82,9 @@ public:
     // TODO: use canonical name output_size
     virtual size_t num_of_outputs() const = 0;
 
+    // Returns the number of users of the PT node
+    virtual size_t num_of_users() const = 0;
+
     // Return a vector of output IDs
     virtual const std::vector<size_t>& outputs() const = 0;
 

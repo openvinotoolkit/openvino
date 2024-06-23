@@ -567,7 +567,14 @@ Output<Node> concat_dims_to_shape(const NodeContext& context, size_t begin, size
         } else {
             auto converted_dim = context.mark_node(
                 std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
-            list_elems.push_back(converted_dim);
+            if (converted_dim->get_output_partial_shape(0).rank() == 0) {
+                auto dims_1d_shape = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {-1}));
+                auto reshape_dim =
+                    context.mark_node(std::make_shared<ov::op::v1::Reshape>(converted_dim, dims_1d_shape, false));
+                list_elems.push_back(reshape_dim);
+            } else {
+                list_elems.push_back(converted_dim);
+            }
         }
     }
     auto concat = std::make_shared<ov::op::v0::Concat>(list_elems, 0);
