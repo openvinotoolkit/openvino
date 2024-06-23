@@ -40,8 +40,7 @@ KERNEL (group_normalization_gpu_bfyx_opt)(
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint my_data_offset = data_set_offset + in_data_set_idx;
 
-    float my_mean = 0;
-    float tmp;
+    float my_mean = 0.f;
 
     __local float lg_storage[SLM_SIZE];
 
@@ -76,14 +75,14 @@ KERNEL (group_normalization_gpu_bfyx_opt)(
     //each WI reads items_num consecutive items from batch*feature
     for (uint i=0; i<items_num; ++i)
     {
-        tmp = (float)input[my_data_offset + i * workers_per_data_set];
+        float tmp = (float)input[my_data_offset + i * workers_per_data_set];
         tmp -= my_mean;
         my_variance = fma(tmp, tmp, my_variance);
     }
 
     if (in_data_set_idx < leftovers)
     {
-        tmp = (float)input[data_set_offset + workers_per_data_set * items_num + in_data_set_idx];
+        float tmp = (float)input[data_set_offset + workers_per_data_set * items_num + in_data_set_idx];
         tmp -= my_mean;
         my_variance = fma(tmp, tmp, my_variance);
     }

@@ -22,6 +22,7 @@ ParamsKey GroupNormalizationKernelBfyxOpt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -70,10 +71,8 @@ JitConstants GroupNormalizationKernelBfyxOpt::GetJitConstants(const group_normal
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
         DimensionAccessHelperJit dims(input);
-        std::string data_set_size;
-        std::string data_set_count;
-        data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
-        data_set_count = dims.b();
+        std::string data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f() + "/" + std::to_string(params.num_groups)});
+        std::string data_set_count = toVectorMulString({dims.b(), std::to_string(params.num_groups)});
         const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
             MakeJitConstant("LWS", lws_0),
@@ -113,6 +112,17 @@ JitConstants GroupNormalizationKernelBfyxOpt::GetJitConstants(const group_normal
     }
 
     return jit;
+}
+
+void GroupNormalizationKernelBfyxOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const group_normalization_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
 }
 
 KernelsData GroupNormalizationKernelBfyxOpt::GetKernelsData(const Params &params) const {

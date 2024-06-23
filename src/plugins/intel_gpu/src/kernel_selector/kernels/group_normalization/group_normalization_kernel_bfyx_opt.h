@@ -27,6 +27,7 @@ protected:
     }
     DispatchData SetDefault(const group_normalization_params& params) const;
     JitConstants GetJitConstants(const group_normalization_params& params, GroupNormalizationKernelBase::DispatchData dispatchData) const;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
 }  // namespace kernel_selector
