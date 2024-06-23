@@ -43,16 +43,6 @@ void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg
 
 bool is_python_scalar_input(const NodeContext& context, size_t index);
 
-void align_eltwise_input_types(const NodeContext& context,
-                               Output<Node>& lhs,
-                               Output<Node>& rhs,
-                               const bool& is_lhs_python_scalar = false,
-                               const bool& ir_rhs_python_scalar = false);
-
-std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
-                                                                      size_t lhs_idx,
-                                                                      size_t rhs_idx);
-
 element::Type convert_dtype(int64_t pt_type);
 
 namespace op {
