@@ -195,7 +195,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :param mode: ad_mode specifies the method used to generate new element values.
             :type mode: string
             :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
-            :rtype: openvino.runtime.preprocess.PreProcessSteps
+            :rtype: openvino.preprocess.PreProcessSteps
         )");
 
     steps.def(
