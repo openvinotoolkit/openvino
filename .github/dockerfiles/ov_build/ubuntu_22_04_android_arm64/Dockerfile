@@ -42,3 +42,13 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
+# Install Android SDK, NDK and Tools
+ENV ANDROID_TOOLS /deps/android_tools
+ENV ANDROID_NDK_HOME /deps/android_tools/ndk-bundle
+RUN mkdir -p ${ANDROID_NDK_HOME}
+ENV ANDROID_SDK_VERSION 29
+
+RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
+    unzip commandlinetools-linux-7583922_latest.zip
+RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"
