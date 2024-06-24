@@ -32,6 +32,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     const auto& format = dstWeightDesc->serializeFormat();
 
     const auto privateWeightCache = context->getPrivateWeighCache();
+    OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
     if (privateWeightCache) {
         auto itr = privateWeightCache->find(format);
         if (privateWeightCache->end() != itr) {
@@ -86,7 +87,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     if (globalWeightCache &&
         dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
         const std::string string_hash = format + "_" + std::to_string(weightsMem->getSize()) + "_" +
-                                        std::to_string(*weightsMem->getDataAs<uint64_t>());
+                                        std::to_string(reinterpret_cast<uint64_t>(weightsMem->getData()));
         ptr = *globalWeightCache->findOrCreate(string_hash, create);
     } else {
         ptr = create();
