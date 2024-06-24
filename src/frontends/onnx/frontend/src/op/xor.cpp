@@ -16,7 +16,8 @@ ov::OutputVector logical_xor(const ov::frontend::onnx::Node& node) {
                                                      ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY))};
 }
 
-static bool registered = register_translator("Xor", VersionRange::single_version_for_all_opsets(), logical_xor);
+static bool registered =
+    register_translator("Xor", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::logical_xor);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

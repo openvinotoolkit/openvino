@@ -31,7 +31,7 @@ ov::OutputVector experimental_detectron_prior_grid_generator(const ov::frontend:
 }
 static bool registered = register_translator("ExperimentalDetectronPriorGridGenerator",
                                              VersionRange::single_version_for_all_opsets(),
-                                             experimental_detectron_prior_grid_generator,
+                                             org_openvinotoolkit::opset_1::experimental_detectron_prior_grid_generator,
                                              OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit

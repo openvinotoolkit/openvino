@@ -15,7 +15,8 @@ ov::OutputVector less(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v1::Less>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 
-static bool registered = register_translator("Less", VersionRange::single_version_for_all_opsets(), less);
+static bool registered =
+    register_translator("Less", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::less);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

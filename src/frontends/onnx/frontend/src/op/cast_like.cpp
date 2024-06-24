@@ -17,7 +17,8 @@ ov::OutputVector cast_like(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::ConvertLike>(inputs.at(0), inputs.at(1))};
 }
 
-static bool registered = register_translator("CastLike", VersionRange::single_version_for_all_opsets(), cast_like);
+static bool registered =
+    register_translator("CastLike", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::cast_like);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

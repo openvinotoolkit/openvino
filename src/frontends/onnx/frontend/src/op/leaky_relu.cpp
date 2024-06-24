@@ -22,7 +22,8 @@ ov::OutputVector leaky_relu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::PRelu>(data, alpha_node)};
 }
 
-static bool registered = register_translator("LeakyRelu", VersionRange::single_version_for_all_opsets(), leaky_relu);
+static bool registered =
+    register_translator("LeakyRelu", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::leaky_relu);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

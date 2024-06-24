@@ -37,7 +37,8 @@ ov::OutputVector compress(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
-static bool registered = register_translator("Compress", VersionRange::single_version_for_all_opsets(), compress);
+static bool registered =
+    register_translator("Compress", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::compress);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

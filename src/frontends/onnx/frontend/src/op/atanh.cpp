@@ -14,7 +14,8 @@ namespace opset_1 {
 ov::OutputVector atanh(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v3::Atanh>(node.get_ov_inputs().at(0))};
 }
-static bool registered = register_translator("Atanh", VersionRange::single_version_for_all_opsets(), atanh);
+static bool registered =
+    register_translator("Atanh", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::atanh);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

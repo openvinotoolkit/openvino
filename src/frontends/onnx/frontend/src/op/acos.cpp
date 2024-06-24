@@ -14,7 +14,8 @@ namespace opset_7 {
 ov::OutputVector acos(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Acos>(node.get_ov_inputs().at(0))};
 }
-static bool registered = register_translator("Acos", VersionRange::single_version_for_all_opsets(), acos);
+static bool registered =
+    register_translator("Acos", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_7::acos);
 }  // namespace opset_7
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -44,8 +44,9 @@ ov::OutputVector random_uniform_like(const ov::frontend::onnx::Node& node) {
                                                 seed_uint64)};
 }
 
-static bool registered =
-    register_translator("RandomUniformLike", VersionRange::single_version_for_all_opsets(), random_uniform_like);
+static bool registered = register_translator("RandomUniformLike",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             ai_onnx::opset_1::random_uniform_like);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -14,7 +14,8 @@ namespace opset_1 {
 ov::OutputVector tan(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Tan>(node.get_ov_inputs().at(0))};
 }
-static bool registered = register_translator("Tan", VersionRange::single_version_for_all_opsets(), tan);
+static bool registered =
+    register_translator("Tan", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::tan);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

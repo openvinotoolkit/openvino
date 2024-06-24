@@ -41,7 +41,7 @@ ov::OutputVector image_scaler(const ov::frontend::onnx::Node& node) {
     return {scaler};
 }
 static bool registered =
-    register_translator("ImageScaler", VersionRange::single_version_for_all_opsets(), image_scaler);
+    register_translator("ImageScaler", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::image_scaler);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

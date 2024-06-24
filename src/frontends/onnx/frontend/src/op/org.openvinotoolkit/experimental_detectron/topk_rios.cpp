@@ -25,7 +25,7 @@ ov::OutputVector experimental_detectron_topk_rois(const ov::frontend::onnx::Node
 
 static bool registered = register_translator("ExperimentalDetectronTopKROIs",
                                              VersionRange::single_version_for_all_opsets(),
-                                             experimental_detectron_topk_rois,
+                                             org_openvinotoolkit::opset_1::experimental_detectron_topk_rois,
                                              OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit

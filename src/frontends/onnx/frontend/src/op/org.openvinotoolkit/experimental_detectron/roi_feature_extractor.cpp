@@ -28,7 +28,7 @@ ov::OutputVector experimental_detectron_roi_feature_extractor(const ov::frontend
 
 static bool registered = register_translator("ExperimentalDetectronROIFeatureExtractor",
                                              VersionRange::single_version_for_all_opsets(),
-                                             experimental_detectron_roi_feature_extractor,
+                                             org_openvinotoolkit::opset_1::experimental_detectron_roi_feature_extractor,
                                              OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit

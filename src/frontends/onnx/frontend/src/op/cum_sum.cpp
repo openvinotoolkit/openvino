@@ -31,7 +31,8 @@ ov::OutputVector cum_sum(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector{std::make_shared<v0::CumSum>(data, axis, exclusive, reverse)};
 }
 
-static bool registered = register_translator("CumSum", VersionRange::single_version_for_all_opsets(), cum_sum);
+static bool registered =
+    register_translator("CumSum", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::cum_sum);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -15,7 +15,8 @@ namespace opset_1 {
 ov::OutputVector softsign(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v9::SoftSign>(node.get_ov_inputs().at(0))};
 }
-static bool registered = register_translator("Softsign", VersionRange::single_version_for_all_opsets(), softsign);
+static bool registered =
+    register_translator("Softsign", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::softsign);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

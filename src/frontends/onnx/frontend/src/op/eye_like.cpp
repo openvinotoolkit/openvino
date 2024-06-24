@@ -61,7 +61,8 @@ ov::OutputVector eye_like(const ov::frontend::onnx::Node& node) {
     return {output};
 }
 
-static bool registered = register_translator("EyeLike", VersionRange::single_version_for_all_opsets(), eye_like);
+static bool registered =
+    register_translator("EyeLike", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::eye_like);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

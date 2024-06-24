@@ -15,7 +15,8 @@ namespace opset_1 {
 ov::OutputVector cosh(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Cosh>(node.get_ov_inputs().at(0))};
 }
-static bool registered = register_translator("Cosh", VersionRange::single_version_for_all_opsets(), cosh);
+static bool registered =
+    register_translator("Cosh", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::cosh);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

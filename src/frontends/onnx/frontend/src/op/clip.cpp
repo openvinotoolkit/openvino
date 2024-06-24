@@ -27,7 +27,7 @@ ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Clamp>(data, min_value, max_value)};
 }
 
-static bool registered = register_translator("Clip", VersionRange{1, 10}, clip);
+static bool registered = register_translator("Clip", VersionRange{1, 10}, ai_onnx::opset_1::clip);
 }  // namespace opset_1
 
 namespace opset_11 {
@@ -98,7 +98,7 @@ ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Minimum>(max, max_of_min_and_data)};
 }
 
-static bool registered = register_translator("Clip", VersionRange::since(11), clip);
+static bool registered = register_translator("Clip", VersionRange::since(11), ai_onnx::opset_11::clip);
 }  // namespace opset_11
 }  // namespace ai_onnx
 }  // namespace onnx

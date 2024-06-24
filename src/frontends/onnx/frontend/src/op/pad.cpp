@@ -59,7 +59,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
         pad_mode)};
 }
 
-static bool registered = register_translator("Pad", VersionRange{1, 10}, pad);
+static bool registered = register_translator("Pad", VersionRange{1, 10}, ai_onnx::opset_1::pad);
 }  // namespace opset_1
 namespace opset_11 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
@@ -99,7 +99,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v12::Pad>(data, padding_begin, padding_end, values, pad_mode)};
 }
 
-static bool registered = register_translator("Pad", VersionRange::since(11), pad);
+static bool registered = register_translator("Pad", VersionRange::since(11), ai_onnx::opset_11::pad);
 }  // namespace opset_11
 }  // namespace ai_onnx
 }  // namespace onnx

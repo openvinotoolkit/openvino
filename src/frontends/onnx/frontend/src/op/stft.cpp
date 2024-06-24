@@ -121,7 +121,8 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Concat>(all_signals, 0)};
 }
 
-static bool registered = register_translator("STFT", VersionRange::single_version_for_all_opsets(), stft);
+static bool registered =
+    register_translator("STFT", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_17::stft);
 }  // namespace opset_17
 }  // namespace ai_onnx
 }  // namespace onnx

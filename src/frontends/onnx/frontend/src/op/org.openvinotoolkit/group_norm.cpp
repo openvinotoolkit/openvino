@@ -39,9 +39,12 @@ ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
 static bool register_multiple_translators(void) {
     register_translator("ExperimentalDetectronGroupNorm",
                         VersionRange::single_version_for_all_opsets(),
-                        group_norm,
+                        org_openvinotoolkit::opset_1::group_norm,
                         OPENVINO_ONNX_DOMAIN);
-    register_translator("GroupNorm", VersionRange::single_version_for_all_opsets(), group_norm, OPENVINO_ONNX_DOMAIN);
+    register_translator("GroupNorm",
+                        VersionRange::single_version_for_all_opsets(),
+                        org_openvinotoolkit::opset_1::group_norm,
+                        OPENVINO_ONNX_DOMAIN);
     return true;
 }
 

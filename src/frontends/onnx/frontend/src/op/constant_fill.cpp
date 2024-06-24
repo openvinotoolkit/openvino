@@ -46,7 +46,7 @@ ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered =
-    register_translator("ConstantFill", VersionRange::single_version_for_all_opsets(), constant_fill);
+    register_translator("ConstantFill", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::constant_fill);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -65,8 +65,9 @@ ov::OutputVector non_max_suppression(const ov::frontend::onnx::Node& node) {
                                                     false)};
 }
 
-static bool registered =
-    register_translator("NonMaxSuppression", VersionRange::single_version_for_all_opsets(), non_max_suppression);
+static bool registered = register_translator("NonMaxSuppression",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             ai_onnx::opset_1::non_max_suppression);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

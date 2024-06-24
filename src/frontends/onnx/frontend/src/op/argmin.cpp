@@ -15,7 +15,7 @@ ov::OutputVector argmin(const ov::frontend::onnx::Node& node) {
     return {arg_factory.make_arg_min()};
 }
 
-static bool registered = register_translator("ArgMin", VersionRange{1, 11}, argmin);
+static bool registered = register_translator("ArgMin", VersionRange{1, 11}, ai_onnx::opset_1::argmin);
 }  // namespace opset_1
 
 namespace opset_12 {
@@ -24,7 +24,7 @@ ov::OutputVector argmin(const ov::frontend::onnx::Node& node) {
     return {arg_factory.make_arg_min()};
 }
 
-static bool registered = register_translator("ArgMin", VersionRange::since(12), argmin);
+static bool registered = register_translator("ArgMin", VersionRange::since(12), ai_onnx::opset_12::argmin);
 }  // namespace opset_12
 }  // namespace ai_onnx
 }  // namespace onnx

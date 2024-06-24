@@ -22,7 +22,7 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
 }
 
 static bool registered =
-    register_translator("MeanVarianceNormalization", VersionRange{1, 8}, mean_variance_normalization);
+    register_translator("MeanVarianceNormalization", VersionRange{1, 8}, ai_onnx::opset_1::mean_variance_normalization);
 }  // namespace opset_1
 
 namespace opset_9 {
@@ -35,8 +35,9 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
     return {std::make_shared<v6::MVN>(data, const_axes, true, 1e-09f, ov::op::MVNEpsMode::OUTSIDE_SQRT)};
 }
 
-static bool registered =
-    register_translator("MeanVarianceNormalization", VersionRange::since(9), mean_variance_normalization);
+static bool registered = register_translator("MeanVarianceNormalization",
+                                             VersionRange::since(9),
+                                             ai_onnx::opset_9::mean_variance_normalization);
 }  // namespace opset_9
 }  // namespace ai_onnx
 }  // namespace onnx

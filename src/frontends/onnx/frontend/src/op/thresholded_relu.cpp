@@ -26,8 +26,9 @@ ov::OutputVector thresholded_relu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Multiply>(data, data_map)};
 }
 
-static bool registered =
-    register_translator("ThresholdedRelu", VersionRange::single_version_for_all_opsets(), thresholded_relu);
+static bool registered = register_translator("ThresholdedRelu",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             ai_onnx::opset_1::thresholded_relu);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

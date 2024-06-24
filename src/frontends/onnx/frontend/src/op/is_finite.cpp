@@ -17,7 +17,8 @@ ov::OutputVector is_finite(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v10::IsFinite>(data)};
 }
 
-static bool registered = register_translator("IsFinite", VersionRange::single_version_for_all_opsets(), is_finite);
+static bool registered =
+    register_translator("IsFinite", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::is_finite);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

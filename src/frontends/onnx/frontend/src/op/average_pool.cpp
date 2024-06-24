@@ -14,7 +14,7 @@ ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered =
-    register_translator("AveragePool", VersionRange::single_version_for_all_opsets(), average_pool);
+    register_translator("AveragePool", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::average_pool);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

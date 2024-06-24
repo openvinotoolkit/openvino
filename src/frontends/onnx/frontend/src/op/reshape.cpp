@@ -33,7 +33,8 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(data, pattern, special_zero)};
 }
 
-static bool registered = register_translator("Reshape", VersionRange::single_version_for_all_opsets(), reshape);
+static bool registered =
+    register_translator("Reshape", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::reshape);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

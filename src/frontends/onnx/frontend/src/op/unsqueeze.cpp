@@ -19,7 +19,7 @@ ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Unsqueeze>(data, axes_node)};
 }
 
-static bool registered = register_translator("Unsqueeze", VersionRange{1, 12}, unsqueeze);
+static bool registered = register_translator("Unsqueeze", VersionRange{1, 12}, ai_onnx::opset_1::unsqueeze);
 }  // namespace opset_1
 
 namespace opset_13 {
@@ -28,7 +28,7 @@ ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Unsqueeze>(inputs.at(0), inputs.at(1))};
 }
 
-static bool registered = register_translator("Unsqueeze", VersionRange::since(13), unsqueeze);
+static bool registered = register_translator("Unsqueeze", VersionRange::since(13), ai_onnx::opset_13::unsqueeze);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

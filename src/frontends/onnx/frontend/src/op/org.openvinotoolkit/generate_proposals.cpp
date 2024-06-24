@@ -68,7 +68,7 @@ ov::OutputVector generate_proposals(const ov::frontend::onnx::Node& node) {
 
 static bool registered = register_translator("GenerateProposals",
                                              VersionRange::single_version_for_all_opsets(),
-                                             generate_proposals,
+                                             org_openvinotoolkit::opset_1::generate_proposals,
                                              OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit

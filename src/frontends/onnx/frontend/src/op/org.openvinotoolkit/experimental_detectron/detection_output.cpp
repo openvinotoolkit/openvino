@@ -37,7 +37,7 @@ ov::OutputVector experimental_detectron_detection_output(const ov::frontend::onn
 
 static bool registered = register_translator("ExperimentalDetectronDetectionOutput",
                                              VersionRange::single_version_for_all_opsets(),
-                                             experimental_detectron_detection_output,
+                                             org_openvinotoolkit::opset_1::experimental_detectron_detection_output,
                                              OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit

@@ -99,7 +99,7 @@ ov::OutputVector embed_layer_normalization(const ov::frontend::onnx::Node& node)
 }
 static bool registered = register_translator("EmbedLayerNormalization",
                                              VersionRange::single_version_for_all_opsets(),
-                                             embed_layer_normalization,
+                                             com_microsoft::opset_1::embed_layer_normalization,
                                              MICROSOFT_DOMAIN);
 }  // namespace opset_1
 }  // namespace com_microsoft

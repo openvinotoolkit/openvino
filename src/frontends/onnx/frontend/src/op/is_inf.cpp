@@ -20,7 +20,8 @@ ov::OutputVector is_inf(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v10::IsInf>(data, attributes)};
 }
-static bool registered = register_translator("IsInf", VersionRange::single_version_for_all_opsets(), is_inf);
+static bool registered =
+    register_translator("IsInf", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::is_inf);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

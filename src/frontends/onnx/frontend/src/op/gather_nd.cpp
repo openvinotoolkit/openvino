@@ -24,7 +24,8 @@ ov::OutputVector gather_nd(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v8::GatherND>(data, indices, batch_dims)};
 }
 
-static bool registered = register_translator("GatherND", VersionRange::single_version_for_all_opsets(), gather_nd);
+static bool registered =
+    register_translator("GatherND", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::gather_nd);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

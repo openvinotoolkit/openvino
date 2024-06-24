@@ -50,7 +50,8 @@ ov::OutputVector rnn(const ov::frontend::onnx::Node& node) {
 
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }
-static bool registered = register_translator("RNN", VersionRange::single_version_for_all_opsets(), rnn);
+static bool registered =
+    register_translator("RNN", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::rnn);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -15,7 +15,8 @@ ov::OutputVector tanh(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Tanh>(node.get_ov_inputs().at(0))};
 }
 
-static bool registered = register_translator("Tanh", VersionRange::single_version_for_all_opsets(), tanh);
+static bool registered =
+    register_translator("Tanh", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::tanh);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

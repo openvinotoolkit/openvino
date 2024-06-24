@@ -196,16 +196,16 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
 }
 
 static bool register_multiple_translators(void) {
-    register_translator("ReduceLogSum", VersionRange{1, 12}, reduce_log_sum);
-    register_translator("ReduceLogSumExp", VersionRange{1, 12}, reduce_log_sum_exp);
-    register_translator("ReduceL1", VersionRange{1, 12}, reduce_l1);
-    register_translator("ReduceL2", VersionRange{1, 12}, reduce_l2);
-    register_translator("ReduceMax", VersionRange{1, 12}, reduce_max);
-    register_translator("ReduceMean", VersionRange{1, 12}, reduce_mean);
-    register_translator("ReduceMin", VersionRange{1, 12}, reduce_min);
-    register_translator("ReduceProd", VersionRange{1, 12}, reduce_prod);
-    register_translator("ReduceSum", VersionRange{1, 12}, reduce_sum);
-    register_translator("ReduceSumSquare", VersionRange{1, 12}, reduce_sum_square);
+    register_translator("ReduceLogSum", VersionRange{1, 12}, ai_onnx::opset_1::reduce_log_sum);
+    register_translator("ReduceLogSumExp", VersionRange{1, 12}, ai_onnx::opset_1::reduce_log_sum_exp);
+    register_translator("ReduceL1", VersionRange{1, 12}, ai_onnx::opset_1::reduce_l1);
+    register_translator("ReduceL2", VersionRange{1, 12}, ai_onnx::opset_1::reduce_l2);
+    register_translator("ReduceMax", VersionRange{1, 12}, ai_onnx::opset_1::reduce_max);
+    register_translator("ReduceMean", VersionRange{1, 12}, ai_onnx::opset_1::reduce_mean);
+    register_translator("ReduceMin", VersionRange{1, 12}, ai_onnx::opset_1::reduce_min);
+    register_translator("ReduceProd", VersionRange{1, 12}, ai_onnx::opset_1::reduce_prod);
+    register_translator("ReduceSum", VersionRange{1, 12}, ai_onnx::opset_1::reduce_sum);
+    register_translator("ReduceSumSquare", VersionRange{1, 12}, ai_onnx::opset_1::reduce_sum_square);
     return true;
 }
 
@@ -247,12 +247,12 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
 }
 
 static bool register_multiple_translators(void) {
-    register_translator("ReduceL2", VersionRange{13, 17}, reduce_l2);
-    register_translator("ReduceMax", VersionRange{13, 17}, reduce_max);
-    register_translator("ReduceMean", VersionRange{13, 17}, reduce_mean);
-    register_translator("ReduceMin", VersionRange{13, 17}, reduce_min);
-    register_translator("ReduceSum", VersionRange{13, 17}, reduce_sum);
-    register_translator("ReduceSumSquare", VersionRange{13, 17}, reduce_sum_square);
+    register_translator("ReduceL2", VersionRange{13, 17}, ai_onnx::opset_13::reduce_l2);
+    register_translator("ReduceMax", VersionRange{13, 17}, ai_onnx::opset_13::reduce_max);
+    register_translator("ReduceMean", VersionRange{13, 17}, ai_onnx::opset_13::reduce_mean);
+    register_translator("ReduceMin", VersionRange{13, 17}, ai_onnx::opset_13::reduce_min);
+    register_translator("ReduceSum", VersionRange{13, 17}, ai_onnx::opset_13::reduce_sum);
+    register_translator("ReduceSumSquare", VersionRange{13, 17}, ai_onnx::opset_13::reduce_sum_square);
     return true;
 }
 
@@ -287,12 +287,12 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
 }
 
 static bool register_multiple_translators(void) {
-    register_translator("ReduceLogSum", VersionRange::since(18), reduce_log_sum);
-    register_translator("ReduceL2", VersionRange::since(18), reduce_l2);
-    register_translator("ReduceMax", VersionRange{18, 19}, reduce_max);
-    register_translator("ReduceMean", VersionRange::since(18), reduce_mean);
-    register_translator("ReduceMin", VersionRange{18, 19}, reduce_min);
-    register_translator("ReduceSumSquare", VersionRange::since(18), reduce_sum_square);
+    register_translator("ReduceLogSum", VersionRange::since(18), ai_onnx::opset_18::reduce_log_sum);
+    register_translator("ReduceL2", VersionRange::since(18), ai_onnx::opset_18::reduce_l2);
+    register_translator("ReduceMax", VersionRange{18, 19}, ai_onnx::opset_18::reduce_max);
+    register_translator("ReduceMean", VersionRange::since(18), ai_onnx::opset_18::reduce_mean);
+    register_translator("ReduceMin", VersionRange{18, 19}, ai_onnx::opset_18::reduce_min);
+    register_translator("ReduceSumSquare", VersionRange::since(18), ai_onnx::opset_18::reduce_sum_square);
     return true;
 }
 
@@ -331,8 +331,8 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
 }
 
 static bool register_multiple_translators(void) {
-    register_translator("ReduceMax", VersionRange::since(20), reduce_max);
-    register_translator("ReduceMin", VersionRange::since(20), reduce_min);
+    register_translator("ReduceMax", VersionRange::since(20), ai_onnx::opset_20::reduce_max);
+    register_translator("ReduceMin", VersionRange::since(20), ai_onnx::opset_20::reduce_min);
     return true;
 }
 

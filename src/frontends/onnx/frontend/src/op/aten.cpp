@@ -94,7 +94,8 @@ ov::OutputVector aten(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector(node.get_outputs_size(), embedding_bag);
 }
 
-static bool registered = register_translator("ATen", VersionRange::single_version_for_all_opsets(), aten);
+static bool registered =
+    register_translator("ATen", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::aten);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -30,8 +30,9 @@ ov::OutputVector depth_to_space(const ov::frontend::onnx::Node& node) {
     const auto block_size = node.get_attribute_value<std::int64_t>("blocksize");
     return ov::OutputVector{std::make_shared<v0::DepthToSpace>(data, ov_mode, block_size)};
 }
-static bool registered =
-    register_translator("DepthToSpace", VersionRange::single_version_for_all_opsets(), depth_to_space);
+static bool registered = register_translator("DepthToSpace",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             ai_onnx::opset_1::depth_to_space);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

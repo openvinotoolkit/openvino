@@ -17,7 +17,8 @@ ov::OutputVector bitwise_xor(const ov::frontend::onnx::Node& node) {
     OPENVINO_ASSERT(inputs.size() == 2);
     return {std::make_shared<v13::BitwiseXor>(inputs[0], inputs[1])};
 }
-static bool registered = register_translator("BitwiseXor", VersionRange::single_version_for_all_opsets(), bitwise_xor);
+static bool registered =
+    register_translator("BitwiseXor", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::bitwise_xor);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

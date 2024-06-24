@@ -113,8 +113,10 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
 
     return {output, present};
 }
-static bool registered =
-    register_translator("Attention", VersionRange::single_version_for_all_opsets(), attention, MICROSOFT_DOMAIN);
+static bool registered = register_translator("Attention",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             com_microsoft::opset_1::attention,
+                                             MICROSOFT_DOMAIN);
 }  // namespace opset_1
 
 namespace detail {

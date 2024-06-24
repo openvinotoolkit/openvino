@@ -100,7 +100,8 @@ ov::OutputVector gru(const ov::frontend::onnx::Node& node) {
 
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }
-static bool registered = register_translator("GRU", VersionRange::single_version_for_all_opsets(), gru);
+static bool registered =
+    register_translator("GRU", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::gru);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

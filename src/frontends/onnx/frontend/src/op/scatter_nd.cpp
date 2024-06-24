@@ -31,7 +31,8 @@ ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::ScatterNDUpdate>(data, indices, updates)};
 }
 
-static bool registered = register_translator("ScatterND", VersionRange::single_version_for_all_opsets(), scatter_nd);
+static bool registered =
+    register_translator("ScatterND", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::scatter_nd);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -31,7 +31,8 @@ ov::OutputVector gelu(const ov::frontend::onnx::Node& node) {
         inputs[0],
         approximate == "none" ? ov::op::GeluApproximationMode::ERF : ov::op::GeluApproximationMode::TANH)};
 }
-static bool registered = register_translator("Gelu", VersionRange::single_version_for_all_opsets(), gelu);
+static bool registered =
+    register_translator("Gelu", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::gelu);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

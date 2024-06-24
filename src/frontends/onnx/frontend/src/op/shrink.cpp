@@ -62,7 +62,8 @@ ov::OutputVector shrink(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(input_plus_bias, input_minus_bias)};
 }
 
-static bool registered = register_translator("Shrink", VersionRange::single_version_for_all_opsets(), shrink);
+static bool registered =
+    register_translator("Shrink", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::shrink);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

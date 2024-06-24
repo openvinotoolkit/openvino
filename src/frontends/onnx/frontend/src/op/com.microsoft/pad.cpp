@@ -79,8 +79,10 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v12::Pad>(data, padding_begin, padding_end, values, pad_mode)};
 }
 
-static bool registered =
-    register_translator("Pad", VersionRange::single_version_for_all_opsets(), pad, MICROSOFT_DOMAIN);
+static bool registered = register_translator("Pad",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             com_microsoft::opset_1::pad,
+                                             MICROSOFT_DOMAIN);
 
 }  // namespace opset_1
 }  // namespace com_microsoft

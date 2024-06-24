@@ -65,7 +65,7 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
 }
 static bool registered = register_translator("MMCVRoIAlignRotated",
                                              VersionRange::single_version_for_all_opsets(),
-                                             mmdeploy_roi_align_rotated,
+                                             ai_onnx::opset_1::mmdeploy_roi_align_rotated,
                                              "mmdeploy");
 }  // namespace opset_1
 }  // namespace ai_onnx

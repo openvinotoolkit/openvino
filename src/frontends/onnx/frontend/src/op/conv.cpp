@@ -74,7 +74,8 @@ ov::OutputVector conv(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }
-static bool registered = register_translator("Conv", VersionRange::single_version_for_all_opsets(), conv);
+static bool registered =
+    register_translator("Conv", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::conv);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

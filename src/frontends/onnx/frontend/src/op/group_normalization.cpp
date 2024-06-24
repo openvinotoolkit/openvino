@@ -51,8 +51,9 @@ ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v12::GroupNormalization>(data, c_scale, c_bias, num_groups, eps)};
 }
-static bool registered =
-    register_translator("GroupNormalization", VersionRange::single_version_for_all_opsets(), group_normalization);
+static bool registered = register_translator("GroupNormalization",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             ai_onnx::opset_1::group_normalization);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -29,7 +29,7 @@ ov::OutputVector fake_quantize(const ov::frontend::onnx::Node& node) {
 
 static bool registered = register_translator("FakeQuantize",
                                              VersionRange::single_version_for_all_opsets(),
-                                             fake_quantize,
+                                             org_openvinotoolkit::opset_1::fake_quantize,
                                              OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit

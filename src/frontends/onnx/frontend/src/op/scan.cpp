@@ -165,7 +165,7 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     return import_onnx_scan(node, 1, 1, "directions");
 }
 
-static bool registered = register_translator("Scan", VersionRange{1, 8}, scan);
+static bool registered = register_translator("Scan", VersionRange{1, 8}, ai_onnx::opset_1::scan);
 }  // namespace opset_1
 
 namespace opset_9 {
@@ -176,7 +176,7 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     return import_onnx_scan(node, 0, 0, "scan_input_directions");
 }
 
-static bool registered = register_translator("Scan", VersionRange::since(9), scan);
+static bool registered = register_translator("Scan", VersionRange::since(9), ai_onnx::opset_9::scan);
 }  // namespace opset_9
 }  // namespace ai_onnx
 }  // namespace onnx

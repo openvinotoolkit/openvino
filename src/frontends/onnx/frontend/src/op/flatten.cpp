@@ -28,7 +28,8 @@ ov::OutputVector flatten(const ov::frontend::onnx::Node& node) {
     return {ov::op::util::flatten(data, static_cast<int>(axis))};
 }
 
-static bool registered = register_translator("Flatten", VersionRange::single_version_for_all_opsets(), flatten);
+static bool registered =
+    register_translator("Flatten", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::flatten);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

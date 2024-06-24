@@ -37,7 +37,7 @@ ov::OutputVector random_normal(const ov::frontend::onnx::Node& node) {
 }
 
 static bool registered =
-    register_translator("RandomNormal", VersionRange::single_version_for_all_opsets(), random_normal);
+    register_translator("RandomNormal", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::random_normal);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

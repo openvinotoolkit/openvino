@@ -15,7 +15,7 @@ ov::OutputVector sum(const ov::frontend::onnx::Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Add>(node, ov::op::AutoBroadcastType::NONE);
 }
 
-static bool registered = register_translator("Sum", VersionRange{1, 7}, sum);
+static bool registered = register_translator("Sum", VersionRange{1, 7}, ai_onnx::opset_1::sum);
 }  // namespace opset_1
 
 namespace opset_8 {
@@ -23,7 +23,7 @@ ov::OutputVector sum(const ov::frontend::onnx::Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Add>(node);
 }
 
-static bool registered = register_translator("Sum", VersionRange::since(8), sum);
+static bool registered = register_translator("Sum", VersionRange::since(8), ai_onnx::opset_8::sum);
 }  // namespace opset_8
 }  // namespace ai_onnx
 }  // namespace onnx

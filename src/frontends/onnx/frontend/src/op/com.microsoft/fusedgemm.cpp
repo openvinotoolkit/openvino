@@ -61,8 +61,10 @@ ov::OutputVector fusedgemm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Relu>(gemm_res)};
 }
 
-static bool registered =
-    register_translator("FusedGemm", VersionRange::single_version_for_all_opsets(), fusedgemm, MICROSOFT_DOMAIN);
+static bool registered = register_translator("FusedGemm",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             com_microsoft::opset_1::fusedgemm,
+                                             MICROSOFT_DOMAIN);
 }  // namespace opset_1
 }  // namespace com_microsoft
 }  // namespace onnx

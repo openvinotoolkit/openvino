@@ -15,7 +15,8 @@ ov::OutputVector sqrt(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Sqrt>(node.get_ov_inputs().at(0))};
 }
 
-static bool registered = register_translator("Sqrt", VersionRange::single_version_for_all_opsets(), sqrt);
+static bool registered =
+    register_translator("Sqrt", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::sqrt);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

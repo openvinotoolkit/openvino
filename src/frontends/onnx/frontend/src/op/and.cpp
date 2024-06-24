@@ -14,14 +14,14 @@ namespace opset_1 {
 ov::OutputVector logical_and(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::LogicalAnd>(node);
 }
-static bool registered = register_translator("And", VersionRange{1, 6}, logical_and);
+static bool registered = register_translator("And", VersionRange{1, 6}, ai_onnx::opset_1::logical_and);
 }  // namespace opset_1
 
 namespace opset_7 {
 ov::OutputVector logical_and(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v1::LogicalAnd>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
-static bool registered = register_translator("And", VersionRange::since(7), logical_and);
+static bool registered = register_translator("And", VersionRange::since(7), ai_onnx::opset_7::logical_and);
 }  // namespace opset_7
 }  // namespace ai_onnx
 }  // namespace onnx

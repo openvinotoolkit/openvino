@@ -68,7 +68,7 @@ ov::OutputVector detection_output(const ov::frontend::onnx::Node& node) {
 
 static bool registered = register_translator("DetectionOutput",
                                              VersionRange::single_version_for_all_opsets(),
-                                             detection_output,
+                                             org_openvinotoolkit::opset_1::detection_output,
                                              OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit

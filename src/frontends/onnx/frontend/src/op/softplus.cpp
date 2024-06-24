@@ -17,7 +17,8 @@ ov::OutputVector softplus(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v4::SoftPlus>(data)};
 }
 
-static bool registered = register_translator("Softplus", VersionRange::single_version_for_all_opsets(), softplus);
+static bool registered =
+    register_translator("Softplus", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::softplus);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

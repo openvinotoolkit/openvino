@@ -106,7 +106,7 @@ ov::OutputVector dynamic_quantize_linear(const ov::frontend::onnx::Node& node) {
 }
 static bool registered = register_translator("DynamicQuantizeLinear",
                                              VersionRange::single_version_for_all_opsets(),
-                                             dynamic_quantize_linear);
+                                             ai_onnx::opset_1::dynamic_quantize_linear);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

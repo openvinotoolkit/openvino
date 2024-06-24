@@ -26,7 +26,8 @@ ov::OutputVector max_roi_pool(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v0::ROIPooling>(X, rois, ov::Shape(pooled_shape), spatial_scale, "max")};
 }
-static bool registered = register_translator("MaxRoiPool", VersionRange::single_version_for_all_opsets(), max_roi_pool);
+static bool registered =
+    register_translator("MaxRoiPool", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::max_roi_pool);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -23,7 +23,8 @@ ov::OutputVector gather(const ov::frontend::onnx::Node& node) {
                                                  ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}))};
 }
 
-static bool registered = register_translator("Gather", VersionRange::single_version_for_all_opsets(), gather);
+static bool registered =
+    register_translator("Gather", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::gather);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

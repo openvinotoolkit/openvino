@@ -41,8 +41,9 @@ ov::OutputVector global_average_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::ReduceMean>(data, reduce_axes, true)};
 }
 
-static bool registered =
-    register_translator("GlobalAveragePool", VersionRange::single_version_for_all_opsets(), global_average_pool);
+static bool registered = register_translator("GlobalAveragePool",
+                                             VersionRange::single_version_for_all_opsets(),
+                                             ai_onnx::opset_1::global_average_pool);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

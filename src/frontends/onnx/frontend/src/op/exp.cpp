@@ -15,7 +15,8 @@ ov::OutputVector exp(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Exp>(node.get_ov_inputs().at(0))};
 }
 
-static bool registered = register_translator("Exp", VersionRange::single_version_for_all_opsets(), exp);
+static bool registered =
+    register_translator("Exp", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::exp);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx
