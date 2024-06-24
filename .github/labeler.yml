@@ -161,6 +161,10 @@
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*']
 
+'category: JAX FE':
+- 'src/frontends/jax/**/*'
+- 'tests/layer_tests/jax_tests/**/*'
+
 'category: tools':
 - any: ['tools/**',
         '!tools/mo/**/*',

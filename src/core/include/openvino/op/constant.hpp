@@ -159,6 +159,7 @@ public:
         case Type_t::f4e2m1:
             fill_lp_data<Type_t::f4e2m1>(value);
             break;
+        case Type_t::f8e8m0:
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -398,6 +399,13 @@ public:
      * \brief Allows to avoid buffer allocation on the visit_attributes call
      */
     void alloc_buffer_on_visit_attributes(bool val);
+
+    /// @brief Get view on constant data as tensor.
+    /// @return OV::Tensor with constant data.
+    const Tensor get_tensor_view() const;
+
+    /// @return Constant's strides in bytes.
+    const Strides& get_strides() const;
 
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
@@ -720,6 +728,7 @@ private:
         case Type_t::f4e2m1:
             write_lp_buffer<Type_t::f4e2m1>(source);
             break;
+        case Type_t::f8e8m0:
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -763,6 +772,7 @@ private:
 
     element::Type m_element_type{};
     Shape m_shape{};
+    Strides m_byte_strides{};
     std::shared_ptr<ov::AlignedBuffer> m_data{};
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
