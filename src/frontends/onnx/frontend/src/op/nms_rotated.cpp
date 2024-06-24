@@ -34,7 +34,7 @@ ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
 static bool registered = register_translator("NMSRotated",
                                              VersionRange::single_version_for_all_opsets(),
                                              ai_onnx::opset_1::nms_rotated,
-                                             "mmdeploy");
+                                             MMDEPLOY_DOMAIN);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

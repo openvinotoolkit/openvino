@@ -21,24 +21,27 @@ extern ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node);
 
 namespace com_microsoft {
 namespace opset_1 {
-static bool register_multiple_translators(void) {
+bool register_multiple_translators(void) {
     register_translator("DequantizeLinear",
                         VersionRange::single_version_for_all_opsets(),
                         ai_onnx::opset_13::dequantize_linear,
-                        "com.microsoft");
+                        MICROSOFT_DOMAIN);
     register_translator("GatherND",
                         VersionRange::single_version_for_all_opsets(),
                         ai_onnx::opset_1::gather_nd,
-                        "com.microsoft");
-    register_translator("Gelu", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::gelu, "com.microsoft");
+                        MICROSOFT_DOMAIN);
+    register_translator("Gelu",
+                        VersionRange::single_version_for_all_opsets(),
+                        ai_onnx::opset_1::gelu,
+                        MICROSOFT_DOMAIN);
     register_translator("QuantizeLinear",
                         VersionRange::single_version_for_all_opsets(),
                         ai_onnx::opset_13::quantize_linear,
-                        "com.microsoft");
+                        MICROSOFT_DOMAIN);
     register_translator("Trilu",
                         VersionRange::single_version_for_all_opsets(),
                         ai_onnx::opset_1::trilu,
-                        "com.microsoft");
+                        MICROSOFT_DOMAIN);
     return true;
 }
 

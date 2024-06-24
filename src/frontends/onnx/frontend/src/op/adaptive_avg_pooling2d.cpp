@@ -24,7 +24,7 @@ ov::OutputVector adaptive_avg_pooling2d(const ov::frontend::onnx::Node& node) {
 static bool registered = register_translator("adaptive_avg_pool2d",
                                              VersionRange::single_version_for_all_opsets(),
                                              ai_onnx::opset_1::adaptive_avg_pooling2d,
-                                             "org.pytorch.aten");
+                                             PYTORCH_ATEN_DOMAIN);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx
