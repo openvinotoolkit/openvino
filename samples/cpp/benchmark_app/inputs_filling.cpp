@@ -115,6 +115,7 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
                    << slog::endl;
     }
 
+    tensor_size = tensor_size / numpy_batch_size;
     for (size_t b = 0; b < numpy_batch_size; ++b) {
         auto inputIndex = (inputId + b) % files.size();
         if (filenames_used) {

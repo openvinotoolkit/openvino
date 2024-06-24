@@ -129,3 +129,19 @@ def test_4bit_precision_input(sample_language, device, inp, cache, tmp_path):
     if inp != None and inp.endswith(".bin"):
         create_random_4bit_bin_file(tmp_path, inp_shape, inp)
     verify(sample_language, device, model=model_4bit, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_out_of_tensor_size_range_npy_multibatch(sample_language, device, cache, tmp_path):
+    inp = tmp_path / 'batch2.npy'
+    with open(inp, "wb") as batch2_npy:
+        np.save(
+            batch2_npy,
+            np.random.RandomState(
+                np.random.MT19937(np.random.SeedSequence(0))
+            ).uniform(0, 256, [2, 3, 224, 224]).astype(np.uint8)
+        )
+    # benchmark_app reads batch from model or cmd, not from npy.
+    # benchmark_app still verifyes npy shape for python impl.
+    verify(sample_language, device, inp=inp, cache=cache, tmp_path=tmp_path, batch='2')
