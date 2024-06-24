@@ -222,7 +222,6 @@ void InputModel::flush_places() {
         if (pt_place->m_pshape.rank().is_static())
             to_update_place->m_pshape = pt_place->m_pshape;
     }
-    std::cout << "flushed" << std::endl;
     m_requested_places = {};
 }
 

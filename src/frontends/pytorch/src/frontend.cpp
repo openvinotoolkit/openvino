@@ -182,9 +182,9 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
                 FRONT_END_GENERAL_CHECK(param, "Input is not a Parameter.");
                 update_parameter_info(param, place, converted_model);
             } else {
-            FRONT_END_OP_CONVERSION_CHECK(i < parameters.size(),
-                                          "Type/shape was set to non-existent input. Converted model:\n",
-                                          converted_model);
+                FRONT_END_OP_CONVERSION_CHECK(i < parameters.size(),
+                                              "Type/shape was set to non-existent input. Converted model:\n",
+                                              converted_model);
                 update_parameter_info(parameters[i], inputs[i], converted_model);
             }
         }
