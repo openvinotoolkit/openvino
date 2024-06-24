@@ -299,6 +299,14 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
                 if (t.is_dynamic()) {
                     non_unit_fused_op_spatial = true;
                     break;
+                } else {
+                    if ((t.X().v > 1) ||
+                        (t.Y().v > 1) ||
+                        (t.Z().v > 1) ||
+                        (t.W().v > 1)) {
+                        non_unit_fused_op_spatial = true;
+                        break;
+                    }
                 }
             }
         }
