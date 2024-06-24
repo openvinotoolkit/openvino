@@ -145,8 +145,8 @@ bool evaluate_bound(const Node* const node, TensorVector& output_values, const T
             return false;
 
         // dynamic values translation
-        auto input_dynamic_mask = Tensor(element::boolean, in_bound_shape);
-        auto outputs = TensorVector{input_dynamic_mask};
+        auto outputs = TensorVector{{element::boolean, in_bound_shape}};
+        const auto& input_dynamic_mask = outputs[0];
 
         return v1::Equal().evaluate(outputs, {input_bound, input_max}) &&
                v1::Select().evaluate(output_values, {input_dynamic_mask, output_max, output_values[0]});
