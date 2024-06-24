@@ -133,7 +133,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt update && apt install -y --no-install-recommends unzip wget default-jdk
           # Install Android SDK, NDK and Tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
           unzip commandlinetools-linux-7583922_latest.zip
