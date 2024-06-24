@@ -67,29 +67,25 @@ RUN apt update && \
 #        g++-10 \
 #        && \
 #    rm -rf /var/lib/apt/lists/*
-#
-## Install sscache
-#ARG SCCACHE_VERSION="v0.7.5"
-#ENV SCCACHE_HOME="/opt/sccache" \
-#    SCCACHE_PATH="/opt/sccache/sccache"
-#
-#RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
-#    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
-#    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
-#    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
-#
-## Setup pip
-#ENV PIP_VERSION="24.0"
-#RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-#    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-#    rm -f get-pip.py
+
+# Install sscache
+ARG SCCACHE_VERSION="v0.7.5"
+ENV SCCACHE_HOME="/opt/sccache" \
+    SCCACHE_PATH="/opt/sccache/sccache"
+
+RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
+    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
+    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
+    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 # Install Android SDK, NDK and Tools
-#ENV ANDROID_TOOLS /deps/android_tools
-#ENV ANDROID_NDK_HOME ${ANDROID_TOOLS}/ndk-bundle
-#RUN mkdir -p ${ANDROID_NDK_HOME}
-#ENV ANDROID_SDK_VERSION 29
-#
-#RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
-#    unzip commandlinetools-linux-7583922_latest.zip
-#RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"
+RUN apt install unzip wget default-jdk
+
+ENV ANDROID_TOOLS /deps/android_tools
+ENV ANDROID_NDK_HOME /deps/android_tools/ndk-bundle
+RUN mkdir -p ${ANDROID_NDK_HOME}
+ENV ANDROID_SDK_VERSION 29
+
+RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
+    unzip commandlinetools-linux-7583922_latest.zip
+RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"

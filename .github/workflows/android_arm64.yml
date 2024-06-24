@@ -87,8 +87,10 @@ jobs:
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
-      ANDROID_TOOLS: '/__w/openvino/openvino/android_tools'
-      ANDROID_NDK_HOME: '/__w/openvino/openvino/android_tools/ndk-bundle'
+      # ANDROID_TOOLS: '/__w/openvino/openvino/android_tools'
+      ANDROID_TOOLS: '/deps/android_tools'
+      # ANDROID_NDK_HOME: '/__w/openvino/openvino/android_tools/ndk-bundle'
+      ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
       ANDROID_SDK_VERSION: 29
       ANDROID_ABI_CONFIG: arm64-v8a
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
@@ -133,6 +135,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          echo "123"
           # generic dependencies
           # apt --assume-yes install ccache scons ninja-build build-essential python3-pip
           
@@ -146,15 +149,10 @@ jobs:
           # apt --assume-yes install pkgconf linux-libc-dev
           
           # Install Android SDK, NDK and Tools
-          apt -y --no-install-recommends install unzip wget default-jdk
-          wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
-          unzip commandlinetools-linux-7583922_latest.zip
-          echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
-
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@89e9040de88b577a072e3760aaf59f585da083af # v0.0.5
-        with:
-          version: "v0.7.5"
+          # apt -y --no-install-recommends install unzip wget default-jdk
+          # wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
+          # unzip commandlinetools-linux-7583922_latest.zip
+          # echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
 
       #
       # Build
