@@ -66,6 +66,8 @@ jobs:
         run: brew install coreutils
 
       - name: Fetch setup_python action
+        # Python is already installed on Ubuntu within Dockerfile
+        if: runner.os != 'Linux'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
@@ -75,7 +77,7 @@ jobs:
 
       - name: Setup Python 3.11
         # Python is already installed on Ubuntu within Dockerfile
-        if: runner.os == 'macOS'
+        if: runner.os != 'Linux'
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.11'
