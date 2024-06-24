@@ -863,7 +863,7 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
         pattern::wrap_type<op::v1::Reshape>({lstm_cell_label, new_shape_hidden_state_label});
     auto result_hidden_state_label = pattern::wrap_type<op::v0::Result>({unsqueeze_hidden_state_label});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto loop = ov::as_type_ptr<ov::op::v5::Loop>(m.get_match_root());
         if (!loop) {
             return false;
