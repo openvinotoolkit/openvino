@@ -16,8 +16,8 @@ RUN apt update && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     apt update && \
     apt install \
-        ccache \
         scons \
+        wget \
         ninja-build \
         build-essential \
         python3-pip && \
@@ -29,7 +29,7 @@ RUN apt update && \
     apt install autoconf libtool autoconf-archive && \
     # vcpkg tree of dependencies require extra packages
     apt install pkgconf linux-libc-dev && \
-    apt --no-install-recommends install unzip wget default-jdk
+    apt --no-install-recommends install default-jdk
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
