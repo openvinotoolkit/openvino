@@ -12,7 +12,8 @@ abs_path () {
 
 SCRIPT_DIR="$(abs_path "${BASH_SOURCE:-$0}")" >/dev/null 2>&1
 INSTALLDIR="${SCRIPT_DIR}"
-export INTEL_OPENVINO_DIR="$INSTALLDIR"
+#export INTEL_OPENVINO_DIR="$INSTALLDIR"
+export INTEL_OPENVINO_DIR=~/work/openvino/bin/intel64/Release
 
 # parse command line options
 while [ $# -gt 0 ]

@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino._offline_transformations import paged_attention_transformation
+from openvino._offline_transformations import dump_model
 from openvino._pyopenvino.op import _PagedAttentionExtension
 from optimum.intel import OVModelForCausalLM
+from transformers import AutoTokenizer, pipeline
 import models_hub_common.utils as utils
 import pytest
 import os
@@ -11,7 +13,15 @@ import os
 def run_pa(tmp_path, model_id, model_link):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
+    # dump_model(model.model, "before_jais")
     paged_attention_transformation(model.model)
+    dump_model(model.model, "new_fix_jais")
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+    inputs = tokenizer("Who is Jesus?", return_tensors="pt", return_token_type_ids=False)
+    gen_tokens = model.generate(**inputs, do_sample=True, temperature=0.9, min_length=20, max_length=20)
+    res = tokenizer.batch_decode(gen_tokens)
+    print(res)
 
     # Test that a _PagedAttentionExtension node appeared after the transformation.
     assert any(isinstance(op, _PagedAttentionExtension) for op in model.model.get_ordered_ops()), f"The model '{model_id}' has no _PagedAttentionExtension present."
