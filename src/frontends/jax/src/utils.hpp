@@ -34,8 +34,6 @@ const std::string& get_jax_prefix();
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
 
-bool is_none_node(const Output<Node>& node);
-
 // TODO: Eliminate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
 

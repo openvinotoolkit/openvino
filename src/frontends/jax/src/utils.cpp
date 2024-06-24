@@ -22,16 +22,6 @@ const std::string& get_jax_prefix() {
     return jax_prefix;
 }
 
-bool is_none_node(const Output<Node>& node) {
-    if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
-        const auto& attrs = fw_node_inp->get_attrs();
-        if (attrs.find("none_value") != attrs.end()) {
-            return true;
-        }
-    }
-    return false;
-}
-
 Any simplified_type_interpret(Any type) {
     // Type in jaxpr is already the dtype.
     return type;
