@@ -61,12 +61,14 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, FCShapeInferFactory(op)),
       errorPrefix("FullyConnected node with name '" + getName() + "'") {
-    if (!context->getCPUStreamExecutor()->get_rank().empty()) {
-        // init w_rank and w_size
-        w_rank = context->getCPUStreamExecutor()->get_rank()[0];
-        w_size = ov::threading::message_manager()->get_num_sub_streams();
-        enable_tensor_parallel = w_size > 1 ? true : false;
-        sub_memory = context->getSubMemory();
+    if (context->getCPUStreamExecutor()) {
+        if (!context->getCPUStreamExecutor()->get_rank().empty()) {
+            // init w_rank and w_size
+            w_rank = context->getCPUStreamExecutor()->get_rank()[0];
+            w_size = ov::threading::message_manager()->get_num_sub_streams();
+            enable_tensor_parallel = w_size > 1 ? true : false;
+            sub_memory = context->getSubMemory();
+        }
     }
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
