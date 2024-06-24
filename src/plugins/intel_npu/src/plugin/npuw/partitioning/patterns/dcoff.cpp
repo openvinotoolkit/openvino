@@ -451,17 +451,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
     auto scalar = opp::wrap_type<ov::op::v0::Constant>();
     auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
 
-    auto callback = [dcoff_mode = std::move(dcoff_mode),
-                     dcoff_type = std::move(dcoff_type),
-                     pref = std::move(pref),
-                     paramA = std::move(paramA),
-                     constB = std::move(constB),
-                     paramC = std::move(paramC),
-                     cvtA = std::move(cvtA),
-                     subtr = std::move(subtr),
-                     mulply = std::move(mulply),
-                     scalar = std::move(scalar),
-                     reshpe](ov::pass::pattern::Matcher& m) {
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
         auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
@@ -557,14 +547,7 @@ CWAI1::CWAI1(CWAI1::Results scales) {
     auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, cvtB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
 
-    auto matcher_callback = [scales = std::move(scales),
-                             constA = std::move(constA),
-                             constB = std::move(constB),
-                             constC = std::move(constC),
-                             cvtA = std::move(cvtA),
-                             cvtB = std::move(cvtB),
-                             subtr = std::move(subtr),
-                             mulply](ov::pass::pattern::Matcher& m) {
+    auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
         auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
@@ -618,13 +601,7 @@ CWAI2::CWAI2(CWAI2::Results scales) {
     auto subtr = opp::wrap_type<ov::op::v1::Subtract>({cvtA, constB});
     auto mulply = opp::wrap_type<ov::op::v1::Multiply>({subtr, constC});
 
-    auto matcher_callback = [scales = std::move(scales),
-                             constA = std::move(constA),
-                             constB = std::move(constB),
-                             constC = std::move(constC),
-                             cvtA = std::move(cvtA),
-                             subtr = std::move(subtr),
-                             mulply](ov::pass::pattern::Matcher& m) {
+    auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
         auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
