@@ -22,14 +22,6 @@ public:
         this->setp(base, base + _buffer.size());
     }
 
-    std::streampos tellp() {
-        return std::streampos(_writePos);
-    }
-
-    std::streampos tellg() {
-        return std::streampos(_readPos);
-    }
-
 protected:
     virtual int overflow(int ch) override {
         if (ch != traits_type::eof()) {
