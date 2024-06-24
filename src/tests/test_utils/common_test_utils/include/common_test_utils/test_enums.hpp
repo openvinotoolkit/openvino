@@ -117,6 +117,7 @@ enum ActivationTypes {
     SoftPlus,
     Swish,
     HSigmoid,
+    LogicalNot,
     RoundHalfToEven,
     RoundHalfAwayFromZero,
     GeluErf,
