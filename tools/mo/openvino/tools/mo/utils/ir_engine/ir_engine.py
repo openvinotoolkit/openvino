@@ -35,7 +35,7 @@ def read_rt_info_attr(elem):
     val_dict = {}
     for child in elem:
         child_val = read_rt_info_attr(child)
-        node_name = child.attrib['name'] if child.attrib['name'] else child.tag
+        node_name = child.attrib.get('name', child.tag)
         val_dict[node_name] = child_val
     return val_dict
 
