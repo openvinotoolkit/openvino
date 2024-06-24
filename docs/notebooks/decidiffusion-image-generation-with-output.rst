@@ -89,7 +89,7 @@ install required packages
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  "diffusers" "transformers" "torch>=2.1" "pillow" "openvino>=2023.1.0" "gradio>=4.19" "datasets>=2.14.6" "huggingface-hub>=0.19.4" "nncf>=2.7.0" "peft==0.6.2" "opencv-python"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  "diffusers<0.29.0" "transformers" "torch>=2.1" "pillow" "openvino>=2023.1.0" "gradio>=4.19" "datasets>=2.14.6" "huggingface-hub>=0.19.4" "nncf>=2.7.0" "peft==0.6.2" "opencv-python"
 
 Prepare DeciDiffusion models for OpenVINO format conversion
 -----------------------------------------------------------
@@ -1174,12 +1174,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -1214,7 +1210,7 @@ Prepare calibration dataset
 
 
 We use a portion of
-`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
+`conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -1249,7 +1245,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
         pipeline.set_progress_bar_config(disable=True)
     
-        dataset = datasets.load_dataset("conceptual_captions", split="train", streaming=True).shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", streaming=True, trust_remote_code=True).shuffle(seed=42)
     
         pbar = tqdm(total=subset_size)
         for batch in dataset:
@@ -1444,7 +1440,7 @@ pipelines, we use median inference time on calibration subset.
     import time
     
     validation_size = 10
-    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train", streaming=True)
+    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train", streaming=True, trust_remote_code=True)
     validation_data = []
     for idx, batch in enumerate(calibration_dataset):
         if idx >= validation_size:

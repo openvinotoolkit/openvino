@@ -3,7 +3,6 @@
 //
 
 #pragma once
-
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 
@@ -99,12 +98,13 @@ public:
                      size_t increment,
                      const std::vector<T>& entries,
                      const std::vector<T>& exits,
-                     bool set_default_handlers = true) {
+                     bool set_default_handlers = true,
+                     bool is_work_amount_const = false) {
         const auto normalized_increment = utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
         const auto handlers = set_default_handlers
                                   ? SpecificIterationHandlers(work_amount, normalized_increment)
                                   : SpecificIterationHandlers();
-        const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits, handlers);
+        const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits, handlers, is_work_amount_const);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);
@@ -131,8 +131,9 @@ public:
                      size_t dim_idx,
                      const std::vector<T>& entries,
                      const std::vector<T>& exits,
-                     bool set_default_handlers = true) {
-        const auto loop_id = mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
+                     bool set_default_handlers = true,
+                     bool is_work_amount_const = false) {
+        const auto loop_id = mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers, is_work_amount_const);
         const auto loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
         loop_info->set_dim_idx(dim_idx);
         return loop_id;
@@ -216,7 +217,7 @@ public:
      * @param loop_end_pos the next iterator after the last expression
      * @param loop_id target Loop ID
      */
-    void sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id);
+    void sort_loop_ports(const LinearIR::constExprIt& loop_begin_pos, const LinearIR::constExprIt& loop_end_pos, size_t loop_id);
     /**
      * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
      *        If ports of decomposed expression were the Loop ports, these Loop ports may be updated by parameters `entries` and `exits`
@@ -274,7 +275,6 @@ public:
      */
     bool reorder_identifiers(const std::map<size_t, size_t>& loop_id_map);
 
-private:
     /**
      * @brief Add new Loop Info to the map
      * @param loop target loop info
@@ -286,6 +286,8 @@ private:
      * @param index the target index of Loop
      */
     void remove_loop_info(size_t index);
+
+private:
     /**
      * @brief Find expression ports in bounds that are connected to consumers or parent that aren't in these bounds
      * @param loop_begin_pos the first expression iterator of the Loop
