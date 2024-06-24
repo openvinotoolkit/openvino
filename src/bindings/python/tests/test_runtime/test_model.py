@@ -163,7 +163,6 @@ def test_result_index(shapes, relu_names, model_name, expected_outputs_length, i
         assert model.get_result_index(model.get_results()[0]) == expected_result_index
 
 
-
 @pytest.mark.parametrize("shapes, param_names, model_name, expected_index, is_invalid", [
     ([PartialShape([1]), None], ["data", None], "TestModel", 0, False),
     ([PartialShape([1]), PartialShape([2])], ["data1", "data2"], "TestModel", -1, True)
