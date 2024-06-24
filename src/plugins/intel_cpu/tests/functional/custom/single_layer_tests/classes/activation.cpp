@@ -175,6 +175,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
+        (activation_type == utils::ActivationTypes::IsNaN) ||
         (activation_type == utils::ActivationTypes::Mish) ||
         (activation_type == utils::ActivationTypes::GeluErf) ||
         (activation_type == utils::ActivationTypes::GeluTanh) ||
@@ -190,7 +191,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "";
     }
 #endif
-    if (activation_type == utils::ActivationTypes::Floor) {
+    if ((activation_type == utils::ActivationTypes::Floor) ||
+       (activation_type == utils::ActivationTypes::IsNaN)) {
         return "ref";
     }
     return "acl";
@@ -227,6 +229,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {GeluTanh,    {{}}},
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
+        {IsNaN,    {{}}},
     };
 
     return activationTypes;
