@@ -89,3 +89,5 @@ ENV ANDROID_SDK_VERSION 29
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
     unzip commandlinetools-linux-7583922_latest.zip
 RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"
+# Change the permissions for Android files
+RUN chmod -R 777 ${ANDROID_TOOLS}
