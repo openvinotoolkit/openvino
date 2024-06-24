@@ -210,7 +210,10 @@ def test_array_interface_copied_dispatcher(device, input_shape):
     assert np.array_equal(infer_request.input_tensors[0].data, test_data)
     assert not np.shares_memory(infer_request.input_tensors[0].data, test_data)
 
-    np.asarray(test_data)[0] = 2.0
+    if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
+        np.asarray(test_data)[0] = 2.0
+    else:
+        np.array(test_data, copy=False)[0] = 2.0
 
     assert not np.array_equal(infer_request.input_tensors[0].data, test_data)
 
@@ -236,7 +239,10 @@ def test_array_interface_copied_multi_dispatcher(device, input_shape, input_cont
         assert np.array_equal(infer_request.input_tensors[i].data, test_inputs[i])
         assert not np.shares_memory(infer_request.input_tensors[i].data, test_inputs[i])
 
-        np.asarray(test_inputs[i])[0] = 2.0
+        if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
+            np.asarray(test_inputs[i])[0] = 2.0
+        else:
+            np.array(test_inputs[i], copy=False)[0] = 2.0
 
         assert not np.array_equal(infer_request.input_tensors[i].data, test_inputs[i])
 
@@ -252,7 +258,10 @@ def test_array_interface_shared_single_dispatcher(device, input_shape):
     assert np.array_equal(result.data, test_data)
     assert np.shares_memory(result.data, test_data)
 
-    np.asarray(test_data)[0] = 2.0
+    if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
+        np.asarray(test_data)[0] = 2.0
+    else:
+        np.array(test_data, copy=False)[0] = 2.0
 
     assert np.array_equal(result.data, test_data)
 
@@ -278,7 +287,10 @@ def test_array_interface_shared_multi_dispatcher(device, input_shape, input_cont
         assert np.array_equal(results[i].data, test_inputs[i])
         assert np.shares_memory(results[i].data, test_inputs[i])
 
-        np.asarray(test_inputs[i])[0] = 2.0
+        if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
+            np.asarray(test_inputs[i])[0] = 2.0
+        else:
+            np.array(test_inputs[i], copy=False)[0] = 2.0
 
         assert np.array_equal(results[i].data, test_inputs[i])
 
