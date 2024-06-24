@@ -475,7 +475,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 if get_jax_decoder is not None:
                     get_jax_decoder(args['input_model'], args)
                 else:
-                    raise Error("JAX decoder is not available.")
+                    raise Error("JAX Frontend is not available.")
                 
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
