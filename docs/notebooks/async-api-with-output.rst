@@ -352,7 +352,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 43.35 fps
+    average throuput in sync mode: 59.76 fps
 
 
 Async Mode
@@ -491,7 +491,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 73.97 fps
+    average throuput in async mode: 104.09 fps
 
 
 Compare the performance
@@ -634,5 +634,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 111.33 fps
+    average throughput in async mode with async infer queue: 149.07 fps
 

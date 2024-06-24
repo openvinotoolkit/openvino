@@ -15,6 +15,7 @@ notebooks/convert-to-openvino/convert-to-openvino.ipynb
 notebooks/convert-to-openvino/legacy-mo-convert-to-openvino.ipynb
 notebooks/cross-lingual-books-alignment/cross-lingual-books-alignment.ipynb
 notebooks/ct-segmentation-quantize/ct-segmentation-quantize-nncf.ipynb
+notebooks/ddcolor-image-colorization/ddcolor-image-colorization.ipynb
 notebooks/decidiffusion-image-generation/decidiffusion-image-generation.ipynb
 notebooks/depth-anything/depth-anything.ipynb
 notebooks/detectron2-to-openvino/detectron2-to-openvino.ipynb
@@ -36,9 +37,9 @@ notebooks/hello-npu/hello-npu.ipynb
 notebooks/hello-segmentation/hello-segmentation.ipynb
 notebooks/hello-world/hello-world.ipynb
 notebooks/hugging-face-hub/hugging-face-hub.ipynb
+notebooks/hunyuan-dit-image-generation/hunyuan-dit-image-generation.ipynb
 notebooks/image-bind/image-bind.ipynb
 notebooks/image-classification-quantization/image-classification-quantization.ipynb
-notebooks/image-inpainting/image-inpainting.ipynb
 notebooks/instant-id/instant-id.ipynb
 notebooks/instruct-pix2pix-image-editing/instruct-pix2pix-image-editing.ipynb
 notebooks/knowledge-graphs-conve/knowledge-graphs-conve.ipynb
@@ -51,6 +52,7 @@ notebooks/llava-multimodal-chatbot/llava-multimodal-chatbot.ipynb
 notebooks/llava-multimodal-chatbot/videollava-multimodal-chatbot.ipynb
 notebooks/llava-next-multimodal-chatbot/llava-next-multimodal-chatbot.ipynb
 notebooks/llm-agent-langchain/llm-agent-langchain.ipynb
+notebooks/llm-chatbot/llm-chatbot-generate-api.ipynb
 notebooks/llm-chatbot/llm-chatbot.ipynb
 notebooks/llm-question-answering/llm-question-answering.ipynb
 notebooks/llm-rag-langchain/llm-rag-langchain.ipynb
@@ -60,9 +62,9 @@ notebooks/mms-massively-multilingual-speech/mms-massively-multilingual-speech.ip
 notebooks/mobileclip-video-search/mobileclip-video-search.ipynb
 notebooks/mobilevlm-language-assistant/mobilevlm-language-assistant.ipynb
 notebooks/model-server/model-server.ipynb
-notebooks/model-tools/model-tools.ipynb
 notebooks/music-generation/music-generation.ipynb
 notebooks/named-entity-recognition/named-entity-recognition.ipynb
+notebooks/nano-llava-multimodal-chatbot/nano-llava-multimodal-chatbot.ipynb
 notebooks/object-detection-webcam/object-detection.ipynb
 notebooks/oneformer-segmentation/oneformer-segmentation.ipynb
 notebooks/openvino-api/openvino-api.ipynb
@@ -73,6 +75,8 @@ notebooks/optimize-preprocessing/optimize-preprocessing.ipynb
 notebooks/paddle-ocr-webcam/paddle-ocr-webcam.ipynb
 notebooks/paddle-to-openvino/paddle-to-openvino-classification.ipynb
 notebooks/paint-by-example/paint-by-example.ipynb
+notebooks/parler-tts-text-to-speech/parler-tts-text-to-speech.ipynb
+notebooks/person-counting-webcam/person-counting.ipynb
 notebooks/person-tracking-webcam/person-tracking.ipynb
 notebooks/photo-maker/photo-maker.ipynb
 notebooks/pix2struct-docvqa/pix2struct-docvqa.ipynb
@@ -80,6 +84,7 @@ notebooks/pose-estimation-webcam/pose-estimation.ipynb
 notebooks/pyannote-speaker-diarization/pyannote-speaker-diarization.ipynb
 notebooks/pytorch-post-training-quantization-nncf/pytorch-post-training-quantization-nncf.ipynb
 notebooks/pytorch-quantization-aware-training/pytorch-quantization-aware-training.ipynb
+notebooks/pytorch-quantization-sparsity-aware-training/pytorch-quantization-sparsity-aware-training.ipynb
 notebooks/pytorch-to-openvino/pytorch-onnx-to-openvino.ipynb
 notebooks/pytorch-to-openvino/pytorch-to-openvino.ipynb
 notebooks/qrcode-monster/qrcode-monster.ipynb
@@ -87,6 +92,7 @@ notebooks/quantizing-model-with-accuracy-control/speech-recognition-quantization
 notebooks/quantizing-model-with-accuracy-control/yolov8-quantization-with-accuracy-control.ipynb
 notebooks/riffusion-text-to-music/riffusion-text-to-music.ipynb
 notebooks/rmbg-background-removal/rmbg-background-removal.ipynb
+notebooks/s3d-mil-nce-text-to-video-retrieval/s3d-mil-nce-text-to-video-retrieval.ipynb
 notebooks/sdxl-turbo/sdxl-turbo.ipynb
 notebooks/segment-anything/segment-anything.ipynb
 notebooks/siglip-zero-shot-image-classification/siglip-zero-shot-image-classification.ipynb
@@ -95,6 +101,7 @@ notebooks/softvc-voice-conversion/softvc-voice-conversion.ipynb
 notebooks/sound-generation-audioldm2/sound-generation-audioldm2.ipynb
 notebooks/sparsity-optimization/sparsity-optimization.ipynb
 notebooks/speculative-sampling/speculative-sampling.ipynb
+notebooks/speechbrain-emotion-recognition/speechbrain-emotion-recognition.ipynb
 notebooks/speech-recognition-quantization/speech-recognition-quantization-data2vec.ipynb
 notebooks/speech-recognition-quantization/speech-recognition-quantization-wav2vec2.ipynb
 notebooks/speech-to-text/speech-to-text.ipynb
@@ -119,7 +126,6 @@ notebooks/tensorflow-hub/tensorflow-hub.ipynb
 notebooks/tensorflow-object-detection-to-openvino/tensorflow-instance-segmentation-to-openvino.ipynb
 notebooks/tensorflow-object-detection-to-openvino/tensorflow-object-detection-to-openvino.ipynb
 notebooks/tensorflow-quantization-aware-training/tensorflow-quantization-aware-training.ipynb
-notebooks/text-prediction/text-prediction.ipynb
 notebooks/tflite-selfie-segmentation/tflite-selfie-segmentation.ipynb
 notebooks/tflite-to-openvino/tflite-to-openvino.ipynb
 notebooks/tiny-sd-image-generation/tiny-sd-image-generation.ipynb
@@ -132,9 +138,9 @@ notebooks/vision-image-colorization/vision-image-colorization.ipynb
 notebooks/vision-monodepth/vision-monodepth.ipynb
 notebooks/vision-paddlegan-anime/vision-paddlegan-anime.ipynb
 notebooks/vision-paddlegan-superresolution/vision-paddlegan-superresolution.ipynb
-notebooks/whisper-subtitles-generation/whisper-convert.ipynb
-notebooks/whisper-subtitles-generation/whisper-nncf-quantize.ipynb
+notebooks/whisper-subtitles-generation/whisper-subtitles-generation.ipynb
 notebooks/wuerstchen-image-generation/wuerstchen-image-generation.ipynb
+notebooks/yolov10-optimization/yolov10-optimization.ipynb
 notebooks/yolov7-optimization/yolov7-optimization.ipynb
 notebooks/yolov8-optimization/yolov8-instance-segmentation.ipynb
 notebooks/yolov8-optimization/yolov8-keypoint-detection.ipynb

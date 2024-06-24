@@ -49,6 +49,19 @@ endfunction()
 
 # Wrapper for find_package(Python3) to allow cross-compilation
 macro(ov_find_python3 find_package_mode)
+    # Settings for FindPython3.cmake
+    if(NOT DEFINED Python3_USE_STATIC_LIBS)
+        set(Python3_USE_STATIC_LIBS OFF)
+    endif()
+
+    if(NOT DEFINED Python3_FIND_VIRTUALENV)
+        set(Python3_FIND_VIRTUALENV FIRST)
+    endif()
+
+    if(NOT DEFINED Python3_FIND_IMPLEMENTATIONS)
+        set(Python3_FIND_IMPLEMENTATIONS CPython PyPy)
+    endif()
+
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
         set(python3_development_component Development.Module)
     else()
