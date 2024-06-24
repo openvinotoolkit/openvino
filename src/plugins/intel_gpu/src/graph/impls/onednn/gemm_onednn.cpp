@@ -430,7 +430,7 @@ public:
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        auto attr = arg.get_onednn_primitive_attributes();
+        auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
 
         return cldnn::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);

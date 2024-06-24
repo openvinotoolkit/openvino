@@ -553,7 +553,28 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layout = actual_layout;
-    for (auto user : get_user_insts()) {
+    std::vector<cldnn::primitive_inst *> user_insts;
+    {
+        auto user_insts_origin = get_user_insts();
+        for (auto& user : user_insts_origin) {
+            auto uid = user->id();
+            if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this
+                && std::find_if(user_insts_origin.begin(), user_insts_origin.end(), [&](cldnn::primitive_inst * uu){
+                    for (auto dep_inst : uu->_deps) {
+                        if (dep_inst.first->id() == uid)
+                            return true;
+                    }
+                    return false;
+                }) != user_insts_origin.end()) {
+                    user_insts.insert(user_insts.begin(), user);
+            } else {
+                user_insts.push_back(user);
+            }
+        }
+        OPENVINO_ASSERT(user_insts.size() == user_insts_origin.size(), "Should have same size between ",
+                        user_insts.size(), " and ", user_insts_origin.size());
+    }
+    for (auto user : user_insts) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {
@@ -837,6 +858,23 @@ bool primitive_inst::update_impl() {
     }
 
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (get_node().get_preferred_impl_type() == impl_types::onednn) {
+            auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
+            std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+            get_node().create_onednn_primitive_attributes(_impl_params->fused_desc,
+                                                            attrs_onednn,
+                                                            fused_desc_onednn,
+                                                            _impl_params.get());
+            _impl_params->attrs_onednn = attrs_onednn;
+            {
+                auto& fused_prims_onednn = _impl_params->fused_desc_onednn;
+                fused_prims_onednn.erase(fused_prims_onednn.begin(), fused_prims_onednn.end());
+                fused_prims_onednn.insert(fused_prims_onednn.end(), fused_desc_onednn.begin(), fused_desc_onednn.end());
+            }
+        }
+#endif
+
         // Update param if fake_alignment is available
         auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
         // Change weights layout of `updated_params` to original one to have valid information

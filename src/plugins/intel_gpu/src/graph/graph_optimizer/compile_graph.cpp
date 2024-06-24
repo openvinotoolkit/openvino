@@ -93,6 +93,10 @@ void compile_graph::run(program& p) {
         if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_pshape().size() > 3)
             can_select_impl = false;
 
+        // onednn impls do not support shape agnostic kernel currently.
+        if (node->get_preferred_impl_type() == impl_types::onednn && node->is_dynamic())
+            can_select_impl = false;
+
         // TODO: Remove this WA once we have shape agnostic arg_max_min_axis kernel with non-const k input
         if (node->is_type<arg_max_min>() && node->is_dynamic() && node->as<arg_max_min>().get_primitive()->top_k == 0) {
             can_select_impl = false;
