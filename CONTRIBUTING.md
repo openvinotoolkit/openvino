@@ -69,6 +69,8 @@ a **Pull Request**, following the [guidelines](./CONTRIBUTING_DOCS.md).
      which is recommended for reading the articles.
 
    * **Check OpenVINO developer documentation**
+     
+     The intended audience for the developer documentation is developers. This documentation includes detailed information on the architecture of OpenVINO. It helps understand the process of building the toolkit, so you can modify and implement it as per the requirement.
 
      The documentation is contained entirely in the [docs/dev](./docs/dev) folder.
 
