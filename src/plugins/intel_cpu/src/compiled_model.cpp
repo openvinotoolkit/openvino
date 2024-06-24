@@ -165,14 +165,11 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
-                    // disable weights caching if graph was created only once
-                    auto weightsCache = m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
-                    auto isQuantizedFlag =
-                        (m_cfg.lpTransformsMode == Config::On) &&
-                        ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
+                    auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
+                                           ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
                     ctx = std::make_shared<GraphContext>(m_cfg,
-                                                         weightsCache,
+                                                         m_socketWeights[socketId],
                                                          isQuantizedFlag,
                                                          streamsExecutor,
                                                          m_sub_memory_manager);
