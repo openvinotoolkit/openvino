@@ -34,8 +34,7 @@ ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
     return output;
 }
 
-static bool registered =
-    register_translator("Mod", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::mod);
+ONNX_OP("Mod", OPSET_SINCE(1), ai_onnx::opset_1::mod);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

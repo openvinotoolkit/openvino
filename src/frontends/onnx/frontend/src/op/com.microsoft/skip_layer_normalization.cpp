@@ -45,10 +45,7 @@ ov::OutputVector skip_layer_normalization(const ov::frontend::onnx::Node& node) 
     // - we'd have to unroll MVN to have them
     return result->outputs();
 }
-static bool registered = register_translator("SkipLayerNormalization",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             com_microsoft::opset_1::skip_layer_normalization,
-                                             MICROSOFT_DOMAIN);
+ONNX_OP("SkipLayerNormalization", OPSET_SINCE(1), com_microsoft::opset_1::skip_layer_normalization, MICROSOFT_DOMAIN);
 }  // namespace opset_1
 }  // namespace com_microsoft
 }  // namespace onnx

@@ -21,8 +21,7 @@ ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Convert>(data, elem_type)};
 }
 
-static bool registered =
-    register_translator("Cast", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::cast);
+ONNX_OP("Cast", OPSET_SINCE(1), ai_onnx::opset_1::cast);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

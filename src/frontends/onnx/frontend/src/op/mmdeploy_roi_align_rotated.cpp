@@ -63,10 +63,7 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
                                                    spatial_scale,
                                                    clockwise)};
 }
-static bool registered = register_translator("MMCVRoIAlignRotated",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::mmdeploy_roi_align_rotated,
-                                             MMDEPLOY_DOMAIN);
+ONNX_OP("MMCVRoIAlignRotated", OPSET_SINCE(1), ai_onnx::opset_1::mmdeploy_roi_align_rotated, MMDEPLOY_DOMAIN);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -29,10 +29,7 @@ ov::OutputVector swish(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v4::Swish>(ov_inputs.at(0), beta)};
 }
 
-static bool registered = register_translator("Swish",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             org_openvinotoolkit::opset_1::swish,
-                                             OPENVINO_ONNX_DOMAIN);
+ONNX_OP("Swish", OPSET_SINCE(1), org_openvinotoolkit::opset_1::swish, OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

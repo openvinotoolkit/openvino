@@ -78,8 +78,7 @@ ov::OutputVector conv_integer(const ov::frontend::onnx::Node& node) {
 
     return {conv_node};
 }
-static bool registered =
-    register_translator("ConvInteger", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::conv_integer);
+ONNX_OP("ConvInteger", OPSET_SINCE(1), ai_onnx::opset_1::conv_integer);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

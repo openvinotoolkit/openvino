@@ -31,8 +31,7 @@ ov::OutputVector onehot(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::OneHot>(indices, depth, on_value, off_value, axis)};
 }
 
-static bool registered =
-    register_translator("OneHot", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::onehot);
+ONNX_OP("OneHot", OPSET_SINCE(1), ai_onnx::opset_1::onehot);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

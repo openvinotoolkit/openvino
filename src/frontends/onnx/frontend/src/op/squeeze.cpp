@@ -25,7 +25,7 @@ ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
     }
 }
 
-static bool registered = register_translator("Squeeze", {1, 12}, ai_onnx::opset_1::squeeze);
+ONNX_OP("Squeeze", OPSET_RANGE(1, 12), ai_onnx::opset_1::squeeze);
 }  // namespace opset_1
 
 namespace opset_13 {
@@ -38,7 +38,7 @@ ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
     }
 }
 
-static bool registered = register_translator("Squeeze", VersionRange::since(13), ai_onnx::opset_13::squeeze);
+ONNX_OP("Squeeze", OPSET_SINCE(13), ai_onnx::opset_13::squeeze);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

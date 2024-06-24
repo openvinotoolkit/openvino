@@ -40,7 +40,7 @@ ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
                                            pooling_mode,
                                            aligned_mode)};
 }
-static bool registered = register_translator("RoiAlign", {1, 15}, ai_onnx::opset_1::roi_align);
+ONNX_OP("RoiAlign", OPSET_RANGE(1, 15), ai_onnx::opset_1::roi_align);
 }  // namespace opset_1
 namespace opset_16 {
 ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
@@ -77,7 +77,7 @@ ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
                                            pooling_mode,
                                            aligned_mode)};
 }
-static bool registered = register_translator("RoiAlign", VersionRange::since(16), ai_onnx::opset_16::roi_align);
+ONNX_OP("RoiAlign", OPSET_SINCE(16), ai_onnx::opset_16::roi_align);
 }  // namespace opset_16
 }  // namespace ai_onnx
 }  // namespace onnx

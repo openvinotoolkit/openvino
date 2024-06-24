@@ -37,10 +37,10 @@ ov::OutputVector experimental_detectron_generate_proposals(const ov::frontend::o
     return {generate_proposals_single_image->output(0), generate_proposals_single_image->output(1)};
 }
 
-static bool registered = register_translator("ExperimentalDetectronGenerateProposalsSingleImage",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             org_openvinotoolkit::opset_1::experimental_detectron_generate_proposals,
-                                             OPENVINO_ONNX_DOMAIN);
+ONNX_OP("ExperimentalDetectronGenerateProposalsSingleImage",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_generate_proposals,
+        OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

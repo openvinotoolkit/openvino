@@ -13,8 +13,7 @@ ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
     return pooling::PoolingFactory(node).make_avg_pool();
 }
 
-static bool registered =
-    register_translator("AveragePool", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::average_pool);
+ONNX_OP("AveragePool", OPSET_SINCE(1), ai_onnx::opset_1::average_pool);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

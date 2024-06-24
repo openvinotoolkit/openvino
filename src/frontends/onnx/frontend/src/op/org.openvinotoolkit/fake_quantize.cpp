@@ -27,10 +27,7 @@ ov::OutputVector fake_quantize(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::FakeQuantize>(X, input_low, input_high, output_low, output_high, levels)};
 }
 
-static bool registered = register_translator("FakeQuantize",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             org_openvinotoolkit::opset_1::fake_quantize,
-                                             OPENVINO_ONNX_DOMAIN);
+ONNX_OP("FakeQuantize", OPSET_SINCE(1), org_openvinotoolkit::opset_1::fake_quantize, OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

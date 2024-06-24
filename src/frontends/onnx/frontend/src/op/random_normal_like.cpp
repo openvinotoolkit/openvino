@@ -38,9 +38,7 @@ ov::OutputVector random_normal_like(const ov::frontend::onnx::Node& node) {
     return res.first;
 }
 
-static bool registered = register_translator("RandomNormalLike",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::random_normal_like);
+ONNX_OP("RandomNormalLike", OPSET_SINCE(1), ai_onnx::opset_1::random_normal_like);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

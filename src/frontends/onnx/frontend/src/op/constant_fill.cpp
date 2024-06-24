@@ -45,8 +45,7 @@ ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::Broadcast>(const_val_to_fill, target_shape)};
 }
 
-static bool registered =
-    register_translator("ConstantFill", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::constant_fill);
+ONNX_OP("ConstantFill", OPSET_SINCE(1), ai_onnx::opset_1::constant_fill);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

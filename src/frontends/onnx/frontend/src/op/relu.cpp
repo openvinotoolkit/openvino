@@ -16,8 +16,7 @@ ov::OutputVector relu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Relu>(ov_inputs.at(0))};
 }
 
-static bool registered =
-    register_translator("Relu", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::relu);
+ONNX_OP("Relu", OPSET_SINCE(1), ai_onnx::opset_1::relu);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

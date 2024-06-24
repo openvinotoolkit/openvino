@@ -40,9 +40,7 @@ ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
                                                 seed_uint64)};
 }
 
-static bool registered = register_translator("RandomUniform",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::random_uniform);
+ONNX_OP("RandomUniform", OPSET_SINCE(1), ai_onnx::opset_1::random_uniform);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

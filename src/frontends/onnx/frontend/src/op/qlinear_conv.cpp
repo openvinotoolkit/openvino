@@ -80,8 +80,7 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
     return {result};
 }
 
-static bool registered =
-    register_translator("QLinearConv", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::qlinear_conv);
+ONNX_OP("QLinearConv", OPSET_SINCE(1), ai_onnx::opset_1::qlinear_conv);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -26,8 +26,7 @@ ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v1::Multiply>(alpha_node, elu_node)};
 }
-static bool registered =
-    register_translator("Celu", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::celu);
+ONNX_OP("Celu", OPSET_SINCE(1), ai_onnx::opset_1::celu);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

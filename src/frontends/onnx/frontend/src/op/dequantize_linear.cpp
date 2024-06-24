@@ -58,7 +58,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v1::Multiply>(converted_x, scale)};
     }
 }
-static bool registered = register_translator("DequantizeLinear", {1, 12}, ai_onnx::opset_1::dequantize_linear);
+ONNX_OP("DequantizeLinear", {1, 12}, ai_onnx::opset_1::dequantize_linear);
 }  // namespace opset_1
 
 namespace opset_13 {
@@ -188,8 +188,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     // these reshapes make sure that dequantization happens over the specified axis
     return detail::dequantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
-static bool registered =
-    register_translator("DequantizeLinear", VersionRange::since(13), ai_onnx::opset_13::dequantize_linear);
+ONNX_OP("DequantizeLinear", OPSET_SINCE(13), ai_onnx::opset_13::dequantize_linear);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

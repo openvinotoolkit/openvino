@@ -39,7 +39,7 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v8::Slice>(input_shape, start, end, default_step)};
 }
 
-static bool registered = register_translator("Shape", VersionRange::since(15), ai_onnx::opset_15::shape);
+ONNX_OP("Shape", OPSET_SINCE(15), ai_onnx::opset_15::shape);
 }  // namespace opset_15
 
 namespace opset_1 {
@@ -49,7 +49,7 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::ShapeOf>(data)};
 }
 
-static bool registered = register_translator("Shape", {1, 14}, ai_onnx::opset_1::shape);
+ONNX_OP("Shape", OPSET_RANGE(1, 14), ai_onnx::opset_1::shape);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

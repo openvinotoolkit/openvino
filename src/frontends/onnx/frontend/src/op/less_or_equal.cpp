@@ -21,7 +21,7 @@ ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
                             "The input data bfloat16 isn't supported in opset 12");
     return {std::make_shared<v1::LessEqual>(a, b)};
 }
-static bool registered = register_translator("LessOrEqual", {1, 15}, ai_onnx::opset_1::less_or_equal);
+ONNX_OP("LessOrEqual", OPSET_RANGE(1, 15), ai_onnx::opset_1::less_or_equal);
 }  // namespace opset_1
 
 namespace opset_16 {
@@ -31,7 +31,7 @@ ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
     const auto b = input.at(1);
     return {std::make_shared<v1::LessEqual>(a, b)};
 }
-static bool registered = register_translator("LessOrEqual", VersionRange::since(16), ai_onnx::opset_16::less_or_equal);
+ONNX_OP("LessOrEqual", OPSET_SINCE(16), ai_onnx::opset_16::less_or_equal);
 }  // namespace opset_16
 }  // namespace ai_onnx
 }  // namespace onnx

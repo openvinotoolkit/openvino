@@ -15,8 +15,7 @@ ov::OutputVector where(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<ov::op::v1::Select>(ov_inputs.at(0), ov_inputs.at(1), ov_inputs.at(2))};
 }
-static bool registered =
-    register_translator("Where", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::where);
+ONNX_OP("Where", OPSET_SINCE(1), ai_onnx::opset_1::where);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

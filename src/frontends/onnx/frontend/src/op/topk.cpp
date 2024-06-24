@@ -42,7 +42,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     return {top_k->output(0), top_k->output(1)};
 }
-static bool registered = register_translator("TopK", {1, 9}, ai_onnx::opset_1::topk);
+ONNX_OP("TopK", OPSET_RANGE(1, 9), ai_onnx::opset_1::topk);
 }  // namespace opset_1
 
 namespace opset_10 {
@@ -60,7 +60,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     return {top_k->output(0), top_k->output(1)};
 }
-static bool registered = register_translator("TopK", VersionRange::in(10), ai_onnx::opset_10::topk);
+ONNX_OP("TopK", OPSET_IN(10), ai_onnx::opset_10::topk);
 }  // namespace opset_10
 
 namespace opset_11 {
@@ -84,7 +84,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     return {top_k->output(0), top_k->output(1)};
 }
-static bool registered = register_translator("TopK", VersionRange::since(11), ai_onnx::opset_11::topk);
+ONNX_OP("TopK", OPSET_SINCE(11), ai_onnx::opset_11::topk);
 }  // namespace opset_11
 }  // namespace ai_onnx
 }  // namespace onnx

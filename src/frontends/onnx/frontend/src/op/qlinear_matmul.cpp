@@ -60,9 +60,7 @@ ov::OutputVector qlinear_matmul(const ov::frontend::onnx::Node& node) {
 
     return {quantized_result};
 }
-static bool registered = register_translator("QLinearMatMul",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::qlinear_matmul);
+ONNX_OP("QLinearMatMul", OPSET_SINCE(1), ai_onnx::opset_1::qlinear_matmul);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

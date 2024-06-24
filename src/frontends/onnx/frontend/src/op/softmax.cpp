@@ -48,7 +48,7 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
-static bool registered = register_translator("Softmax", {1, 10}, ai_onnx::opset_1::softmax);
+ONNX_OP("Softmax", OPSET_RANGE(1, 10), ai_onnx::opset_1::softmax);
 }  // namespace opset_1
 namespace opset_11 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
@@ -72,7 +72,7 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
-static bool registered = register_translator("Softmax", {11, 12}, ai_onnx::opset_11::softmax);
+ONNX_OP("Softmax", OPSET_RANGE(11, 12), ai_onnx::opset_11::softmax);
 }  // namespace opset_11
 namespace opset_13 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
@@ -82,7 +82,7 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v8::Softmax>(data, axis)};
 }
-static bool registered = register_translator("Softmax", VersionRange::since(13), ai_onnx::opset_13::softmax);
+ONNX_OP("Softmax", OPSET_SINCE(13), ai_onnx::opset_13::softmax);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

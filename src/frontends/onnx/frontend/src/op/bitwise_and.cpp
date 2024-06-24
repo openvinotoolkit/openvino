@@ -17,8 +17,7 @@ ov::OutputVector bitwise_and(const ov::frontend::onnx::Node& node) {
     OPENVINO_ASSERT(inputs.size() == 2);
     return {std::make_shared<v13::BitwiseAnd>(inputs[0], inputs[1])};
 }
-static bool registered =
-    register_translator("BitwiseAnd", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::bitwise_and);
+ONNX_OP("BitwiseAnd", OPSET_SINCE(1), ai_onnx::opset_1::bitwise_and);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

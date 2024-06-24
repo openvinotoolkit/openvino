@@ -58,7 +58,7 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(converted_results, output_shape, false)};
 }
 
-static bool registered = register_translator("Hardmax", {1, 12}, ai_onnx::opset_1::hardmax);
+ONNX_OP("Hardmax", OPSET_RANGE(1, 12), ai_onnx::opset_1::hardmax);
 }  // namespace opset_1
 namespace opset_13 {
 ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
@@ -91,7 +91,7 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(converted_results, output_shape, false)};
 }
 
-static bool registered = register_translator("Hardmax", VersionRange::since(13), ai_onnx::opset_13::hardmax);
+ONNX_OP("Hardmax", OPSET_SINCE(13), ai_onnx::opset_13::hardmax);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -71,8 +71,7 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::StridedSlice>(input_data, begin, end, begin_mask, end_mask)};
 }
 
-static bool registered =
-    register_translator("Crop", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::crop);
+ONNX_OP("Crop", OPSET_SINCE(1), ai_onnx::opset_1::crop);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -17,8 +17,7 @@ ov::OutputVector bitwise_not(const ov::frontend::onnx::Node& node) {
     OPENVINO_ASSERT(inputs.size() == 1);
     return {std::make_shared<v13::BitwiseNot>(inputs[0])};
 }
-static bool registered =
-    register_translator("BitwiseNot", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::bitwise_not);
+ONNX_OP("BitwiseNot", OPSET_SINCE(1), ai_onnx::opset_1::bitwise_not);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

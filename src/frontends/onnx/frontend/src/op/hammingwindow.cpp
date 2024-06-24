@@ -65,9 +65,7 @@ ov::OutputVector hammingwindow(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v0::Convert>(y_values, output_datatype)};
     }
 }
-static bool registered = register_translator("HammingWindow",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::hammingwindow);
+ONNX_OP("HammingWindow", OPSET_SINCE(1), ai_onnx::opset_1::hammingwindow);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

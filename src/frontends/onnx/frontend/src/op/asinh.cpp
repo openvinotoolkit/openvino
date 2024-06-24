@@ -14,8 +14,7 @@ namespace opset_1 {
 ov::OutputVector asinh(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v3::Asinh>(node.get_ov_inputs().at(0))};
 }
-static bool registered =
-    register_translator("Asinh", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::asinh);
+ONNX_OP("Asinh", OPSET_SINCE(1), ai_onnx::opset_1::asinh);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

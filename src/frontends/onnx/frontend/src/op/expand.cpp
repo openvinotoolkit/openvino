@@ -29,8 +29,7 @@ ov::OutputVector expand(const ov::frontend::onnx::Node& node) {
     }
 }
 
-static bool registered =
-    register_translator("Expand", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::expand);
+ONNX_OP("Expand", OPSET_SINCE(1), ai_onnx::opset_1::expand);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

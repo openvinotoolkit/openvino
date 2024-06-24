@@ -21,10 +21,7 @@ ov::OutputVector adaptive_avg_pooling2d(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v8::AdaptiveAvgPool>(inputs[0], inputs[1])};
 }
-static bool registered = register_translator("adaptive_avg_pool2d",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::adaptive_avg_pooling2d,
-                                             PYTORCH_ATEN_DOMAIN);
+ONNX_OP("adaptive_avg_pool2d", OPSET_SINCE(1), ai_onnx::opset_1::adaptive_avg_pooling2d, PYTORCH_ATEN_DOMAIN);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

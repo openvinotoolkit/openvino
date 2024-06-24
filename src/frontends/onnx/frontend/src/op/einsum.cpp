@@ -18,8 +18,7 @@ ov::OutputVector einsum(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v7::Einsum>(node.get_ov_inputs(), equation)};
 }
 
-static bool registered =
-    register_translator("Einsum", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::einsum);
+ONNX_OP("Einsum", OPSET_SINCE(1), ai_onnx::opset_1::einsum);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -39,8 +39,7 @@ ov::OutputVector bitshift(const ov::frontend::onnx::Node& node) {
     }
 }
 
-static bool registered =
-    register_translator("BitShift", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::bitshift);
+ONNX_OP("BitShift", OPSET_SINCE(1), ai_onnx::opset_1::bitshift);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

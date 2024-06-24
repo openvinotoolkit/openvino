@@ -21,9 +21,7 @@ ov::OutputVector space_to_depth(const ov::frontend::onnx::Node& node) {
     const auto mode = v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     return {std::make_shared<v0::SpaceToDepth>(data, mode, block_size)};
 }
-static bool registered = register_translator("SpaceToDepth",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::space_to_depth);
+ONNX_OP("SpaceToDepth", OPSET_SINCE(1), ai_onnx::opset_1::space_to_depth);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

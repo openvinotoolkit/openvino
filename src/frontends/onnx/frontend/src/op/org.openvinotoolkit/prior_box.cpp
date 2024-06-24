@@ -105,14 +105,11 @@ ov::OutputVector prior_box_clustered(const ov::frontend::onnx::Node& node) {
 }
 
 static bool register_multiple_translators(void) {
-    register_translator("PriorBox",
-                        VersionRange::single_version_for_all_opsets(),
-                        org_openvinotoolkit::opset_1::prior_box,
-                        OPENVINO_ONNX_DOMAIN);
-    register_translator("PriorBoxClustered",
-                        VersionRange::single_version_for_all_opsets(),
-                        org_openvinotoolkit::opset_1::prior_box_clustered,
-                        OPENVINO_ONNX_DOMAIN);
+    ONNX_OP_M("PriorBox", OPSET_SINCE(1), org_openvinotoolkit::opset_1::prior_box, OPENVINO_ONNX_DOMAIN);
+    ONNX_OP_M("PriorBoxClustered",
+              OPSET_SINCE(1),
+              org_openvinotoolkit::opset_1::prior_box_clustered,
+              OPENVINO_ONNX_DOMAIN);
     return true;
 }
 

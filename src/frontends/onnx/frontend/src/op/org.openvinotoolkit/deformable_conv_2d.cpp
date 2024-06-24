@@ -62,10 +62,7 @@ ov::OutputVector deformable_conv_2d(const ov::frontend::onnx::Node& node) {
         FRONT_END_GENERAL_CHECK(false, "Invalid number of inputs");
     }
 }
-static bool registered = register_translator("DeformableConv2D",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             org_openvinotoolkit::opset_1::deformable_conv_2d,
-                                             OPENVINO_ONNX_DOMAIN);
+ONNX_OP("DeformableConv2D", OPSET_SINCE(1), org_openvinotoolkit::opset_1::deformable_conv_2d, OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

@@ -15,7 +15,7 @@ ov::OutputVector sub(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Subtract>(node);
 }
 
-static bool registered = register_translator("Sub", {1, 6}, ai_onnx::opset_1::sub);
+ONNX_OP("Sub", OPSET_RANGE(1, 6), ai_onnx::opset_1::sub);
 }  // namespace opset_1
 
 namespace opset_7 {
@@ -23,7 +23,7 @@ ov::OutputVector sub(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v1::Subtract>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 
-static bool registered = register_translator("Sub", VersionRange::since(7), ai_onnx::opset_7::sub);
+ONNX_OP("Sub", OPSET_SINCE(7), ai_onnx::opset_7::sub);
 }  // namespace opset_7
 }  // namespace ai_onnx
 }  // namespace onnx

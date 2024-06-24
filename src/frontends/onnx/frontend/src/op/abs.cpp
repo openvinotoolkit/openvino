@@ -18,15 +18,15 @@ ov::OutputVector abs(const ov::frontend::onnx::Node& node) {
                      "consumed_inputs legacy attribute of Abs op is not supported");
     return {std::make_shared<ov::op::v0::Abs>(node.get_ov_inputs().at(0))};
 }
-static bool registered = register_translator("Abs", {1, 5}, ai_onnx::opset_1::abs);
+ONNX_OP("Abs", OPSET_RANGE(1, 5), ai_onnx::opset_1::abs);
 }  // namespace opset_1
 
 namespace opset_6 {
-static bool registered = register_translator("Abs", {6, 12}, ai_onnx::opset_1::abs);
+ONNX_OP("Abs", OPSET_RANGE(6, 12), ai_onnx::opset_1::abs);
 }  // namespace opset_6
 
 namespace opset_13 {
-static bool registered = register_translator("Abs", VersionRange::since(13), ai_onnx::opset_1::abs);
+ONNX_OP("Abs", OPSET_SINCE(13), ai_onnx::opset_1::abs);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

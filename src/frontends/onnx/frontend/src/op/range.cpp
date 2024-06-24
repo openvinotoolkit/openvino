@@ -40,8 +40,7 @@ ov::OutputVector range(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v4::Range>(start, stop, step, start.get_element_type())};
 }
 
-static bool registered =
-    register_translator("Range", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::range);
+ONNX_OP("Range", OPSET_SINCE(1), ai_onnx::opset_1::range);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

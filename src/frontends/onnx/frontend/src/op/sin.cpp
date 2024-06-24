@@ -14,8 +14,7 @@ namespace opset_1 {
 ov::OutputVector sin(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Sin>(node.get_ov_inputs().at(0))};
 }
-static bool registered =
-    register_translator("Sin", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::sin);
+ONNX_OP("Sin", OPSET_SINCE(1), ai_onnx::opset_1::sin);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

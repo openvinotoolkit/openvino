@@ -41,9 +41,7 @@ ov::OutputVector global_max_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::ReduceMax>(data, reduce_axes, true)};
 }
 
-static bool registered = register_translator("GlobalMaxPool",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::global_max_pool);
+ONNX_OP("GlobalMaxPool", OPSET_SINCE(1), ai_onnx::opset_1::global_max_pool);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

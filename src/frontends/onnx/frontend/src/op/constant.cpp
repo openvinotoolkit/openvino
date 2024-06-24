@@ -111,7 +111,7 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     return {tensor.get_ov_constant()};
 }
 
-static bool registered = register_translator("Constant", {1, 12}, ai_onnx::opset_1::constant);
+ONNX_OP("Constant", OPSET_RANGE(1, 12), ai_onnx::opset_1::constant);
 }  // namespace opset_1
 
 namespace opset_13 {
@@ -183,7 +183,7 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto tensor = node.get_attribute_value<Tensor>(attributes_names[0]);
     return {tensor.get_ov_constant()};
 }
-static bool registered = register_translator("Constant", VersionRange::since(13), ai_onnx::opset_13::constant);
+ONNX_OP("Constant", OPSET_SINCE(13), ai_onnx::opset_13::constant);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -55,9 +55,7 @@ ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Concat>(slices, channel_axis)};
 }
 
-static bool registered = register_translator("GlobalLpPool",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::global_lp_pool);
+ONNX_OP("GlobalLpPool", OPSET_SINCE(1), ai_onnx::opset_1::global_lp_pool);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

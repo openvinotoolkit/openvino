@@ -46,10 +46,8 @@ ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
 }
 
 static bool register_multiple_translators(void) {
-    register_translator("ScatterElements",
-                        VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_1::scatter_elements);
-    register_translator("Scatter", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::scatter_elements);
+    ONNX_OP_M("ScatterElements", OPSET_SINCE(1), ai_onnx::opset_1::scatter_elements);
+    ONNX_OP_M("Scatter", OPSET_SINCE(1), ai_onnx::opset_1::scatter_elements);
     return true;
 }
 

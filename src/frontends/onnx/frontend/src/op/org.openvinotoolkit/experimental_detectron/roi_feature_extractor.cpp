@@ -26,10 +26,10 @@ ov::OutputVector experimental_detectron_roi_feature_extractor(const ov::frontend
     return {roi_feature_extractor->output(0), roi_feature_extractor->output(1)};
 }
 
-static bool registered = register_translator("ExperimentalDetectronROIFeatureExtractor",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             org_openvinotoolkit::opset_1::experimental_detectron_roi_feature_extractor,
-                                             OPENVINO_ONNX_DOMAIN);
+ONNX_OP("ExperimentalDetectronROIFeatureExtractor",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_roi_feature_extractor,
+        OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

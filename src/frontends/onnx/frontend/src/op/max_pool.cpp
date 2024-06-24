@@ -22,14 +22,14 @@ ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     return max_pool;
 }
 
-static bool registered = register_translator("MaxPool", {1, 7}, ai_onnx::opset_1::max_pool);
+ONNX_OP("MaxPool", OPSET_RANGE(1, 7), ai_onnx::opset_1::max_pool);
 }  // namespace opset_1
 
 namespace opset_8 {
 ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     return pooling::PoolingFactory(node).make_max_pool_with_indices();
 }
-static bool registered = register_translator("MaxPool", VersionRange::since(8), ai_onnx::opset_8::max_pool);
+ONNX_OP("MaxPool", OPSET_SINCE(8), ai_onnx::opset_8::max_pool);
 }  // namespace opset_8
 }  // namespace ai_onnx
 }  // namespace onnx

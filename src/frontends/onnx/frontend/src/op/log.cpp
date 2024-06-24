@@ -16,8 +16,7 @@ ov::OutputVector log(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Log>(node.get_ov_inputs().at(0))};
 }
 
-static bool registered =
-    register_translator("Log", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::log);
+ONNX_OP("Log", OPSET_SINCE(1), ai_onnx::opset_1::log);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

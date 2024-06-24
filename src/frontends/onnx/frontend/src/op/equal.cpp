@@ -15,8 +15,7 @@ ov::OutputVector equal(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v1::Equal>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 
-static bool registered =
-    register_translator("Equal", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::equal);
+ONNX_OP("Equal", OPSET_SINCE(1), ai_onnx::opset_1::equal);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

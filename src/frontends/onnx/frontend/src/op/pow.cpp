@@ -33,8 +33,7 @@ ov::OutputVector pow(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Power>(base, exponent)};
 }
 
-static bool registered =
-    register_translator("Pow", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::pow);
+ONNX_OP("Pow", OPSET_SINCE(1), ai_onnx::opset_1::pow);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

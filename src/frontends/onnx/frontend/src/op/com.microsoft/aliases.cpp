@@ -22,26 +22,11 @@ extern ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node);
 namespace com_microsoft {
 namespace opset_1 {
 bool register_multiple_translators(void) {
-    register_translator("DequantizeLinear",
-                        VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_13::dequantize_linear,
-                        MICROSOFT_DOMAIN);
-    register_translator("GatherND",
-                        VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_1::gather_nd,
-                        MICROSOFT_DOMAIN);
-    register_translator("Gelu",
-                        VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_1::gelu,
-                        MICROSOFT_DOMAIN);
-    register_translator("QuantizeLinear",
-                        VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_13::quantize_linear,
-                        MICROSOFT_DOMAIN);
-    register_translator("Trilu",
-                        VersionRange::single_version_for_all_opsets(),
-                        ai_onnx::opset_1::trilu,
-                        MICROSOFT_DOMAIN);
+    ONNX_OP_M("DequantizeLinear", OPSET_SINCE(1), ai_onnx::opset_13::dequantize_linear, MICROSOFT_DOMAIN);
+    ONNX_OP_M("GatherND", OPSET_SINCE(1), ai_onnx::opset_1::gather_nd, MICROSOFT_DOMAIN);
+    ONNX_OP_M("Gelu", OPSET_SINCE(1), ai_onnx::opset_1::gelu, MICROSOFT_DOMAIN);
+    ONNX_OP_M("QuantizeLinear", OPSET_SINCE(1), ai_onnx::opset_13::quantize_linear, MICROSOFT_DOMAIN);
+    ONNX_OP_M("Trilu", OPSET_SINCE(1), ai_onnx::opset_1::trilu, MICROSOFT_DOMAIN);
     return true;
 }
 

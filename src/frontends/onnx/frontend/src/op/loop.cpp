@@ -172,8 +172,7 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     }
     return node_outputs;
 }
-static bool registered =
-    register_translator("Loop", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::loop);
+ONNX_OP("Loop", OPSET_SINCE(1), ai_onnx::opset_1::loop);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

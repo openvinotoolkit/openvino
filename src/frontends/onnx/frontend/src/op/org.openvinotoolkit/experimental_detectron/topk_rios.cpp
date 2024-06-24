@@ -23,10 +23,10 @@ ov::OutputVector experimental_detectron_topk_rois(const ov::frontend::onnx::Node
     return {std::make_shared<TopKROIs>(input_rois, rois_probs, max_rois)};
 }
 
-static bool registered = register_translator("ExperimentalDetectronTopKROIs",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             org_openvinotoolkit::opset_1::experimental_detectron_topk_rois,
-                                             OPENVINO_ONNX_DOMAIN);
+ONNX_OP("ExperimentalDetectronTopKROIs",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_topk_rois,
+        OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

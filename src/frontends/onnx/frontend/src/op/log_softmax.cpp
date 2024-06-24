@@ -64,7 +64,7 @@ namespace opset_1 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     return ov::frontend::onnx::log_softmax(node, 1);
 }
-static bool registered = register_translator("LogSoftmax", {1, 12}, ai_onnx::opset_1::log_softmax);
+ONNX_OP("LogSoftmax", OPSET_RANGE(1, 12), ai_onnx::opset_1::log_softmax);
 }  // namespace opset_1
 
 namespace opset_13 {
@@ -72,7 +72,7 @@ ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
     return {std::make_shared<v5::LogSoftmax>(node.get_ov_inputs()[0], axis)};
 }
-static bool registered = register_translator("LogSoftmax", VersionRange::since(13), ai_onnx::opset_13::log_softmax);
+ONNX_OP("LogSoftmax", OPSET_SINCE(13), ai_onnx::opset_13::log_softmax);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx

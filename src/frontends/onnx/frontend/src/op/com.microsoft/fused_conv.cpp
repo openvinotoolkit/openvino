@@ -74,10 +74,7 @@ ov::OutputVector fused_conv(const ov::frontend::onnx::Node& node) {
     return {conv_res};
 }
 
-static bool registered = register_translator("FusedConv",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             com_microsoft::opset_1::fused_conv,
-                                             MICROSOFT_DOMAIN);
+ONNX_OP("FusedConv", OPSET_SINCE(1), com_microsoft::opset_1::fused_conv, MICROSOFT_DOMAIN);
 }  // namespace opset_1
 }  // namespace com_microsoft
 }  // namespace onnx

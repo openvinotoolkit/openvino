@@ -47,9 +47,7 @@ ov::OutputVector matmul_integer(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
-static bool registered = register_translator("MatMulInteger",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::matmul_integer);
+ONNX_OP("MatMulInteger", OPSET_SINCE(1), ai_onnx::opset_1::matmul_integer);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -23,8 +23,7 @@ ov::OutputVector concat(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Concat>(valid_inputs, axis)};
 }
 
-static bool registered =
-    register_translator("Concat", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::concat);
+ONNX_OP("Concat", OPSET_SINCE(1), ai_onnx::opset_1::concat);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -18,8 +18,7 @@ namespace opset_1 {
 ov::OutputVector round(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v5::Round>(node.get_ov_inputs().at(0), v5::Round::RoundMode::HALF_TO_EVEN)};
 }
-static bool registered =
-    register_translator("Round", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::round);
+ONNX_OP("Round", OPSET_SINCE(1), ai_onnx::opset_1::round);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

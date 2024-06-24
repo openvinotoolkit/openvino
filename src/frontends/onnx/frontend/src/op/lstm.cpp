@@ -253,8 +253,7 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
             ov::op::util::reorder_axes(Y_h, {1, 0, 2}),
             ov::op::util::reorder_axes(Y_c, {1, 0, 2})};
 }
-static bool registered =
-    register_translator("LSTM", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::lstm);
+ONNX_OP("LSTM", OPSET_SINCE(1), ai_onnx::opset_1::lstm);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -110,8 +110,7 @@ ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
         std::make_shared<v1::Select>(mask, input, v0::Constant::create(input.get_element_type(), ov::Shape{}, {0}))};
 }
 
-static bool registered =
-    register_translator("Trilu", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::trilu);
+ONNX_OP("Trilu", OPSET_SINCE(1), ai_onnx::opset_1::trilu);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

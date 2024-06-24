@@ -211,9 +211,7 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v1::Add>(conv_node, reshaped_bias)};
 }
-static bool registered = register_translator("ConvTranspose",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::conv_transpose);
+ONNX_OP("ConvTranspose", OPSET_SINCE(1), ai_onnx::opset_1::conv_transpose);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

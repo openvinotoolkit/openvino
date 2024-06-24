@@ -14,8 +14,7 @@ namespace opset_1 {
 ov::OutputVector sign(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Sign>(node.get_ov_inputs().at(0))};
 }
-static bool registered =
-    register_translator("Sign", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::sign);
+ONNX_OP("Sign", OPSET_SINCE(1), ai_onnx::opset_1::sign);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

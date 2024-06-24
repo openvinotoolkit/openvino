@@ -17,8 +17,7 @@ ov::OutputVector mish(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v4::Mish>(data)};
 }
-static bool registered =
-    register_translator("Mish", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::mish);
+ONNX_OP("Mish", OPSET_SINCE(1), ai_onnx::opset_1::mish);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

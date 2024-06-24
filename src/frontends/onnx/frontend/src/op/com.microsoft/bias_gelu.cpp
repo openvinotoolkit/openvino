@@ -18,10 +18,7 @@ ov::OutputVector bias_gelu(const ov::frontend::onnx::Node& node) {
     FRONT_END_GENERAL_CHECK(nodes.size() == 2, "BiasGelu takes 2 inputs. Provided " + std::to_string(nodes.size()));
     return {std::make_shared<v7::Gelu>(std::make_shared<v1::Add>(nodes.at(0), nodes.at(1)))};
 }
-static bool registered = register_translator("BiasGelu",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             com_microsoft::opset_1::bias_gelu,
-                                             MICROSOFT_DOMAIN);
+ONNX_OP("BiasGelu", OPSET_SINCE(1), com_microsoft::opset_1::bias_gelu, MICROSOFT_DOMAIN);
 }  // namespace opset_1
 }  // namespace com_microsoft
 }  // namespace onnx

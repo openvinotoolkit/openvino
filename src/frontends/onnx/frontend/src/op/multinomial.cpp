@@ -45,8 +45,7 @@ ov::OutputVector multinomial(const ov::frontend::onnx::Node& node) {
     return {multinomial_op};
 }
 
-static bool registered =
-    register_translator("Multinomial", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::multinomial);
+ONNX_OP("Multinomial", OPSET_SINCE(1), ai_onnx::opset_1::multinomial);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

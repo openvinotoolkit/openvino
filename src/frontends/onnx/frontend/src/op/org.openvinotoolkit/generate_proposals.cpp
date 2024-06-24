@@ -66,10 +66,7 @@ ov::OutputVector generate_proposals(const ov::frontend::onnx::Node& node) {
     return proposals->outputs();
 }
 
-static bool registered = register_translator("GenerateProposals",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             org_openvinotoolkit::opset_1::generate_proposals,
-                                             OPENVINO_ONNX_DOMAIN);
+ONNX_OP("GenerateProposals", OPSET_SINCE(1), org_openvinotoolkit::opset_1::generate_proposals, OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

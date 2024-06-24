@@ -14,8 +14,7 @@ namespace opset_9 {
 ov::OutputVector acosh(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v3::Acosh>(node.get_ov_inputs().at(0))};
 }
-static bool registered =
-    register_translator("Acosh", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_9::acosh);
+ONNX_OP("Acosh", OPSET_SINCE(1), ai_onnx::opset_9::acosh);
 }  // namespace opset_9
 }  // namespace ai_onnx
 }  // namespace onnx

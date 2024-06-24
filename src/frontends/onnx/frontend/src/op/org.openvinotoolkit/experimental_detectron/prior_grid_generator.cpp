@@ -29,10 +29,10 @@ ov::OutputVector experimental_detectron_prior_grid_generator(const ov::frontend:
 
     return {std::make_shared<PriorGridGenerator>(priors, feature_map, im_data, attrs)};
 }
-static bool registered = register_translator("ExperimentalDetectronPriorGridGenerator",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             org_openvinotoolkit::opset_1::experimental_detectron_prior_grid_generator,
-                                             OPENVINO_ONNX_DOMAIN);
+ONNX_OP("ExperimentalDetectronPriorGridGenerator",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_prior_grid_generator,
+        OPENVINO_ONNX_DOMAIN);
 }  // namespace opset_1
 }  // namespace org_openvinotoolkit
 }  // namespace onnx

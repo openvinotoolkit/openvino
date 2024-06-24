@@ -28,8 +28,7 @@ ov::OutputVector dft(const ov::frontend::onnx::Node& node) {
                           onesided == 1)};
 }
 
-static bool registered =
-    register_translator("DFT", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::dft);
+ONNX_OP("DFT", OPSET_SINCE(1), ai_onnx::opset_1::dft);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

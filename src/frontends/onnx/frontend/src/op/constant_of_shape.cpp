@@ -33,9 +33,7 @@ ov::OutputVector constant_of_shape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::Broadcast>(constant_value, inputs[0])};
 }
 
-static bool registered = register_translator("ConstantOfShape",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::constant_of_shape);
+ONNX_OP("ConstantOfShape", OPSET_SINCE(1), ai_onnx::opset_1::constant_of_shape);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

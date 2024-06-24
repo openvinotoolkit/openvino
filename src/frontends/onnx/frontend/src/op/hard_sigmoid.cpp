@@ -29,8 +29,7 @@ ov::OutputVector hard_sigmoid(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::HardSigmoid>(data, alpha, beta)};
 }
 
-static bool registered =
-    register_translator("HardSigmoid", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::hard_sigmoid);
+ONNX_OP("HardSigmoid", OPSET_SINCE(1), ai_onnx::opset_1::hard_sigmoid);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

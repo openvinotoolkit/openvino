@@ -14,8 +14,7 @@ ov::OutputVector ceil(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Ceiling>(node.get_ov_inputs().at(0))};
 }
 
-static bool registered =
-    register_translator("Ceil", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::ceil);
+ONNX_OP("Ceil", OPSET_SINCE(1), ai_onnx::opset_1::ceil);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

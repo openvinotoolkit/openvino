@@ -25,8 +25,7 @@ ov::OutputVector tile(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Tile>(input, repeats)};
 }
 
-static bool registered =
-    register_translator("Tile", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::tile);
+ONNX_OP("Tile", OPSET_SINCE(1), ai_onnx::opset_1::tile);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

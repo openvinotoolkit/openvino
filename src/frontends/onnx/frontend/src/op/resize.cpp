@@ -128,7 +128,7 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v11::Interpolate>(data, scales, attrs)};
     }
 }
-static bool registered = register_translator("Resize", VersionRange::since(11), ai_onnx::opset_11::resize);
+ONNX_OP("Resize", OPSET_SINCE(11), ai_onnx::opset_11::resize);
 }  // namespace opset_11
 
 namespace opset_1 {
@@ -149,7 +149,7 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v11::Interpolate>(data, scales, attrs)};
 }
 
-static bool registered = register_translator("Resize", {1, 10}, ai_onnx::opset_1::resize);
+ONNX_OP("Resize", OPSET_RANGE(1, 10), ai_onnx::opset_1::resize);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

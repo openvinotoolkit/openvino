@@ -46,9 +46,7 @@ ov::OutputVector reverse_sequence(const ov::frontend::onnx::Node& node) {
         std::make_shared<v0::ReverseSequence>(data, sequence_lengths_i32, normalized_batch_axis, normalized_time_axis)};
 }
 
-static bool registered = register_translator("ReverseSequence",
-                                             VersionRange::single_version_for_all_opsets(),
-                                             ai_onnx::opset_1::reverse_sequence);
+ONNX_OP("ReverseSequence", OPSET_SINCE(1), ai_onnx::opset_1::reverse_sequence);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

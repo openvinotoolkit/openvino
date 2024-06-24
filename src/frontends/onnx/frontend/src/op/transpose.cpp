@@ -19,8 +19,7 @@ ov::OutputVector transpose(const ov::frontend::onnx::Node& node) {
     return {(permute_axes.empty()) ? ov::op::util::transpose(data) : ov::op::util::reorder_axes(data, permute_axes)};
 }
 
-static bool registered =
-    register_translator("Transpose", VersionRange::single_version_for_all_opsets(), ai_onnx::opset_1::transpose);
+ONNX_OP("Transpose", OPSET_SINCE(1), ai_onnx::opset_1::transpose);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx
