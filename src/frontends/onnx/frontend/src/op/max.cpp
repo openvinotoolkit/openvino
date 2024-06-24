@@ -15,7 +15,7 @@ ov::OutputVector max(const ov::frontend::onnx::Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Maximum>(node, ov::op::AutoBroadcastType::NONE);
 }
 
-static bool registered = register_translator("Max", VersionRange{1, 7}, ai_onnx::opset_1::max);
+static bool registered = register_translator("Max", {1, 7}, ai_onnx::opset_1::max);
 }  // namespace opset_1
 
 namespace opset_8 {

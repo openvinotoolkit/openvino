@@ -15,7 +15,7 @@ ov::OutputVector mul(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Multiply>(node);
 }
 
-static bool registered = register_translator("Mul", VersionRange{1, 6}, ai_onnx::opset_1::mul);
+static bool registered = register_translator("Mul", {1, 6}, ai_onnx::opset_1::mul);
 }  // namespace opset_1
 
 namespace opset_7 {

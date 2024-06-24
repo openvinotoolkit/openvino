@@ -58,8 +58,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v1::Multiply>(converted_x, scale)};
     }
 }
-static bool registered =
-    register_translator("DequantizeLinear", VersionRange{1, 12}, ai_onnx::opset_1::dequantize_linear);
+static bool registered = register_translator("DequantizeLinear", {1, 12}, ai_onnx::opset_1::dequantize_linear);
 }  // namespace opset_1
 
 namespace opset_13 {

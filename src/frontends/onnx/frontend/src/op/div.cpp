@@ -15,7 +15,7 @@ ov::OutputVector div(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Divide>(node);
 }
 
-static bool registered = register_translator("Div", VersionRange{1, 6}, ai_onnx::opset_1::div);
+static bool registered = register_translator("Div", {1, 6}, ai_onnx::opset_1::div);
 }  // namespace opset_1
 
 namespace opset_7 {

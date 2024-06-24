@@ -57,7 +57,7 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector{std::make_shared<v1::Add>(matmul_node, beta_times_input_c)};
 }
 
-static bool registered = register_translator("Gemm", VersionRange{1, 5}, ai_onnx::opset_1::gemm);
+static bool registered = register_translator("Gemm", {1, 5}, ai_onnx::opset_1::gemm);
 }  // namespace opset_1
 
 namespace opset_6 {

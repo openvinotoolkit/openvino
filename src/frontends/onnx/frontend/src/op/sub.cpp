@@ -15,7 +15,7 @@ ov::OutputVector sub(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Subtract>(node);
 }
 
-static bool registered = register_translator("Sub", VersionRange{1, 6}, ai_onnx::opset_1::sub);
+static bool registered = register_translator("Sub", {1, 6}, ai_onnx::opset_1::sub);
 }  // namespace opset_1
 
 namespace opset_7 {

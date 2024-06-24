@@ -76,7 +76,7 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     return std::make_shared<v11::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
 
-static bool registered = register_translator("Upsample", VersionRange{1, 6}, ai_onnx::opset_1::upsample);
+static bool registered = register_translator("Upsample", {1, 6}, ai_onnx::opset_1::upsample);
 }  // namespace opset_1
 
 namespace opset_7 {
@@ -98,7 +98,7 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
     return std::make_shared<v11::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
 
-static bool registered = register_translator("Upsample", VersionRange{7, 8}, ai_onnx::opset_7::upsample);
+static bool registered = register_translator("Upsample", {7, 8}, ai_onnx::opset_7::upsample);
 }  // namespace opset_7
 
 namespace opset_9 {

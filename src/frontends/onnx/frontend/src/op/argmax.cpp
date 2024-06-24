@@ -15,7 +15,7 @@ ov::OutputVector argmax(const ov::frontend::onnx::Node& node) {
     return {arg_factory.make_arg_max()};
 }
 
-static bool registered = register_translator("ArgMax", VersionRange{1, 11}, ai_onnx::opset_1::argmax);
+static bool registered = register_translator("ArgMax", {1, 11}, ai_onnx::opset_1::argmax);
 }  // namespace opset_1
 
 namespace opset_12 {

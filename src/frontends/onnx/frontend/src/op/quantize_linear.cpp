@@ -149,7 +149,7 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
-static bool registered = register_translator("QuantizeLinear", VersionRange{1, 12}, ai_onnx::opset_1::quantize_linear);
+static bool registered = register_translator("QuantizeLinear", {1, 12}, ai_onnx::opset_1::quantize_linear);
 }  // namespace opset_1
 
 namespace opset_13 {

@@ -58,7 +58,7 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
 
     return build_dropout(node, training_mode);
 }
-static bool registered = register_translator("Dropout", VersionRange{7, 11}, ai_onnx::opset_7::dropout);
+static bool registered = register_translator("Dropout", {7, 11}, ai_onnx::opset_7::dropout);
 }  // namespace opset_7
 
 namespace opset_1 {
@@ -69,7 +69,7 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
 
     return build_dropout(node, training_mode);
 }
-static bool registered = register_translator("Dropout", VersionRange{1, 6}, ai_onnx::opset_1::dropout);
+static bool registered = register_translator("Dropout", {1, 6}, ai_onnx::opset_1::dropout);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

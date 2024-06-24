@@ -24,7 +24,7 @@ ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
 
     return {C};
 }
-static bool registered = register_translator("GreaterOrEqual", VersionRange{1, 15}, ai_onnx::opset_1::greater_or_equal);
+static bool registered = register_translator("GreaterOrEqual", {1, 15}, ai_onnx::opset_1::greater_or_equal);
 }  // namespace opset_1
 
 namespace opset_16 {

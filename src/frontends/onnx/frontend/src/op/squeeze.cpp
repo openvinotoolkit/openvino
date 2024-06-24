@@ -25,7 +25,7 @@ ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
     }
 }
 
-static bool registered = register_translator("Squeeze", VersionRange{1, 12}, ai_onnx::opset_1::squeeze);
+static bool registered = register_translator("Squeeze", {1, 12}, ai_onnx::opset_1::squeeze);
 }  // namespace opset_1
 
 namespace opset_13 {

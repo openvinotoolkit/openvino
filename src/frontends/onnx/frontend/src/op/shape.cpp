@@ -49,7 +49,7 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::ShapeOf>(data)};
 }
 
-static bool registered = register_translator("Shape", VersionRange{1, 14}, ai_onnx::opset_1::shape);
+static bool registered = register_translator("Shape", {1, 14}, ai_onnx::opset_1::shape);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

@@ -27,7 +27,7 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     }
 }
 
-static bool registered = register_translator("Split", VersionRange{1, 12}, ai_onnx::opset_1::split);
+static bool registered = register_translator("Split", {1, 12}, ai_onnx::opset_1::split);
 }  // namespace opset_1
 
 namespace opset_13 {

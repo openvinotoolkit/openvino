@@ -64,7 +64,7 @@ namespace opset_1 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     return ov::frontend::onnx::log_softmax(node, 1);
 }
-static bool registered = register_translator("LogSoftmax", VersionRange{1, 12}, ai_onnx::opset_1::log_softmax);
+static bool registered = register_translator("LogSoftmax", {1, 12}, ai_onnx::opset_1::log_softmax);
 }  // namespace opset_1
 
 namespace opset_13 {

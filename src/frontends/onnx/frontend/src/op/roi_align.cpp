@@ -40,7 +40,7 @@ ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
                                            pooling_mode,
                                            aligned_mode)};
 }
-static bool registered = register_translator("RoiAlign", VersionRange{1, 15}, ai_onnx::opset_1::roi_align);
+static bool registered = register_translator("RoiAlign", {1, 15}, ai_onnx::opset_1::roi_align);
 }  // namespace opset_1
 namespace opset_16 {
 ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {

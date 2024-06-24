@@ -22,7 +22,7 @@ ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     return max_pool;
 }
 
-static bool registered = register_translator("MaxPool", VersionRange{1, 7}, ai_onnx::opset_1::max_pool);
+static bool registered = register_translator("MaxPool", {1, 7}, ai_onnx::opset_1::max_pool);
 }  // namespace opset_1
 
 namespace opset_8 {

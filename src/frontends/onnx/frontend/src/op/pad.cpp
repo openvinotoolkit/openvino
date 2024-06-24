@@ -59,7 +59,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
         pad_mode)};
 }
 
-static bool registered = register_translator("Pad", VersionRange{1, 10}, ai_onnx::opset_1::pad);
+static bool registered = register_translator("Pad", {1, 10}, ai_onnx::opset_1::pad);
 }  // namespace opset_1
 namespace opset_11 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {

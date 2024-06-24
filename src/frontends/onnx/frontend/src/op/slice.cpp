@@ -66,7 +66,7 @@ ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v8::Slice>(data, starts, ends, steps, axes)};
     }
 }
-static bool registered = register_translator("Slice", VersionRange{1, 9}, ai_onnx::opset_1::slice);
+static bool registered = register_translator("Slice", {1, 9}, ai_onnx::opset_1::slice);
 }  // namespace opset_1
 }  // namespace ai_onnx
 }  // namespace onnx

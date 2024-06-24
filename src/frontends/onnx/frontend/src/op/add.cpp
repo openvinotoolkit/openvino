@@ -21,7 +21,7 @@ ov::OutputVector add(const ov::frontend::onnx::Node& node) {
                      "consumed_inputs legacy attribute of Add op is not supported");
     return common::handle_opset6_binary_op<v1::Add>(node);
 }
-static bool registered = register_translator("Add", VersionRange{1, 5}, ai_onnx::opset_1::add);
+static bool registered = register_translator("Add", {1, 5}, ai_onnx::opset_1::add);
 }  // namespace opset_1
 
 namespace opset_6 {
@@ -35,7 +35,7 @@ namespace opset_7 {
 ov::OutputVector add(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
-static bool registered = register_translator("Add", VersionRange{7, 12}, ai_onnx::opset_7::add);
+static bool registered = register_translator("Add", {7, 12}, ai_onnx::opset_7::add);
 }  // namespace opset_7
 
 namespace opset_13 {

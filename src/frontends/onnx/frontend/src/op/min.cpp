@@ -15,7 +15,7 @@ ov::OutputVector min(const ov::frontend::onnx::Node& node) {
     return variadic::make_ng_variadic_op<ov::op::v1::Minimum>(node, ov::op::AutoBroadcastType::NONE);
 }
 
-static bool registered = register_translator("Min", VersionRange{1, 7}, ai_onnx::opset_1::min);
+static bool registered = register_translator("Min", {1, 7}, ai_onnx::opset_1::min);
 }  // namespace opset_1
 
 namespace opset_8 {

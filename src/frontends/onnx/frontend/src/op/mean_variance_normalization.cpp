@@ -22,7 +22,7 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
 }
 
 static bool registered =
-    register_translator("MeanVarianceNormalization", VersionRange{1, 8}, ai_onnx::opset_1::mean_variance_normalization);
+    register_translator("MeanVarianceNormalization", {1, 8}, ai_onnx::opset_1::mean_variance_normalization);
 }  // namespace opset_1
 
 namespace opset_9 {

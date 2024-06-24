@@ -27,7 +27,7 @@ ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Clamp>(data, min_value, max_value)};
 }
 
-static bool registered = register_translator("Clip", VersionRange{1, 10}, ai_onnx::opset_1::clip);
+static bool registered = register_translator("Clip", {1, 10}, ai_onnx::opset_1::clip);
 }  // namespace opset_1
 
 namespace opset_11 {
