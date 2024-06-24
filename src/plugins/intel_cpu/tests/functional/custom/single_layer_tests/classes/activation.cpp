@@ -303,7 +303,6 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Selu,        {{1.6732f, 1.0507f}}},
         {Ceiling,     {{}}},
         {SoftSign,    {{}}},
-        {IsNaN,    {{}}},
     };
 
     return activationTypesDynamicMath;
