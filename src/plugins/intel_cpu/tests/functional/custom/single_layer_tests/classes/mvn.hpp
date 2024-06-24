@@ -39,6 +39,9 @@ public:
 protected:
    void SetUp() override;
 private:
+#if defined(OPENVINO_ARCH_RISCV64)
+   std::string getPrimitiveType();
+#endif
    bool acrossChanels;
 };
 

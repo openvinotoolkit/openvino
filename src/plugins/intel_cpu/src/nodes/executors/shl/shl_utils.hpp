@@ -59,5 +59,20 @@ inline csinn_layout_enum getShlDataLayoutByMemoryDesc(const MemoryDescPtr& desc,
     return CSINN_LAYOUT_NULL;
 }
 
+// implement `make_index_sequence` by hand
+template<std::size_t... Indices>
+struct index_sequence {};
+
+template<std::size_t N, std::size_t... Indices>
+struct make_index_sequence_impl : make_index_sequence_impl<N - 1, N - 1, Indices...> {};
+
+template<std::size_t... Indices>
+struct make_index_sequence_impl<0, Indices...> {
+    using type = index_sequence<Indices...>;
+};
+
+template<std::size_t N>
+using make_index_sequence = typename make_index_sequence_impl<N>::type;
+
 }   // namespace intel_cpu
 }   // namespace ov

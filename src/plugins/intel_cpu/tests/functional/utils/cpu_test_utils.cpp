@@ -267,6 +267,10 @@ CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
 std::string CPUTestsBase::getPrimitiveType() const {
     return "acl";
 }
+#elif defined(OV_CPU_WITH_SHL)
+std::string CPUTestsBase::getPrimitiveType() const {
+    return "shl";
+}
 #else
 std::string CPUTestsBase::getPrimitiveType() const {
     std::string isaType;

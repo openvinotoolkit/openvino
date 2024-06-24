@@ -380,6 +380,9 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
+    // crash with 'double free or corruption (!prev)'
+    retVector.emplace_back(R"(.*smoke_InterpolateBilinearPillow_Layout_Test.*)");
+    retVector.emplace_back(R"(.*smoke_InterpolateBicubicPillow_Layout_Test.*)");
     // unsupported node type 'CausalMaskPreprocess'
     retVector.emplace_back(R"(CausalMaskPreprocessCausalMaskPreprocess.smoke_CompareWithRefs)");
     // fused op FakeQuantize has not been found

@@ -69,8 +69,22 @@ bool MvnLayerCPUTest::isSupportedTestCase() {
                             inFmts.front() == ndhwc) &&
         !acrossChanels) return false;
 #endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    // These layouts are not supported by SHL
+    if (!inFmts.empty() && (inFmts.front() == nwc ||
+                            inFmts.front() == nhwc ||
+                            inFmts.front() == ndhwc))
+        return false;
+#endif
     return true;
 }
+
+#if defined(OPENVINO_ARCH_RISCV64)
+std::string MvnLayerCPUTest::getPrimitiveType() {
+    // TODO: Support MVN op for RISCV64 arch
+    return "ref";
+}
+#endif
 
 void MvnLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;

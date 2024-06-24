@@ -108,6 +108,14 @@ protected:
         const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(psroi)};
         function = std::make_shared<ov::Model>(results, params, "PSROIPooling");
     }
+
+#if defined(OPENVINO_ARCH_RISCV64)
+private:
+    std::string getPrimitiveType() {
+         // TODO: Support psroi_pooling op for RISCV64 arch
+        return "ref";
+    }
+#endif
 };
 
 TEST_P(PSROIPoolingLayerCPUTest, CompareWithRefs) {

@@ -499,6 +499,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_3D_planar_dyn, EltwiseCacheTest,
                                 ::testing::Values(cpuParams_3D_planar)),
                         EltwiseCacheTest::getTestCaseName);
 
+#if !defined(OPENVINO_ARCH_RISCV64)
 std::vector<InputShapesTuple> inputShapes_3D_blocked_dyn = {
     {
         // eltwise shapes
@@ -630,6 +631,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_3D_nspc_dyn, EltwiseCacheTest,
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_3D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
+#endif
 
 
 // 4D
@@ -769,6 +771,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_planar_collapse_dyn, EltwiseCache
                                 ::testing::Values(cpuParams_4D_planar)),
                         EltwiseCacheTest::getTestCaseName);
 
+#if !defined(OPENVINO_ARCH_RISCV64)
 std::vector<InputShapesTuple> inputShapes_4D_blocked_dyn = {
     {
         // eltwise shapes
@@ -960,6 +963,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_nspc_collapse_dyn, EltwiseCacheTe
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
+#endif
 
 
 // 5D
@@ -1100,6 +1104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_planar_collapse_dyn, EltwiseCache
                                 ::testing::Values(cpuParams_5D_planar)),
                         EltwiseCacheTest::getTestCaseName);
 
+#if !defined(OPENVINO_ARCH_RISCV64)
 std::vector<InputShapesTuple> inputShapes_5D_blocked_dyn = {
     {
         // eltwise shapes
@@ -1291,6 +1296,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_nspc_collapse_dyn, EltwiseCacheTe
                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
+#endif
 
 
 // 7D

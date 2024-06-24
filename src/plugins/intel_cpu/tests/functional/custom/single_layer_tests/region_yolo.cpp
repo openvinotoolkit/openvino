@@ -90,6 +90,14 @@ protected:
 
         function = makeNgraphFunction(inPrc, paramRegionYolo, region_yolo, "RegionYolo");
     }
+
+#if defined(OPENVINO_ARCH_RISCV64)
+private:
+    std::string getPrimitiveType() {
+         // TODO: Support RegionYolo op for RISCV64 arch
+        return "ref";
+    }
+#endif
 };
 
 TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {
