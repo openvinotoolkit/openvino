@@ -197,17 +197,16 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
 
         if (!output_shape_defined && concat->get_output_partial_shape(0).is_static() &&
             concat->get_shape().size() == 1 && concat_inputs.size() == shape_size(concat->get_shape())) {
-            auto output_partial_shape = std::vector<Dimension>{};
+            output_shape.resize(0);
             for (const auto& concat_input : concat_inputs) {
                 auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
                 if (auto source_const_ptr = ov::as_type_ptr<ov::op::v0::Constant>(source_node_ptr)) {
-                    output_partial_shape.emplace_back(source_const_ptr->get_axis_vector_val()[0]);
+                    output_shape.emplace_back(source_const_ptr->get_axis_vector_val()[0]);
                 } else {
-                    output_partial_shape.push_back(Dimension::dynamic());
+                    output_shape.push_back(Dimension::dynamic());
                 }
             }
             output_shape_defined = true;
-            output_shape = PartialShape(output_partial_shape);
         }
     }
 

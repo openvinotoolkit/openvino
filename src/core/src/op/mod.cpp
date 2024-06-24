@@ -110,8 +110,8 @@ Tensor evaluate_undefined_result_mask(const TensorVector& bounds) {
 
     const auto& in_et = bounds.front().get_element_type();
 
-    auto zero_t = ov::util::make_tensor_of_value(in_et, 0);
-    auto max_t = ov::util::make_tensor_of_max_value(in_et);
+    const auto zero_t = ov::util::make_tensor_of_value(in_et, 0);
+    const auto max_t = ov::util::make_tensor_of_max_value(in_et);
 
     const auto& v_ub = bounds[1];
     const auto& m_lb = bounds[2];
@@ -159,7 +159,7 @@ TensorVector get_bounds_with_valid_values(const TensorVector& bounds, const Tens
 
     auto m_bounds = TensorVector();
     m_bounds.reserve(bounds.size());
-    std::transform(bounds.cbegin(), bounds.cend(), std::back_inserter(m_bounds), [&](const Tensor& b) {
+    std::transform(bounds.cbegin(), bounds.cend(), std::back_inserter(m_bounds), [&](const Tensor& b) -> ov::Tensor {
         auto tmp = TensorVector{{b.get_element_type(), mask.get_shape()}};
         return select_op.evaluate(tmp, {mask, one_t, b}) ? tmp.front() : Tensor{};
     });
@@ -205,7 +205,7 @@ bool evaluate_bound(const Node* const op, TensorVector& outputs, bool is_lower) 
         }
         // Set undefined bound value for results which cannot be calculated.
         const auto select_op = v1::Select();
-        const auto undefined_bound =
+        const auto& undefined_bound =
             is_lower ? ov::util::make_tensor_of_value(in_et, 0) : ov::util::make_tensor_of_max_value(in_et);
         return select_op.evaluate(outputs, {undefined_result_mask, undefined_bound, outputs.front()});
     } else {

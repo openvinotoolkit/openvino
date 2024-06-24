@@ -84,7 +84,7 @@ bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visit
         }
         visitor.on_attribute(index.str(), id);
         if (!m_ref[i]) {
-            m_ref[i] = ov::as_type_ptr<op::v0::Parameter>(visitor.get_registered_node(id));
+            m_ref[i] = ov::as_type_ptr<op::v0::Parameter>(visitor.get_registered_node(std::move(id)));
         }
     }
     return true;
