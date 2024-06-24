@@ -122,20 +122,21 @@ def extract_input_info_from_example(args, inputs):
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    example_inputs = args.example_input
+    example_inputs = args.input_model._example_input
+    if example_inputs is None:
+        return
     is_dict_input = isinstance(example_inputs, dict)
     if not isinstance(example_inputs, (list, tuple, dict)):
         example_inputs = [example_inputs]
-    if args.input_model._input_is_list:
-        example_inputs[0] = example_inputs[0].unsqueeze(0)
     input_names = None
     if args.input_model._input_signature is not None:
         input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[
                                                                    0] == "self" else args.input_model._input_signature
     if input_names and not is_dict_input:
         example_inputs = dict(zip(input_names, example_inputs))
+    print(input_names)
     example_inputs = flatten_inputs(example_inputs, input_names)
-    input = []
+    input_arg = []
     for example in example_inputs:
         name = None
         if isinstance(example, tuple) and len(example) == 2:
@@ -145,30 +146,30 @@ def extract_input_info_from_example(args, inputs):
         dtype = getattr(example, "dtype", type(example))
         dtype = pt_to_ov_type_map.get(str(dtype))
         if name:
-            input.append(single_input_to_input_cut_info((name, shape, dtype)))
+            input_arg.append(single_input_to_input_cut_info((name, shape, dtype)))
         else:
-            input.append(single_input_to_input_cut_info((shape, dtype)))
-    if args.input is not None and len(args.input) != 0:
-        if len(args.input) == len(input):
+            input_arg.append(single_input_to_input_cut_info((shape, dtype)))
+    if inputs is not None and len(inputs) != 0:
+        if len(inputs) == len(input_arg):
             # we can update input argument with info from examples
             new_input = []
-            for i in range(len(input)):
+            for i in range(len(input_arg)):
                 input_desc = args.input[i]
                 name = input_desc.name
                 dtype = input_desc.type
                 shape = input_desc.shape
                 if name is None:
-                    name = input[i].name
+                    name = input_arg[i].name
                 if dtype is None:
-                    dtype = input[i].type
+                    dtype = input_arg[i].type
                 if shape is None:
-                    shape = input[i].shape
+                    shape = input_arg[i].shape
                 new_input.append(_InputCutInfo(name, shape, dtype, input_desc.value))
-            input = new_input
+            input_arg = new_input
         else:
             # we can't update args.input
             return
-    args.input = input
+    args.input = input_arg
 
 
 # pylint: disable=no-member

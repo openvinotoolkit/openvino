@@ -124,8 +124,10 @@ void update_parameter_info(std::shared_ptr<ov::op::v0::Parameter>& param,
         param->set_element_type(pt_place->get_element_type());
     auto pshape = param->get_partial_shape();
     FRONT_END_GENERAL_CHECK(PartialShape::merge_into(pshape, pt_place->get_partial_shape()),
-                            "Incompatible shape was requested for input ",
+                            "Incompatible shape was requested for input #",
                             ov_model->get_parameter_index(param),
+                            ", ",
+                            param,
                             "\nOriginal shape: ",
                             pshape,
                             " update shape: ",
@@ -142,6 +144,7 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
     std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
     std::shared_ptr<Model> converted_model;
     {
+        pt_model->flush_places();
         TranslateSession translate_session(model, supported_ops, m_telemetry);
         converted_model = translate_session.get_converted_model();
     }
@@ -165,13 +168,25 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
     if (pt_model->m_requested_places.size() != 0) {
         // Fake tensors mean that types were set to non-existent before conversion inputs.
         // Here we resolve this. If input doesn't exist after conversion exception is raised.
-        const auto& inputs = pt_model->get_inputs();
         auto parameters = converted_model->get_parameters();
+        std::set<std::string> input_names;
+        for (const auto& param : parameters)
+            for (const auto& name : param->get_output_tensor(0).get_names())
+                input_names.insert(name);
+        const auto& inputs = pt_model->get_inputs();
         for (size_t i = 0; i < inputs.size(); i++) {
+            auto place = inputs[i];
+            if (place->get_names().size() != 0 && input_names.find(place->get_names().at(0)) != input_names.end()) {
+                auto input = converted_model->input(place->get_names().at(0));
+                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node_shared_ptr());
+                FRONT_END_GENERAL_CHECK(param, "Input is not a Parameter.");
+                update_parameter_info(param, place, converted_model);
+            } else {
             FRONT_END_OP_CONVERSION_CHECK(i < parameters.size(),
                                           "Type/shape was set to non-existent input. Converted model:\n",
                                           converted_model);
-            update_parameter_info(parameters[i], inputs[i], converted_model);
+                update_parameter_info(parameters[i], inputs[i], converted_model);
+            }
         }
         for (const auto& fplace : pt_model->m_requested_places) {
             const auto& pt_place = std::dynamic_pointer_cast<pytorch::Place>(fplace);
@@ -201,10 +216,12 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 }
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
-    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    auto pt_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
+    FRONT_END_GENERAL_CHECK(pt_model, "Invalid input model");
     std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
     std::shared_ptr<Model> partial_model;
     {
+        pt_model->flush_places();
         TranslateSession translate_session(model, supported_ops, m_telemetry);
         partial_model = translate_session.get_converted_model();
     }

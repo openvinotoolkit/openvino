@@ -92,8 +92,8 @@ def make_pt_model_with_tuple_input():
                 nn.Sigmoid(),
             )
 
-        def forward(self, x: tuple):
-            logits = self.linear_relu_stack(x[0] + x[1] + x[2])
+        def forward(self, x: tuple, y):
+            logits = self.linear_relu_stack(x[0] + x[1] + x[2] + y)
             return logits
 
     return NeuralNetwork()
@@ -130,7 +130,7 @@ def make_ref_pt_model_one_input(shape, dtype=np.float32):
     return model
 
 
-def make_ref_pt_model_two_inputs(shape, dtype=np.float32):
+def make_ref_pt_model_two_inputs(shape, dtype=np.float32, reorder=False):
     if len(shape) == 2:
         param1 = ov.opset8.parameter(PartialShape(
             shape[0]), name="input_0", dtype=dtype)
@@ -140,6 +140,8 @@ def make_ref_pt_model_two_inputs(shape, dtype=np.float32):
         shape = PartialShape(shape)
         param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
         param2 = ov.opset8.parameter(shape, name="input_1", dtype=dtype)
+    if reorder:
+        param1, param2 = param2, param1
     if dtype == Type.dynamic:
         cl = ov.opset8.convert_like(param2, param1)
         mul = ov.opset8.multiply(param1, cl)
@@ -185,15 +187,18 @@ def make_ref_pt_model_with_tuple_input(shape, dtype=np.float32):
         shape[1]), name="input_1", dtype=dtype)
     param3 = ov.opset8.parameter(PartialShape(
         shape[2]), name="input_2", dtype=dtype)
+    param4 = ov.opset8.parameter(PartialShape(
+        shape[3]), name="y", dtype=dtype)
 
     op = ov.opset8.add(param1, param2)
     op2 = ov.opset8.add(op, param3)
-    relu = ov.opset8.relu(op2)
+    op3 = ov.opset8.add(op2, param4)
+    relu = ov.opset8.relu(op3)
     if dtype != np.float32:
         relu = ov.opset8.convert(relu, np.float32)
     sigm = ov.opset8.sigmoid(relu)
 
-    parameter_list = [param1, param2, param3]
+    parameter_list = [param1, param2, param3, param4]
     model = Model([sigm], parameter_list, "test")
     return model
 
@@ -575,6 +580,14 @@ def create_pytorch_nn_module_shapes_list_static_via_input(tmp_dir):
     return pt_model, ref_model, {'input': [([1, 3, 20, 20], np.float32), ([1, 3, 20, 20], np.float32)]}
 
 
+def create_pytorch_nn_module_reorder_inputs(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([[-1, -1, -1, -1], [-1]])
+
+    return pt_model, ref_model, {"input": ["x", "y"],
+                                 "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((10))],}
+
+
 def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)],
@@ -799,16 +812,22 @@ def create_pytorch_module_with_optional_inputs_case3(tmp_dir):
 
 def create_pytorch_module_with_tuple_case1(tmp_dir):
     net = make_pt_model_with_tuple_input()
-    example_input = ((torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))),)
-    ref_model = make_ref_pt_model_with_tuple_input(([-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]))
+    example_input = ((torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))), torch.ones((1, 3, 10, 10)))
+    ref_model = make_ref_pt_model_with_tuple_input(([-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]))
     return net, ref_model, {"example_input": example_input}
-
 
 def create_pytorch_module_with_tuple_case2(tmp_dir):
     net = make_pt_model_with_tuple_input()
-    example_input = ((torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))),)
-    ref_model = make_ref_pt_model_with_tuple_input(([3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3]))
-    return net, ref_model, {"example_input": example_input, "input": [[3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3]]}
+    example_input = {"x": (torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))), "y": torch.ones((1, 3, 10, 10))}
+    ref_model = make_ref_pt_model_with_tuple_input(([-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]))
+    return net, ref_model, {"example_input": example_input}
+
+
+def create_pytorch_module_with_tuple_case3(tmp_dir):
+    net = make_pt_model_with_tuple_input()
+    example_input = ((torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))), torch.ones((1, 3, 10, 10)))
+    ref_model = make_ref_pt_model_with_tuple_input(([3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3]))
+    return net, ref_model, {"example_input": example_input, "input": [[3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3]]}
 
 
 def create_pytorch_module_with_dict_case1(tmp_dir):
@@ -1184,6 +1203,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_with_compressed_constants,
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_static_via_input,
+        create_pytorch_nn_module_reorder_inputs,
         create_pytorch_nn_module_shapes_list_dynamic,
         create_pytorch_nn_module_shapes_list_dynamic_via_input,
         create_pytorch_nn_module_shapes_list_dynamic_single_input,
@@ -1202,6 +1222,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_module_with_optional_inputs_case3,
         create_pytorch_module_with_tuple_case1,
         create_pytorch_module_with_tuple_case2,
+        create_pytorch_module_with_tuple_case3,
         create_pytorch_module_with_dict_case1,
         create_pytorch_module_with_dict_case2,
         create_pytorch_nn_module_with_scalar_input,

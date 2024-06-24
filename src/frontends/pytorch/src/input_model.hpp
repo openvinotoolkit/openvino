@@ -42,6 +42,8 @@ public:
     void override_all_inputs(const std::vector<frontend::Place::Ptr>& inputs) override;
     const std::string& decoder_type_name() const;
     std::shared_ptr<TorchDecoder> get_decoder() const;
+    // update input places and erase requested places if possible
+    void flush_places();
 
 private:
     std::shared_ptr<TorchDecoder> m_model_decoder;

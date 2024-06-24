@@ -81,6 +81,17 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         # a model is not processed further in json analysis mode
         sys.exit(0)
 
+    def check_places_are_same(places_original: List[Place], places_new: List[Place]):
+        """
+        Check if set of new places is same as original or not.
+        :param places_original: List[Place] Original model places
+        :param places_new: List[Place] New list of places
+        :return: True if new list of places is same as original
+        """
+        return len(places_original) == len(places_new) and len(
+            [item for item in places_original if any(
+                [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
+
     if getattr(argv, "framework", None) == "pytorch":
         iplaces = []
         for idx, input_info in enumerate(argv.input):
@@ -101,15 +112,22 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             if input_info.type is not None:
                 input_model.set_element_type(place, input_info.type)
         model_inputs = input_model.get_inputs()
-        def equal_places_lists(list1, list2):
-            if len(list1) != len(list2):
-                return False
-            for p1, p2 in zip(list1, list2):
-                if not p1.is_equal(p2):
-                    return False
-            return True
+        def merge_inputs(inputs, to_set_list):
+            # use input places instead of obtained by index if they are the same
+            res = []
+            for p in to_set_list:
+                found = False
+                for i in inputs:
+                    if p.is_equal(i):
+                        res.append(i)
+                        found = True
+                        break
+                if not found:
+                    res.append(p)
+            return res
+        iplaces = merge_inputs(model_inputs, iplaces)
         # Currently this only work to reorder inputs/outputs
-        to_override_all_inputs = len(iplaces) == len(model_inputs) and not equal_places_lists(model_inputs, iplaces)
+        to_override_all_inputs = check_places_are_same(model_inputs, [{"node": p} for p in iplaces])
         to_override_all_outputs = False
         if argv.output:
             oplaces = []
@@ -117,7 +135,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             for out_desc in _outputs:
                 oplaces.append(out_desc["name"])
             model_outputs = input_model.get_outputs()
-            to_override_all_outputs = len(oplaces) == len(model_inputs) and not equal_places_lists(model_outputs, oplaces)
+            to_override_all_outputs = check_places_are_same(model_outputs, [{"node": p} for p in oplaces])
         if to_override_all_inputs and to_override_all_outputs:
             input_model.extract_subgraph(iplaces, oplaces)
         elif to_override_all_inputs:
@@ -131,17 +149,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
             input_model, argv.placeholder_shapes, argv.placeholder_data_types,
             argv.output, {}, moc_front_end.get_name())
-
-        def check_places_are_same(places_original: List[Place], places_new: List[Place]):
-            """
-            Check if set of new places is same as original or not.
-            :param places_original: List[Place] Original model places
-            :param places_new: List[Place] New list of places
-            :return: True if new list of places is same as original
-            """
-            return len(places_original) == len(places_new) and len(
-                [item for item in places_original if any(
-                    [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
 
         def add_names_to_tensors(model: InputModel, places: List[Place]):
             """
@@ -243,59 +250,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                     data_type = user_shape['data_type']
                     log.debug('Set data type: {}'.format(data_type))
                     input_model.set_element_type(user_shape['node'], data_type)
-
-        if freeze_placeholder:
-            for name, value in freeze_placeholder.items():
-                node = None
-                # look for the certain place in user_shapes
-                for node_cur in user_shapes:
-                    if node_cur.get('input_name') == name:
-                        node = node_cur
-                        break
-                if node is None:
-                    raise Error("Please check correctness of the command-line. "
-                                "Place (operation or tensor) with name {} is not found.".format(name))
-                place = node.get('node')
-
-                if node.get('data_type'):
-                    dtype = node['data_type']
-                    ov_type = Type(dtype)
-                else:
-                    # we need to detect type of Placeholder
-                    try:
-                        ov_type = input_model.get_element_type(place)
-                    except NotImplementedFailure:
-                        raise Error("Please specify type for value freezing {} node explicitly "
-                                    "because the frontend does not support automatic type detection.".format(name))
-                    # in case of cutting graph (or using custom inputs) and unspecified or dynamic type,
-                    # the default type is fp32
-                    if ov_type == Type.undefined or ov_type == Type.dynamic:
-                        ov_type = Type.f32
-                    dtype = get_numpy_ctype(ov_type)
-
-                input_model.set_element_type(place, ov_type)
-                # prepare and cast value to dtype
-                if isinstance(value, list):
-                    casted_list = list()
-                    for v in mo_array(value):
-                        casted_list.append(np_map_cast[dtype](v))
-                    value = mo_array(casted_list, dtype=dtype)
-                else:
-                    value = np_map_cast[dtype](value)
-                value = np.array(value, dtype=dtype)
-
-                ov_shape = input_model.get_partial_shape(place)
-                if node.get('shape'):
-                    # set user defined shape
-                    ov_shape = PartialShape(node['shape'])
-                    input_model.set_partial_shape(place, ov_shape)
-                elif ov_shape.is_dynamic:
-                    # in case of dynamic shape (dynamic rank or dynamic dimension)
-                    # deduce it based on the value shape and set it
-                    ov_shape = PartialShape(value.shape)
-                    input_model.set_partial_shape(place, ov_shape)
-
-                input_model.set_tensor_value(place, value)
 
     ov_model = moc_front_end.convert(input_model)
 

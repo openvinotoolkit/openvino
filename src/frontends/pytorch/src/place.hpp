@@ -30,9 +30,7 @@ public:
     bool is_output() const override {
         return m_is_output;
     }
-    bool is_equal(const Ptr& another) const override {
-        return this == another.get();
-    }
+    bool is_equal(const Ptr& another) const override;
     std::vector<std::string> get_names() const override {
         return m_names;
     }
@@ -61,7 +59,7 @@ private:
     const size_t m_tensor_index;
     std::vector<std::string> m_names;
     bool m_is_fake = false;
-    const size_t m_input_index = 0;  // Only used for fake place
+    size_t m_input_index = 0;  // Only used for fake place
     PartialShape m_pshape;
     element::Type m_type = element::dynamic;
     bool m_is_input = false;
