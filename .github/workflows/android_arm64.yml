@@ -137,13 +137,13 @@ jobs:
           # apt --assume-yes install ccache scons ninja-build build-essential python3-pip
           
           # vcpkg requires cmake 3.19 or later
-          python3 -m pip install -U pip cmake~=3.28.0
+          # python3 -m pip install -U pip cmake~=3.28.0
           # vcpkg's tool dependencies
-          apt --assume-yes install curl zip unzip tar
+          # apt --assume-yes install curl zip unzip tar
           # vcpkg 'python3' port dependencies
-          apt --assume-yes install autoconf libtool autoconf-archive
+          # apt --assume-yes install autoconf libtool autoconf-archive
           # vcpkg tree of dependencies require extra packages
-          apt --assume-yes install pkgconf linux-libc-dev
+          # apt --assume-yes install pkgconf linux-libc-dev
           
           # Install Android SDK, NDK and Tools
           apt -y --no-install-recommends install unzip wget default-jdk

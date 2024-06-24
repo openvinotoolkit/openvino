@@ -20,7 +20,15 @@ RUN apt update && \
         scons \
         ninja-build \
         build-essential \
-        python3-pip
+        python3-pip && \
+    # vcpkg requires cmake 3.19 or later
+    python3 -m pip install -U pip cmake~=3.28.0 && \
+    # vcpkg's tool dependencies
+    apt install curl zip unzip tar && \
+    # vcpkg 'python3' port dependencies
+    apt install autoconf libtool autoconf-archive && \
+    # vcpkg tree of dependencies require extra packages
+    apt install pkgconf linux-libc-dev
 
 #RUN apt update && \
 #    apt install software-properties-common && \
