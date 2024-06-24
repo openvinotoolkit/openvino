@@ -624,7 +624,7 @@ private:
         const auto name_attr = node.attribute("name");
         const std::string node_name = name_attr.empty() ? node.name() : name_attr.value();
         for (const auto& data : node.children()) {
-            auto name_attr = data.attribute("name");
+            const auto name_attr = data.attribute("name");
             const std::string data_name = name_attr.empty() ? data.name() : name_attr.value();
             // WA for legacy POT config
             if (data_name == "config" && node_name == "quantization_parameters") {
