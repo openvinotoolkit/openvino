@@ -131,14 +131,14 @@ Prepare inference data
 For demonstration purposes, we will use short dummy version of
 LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
 speed up model evaluation. Model accuracy can be different from reported
-in the paper. For reproducing original accuracy, use ``librispeech_asr``
-dataset.
+in the paper. For reproducing original accuracy, use
+``openslr/librispeech_asr`` dataset.
 
 .. code:: ipython3
 
     from datasets import load_dataset
     
-    ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
+    ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation", trust_remote_code=True)
     
     
     # define preprocessing function for converting audio to input values for model

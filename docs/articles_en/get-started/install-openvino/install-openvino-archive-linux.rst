@@ -68,7 +68,7 @@ Install OpenVINO™ Runtime on Linux from an Archive File
             :sync: centos-7
 
             * GCC 8.3.1
-            Use the following instructions to install it:
+              Use the following instructions to install it:
 
             Install GCC 8.3.1 via devtoolset-8
 
