@@ -43,6 +43,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/less.hpp"
 
 namespace ov {
 namespace test {
@@ -164,6 +165,8 @@ std::shared_ptr<ov::Node> make_activation(const ov::ParameterVector& parameters,
         return std::make_shared<ov::op::v0::Selu>(parameters[0], parameters[1], parameters[2]);
     case ov::test::utils::ActivationTypes::PReLu:
         return std::make_shared<ov::op::v0::PRelu>(parameters[0], parameters[1]);
+    case ov::test::utils::ActivationTypes::Less:
+        return std::make_shared<ov::op::v1::Less>(parameters[0], parameters[1]);
     default:
         OPENVINO_THROW("It is impossible to create layer for this activation type with input as parameter");
     }

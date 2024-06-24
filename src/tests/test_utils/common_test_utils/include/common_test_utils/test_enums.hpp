@@ -122,7 +122,8 @@ enum ActivationTypes {
     GeluErf,
     GeluTanh,
     SoftSign,
-    IsInf
+    IsInf,
+    Less
 };
 
 enum MinMaxOpType {

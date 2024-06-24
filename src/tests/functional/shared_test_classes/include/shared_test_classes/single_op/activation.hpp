@@ -68,6 +68,7 @@ static std::map<ActivationTypes, std::string> activationNames = {
         {ActivationTypes::GeluTanh,              "GeluTanh"},
         {ActivationTypes::SoftSign,              "SoftSign"},
         {ActivationTypes::IsInf,                 "IsInf"},
+        {ActivationTypes::Less,                  "Less"}
 };
 
 typedef std::tuple<

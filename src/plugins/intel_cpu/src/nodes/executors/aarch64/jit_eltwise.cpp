@@ -30,6 +30,7 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseGeluTanh,
                                      Algorithm::EltwiseHswish,
                                      Algorithm::EltwiseIsInf,
+                                     Algorithm::EltwiseLess,
                                      Algorithm::EltwiseMaximum,
                                      Algorithm::EltwiseMinimum,
                                      Algorithm::EltwiseMish,
