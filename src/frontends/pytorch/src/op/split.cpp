@@ -29,11 +29,12 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
     if (shape.rank().is_dynamic()) {
         size_t num_splits = context.get_decoder()->num_of_users();
         std::vector<int32_t> split_lengths_vec;
-        for (size_t i=0; i<num_splits-1; i++) {
+        for (size_t i = 0; i < num_splits - 1; i++) {
             split_lengths_vec.push_back(num_chunks);
         }
         split_lengths_vec.push_back(-1);
-        auto split_lengths = context.mark_node(v0::Constant::create(element::i32, Shape{num_splits}, split_lengths_vec));
+        auto split_lengths =
+            context.mark_node(v0::Constant::create(element::i32, Shape{num_splits}, split_lengths_vec));
         auto split = context.mark_node(std::make_shared<v1::VariadicSplit>(context.get_input(0), dim, split_lengths));
         return {context.mark_node(make_list_construct(split->outputs()))};
     }
