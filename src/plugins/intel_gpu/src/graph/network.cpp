@@ -1182,6 +1182,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 }
             }
         }
+        get_stream().finish();
     }
 
     // print '-data_shape' option for benchmark_app
