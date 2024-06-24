@@ -422,7 +422,7 @@ class PrepareLibs(build_clib):
         for src_dir in src_dirs:
             # additional blacklist filter, just to fix cmake install issues
             blacklist_patterns = [  # static libraries and PBD files
-                                    "^.*\\.a$", "^.*\\.lib$", "^.*\\.pdb$",
+                                    "^.*\\.a$", "^.*\\.pdb$",
                                     # TBB debug libraries
                                     "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$",
                                     # hwloc static libs on Windows
