@@ -122,7 +122,7 @@ def extract_input_info_from_example(args, inputs):
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    example_inputs = args.input_model._example_input if args.input_model._example_input else args.example_input
+    example_inputs = args.input_model._example_input if args.input_model._example_input is not None else args.example_input
     if example_inputs is None:
         return
     is_dict_input = isinstance(example_inputs, dict)
