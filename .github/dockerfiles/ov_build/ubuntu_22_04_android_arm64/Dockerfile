@@ -29,7 +29,8 @@ RUN apt update && \
     apt install autoconf libtool autoconf-archive && \
     # vcpkg tree of dependencies require extra packages
     apt install pkgconf linux-libc-dev && \
-    apt --no-install-recommends install default-jdk
+    apt --no-install-recommends install default-jdk && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
