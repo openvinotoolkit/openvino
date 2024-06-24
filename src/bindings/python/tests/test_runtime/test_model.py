@@ -145,7 +145,7 @@ def test_get_result_index_invalid():
     assert model.get_result_index(invalid_output) == -1
 
 
-@pytest.mark.parametrize("shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index", [
+@pytest.mark.parametrize(("shapes", "relu_names", "model_name", "expected_outputs_length", "is_invalid", "expected_result_index"), [
     ([PartialShape([1])], ["relu"], "TestModel", 1, False, 0),
     ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
 ])
@@ -163,7 +163,7 @@ def test_result_index(shapes, relu_names, model_name, expected_outputs_length, i
         assert model.get_result_index(model.get_results()[0]) == expected_result_index
 
 
-@pytest.mark.parametrize("shapes, param_names, model_name, expected_index, is_invalid", [
+@pytest.mark.parametrize(("shapes", "param_names", "model_name", "expected_index", "is_invalid"), [
     ([PartialShape([1]), None], ["data", None], "TestModel", 0, False),
     ([PartialShape([1]), PartialShape([2])], ["data1", "data2"], "TestModel", -1, True)
 ])
