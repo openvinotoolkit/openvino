@@ -80,6 +80,7 @@ function(ov_check_python_build_conditions)
     endif()
 
     if((Python3_Development.Module_FOUND OR Python3_Development_FOUND) AND NOT python_debug)
+    message(AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)
         set(ENABLE_PYTHON_DEFAULT ON PARENT_SCOPE)
     else()
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
@@ -115,6 +116,9 @@ set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
 ov_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
+message(BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB)
+message("${ENABLE_PYTHON}")
+message("${ENABLE_PYTHON_DEFAULT}")
 
 #
 # Check for wheel package
