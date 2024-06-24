@@ -299,8 +299,9 @@ pass::MatmulVariadicSplitDecomposition::MatmulVariadicSplitDecomposition() {
         const auto axis_node = ov::as_type_ptr<opset6::Constant>(variadic_split->input_value(1).get_node_shared_ptr());
         if (axis_node) {
             const auto& axis_val = axis_node->cast_vector<int32_t>();
-            if (axis_val.size() != 1u || static_cast<size_t>(axis_val[0]) != matmul->get_output_shape(0).size() - 1u) {
-                PRINT << "Matched 2: Exit. axis_val.size() != 1u || axis_val[0] != " << matmul->get_output_shape(0).size() << std::endl;
+            const auto& mm_rank = matmul->get_output_partial_shape(0).rank().get_length();
+            if (axis_val.size() != 1u || axis_val[0] != mm_rank - 1) {
+                PRINT << "Matched 2: Exit. axis_val.size() != 1u || axis_val[0] != " << mm_rank << std::endl;
                 PRINT << "Matched 2: Exit. axis_val.size() = " << axis_val.size() << std::endl;
                 PRINT << "Matched 2: Exit. axis_val[0] = " << axis_val[0] << std::endl;
                 return false;
