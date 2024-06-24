@@ -13,6 +13,7 @@ LP_transformations:
     - TFL_FE
     - ONNX_FE
     - PDPD_FE
+    - JAX_FE
 
 preprocessing:
   revalidate:
@@ -32,6 +33,7 @@ CPU:
     - PyTorch_FE
     - TF_FE
     - ONNX_FE
+    - JAX_FE
   build:
     - AUTO
     - HETERO
@@ -141,6 +143,13 @@ PyTorch_FE:
     - Python_API
     - TOKENIZERS
 
+JAX_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
 C_API:
   build:
     - CPU
@@ -167,6 +176,7 @@ Python_API:
     - TF_FE
     - TFL_FE
     - PyTorch_FE
+    - JAX_FE
 
 JS_API:
   build:
