@@ -512,8 +512,8 @@ static bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t&
 */
 // clang-format on
 
-ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
-    MATCHER_SCOPE(ConvertLoopToLSTMSequence);
+ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpdateToLSTMSequence() {
+    MATCHER_SCOPE(ConvertLoopWithScatterUpdateToLSTMSequence);
     auto input_label = pattern::any_input(pattern::rank_equals(3));
     auto input_transpose_const_label = pattern::wrap_type<op::v0::Constant>();
     auto input_transpose_label =
