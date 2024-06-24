@@ -34,9 +34,6 @@ const std::string& get_jax_prefix();
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
 
-// TODO: Eliminate the need of this function by implementing more accurate custom data type handling
-Any simplified_type_interpret(Any type);
-
 void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
 bool is_python_scalar_input(const NodeContext& context, size_t index);

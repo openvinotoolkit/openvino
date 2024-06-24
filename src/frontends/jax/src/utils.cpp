@@ -22,11 +22,6 @@ const std::string& get_jax_prefix() {
     return jax_prefix;
 }
 
-Any simplified_type_interpret(Any type) {
-    // Type in jaxpr is already the dtype.
-    return type;
-}
-
 bool is_python_scalar_input(const NodeContext& context, size_t index) {
     return context.get_input_type(index).is<type::PyScalar>();
 }
