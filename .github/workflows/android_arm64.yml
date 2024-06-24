@@ -96,9 +96,6 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: android_arm64
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
-      - name: Install git
-        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
-
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
@@ -137,7 +134,7 @@ jobs:
       - name: Install dependencies
         run: |
           # generic dependencies
-          apt --assume-yes install ccache scons ninja-build build-essential python3-pip
+          # apt --assume-yes install ccache scons ninja-build build-essential python3-pip
           
           # vcpkg requires cmake 3.19 or later
           python3 -m pip install -U pip cmake~=3.28.0

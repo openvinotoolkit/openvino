@@ -11,6 +11,17 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
+RUN apt update && \
+    apt install software-properties-common git ca-certificates && \
+    add-apt-repository --yes --no-update ppa:git-core/ppa && \
+    apt update && \
+    apt install \
+        ccache \
+        scons \
+        ninja-build \
+        build-essential \
+        python3-pip
+
 #RUN apt update && \
 #    apt install software-properties-common && \
 #    add-apt-repository --yes --no-update ppa:git-core/ppa && \
