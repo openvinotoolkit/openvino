@@ -43,7 +43,9 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
+#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+#endif
 };
 
 /* ================================ 1.1 No fusion - Arithmetic ================================ */

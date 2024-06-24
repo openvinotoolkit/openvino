@@ -122,7 +122,9 @@ const std::vector<ov::element::Type>& netPrecisions() {
 
 const std::vector<CPUSpecificParams>& cpuParams4D() {
     static const std::vector<CPUSpecificParams> cpuParams4D {
+#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+#endif
         CPUSpecificParams({nchw}, {nchw}, {}, {})
     };
 

@@ -66,6 +66,13 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     return result.str();
 }
 
+#if defined(OPENVINO_ARCH_RISCV64)
+std::string ReduceCPULayerTest::getPrimitiveType() {
+    // TODO: Support Reduce op for RISCV64 arch
+    return "ref";
+}
+#endif
+
 void ReduceCPULayerTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
 

@@ -48,9 +48,12 @@ public:
         const size_t convOutChannels = 64;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         const auto targetFormat = with_cpu_x86_avx512_core() ? nChw16c : nChw8c;
+#elif defined(OPENVINO_ARCH_RISCV64)
+        const auto targetFormat = nchw;
 #else
         const auto targetFormat = nhwc;
 #endif
+
         ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape),
                                         std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape)};
         auto Relu1 = std::make_shared<ov::op::v0::Relu>(inputParams[0]);

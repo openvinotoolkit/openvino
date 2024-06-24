@@ -149,6 +149,12 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
     }
 #endif
 
+    void setShape(const VectorDims& shape) {
+        get()->dim_count = shape.size();
+        OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
+        for (int i = 0; i < get()->dim_count; ++i)
+            get()->dim[i] = static_cast<int32_t>(shape[i]);
+    };
 private:
     void setLayout(csinn_layout_enum layout) {
         get()->layout = layout;
@@ -158,11 +164,46 @@ private:
         get()->dtype = data_type;
     }
 
-    void setShape(const VectorDims& shape) {
-        get()->dim_count = shape.size();
-        OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
-        for (int i = 0; i < get()->dim_count; ++i)
-            get()->dim[i] = static_cast<int32_t>(shape[i]);
+};
+
+// virtual base class for different kinds of params
+struct IShlParams {
+public:
+    virtual ~IShlParams() = default;
+    virtual void reset(void* t) = 0;
+    virtual void* get(bool allow_empty = false) const = 0;
+    virtual void setAPI(csinn_api_enum api) = 0;
+};
+
+template <typename T, typename traits = ShlStructureTraits<T>>
+struct ShlParams : public ShlStructure<T>, public IShlParams {
+    ShlParams() {
+        T params = static_cast<T>(csinn_alloc_params(sizeof(typename std::remove_pointer<T>::type), nullptr));
+        OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_params");
+        this->reset(params);
+    }
+
+    ShlParams(const ShlSession& session) {
+        T params = static_cast<T>(csinn_alloc_params(sizeof(typename std::remove_pointer<T>::type), session.get()));
+        OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_params");
+        this->reset(params);
+    }
+
+    ShlParams(const ShlSession& session, csinn_api_enum api) : ShlParams(session) {
+        setAPI(api);
+    }
+
+    void reset(void* t) override {
+        this->ShlStructure<T, traits>::reset(static_cast<T>(t));
+    }
+
+    void* get(bool allow_empty = false) const override {
+        return this->ShlStructure<T, traits>::get(allow_empty);
+    }
+
+    void setAPI(csinn_api_enum api) override {
+        auto params = static_cast<typename std::remove_pointer<T>::type*>(this->get());
+        params->base.api = api;
     }
 };
 
@@ -172,18 +213,69 @@ struct ShlStructureTraits<csinn_fc_params*> {
         return csinn_free_params(p);
     }
 };
-struct ShlFCParams : public ShlStructure<csinn_fc_params*> {
-    ShlFCParams() {
-        csinn_fc_params* params = static_cast<csinn_fc_params*>(csinn_alloc_params(sizeof(csinn_fc_params), nullptr));
-        OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_fc_params");
-        reset(params);
+struct ShlFCParams : public ShlParams<csinn_fc_params*> {
+    using ShlParams<csinn_fc_params*>::ShlParams;
+};
+
+template <>
+struct ShlStructureTraits<csinn_diso_params*> {
+    static void destructor(csinn_diso_params* p) {
+        return csinn_free_params(p);
+    }
+};
+struct ShlDisoParams : public ShlParams<csinn_diso_params*> {
+    using ShlParams<csinn_diso_params*>::ShlParams;
+};
+
+template <>
+struct ShlStructureTraits<csinn_siso_params*> {
+    static void destructor(csinn_siso_params* p) {
+        return csinn_free_params(p);
+    }
+};
+struct ShlSisoParams : public ShlParams<csinn_siso_params*> {
+    using ShlParams<csinn_siso_params*>::ShlParams;
+};
+
+template <>
+struct ShlStructureTraits<csinn_relu_params*> {
+    static void destructor(csinn_relu_params* p) {
+        return csinn_free_params(p);
+    }
+};
+struct ShlReluParams : public ShlParams<csinn_relu_params*> {
+    using ShlParams<csinn_relu_params*>::ShlParams;
+
+    ShlReluParams(float alpha) : ShlParams<csinn_relu_params*>() {
+        auto params = static_cast<csinn_relu_params*>(this->get());
+        params->n = alpha;
     }
 
-    ShlFCParams(const ShlSession& session, csinn_api_enum api) {
-        csinn_fc_params* params = static_cast<csinn_fc_params*>(csinn_alloc_params(sizeof(csinn_fc_params), session.get()));
-        OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_fc_params");
-        params->base.api = api;
-        reset(params);
+    ShlReluParams(const ShlSession& session, float alpha) : ShlParams<csinn_relu_params*>(session) {
+        auto params = static_cast<csinn_relu_params*>(this->get());
+        params->n = alpha;
+    }
+
+    ShlReluParams(const ShlSession& session, csinn_api_enum api, float alpha) : ShlParams<csinn_relu_params*>(session, api) {
+        auto params = static_cast<csinn_relu_params*>(this->get());
+        params->n = alpha;
+    }
+};
+
+template <>
+struct ShlStructureTraits<csinn_prelu_params*> {
+    static void destructor(csinn_prelu_params* p) {
+        return csinn_free_params(p);
+    }
+};
+struct ShlPReluParams : public ShlParams<csinn_prelu_params*> {
+    using ShlParams<csinn_prelu_params*>::ShlParams;
+};
+
+template <>
+struct ShlStructureTraits<csinn_conv2d_params*> {
+    static void destructor(csinn_conv2d_params* p) {
+        return csinn_free_params(p);
     }
 };
 

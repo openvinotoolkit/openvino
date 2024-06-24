@@ -187,8 +187,10 @@ private:
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
 
     bool canUseAclExecutor = false;
+    bool canUseShlExecutor = false;
     EltwiseAttrs eltwiseAttrs;
     std::shared_ptr<EltwiseExecutor> aclExecPtr = nullptr;
+    std::shared_ptr<EltwiseExecutor> shlExecPtr = nullptr;
 };
 
 class eltwise_precision_helper {

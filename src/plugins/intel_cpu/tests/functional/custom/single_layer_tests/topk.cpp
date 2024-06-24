@@ -234,6 +234,12 @@ private:
     size_t inferRequestNum = 0;
     ElementType netPrecision;
     bool staticShape;
+#if defined(OPENVINO_ARCH_RISCV64)
+    std::string getPrimitiveType() {
+         // TODO: Support TopK op for RISCV64 arch
+        return "ref";
+    }
+#endif
 };
 
 TEST_P(TopKLayerCPUTest, CompareWithRefs) {

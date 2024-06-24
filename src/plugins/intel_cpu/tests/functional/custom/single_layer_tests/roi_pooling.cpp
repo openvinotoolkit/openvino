@@ -217,6 +217,14 @@ protected:
         function = makeNgraphFunction(netPrecision, params, roi_pooling, "ROIPooling");
         functionRefs = function->clone();
     }
+
+#if defined(OPENVINO_ARCH_RISCV64)
+private:
+    std::string getPrimitiveType() {
+         // TODO: Support ROIPooling op for RISCV64 arch
+        return "ref";
+    }
+#endif
 };
 
 TEST_P(ROIPoolingCPULayerTest, CompareWithRefs) {

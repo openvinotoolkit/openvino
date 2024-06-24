@@ -267,6 +267,15 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
     } else {
         return "acl";
     }
+#elif defined(OV_CPU_WITH_SHL)
+    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+        (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+        return "shl";
+    } else {
+        return "ref";
+    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
@@ -345,7 +354,9 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinDyn() {
 
 const std::vector<CPUSpecificParams>& cpuParams_4D() {
     static const std::vector<CPUSpecificParams> cpuParams_4D = {
+#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+#endif
         CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
     };
     return cpuParams_4D;
@@ -360,14 +371,18 @@ const std::vector<CPUSpecificParams>& cpuParams_4D_Planar() {
 
 const std::vector<CPUSpecificParams>& cpuParams_4D_PerChannel() {
     static const std::vector<CPUSpecificParams> cpuParams_4D = {
+#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+#endif
     };
     return cpuParams_4D;
 }
 
 const std::vector<CPUSpecificParams>& cpuParams_5D() {
     static const std::vector<CPUSpecificParams> cpuParams_5D = {
+#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
+#endif
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
     };
     return cpuParams_5D;
@@ -382,7 +397,9 @@ const std::vector<CPUSpecificParams>& cpuParams_5D_Planar() {
 
 const std::vector<CPUSpecificParams>& cpuParams_5D_PerChannel() {
     static const std::vector<CPUSpecificParams> cpuParams_5D = {
+#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
+#endif
     };
     return cpuParams_5D;
 }
@@ -438,7 +455,9 @@ const std::vector<std::vector<ov::Shape>>& inShapes_4D_1D() {
 
 const std::vector<CPUSpecificParams> & cpuParams_4D_1D_Constant_mode() {
     static const std::vector<CPUSpecificParams> cpuParams_4D_1D_Constant_mode = {
+#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+#endif
         CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
     };
     return cpuParams_4D_1D_Constant_mode;
@@ -582,7 +601,9 @@ const std::vector<std::vector<ov::Shape>>& inShapes_fusing_5D() {
 
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant() {
     static const std::vector<CPUSpecificParams> cpuParams_5D_1D_constant = {
+#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
+#endif
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
     };
     return cpuParams_5D_1D_constant;

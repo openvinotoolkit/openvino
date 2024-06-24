@@ -2266,7 +2266,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         if (outputPrecision == ov::element::bf16 || hasBF16)
             OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support BF16 precision on this target.");
     }
-#if defined(OV_CPU_WITH_ACL)
+#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
     const bool useJit = false;
 #endif
 #elif defined(OPENVINO_ARCH_ARM64)
@@ -2318,6 +2318,41 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     outputPrecision = filterPrecision(outputPrecision, forcedPrec);
     } else {
 #endif
+#if defined(OV_CPU_WITH_SHL)
+    auto filterPrecision = [&](const ov::element::Type& prc, const ov::element::Type& forcedPrec) {
+        if (isBitwise(algorithm)) {
+            if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
+                OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support ", prc, " precision.");
+            }
+            return prc;
+        }
+        return forcedPrec;
+    };
+
+    const bool useShl = !useJit;
+    if (useShl) {
+    // Use original output precision as a reference point since some eltwise algorithms have non-float inputs (i.e. EltwiseSelect)
+    ov::element::Type forcedPrec = getOriginalOutputPrecisionAtPort(0) == ov::element::f16 ? ov::element::f16 : ov::element::f32;
+    // SHL implementation supports only identical precisions on inputs/outputs so they are aligned it to highest one
+    if (ShlEltwiseExecutor::isEltwiseAlgorithmSupported(getAlgorithm())) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            if (!getParentEdgeAt(i)->getParent()->isConstant()) {
+                if (getOriginalInputPrecisionAtPort(i).size() > forcedPrec.size()) {
+                    forcedPrec = getOriginalInputPrecisionAtPort(i);
+                }
+            }
+        }
+        if (!forcedPrec.is_real()) {
+            forcedPrec = ov::element::f32;
+        }
+    }
+
+    for (size_t i = 0; i < inputPrecisions.size(); i++) {
+        inputPrecisions[i] = filterPrecision(inputPrecisions[i], forcedPrec);
+    }
+    outputPrecision = filterPrecision(outputPrecision, forcedPrec);
+    } else {
+#endif
     auto filterPrecision = [&](const ov::element::Type& prc) {
         if (implType == EltwiseImplType::reference) {
             if (isBitwise(algorithm)) {
@@ -2344,7 +2379,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
     }
     outputPrecision = filterPrecision(outputPrecision);
-#if defined(OV_CPU_WITH_ACL)
+#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
     }
 #endif
 
@@ -2493,7 +2528,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                                                                                      getInputShapeAtPort(i).getRank());
     }
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     bool isBlockedApplicable = (!useJit) && one_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
 #else
     bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
@@ -2512,7 +2547,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     inputNum = getParentEdges().size();
     currentInBlkDims.resize(inputNum);
 
-#if defined (OV_CPU_WITH_ACL)
+#if defined(OV_CPU_WITH_ACL)
     if (useAcl || useJit) {
     eltwiseAttrs = {algorithm, alpha, beta, gamma};
 
@@ -2534,6 +2569,24 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     canUseAclExecutor = !supportedPrimitiveDescriptors.empty() && !useJit;
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+    }
+#endif
+
+#if defined(OV_CPU_WITH_SHL)
+    if (useShl || useJit) {
+    eltwiseAttrs = {algorithm, alpha, beta, gamma};
+
+    auto addDesc = [&initDesc, &useJit](std::vector<NodeDesc>& supportedPrimitiveDescriptors, const LayoutType layoutType) {
+        auto nodeDesc = initDesc(layoutType, !useJit, useJit);
+        if (nodeDesc.getExecutorFactory())
+            supportedPrimitiveDescriptors.emplace_back(nodeDesc);
+    };
+
+    addDesc(supportedPrimitiveDescriptors, Planar);
+
+    canUseShlExecutor = !supportedPrimitiveDescriptors.empty() && !useJit;
     if (!supportedPrimitiveDescriptors.empty())
         return;
     }
@@ -2570,7 +2623,7 @@ void Eltwise::createPrimitive() {
 }
 
 void Eltwise::prepareParams() {
-    if (canUseAclExecutor) {
+    if (canUseAclExecutor || canUseShlExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
@@ -2579,8 +2632,13 @@ void Eltwise::prepareParams() {
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        aclExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs, {});
-        selectedPD->setImplementationType(aclExecPtr->getImplType());
+        if (canUseAclExecutor) {
+            aclExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs, {});
+            selectedPD->setImplementationType(aclExecPtr->getImplType());
+        } else if (canUseShlExecutor) {
+            shlExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs, {});
+            selectedPD->setImplementationType(shlExecPtr->getImplType());
+        }
 
         return;
     }
@@ -2757,6 +2815,15 @@ void Eltwise::execute(dnnl::stream strm) {
         dstMemory.push_back(getDstMemoryAtPort(0));
 
         aclExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
+    } else if (shlExecPtr) {
+        std::vector<MemoryCPtr> srcMemory;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            srcMemory.push_back(getSrcMemoryAtPort(i));
+        }
+        std::vector<MemoryPtr> dstMemory;
+        dstMemory.push_back(getDstMemoryAtPort(0));
+
+        shlExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
     } else {
         OPENVINO_THROW("Can't execute eltwise node with name: ", getName(), ". Primitive isn't created");
     }
