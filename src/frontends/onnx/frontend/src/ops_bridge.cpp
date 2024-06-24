@@ -13,7 +13,7 @@
 #include "core/attribute.hpp"
 #include "openvino/util/log.hpp"
 #if !defined(ONNX_BUILD_SHARED)
-#include "static_reg.hpp"
+#    include "static_reg.hpp"
 #endif
 
 using namespace ov::frontend::onnx;
