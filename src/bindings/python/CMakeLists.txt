@@ -86,7 +86,6 @@ function(ov_check_python_build_conditions)
     endif()
 endfunction()
 
-ov_find_python3(REQUIRED)
 ov_check_python_build_conditions()
 
 # check __init__.py files alignment
@@ -185,6 +184,7 @@ endif()
 # search for FindPython3.cmake instead of legacy modules
 set(PYBIND11_FINDPYTHON ON)
 
+ov_find_python3(REQUIRED)
 find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
