@@ -16,57 +16,29 @@ RUN apt update && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     apt update && \
     apt install \
+        # Generic build dependencies
         ccache \
         scons \
         ninja-build \
         build-essential \
+        # vcpkg's tool dependencies
+        curl \
+        zip \
+        unzip \
+        tar \
+        # vcpkg 'python3' port dependencies
+        autoconf \
+        libtool \
+        autoconf-archive \
+        # vcpkg tree of dependencies require extra packages
+        pkgconf \
+        linux-libc-dev \
+        unzip \
+        wget \
+        default-jdk \
         python3-pip && \
     # vcpkg requires cmake 3.19 or later
-    python3 -m pip install -U pip cmake~=3.28.0 && \
-    # vcpkg's tool dependencies
-    apt install curl zip unzip tar && \
-    # vcpkg 'python3' port dependencies
-    apt install autoconf libtool autoconf-archive && \
-    # vcpkg tree of dependencies require extra packages
-    apt install pkgconf linux-libc-dev
-
-#RUN apt update && \
-#    apt install software-properties-common && \
-#    add-apt-repository --yes --no-update ppa:git-core/ppa && \
-#    apt update && \
-#    apt install \
-#        curl \
-#        zip \
-#        unzip \
-#        tar \
-#        git \
-#        wget \
-#        ca-certificates \
-#        gpg-agent \
-#        tzdata \
-#        ccache \
-#        scons \
-#        ninja-build \
-#        make \
-#        cmake \
-#        build-essential \
-#        # Python
-#        python3-dev \
-#        python3-venv \
-#        python3-distutils \
-#        # vcpkg 'python3' port dependencies
-#        autoconf \
-#        libtool \
-#        autoconf-archive \
-#        # vcpkg tree of dependencies require extra packages
-#        pkgconf \
-#        linux-libc-dev \
-#        # Install jdk
-#        default-jdk \
-#        gcc-10 \
-#        g++-10 \
-#        && \
-#    rm -rf /var/lib/apt/lists/*
+    python3 -m pip install -U pip cmake~=3.28.0
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -77,15 +49,3 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
-
-# Install Android SDK, NDK and Tools
-RUN apt install unzip wget default-jdk
-
-ENV ANDROID_TOOLS /__w/openvino/openvino/android_tools
-ENV ANDROID_NDK_HOME /__w/openvino/openvino/android_tools/ndk-bundle
-RUN mkdir -p ${ANDROID_NDK_HOME}
-ENV ANDROID_SDK_VERSION 29
-
-RUN wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
-    unzip commandlinetools-linux-7583922_latest.zip
-RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${ANDROID_SDK_VERSION}"
