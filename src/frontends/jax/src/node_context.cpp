@@ -44,11 +44,6 @@ OutputVector NodeContext::as_constant() const {
     }
 }
 
-std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) const {
-    ov_node = m_decoder->mark_node(ov_node);
-    return ov_node;
-}
-
 namespace {
 std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size_t index, bool allow_empty = true) {
     auto input_val = ctx.get_input(static_cast<int>(index));

@@ -110,22 +110,6 @@ public:
     // only for nodes that produce constant value, naturally for prim::Constant
     OutputVector as_constant() const;
 
-    std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const;
-
-    // Call mark_node for each node from the vector
-    void mark_nodes(std::vector<std::shared_ptr<Node>> ov_nodes) const {
-        for (auto& ov_node : ov_nodes) {
-            mark_node(ov_node);
-        }
-    }
-
-    // Syntactic sugar around mark_node -- just calls it for corresponding node
-    // for the passed output port
-    Output<Node> mark_output(Output<Node> ov_output) const {
-        mark_node(ov_output.get_node_shared_ptr());
-        return ov_output;
-    }
-
     Any get_attribute_as_any(const std::string& name) const override {
         FRONT_END_THROW("Attribute is not expected to appear in JAX. Implement it if it does appear.");
     }

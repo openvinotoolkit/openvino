@@ -163,13 +163,6 @@ class JaxprPythonDecoder (Decoder):
             return self.jaxpr.primitive.name
         else:
             return "root"
-        
-    def mark_node(self, node):
-        name = self.get_op_type()
-        if "FrameworkNode" not in node.get_type_name():
-            name += "/" + node.get_type_name()
-        node.set_friendly_name(self.name + "/" + name)
-        return node
     
     def outputs(self) -> List[int]:
         return [id(v) for v in self.jaxpr.outvars]
@@ -273,13 +266,6 @@ class _JaxprPythonConstantDecoder (Decoder):
             
     def get_op_type(self) -> str:
         return "constant"
-        
-    def mark_node(self, node):
-        name = self.get_op_type()
-        if "FrameworkNode" not in node.get_type_name():
-            name += "/" + node.get_type_name()
-        node.set_friendly_name(self.name + "/" + name)
-        return node
     
     def outputs(self) -> List[int]:
         return [self.output_id]

@@ -23,7 +23,7 @@ OutputVector translate_convert(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     Output<Node> src = context.get_input(0);
     auto dtype = convert_dtype(context.const_named_param<int64_t>("new_dtype"));
-    Output<Node> res = context.mark_node(std::make_shared<v0::Convert>(src, dtype));
+    Output<Node> res = std::make_shared<v0::Convert>(src, dtype);
     return {res};
 };
 

@@ -50,7 +50,7 @@ namespace op {
 template <typename T>
 OutputVector translate_1to1_match_2_inputs(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
-    return {context.mark_node(std::make_shared<T>(context.get_input(0), context.get_input(1)))};
+    return {std::make_shared<T>(context.get_input(0), context.get_input(1))};
 }
 
 }  // namespace op

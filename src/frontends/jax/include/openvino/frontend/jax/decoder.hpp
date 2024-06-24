@@ -60,11 +60,6 @@ public:
 
     virtual size_t output(size_t index) const = 0;
 
-    // Embed mapping to/from the original node representation from/to node passed as a parameter
-    // the representation of this mapping is specific for particular decorated type and may be NOP
-    // returns the same node as syntactically convenient way to make nested sentences in code
-    virtual std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const = 0;
-
     /// \brief Returns subgraph converted on demand by the first access
     /// If there is no query for specific sub-graph it shouldn't be converted
     // node_visitor is a function that will be fed by nodes in subgraph for all nodes in graph
