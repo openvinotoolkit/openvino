@@ -35,6 +35,10 @@ void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg
 }
 
 namespace {
+/*
+ * Please change the corresponding map in `src/bindings/python/src/openvino/frontend/jax/utils.py`
+ * if you want to change this map.
+ */
 const std::unordered_map<int64_t, element::Type> JAX_TO_OV_TYPE{
     {0, element::u8},
     {1, element::i8},
