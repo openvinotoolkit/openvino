@@ -87,10 +87,8 @@ jobs:
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
-      # ANDROID_TOOLS: '/__w/openvino/openvino/android_tools'
-      ANDROID_TOOLS: '/deps/android_tools'
-      # ANDROID_NDK_HOME: '/__w/openvino/openvino/android_tools/ndk-bundle'
-      ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
+      ANDROID_TOOLS: '/__w/openvino/openvino/android_tools'
+      ANDROID_NDK_HOME: '/__w/openvino/openvino/android_tools/ndk-bundle'
       ANDROID_SDK_VERSION: 29
       ANDROID_ABI_CONFIG: arm64-v8a
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
