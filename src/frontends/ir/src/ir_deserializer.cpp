@@ -621,7 +621,7 @@ private:
         // Old version may produce nodes like <name value="..."/>, but it may brake xml-naming convention
         // Now it should look like <info name="..." value="..."/>.
         // Also we keep an option to read an old XMLs where it doesn't have name attribute
-        auto name_attr = node.attribute("name");
+        const auto name_attr = node.attribute("name");
         const std::string node_name = name_attr.empty() ? node.name() : name_attr.value();
         for (const auto& data : node.children()) {
             auto name_attr = data.attribute("name");
