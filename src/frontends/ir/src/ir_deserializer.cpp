@@ -666,8 +666,8 @@ void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model
         // Old version may produce nodes like <name value="..."/>, but it may brake xml-naming convention
         // Now it should look like <info name="..." value="..."/>.
         // Also we keep an option to read an old XMLs where it doesn't have name attribute
-        auto name_attr = data.attribute("name");
-        auto node_name = name_attr.empty() ? data.name() : name_attr.value();
+        const auto name_attr = data.attribute("name");
+        const auto node_name = name_attr.empty() ? data.name() : name_attr.value();
         if (!data.attribute("value").empty()) {
             rt_info[node_name] = pugixml::get_str_attr(data, "value");
         } else {
