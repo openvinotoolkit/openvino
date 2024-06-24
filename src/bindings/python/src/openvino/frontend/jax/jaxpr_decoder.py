@@ -11,6 +11,7 @@ from openvino.frontend.jax.utils import jax_array_to_ov_const, get_ov_type_for_v
     ivalue_to_constant
 
 import jax
+import numpy as np
 
 from typing import List
 import logging
@@ -49,7 +50,7 @@ class JaxprPythonDecoder (Decoder):
         '''
         Decoder.__init__(self)
         
-        if isinstance(jaxpr, (jax.core.JaxprEqn, jax.core.Jaxpr, jax.core.Var)):
+        if isinstance(jaxpr, (jax.core.JaxprEqn, jax.core.Jaxpr)):
             self.jaxpr = jaxpr
         elif isinstance(jaxpr, jax.core.ClosedJaxpr):
             # Take the `Jaxpr` from `ClosedJaxpr`, see https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L85
@@ -73,9 +74,7 @@ class JaxprPythonDecoder (Decoder):
         self.m_decoders = []
         
     def inputs(self) -> List[int]:
-        if isinstance(self.jaxpr, jax.core.Var):
-            return []
-        elif isinstance(self.jaxpr, jax.core.JaxprEqn):
+        if isinstance(self.jaxpr, jax.core.JaxprEqn):
             idx = 0
             res = []
             for inp in self.jaxpr.invars:
@@ -89,25 +88,16 @@ class JaxprPythonDecoder (Decoder):
             return [id(v) for v in self.jaxpr.invars]
     
     def input(self, idx: int) -> int:
-        if isinstance(self.jaxpr, jax.core.Var):
-            raise IndexError("The jaxpr is a constant, which does not have input.")
-        else:
-            return id(self.jaxpr.invars[idx])
+        return id(self.jaxpr.invars[idx])
     
     def get_input_shape(self, index):
-        if isinstance(self.jaxpr, jax.core.Var):
-            raise IndexError("The jaxpr is a constant, which does not have input shape.")
-        else:
-            return PartialShape(self.jaxpr.invars[index].aval.shape)
+        return PartialShape(self.jaxpr.invars[index].aval.shape)
     
     def get_input_signature_name(self, index) -> str:
         return "jaxpr_invar_" + str(index)
     
     def get_input_type(self, index) -> OVType:
-        if isinstance(self.jaxpr, jax.core.Var):
-            raise IndexError("The jaxpr is a constant, which does not have input type.")
-        else:
-            return get_ov_type_for_value(self.jaxpr.invars[index])
+        return get_ov_type_for_value(self.jaxpr.invars[index])
         
     def get_named_param(self, name):
         '''
@@ -134,19 +124,13 @@ class JaxprPythonDecoder (Decoder):
         return list(self.params.keys())
     
     def get_output_type(self, index) -> OVType:
-        if isinstance(self.jaxpr, jax.core.Var):
-            return get_ov_type_for_value(self.jaxpr)
-        else:
-            return get_ov_type_for_value(self.jaxpr.outvars[index])
+        return get_ov_type_for_value(self.jaxpr.outvars[index])
         
     def get_output_name(self, index) -> str:
         return "jaxpr_outvar_" + str(index)
     
     def get_output_shape(self, index):
-        if isinstance(self.jaxpr, jax.core.Var):
-            return PartialShape(self.jaxpr.aval.shape)
-        else:
-            return PartialShape(self.jaxpr.outvars[index].aval.shape)
+        return PartialShape(self.jaxpr.outvars[index].aval.shape)
     
     def visit_subgraph(self, node_visitor) -> None:
         if isinstance(self.jaxpr, jax.core.JaxprEqn):
@@ -155,7 +139,11 @@ class JaxprPythonDecoder (Decoder):
             self.m_decoders.append(decoder)
             node_visitor(decoder)
         for idx, node in enumerate(self.jaxpr.constvars):
-            decoder = JaxprPythonDecoder(node, name=self.name + "/" + f"const({id(node)})", literals=self.literals[idx])
+            decoder = self.convert_literal_to_constant_node(
+                literal=self.literals[idx], 
+                name=self.name + "/" + f"const({id(node)})", 
+                output_id=id(node)
+            )
             self.m_decoders.append(decoder)
             node_visitor(decoder)
         # Visit every `JaxEqn` in the jaxpr, see https://github.com/google/jax/blob/jaxlib-v0.4.29/jax/_src/core.py#L285
@@ -173,8 +161,6 @@ class JaxprPythonDecoder (Decoder):
     def get_op_type(self) -> str:
         if isinstance(self.jaxpr, jax.core.JaxprEqn):
             return self.jaxpr.primitive.name
-        elif isinstance(self.jaxpr, jax.core.Var):
-            return "constant"
         else:
             return "root"
         
@@ -186,28 +172,16 @@ class JaxprPythonDecoder (Decoder):
         return node
     
     def outputs(self) -> List[int]:
-        if isinstance(self.jaxpr, jax.core.Var):
-            return [id(self.jaxpr)]
-        else:
-            return [id(v) for v in self.jaxpr.outvars]
+        return [id(v) for v in self.jaxpr.outvars]
     
     def output(self, idx: int) -> int:
-        if isinstance(self.jaxpr, jax.core.Var):
-            return id(self.jaxpr)
-        else:
-            return id(self.jaxpr.outvars[idx])
+        return id(self.jaxpr.outvars[idx])
     
     def num_inputs(self) -> int:
-        if isinstance(self.jaxpr, jax.core.Var):
-            return 0
-        else:
-            return len(self.jaxpr.invars)
+        return len(self.jaxpr.invars)
     
     def num_outputs(self) -> int:
-        if isinstance(self.jaxpr, jax.core.Var):
-            return 1
-        else:
-            return len(self.jaxpr.outvars)
+        return len(self.jaxpr.outvars)
     
     def as_constant(self):
         if self.get_op_type() == 'constant':
@@ -226,24 +200,30 @@ class JaxprPythonDecoder (Decoder):
         return _JaxprPythonConstantDecoder(constant=constant)
     
     @staticmethod
-    def convert_literal_to_constant_node(literal):
-        assert isinstance(literal, jax.core.Literal)
-        constant = ivalue_to_constant(literal.val, shared_memory=False)
-        return _JaxprPythonConstantDecoder(constant=constant)
+    def convert_literal_to_constant_node(literal, name=None, output_id=None):
+        if isinstance(literal, jax.core.Literal):
+            constant = ivalue_to_constant(literal.val, shared_memory=False)
+        elif isinstance(literal, (jax.Array, np.ndarray)):
+            constant = ivalue_to_constant(literal, shared_memory=False)
+        else:
+            raise TypeError( f"The input should be a literal or jax array, but got {type(literal)}.")
+        return _JaxprPythonConstantDecoder(constant=constant, name=name, output_id=output_id)
         
 class _JaxprPythonConstantDecoder (Decoder):
-    def __init__(self, name=None, constant=None):
+    def __init__(self, name=None, constant=None, output_id=None):
         '''
         A decoder specially for constants and named parameters.
         
         Inputs:
             - name: the name for the model.
             - literals: the literals (constants) that are used in the model.
+            - output_id: the id specified for this decoder's output. If none, use `id(self.constant)`.
         '''
         Decoder.__init__(self)
         
         self.name = name
         self.constant = constant
+        self.output_id = id(self.constant) if output_id is None else output_id
         
     def inputs(self) -> List[int]:
         return []
@@ -302,10 +282,10 @@ class _JaxprPythonConstantDecoder (Decoder):
         return node
     
     def outputs(self) -> List[int]:
-        return [id(self.constant)]
+        return [self.output_id]
     
     def output(self, idx: int) -> int:
-        return id(self.constant)
+        return self.output_id
     
     def num_inputs(self) -> int:
         return 0

@@ -85,7 +85,7 @@ def get_ov_type_for_value(value):
     
 def get_ov_type_from_jax_type(dtype):
     if dtype in jax_to_ov_type_map:
-        return OVAny(jax_to_ov_type_map[value.aval.dtype])
+        return OVAny(jax_to_ov_type_map[dtype])
     for k, v in numpy_to_ov_type_map.items():
         if isinstance(dtype, k):
             return OVAny(v)
