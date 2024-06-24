@@ -15,11 +15,6 @@ class TranslateSession;
 class Place;
 class JaxDecoder;
 
-struct PlaceDesc {
-    PlaceDesc(const std::shared_ptr<Node>& value) : m_value(value) {}
-    std::shared_ptr<Node> m_value;
-};
-
 class InputModel : public ov::frontend::InputModel {
     friend class ::ov::frontend::jax::TranslateSession;
 
