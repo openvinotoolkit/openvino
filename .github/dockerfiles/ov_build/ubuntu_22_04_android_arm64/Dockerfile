@@ -28,7 +28,7 @@ RUN apt update && \
     # vcpkg 'python3' port dependencies
     apt install autoconf libtool autoconf-archive && \
     # vcpkg tree of dependencies require extra packages
-    apt install pkgconf linux-libc-dev unzip wget default-jdk
+    apt install pkgconf linux-libc-dev
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
