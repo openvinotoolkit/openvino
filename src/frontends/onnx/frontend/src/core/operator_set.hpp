@@ -39,8 +39,8 @@ extern bool register_translator(const std::string name,
 #define OPSET_RANGE(_in, _until) VersionRange { _in, _until }
 #define OPSET_SINCE(_since)             VersionRange::since(_since)
 #define OPSET_IN(_in)                   VersionRange::in(_in)
-#define ONNX_OP_M(name, range, fn, ...) register_translator(name, range, fn, __VA_ARGS__)
-#define ONNX_OP(name, range, fn, ...)   static bool onnx_op_reg = ONNX_OP_M(name, range, fn, __VA_ARGS__)
+#define ONNX_OP_M(name, range, fn, ...) register_translator(name, range, fn __VA_OPT__(, ) __VA_ARGS__)
+#define ONNX_OP(name, range, fn, ...)   static bool onnx_op_reg = ONNX_OP_M(name, range, fn __VA_OPT__(, ) __VA_ARGS__)
 
 }  // namespace onnx
 }  // namespace frontend
