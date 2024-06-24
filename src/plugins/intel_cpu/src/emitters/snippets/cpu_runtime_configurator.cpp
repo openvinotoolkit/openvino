@@ -11,13 +11,16 @@
 namespace ov {
 namespace intel_cpu {
 
-CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {}
+CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {
+}
 
 void CPURuntimeConfigurator::update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
     RuntimeConfigurator::update(linear_ir);
 
-    if (linear_ir->is_dynamic())
+    if (linear_ir->is_dynamic()) {
+        get_kernel_executor_table()->update_state();
         update_loop_args(linear_ir);
+    }
 }
 
 void CPURuntimeConfigurator::init_tensor_rank(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const {
