@@ -56,9 +56,9 @@ const std::unordered_map<int64_t, element::Type> JAX_TO_OV_TYPE{
 };
 }  // namespace
 
-element::Type convert_dtype(int64_t pt_type) {
-    FRONT_END_OP_CONVERSION_CHECK(JAX_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
-    return JAX_TO_OV_TYPE.at(pt_type);
+element::Type convert_dtype(int64_t jax_type) {
+    FRONT_END_OP_CONVERSION_CHECK(JAX_TO_OV_TYPE.count(jax_type), "Unknown type: ", jax_type);
+    return JAX_TO_OV_TYPE.at(jax_type);
 };
 
 }  // namespace jax
