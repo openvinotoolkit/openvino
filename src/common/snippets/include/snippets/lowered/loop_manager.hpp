@@ -3,7 +3,6 @@
 //
 
 #pragma once
-
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 
@@ -218,7 +217,7 @@ public:
      * @param loop_end_pos the next iterator after the last expression
      * @param loop_id target Loop ID
      */
-    void sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id);
+    void sort_loop_ports(const LinearIR::constExprIt& loop_begin_pos, const LinearIR::constExprIt& loop_end_pos, size_t loop_id);
     /**
      * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
      *        If ports of decomposed expression were the Loop ports, these Loop ports may be updated by parameters `entries` and `exits`
@@ -276,7 +275,6 @@ public:
      */
     bool reorder_identifiers(const std::map<size_t, size_t>& loop_id_map);
 
-private:
     /**
      * @brief Add new Loop Info to the map
      * @param loop target loop info
@@ -288,6 +286,8 @@ private:
      * @param index the target index of Loop
      */
     void remove_loop_info(size_t index);
+
+private:
     /**
      * @brief Find expression ports in bounds that are connected to consumers or parent that aren't in these bounds
      * @param loop_begin_pos the first expression iterator of the Loop

@@ -20,17 +20,6 @@ namespace pass {
 using MemoryAccess = ov::snippets::modifier::MemoryAccess;
 
 namespace {
-inline int64_t get_stride(size_t dim, const VectorDims& shape) {
-    int64_t stride = 1;
-    for (size_t i = dim + 1; i < shape.size(); ++i) {
-        if (utils::is_dynamic_value(shape[i])) {
-            return utils::get_dynamic_value<int64_t>();
-        }
-        stride *= static_cast<int64_t>(shape[i]);
-    }
-    return stride;
-}
-
 inline void init_is_incremented(LoopPort& port, size_t loop_id) {
     const auto& expr = port.expr_port->get_expr();
     const auto& expr_loops = expr->get_loop_ids();
@@ -93,7 +82,7 @@ inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, 
     if (utils::is_dynamic_value(shape[dim]) && port_count > 1) {
         return utils::get_dynamic_value<int64_t>();
     } else if (!(shape[dim] == 1 && work_amount != 1)) {
-        return get_stride(dim, shape);
+        return utils::get_stride(dim, shape);
     }
     return 0;
 }
