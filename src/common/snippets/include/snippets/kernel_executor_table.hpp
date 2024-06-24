@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/lowered/linear_ir.hpp"
+#include <typeinfo>
 #if defined(SNIPPETS_DEBUG_CAPS) && !defined(_WIN32)
 #include <cxxabi.h>
 #endif
@@ -27,7 +28,7 @@ public:
         virtual bool is_completed() const = 0;
 
         /*** Return deep copy of the config */
-        virtual std::shared_ptr<GenericConfig> clone() const = 0;
+        virtual std::unique_ptr<GenericConfig> get_clone_ptr() const = 0;
 
         /*** Compute hash for fast comparison operations or caching support */
         virtual size_t hash() const = 0;
@@ -50,9 +51,9 @@ public:
     * @brief Replace current kernel config with the provided value. Corresponding kernel is recompiled if necessary.
      * This method should be called to restore a saved state of the executor, that was configured using update_by_expression().
     */
-    virtual void update_by_config(const std::shared_ptr<const GenericConfig>& new_config) = 0;
+    virtual void update_by_config(const GenericConfig& new_config) = 0;
 
-    virtual std::shared_ptr<const GenericConfig> get_config() const = 0;
+    virtual const GenericConfig& get_config() const = 0;
     /** serialize for debug purposes */
 #ifdef SNIPPETS_DEBUG_CAPS
     virtual std::string to_string() const = 0;
@@ -69,25 +70,25 @@ template<typename Conf, typename KernelType,
          typename std::enable_if<std::is_base_of<KernelExecutorBase::GenericConfig, Conf>::value, bool>::type = true>
 class KernelExecutor : public snippets::KernelExecutorBase {
 public:
-    explicit KernelExecutor(std::shared_ptr<Conf> c) : KernelExecutorBase(), m_config{std::move(c)} {}
+    explicit KernelExecutor(Conf c) : KernelExecutorBase(), m_config{std::move(c)} {}
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
     void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) override final { // NOLINT
-        m_config = std::static_pointer_cast<Conf>(m_config->clone());
         update_config(expr, m_config);
-        OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in update_by_expression");
+        OPENVINO_ASSERT(m_config.is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
-    void update_by_config(const std::shared_ptr<const GenericConfig>& new_config) override final { // NOLINT
-        if (*m_config == *new_config)
+    void update_by_config(const GenericConfig& new_config) override final { // NOLINT
+        if (static_cast<GenericConfig&>(m_config) == new_config)
             return;
-        m_config = std::static_pointer_cast<Conf>(std::const_pointer_cast<GenericConfig>(new_config));
-        OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in get_config");
+        const auto& new_ptr = dynamic_cast<const Conf*>(&new_config);
+        OPENVINO_ASSERT(new_config.is_completed() && new_ptr, "Failed to update kernel config in get_config");
+        m_config = *new_ptr;
         update_kernel(m_config, m_kernel);
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
-    std::shared_ptr<const GenericConfig> get_config() const override { return m_config; }
+    const GenericConfig& get_config() const override { return m_config; }
     std::shared_ptr<const KernelType> get_kernel() const { return m_kernel; }
 #ifdef SNIPPETS_DEBUG_CAPS
     std::string to_string() const override {
@@ -99,20 +100,20 @@ public:
                 std::free);
         type_name = demangled_name.get();
 #endif
-        return  "KernelExecutorType: " + std::string(type_name) + " KernelConfig: " + m_config->to_string();
+        return  "KernelExecutorType: " + std::string(type_name) + " KernelConfig: " + m_config.to_string();
     }
 #endif
 
 protected:
     /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */
-    virtual void update_config(const ov::snippets::lowered::ExpressionPtr& expr, std::shared_ptr<Conf>& config) const = 0;
+    virtual void update_config(const ov::snippets::lowered::ExpressionPtr& expr, Conf& config) const = 0;
     /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
      * performed only if necessary, otherwise an appropriate kernel is retrieved from cache. */
-    virtual void update_kernel(const std::shared_ptr<const Conf>& c, std::shared_ptr<KernelType>& kernel) const = 0;
+    virtual void update_kernel(const Conf& c, std::shared_ptr<KernelType>& kernel) const = 0;
 
 private:
     /** Contains all the necessary information to compile a desired kernel*/
-    std::shared_ptr<Conf> m_config = nullptr;
+    Conf m_config {};
     /** Stores pointer to compiled kernel since the last update_kernel() call */
     std::shared_ptr<KernelType> m_kernel = nullptr;
 };

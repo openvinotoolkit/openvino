@@ -75,7 +75,7 @@ std::vector<std::vector<ov::test::InputShape>> input_shapes_dynamic{
         },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, MatMul,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMul, MatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(input_shapes_dynamic),
                                  ::testing::ValuesIn(precisions(true)),
@@ -102,6 +102,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
                                                                                      STATIC_SHAPE(1, 2, 1023, 255),
                                                                                      STATIC_SHAPE(1, 2, 95, 255)}),
                                  ::testing::ValuesIn(precisions(false)),
+                                 ::testing::Values(1), // Subgraph;
+                                 ::testing::Values(1), // Tokenized MatMul+Bias
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
+std::vector<std::vector<ov::test::InputShape>> input_shapes_dynamic_bias{
+        {
+                {PartialShape{-1, -1, -1, -1}, {{1, 2, 69, 43}, {1, 2, 95, 1023}, {1, 2, 69, 43}}},
+                {PartialShape{-1, -1, -1, -1}, {{2, 1, 43, 49}, {1, 2, 1023, 255}, {2, 1, 43, 49}}},
+                {PartialShape{-1, -1, -1, -1}, {{1, 1, 69, 49}, {1, 2, 95, 255}, {1, 1, 69, 49}}}
+        },
+};
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMulBias, MatMulBias,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(input_shapes_dynamic_bias),
+                                 ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),

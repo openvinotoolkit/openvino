@@ -27,7 +27,7 @@ std::vector<size_t> get_parent_inner_loops(const std::vector<size_t>& parent_loo
 // Ticket: 113744
 // TODO: This logic covers only several specific cases so it should be generalized.
 size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& loop_manager, const ExpressionPtr& buffer_expr, size_t allocation_rank) {
-    const auto& parent_port = buffer_expr->get_input_port_connector(0)->get_source();
+    const auto& parent_port = buffer_expr->get_input_port_connector(buffer_expr->get_input_count() - 1)->get_source();
     const auto& parent_loop_ids = get_parent_inner_loops(parent_port.get_expr()->get_loop_ids(), buffer_expr->get_loop_ids());
     const auto planar_shape = utils::get_preordered_vdims(parent_port);
 

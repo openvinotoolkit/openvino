@@ -15,50 +15,53 @@ namespace test {
 namespace snippets {
 
 std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
-    std::vector<ov::PartialShape> inputShapes;
+    std::vector<InputShape> input_shapes;
     std::vector<ov::element::Type> elem_types;
     ov::element::Type prc;
-    bool withMul;
+    bool with_mul;
     size_t thread_count;
-    std::string targetDevice;
+    std::string target_device;
     size_t num_nodes, num_subgraphs;
-    ov::AnyMap additionalConfig;
-    std::tie(inputShapes,
+    ov::AnyMap additional_config;
+    std::tie(input_shapes,
              elem_types,
              prc,
-             withMul,
+             with_mul,
              thread_count,
              num_nodes,
              num_subgraphs,
-             targetDevice,
-             additionalConfig) = obj.param;
+             target_device,
+             additional_config) = obj.param;
 
     std::ostringstream result;
-    for (size_t i = 0; i < inputShapes.size(); ++i)
-        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
+    for (size_t i = 0; i < input_shapes.size(); i++)
+        result << "IS[" << i << "]=" << input_shapes[i] << "_";
     for (size_t i = 0; i < elem_types.size(); i++)
         result << "T[" << i << "]=" << elem_types[i] << "_";
-    result << "Mul=" << withMul << "_";
+    result << "Mul=" << with_mul << "_";
     result << "ThreadNum=" << thread_count << "_";
     result << "PRC=" << prc << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
-    result << "targetDevice=" << targetDevice << "_";
+    result << "targetDevice=" << target_device << "_";
 
-    if (!additionalConfig.empty()) {
+    if (!additional_config.empty()) {
         result << "_PluginConf";
-        for (auto& item : additionalConfig) {
+        for (auto& item : additional_config) {
             result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
-    return result.str();
+    // todo: the following lines are needed for correct tests representation in clion ide. remove before merge
+    auto res = result.str();
+    std::replace(res.begin(), res.end(), ',', '.');
+    return res;
 }
 
 void MHA::SetUp() {
-    std::vector<ov::PartialShape> inputShapes;
+    std::vector<InputShape> input_shapes;
     ov::element::Type prc;
-    ov::AnyMap additionalConfig;
-    std::tie(inputShapes,
+    ov::AnyMap additional_config;
+    std::tie(input_shapes,
              m_input_types,
              prc,
              m_with_mul,
@@ -66,13 +69,13 @@ void MHA::SetUp() {
              ref_num_nodes,
              ref_num_subgraphs,
              targetDevice,
-             additionalConfig) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
+             additional_config) = this->GetParam();
+    init_input_shapes(input_shapes);
 
     const auto subgraph_model = get_subgraph();
     function = subgraph_model->getOriginal();
 
-    configuration.insert(additionalConfig.begin(), additionalConfig.end());
+    configuration.insert(additional_config.begin(), additional_config.end());
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
@@ -92,6 +95,7 @@ void MHA::compile_model() {
 void MHA::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& model_inputs = function->inputs();
+
     for (int i = 0; i < model_inputs.size(); ++i) {
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
@@ -101,13 +105,14 @@ void MHA::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes)
         in_data.range = 2;
         in_data.resolution = 256;
         tensor =
-            ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
+            ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), targetInputStaticShapes[i], in_data);
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() {
-    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul);
+    bool is_with_reshape = std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps){ return ps.is_static(); });
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
 }
 
 void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
