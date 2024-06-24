@@ -16,29 +16,19 @@ RUN apt update && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     apt update && \
     apt install \
-        # Generic build dependencies
         ccache \
         scons \
         ninja-build \
         build-essential \
-        # vcpkg's tool dependencies
-        curl \
-        zip \
-        unzip \
-        tar \
-        # vcpkg 'python3' port dependencies
-        autoconf \
-        libtool \
-        autoconf-archive \
-        # vcpkg tree of dependencies require extra packages
-        pkgconf \
-        linux-libc-dev \
-        unzip \
-        wget \
-        default-jdk \
         python3-pip && \
     # vcpkg requires cmake 3.19 or later
-    python3 -m pip install -U pip cmake~=3.28.0
+    python3 -m pip install -U pip cmake~=3.28.0 && \
+    # vcpkg's tool dependencies
+    apt install curl zip unzip tar && \
+    # vcpkg 'python3' port dependencies
+    apt install autoconf libtool autoconf-archive && \
+    # vcpkg tree of dependencies require extra packages
+    apt install pkgconf linux-libc-dev unzip wget default-jdk
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
