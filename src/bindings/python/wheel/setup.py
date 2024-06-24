@@ -175,7 +175,14 @@ LIB_INSTALL_CFG = {
 DATA_INSTALL_CFG = {
     "core_dev": {
         "name": "core_dev",
-        "prefix": f"{BUILD_BASE}/libs.dev",
+        "prefix": f"{BUILD_BASE}/libs.core.dev",
+        "install_dir": "runtime",
+        "binary_dir": OPENVINO_BINARY_DIR,
+        "source_dir": OPENVINO_SOURCE_DIR
+    },
+    "core_c_dev": {
+        "name": "core_dev_c",
+        "prefix": f"{BUILD_BASE}/libs.core_c.dev",
         "install_dir": "runtime",
         "binary_dir": OPENVINO_BINARY_DIR,
         "source_dir": OPENVINO_SOURCE_DIR
