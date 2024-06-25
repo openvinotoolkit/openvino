@@ -73,9 +73,6 @@ void compile_graph::run(program& p) {
                 auto w_layout = node->as<convolution>().weights().get_output_layout();
                 if (w_layout.spatial(0) != 1 || w_layout.spatial(1) != 1) {
                     change_initial_impl = false;
-                } else {
-                    // will be removed..
-                    GPU_DEBUG_INFO << node->id() << ": " << w_layout.to_short_string() << std::endl;
                 }
             }
         }
@@ -108,7 +105,8 @@ void compile_graph::run(program& p) {
 
         bool is_planar = format::is_default_format(node->get_output_layout().format);
 
-        if (!node->is_type<convolution>() && node->is_dynamic() && !is_planar)
+        // TODO check more.
+        if ((node->is_dynamic() && !is_planar && !node->is_type<convolution>()))
             can_select_impl = false;
 
         if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())
