@@ -25,7 +25,6 @@ RUN apt-get update && \
         # Python
         python3-dev \
         python3-venv \
-        python3-distutils \
         python3-pip \
         # For Java API
         default-jdk \
