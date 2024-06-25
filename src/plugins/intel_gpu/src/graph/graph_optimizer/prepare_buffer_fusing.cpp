@@ -460,6 +460,8 @@ bool crop_in_place_optimization::match(const program_node& node,
                                        bool is_runtime) {
     if (!node.is_valid_output_layout())
         return false;
+    if (node.get_dependency(0).is_input())
+        return false;
     if (node.is_output() || crop_params.fused_desc.size() > 0 || node.is_in_shape_of_subgraph())
         return false;
     const auto& crop_layout = crop_params.get_output_layout();
