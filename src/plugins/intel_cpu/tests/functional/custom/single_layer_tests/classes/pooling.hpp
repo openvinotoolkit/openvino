@@ -44,6 +44,15 @@ protected:
     void SetUp() override;
 };
 
+class AvgPoolingV14LayerRefFallbackTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
+                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 class MaxPoolingV8LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
                                  virtual public SubgraphBaseTest, public CPUTestsBase {
 public:

@@ -260,8 +260,6 @@ void AvgPoolingV14LayerRefFallbackTest::SetUp() {
 }
 
 std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
-<<<<<<< HEAD
-=======
     const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
     maxPoolV8SpecificParams basicParamsSet;
     InputShape inputShapes;
@@ -344,7 +342,6 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
 }
 
 std::string MaxPoolingV14LayerCPUTest::getTestCaseName(
->>>>>>> 7ef152ef51... Progress
     const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
     maxPoolV8SpecificParams basicParamsSet;
     InputShape inputShapes;
@@ -518,6 +515,11 @@ TEST_P(AvgPoolingV14LayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }
 
+TEST_P(AvgPoolingV14LayerRefFallbackTest, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "Reference");
+}
+
 TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
@@ -686,18 +688,12 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144DCeilTorch() {
 }
 
 const std::vector<InputShape>& inputShapes3D() {
-<<<<<<< HEAD
     static const std::vector<InputShape> inputShapes3D = {
-=======
-    static std::vector<InputShape> inputShapes3D = {
->>>>>>> 7ef152ef51... Progress
             { {}, {{3, 4, 64}} },
             { {}, {{2, 8, 12}} },
             { {}, {{1, 16, 12}} },
             { {}, {{1, 21, 4}} },
             { {}, {{1, 32, 8}} },
-<<<<<<< HEAD
-=======
             {
                 // dynamic
                 {-1, -1, -1},
@@ -734,7 +730,6 @@ const std::vector<InputShape>& inputShapes3DStatic() {
 
 const std::vector<InputShape>& inputShapes3DDynamic() {
     static const std::vector<InputShape> inputShapes3D = {
->>>>>>> 7ef152ef51... Progress
             {
                 // dynamic
                 {-1, -1, -1},
