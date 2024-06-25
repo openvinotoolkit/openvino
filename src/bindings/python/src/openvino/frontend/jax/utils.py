@@ -10,9 +10,6 @@ import jax.numpy as jnp
 
 from openvino.runtime import op, Type as OVType, Shape, OVAny
 
-import openvino
-openvino.runtime
-
 numpy_to_ov_type_map = {
     np.dtypes.Float32DType: OVType.f32,
     np.dtypes.BoolDType: OVType.boolean,
@@ -29,7 +26,6 @@ numpy_to_ov_type_map = {
 
 jax_to_ov_type_map = {
     jnp.float32: OVType.f32,
-    jnp.bool: OVType.boolean,
     jnp.bfloat16: OVType.bf16, # TODO: check this
     jnp.float16: OVType.f16,
     jnp.float64: OVType.f64,
@@ -39,6 +35,11 @@ jax_to_ov_type_map = {
     jnp.int32: OVType.i32,
     jnp.int64: OVType.i64,
 }
+
+try:
+    jax_to_ov_type_map[jnp.bool] = OVType.boolean
+except:
+    pass
 
 basic_to_ov_type_map = {
     int: OVType.i64,
