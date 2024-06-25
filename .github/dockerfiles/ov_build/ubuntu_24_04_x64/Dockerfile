@@ -22,6 +22,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # ONNX
+        protobuf-compiler \
         # Python
         python3-dev \
         python3-venv \
