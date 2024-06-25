@@ -78,7 +78,7 @@ public:
                 return false;
             }
             if (axis > 3) {
-                DEBUG_LOG("ACL supports tensor rank up to 4 for Reduce operations. Tensor rank: ", axis);
+                DEBUG_LOG("ACL supports reduction axis 0, 1, 2, 3. Unsupported reduction axis specified: ", axis);
                 return false;
             }
         }
