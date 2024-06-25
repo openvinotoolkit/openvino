@@ -4,7 +4,7 @@
 
 include(GNUInstallDirs)
 
-# We have to specify RPATH, all runtime libs are in one dir 
+# We have to specify RPATH, all runtime libs are in one dir
 set(CMAKE_SKIP_INSTALL_RPATH OFF)
 
 #
@@ -31,6 +31,20 @@ macro(ov_npm_cpack_set_dirs)
 endmacro()
 
 ov_npm_cpack_set_dirs()
+
+#
+# Override CPack components name for NPM generator
+# This is needed to change the granularity, i.e. merge several components
+# into a single one
+#
+
+macro(ov_override_component_names)
+    # merge links and pkgconfig with dev component
+    set(OV_CPACK_COMP_LINKS "${OV_CPACK_COMP_CORE_DEV}")
+    set(OV_CPACK_COMP_PKG_CONFIG "${OV_CPACK_COMP_CORE_DEV}")
+endmacro()
+
+ov_override_component_names()
 
 #
 # Override include / exclude rules for components
@@ -67,6 +81,10 @@ macro(ov_define_component_include_rules)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # pkgconfig
+    unset(OV_CPACK_COMP_PKG_CONFIG_EXCLUDE_ALL)
+    # symbolic links
+    unset(OV_CPACK_COMP_LINKS_EXCLUDE_ALL)
 endmacro()
 
 ov_define_component_include_rules()
