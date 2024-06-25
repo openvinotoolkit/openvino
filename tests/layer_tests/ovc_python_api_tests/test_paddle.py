@@ -96,7 +96,6 @@ class TestMoConvertPaddle(CommonMOConvertTest):
         create_paddle_static_module,
         create_paddle_hapi_module
     ]
-    @pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
     @pytest.mark.parametrize("create_model", test_data)
     def test_mo_import_from_memory_paddle_fe(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):

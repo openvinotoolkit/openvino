@@ -4,7 +4,26 @@
 import os
 import sys
 import tempfile
+# pylint: disable=no-name-in-module,import-error
 
+def paddle_class_check(class_str):
+    try:
+        import paddle
+        return eval(class_str)
+    except:
+        return None
+
+def paddle_model_check_instance(model, class_str):
+    cls = paddle_class_check(class_str)
+    if cls and isinstance(model, cls):
+        return True
+    else:
+        return False
+
+def is_paddle_model(model):
+    possible_instances = ["paddle.hapi.model.Model", "paddle.nn.layer.layers.Layer", "paddle.fluid.dygraph.layers.Layer", "paddle.base.Executor", "paddle.fluid.executor.Executor"]
+    is_instance = [paddle_model_check_instance(model, possible_instance) for possible_instance in possible_instances]
+    return any(is_instance)
 
 class paddle_frontend_converter:
     def __init__(self, model, inputs=None, outputs=None):
@@ -49,18 +68,22 @@ class paddle_frontend_converter:
             self.pdiparams = "{}.pdiparams".format(self.model_name)
             self.pdiparams_info = "{}.pdiparams.info".format(self.model_name)
 
-            import paddle  # pylint: disable=import-error
-            if isinstance(self.model, paddle.hapi.model.Model):
+            import paddle
+            if paddle_model_check_instance(self.model, "paddle.hapi.model.Model"):
                 self.model.save(self.model_name, False)
             else:
                 if self.inputs is None:
                     raise RuntimeError(
                         "Saving inference model needs 'inputs' before saving. Please specify 'example_input'"
                     )
-                if isinstance(self.model, paddle.fluid.dygraph.layers.Layer):
-                    with paddle.fluid.framework._dygraph_guard(None):
-                        paddle.jit.save(self.model, self.model_name, input_spec=self.inputs, output_spec=self.outputs)
-                elif isinstance(self.model, paddle.fluid.executor.Executor):
+                if paddle_model_check_instance(self.model, "paddle.nn.layer.layers.Layer") or paddle_model_check_instance(self.model, "paddle.fluid.dygraph.layers.Layer"):
+                    if paddle_class_check("paddle.base.framework._dygraph_guard"):
+                        with paddle.base.framework._dygraph_guard(None):
+                            paddle.jit.save(self.model, self.model_name, input_spec=self.inputs, output_spec=self.outputs)
+                    else:
+                        with paddle.fluid.framework._dygraph_guard(None):
+                            paddle.jit.save(self.model, self.model_name, input_spec=self.inputs, output_spec=self.outputs)
+                elif paddle_model_check_instance(self.model, "paddle.base.Executor") or paddle_model_check_instance(self.model, "paddle.fluid.executor.Executor"):
                     if self.outputs is None:
                         raise RuntimeError(
                             "Model is static. Saving inference model needs 'outputs' before saving. Please specify 'output' for this model"
@@ -68,7 +91,7 @@ class paddle_frontend_converter:
                     paddle.static.save_inference_model(self.model_name, self.inputs, self.outputs, self.model)
                 else:
                     raise RuntimeError(
-                        "Conversion just support paddle.hapi.model.Model, paddle.fluid.dygraph.layers.Layer and paddle.fluid.executor.Executor"
+                        "Conversion just support paddle.hapi.model.Model, paddle.nn.layer.layers.Layer, paddle.fluid.dygraph.layers.Layer, paddle.base.Executor and paddle.fluid.executor.Executor"
                     )
 
             if not os.path.exists(self.pdmodel):

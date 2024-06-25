@@ -189,7 +189,8 @@ jobs:
           if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
             # Find gomp lib
             GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
-            export LD_PRELOAD=${GOMP_LIB}
+            GOMP_LIB_GLOBAL=$(ldconfig -p | grep libgomp | grep AArch64 | awk '{print $4}')
+            export LD_PRELOAD=${GOMP_LIB}:${GOMP_LIB_GLOBAL}
           fi
 
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
