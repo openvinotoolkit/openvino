@@ -26,9 +26,11 @@ RUN apt-get update && \
         python3.8-dev \
         python3.8-venv \
         python3.8-distutils \
+        python3.8-pip \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
+        python3.11-pip \
         # For Java API
         default-jdk \
         # Compiler \
@@ -58,11 +60,11 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 # Setup pip
-ENV PIP_VERSION="24.1"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
+#ENV PIP_VERSION="24.1"
+#RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+#    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+#    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+#    rm -f get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
