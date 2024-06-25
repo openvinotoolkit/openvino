@@ -272,6 +272,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     }
     node.set_output_layout(concat_layout);
     node.can_be_optimized(true);
+    GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
 }
 
 void concat_in_place_optimization::update_in_place_concat_paddings(
@@ -345,10 +346,9 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
     // In case if pad is not propagated, the primitive can't be optimized out
-    // TODO: Just for debug
-    // if (node.get_input_layout(0).has_dynamic_pad() && !node.get_output_layout(0).has_dynamic_pad()) {
-    //     return false;
-    // }
+    if (!node.is_runtime_propagatable_padding() && node.get_input_layout(0).has_dynamic_pad() && !node.get_output_layout(0).has_dynamic_pad()) {
+        return false;
+    }
 
     if (node.has_fused_primitives())
         return false;
@@ -362,34 +362,6 @@ static bool can_reshape_be_optimized(const reshape_node& node) {
         return true;
 
     return false;
-}
-
-static bool can_crop_be_optimized_for_reshape_user(const layout& crop_layout,
-                                                   size_t crop_axis,
-                                                   const reshape_node& reshape_node) {
-    if (reshape_node.has_fused_primitives())
-        return false;
-
-    auto crop_rank = crop_layout.get_partial_shape().size();
-    auto crop_last_dim = crop_rank - 1;
-    if (crop_axis != crop_last_dim)
-        return false;
-
-    auto reshape_desc = reshape_node.get_primitive();
-    auto output_pattern = reshape_desc->output_pattern;
-    auto output_pshape = reshape_desc->output_partial_shape;
-    if (reshape_desc->mode != reshape::reshape_mode::base
-        || output_pshape.size() != crop_rank + 1
-        || output_pattern.empty())
-        return false;
-
-    for (size_t i = 0; i < crop_rank - 1; i++) {
-        if (output_pattern[i] != 0) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 static bool is_optimizable_padding_for_crop(const crop_node& node,
@@ -498,13 +470,8 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<reshape>()) {
             auto& reshape_node = user->as<reshape>();
-            if (node.is_dynamic() || is_runtime) {
-                if (!can_crop_be_optimized_for_reshape_user(crop_layout, node.as<crop>().get_primitive()->axis, reshape_node))
-                    return false;
-            } else {
-                if (can_reshape_be_optimized(reshape_node))
-                    return false;
-            }
+            if (!reshape_node.is_runtime_propagatable_padding() && can_reshape_be_optimized(reshape_node))
+                return false;
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
             return false;
@@ -564,7 +531,7 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
     node.set_output_layout(crop_layout);
     node.can_be_optimized(true);
     propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
-
+    GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
     return false;
 }
 
@@ -729,10 +696,11 @@ void prepare_buffer_fusing::run(program& p) {
             // Optimizing at prepare_buffer_fusing could propagate a padded input of an input nodes to Reshape.
             // Reshape can be optimized out when only an outer axis(batch) has padding.
             // For this case , it should re-calculate output padding size.
-            if (node.has_outer_padding_offset())
+            if (!node.is_runtime_propagatable_padding() && node.has_outer_padding_offset())
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
         });
         program_helpers::do_for_types<kv_cache>(*node, [](kv_cache_node& node) {
             auto kv_out_layout = node.get_output_layout();
@@ -823,6 +791,7 @@ void prepare_buffer_fusing::run(program& p) {
             // TODO: Allow optimizations for the case above too. Looks like it can be achieved by more careful
             // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
             node.can_be_optimized(can_read_value_be_optimize(node));
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
         });
     }
 }
