@@ -7,11 +7,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      image:
-        description: 'Docker image in which the tests would run'
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
         type: string
         required: false
-        default: null
+        default: '{"image": null}'
       affected-components:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
@@ -21,9 +21,9 @@ permissions: read-all
 
 jobs:
   Samples:
+    timeout-minutes: 30
     runs-on: ${{ inputs.runner }}
-    container:
-      image: ${{ inputs.image }}
+    container: ${{ fromJSON(inputs.container) }}
     defaults:
       run:
         shell: bash
@@ -66,6 +66,8 @@ jobs:
         run: brew install coreutils
 
       - name: Fetch setup_python action
+        # Python is already installed on Ubuntu within Dockerfile
+        if: runner.os != 'Linux'
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
@@ -74,6 +76,8 @@ jobs:
           path: 'openvino'
 
       - name: Setup Python 3.11
+        # Python is already installed on Ubuntu within Dockerfile
+        if: runner.os != 'Linux'
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.11'
