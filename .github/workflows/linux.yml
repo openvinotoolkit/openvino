@@ -1,4 +1,4 @@
-name: Linux (Ubuntu 20.04, Python 3.11)
+name: Linux (Ubuntu 20.04, 22.04, 24.04, Python 3.11)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -71,21 +71,36 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_20_04_x64
+            ov_build/ubuntu_22_04_x64
+            ov_build/ubuntu_24_04_x64
             ov_build/ubuntu_20_04_x64_nvidia
             ov_test/ubuntu_20_04_x64
+            ov_test/ubuntu_22_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
+    name: Build (Ubuntu ${{ matrix.os_version }})
     needs: [Docker, Smart_CI]
     timeout-minutes: 150
     defaults:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - os_version: '20'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
+          - os_version: '22'
+            image:  ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+          - os_version: '24'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
+      image: ${{ matrix.image }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -107,7 +122,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu${{ matrix.os_version }}_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
     if: "!needs.smart_ci.outputs.skip_workflow"
 
@@ -257,7 +272,7 @@ jobs:
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
-          name: build_logs
+          name: build_logs_ubuntu_${{ matrix.os_version }}
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
@@ -265,7 +280,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_package
+          name: openvino_package_ubuntu_${{ matrix.os_version }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
@@ -273,7 +288,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_js_package
+          name: openvino_js_package_ubuntu_${{ matrix.os_version }}
           path: ${{ env.INSTALL_DIR_JS }}
           if-no-files-found: 'error'
 
@@ -281,7 +296,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_developer_package
+          name: openvino_developer_package_ubuntu_${{ matrix.os_version }}
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
           if-no-files-found: 'error'
 
@@ -289,7 +304,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_debian_packages
+          name: openvino_debian_packages_ubuntu_${{ matrix.os_version }}
           path: ${{ env.BUILD_DIR }}/*.deb
           if-no-files-found: 'error'
 
@@ -297,7 +312,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_tests
+          name: openvino_tests_ubuntu_${{ matrix.os_version }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
