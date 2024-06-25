@@ -20,8 +20,8 @@ KERNEL(dynamic_quantize_gpu_ref)(
     const uint y = (uint)get_global_id(1);
     const uint scale_idx = OUTPUT1_GET_INDEX(b, f, y, 0);
 
-    half max_val = 0.0h;
-    for (int y_off = 0; y_off < (get_global_size(1) == 1 ? INPUT0_SIZE_Y : 1); y_off++) {        
+    half max_val = 0.0001h;
+    for (int y_off = 0; y_off < (get_global_size(1) == 1 ? INPUT0_SIZE_Y : 1); y_off++) {
         const uint offset = INPUT0_GET_INDEX(b, f, y + y_off, 0);
         int x;
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {

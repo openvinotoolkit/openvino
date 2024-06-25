@@ -81,7 +81,7 @@ protected:
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
 
-            if (!prim->activation_scale.empty()) {
+            if (prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
                 auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::a, true);
@@ -426,7 +426,7 @@ public:
 
                 // FIXME: accessing output_layout(1) looks weird. Need to check proper port.
                 auto act_scale_data_type = convert_data_type(arg.get_dependency(++idx).get_output_layout(true, 1).data_type);
-                attr->set_scales(DNNL_ARG_SRC, (1 << 1), dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
+                attr->set_scales(DNNL_ARG_SRC, (1 << 1) | (1 << 0), dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
             }
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
