@@ -65,11 +65,7 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
 }
 
 ov::frontend::Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
-    const auto& inputs = get_inputs();
-    if (input_idx < inputs.size()) {
-        return inputs.at(input_idx);
-    }
-    return {};
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_input_index);
 }
 
 ov::frontend::Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
