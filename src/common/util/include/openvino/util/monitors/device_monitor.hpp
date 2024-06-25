@@ -15,9 +15,9 @@ namespace monitor {
 class DeviceMonitor {
 public:
     DeviceMonitor(const std::shared_ptr<ov::util::monitor::PerformanceCounter>& PerformanceCounter,
-                  unsigned historySize = 1);
+                  std::size_t historySize = 1);
 
-    DeviceMonitor(unsigned historySize = 1);
+    DeviceMonitor(std::size_t historySize = 1);
     ~DeviceMonitor();
     void set_history_size(std::size_t size);
     std::size_t get_history_size() const;
@@ -28,7 +28,7 @@ public:
     std::map<std::string, double> get_mean_device_load(const std::string& deviceName);
 
 private:
-    unsigned samplesNumber;
+    std::uint32_t samplesNumber;
     std::size_t historySize;
     std::map<std::string, double> deviceLoadSum;
     const std::vector<std::string> supportedDevices = {"CPU", "GPU"};

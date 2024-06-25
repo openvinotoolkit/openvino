@@ -14,17 +14,10 @@ namespace ov {
 namespace util {
 namespace monitor {
 
-DeviceMonitor::DeviceMonitor(unsigned historySize) : samplesNumber{0}, historySize{historySize > 0 ? historySize : 1} {
-    for (auto& device : supportedDevices) {
-        if (device == "CPU")
-            devicesPerformanceCounters[device] = std::make_shared<ov::util::monitor::CpuPerformanceCounter>();
-        if (device == "GPU")
-            devicesPerformanceCounters[device] = std::make_shared<ov::util::monitor::GpuPerformanceCounter>();
-        collect_data(device);
-    }
+DeviceMonitor::DeviceMonitor(std::size_t historySize) : samplesNumber{0}, historySize{historySize > 0 ? historySize : 1} {
 }
 DeviceMonitor::DeviceMonitor(const std::shared_ptr<ov::util::monitor::PerformanceCounter>& performance_counter,
-                             unsigned historySize)
+                             std::size_t historySize)
     : samplesNumber{0},
       historySize{historySize > 0 ? historySize : 1},
       performance_counter{performance_counter} {
@@ -64,8 +57,17 @@ void DeviceMonitor::collect_data(const std::string& deviceName) {
     samplesNumber = 0;
     deviceLoadHistory.clear();
     deviceLoadSum.clear();
-    if (devicesPerformanceCounters.count(deviceName) == 0)
+    auto isSupportedDev =
+        std::find(supportedDevices.begin(), supportedDevices.end(), deviceName) != supportedDevices.end();
+    if (!isSupportedDev) {
         return;
+    }
+    if (devicesPerformanceCounters.count(deviceName) == 0) {
+        if (deviceName == "CPU")
+            devicesPerformanceCounters[deviceName] = std::make_shared<ov::util::monitor::CpuPerformanceCounter>();
+        if (deviceName == "GPU")
+            devicesPerformanceCounters[deviceName] = std::make_shared<ov::util::monitor::GpuPerformanceCounter>();
+    }
     while (deviceLoadHistory.size() < historySize) {
         auto devicesLoad = devicesPerformanceCounters[deviceName]->get_load();
         if (!devicesLoad.empty()) {

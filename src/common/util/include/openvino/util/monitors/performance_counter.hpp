@@ -15,7 +15,7 @@ class PerformanceCounter {
 public:
     PerformanceCounter(std::string deviceName) {}
     virtual std::map<std::string, double> get_load() = 0;
-    std::string name() {
+    const std::string name() {
         return deviceName;
     }
 
