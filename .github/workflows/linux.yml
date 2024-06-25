@@ -165,9 +165,13 @@ jobs:
         run: |
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-
+          
           # For running ONNX frontend unit tests
-          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          if [[ ${{ matrix.os_version }} == '24' ]]; then
+            python3 -m pip install --force-reinstall --no-cache-dir -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          else
+            python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          fi
 
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt

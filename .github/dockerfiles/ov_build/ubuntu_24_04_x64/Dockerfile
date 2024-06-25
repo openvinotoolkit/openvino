@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+FROM ubuntu:24.04
+# FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
 
 USER root
 
@@ -64,6 +65,6 @@ ENV PATH="/venv/bin:$PATH"
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} setuptools wheel
+RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
