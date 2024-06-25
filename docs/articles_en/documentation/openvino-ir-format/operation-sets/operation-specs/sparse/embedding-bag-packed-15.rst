@@ -53,7 +53,7 @@ Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* foll
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
 
    <layer ... type="EmbeddingBagPacked" ... >
        <data reduction="sum"/>
@@ -76,7 +76,7 @@ Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* foll
    </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
 
    <layer ... type="EmbeddingBagPacked" ... >
        <data reduction="sum"/>
@@ -102,7 +102,7 @@ Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* foll
        </output>
    </layer>
 
-.. code-block:: cpp
+.. code-block:: xml
 
    <layer ... type="EmbeddingBagPacked" ... >
        <data reduction="mean"/>

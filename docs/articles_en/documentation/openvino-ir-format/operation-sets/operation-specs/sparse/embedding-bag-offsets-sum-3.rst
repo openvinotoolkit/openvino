@@ -18,9 +18,44 @@ EmbeddingBagOffsetsSum
 
 Operation EmbeddingBagOffsets is an implementation of ``torch.nn.EmbeddingBag`` with indices and offsets inputs being 1D tensors.
 
-For each index in ``indices`` this operator gathers values from ``emb_table`` embedding table. Indices that are in range of same bag based on ``offset`` input values are then reduced using sum  operation.
+For each index in ``indices`` this operator gathers values from ``emb_table`` embedding table. Then values at indices in the range of the same bag (based on ``offset`` input) are reduced according to ``reduction`` attribute.
+
 Values in ``offsets`` define starting index in ``indices`` tensor of each "bag",
 e.g. ``offsets`` with value ``[0, 3, 4, 4, 6]`` define 5 "bags" containing ``[3, 1, 0, 2, num_indices-6]`` elements corresponding to ``[indices[0:3], indices[3:4], empty_bag, indices[4:6], indices[6:]]`` slices of indices per bag.
+
+EmbeddingBagOffsetsSum is an equivalent to following NumPy snippet:
+
+.. code-block:: py
+
+    def embedding_bag_offsets(
+        emb_table: np.ndarray,
+        indices: np.ndarray,
+        offsets: np.ndarray,
+        default_index: Optional[int] = None,
+        per_sample_weights: Optional[np.ndarray] = None,
+    ):
+        if per_sample_weights is None:
+            per_sample_weights = np.ones_like(indices)
+        embeddings = []
+        for emb_idx, emb_weight in zip(indices, per_sample_weights):
+            embeddings.append(emb_table[emb_idx] * emb_weight)
+        previous_offset = offsets[0]
+        bags = []
+        offsets = np.append(offsets, len(indices))
+        for bag_offset in offsets[1:]:
+            bag_size = bag_offset - previous_offset
+            if bag_size != 0:
+                embedding_bag = embeddings[previous_offset:bag_offset]
+                reduced_bag = np.add.reduce(embedding_bag)
+                bags.append(reduced_bag)
+            else:
+                # Empty bag case
+                if default_index is not None and default_index != -1:
+                    bags.append(emb_table[default_index])
+                else:
+                    bags.append(np.zeros(emb_table.shape[1:]))
+            previous_offset = bag_offset
+        return np.stack(bags, axis=0)
 
 **Attributes**: EmbeddingBagOffsetsSum operation has no attributes.
 
@@ -43,7 +78,7 @@ e.g. ``offsets`` with value ``[0, 3, 4, 4, 6]`` define 5 "bags" containing ``[3,
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
 
    <layer ... type="EmbeddingBagOffsetsSum" ... >
        <input>

@@ -38,7 +38,7 @@ Operation is equivalent to *ReduceSum(Multiply(Gather(emb_table, indices, axis=0
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
 
    <layer ... type="EmbeddingBagPackedSum" ... >
        <input>
