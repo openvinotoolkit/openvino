@@ -360,6 +360,8 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
+    // Issue: 144998
+    retVector.emplace_back(R"(.*smoke_CachingSupportCase_CPU/CompileModelCacheTestBase.CompareWithRefImpl/NestedSplitConvConcat_i8.*)");
     // TODO: rounding errors
     retVector.emplace_back(R"(.*iv_secondaryInputType=PARAMETER_opType=VECTOR_NetType=i32.*)");
     // not supported
