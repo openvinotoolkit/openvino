@@ -849,8 +849,8 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
 
     // pattern for LSTMCell in the body
     auto xi_label = pattern::wrap_type<op::v0::Parameter>();
-    auto new_xi_shape_label = pattern::wrap_type<op::v0::Constant>();
-    auto xi_reshape_label = pattern::wrap_type<op::v1::Reshape>({xi_label, new_xi_shape_label});
+    auto squeeze_axis_label = pattern::wrap_type<op::v0::Constant>();
+    auto xi_reshape_label = pattern::wrap_type<op::v0::Squeeze>({xi_label, squeeze_axis_label});
     auto init_hidden_state_i_label = pattern::wrap_type<op::v0::Parameter>();
     auto init_cell_state_i_label = pattern::wrap_type<op::v0::Parameter>();
     auto W_label = pattern::wrap_type<op::v0::Constant>();
@@ -858,9 +858,8 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
     auto B_label = pattern::wrap_type<op::v0::Constant>();
     auto lstm_cell_label = pattern::wrap_type<op::v4::LSTMCell>(
         {xi_reshape_label, init_hidden_state_i_label, init_cell_state_i_label, W_label, R_label, B_label});
-    auto new_shape_hidden_state_label = pattern::wrap_type<op::v0::Constant>();
-    auto unsqueeze_hidden_state_label =
-        pattern::wrap_type<op::v1::Reshape>({lstm_cell_label, new_shape_hidden_state_label});
+    auto unsqueeze_axis_label = pattern::wrap_type<op::v0::Constant>();
+    auto unsqueeze_hidden_state_label = pattern::wrap_type<op::v0::Unsqueeze>({lstm_cell_label, unsqueeze_axis_label});
     auto result_hidden_state_label = pattern::wrap_type<op::v0::Result>({unsqueeze_hidden_state_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
