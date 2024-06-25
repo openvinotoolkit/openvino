@@ -5,6 +5,7 @@
 #include "behavior/compiled_model/properties.hpp"
 
 #include "behavior/compiled_model/properties_hetero.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -22,7 +23,7 @@ const std::vector<ov::AnyMap> hetero_properties = {
 
 const std::vector<ov::AnyMap> heteroConfigsWithSecondaryProperties = {
     {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     ov::device::properties("HETERO",
+     ov::device::properties(ov::test::utils::DEVICE_HETERO,
                             ov::enable_profiling(false),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
     {ov::device::priorities(ov::test::utils::DEVICE_CPU),
@@ -35,14 +36,14 @@ const std::vector<ov::AnyMap> heteroConfigsWithSecondaryProperties = {
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
      ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))},
     {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-     ov::device::properties("HETERO",
+     ov::device::properties(ov::test::utils::DEVICE_HETERO,
                             ov::enable_profiling(false),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
      ov::device::properties("CPU",
                             ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
     {ov::device::priorities(ov::test::utils::DEVICE_GPU),
-     ov::device::properties("HETERO",
+     ov::device::properties(ov::test::utils::DEVICE_HETERO,
                             ov::enable_profiling(false),
                             ov::device::priorities(ov::test::utils::DEVICE_CPU),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
@@ -53,7 +54,7 @@ const std::vector<ov::AnyMap> heteroConfigsWithSecondaryProperties = {
 
 INSTANTIATE_TEST_SUITE_P(nightly_HETERO_OVClassCompileModelWithCorrectPropertiesTest,
                          OVClassCompileModelWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values("HETERO"),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
                                             ::testing::ValuesIn(heteroConfigsWithSecondaryProperties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
