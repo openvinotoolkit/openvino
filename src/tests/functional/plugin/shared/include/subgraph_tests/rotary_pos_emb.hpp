@@ -52,7 +52,7 @@ TEST_P(RoPETestGPTJ, CompareWithRefs) {
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
-TEST_P(RoPETestRotateHalfWOTranspose, CompareWithRefs) {
+TEST_P(RoPETestRotateHalfWithoutTranspose, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();

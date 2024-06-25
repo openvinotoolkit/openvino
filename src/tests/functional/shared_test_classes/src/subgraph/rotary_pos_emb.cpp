@@ -586,7 +586,7 @@ void RoPETestGPTJ::SetUp() {
     function = buildROPE_GPTJ(num_head, hidden_dims, rotary_dims, hasShapeOf);
 }
 
-ov::OutputVector RoPETestRotateHalfWOTranspose::makeCosSinCache(int max_position_embeddings, int rotary_ndims) {
+ov::OutputVector RoPETestRotateHalfWithoutTranspose::makeCosSinCache(int max_position_embeddings, int rotary_ndims) {
     std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
     std::vector<float> lut_cos(max_position_embeddings * rotary_ndims, 0.0f);
 
@@ -611,11 +611,12 @@ ov::OutputVector RoPETestRotateHalfWOTranspose::makeCosSinCache(int max_position
     return {Cos, Sin};
 }
 
-std::shared_ptr<ov::Model> RoPETestRotateHalfWOTranspose::buildROPE_RotateHalfWOTranspose(int batch,
-                                                                                          int seq_length,
-                                                                                          int max_position_embeddings,
-                                                                                          int num_head,
-                                                                                          int ndims) {
+std::shared_ptr<ov::Model>
+    RoPETestRotateHalfWithoutTranspose::buildROPE_RotateHalfWithoutTranspose(int batch,
+                                                                             int seq_length,
+                                                                             int max_position_embeddings,
+                                                                             int num_head,
+                                                                             int ndims) {
     auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{batch, num_head, -1, ndims});
     auto pos_id_end = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{});
     auto pos_ids = std::make_shared<ov::opset1::Parameter>(ov::element::i32, PartialShape{1, -1});
@@ -689,7 +690,7 @@ std::shared_ptr<ov::Model> RoPETestRotateHalfWOTranspose::buildROPE_RotateHalfWO
     return std::make_shared<ov::Model>(ov::NodeVector{add_Add}, ov::ParameterVector{input, pos_id_end, pos_ids});
 }
 
-ov::Tensor RoPETestRotateHalfWOTranspose::create_i32_tensor(const ov::Shape& shape, int start, int step) {
+ov::Tensor RoPETestRotateHalfWithoutTranspose::create_i32_tensor(const ov::Shape& shape, int start, int step) {
     auto tensor = ov::Tensor(ov::element::i32, shape);
     auto* ptr = static_cast<int32_t*>(tensor.data());
     for (size_t i = 0; i < tensor.get_size(); i++) {
@@ -699,7 +700,7 @@ ov::Tensor RoPETestRotateHalfWOTranspose::create_i32_tensor(const ov::Shape& sha
     return tensor;
 }
 
-void RoPETestRotateHalfWOTranspose::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+void RoPETestRotateHalfWithoutTranspose::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     const auto& funcInputs = function->inputs();
 
     const int position_id_start = 15;
@@ -720,7 +721,7 @@ void RoPETestRotateHalfWOTranspose::generate_inputs(const std::vector<ov::Shape>
     inputs.insert({funcInputs[2].get_node_shared_ptr(), t_position_ids});
 }
 
-void RoPETestRotateHalfWOTranspose::SetUp() {
+void RoPETestRotateHalfWithoutTranspose::SetUp() {
     targetDevice = this->GetParam();
 
     const int batch = 2;
@@ -731,10 +732,10 @@ void RoPETestRotateHalfWOTranspose::SetUp() {
 
     InputShape inpShape = {{batch, num_head, seq_length, ndims}, {{batch, num_head, seq_length, ndims}}};
     init_input_shapes({inpShape});
-    function = buildROPE_RotateHalfWOTranspose(batch, seq_length, max_position_embeddings, num_head, ndims);
+    function = buildROPE_RotateHalfWithoutTranspose(batch, seq_length, max_position_embeddings, num_head, ndims);
 }
 
-std::string RoPETestRotateHalfWOTranspose::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+std::string RoPETestRotateHalfWithoutTranspose::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
     std::string targetDevice = obj.param;
     std::ostringstream result;
     result << "targetDevice=" << targetDevice;

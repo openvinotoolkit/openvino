@@ -23,10 +23,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLlama2,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
                          RoPETestLlama2::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_RoPETestRotateHalfWOTranspose,
-                         RoPETestRotateHalfWOTranspose,
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestRotateHalfWithoutTranspose,
+                         RoPETestRotateHalfWithoutTranspose,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
-                         RoPETestRotateHalfWOTranspose::getTestCaseName);
+                         RoPETestRotateHalfWithoutTranspose::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov
