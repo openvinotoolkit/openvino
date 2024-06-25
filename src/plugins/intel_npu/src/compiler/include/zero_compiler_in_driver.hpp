@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "iexternal_compiler.hpp"
+#include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
@@ -43,22 +43,27 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
  * Adapter to use CiD through ZeroAPI
  */
 template <typename TableExtension>
-class LevelZeroCompilerInDriver final : public IExternalCompiler {
+class LevelZeroCompilerInDriver final : public ICompiler {
 public:
     LevelZeroCompilerInDriver(const char* extName, ze_driver_handle_t driverHandle);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
     ~LevelZeroCompilerInDriver() override;
 
-    uint32_t getSupportedOpset() const override;
+    uint32_t getSupportedOpsetVersion() const override final;
 
-    std::unordered_set<std::string> getQueryResult(const std::shared_ptr<const ov::Model>& model,
-                                                   const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    NetworkDescription compileIR(const std::shared_ptr<const ov::Model>& model,
-                                 const Config& config) const override final;
+    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
+                               const Config& config) const override final;
 
-    NetworkMetadata parseBlob(const std::vector<uint8_t>& blob, const Config& config) const override final;
+    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
+
+    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
+                                                            const std::vector<uint8_t>& network,
+                                                            const Config& config) const override final {
+        OPENVINO_THROW("Profiling post-processing is not implemented.");
+    }
 
     template <typename T = TableExtension, std::enable_if_t<!NotSupportQuery(T), bool> = true>
     std::unordered_set<std::string> getQueryResultFromSupportedLayers(
