@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "common_op_table.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -14,7 +18,7 @@ namespace op {
 
 OutputVector translate_pack_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Pack", "PACK"}, true);
-    
+
     auto num_size = static_cast<int>(node.get_input_size());
     auto axis = node.get_attribute<int64_t>("axis", 0);
     auto axis_const = make_shared<v0::Constant>(element::i64, Shape{}, axis);
