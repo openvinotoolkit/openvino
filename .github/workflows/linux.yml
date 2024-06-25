@@ -163,11 +163,6 @@ jobs:
 
       - name: Install python dependencies
         run: |
-          
-          if [[ ${{ matrix.os_version }} == '24' ]]; then
-            CMAKE_ARGS=-DONNX_USE_PROTOBUF_SHARED_LIBS=ON
-          fi
-          
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
