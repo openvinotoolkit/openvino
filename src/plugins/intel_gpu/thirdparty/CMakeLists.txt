@@ -87,7 +87,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         # remove CMAKE_COMPILE_WARNING_AS_ERROR for onednn_gpu
         if(WIN32 AND CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_VERSION VERSION_LESS 3.24)
-            ov_add_compiler_flags(/WX:NO)
+            ov_add_compiler_flags(/WX-)
         endif()
 
         ExternalProject_Add(onednn_gpu_build

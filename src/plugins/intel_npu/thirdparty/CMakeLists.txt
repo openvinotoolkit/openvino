@@ -15,7 +15,7 @@ if(ENABLE_ZEROAPI_BACKEND)
 
     # Skip warnings as errors for thirdparty
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        ov_add_compiler_flags(/WX:NO)
+        ov_add_compiler_flags(/WX-)
         # solve pdb access issue
         set(USE_Z7 ON)
         # Close spectre for ze loader
