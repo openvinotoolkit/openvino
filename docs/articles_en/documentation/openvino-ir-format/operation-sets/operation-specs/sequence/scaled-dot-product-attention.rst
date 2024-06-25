@@ -60,7 +60,7 @@ omitting training-related parameter.
 
 * **4**: ``attention_mask`` - two options available. ``attention_mask`` is ignored if ``causal`` is set to ``True``. **Optional.**
 
-	* at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[N, ..., L, S]``.
+	* at least 3 dimensional tensor of type *T* or ``boolean`` and shape ``[N, ..., L or 1, S]``, if the dimension ``L`` is equal to ``1`` it is broadcasted to the ``L`` dimension of the ``query`` input.
 
 	* a scalar of type *T* with value ``0``. Scalar zero value signals that applying an attention mask is not necessary (similar to specifying attention_mask=None in the provided pseudo-code).
 
