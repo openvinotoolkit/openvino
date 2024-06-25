@@ -471,15 +471,7 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
 }
 
 int64_t ov::Model::get_result_index(const ov::op::v0::Result& result) const {
-    int64_t pos = 0;
-    auto result_ptr = result.shared_from_this();
-    for (auto r : get_results()) {
-        if (r == result_ptr) {
-            return pos;
-        }
-        pos++;
-    }
-    return -1;
+    return get_result_index(result.get_default_output());
 }
 
 bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
