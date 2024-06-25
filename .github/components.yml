@@ -14,6 +14,8 @@ LP_transformations:
     - ONNX_FE
     - PDPD_FE
     - JAX_FE
+  build:
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 preprocessing:
   revalidate:
@@ -40,6 +42,7 @@ CPU:
     - AUTO_BATCH
     - TEMPLATE
     - IR_FE
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 GPU:
   build:
@@ -126,7 +129,7 @@ TF_FE:
   build:
     - CPU
     - Python_API
-    - TOKENIZERS
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 TFL_FE:
   revalidate:
@@ -141,7 +144,6 @@ PyTorch_FE:
   build:
     - CPU
     - Python_API
-    - TOKENIZERS
 
 JAX_FE:
   revalidate:
@@ -164,6 +166,7 @@ Python_API:
     - samples
     - MO
     - tools
+    - TF_FE
   build:
     - CPU
     - HETERO
@@ -173,10 +176,10 @@ Python_API:
     - IR_FE
     - ONNX_FE
     - PDPD_FE
-    - TF_FE
     - TFL_FE
     - PyTorch_FE
     - JAX_FE
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 JS_API:
   build:
@@ -210,6 +213,7 @@ MO:
     - TF_FE
   build:
     - Python_API
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 tools:
   build:
@@ -233,5 +237,6 @@ ONNX_RT:
   build: []
 
 TOKENIZERS:
-  revalidate: []
+  revalidate:
+    - TF_FE
   build: []
