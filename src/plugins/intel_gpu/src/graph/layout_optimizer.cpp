@@ -1782,7 +1782,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // Return default format for output layout rank when user node is reshape
         // to add reorder in front of reshape in reorder_input stage instead of handle_reshpae stage.
         // It is only applied for the dynamic shape with static input shape
-        if (!node.is_dynamic() &&  has_reshape_user(node))
+        // In order to use onednn-convolution, we should not use the default format.
+        if (!(use_onednn_impls && node.is_type<convolution>()) && !node.is_dynamic() &&  has_reshape_user(node))
             return format::get_default_format(out_lay_rank);
 
         if (node.is_type<shape_of>())
