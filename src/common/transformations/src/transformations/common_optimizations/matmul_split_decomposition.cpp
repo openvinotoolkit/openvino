@@ -133,10 +133,17 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         const auto& reshape = pattern_map.at(reshape_pattern);
         auto concat = reshape.get_node_shared_ptr()->input_value(1);
 
-        NodeVector gathers;
+        NodeVector gathers, fake_quantizes;
         gathers.resize(3);
+        fake_quantizes.resize(3);
         for (auto& child : children) {
+            std::shared_ptr<ov::Node> fq = nullptr;
             auto gather = child.get_node()->shared_from_this();
+            if (ov::is_type<opset1::FakeQuantize>(gather)) {
+                PRINT << "Have FQ before gather===========" << std::endl;
+                fq = gather->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+                gather = fq;
+            }
             if (ov::is_type<ov::op::util::GatherBase>(gather)) {
                 const auto axis_node = as_type_ptr<opset6::Constant>(gather->input_value(2).get_node_shared_ptr());
                 if (axis_node) {
@@ -164,6 +171,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                         return false;
                     }
                     gathers[indices_val[0]] = gather;
+                    fake_quantizes[indices_val[0]] = fq;
                 } else {
                     PRINT << "Matched 2: EXIT:indices_node is not Constant" << std::endl;
                     return false;
@@ -225,7 +233,13 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
             auto transpose_order = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
             auto new_transpose = register_new_node<v1::Transpose>(new_reshape, transpose_order);
             new_transpose->set_friendly_name(gathers[i]->get_friendly_name());
-            replace_node(gathers[i], new_transpose);
+
+            if (fake_quantizes[i]) {
+                fake_quantizes[i]->set_argument(0, new_transpose);
+                replace_node(gathers[i], fake_quantizes[i]);
+            } else {
+                replace_node(gathers[i], new_transpose);
+            }
 
             PRINT << "Matched 4." << i << ": replace done=============\n";
         }
