@@ -820,6 +820,9 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None, None
+    ovc_message = get_ovc_message()
+    if ovc_message is not None:
+        print(ovc_message)
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
     telemetry = init_mo_telemetry()
     telemetry.start_session('mo')
@@ -908,14 +911,11 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
             ov_update_message = get_ov_update_message()
             ov_api20_message = get_ov_api20_message()
-            ovc_message = get_ovc_message()
             _, is_caffe, is_mxnet, is_kaldi, _ = deduce_legacy_frontend_by_namespace(argv)
             if ov_update_message is not None:
                 print(ov_update_message)
             if ov_api20_message is not None and ov_model is not None:
                 print(ov_api20_message)
-            if ovc_message is not None and not is_caffe and not is_mxnet and not is_kaldi:
-                print(ovc_message)
             is_fallback = getattr(argv, 'is_fallback', False)
             if not argv.use_legacy_frontend and framework_is_tf(args, argv) and not is_fallback:
                 # now TF FE is default frontend for TensorFlow models conversion
