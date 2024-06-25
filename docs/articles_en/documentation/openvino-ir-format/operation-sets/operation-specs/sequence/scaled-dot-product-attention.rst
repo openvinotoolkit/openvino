@@ -231,3 +231,42 @@ Other batch dimensions ``...`` are optional.
 				</port>
 			</output>
 		</layer>
+
+*Example 5: With attention mask broadcasting*
+
+.. code-block:: xml
+   :force:
+
+    <layer id="285" name="aten::scaled_dot_product_attention_0" type="ScaledDotProductAttention" version="opset13">
+			<data causal="false" />
+			<input>
+				<!-- Example with simple dimensions, with N = 2, L = 16, S = 32, E = 80, Ev = 80-->
+				<port id="0" precision="FP32"> <!-- query -->
+					<dim>2</dim>  <!-- N -->
+					<dim>16</dim> <!-- L -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="1" precision="FP32"> <!-- key -->
+					<dim>2</dim>  <!-- N -->
+					<dim>32</dim> <!-- S -->
+					<dim>80</dim> <!-- E -->
+				</port>
+				<port id="2" precision="FP32"> <!-- value -->
+					<dim>2</dim>  <!-- N -->
+					<dim>32</dim> <!-- S -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+				<port id="3" precision="FP32"> <!-- attention_mask -->
+					<dim>2</dim>  <!-- N -->
+					<dim>1</dim>  <!-- to be broadcasted to L -->
+					<dim>32</dim> <!-- S -->
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>2</dim>  <!-- N -->
+					<dim>16</dim> <!-- L -->
+					<dim>80</dim> <!-- Ev -->
+				</port>
+			</output>
+		</layer>
