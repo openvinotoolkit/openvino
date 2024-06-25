@@ -20,9 +20,9 @@ main  .searchForm {
 pre {
     white-space: pre-wrap;
     word-wrap: break-word;
-    background-color: white;
-    color: red !important;
-}
+    /*background-color: white;
+     color: red !important; */
+}   /*confirm this is not necessary, if so, remove */
 
 button.copybtn {
     opacity: 100;
@@ -146,6 +146,10 @@ nav.bd-links .current>a {
     white-space: nowrap;
     padding-right: 0;
     padding: 0 0.8rem;
+}
+
+a.nav-link:hover {
+    text-decoration:none !important;
 }
 
 /* Github icon size */

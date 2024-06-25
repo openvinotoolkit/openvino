@@ -8,9 +8,13 @@
  */
 #pragma once
 
-#include "snippets_isa.hpp"
-#include "emitter.hpp"
-#include "shape_types.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/constant.hpp"
 
 
 namespace ov {
@@ -19,10 +23,10 @@ namespace utils {
 
 // Get non-scalar Constant count that will be created after FakeQuantize decomposition.
 // This count is needed to know exact count of non-scalar Constants during tokenization.
-auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::opset1::FakeQuantize>& fq) -> size_t;
+auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t;
 
 inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_node) -> bool {
-    return ov::is_type<ov::opset1::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
+    return ov::is_type<ov::op::v0::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
 }
 
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
@@ -73,7 +77,42 @@ inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
     return is_dynamic_vdims(*shape);
 }
 
-void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+inline T dynamic_safe_add(const T& lhs, const T& rhs) {
+    if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
+        return utils::get_dynamic_value<T>();
+    }
+    return lhs + rhs;
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+inline T dynamic_safe_mul(const T& lhs, const T& rhs) {
+    if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
+        return utils::get_dynamic_value<T>();
+    }
+    return lhs * rhs;
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+inline std::string value2str(const T& value) {
+    return utils::is_dynamic_value(value) ? "?" : std::to_string(value);
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+std::string vector2str(const std::vector<T>& values) {
+    std::ostringstream str;
+    bool first = true;
+    for (auto& v : values) {
+        if (!first) {
+            str << ",";
+        }
+        str << value2str(v);
+        first = false;
+    }
+    return str.str();
+}
+
+bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
 VectorDims pshape_to_vdims(const PartialShape&);
 ov::PartialShape vdims_to_pshape(const VectorDims&);
@@ -203,6 +242,44 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std
  * @return the first leaf shape infer node or nullptr.
  */
 std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node);
+
+/**
+ * @brief Calculate leading dimension of the shape that should be read according to the layout
+ * @param shape original (not reordered) input shape
+ * @param layout specifies the order in what dimensions of in the input shape should be read
+ * @return stride of the dimension idx = layout[layout.size() - 2] in the original shape
+   Example:
+         Original shape (shape) = [1, 49, 2, 23]
+         Layout (transpose order) = [2, 0, 1, 3]
+
+         dim_idx = layout.size() - 2 = 2
+         // Since layout specifies the order of dimensions in which the shape should be read
+         dim = layout[dim_idx] = 1
+         stride(shape[1]) = shape[2] * shape[3] = 2 * 23
+ */
+size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
+inline size_t get_in_leading_dim(const lowered::PortDescriptorPtr& pd) {
+    return get_in_leading_dim(pd->get_shape(), pd->get_layout());
+}
+/**
+ *
+ * @param shape reordered input shape that is stored according to the layout
+ * @param layout specifies the order in what the dimensions of the input shape are stored
+ * @return
+     Output shape is already transposed, we need to correctly write the data with original shape by the order
+     Example:
+          Original transposed shape (shape) = [49, 2, 7, 39]
+          Layout (transpose order) = [2, 0, 1, 3]
+
+          dim_idx = layout.size() - 2 = 2
+          // Since the shape dimensions are already reordered according to the layout
+          dim = /find dim_idx index in layout/ = 0
+          stride(shape[0]) = shape[1] * shape[2] * shape[3] = 2 * 7 * 39
+ */
+size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
+inline size_t get_out_leading_dim(const lowered::PortDescriptorPtr& pd) {
+    return get_out_leading_dim(pd->get_shape(), pd->get_layout());
+}
 
 } // namespace utils
 } // namespace snippets

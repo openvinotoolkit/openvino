@@ -20,8 +20,9 @@ The tutorial consists of the following steps:
 - Prepare and run optimization pipeline.
 - Compare performance of the FP32 and quantized models.
 - Compare accuracy of the FP32 and quantized models.
-- Other optimization possibilities with OpenVINO api.
-- Live demo.
+- Other optimization possibilities with OpenVINO api
+- Live demo
+
 
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
@@ -110,7 +111,7 @@ Install necessary packages.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
-    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.1.42" onnx tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.2.24" onnx tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.

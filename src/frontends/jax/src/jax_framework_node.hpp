@@ -13,8 +13,8 @@ namespace jax {
 class JaxFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("JaxFrameworkNode", "util", ::ov::op::util::FrameworkNode);
-    static constexpr const char* op_type_key = "PtTypeName";
-    static constexpr const char* failed_conversion_key = "PtException";
+    static constexpr const char* op_type_key = "JaxTypeName";
+    static constexpr const char* failed_conversion_key = "JaxException";
 
     JaxFrameworkNode(const std::shared_ptr<JaxDecoder>& decoder, const OutputVector& inputs, size_t output_size)
         : ov::op::util::FrameworkNode(inputs, output_size, 0),

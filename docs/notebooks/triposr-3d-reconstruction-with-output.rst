@@ -13,7 +13,10 @@ HuggingFace <https://huggingface.co/spaces/stabilityai/TripoSR>`__.
 Also, you can read the paper `TripoSR: Fast 3D Object Reconstruction
 from a Single Image <https://arxiv.org/abs/2403.02151>`__.
 
+.. figure:: https://raw.githubusercontent.com/VAST-AI-Research/TripoSR/main/figures/teaser800.gif
+   :alt: Teaser Video
 
+   Teaser Video
 
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
@@ -33,24 +36,22 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q wheel setuptools pip --upgrade
     %pip install -q "gradio>=4.19" "torch==2.2.2" rembg trimesh einops "omegaconf>=2.3.0" "transformers>=4.35.0" "openvino>=2024.0.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/tatsy/torchmcubes.git"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
     mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.0+cpu which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 3.20.3 which is incompatible.
-    torchaudio 2.3.0+cpu requires torch==2.3.0, but you have torch 2.2.2+cpu which is incompatible.
-    torchvision 0.18.0+cpu requires torch==2.3.0, but you have torch 2.2.2+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
+    pyannote-audio 2.0.1 requires speechbrain<0.6,>=0.5.12, but you have speechbrain 1.0.0 which is incompatible.
+    torchaudio 2.3.1+cpu requires torch==2.3.1, but you have torch 2.2.2+cpu which is incompatible.
+    torchvision 0.18.1+cpu requires torch==2.3.1, but you have torch 2.2.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -58,10 +59,10 @@ Prerequisites
 
     import sys
     from pathlib import Path
-
+    
     if not Path("TripoSR").exists():
         !git clone https://huggingface.co/spaces/stabilityai/TripoSR
-
+    
     sys.path.append("TripoSR")
 
 
@@ -69,11 +70,11 @@ Prerequisites
 
     Cloning into 'TripoSR'...
     remote: Enumerating objects: 117, done.[K
-    remote: Counting objects: 100% (117/117), done.[K
-    remote: Compressing objects: 100% (77/77), done.[K
-    remote: Total 117 (delta 38), reused 117 (delta 38), pack-reused 0 (from 0)[K
-    Receiving objects: 100% (117/117), 568.99 KiB | 2.63 MiB/s, done.
-    Resolving deltas: 100% (38/38), done.
+    remote: Counting objects: 100% (113/113), done.[K
+    remote: Compressing objects: 100% (111/111), done.[K
+    remote: Total 117 (delta 36), reused 0 (delta 0), pack-reused 4 (from 1)[K
+    Receiving objects: 100% (117/117), 569.16 KiB | 2.03 MiB/s, done.
+    Resolving deltas: 100% (36/36), done.
 
 
 Get the original model
@@ -82,10 +83,10 @@ Get the original model
 .. code:: ipython3
 
     import os
-
+    
     from tsr.system import TSR
-
-
+    
+    
     model = TSR.from_pretrained(
         "stabilityai/TripoSR",
         config_name="config.yaml",
@@ -227,10 +228,10 @@ file.
 .. code:: ipython3
 
     import torch
-
+    
     import openvino as ov
-
-
+    
+    
     def convert(model: torch.nn.Module, xml_path: str, example_input):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -238,7 +239,7 @@ file.
             with torch.no_grad():
                 converted_model = ov.convert_model(model, example_input=example_input)
             ov.save_model(converted_model, xml_path, compress_to_fp16=False)
-
+    
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -255,22 +256,22 @@ models one by one.
 .. code:: ipython3
 
     VIT_PATCH_EMBEDDINGS_OV_PATH = Path("models/vit_patch_embeddings_ir.xml")
-
-
+    
+    
     class PatchEmbedingWrapper(torch.nn.Module):
         def __init__(self, patch_embeddings):
             super().__init__()
             self.patch_embeddings = patch_embeddings
-
+    
         def forward(self, pixel_values, interpolate_pos_encoding=True):
             outputs = self.patch_embeddings(pixel_values=pixel_values, interpolate_pos_encoding=True)
             return outputs
-
-
+    
+    
     example_input = {
         "pixel_values": torch.rand([1, 3, 512, 512], dtype=torch.float32),
     }
-
+    
     convert(
         PatchEmbedingWrapper(model.image_tokenizer.model.embeddings.patch_embeddings),
         VIT_PATCH_EMBEDDINGS_OV_PATH,
@@ -280,20 +281,20 @@ models one by one.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:167: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:167: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_channels != self.num_channels:
 
 
 .. code:: ipython3
 
     VIT_ENCODER_OV_PATH = Path("models/vit_encoder_ir.xml")
-
-
+    
+    
     class EncoderWrapper(torch.nn.Module):
         def __init__(self, encoder):
             super().__init__()
             self.encoder = encoder
-
+    
         def forward(
             self,
             hidden_states=None,
@@ -305,14 +306,14 @@ models one by one.
             outputs = self.encoder(
                 hidden_states=hidden_states,
             )
-
+    
             return outputs.last_hidden_state
-
-
+    
+    
     example_input = {
         "hidden_states": torch.rand([1, 1025, 768], dtype=torch.float32),
     }
-
+    
     convert(
         EncoderWrapper(model.image_tokenizer.model.encoder),
         VIT_ENCODER_OV_PATH,
@@ -339,7 +340,7 @@ models one by one.
         "hidden_states": torch.rand([1, 1024, 3072], dtype=torch.float32),
         "encoder_hidden_states": torch.rand([1, 1025, 768], dtype=torch.float32),
     }
-
+    
     BACKBONE_OV_PATH = Path("models/backbone_ir.xml")
     convert(model.backbone, BACKBONE_OV_PATH, example_input)
 
@@ -362,8 +363,8 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     import ipywidgets as widgets
-
-
+    
+    
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -371,7 +372,7 @@ Select device from dropdown list for running inference using OpenVINO.
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -388,7 +389,7 @@ Select device from dropdown list for running inference using OpenVINO.
     compiled_vit_patch_embeddings = core.compile_model(VIT_PATCH_EMBEDDINGS_OV_PATH, device.value)
     compiled_vit_model_encoder = core.compile_model(VIT_ENCODER_OV_PATH, device.value)
     compiled_vit_model_pooler = core.compile_model(VIT_POOLER_OV_PATH, device.value)
-
+    
     compiled_tokenizer = core.compile_model(TOKENIZER_OV_PATH, device.value)
     compiled_backbone = core.compile_model(BACKBONE_OV_PATH, device.value)
     compiled_post_processor = core.compile_model(POST_PROCESSOR_OV_PATH, device.value)
@@ -400,28 +401,28 @@ classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     from collections import namedtuple
-
-
+    
+    
     class VitPatchEmdeddingsWrapper(torch.nn.Module):
         def __init__(self, vit_patch_embeddings, model):
             super().__init__()
             self.vit_patch_embeddings = vit_patch_embeddings
             self.projection = model.projection
-
+    
         def forward(self, pixel_values, interpolate_pos_encoding=False):
             inputs = {
                 "pixel_values": pixel_values,
             }
             outs = self.vit_patch_embeddings(inputs)[0]
-
+    
             return torch.from_numpy(outs)
-
-
+    
+    
     class VitModelEncoderWrapper(torch.nn.Module):
         def __init__(self, vit_model_encoder):
             super().__init__()
             self.vit_model_encoder = vit_model_encoder
-
+    
         def forward(
             self,
             hidden_states,
@@ -433,60 +434,60 @@ classes return ``torch.Tensor``\ s instead of ``np.array``\ s.
             inputs = {
                 "hidden_states": hidden_states.detach().numpy(),
             }
-
+    
             outs = self.vit_model_encoder(inputs)
             outputs = namedtuple("BaseModelOutput", ("last_hidden_state", "hidden_states", "attentions"))
-
+    
             return outputs(torch.from_numpy(outs[0]), None, None)
-
-
+    
+    
     class VitModelPoolerWrapper(torch.nn.Module):
         def __init__(self, vit_model_pooler):
             super().__init__()
             self.vit_model_pooler = vit_model_pooler
-
+    
         def forward(self, hidden_states):
             outs = self.vit_model_pooler(hidden_states.detach().numpy())[0]
-
+    
             return torch.from_numpy(outs)
-
-
+    
+    
     class TokenizerWrapper(torch.nn.Module):
         def __init__(self, tokenizer, model):
             super().__init__()
             self.tokenizer = tokenizer
             self.detokenize = model.detokenize
-
+    
         def forward(self, batch_size):
             outs = self.tokenizer(batch_size)[0]
-
+    
             return torch.from_numpy(outs)
-
-
+    
+    
     class BackboneWrapper(torch.nn.Module):
         def __init__(self, backbone):
             super().__init__()
             self.backbone = backbone
-
+    
         def forward(self, hidden_states, encoder_hidden_states):
             inputs = {
                 "hidden_states": hidden_states,
                 "encoder_hidden_states": encoder_hidden_states.detach().numpy(),
             }
-
+    
             outs = self.backbone(inputs)[0]
-
+    
             return torch.from_numpy(outs)
-
-
+    
+    
     class PostProcessorWrapper(torch.nn.Module):
         def __init__(self, post_processor):
             super().__init__()
             self.post_processor = post_processor
-
+    
         def forward(self, triplanes):
             outs = self.post_processor(triplanes)[0]
-
+    
             return torch.from_numpy(outs)
 
 Replace all models in the original model by wrappers instances:
@@ -499,7 +500,7 @@ Replace all models in the original model by wrappers instances:
     )
     model.image_tokenizer.model.encoder = VitModelEncoderWrapper(compiled_vit_model_encoder)
     model.image_tokenizer.model.pooler = VitModelPoolerWrapper(compiled_vit_model_pooler)
-
+    
     model.tokenizer = TokenizerWrapper(compiled_tokenizer, model.tokenizer)
     model.backbone = BackboneWrapper(compiled_backbone)
     model.post_processor = PostProcessorWrapper(compiled_post_processor)
@@ -512,30 +513,30 @@ Interactive inference
 .. code:: ipython3
 
     import tempfile
-
+    
     import gradio as gr
     import numpy as np
     import rembg
     from PIL import Image
-
+    
     from tsr.utils import remove_background, resize_foreground, to_gradio_3d_orientation
-
-
+    
+    
     rembg_session = rembg.new_session()
-
-
+    
+    
     def check_input_image(input_image):
         if input_image is None:
             raise gr.Error("No image uploaded!")
-
-
+    
+    
     def preprocess(input_image, do_remove_background, foreground_ratio):
         def fill_background(image):
             image = np.array(image).astype(np.float32) / 255.0
             image = image[:, :, :3] * image[:, :, 3:4] + (1 - image[:, :, 3:4]) * 0.5
             image = Image.fromarray((image * 255.0).astype(np.uint8))
             return image
-
+    
         if do_remove_background:
             image = input_image.convert("RGB")
             image = remove_background(image, rembg_session)
@@ -546,8 +547,8 @@ Interactive inference
             if image.mode == "RGBA":
                 image = fill_background(image)
         return image
-
-
+    
+    
     def generate(image):
         scene_codes = model(image, "cpu")  # the device is provided for the image processor
         mesh = model.extract_mesh(scene_codes)[0]
@@ -555,8 +556,8 @@ Interactive inference
         mesh_path = tempfile.NamedTemporaryFile(suffix=".obj", delete=False)
         mesh.export(mesh_path.name)
         return mesh_path.name
-
-
+    
+    
     with gr.Blocks() as demo:
         with gr.Row(variant="panel"):
             with gr.Column():
@@ -604,7 +605,7 @@ Interactive inference
             inputs=[processed_image],
             outputs=[output_model],
         )
-
+    
     try:
         demo.launch(debug=False, height=680)
     except Exception:
@@ -617,7 +618,7 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 

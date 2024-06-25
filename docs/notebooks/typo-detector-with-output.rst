@@ -19,8 +19,10 @@ Transformers <https://huggingface.co/docs/transformers/index>`__ library
 in the OpenVINO environment to perform the above task.
 
 The model detects typos in a given text with a high accuracy,
-performances of which are listed below, - Precision score of 0.9923 -
-Recall score of 0.9859 - f1-score of 0.9891
+performances of which are listed below,
+
+- Precision score of 0.9923
+- Recall score of 0.9859 - f1-score of 0.9891
 
 `Source for above
 metrics <https://huggingface.co/m3hrdadfi/typo-detector-distilbert-en>`__
@@ -62,15 +64,15 @@ Table of contents:
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.39.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -96,10 +98,10 @@ Imports
 
 .. parsed-literal::
 
-    2024-05-16 02:35:01.013388: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 02:35:01.047841: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-20 02:52:47.537772: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-20 02:52:47.571605: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 02:35:01.671404: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-20 02:52:48.171558: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Methods
@@ -167,16 +169,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -214,7 +216,7 @@ Import required model class
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
 
 
 Load the model
@@ -231,9 +233,9 @@ your model.
 
     # The pretrained model we are using
     model_id = "m3hrdadfi/typo-detector-distilbert-en"
-    
+
     model_dir = Path("optimum_model")
-    
+
     # Save the model to the path if not existing
     if model_dir.exists():
         model = OVModelForTokenClassification.from_pretrained(model_dir, device=device.value)
@@ -244,8 +246,6 @@ your model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
     Framework not specified. Using pt to export the model.
     Using framework PyTorch: 2.2.2+cpu
 
@@ -258,9 +258,7 @@ your model.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:80: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:86: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       op1 = operator(\*args, \*\*kwargs)
     Compiling the model to AUTO ...
 
@@ -306,17 +304,17 @@ Function to find typos in a sentence and write them to the terminal
         """
         Detect typos from the given sentence.
         Writes both the original input and typo-tagged version to the terminal.
-    
+
         Arguments:
         sentence -- Sentence to be evaluated (string)
         """
-    
+
         typos = [sentence[r["start"] : r["end"]] for r in nlp(sentence)]
-    
+
         detected = sentence
         for typo in typos:
             detected = detected.replace(typo, f"<i>{typo}</i>")
-    
+
         print("[Input]: ", sentence)
         print("[Detected]: ", detected)
         print("-" * 130)
@@ -337,12 +335,12 @@ Let’s run a demo using the Hugging Face Optimum API.
         "My freind and I went campign in the forest last weekend and saw a beutiful sunst that was so amzing it took our breth away.",
         "I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.",
     ]
-    
+
     start = time.time()
-    
+
     for sentence in sentences:
         show_typos(sentence)
-    
+
     print(f"Time elapsed: {time.time() - start}")
 
 
@@ -378,7 +376,7 @@ Let’s run a demo using the Hugging Face Optimum API.
     [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.16265201568603516
+    Time elapsed: 0.15459823608398438
 
 
 2. Converting the model to OpenVINO IR
@@ -398,10 +396,10 @@ pytorch model.
 
     model_id = "m3hrdadfi/typo-detector-distilbert-en"
     model_dir = Path("pytorch_model")
-    
+
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     config = AutoConfig.from_pretrained(model_id)
-    
+
     # Save the model to the path if not existing
     if model_dir.exists():
         model = AutoModelForTokenClassification.from_pretrained(model_dir)
@@ -417,7 +415,7 @@ Converting to OpenVINO IR
 .. code:: ipython3
 
     ov_model_path = Path(model_dir) / "typo_detect.xml"
-    
+
     dummy_model_input = tokenizer("This is a sample", return_tensors="pt")
     ov_model = ov.convert_model(model, example_input=dict(dummy_model_input))
     ov.save_model(ov_model, ov_model_path)
@@ -450,14 +448,14 @@ Helper Functions
         """
         Maps the list of tokens to words in the original text.
         Built on the feature that tokens starting with '##' is attached to the previous token as tokens derived from the same word.
-    
+
         Arguments:
         tokens -- List of tokens
-    
+
         Returns:
         map_to_words -- Dictionary mapping tokens to words in original text
         """
-    
+
         word_count = -1
         map_to_words = {}
         for token in tokens:
@@ -473,14 +471,14 @@ Helper Functions
     def infer(input_text: str) -> Dict[np.ndarray, np.ndarray]:
         """
         Creating a generic inference function to read the input and infer the result
-    
+
         Arguments:
         input_text -- The text to be infered (String)
-    
+
         Returns:
         result -- Resulting list from inference
         """
-    
+
         tokens = tokenizer(
             input_text,
             return_tensors="np",
@@ -498,15 +496,15 @@ Helper Functions
     ) -> List[int]:
         """
         Given results from the inference and tokens-map-to-words, identifies the indexes of the words with typos.
-    
+
         Arguments:
         result -- Result from inference (tensor)
         map_to_words -- Dictionary mapping tokens to words (Dictionary)
-    
+
         Results:
         wrong_words -- List of indexes of words with typos
         """
-    
+
         wrong_words = []
         c = 0
         result_list = result[0][1:-1]
@@ -523,14 +521,14 @@ Helper Functions
     def sentence_split(sentence: str) -> List[str]:
         """
         Split the sentence into words and characters
-    
+
         Arguments:
         sentence - Sentence to be split (string)
-    
+
         Returns:
         splitted -- List of words and characters
         """
-    
+
         splitted = re.split("([',. ])", sentence)
         splitted = [x for x in splitted if x != " " and x != ""]
         return splitted
@@ -541,24 +539,24 @@ Helper Functions
         """
         Detect typos from the given sentence.
         Writes both the original input and typo-tagged version to the terminal.
-    
+
         Arguments:
         sentence -- Sentence to be evaluated (string)
         """
-    
+
         tokens = tokenizer.tokenize(sentence)
         map_to_words = token_to_words(tokens)
         result = infer(sentence)
         typo_indexes = get_typo_indexes(result, map_to_words, tokens)
-    
+
         sentence_words = sentence_split(sentence)
-    
+
         typos = [sentence_words[i] for i in typo_indexes]
-    
+
         detected = sentence
         for typo in typos:
             detected = detected.replace(typo, f"<i>{typo}</i>")
-    
+
         print("   [Input]: ", sentence)
         print("[Detected]: ", detected)
         print("-" * 130)
@@ -579,12 +577,12 @@ Let’s run a demo using the converted OpenVINO IR model.
         "My freind and I went campign in the forest last weekend and saw a beutiful sunst that was so amzing it took our breth away.",
         "I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.",
     ]
-    
+
     start = time.time()
-    
+
     for sentence in sentences:
         show_typos(sentence)
-    
+
     print(f"Time elapsed: {time.time() - start}")
 
 
@@ -620,5 +618,5 @@ Let’s run a demo using the converted OpenVINO IR model.
        [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.0988762378692627
+    Time elapsed: 0.09928250312805176
 
