@@ -34,7 +34,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
         endif()
     elseif(OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
         if(EMSCRIPTEN)
-            # emcc does not support fortification 
+            # emcc does not support fortification
             # https://stackoverflow.com/questions/58854858/undefined-symbol-stack-chk-guard-in-libopenh264-so-when-building-ffmpeg-wit
         else()
             set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -fstack-protector-all")
@@ -48,7 +48,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} /sdl /guard:cf")
-    set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} /guard:cf")
+    set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} /guard:cf /DYNAMICBASE")
 endif()
 
 if(ENABLE_QSPECTRE)
