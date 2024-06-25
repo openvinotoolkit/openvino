@@ -10,6 +10,7 @@
 # The following components are supported:
 #
 #  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend common
+#  * `JAX`: OpenVINO JAX frontend
 #  * `ONNX`: OpenVINO ONNX frontend
 #  * `Paddle`: OpenVINO Paddle frontend
 #  * `PyTorch`: OpenVINO PyTorch frontend
@@ -37,6 +38,9 @@
 #
 #  Frontend specific targets:
 #
+#   `openvino::frontend::jax`
+#   JAX FrontEnd target (optional)
+#
 #   `openvino::frontend::onnx`
 #   ONNX FrontEnd target (optional)
 #
@@ -62,6 +66,9 @@
 #
 #   `OpenVINO_Runtime_FOUND`
 #   OpenVINO C++ Core & Inference Runtime is available
+#
+#   `OpenVINO_Frontend_JAX_FOUND`
+#   OpenVINO JAX frontend is available
 #
 #   `OpenVINO_Frontend_ONNX_FOUND`
 #   OpenVINO ONNX frontend is available
@@ -510,7 +517,7 @@ unset(_OV_ENABLE_OPENVINO_BUILD_SHARED)
 
 set(_ov_imported_libs openvino::runtime openvino::runtime::c
    openvino::frontend::onnx openvino::frontend::paddle openvino::frontend::tensorflow
-   openvino::frontend::pytorch openvino::frontend::tensorflow_lite)
+   openvino::frontend::pytorch openvino::frontend::tensorflow_lite openvino::frontend::jax)
 
 if(_ov_as_external_package)
     foreach(target IN LISTS _ov_imported_libs)
@@ -549,6 +556,7 @@ set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND @ENABLE_OV_TF_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND @ENABLE_OV_TF_LITE_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND @ENABLE_OV_IR_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND @ENABLE_OV_PYTORCH_FRONTEND@)
+set(${CMAKE_FIND_PACKAGE_NAME}_JAX_FOUND @ENABLE_OV_JAX_FRONTEND@)
 
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_ONNX_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_Paddle_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND})
@@ -556,6 +564,7 @@ set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlow_FOUND ${${CMAKE_FIND_PACKAGE_
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlowLite_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_IR_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_PyTorch_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND})
+set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_JAX_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_JAX_FOUND})
 
 # if no components specified, only Runtime is provided
 if(NOT ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
@@ -591,5 +600,6 @@ unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND)
+unset(${CMAKE_FIND_PACKAGE_NAME}_JAX_FOUND)
 
 cmake_policy(POP)

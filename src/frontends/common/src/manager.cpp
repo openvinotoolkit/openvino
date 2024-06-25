@@ -34,14 +34,13 @@ public:
 
     FrontEnd::Ptr load_by_framework(const std::string& framework) {
         // Mapping of default FE name to file name (without prefix and suffix)
-        static const std::map<std::string, std::string> predefined_frontends = {
-            {"ir", "ir"},
-            {"onnx", "onnx"},
-            {"tf", "tensorflow"},
-            {"tflite", "tensorflow_lite"},
-            {"paddle", "paddle"},
-            {"pytorch", "pytorch"},
-        };
+        static const std::map<std::string, std::string> predefined_frontends = {{"ir", "ir"},
+                                                                                {"onnx", "onnx"},
+                                                                                {"tf", "tensorflow"},
+                                                                                {"tflite", "tensorflow_lite"},
+                                                                                {"paddle", "paddle"},
+                                                                                {"pytorch", "pytorch"},
+                                                                                {"jax", "jax"}};
         auto it = predefined_frontends.find(framework);
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         if (it != predefined_frontends.end()) {
@@ -155,7 +154,8 @@ private:
                                                   {"tf", "tensorflow"},
                                                   {"tflite", "tensorflow_lite"},
                                                   {"paddle", "paddle"},
-                                                  {"pytorch", "pytorch"}};
+                                                  {"pytorch", "pytorch"},
+                                                  {"jax", "jax"}};
         if (variants.empty()) {
             return nullptr;
         }

@@ -246,6 +246,14 @@ jobs:
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
+      
+      - name: JAX Layer Tests - JAX FE
+        if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit_jax_fe --junitxml=${INSTALL_TEST_DIR}/TEST-jax_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+          JAX_TRACE_MODE: JAXPR
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: fromJSON(inputs.affected-components).TFL_FE.test

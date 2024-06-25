@@ -50,10 +50,14 @@ if(TARGET openvino::frontend::pytorch)
     add_subdirectory(frontend/pytorch)
 endif()
 
+if(TARGET openvino::frontend::jax)
+    add_subdirectory(frontend/jax)
+endif()
+
 # create target
 
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch))/*")
+list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch|jax))/*")
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
