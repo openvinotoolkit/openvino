@@ -8,9 +8,9 @@
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/properties.hpp"
 
-using namespace ov::test::behavior;
-
-namespace {
+namespace ov {
+namespace test {
+namespace behavior {
 
 const std::vector<ov::AnyMap> inproperties = {
     {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
@@ -83,4 +83,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroCompiledModelGetMetricTest,
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroCompiledModelGetMetricTest,
                          OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES,
                          ::testing::Values("TEMPLATE.0"));
-}  // namespace
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

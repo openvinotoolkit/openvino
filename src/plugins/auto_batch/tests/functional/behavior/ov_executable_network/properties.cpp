@@ -1,12 +1,13 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "behavior/ov_plugin/properties_tests.hpp"
 #include "behavior/compiled_model/properties.hpp"
 
-using namespace ov::test::behavior;
+#include "behavior/ov_plugin/properties_tests.hpp"
 
-namespace {
+namespace ov {
+namespace test {
+namespace behavior {
 
 const std::vector<ov::AnyMap> auto_batch_inproperties = {
     {ov::num_streams(-100)},
@@ -54,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_EXEC_DEVICES,
                          ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GPU));
 
-INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVGetMetricPropsTest,
-                         OVGetMetricPropsTest,
-                         ::testing::Values("BATCH"));
-}  // namespace
+INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("BATCH"));
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

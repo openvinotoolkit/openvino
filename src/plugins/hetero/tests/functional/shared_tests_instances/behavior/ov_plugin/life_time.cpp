@@ -4,8 +4,9 @@
 
 #include "behavior/ov_plugin/life_time.hpp"
 
-using namespace ov::test::behavior;
-namespace {
+namespace ov {
+namespace test {
+namespace behavior {
 INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests,
                          OVHoldersTest,
                          ::testing::Values("HETERO:TEMPLATE"),
@@ -15,4 +16,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_VirtualPlugin_BehaviorTests,
                          OVHoldersTest,
                          ::testing::Values("HETERO:GPU"),
                          OVHoldersTest::getTestCaseName);
-}  // namespace
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

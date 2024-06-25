@@ -7,9 +7,9 @@
 #include "behavior/compiled_model/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
-using namespace ov::test::behavior;
-
-namespace {
+namespace ov {
+namespace test {
+namespace behavior {
 
 const std::vector<ov::AnyMap> inproperties = {
     {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
@@ -32,7 +32,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                                             ::testing::ValuesIn(hetero_properties)),
                          OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values(ov::test::utils::DEVICE_HETERO));
+INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
+                         OVGetMetricPropsTest,
+                         ::testing::Values(ov::test::utils::DEVICE_HETERO));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_HeteroOVCheckGetSupportedROMetricsPropsTests,
@@ -46,7 +48,8 @@ const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO), ::testing::ValuesIn(multiConfigs)));
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
+                                            ::testing::ValuesIn(multiConfigs)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest,
@@ -76,4 +79,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_HETERO_OVClassCompileModelWithCorrectSecondaryP
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("HETERO:GPU"),
                                             ::testing::ValuesIn(gpuCorrectConfigsWithSecondaryProperties())));
-}  // namespace
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

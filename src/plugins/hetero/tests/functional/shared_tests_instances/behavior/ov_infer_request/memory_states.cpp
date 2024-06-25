@@ -4,10 +4,9 @@
 
 #include "behavior/ov_infer_request/memory_states.hpp"
 
-using namespace ov::test::behavior;
-using namespace ov;
-
-namespace {
+namespace ov {
+namespace test {
+namespace behavior {
 std::vector<memoryStateParams> memoryStateTestCases = {
     memoryStateParams(OVInferRequestVariableStateTest::get_network(),
                       {"c_1-3", "r_1-3"},
@@ -18,4 +17,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariableState,
                          OVInferRequestVariableStateTest,
                          ::testing::ValuesIn(memoryStateTestCases),
                          OVInferRequestVariableStateTest::getTestCaseName);
-}  // namespace
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

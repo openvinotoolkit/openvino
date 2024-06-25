@@ -9,8 +9,8 @@
 #include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace {
-using ov::test::InputShape;
+namespace ov {
+namespace test {
 
 using OVDynamicBatchParams = std::tuple<std::vector<InputShape>,  // dynamic and static case sizes
                                         ov::element::Type,        // Model type
@@ -111,9 +111,7 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
     }
 }
 
-auto hetero_config = []() {
-    return ov::AnyMap{{ov::device::priorities.name(), ov::test::utils::DEVICE_GPU}};
-};
+auto hetero_config = ov::AnyMap{{ov::device::priorities.name(), ov::test::utils::DEVICE_GPU}};
 
 const std::vector<InputShape> input_shapes = {
     {{{1, 19}, 4, 20, 20}, {{1, 4, 20, 20}, {7, 4, 20, 20}, {17, 4, 20, 20}}}};
@@ -125,6 +123,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_GPU_DynBatchHetero,
                          ::testing::Combine(::testing::Values(input_shapes),
                                             ::testing::ValuesIn(model_types),
                                             ::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                            ::testing::Values(hetero_config())),
+                                            ::testing::Values(hetero_config)),
                          OVDynamicBatchShape_Tests::getTestCaseName);
-}  // namespace
+}  // namespace test
+}  // namespace ov

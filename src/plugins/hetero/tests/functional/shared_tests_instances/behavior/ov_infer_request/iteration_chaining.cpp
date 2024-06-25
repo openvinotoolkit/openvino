@@ -4,9 +4,9 @@
 
 #include "behavior/ov_infer_request/iteration_chaining.hpp"
 
-using namespace ov::test::behavior;
-
-namespace {
+namespace ov {
+namespace test {
+namespace behavior {
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
     {{ov::hint::inference_precision.name(), ov::element::f32},
@@ -18,4 +18,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
                                             ::testing::ValuesIn(HeteroConfigs)),
                          OVIterationChaining::getTestCaseName);
-}  // namespace
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov
