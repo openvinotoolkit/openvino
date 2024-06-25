@@ -8,7 +8,6 @@
 #include "eltwise_inst.h"
 #include "select_inst.h"
 #include "gather_inst.h"
-#include "broadcast_inst.h"
 #include "pass_manager.h"
 
 #include "intel_gpu/graph/program.hpp"
@@ -73,16 +72,12 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
 
     // Exclude gather_compressed primitive because gather_cpu_impl doesn't support it.
     if (node.is_type<gather>()) {
-        return false;
         auto& gather_node = node.as<gather>();
         auto gather_compressed_weight_mode = gather_node.get_primitive()->compressed_weights;
         if (gather_compressed_weight_mode)
             return false;
     }
 
-    if (node.is_type<broadcast>()) {
-        return false;
-    }
     auto available_impls = node.type()->get_available_impls(node);
     auto cpu_impl_found = available_impls.find(impl_types::cpu) != available_impls.end();
 
