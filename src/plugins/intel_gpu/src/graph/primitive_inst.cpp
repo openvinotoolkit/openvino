@@ -597,9 +597,6 @@ event::ptr primitive_inst::realloc_if_needed() {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
-            if (_outputs[0] && !_outputs[0]->get_layout().identical(updated_layout)) {
-                _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], updated_layout);
-            }
             return ev;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
                    _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
