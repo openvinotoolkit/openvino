@@ -2125,6 +2125,34 @@ TEST(model, set_complex_meta_information) {
     check_rt_info(f);
 }
 
+TEST(model, get_result_index) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result = std::make_shared<ov::opset8::Result>(relu);
+
+    auto f = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+
+    EXPECT_EQ(f->get_result_index(*result), 0);
+
+    auto sigmoid = std::make_shared<ov::opset8::Sigmoid>(arg0);
+    auto result2 = std::make_shared<ov::opset8::Result>(sigmoid);
+    f->add_results({result2});
+
+    EXPECT_EQ(f->get_result_index(*result), 0);
+    EXPECT_EQ(f->get_result_index(*result2), 1);
+
+    auto tanh = std::make_shared<ov::opset8::Tanh>(arg0);
+    auto result3 = std::make_shared<ov::opset8::Result>(tanh);
+    f->add_results({result3});
+
+    EXPECT_EQ(f->get_result_index(*result), 0);
+    EXPECT_EQ(f->get_result_index(*result2), 1);
+    EXPECT_EQ(f->get_result_index(*result3), 2);
+    auto not_added_result = std::make_shared<ov::opset8::Result>(arg0);
+
+    EXPECT_EQ(f->get_result_index(*not_added_result), -1);
+}
+
 TEST(model, create_model) {
     EXPECT_NO_THROW(ov::Model({}, ""));
     EXPECT_THROW(ov::Model(ov::ResultVector{nullptr}, {}, ""), ov::Exception);
