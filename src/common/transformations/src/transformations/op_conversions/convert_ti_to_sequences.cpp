@@ -1070,7 +1070,7 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
         // create LSTMSequence operation since all inputs are prepared
         // extract hidden size that should be static as a requirement of OpenVINO LSTMCell operation
         int64_t hidden_size = static_cast<int64_t>(lstm_cell_node->get_hidden_size());
-        auto lstm_sequence = rg.make<ov::op::v0::LSTMSequence>(x_prep,
+        auto lstm_sequence = rg.make<ov::op::v5::LSTMSequence>(x_prep,
                                                                init_hidden_state_prep,
                                                                init_cell_state_prep,
                                                                seq_lens_prep,
@@ -1079,12 +1079,10 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
                                                                B_prep,
                                                                hidden_size,
                                                                ov::op::RecurrentSequenceDirection::FORWARD,
-                                                               ov::op::LSTMWeightsFormat::FICO,
                                                                lstm_cell_node->get_activations_alpha(),
                                                                lstm_cell_node->get_activations_beta(),
                                                                lstm_cell_node->get_activations(),
-                                                               lstm_cell_node->get_clip(),
-                                                               false);
+                                                               lstm_cell_node->get_clip());
 
         // prepare outputs of LSTMSequence
         // output with concatenated hidden states must be in a format [seq_len, batch_size, hidden_size]
