@@ -516,15 +516,24 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
     //  crop output buffer
     //  |_low_pad_|__data_size__|___|<-upper pad
     if (!node.is_dynamic() && can_crop_be_optimized_along_feature(crop_layout, input_layout)) {
-        update_in_place_crop_padding_along_feature(node, crop_layout, input_layout, crop_params->input_offsets[0], node.get_primitive()->axis, false);
+        update_in_place_crop_padding_along_feature(node,
+                                                   crop_layout,
+                                                   input_layout,
+                                                   crop_params->input_offsets[0],
+                                                   node.get_primitive()->axis,
+                                                   false);
     } else if (can_crop_be_optimized_simple_data_format(crop_layout, input_layout)) {
         std::vector<layout> reshape_layouts;
-        if (node.get_users().size() == 1 && node.get_users().front()->is_type<reshape>()) {
+        if (node.get_users().front()->is_type<reshape>() && node.get_users().front()->as<reshape>().is_runtime_propagatable_padding()) {
             reshape_layouts.push_back(node.get_users().front()->get_output_layout());
         }
-        update_in_place_crop_padding_simple_data_format(crop_layout, input_layout, reshape_layouts,
-                                                        crop_params->input_offsets[0], node.get_primitive()->axis, false);
-        if (node.get_users().size() == 1 && node.get_users().front()->is_type<reshape>() && reshape_layouts.size() > 0) {
+        update_in_place_crop_padding_simple_data_format(crop_layout,
+                                                        input_layout,
+                                                        reshape_layouts,
+                                                        crop_params->input_offsets[0],
+                                                        node.get_primitive()->axis,
+                                                        false);
+        if (reshape_layouts.size() > 0) {
             node.get_users().front()->set_output_layout(reshape_layouts[0]);
         }
     }
