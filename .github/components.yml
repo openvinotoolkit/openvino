@@ -10,6 +10,7 @@ LP_transformations:
     - GPU
     - PyTorch_FE
     - TF_FE
+    - TOKENIZERS # TF_FE depends on tokenizers build
     - TFL_FE
     - ONNX_FE
     - PDPD_FE
@@ -34,6 +35,7 @@ CPU:
     - ONNX_RT
     - PyTorch_FE
     - TF_FE
+    - TOKENIZERS # TF_FE depends on tokenizers build
     - ONNX_FE
     - JAX_FE
   build:
@@ -167,6 +169,7 @@ Python_API:
     - MO
     - tools
     - TF_FE
+    - TOKENIZERS # TF_FE depends on tokenizers build
   build:
     - CPU
     - HETERO
@@ -211,6 +214,7 @@ MO:
   revalidate:
     - PyTorch_FE
     - TF_FE
+    - TOKENIZERS # TF_FE depends on tokenizers build
   build:
     - Python_API
     - TOKENIZERS # TF_FE tests depends on tokenizers build
