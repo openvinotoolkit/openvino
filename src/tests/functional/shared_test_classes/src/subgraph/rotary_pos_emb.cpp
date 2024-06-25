@@ -586,5 +586,160 @@ void RoPETestGPTJ::SetUp() {
     function = buildROPE_GPTJ(num_head, hidden_dims, rotary_dims, hasShapeOf);
 }
 
+ov::OutputVector RoPETestRotateHalfWOTranspose::makeCosSinCache(int max_position_embeddings, int rotary_ndims) {
+    std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
+    std::vector<float> lut_cos(max_position_embeddings * rotary_ndims, 0.0f);
+
+    // rotate_half style cos/sin table:
+    //   y1 = cos(m*xita_i) * x1 - sin(m*xita_i) * x2
+    //   y2 = cos(m*xita_i) * x2 + sin(m*xita_i) * x1
+    //
+    for (int i = 0, k = 0; i < rotary_ndims; i += 2, k++) {
+        auto xita_i = 1.0 / std::pow(10000.0, static_cast<double>(i) / rotary_ndims);
+        float* psin = lut_sin.data();
+        float* pcos = lut_cos.data();
+        for (int m = 0; m < max_position_embeddings; m++, psin += rotary_ndims, pcos += rotary_ndims) {
+            auto vsin = std::sin(xita_i * m);
+            auto vcos = std::cos(xita_i * m);
+            pcos[k] = pcos[k + rotary_ndims / 2] = vcos;
+            psin[k] = psin[k + rotary_ndims / 2] = vsin;
+        }
+    }
+    auto shape = ov::Shape({1, static_cast<size_t>(max_position_embeddings), 1, static_cast<size_t>(rotary_ndims)});
+    auto Cos = makeConst(ov::element::f32, shape, lut_cos);
+    auto Sin = makeConst(ov::element::f32, shape, lut_sin);
+    return {Cos, Sin};
+}
+
+std::shared_ptr<ov::Model> RoPETestRotateHalfWOTranspose::buildROPE_RotateHalfWOTranspose(int batch,
+                                                                                          int seq_length,
+                                                                                          int max_position_embeddings,
+                                                                                          int num_head,
+                                                                                          int ndims) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{batch, num_head, -1, ndims});
+    auto pos_id_end = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{});
+    auto pos_ids = std::make_shared<ov::opset1::Parameter>(ov::element::i32, PartialShape{1, -1});
+
+    auto cos_sin_cache = makeCosSinCache(max_position_embeddings, ndims);
+    auto Constant582 = cos_sin_cache[0];
+    auto Constant585 = cos_sin_cache[1];
+
+    // concat KV length
+    auto slice_Unsqueeze_426 = makeOP<ov::op::v0::Unsqueeze>({pos_id_end, 0});
+    auto ScatterUpdate_152236 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0}, {1}, slice_Unsqueeze_426, {0}});
+    auto slice_Slice = makeOP<ov::op::v1::StridedSlice>({Constant582, {0, 0, 0}, ScatterUpdate_152236, {1, 1, 1}},
+                                                    {{"begin_mask", {1, 0, 1}},
+                                                     {"end_mask", {1, 0, 1}},
+                                                     {"new_axis_mask", {}},
+                                                     {"shrink_axis_mask", {}},
+                                                     {"ellipsis_mask", {}}});
+    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 2});
+    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0});
+    auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
+    auto unsqueeze_Unsqueeze = makeOP<ov::op::v0::Unsqueeze>({index_441_Gather, 1});
+    auto mul_Multiply =
+        makeOP<ov::op::v1::Multiply>({input, unsqueeze_Unsqueeze}, {{"auto_broadcast", "numpy"}});
+    auto size_ShapeOf_448 = makeOP<ov::op::v3::ShapeOf>({input}, {{"output_type", "i32"}});
+    auto size_Gather_450 = makeOP<ov::op::v8::Gather>({size_ShapeOf_448, 3, 0}, {{"batch_dims", 0}});
+    auto floor_divide_Divide =
+        makeOP<ov::op::v1::Divide>({size_Gather_450, 2}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+    auto floor_divide_Floor = makeOP<ov::op::v0::Floor>({floor_divide_Divide});
+    auto slice_Unsqueeze_452 = makeOP<ov::op::v0::Unsqueeze>({floor_divide_Floor, 0});
+    auto ScatterUpdate_152312 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
+    auto slice_Slice_459 = makeOP<ov::op::v1::StridedSlice>(
+        {input, ScatterUpdate_152312, {0ll, 0ll, 0ll, LLONG_MAX}, {1, 1, 1, 1}},
+        {{"begin_mask", {1, 1, 1, 0}},
+         {"end_mask", {1, 1, 1, 0}},
+         {"new_axis_mask", {}},
+         {"shrink_axis_mask", {}},
+         {"ellipsis_mask", {}}});
+    auto Constant_182988 = makeConst(element::f32,
+                                     ov::Shape({
+                                         1,
+                                         1,
+                                         1,
+                                         1,
+                                     }),
+                                     {-1.000000f});
+    auto neg_Multiply = makeOP<ov::op::v1::Multiply>({slice_Slice_459, Constant_182988}, {{"auto_broadcast", "numpy"}});
+    auto ScatterUpdate_152368 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
+    auto slice_Slice2 =
+        makeOP<ov::op::v1::StridedSlice>({input, {0, 0, 0, 0}, ScatterUpdate_152368, {1, 1, 1, 1}},
+                                     {{"begin_mask", {1, 1, 1, 0}},
+                                      {"end_mask", {1, 1, 1, 0}},
+                                      {"new_axis_mask", {}},
+                                      {"shrink_axis_mask", {}},
+                                      {"ellipsis_mask", {}}});
+    auto cat_Concat = makeOP<ov::op::v0::Concat>({neg_Multiply, slice_Slice2}, {{"axis", -1}});
+    auto ScatterUpdate_152421 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0}, {1}, slice_Unsqueeze_426, {0}});
+    auto slice_Slice_433 = makeOP<ov::op::v1::StridedSlice>({Constant585, {0, 0, 0}, ScatterUpdate_152421, {1, 1, 1}},
+                                                        {{"begin_mask", {1, 0, 1}},
+                                                         {"end_mask", {1, 0, 1}},
+                                                         {"new_axis_mask", {}},
+                                                         {"shrink_axis_mask", {}},
+                                                         {"ellipsis_mask", {}}});
+    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 2});
+    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0});
+    auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
+    auto unsqueeze_Unsqueeze_447 = makeOP<ov::op::v0::Unsqueeze>({index_446_Gather, 1});
+    auto mul_Multiply_463 =
+        makeOP<ov::op::v1::Multiply>({cat_Concat, unsqueeze_Unsqueeze_447}, {{"auto_broadcast", "numpy"}});
+    auto add_Add = makeOP<ov::op::v1::Add>({mul_Multiply, mul_Multiply_463}, {{"auto_broadcast", "numpy"}});
+
+    return std::make_shared<ov::Model>(ov::NodeVector{add_Add}, ov::ParameterVector{input, pos_id_end, pos_ids});
+}
+
+ov::Tensor RoPETestRotateHalfWOTranspose::create_i32_tensor(const ov::Shape& shape, int start, int step) {
+    auto tensor = ov::Tensor(ov::element::i32, shape);
+    auto* ptr = static_cast<int32_t*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        ptr[i] = start;
+        start += step;
+    }
+    return tensor;
+}
+
+void RoPETestRotateHalfWOTranspose::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& funcInputs = function->inputs();
+
+    const int position_id_start = 15;
+    auto& input_shape = targetInputStaticShapes[0];
+    auto seq_length = input_shape[2];
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -1;
+    in_data.range = 2;
+    in_data.resolution = 32768;
+    ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, in_data);
+    ov::Tensor t_position_id_end = create_i32_tensor(ov::Shape({}), position_id_start + seq_length);
+    ov::Tensor t_position_ids = create_i32_tensor(ov::Shape({1, seq_length}), position_id_start);
+
+    inputs.clear();
+    inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+    inputs.insert({funcInputs[1].get_node_shared_ptr(), t_position_id_end});
+    inputs.insert({funcInputs[2].get_node_shared_ptr(), t_position_ids});
+}
+
+void RoPETestRotateHalfWOTranspose::SetUp() {
+    targetDevice = this->GetParam();
+
+    const int batch = 2;
+    const int seq_length = 7;
+    const size_t max_position_embeddings = 2048;
+    const size_t ndims = 128;
+    const size_t num_head = 32;
+
+    InputShape inpShape = {{batch, num_head, seq_length, ndims}, {{batch, num_head, seq_length, ndims}}};
+    init_input_shapes({inpShape});
+    function = buildROPE_RotateHalfWOTranspose(batch, seq_length, max_position_embeddings, num_head, ndims);
+}
+
+std::string RoPETestRotateHalfWOTranspose::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    std::string targetDevice = obj.param;
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice;
+    return result.str();
+}
+
 }  // namespace test
 }  // namespace ov

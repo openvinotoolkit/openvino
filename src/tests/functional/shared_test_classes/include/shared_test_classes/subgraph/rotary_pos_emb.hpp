@@ -63,5 +63,22 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<bool, std::string>>& obj);
 };
 
+class RoPETestRotateHalfWOTranspose : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
+private:
+    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
+    ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims);
+    std::shared_ptr<ov::Model> buildROPE_RotateHalfWOTranspose(int batch,
+                                                               int seq_length,
+                                                               int max_position_embeddings,
+                                                               int num_head,
+                                                               int ndims);
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void SetUp() override;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj);
+};
+
 }  // namespace test
 }  // namespace ov
