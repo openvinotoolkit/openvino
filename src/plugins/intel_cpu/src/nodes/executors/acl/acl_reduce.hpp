@@ -69,10 +69,10 @@ public:
                       " dimensions maximum. src[0] shape rank is ", srcDescs[0]->getShape().getRank());
             return false;
         }
-        const auto& srcDims = srcDescs[0]->getShape().getStaticDims();
-        bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc) && srcDims.size() == 4;
+        auto srcShapeRank = srcDescs[0]->getShape().getRank();
+        bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc) && srcShapeRank == 4;
         for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-            int axis = axisCast(reduceAttrs.axes[i], srcDims.size(), hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
+            int axis = axisCast(reduceAttrs.axes[i], srcShapeRank, hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
             if (hasSrcNspcLayout && axis == -1) {
                 DEBUG_LOG("Layout conversion to NHWC has failed");
                 return false;
