@@ -121,6 +121,12 @@ void MatMulLayerCPUTest::SetUp() {
     if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
         inType = outType = netType = ElementType::bf16;
         rel_threshold = abs_threshold = 1e-2f;
+    } else if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::f16) {
+        inType = outType = netType = ElementType::f16;
+        // rel_threshold = abs_threshold = 1e-2f;
+        // Temporarily created the following rel_threshold because of this bug CVS-144523 and
+        // https://github.com/ARM-software/ComputeLibrary/issues/1112
+        rel_threshold = abs_threshold = 3e-1f;
     } else {
         inType = outType = netType;
         rel_threshold = 1e-4f;

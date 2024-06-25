@@ -83,5 +83,10 @@ size_t weiMemSize(const Config& config) {
     return memSize<Config, ARG_WEI>(config);
 }
 
+template<typename Config>
+size_t postOpsNumbers(const Config& config) {
+    return config.postOps.size();
+}
+
 }   // namespace intel_cpu
 }   // namespace ov
