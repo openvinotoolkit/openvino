@@ -1803,6 +1803,12 @@ void primitive_inst::prepare_primitive() {
         update_shape();
 
         bool can_skip_execution = false;
+        if (_node->id() == "convert:Convert_11579") {
+            auto& variable_id = _node->get_users().front()->get_state_of_init_subgraph()->as<read_value>().get_primitive()->variable_id;
+            const auto& variable = get_network().get_variable(variable_id);
+            if (variable.is_set())
+                can_skip_execution = true;
+        }
         if (_node->is_in_state_init_subgraph() && !_node->is_type<read_value>()) {
             auto state_prim = _node->get_state_of_init_subgraph()->as<read_value>().get_primitive();
             const auto& variable = get_network().get_variable(state_prim->variable_id);
