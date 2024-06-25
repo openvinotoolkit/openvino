@@ -15,7 +15,7 @@ using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
-using IR = intel_npu::driverCompilerAdapter::IR;
+using IRSerializer = intel_npu::driverCompilerAdapter::IRSerializer;
 
 namespace ov::test::behavior {
 
@@ -50,15 +50,6 @@ public:
             ss << std::hex << random_number;
         }
         return ss.str();
-    }
-
-    size_t getFileSize(std::istream& strm) {
-        const size_t streamStart = strm.tellg();
-        strm.seekg(0, std::ios_base::end);
-        const size_t streamEnd = strm.tellg();
-        const size_t bytesAvailable = streamEnd - streamStart;
-        strm.seekg(streamStart, std::ios_base::beg);
-        return bytesAvailable;
     }
 
     void SetUp() override {
@@ -98,28 +89,27 @@ protected:
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     auto model = createModelWithLargeSize();
-    IR irModel(model, 11);
-    std::istream& xmlStream = irModel.getXml();
-    std::istream& weightsStream = irModel.getWeights();
-    size_t xmlSize = getFileSize(xmlStream);
-    size_t weightsSize = getFileSize(weightsStream);
+    IRSerializer irSerializer(model, 11);
+    size_t xmlSize = irSerializer.getXmlSize();
+    size_t weightsSize = irSerializer.getWeightsSize();
+
+    std::vector<uint8_t> xml(xmlSize);
+    std::vector<uint8_t> weights(weightsSize);
+    irSerializer.serializeModelToBuffer(xml.data(), weights.data());
+
     std::string fileName = generateRandomFileName();
     std::string xmlFileName = fileName + ".xml";
     std::string binFileName = fileName + ".bin";
     {
-        std::vector<char> xml(xmlSize);
-        xmlStream.read(xml.data(), xmlSize);
         std::ofstream xmlFile(xmlFileName, std::ios::binary);
         if (xmlFile) {
-            xmlFile.write(xml.data(), xmlSize);
+            xmlFile.write(reinterpret_cast<const char*>(xml.data()), xmlSize);
             xmlFile.close();
         }
 
-        std::vector<char> weights(weightsSize);
-        weightsStream.read(weights.data(), weightsSize);
         std::ofstream binFile(binFileName, std::ios::binary);
         if (binFile) {
-            binFile.write(weights.data(), weightsSize);
+            binFile.write(reinterpret_cast<const char*>(weights.data()), weightsSize);
             binFile.close();
         }
     }
