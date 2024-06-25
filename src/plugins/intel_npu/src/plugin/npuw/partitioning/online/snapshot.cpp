@@ -401,6 +401,9 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
 
     // FIXME: this was introduced to make the partitioning
     // the same every run when created the same way.
+    // This std::sort allows to prioritize the groups from the tail
+    // of the original model. It's possible due to preservation of
+    // group IDs in topological order throughout the whole partitioning process.
     std::sort(repeating_groups_sorted.begin(),
               repeating_groups_sorted.end(),
               [&](const Group::GPtr& gptr_a, const Group::GPtr& gptr_b) {
