@@ -22,7 +22,6 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
-        libtbb2 \
         # Pythons
         python3.8-dev \
         python3.8-venv \
