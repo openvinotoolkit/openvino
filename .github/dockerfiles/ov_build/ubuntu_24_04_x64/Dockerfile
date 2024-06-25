@@ -22,6 +22,9 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # ONNX
+        protobuf-compiler \
+        libprotobuf-dev \
         # Python
         python3-dev \
         python3-venv \
@@ -64,6 +67,6 @@ ENV PATH="/venv/bin:$PATH"
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN /venv/bin/python3 -m pip install pip==${PIP_VERSION} setuptools wheel
+RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} setuptools wheel
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
