@@ -14,8 +14,9 @@ namespace ov {
 namespace util {
 namespace monitor {
 
-DeviceMonitor::DeviceMonitor(std::size_t historySize) : samplesNumber{0}, historySize{historySize > 0 ? historySize : 1} {
-}
+DeviceMonitor::DeviceMonitor(std::size_t historySize)
+    : samplesNumber{0},
+      historySize{historySize > 0 ? historySize : 1} {}
 DeviceMonitor::DeviceMonitor(const std::shared_ptr<ov::util::monitor::PerformanceCounter>& performance_counter,
                              std::size_t historySize)
     : samplesNumber{0},
