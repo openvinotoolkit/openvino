@@ -16,7 +16,7 @@ struct sync_tensor : public primitive_base<sync_tensor> {
 
     /// @brief Constructs sync_tensor primitive.
     /// @param id This primitive id.
-    /// @param inputq, inputk, inputv inputs of sync_tensor.
+    /// @param inputs of sync_tensor.
     sync_tensor(const primitive_id& id,
                 const input_info& input,
                 const padding& output_padding = padding())

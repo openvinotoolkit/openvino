@@ -45,7 +45,7 @@ protected:
         auto& stream = instance.get_network().get_stream();
         if (instance.get_impl_params()->w_size != 1)
             stream.finish();
-        instance.fill_placeholder();
+        //instance.fill_placeholder();
         auto event = parent::execute_impl(events, instance);
         /*if (instance.get_impl_params()->w_size != 1) {
             auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();

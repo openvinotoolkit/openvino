@@ -23,8 +23,7 @@ layout sync_tensor_inst::calc_output_layout(const sync_tensor_node& node, kernel
 template<typename ShapeType>
 std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<sync_tensor>();
-
-    ov::intel_gpu::op::SyncTensor op;
+    ov::intel_gpu::op::SyncTensor op(impl_param.w_size);
     op.set_output_size(desc->num_outputs);
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>()};
@@ -53,10 +52,11 @@ void sync_tensor_inst::on_execute() {
 }
 
 void sync_tensor_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
+        auto my_rank = get_impl_params()->w_rank;
+        _outputs[my_rank] = input_memory_ptr();
         return;
-
-    _outputs = {input_memory_ptr()}; // to be optimized further
-    _mem_allocated = false;
+    }
+    // do nothing for now
 }
 } // namespace cldnn

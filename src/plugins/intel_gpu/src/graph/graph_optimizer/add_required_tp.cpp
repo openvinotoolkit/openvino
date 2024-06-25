@@ -25,13 +25,13 @@ If yes than required reduce/gather is added to the network.
 Add a allreduce in between FC and usr
 */
 void add_required_all_reduce::add_all_reduce(program& p, program_node* node, program_node* usr) {
-    auto& fc_node = node->as<fully_connected>();
+    /*auto& fc_node = node->as<fully_connected>();
     layout reduce_in_layout = fc_node.get_output_layout();
     reduce_in_layout.format = fc_node.get_output_layout().format;
     reduce_in_layout.data_type = fc_node.get_output_layout().data_type;
     auto new_data = std::make_shared<sync_tensor>(fc_node.id() + "_tp", input_info(*(fc_node.get_primitive())));
     auto& sync_node = p.get_or_create(new_data);
-    p.add_intermediate(sync_node, *usr, *node);
+    p.add_intermediate(sync_node, *usr, *node);*/
 }
 
 void add_required_all_reduce::run(program& p) {

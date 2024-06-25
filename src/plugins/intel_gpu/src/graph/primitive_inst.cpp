@@ -131,14 +131,6 @@ bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) 
     }
     return false;
 }
-
-bool has_user_fc_enabled_tp(const std::list<const program_node*>& users) {
-    for (const auto& user : users) {
-        if (user->is_type<fully_connected>())
-            return user->as<fully_connected>().w_size != 1;
-    }
-    return false;
-}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
@@ -286,24 +278,11 @@ void primitive_inst::update_shape() {
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
         auto new_layout = _deps[i].first->_impl_params->get_output_layout(idx);
-        auto update_new_layout = new_layout;
-        if (_impl_params->is_type<fully_connected>() && _impl_params->w_size != 1 && i == 0) {
-            auto new_update_pshape = new_layout.get_partial_shape().to_shape();
-            auto dims = new_layout.get_dims();
-            auto dim = new_update_pshape.size() - 1; // to be finalized
-            new_update_pshape[dim] /= _impl_params->w_size;
-            update_new_layout = layout(ov::PartialShape(new_update_pshape),
-                                                            new_layout.data_type,
-                                                            new_layout.format,
-                                                            new_layout.data_padding);
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update input shape to "
-                               <<  update_new_layout.to_short_string() << std::endl;
-        }
-        if (_impl_params->get_input_layout(i) != update_new_layout) {
+        if (_impl_params->get_input_layout(i) != new_layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string()
-                                   << " now: " << update_new_layout.to_short_string() << std::endl;
-            _impl_params->input_layouts[i] = update_new_layout;
+                                   << " now: " << new_layout.to_short_string() << std::endl;
+            _impl_params->input_layouts[i] = new_layout;
             input_shape_changed = true;
         }
     }
@@ -1337,6 +1316,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
+    if (id() == "synctensor:__module.model.layers.0.self_attn.v_proj/aten::linear/MatMul_TP")
+        std::cout << "break" << std::endl;
     for (size_t i = 0; i < _deps.size(); ++i) {
         GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
     }
@@ -1446,10 +1427,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
-        if (_node->is_type<fully_connected>()) {
-            create_input_memory_placeholder();
-            GPU_DEBUG_TRACE_DETAIL << id() << ": create input memory place holder" << std::endl;
-        }
         set_arguments();
     }
     on_execute();
@@ -1914,8 +1891,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu) ||
-        // lockable memory for nodes with FC TP users, as we have to manipulate the FC input memory, to be optimized further
-        has_user_fc_enabled_tp(_node.get_users()) ||
         // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
         (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());

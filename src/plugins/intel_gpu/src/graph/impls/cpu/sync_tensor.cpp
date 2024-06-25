@@ -51,13 +51,17 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 e->wait();
             }
         }
-        memory::ptr input_mem;
-        input_mem = instance.input_memory_ptr();
+        stream.finish();
         auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
+        std::cout << "1" << std::endl;
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
+        std::cout << "2" << std::endl;
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();
+        std::cout << "3" << std::endl;
         auto id = sub_mem_mgr->get_memory_id(w_rank);
+        std::cout << "4" << std::endl;
         sub_mem_mgr->set_memory_used(id, w_rank);
+        std::cout << "5" << std::endl;
         while (true) {
             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             if (sub_mem_mgr->_use_count[id] == w_size) {
@@ -70,48 +74,21 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 break;
             }
         }
-        stream.finish();
-        sub_mem_mgr->_memorys_table[id][w_rank].send_buf = instance.input_memory().buffer_ptr();
+        std::cout << "6" << std::endl;
+        sub_mem_mgr->_memorys_table[id][w_rank].send_buf = instance.output_memory(w_rank).buffer_ptr();
         sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
-        auto dst_ptr = static_cast<uint8_t*>(instance.output_memory().buffer_ptr());
+        std::cout << "my rank is: " << w_rank << ", broadcast my buffer: " << instance.output_memory(w_rank).buffer_ptr() << std::endl;
+        std::cout << instance.output_memory(0).get_layout().to_short_string() << std::endl;
+        std::cout << instance.output_memory(1).get_layout().to_short_string() << std::endl;
         std::vector<int> wait_list(w_size, 1);
-        auto dims = instance.output_memory_ptr()->get_layout().get_dims();
-        const int dim = dims.size() - 1;
-        auto element_size = ov::element::Type(instance.output_memory_ptr()->get_layout().data_type).size();
-        auto channel_size = dims[dim] * element_size;    // selected dim bytes
-        // const int step = (mem_size / channel_size);     // the steps need to copy.
-        const size_t count = (instance.output_memory_ptr()->size() / channel_size);     // the steps need to copy.
-        const auto copySize = (dims[dim] / w_size) * element_size;
-        while (true) {
+         while (true) {
             int wait_size = 0;
-            for (size_t idx = 0; idx < w_size; idx++) {
-                if (wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
-                    auto new_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
-                    // parallel_for(step, [&](int i) {
-                    //     int src_offset = i * copySize;
-                    //     int dst_offset = i * copySize * 2 + idx * copySize;
-                    //     cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
-                    // });
-                    const size_t unloop = 8;
-                    size_t step = count / unloop;
-                    ov::parallel_for(step, [&](size_t i){
-                        // int src_offset = i * copySize;
-                        // int dst_offset = i * copySize * 2 + idx * copySize;
-                        std::memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop)),     new_ptr + copySize * (i * unloop), copySize);
-                        std::memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 1)), new_ptr + copySize * (i * unloop + 1), copySize);
-                        std::memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 2)), new_ptr + copySize * (i * unloop + 2), copySize);
-                        std::memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 3)), new_ptr + copySize * (i * unloop + 3), copySize);
-                        std::memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 4)), new_ptr + copySize * (i * unloop + 4), copySize);
-                        std::memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 5)), new_ptr + copySize * (i * unloop + 5), copySize);
-                        std::memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 6)), new_ptr + copySize * (i * unloop + 6), copySize);
-                        std::memcpy(dst_ptr + copySize * (idx + 2 * (i * unloop + 7)), new_ptr + copySize * (i * unloop + 7), copySize);
-                    });
-                    size_t tail = count & ~(unloop - 1);
-                    for (size_t i = tail; i < count; ++i) {
-                        int src_offset = i * copySize;
-                        int dst_offset = i * copySize * 2 + idx * copySize;
-                        std::memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
-                    }
+            for (int idx = 0; idx < static_cast<int>(w_size); idx++) {
+                if (idx != w_rank && wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
+                    std::cout << "fetch broadcasted peer buffer: " << sub_mem_mgr->_memorys_table[id][idx].send_buf << std::endl;
+                    auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
+                    auto dst_ptr = instance.output_memory(idx).buffer_ptr();
+                    std::memcpy(dst_ptr, src_ptr, instance.output_memory(idx).size());
                     wait_list[idx] = 0;
                 }
                 wait_size += wait_list[idx];

@@ -170,12 +170,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
-    auto transformed_model = clone_and_transform_model(model, config);
-
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
         config.get_property(ov::hint::model_distribution_policy.name())
             .as<std::set<ov::hint::ModelDistributionPolicy>>();
-    if (0) {
+    if (1) {
         auto get_rank_table = [&]() {
             std::vector<std::vector<int>> rank_table = {};
             for (size_t i = 0; i < config.get_context_for_tp().size(); i++) {
@@ -196,6 +194,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             config.streamsRankTable = get_rank_table();
         }
     }
+    auto transformed_model = clone_and_transform_model(model, config);
+
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);

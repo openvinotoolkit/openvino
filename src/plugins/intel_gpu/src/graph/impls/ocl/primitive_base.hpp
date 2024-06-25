@@ -106,7 +106,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
                                                 weights_layout.data_padding);
             update_impl_param.input_layouts[1] = new_weight_layout;
 
-            auto input_layout = update_impl_param.get_input_layout(0);
+            /*auto input_layout = update_impl_param.get_input_layout(0);
             auto input_shape = input_layout.get_partial_shape();
             auto rank_size = input_layout.get_rank();
             ov::PartialShape new_input_shape;
@@ -121,7 +121,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
                                                 input_layout.data_type,
                                                 input_layout.format,
                                                 input_layout.data_padding);
-            update_impl_param.input_layouts[0] = new_input_layout;
+            update_impl_param.input_layouts[0] = new_input_layout;*/
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(update_impl_param));
         kernel_params.is_shape_agnostic = update_impl_param.is_dynamic();
