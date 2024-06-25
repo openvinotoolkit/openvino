@@ -192,29 +192,29 @@ Other batch dimensions ``...`` are optional.
 			<input>
 				<!-- Multiple batch dimensions, broadcastable to the following values: N1 = 4, N2 = 6, N3 = 10-->
 				<port id="0" precision="FP32"> <!-- query -->
-					<dim>1</dim> <!-- N1 (repeat 4 times) -->
+					<dim>4</dim> <!-- N1 (repeat 1 time) -->
 					<dim>6</dim> <!-- N2 (repeat 1 time)-->
-					<dim>5</dim> <!-- N3 (repeat 2 times)-->
+					<dim>10</dim> <!-- N3 (repeat 1 time)-->
 					<dim>-1</dim> <!-- L -->
 					<dim>80</dim> <!-- E -->
 				</port>
 				<port id="1" precision="FP32"> <!-- key -->
-					<dim>2</dim> (repeat 2 times)<!-- N1 -->
-					<dim>2</dim> (repeat 3 times)<!-- N2 -->
-					<dim>2</dim> (repeat 5 times)<!-- N3 -->
+					<dim>1</dim> <!-- N1 (repeat 4 times) -->
+					<dim>6</dim> <!-- N2 (repeat 1 time) -->
+					<dim>10</dim> <!-- N3 (repeat 1 time) -->
 					<dim>-1</dim> <!-- S -->
 					<dim>80</dim> <!-- E -->
 				</port>
 				<port id="2" precision="FP32"> <!-- value -->
-					<dim>4</dim> <!-- N1 (repeat 1 time)-->
-					<dim>3</dim> <!-- N2 (repeat 2 times)-->
-					<dim>10</dim> <!-- N3 (repeat 1 time)-->
+					<dim>1</dim> <!-- N1 (repeat 4 times)-->
+					<dim>1</dim> <!-- N2 (repeat 6 times)-->
+					<dim>1</dim> <!-- N3 (repeat 10 times)-->
 					<dim>-1</dim> <!-- S -->
 					<dim>80</dim> <!-- Ev -->
 				</port>
 				<port id="3" precision="FP32"> <!-- attention_mask -->
 					<dim>1</dim> <!-- N1 (repeat 4 times)-->
-					<dim>2</dim> <!-- N2 (repeat 3 times)-->
+					<dim>1</dim> <!-- N2 (repeat 6 times)-->
 					<dim>1</dim> <!-- N3 (repeat 10 times)-->
 					<dim>-1</dim> <!-- L -->
 					<dim>-1</dim> <!-- S -->
