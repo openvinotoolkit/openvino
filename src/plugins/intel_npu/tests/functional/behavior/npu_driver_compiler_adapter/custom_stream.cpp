@@ -56,6 +56,9 @@ public:
         std::tie(target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
+        std::string fileName = generateRandomFileName();
+        xmlFileName = fileName + ".xml";
+        binFileName = fileName + ".bin";
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
@@ -80,11 +83,16 @@ public:
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
+        if (std::remove(xmlFileName.c_str()) != 0 || std::remove(binFileName.c_str()) != 0) {
+            ADD_FAILURE() << "Failed to remove serialized files, xml: " << xmlFileName << " bin: " << binFileName;
+        }
         APIBaseTest::TearDown();
     }
 
 protected:
     ov::AnyMap configuration;
+    std::string xmlFileName;
+    std::string binFileName;
 };
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
@@ -97,9 +105,6 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     std::vector<uint8_t> weights(weightsSize);
     irSerializer.serializeModelToBuffer(xml.data(), weights.data());
 
-    std::string fileName = generateRandomFileName();
-    std::string xmlFileName = fileName + ".xml";
-    std::string binFileName = fileName + ".bin";
     {
         std::ofstream xmlFile(xmlFileName, std::ios::binary);
         if (xmlFile) {
@@ -115,9 +120,6 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     }
     ov::Core core;
     EXPECT_NO_THROW(model = core.read_model(xmlFileName));
-    if (std::remove(xmlFileName.c_str()) != 0 || std::remove(binFileName.c_str()) != 0) {
-        OPENVINO_THROW("Failed to remove serialized files");
-    }
 }
 
 const std::vector<ov::AnyMap> configs = {
