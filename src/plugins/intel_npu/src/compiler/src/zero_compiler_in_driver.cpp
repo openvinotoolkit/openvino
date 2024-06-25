@@ -244,18 +244,6 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
-static size_t getFileSize(std::istream& strm) {
-    const size_t streamStart = strm.tellg();
-    strm.seekg(0, std::ios_base::end);
-    const size_t streamEnd = strm.tellg();
-    const size_t bytesAvailable = streamEnd - streamStart;
-    strm.seekg(streamStart, std::ios_base::beg);
-
-    return bytesAvailable;
-}
-
-using SerializedIR = std::vector<uint8_t>;
-
 /**
  * @brief Place xml + weights in sequential memory
  * @details Format of the memory:
@@ -264,9 +252,7 @@ template <typename TableExtension>
 SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     const std::shared_ptr<const ov::Model>& model,
     ze_graph_compiler_version_info_t compilerVersion) const {
-    IR irModel(model, getSupportedOpset());
-    std::istream& xml = irModel.getXml();
-    std::istream& weights = irModel.getWeights();
+    IRSerializer irSerializer(model, getSupportedOpset());
 
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
@@ -274,8 +260,8 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
     const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(getFileSize(xml));
-    const uint64_t weightsSize = static_cast<uint64_t>(getFileSize(weights));
+    const uint64_t xmlSize = static_cast<uint64_t>(irSerializer.getXmlSize());
+    const uint64_t weightsSize = static_cast<uint64_t>(irSerializer.getWeightsSize());
 
     OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
     if (xmlSize >= maxSizeOfXML) {
@@ -294,30 +280,32 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     const uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
                                         xmlSize + sizeof(weightsSize) + weightsSize;
 
-    std::vector<uint8_t> serializedIR;
-    serializedIR.resize(sizeOfSerializedIR);
+    // use array to avoid vector's memory zeroing overhead
+    std::shared_ptr<uint8_t> buffer(new uint8_t[sizeOfSerializedIR], std::default_delete<uint8_t[]>());
+    uint8_t* serializedIR = buffer.get();
 
     uint64_t offset = 0;
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
     offset += sizeof(compilerVersion);
 
-    checkedMemcpy(serializedIR.data() + offset,
-                  sizeOfSerializedIR - offset,
-                  &numberOfInputData,
-                  sizeof(numberOfInputData));
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
     offset += sizeof(numberOfInputData);
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
     offset += sizeof(xmlSize);
-    xml.read(reinterpret_cast<char*>(serializedIR.data() + offset), xmlSize);
+    // xml data is filled in serializeModel()
+    uint64_t xmlOffset = offset;
     offset += xmlSize;
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
     offset += sizeof(weightsSize);
-    weights.read(reinterpret_cast<char*>(serializedIR.data() + offset), weightsSize);
+    // weights data is filled in serializeModel()
+    uint64_t weightsOffset = offset;
     offset += weightsSize;
+
+    irSerializer.serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
 
     OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
-    return serializedIR;
+    return std::make_pair(sizeOfSerializedIR, buffer);
 }
 
 template <typename TableExtension>
@@ -550,8 +538,8 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
                             ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                            serializedIR.size(),
-                            serializedIR.data(),
+                            serializedIR.first,
+                            serializedIR.second.get(),
                             buildFlags.c_str()};
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
@@ -590,8 +578,8 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.size(),
-                              serializedIR.data(),
+                              serializedIR.first,
+                              serializedIR.second.get(),
                               buildFlags.c_str(),
                               ZE_GRAPH_FLAG_NONE};
 
@@ -671,15 +659,15 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportGraph2(T), bool>>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_graph_format_t& format,
-                                                                   const std::vector<uint8_t>& serializedIR,
+                                                                   const SerializedIR& serializedIR,
                                                                    const std::string& buildFlags,
                                                                    const uint32_t& /*flags*/,
                                                                    ze_graph_handle_t* graph) const {
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
                             format,
-                            serializedIR.size(),
-                            serializedIR.data(),
+                            serializedIR.first,
+                            serializedIR.second.get(),
                             buildFlags.c_str()};
 
     // Create querynetwork handle
@@ -690,15 +678,15 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportGraph2(T), bool>>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_graph_format_t& format,
-                                                                   const std::vector<uint8_t>& serializedIR,
+                                                                   const SerializedIR& serializedIR,
                                                                    const std::string& buildFlags,
                                                                    const uint32_t& flags,
                                                                    ze_graph_handle_t* graph) const {
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
                               format,
-                              serializedIR.size(),
-                              serializedIR.data(),
+                              serializedIR.first,
+                              serializedIR.second.get(),
                               buildFlags.c_str(),
                               flags};
 

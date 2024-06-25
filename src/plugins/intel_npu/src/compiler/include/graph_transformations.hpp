@@ -17,30 +17,39 @@
  */
 namespace intel_npu::driverCompilerAdapter {
 
-class IR {
+class IRSerializer {
 public:
-    IR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedVersionByCompiler = 11);
+    IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset = 11);
 
-    std::istream& getXml() {
-        return _xmlStream;
+    size_t getXmlSize() const {
+        return _xmlSize;
     }
 
-    std::istream& getWeights() {
-        return _weightsStream;
+    size_t getWeightsSize() const {
+        return _weightsSize;
     }
+
+    /**
+     * @brief Serialize OpenVINO model to target buffer
+     */
+    void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
 
 private:
     /**
-     * @brief Serialize OpenVINO model to IR, get xml and bin data
+     * @brief Serialize OpenVINO model to target stream
      */
-    void serializeOVModelToIR(std::shared_ptr<ov::Model> model, uint32_t supportedVersionByCompiler);
+    void serializeModelToStream(std::ostream& xml, std::ostream& weights);
 
-    // Streams for normal model
-    std::stringstream _xmlStream;
+    /**
+     * @brief Get size of xml and weights from model
+     */
+    void countModelSize();
 
-    // Use custom stream buffer for weights to support 2G+ files on Windows
-    CustomStreamBuf _weightsCache;
-    std::iostream _weightsStream;
+    Logger _logger;
+    std::shared_ptr<ov::Model> _model = nullptr;
+    uint32_t _supportedOpset = 11;
+    size_t _xmlSize = 0;
+    size_t _weightsSize = 0;
 };
 
 }  // namespace intel_npu::driverCompilerAdapter

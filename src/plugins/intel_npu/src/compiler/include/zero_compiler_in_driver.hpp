@@ -6,12 +6,15 @@
 #include <ze_graph_ext.h>
 
 #include <type_traits>
+#include <utility>
 
 #include "iexternal_compiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
+
+using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
 #define NotSupportLogHandle(T) \
     (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
@@ -79,8 +82,8 @@ public:
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 
-    std::vector<uint8_t> serializeIR(const std::shared_ptr<const ov::Model>& model,
-                                     ze_graph_compiler_version_info_t compilerVersion) const;
+    SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                             ze_graph_compiler_version_info_t compilerVersion) const;
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
     /**
@@ -149,14 +152,14 @@ private:
 
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportGraph2(T), bool> = true>
     ze_result_t createGraph(const ze_graph_format_t& format,
-                            const std::vector<uint8_t>& serializedIR,
+                            const SerializedIR& serializedIR,
                             const std::string& buildFlags,
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<!NotSupportGraph2(T), bool> = true>
     ze_result_t createGraph(const ze_graph_format_t& format,
-                            const std::vector<uint8_t>& serializedIR,
+                            const SerializedIR& serializedIR,
                             const std::string& buildFlags,
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;
