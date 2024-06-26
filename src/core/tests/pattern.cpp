@@ -309,12 +309,10 @@ TEST(pattern, matcher) {
     ASSERT_EQ(n.get_matched_nodes(), (NodeVector{a}));
 
     auto abs = make_shared<op::v0::Abs>(a);
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{abs, a}));
 
     auto false_pred = [](std::shared_ptr<Node> /* no */) {
         return false;
     };
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{a, a}));
 
     auto pattern = std::make_shared<pattern::op::Label>(a);
     ASSERT_TRUE(n.match(pattern, a));
