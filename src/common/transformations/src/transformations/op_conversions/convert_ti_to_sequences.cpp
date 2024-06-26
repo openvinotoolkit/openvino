@@ -46,6 +46,7 @@
 
 using namespace ov;
 using namespace ov::pass;
+using namespace ov::op::util;
 
 namespace {
 bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIterator>& ti,
@@ -247,19 +248,6 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIte
     return true;
 }
 
-bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t& output_value) {
-    auto constant = ov::as_type<ov::op::v0::Constant>(node.get_node());
-    if (!constant)
-        return false;
-    if (ov::shape_size(constant->get_shape()) != 1)
-        return false;
-    const auto& type = constant->get_output_element_type(0);
-    if (type != ov::element::i32 && type != ov::element::i64)
-        return false;
-    output_value = constant->cast_vector<int64_t>()[0];
-    return true;
-}
-
 bool check_condition_increment_pattern(
     const std::shared_ptr<op::v0::Result>& cond_result,
     const std::shared_ptr<op::v5::Loop>& loop,
@@ -286,7 +274,8 @@ bool check_condition_increment_pattern(
     }
     const auto& condition_map = condition_matcher.get_pattern_value_map();
     int64_t counter_step = -1;
-    if (!get_scalar_constant_value(condition_map.at(counter_step_label), counter_step) || counter_step != 1) {
+    if (!get_constant_value(condition_map.at(counter_step_label).get_node_shared_ptr(), counter_step) ||
+        counter_step != 1) {
         return false;
     }
     // get initial value of counter
@@ -312,7 +301,7 @@ bool check_condition_increment_pattern(
             return false;
         }
         // get initial value of counter
-        if (!get_scalar_constant_value(loop->input_value(input_idx), initial_counter)) {
+        if (!get_constant_value(loop->input_value(input_idx).get_node_shared_ptr(), initial_counter)) {
             return false;
         }
         // suitable counter-parameter is found and checked
@@ -335,7 +324,8 @@ bool check_condition_increment_pattern(
             break;
         }
     } else if (condition_map.count(num_iter_const_label)) {
-        if (!get_scalar_constant_value(condition_map.at(num_iter_const_label), num_iters) || num_iters < 1) {
+        if (!get_constant_value(condition_map.at(num_iter_const_label).get_node_shared_ptr(), num_iters) ||
+            num_iters < 1) {
             return false;
         }
         num_iters_output = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{}, num_iters);
@@ -841,28 +831,34 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
         const auto& loop_output_map = loop_output_matcher.get_pattern_value_map();
 
         int64_t iteration_counter_step = -1;
-        if (!get_scalar_constant_value(loop_condition_map.at(iteration_counter_step_label), iteration_counter_step) ||
+        if (!get_constant_value(loop_condition_map.at(iteration_counter_step_label).get_node_shared_ptr(),
+                                iteration_counter_step) ||
             iteration_counter_step != 1)
             return false;
         int64_t sequence_index_step = -1;
-        if (!get_scalar_constant_value(loop_condition_map.at(sequence_index_step_label), sequence_index_step) ||
+        if (!get_constant_value(loop_condition_map.at(sequence_index_step_label).get_node_shared_ptr(),
+                                sequence_index_step) ||
             sequence_index_step != 1)
             return false;
 
         int64_t iteration_counter_limit = -1;
-        if (!get_scalar_constant_value(loop_condition_map.at(iteration_counter_limit_label), iteration_counter_limit))
+        if (!get_constant_value(loop_condition_map.at(iteration_counter_limit_label).get_node_shared_ptr(),
+                                iteration_counter_limit))
             return false;
         int64_t sequence_index_limit = -1;
-        if (!get_scalar_constant_value(loop_condition_map.at(sequence_index_limit_label), sequence_index_limit))
+        if (!get_constant_value(loop_condition_map.at(sequence_index_limit_label).get_node_shared_ptr(),
+                                sequence_index_limit))
             return false;
         if (iteration_counter_limit != sequence_index_limit)
             return false;
 
         int64_t gather_axis = -1;
-        if (!get_scalar_constant_value(loop_output_map.at(gather_axis_label), gather_axis) || gather_axis != 0)
+        if (!get_constant_value(loop_output_map.at(gather_axis_label).get_node_shared_ptr(), gather_axis) ||
+            gather_axis != 0)
             return false;
         int64_t scatter_axis = -1;
-        if (!get_scalar_constant_value(loop_output_map.at(scatter_axis_label), scatter_axis) || scatter_axis != 0)
+        if (!get_constant_value(loop_output_map.at(scatter_axis_label).get_node_shared_ptr(), scatter_axis) ||
+            scatter_axis != 0)
             return false;
 
         const auto& sequence_index = loop_condition_map.at(sequence_index_label).get_node_shared_ptr();
@@ -1302,9 +1298,9 @@ public:
             const auto shapeof_gather2 = pattern_map.at(shapeof_gather2_label).get_node_shared_ptr();
             int64_t shapeof_gather2_index = -1;
             int64_t shapeof_gather2_axis = -1;
-            if (!get_scalar_constant_value(shapeof_gather2->get_input_node_shared_ptr(1), shapeof_gather2_index))
+            if (!get_constant_value(shapeof_gather2->get_input_node_shared_ptr(1), shapeof_gather2_index))
                 return false;
-            if (!get_scalar_constant_value(shapeof_gather2->get_input_node_shared_ptr(2), shapeof_gather2_axis) ||
+            if (!get_constant_value(shapeof_gather2->get_input_node_shared_ptr(2), shapeof_gather2_axis) ||
                 shapeof_gather2_axis != 0)
                 return false;
             const auto reshape = pattern_map.at(reshape_label).get_node_shared_ptr();
@@ -1314,13 +1310,13 @@ public:
             const auto range = pattern_map.at(range_label).get_node_shared_ptr();
             int64_t range_start = -1;
             int64_t range_step = -1;
-            if (!get_scalar_constant_value(range->get_input_node_shared_ptr(0), range_start) || range_start != 0)
+            if (!get_constant_value(range->get_input_node_shared_ptr(0), range_start) || range_start != 0)
                 return false;
-            if (!get_scalar_constant_value(range->get_input_node_shared_ptr(2), range_step) || range_step != 1)
+            if (!get_constant_value(range->get_input_node_shared_ptr(2), range_step) || range_step != 1)
                 return false;
 
             int64_t gather_axis = -1;
-            if (!get_scalar_constant_value(gather->get_input_node_shared_ptr(2), gather_axis) ||
+            if (!get_constant_value(gather->get_input_node_shared_ptr(2), gather_axis) ||
                 gather_axis != shapeof_gather_indexes[shapeof_gather2_index])
                 return false;
 
@@ -1439,7 +1435,7 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
         if (squeeze->input_value(0) != lstm->output(0))
             return false;
         int64_t squeeze_axis = -1;
-        if (!get_scalar_constant_value(squeeze->get_input_node_shared_ptr(1), squeeze_axis) || squeeze_axis != 1)
+        if (!get_constant_value(squeeze->get_input_node_shared_ptr(1), squeeze_axis) || squeeze_axis != 1)
             return false;
         auto new_squeeze = node_registry.make<op::v0::Squeeze>(new_lstm->output(0), squeeze->input_value(1));
         const auto match_root = m.get_match_root();
@@ -1556,7 +1552,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         if (squeeze_forward->input_value(0) != lstm_forward->output(0))
             return false;
         int64_t squeeze_forward_axis = -1;
-        if (!get_scalar_constant_value(squeeze_forward->get_input_node_shared_ptr(1), squeeze_forward_axis) ||
+        if (!get_constant_value(squeeze_forward->get_input_node_shared_ptr(1), squeeze_forward_axis) ||
             squeeze_forward_axis != 1)
             return false;
 
@@ -1564,7 +1560,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         if (squeeze_reverse->input_value(0) != lstm_reverse->output(0))
             return false;
         int64_t squeeze_reverse_axis = -1;
-        if (!get_scalar_constant_value(squeeze_reverse->get_input_node_shared_ptr(1), squeeze_reverse_axis) ||
+        if (!get_constant_value(squeeze_reverse->get_input_node_shared_ptr(1), squeeze_reverse_axis) ||
             squeeze_reverse_axis != 1)
             return false;
 
@@ -1614,21 +1610,17 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
             auto gather_forward = pattern_map.at(gather_forward_label);
             int64_t gather_index = -1;
             int64_t gather_axis = -1;
-            if (!get_scalar_constant_value(gather_forward->get_input_node_shared_ptr(1), gather_index) ||
-                gather_index != 0)
+            if (!get_constant_value(gather_forward->get_input_node_shared_ptr(1), gather_index) || gather_index != 0)
                 return false;
-            if (!get_scalar_constant_value(gather_forward->get_input_node_shared_ptr(2), gather_axis) ||
-                gather_axis != 0)
+            if (!get_constant_value(gather_forward->get_input_node_shared_ptr(2), gather_axis) || gather_axis != 0)
                 return false;
 
             auto gather_reverse = pattern_map.at(gather_reverse_label);
             gather_index = -1;
             gather_axis = -1;
-            if (!get_scalar_constant_value(gather_reverse->get_input_node_shared_ptr(1), gather_index) ||
-                gather_index != 0)
+            if (!get_constant_value(gather_reverse->get_input_node_shared_ptr(1), gather_index) || gather_index != 0)
                 return false;
-            if (!get_scalar_constant_value(gather_reverse->get_input_node_shared_ptr(2), gather_axis) ||
-                gather_axis != 0)
+            if (!get_constant_value(gather_reverse->get_input_node_shared_ptr(2), gather_axis) || gather_axis != 0)
                 return false;
 
             from.push_back(max_sequence_len_forward);

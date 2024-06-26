@@ -29,6 +29,7 @@ using namespace ov;
 using namespace ov::pass;
 using namespace ov::op;
 using namespace ov::frontend;
+using namespace ov::op::util;
 
 using InvariantD = ov::op::util::MultiSubGraphOp::InvariantInputDescription;
 using SlicedD = ov::op::util::MultiSubGraphOp::SliceInputDescription;
@@ -73,19 +74,6 @@ ov::Rank find_element_rank(const ov::Input<ov::Node>& target_input) {
     }
 
     return ov::Rank::dynamic();
-}
-
-bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t& output_value) {
-    auto constant = ov::as_type<ov::op::v0::Constant>(node.get_node());
-    if (!constant)
-        return false;
-    if (ov::shape_size(constant->get_shape()) != 1)
-        return false;
-    const auto& type = constant->get_output_element_type(0);
-    if (type != ov::element::i32 && type != ov::element::i64)
-        return false;
-    output_value = constant->cast_vector<int64_t>()[0];
-    return true;
 }
 
 bool find_input_description(const ov::op::util::InputDescriptionVector& input_descriptions,
@@ -379,7 +367,8 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
 
         const auto& condition_map = condition_matcher.get_pattern_value_map();
         int64_t counter_step = -1;
-        if (!get_scalar_constant_value(condition_map.at(counter_step_label), counter_step) || counter_step != 1) {
+        if (!get_constant_value(condition_map.at(counter_step_label).get_node_shared_ptr(), counter_step) ||
+            counter_step != 1) {
             return false;
         }
 
@@ -409,7 +398,7 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
             }
 
             // get initial value of counter
-            if (!get_scalar_constant_value(loop->input_value(input_idx), initial_counter)) {
+            if (!get_constant_value(loop->get_input_node_shared_ptr(input_idx), initial_counter)) {
                 return false;
             }
 
@@ -453,7 +442,8 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
                 continue;
             }
             int64_t index_value = -1;
-            if (!get_scalar_constant_value(tensor_list_set_item->input_value(1), index_value) || (index_value != 0)) {
+            if (!get_constant_value(tensor_list_set_item->get_input_node_shared_ptr(1), index_value) ||
+                (index_value != 0)) {
                 continue;
             }
 
