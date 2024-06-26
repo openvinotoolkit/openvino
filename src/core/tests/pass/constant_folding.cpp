@@ -64,6 +64,13 @@ void run_constant_folding(std::shared_ptr<ov::Model>& model) {
     pass_manager.run_passes(model);
 }
 
+void run_constant_folding_with_threshold(std::shared_ptr<ov::Model>& model, int64_t threshold) {
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<pass::ConstantFolding>(threshold);
+    pass_manager.run_passes(model);
+}
+
 void check_names(const std::shared_ptr<ov::Node>& node,
                  const std::vector<std::string>& expected_fused_names,
                  const std::string expected_name = "test",
@@ -247,6 +254,25 @@ TEST(constant_folding, constant_unsqueeze) {
 
     auto values_out = new_const->get_vector<float>();
     ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
+}
+
+TEST(constant_folding, constant_broadcast_v1_threshold) {
+    vector<int32_t> values_in{1};
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::i32, Shape{1}, values_in);
+    constant_in->set_friendly_name("constant_in");
+    vector<int64_t> shape_in{261};
+    auto constant_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, shape_in);
+    constant_shape->set_friendly_name("constant_shape");
+    vector<int64_t> axes_in{0};
+    auto constant_axes = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, axes_in);
+    constant_axes->set_friendly_name("constant_axes");
+    auto broadcast_v1 = make_shared<op::v1::Broadcast>(constant_in, constant_shape, constant_axes);
+    broadcast_v1->set_friendly_name("test");
+    auto f = make_shared<Model>(broadcast_v1, ParameterVector{});
+
+    run_constant_folding_with_threshold(f, 1024);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 1);
 }
 
 TEST(constant_folding, constant_broadcast_v1) {

@@ -125,6 +125,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         f->validate_nodes_and_infer_types();
     }
 
+    const int64_t cf_threshold = 1024;
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
@@ -155,7 +156,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     REGISTER_PASS(manager, PushConstantToSubgraph)
-    REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, ConstantFolding, cf_threshold)
     REGISTER_PASS(manager, Validate)
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
@@ -206,7 +207,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(eliminations, SelectWithOneValueCondition)
     eliminations->set_name("ov::pass::CommonEliminations");
 
-    manager.register_pass<ov::pass::ConstantFolding>();
+    REGISTER_PASS(manager, ConstantFolding, cf_threshold)
 
     auto common_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(common_fusions, ConvertScatterElementsToScatter)
@@ -267,7 +268,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
     multiply_fusions->set_name("ov::pass::MultiplyFusions");
-    REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, ConstantFolding, cf_threshold)
 
     auto fq_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -280,7 +281,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
-    REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, ConstantFolding, cf_threshold)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
     manager.run_passes(f);
