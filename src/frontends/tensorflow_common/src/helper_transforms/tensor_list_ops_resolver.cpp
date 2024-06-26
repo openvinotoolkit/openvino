@@ -88,19 +88,6 @@ bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t& output
     return true;
 }
 
-bool find_param_idx(const std::shared_ptr<v0::Parameter>& param,
-                    const ov::ParameterVector& params,
-                    uint64_t& found_idx) {
-    for (uint64_t idx = 0; idx < static_cast<uint64_t>(params.size()); ++idx) {
-        if (params[idx] == param) {
-            found_idx = idx;
-            return true;
-        }
-    }
-
-    return false;
-}
-
 bool find_input_description(const ov::op::util::InputDescriptionVector& input_descriptions,
                             uint64_t param_idx,
                             ov::op::util::SubGraphOp::InputDescription::Ptr& found_desc) {
@@ -115,7 +102,7 @@ bool find_input_description(const ov::op::util::InputDescriptionVector& input_de
 }
 
 void update_parameter_to_slice_input(const std::shared_ptr<ov::Node>& node,
-                                     const ov::ParameterVector& params,
+                                     const std::shared_ptr<ov::Model>& body_graph,
                                      const ov::op::util::InputDescriptionVector& input_descriptions,
                                      std::vector<uint64_t>& update_param_ids) {
     // select only TensorListGetItem that accepts a tensor list from Parameter node
@@ -133,12 +120,12 @@ void update_parameter_to_slice_input(const std::shared_ptr<ov::Node>& node,
     }
 
     // tensor list must be invariant through iterations
-    uint64_t param_idx = 0;
-    if (!find_param_idx(tensor_list, params, param_idx)) {
+    int64_t param_idx = body_graph->get_parameter_index(tensor_list);
+    if (param_idx < 0) {
         return;
     }
     ov::op::util::SubGraphOp::InputDescription::Ptr input_desc = nullptr;
-    if (!find_input_description(input_descriptions, param_idx, input_desc) || !input_desc) {
+    if (!find_input_description(input_descriptions, static_cast<uint64_t>(param_idx), input_desc) || !input_desc) {
         return;
     }
     auto invariant_input_desc = ov::as_type_ptr<InvariantD>(input_desc);
@@ -146,11 +133,11 @@ void update_parameter_to_slice_input(const std::shared_ptr<ov::Node>& node,
         return;
     }
 
-    update_param_ids.push_back(param_idx);
+    update_param_ids.push_back(static_cast<uint64_t>(param_idx));
 }
 
 void update_result_to_concat_output(const std::shared_ptr<ov::Node>& node,
-                                    const ov::ParameterVector& params,
+                                    const std::shared_ptr<ov::Model>& body_graph,
                                     const ov::ResultVector& results,
                                     const ov::op::util::InputDescriptionVector& input_descriptions,
                                     std::vector<uint64_t>& update_result_ids,
@@ -169,12 +156,12 @@ void update_result_to_concat_output(const std::shared_ptr<ov::Node>& node,
         return;
     }
 
-    uint64_t param_idx = 0;
-    if (!find_param_idx(tensor_list, params, param_idx)) {
+    int64_t param_idx = body_graph->get_parameter_index(tensor_list);
+    if (param_idx < 0) {
         return;
     }
     ov::op::util::SubGraphOp::InputDescription::Ptr input_desc = nullptr;
-    if (!find_input_description(input_descriptions, param_idx, input_desc) || !input_desc) {
+    if (!find_input_description(input_descriptions, static_cast<uint64_t>(param_idx), input_desc) || !input_desc) {
         return;
     }
     auto merged_input_desc = ov::as_type_ptr<MergedD>(input_desc);
@@ -188,7 +175,7 @@ void update_result_to_concat_output(const std::shared_ptr<ov::Node>& node,
     }
 
     update_result_ids.push_back(result_idx);
-    remove_param_ids.push_back(param_idx);
+    remove_param_ids.push_back(static_cast<uint64_t>(param_idx));
 }
 
 uint64_t get_new_param_idx(const std::vector<uint64_t>& remove_parameter_idxs, uint64_t old_idx) {
@@ -379,7 +366,7 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
         // loop continues until counter is less than given number
         ov::pass::pattern::Matcher condition_matcher(condition_label);
 
-        auto body = loop->get_function();
+        const auto& body = loop->get_function();
         const auto& body_params = body->get_parameters();
         const auto& body_results = body->get_results();
         const auto& special_body_ports = loop->get_special_body_ports();
@@ -442,11 +429,11 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
         std::vector<uint64_t> update_parameter_ids, update_result_ids;
         for (const auto& target_input : counter_param->get_output_target_inputs(0)) {
             update_parameter_to_slice_input(target_input.get_node()->shared_from_this(),
-                                            body_params,
+                                            body,
                                             input_descriptions,
                                             update_parameter_ids);
             update_result_to_concat_output(target_input.get_node()->shared_from_this(),
-                                           body_params,
+                                           body,
                                            body_results,
                                            input_descriptions,
                                            update_result_ids,
@@ -474,13 +461,13 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
             if (!tensor_list) {
                 continue;
             }
-            uint64_t param_idx = 0;
-            if (!find_param_idx(tensor_list, body_params, param_idx)) {
+            int64_t param_idx = body->get_parameter_index(tensor_list);
+            if (param_idx < 0) {
                 continue;
             }
 
             update_result_last_iter_ids.push_back(result_idx);
-            remove_parameter_ids.push_back(param_idx);
+            remove_parameter_ids.push_back(static_cast<uint64_t>(param_idx));
         }
 
         // nothing to update
