@@ -45,6 +45,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn({ov::element::i8, ov::element::u8})),
     FullyConnectedTransformation::getTestCaseName);
 }  // namespace

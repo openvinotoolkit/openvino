@@ -12,6 +12,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 #include "openvino/util/log.hpp"
 #include "itt.hpp"
@@ -175,6 +176,8 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
     updateOutput(context, newMultiply, newMatMul);
+
+    handleDequantization(newMultiply);
 
     OPENVINO_DEBUG("LPT: done: ", newMatMul);
     return true;

@@ -7,6 +7,7 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils/utils.hpp"
 
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations/utils.hpp"
 #include "utils/general_utils.h"
@@ -227,6 +228,11 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (is_skipped_op(node))
             continue;
+
+        if (ov::marked_as_bias(node)) {
+            SetNodeFusingType(node, NodeFusingType::FusedWithMisc);
+        }
+
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);

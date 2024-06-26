@@ -26,6 +26,9 @@ public:
     bool transform(TransformationContext &context, ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+
+protected:
+    virtual void handleDequantization(const std::shared_ptr<ov::opset1::Multiply>& dequantization) const {}
 };
 
 }  // namespace low_precision

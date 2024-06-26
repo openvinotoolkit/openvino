@@ -30,6 +30,7 @@
 
 #if defined(OV_CPU_WITH_ACL)
 #include "nodes/executors/acl/acl_fullyconnected.hpp"
+#include "nodes/executors/acl/acl_lowp_fullyconnected.hpp"
 #endif
 
 #if defined(OV_CPU_WITH_SHL)
@@ -85,6 +86,11 @@ static const TypeMapping aclFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
     {{_f32 | _f16, _f32 | _f16, _any, _any}, pt(bypass(), bypass(), use<0>(), use<0>())},
     {{_any, _any, _any, _any},               pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())}
+};
+
+static const TypeMapping aclLowpFCTypeMapping {
+    // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
+    {{_i8, _i8, _any, _f32},                 pt(just<i8>(), just<i8>(), just<i32>(), just<f32>())}
 };
 
 static const MappingNotation dnnlConvolutionMappingNotation {
@@ -369,6 +375,36 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                const MemoryArgs& memory,
                const ExecutorContext::CPtr context) {
                 return std::make_shared<ACLFullyConnectedExecutor>(attrs, postOps, memory, context);
+            })
+        OV_CPU_INSTANCE_ACL(
+            "fullyconnected_acl_lowp",
+            ExecutorType::Acl,
+            OperationType::FullyConnected,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                return ACLLowpFullyConnectedExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return requiresFallbackCommon(config,
+                                              aclLowpFCTypeMapping,
+                                              aclFCLayoutConfig,
+                                              aclFullyConnectedMappingNotation);
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                // @todo create syntactic sugar (functor) for shape agnostic lambda
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr context) {
+                return std::make_shared<ACLLowpFullyConnectedExecutor>(attrs, postOps, memory, context);
             })
         OV_CPU_INSTANCE_SHL(
             "fullyconnected_shl",
