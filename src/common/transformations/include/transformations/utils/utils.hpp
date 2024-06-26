@@ -116,7 +116,7 @@ float cast_eps_to_float(double eps_d);
 
 template <typename T>
 bool get_constant_value(const std::shared_ptr<ov::Node>& node, T& value) {
-    auto constant = ov::as_type<ov::op::v0::Constant>(node);
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!constant)
         return false;
     if (shape_size(constant->get_shape()) != 1)
