@@ -43,7 +43,6 @@ void regclass_graph_PartialShape(py::module m) {
                        :return: A PartialShape with the given rank (or undefined rank if not provided), and all dimensions are dynamic.
                     )");
 
-    // Added code
     shape.def(py::init([](const py::list& lst) {
         std::vector<ov::Dimension> vec(lst.size());
         for (int i = 0; i < lst.size(); ++i) {
