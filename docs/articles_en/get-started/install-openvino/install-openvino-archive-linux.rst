@@ -27,7 +27,6 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        CentOS7 x86_64        V      V     n/a
        Ubuntu20 x86_64       V      V      V
        Ubuntu22 x86_64       V      V      V
-       Ubuntu24 x86_64       V      V      V
        RHEL8 x86_64          V      V     n/a
       ===================  =====  =====  =====
 
