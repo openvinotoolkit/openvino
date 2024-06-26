@@ -337,20 +337,32 @@ jobs:
   Samples:
     needs: [ Docker, Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: ${{ matrix.os }}
 
   JS_API:
     name: OpenVINO JS API
     needs: [ Docker, Build, Smart_CI ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}"}'
+      os: ${{ matrix.os }}
 
   Conformance:
     needs: [ Build, Smart_CI ]
@@ -358,7 +370,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
+    runs-on: ubuntu-22.04-8-cores
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -487,89 +499,143 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
         fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
     needs: [ Build, Smart_CI, Docker ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
+      os: ${{ matrix.os }}
 
   ONNX_Models:
     name: ONNX Models Tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
     needs: [ Docker, Build, Smart_CI ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-64gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      os: ${{ matrix.os }}
 
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Docker, Build, Smart_CI ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: ${{ matrix.os }}
 
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Docker, Build, Smart_CI ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: ${{ matrix.os }}
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: ${{ matrix.os }}
 
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     needs: [ Docker, Build, Smart_CI ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+      os: ${{ matrix.os }}
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-16gb'
       model_scope: 'precommit'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      os: ${{ matrix.os }}
 
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
     if: ${{ github.event_name == 'schedule' }}
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_tf_hub'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      os: ${{ matrix.os }}
 
   TensorFlow_Models_Tests_Nightly_HF:
     name: TensorFlow Hugging Face Models tests
     if: ${{ github.event_name == 'schedule' }}
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_hf'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      os: ${{ matrix.os }}
 
   # TODO: Switch back to self-hosted runners
   # container:
@@ -580,14 +646,25 @@ jobs:
     name: PyTorch Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
+      runner: ${{ github.event_name == 'schedule' && 'ubuntu-22.04-16-cores' || 'ubuntu-22.04-8-cores' }}
       event: ${{ github.event_name }}
+      os: ${{ matrix.os }}
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
     needs: [ Docker, Build, Smart_CI ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     timeout-minutes: 15
     defaults:
       run:
@@ -667,12 +744,18 @@ jobs:
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
     needs: [ Build, Smart_CI, Docker ]
+    strategy:
+      matrix:
+        include:
+          - os: '_ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tokenizers.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: ${{ matrix.os }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   iGPU:
@@ -688,8 +771,9 @@ jobs:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'igpu' ]"
-      container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
+      container: '{"image": "ubuntu:22.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri:/dev/dri"}'
+      os: ${{ matrix.os }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   dGPU:
@@ -705,8 +789,9 @@ jobs:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'dgpu' ]"
-      container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
+      container: '{"image": "ubuntu:22.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri/card0:/dev/dri/card0  --device /dev/dri/renderD128:/dev/dri/renderD128"}'
+      os: ${{ matrix.os }}
     if: ${{ github.event_name == 'schedule' }}
 
   Overall_Status:
