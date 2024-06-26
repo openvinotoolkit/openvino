@@ -53,15 +53,10 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         }
         stream.finish();
         auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
-        std::cout << "1" << std::endl;
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
-        std::cout << "2" << std::endl;
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();
-        std::cout << "3" << std::endl;
         auto id = sub_mem_mgr->get_memory_id(w_rank);
-        std::cout << "4" << std::endl;
         sub_mem_mgr->set_memory_used(id, w_rank);
-        std::cout << "5" << std::endl;
         while (true) {
             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
             if (sub_mem_mgr->_use_count[id] == w_size) {
@@ -74,18 +69,16 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 break;
             }
         }
-        std::cout << "6" << std::endl;
         sub_mem_mgr->_memorys_table[id][w_rank].send_buf = instance.output_memory(w_rank).buffer_ptr();
         sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
-        std::cout << "my rank is: " << w_rank << ", broadcast my buffer: " << instance.output_memory(w_rank).buffer_ptr() << std::endl;
         std::cout << instance.output_memory(0).get_layout().to_short_string() << std::endl;
         std::cout << instance.output_memory(1).get_layout().to_short_string() << std::endl;
         std::vector<int> wait_list(w_size, 1);
+        wait_list[w_rank] = 0; // no need to wait for itself
          while (true) {
             int wait_size = 0;
             for (int idx = 0; idx < static_cast<int>(w_size); idx++) {
                 if (idx != w_rank && wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
-                    std::cout << "fetch broadcasted peer buffer: " << sub_mem_mgr->_memorys_table[id][idx].send_buf << std::endl;
                     auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
                     auto dst_ptr = instance.output_memory(idx).buffer_ptr();
                     std::memcpy(dst_ptr, src_ptr, instance.output_memory(idx).size());

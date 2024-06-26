@@ -90,7 +90,6 @@ private:
     std::vector<ov::Output<const ov::Node>> m_outputs;
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
-    bool m_subCompileModel = false;
 };
 
 }  // namespace intel_gpu

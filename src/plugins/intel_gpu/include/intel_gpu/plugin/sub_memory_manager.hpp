@@ -25,7 +25,7 @@ public:
 
     SubMemoryManager(int num_sub_streams) {
         assert(num_sub_streams);
-        _num_sub_streams = num_sub_streams;
+         _num_sub_streams = num_sub_streams;
         MemoryInfo memory_info;
         memory_info.flag = false;
         memory_info.last_used = false;
@@ -36,6 +36,7 @@ public:
     }
 
     int get_memory_id(int sub_stream_id) {
+        std::cout << _memorys_table.size() << std::endl;
         for (int i = 0; i < 2; i++) {
             if (!_memorys_table[i][sub_stream_id].last_used) {
                 return i;

@@ -65,7 +65,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     , m_inputs(ov::ICompiledModel::inputs())
     , m_outputs(ov::ICompiledModel::outputs())
     , m_loaded_from_cache(false) {
-    auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
+    auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0, sub_memory_manager);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -73,7 +73,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     if (m_config.enableSubStreams) {
         std::vector<ExecutionConfig> configs_for_tp;
         configs_for_tp.resize(m_config.get_context_for_tp().size());
-        m_subCompileModel = true;
+        m_has_sub_compiled_models = true;
         auto message = ov::threading::message_manager();
         auto tp_compile_executor = get_plugin()->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
                 "async compile executor for TP",

@@ -45,28 +45,8 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size) {
             }
         }
         auto wgt_item = fc->get_input_node_shared_ptr(1);
-        std::cout << wgt_item->get_output_partial_shape(0).to_string() << std::endl;
-        std::cout << fc->get_output_partial_shape(0).to_string() << std::endl;
         // split weight
         auto split_dim_range = wgt_item->get_shape()[0];
-        //auto fc_out_dim_vec = split_parts(split_dim_range, world_size);
-        /*auto original_fc_out = fc->get_output_partial_shape(0);
-        std::vector<ov::PartialShape> p_shapes(world_size, original_fc_out);
-        if (original_fc_out.rank().is_static()) {
-            const int64_t axis = ov::util::normalize_axis("get aplit axis", -1, original_fc_out.rank());
-            const auto& dimension_at_axis = original_fc_out[axis];
-            if (dimension_at_axis.is_static()) {
-                    for (size_t i =0 ; i< fc_out_dim_vec.size(); i++) {
-                        p_shapes[i][axis] = ov::Dimension(fc_out_dim_vec[i]);
-                    }
-                }
-        }
-        std::cout << "bell debug" << std::endl;
-        for (auto& shape : p_shapes) {
-            for (auto& iter : shape)
-                std::cout << iter << " ";
-            std::cout << std::endl;
-        }*/
         auto sync_node = std::make_shared<ov::intel_gpu::op::SyncTensor>(fc, world_size, split_dim_range, fc->get_element_type());
         sync_node->set_friendly_name(fc->get_friendly_name()+ "_TP");
 
