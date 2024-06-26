@@ -17,13 +17,13 @@ namespace monitor {
 class CpuPerformanceCounter : public PerformanceCounter {
 public:
     CpuPerformanceCounter(int nCores = 0);
-    virtual ~CpuPerformanceCounter();
+    virtual ~CpuPerformanceCounter() = default;
     std::map<std::string, double> get_load() override;
 
 private:
     int nCores;
     class PerformanceCounterImpl;
-    PerformanceCounterImpl* performance_counter = nullptr;
+    std::shared_ptr<PerformanceCounterImpl> performance_counter = nullptr;
 };
 }  // namespace monitor
 }  // namespace util

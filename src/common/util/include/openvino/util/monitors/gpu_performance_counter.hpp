@@ -18,12 +18,12 @@ namespace monitor {
 class GpuPerformanceCounter : public ov::util::monitor::PerformanceCounter {
 public:
     GpuPerformanceCounter();
-    virtual ~GpuPerformanceCounter();
+    virtual ~GpuPerformanceCounter() = default;
     std::map<std::string, double> get_load() override;
 
 private:
     class PerformanceCounterImpl;
-    PerformanceCounterImpl* performance_counter = nullptr;
+    std::shared_ptr<PerformanceCounterImpl> performance_counter = nullptr;
 };
 }  // namespace monitor
 }  // namespace util

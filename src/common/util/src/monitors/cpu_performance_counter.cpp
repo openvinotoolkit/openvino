@@ -187,12 +187,9 @@ public:
 CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
     : PerformanceCounter("CPU"),
       nCores(numCores >= 0 ? numCores : 0) {}
-CpuPerformanceCounter::~CpuPerformanceCounter() {
-    delete performance_counter;
-}
 std::map<std::string, double> CpuPerformanceCounter::get_load() {
     if (!performance_counter)
-        performance_counter = new PerformanceCounterImpl();
+        performance_counter = std::make_shared<PerformanceCounterImpl>();
     if (nCores == 0)
         return performance_counter->get_load();
     std::map<std::string, double> ret;

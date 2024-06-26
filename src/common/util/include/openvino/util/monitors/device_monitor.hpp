@@ -14,17 +14,12 @@ namespace util {
 namespace monitor {
 class DeviceMonitor {
 public:
-    DeviceMonitor(const std::shared_ptr<ov::util::monitor::PerformanceCounter>& PerformanceCounter,
-                  std::size_t historySize = 1);
-
     DeviceMonitor(std::size_t historySize = 1);
-    ~DeviceMonitor();
+    virtual ~DeviceMonitor() = default;
     void set_history_size(std::size_t size);
     std::size_t get_history_size() const;
-    void collect_data();
     void collect_data(const std::string& deviceName);
     std::deque<std::map<std::string, double>> get_last_history() const;
-    std::map<std::string, double> get_mean_device_load() const;
     std::map<std::string, double> get_mean_device_load(const std::string& deviceName);
 
 private:

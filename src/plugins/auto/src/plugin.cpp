@@ -511,7 +511,6 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
     std::list<DeviceInformation> Others;
-    ov::util::monitor::DeviceMonitor devices_monitor;
     auto is_supported_model = [this, model_precision](const std::string& device_name) {
         // Check if candidate device supported the specified model precision.
         std::vector<std::string> capability;
@@ -527,14 +526,15 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     };
 
     auto utilization_threshold = m_plugin_config.get_property(ov::intel_auto::device_utilization_threshold);
+    ov::util::monitor::DeviceMonitor devices_monitor;
     for (auto&& device_info : meta_devices) {
-        auto device_utilization =
-            devices_monitor.get_mean_device_load(ov::DeviceIDParser(device_info.device_name).get_device_name());
         if (device_info.device_priority > 0)
             is_default_list = false;
         // check if device support this model precision
         if (!is_supported_model(device_info.device_name) && meta_devices.size() > 1)
             continue;
+        ov::DeviceIDParser parsed{device_info.device_name};
+        auto device_utilization = devices_monitor.get_mean_device_load(parsed.get_device_name());
         if (device_info.device_name.find("CPU") == 0) {
             if (device_utilization.count("Total")) {
                 LOG_DEBUG_TAG("Device: %s[Total] Utilization: %s",
