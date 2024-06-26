@@ -545,6 +545,9 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                                   device_info.device_name.c_str(),
                                   std::to_string(device_utilization["Total"]).c_str(),
                                   utilization_threshold);
+                    std::cout << "[WY][DEBUG] Device: " << device_info.device_name
+                              << "\t current utilization: " << device_utilization["Total"]
+                              << " exceeds the threshold: " << utilization_threshold << std::endl;
                     continue;
                 }
             }
@@ -571,6 +574,9 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                                   device_info.device_name.c_str(),
                                   std::to_string(device_utilization[device_luid]).c_str(),
                                   utilization_threshold);
+                    std::cout << "[WY][DEBUG] Device: " << device_info.device_name
+                              << "\t current utilization: " << device_utilization[device_luid]
+                              << " exceeds the threshold: " << utilization_threshold << std::endl;
                     continue;
                 }
             }
