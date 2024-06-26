@@ -1,12 +1,8 @@
 Most Efficient Large Language Models for AI PC
 ==============================================
 
-This page is regularly updated to help you identify the best-performing LLMs on the Intel® Core™ Ultra processor family and AI PCs.
-
-The table below lists the key performance indicators for a selection of Large Language Models running on an Intel® Core™ Ultra 7-165H based system.
-
-For complete information on the system config, see: `Hardware Platforms [PDF] <https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.2-platform_list.pdf>`__
-
+The table below lists key performance indicators for a selection of Large Language Models
+running on an Intel® Core™ Ultra 7-165H based system.
 
 .. raw:: html
 
@@ -61,3 +57,8 @@ For complete information on the system config, see: `Hardware Platforms [PDF] <h
    :file:  ../../_static/llm_models.csv
 
 
+This page is regularly updated to help you identify the best-performing LLMs on the
+Intel® Core™ Ultra processor family and AI PCs.
+
+For complete information on the system config, see:
+`Hardware Platforms [PDF] <https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.2-platform_list.pdf>`__
