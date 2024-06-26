@@ -96,10 +96,21 @@ jobs:
       # Dependencies
       #
 
-      - name: Install OpenVINO Python wheels
+      - name: Install OpenVINO Python wheel (Linux and macOS)
+        if: runner.os != 'Windows'
         run: |
-          # Install the core OV wheel
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+          # Find and install wheel
+          pushd ${INSTALL_DIR}/tools
+            wheel_name=$(find . -name 'openvino-*.whl')
+            python3 -m pip install $wheel_name
+          popd
+
+      - name: Install OpenVINO Python wheel (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Find and install wheel
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
 
       #
       # Build
