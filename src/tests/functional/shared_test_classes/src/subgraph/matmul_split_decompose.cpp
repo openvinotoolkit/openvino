@@ -32,7 +32,8 @@ inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function
 std::string MatMulGatherDecompose::getTestCaseName(const testing::TestParamInfo<MatMulGatherDecomposeParams>& obj) {
     MatMulGatherDecomposeShapeParams shape_params;
     std::string device;
-    std::tie(shape_params, device) = obj.param;
+    bool enable_fq;
+    std::tie(shape_params, device, enable_fq) = obj.param;
     std::ostringstream results;
 
     results << "input=" << shape_params.input_shape << "_";
@@ -43,14 +44,17 @@ std::string MatMulGatherDecompose::getTestCaseName(const testing::TestParamInfo<
         results << "bias=" << shape_params.bias_shape << "_";
     }
     results << "reshape=" << shape_params.reshape_shape << "_";
-    results << "dev=" << device;
+    results << "dev=" << device << "_";
+    results << "enable_fq=" << enable_fq;
+
     return results.str();
 }
 
 void MatMulGatherDecompose::SetUp() {
     MatMulGatherDecomposeShapeParams shape_params;
     element::Type precision = element::f32;
-    std::tie(shape_params, targetDevice) = GetParam();
+    bool enable_fq = false;
+    std::tie(shape_params, targetDevice, enable_fq) = GetParam();
 
     const auto& input_shape = shape_params.input_shape;
     const auto& weights_shape = shape_params.weights_shape;
@@ -84,9 +88,8 @@ void MatMulGatherDecompose::SetUp() {
     auto const_one = ov::op::v0::Constant::create(element::i64, {}, {1});
     auto const_two = ov::op::v0::Constant::create(element::i64, {}, {2});
 
-    bool with_fq = true;
     std::shared_ptr<ov::Node> gather_0;
-    if (with_fq) {
+    if (enable_fq) {
         auto fq0 = std::make_shared<opset10::FakeQuantize>(transpose,
                                                            opset10::Constant::create(element::f32, Shape{}, {0}),
                                                            opset10::Constant::create(element::f32, Shape{}, {20}),
@@ -105,7 +108,7 @@ void MatMulGatherDecompose::SetUp() {
     auto mul2 = std::make_shared<ov::op::v1::Multiply>(gather_1, mul_const);
 
     std::shared_ptr<ov::Node> mul2_fq = mul2;
-    if (with_fq) {
+    if (enable_fq) {
         mul2_fq = std::make_shared<opset10::FakeQuantize>(mul2,
                                                           opset10::Constant::create(element::f32, Shape{}, {0}),
                                                           opset10::Constant::create(element::f32, Shape{}, {20}),

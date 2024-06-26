@@ -22,7 +22,8 @@ struct MatMulGatherDecomposeShapeParams {
 };
 
 typedef std::tuple<MatMulGatherDecomposeShapeParams,
-                   std::string  // Device name
+                   std::string,  // Device name
+                   bool          // Enable FakeQuantize
                    >
     MatMulGatherDecomposeParams;
 

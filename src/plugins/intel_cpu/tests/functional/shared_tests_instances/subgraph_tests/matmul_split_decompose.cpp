@@ -17,7 +17,8 @@ std::vector<MatMulGatherDecomposeShapeParams> mm_gather_shape_params = {
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulGatherDecompose,
                          MatMulGatherDecompose,
                          ::testing::Combine(::testing::ValuesIn(mm_gather_shape_params),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(false, true)),
                          MatMulGatherDecompose::getTestCaseName);
 
 std::vector<MatMulSplitDecomposeShapeParams> mm_split_shape_params = {
