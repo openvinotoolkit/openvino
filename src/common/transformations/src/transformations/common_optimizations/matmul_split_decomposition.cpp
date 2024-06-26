@@ -141,8 +141,8 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
             auto gather = child.get_node()->shared_from_this();
             if (ov::is_type<opset1::FakeQuantize>(gather)) {
                 PRINT << "Have FQ before gather===========" << std::endl;
-                fq = gather->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-                gather = fq;
+                fq = gather;
+                gather = gather->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             }
             if (ov::is_type<ov::op::util::GatherBase>(gather)) {
                 const auto axis_node = as_type_ptr<opset6::Constant>(gather->input_value(2).get_node_shared_ptr());
