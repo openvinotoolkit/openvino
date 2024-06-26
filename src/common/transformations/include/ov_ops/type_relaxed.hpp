@@ -119,7 +119,7 @@ class OPENVINO_API TemporaryReplaceOutputType {
 
 public:
     /// Replace element type for a given output port by tmp_type
-    TemporaryReplaceOutputType(const Output<Node>& output, const element::Type& tmp_type);
+    TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type);
 
     /// Return the output port that was used in the constructor
     Output<Node> get() const;

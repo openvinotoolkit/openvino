@@ -11,19 +11,34 @@ namespace ov {
 namespace pass {
 namespace pattern {
 namespace op {
+namespace {
+constexpr bool node_value_true_predicate(const Output<Node>&) {
+    return true;
+}
+}  // namespace
+
+struct NodeValuePredicate {
+    bool operator()(const Output<Node>& value) const {
+        return pred(value.get_node_shared_ptr());
+    }
+
+    NodePredicate pred;
+};
+
+Pattern::Pattern(const OutputVector& patterns, ValuePredicate pred)
+    : Node(patterns),
+      m_predicate(pred ? std::move(pred) : node_value_true_predicate) {}
+
 // The symbols are required to be in cpp file to workaround RTTI issue on Android LLVM
 ValuePredicate Pattern::get_predicate() const {
     return m_predicate;
 }
-ValuePredicate as_value_predicate(const NodePredicate& pred) {
-    if (pred == nullptr) {
-        return [](const Output<Node>&) {
-            return true;
-        };
+
+ValuePredicate as_value_predicate(NodePredicate pred) {
+    if (pred) {
+        return NodeValuePredicate{std::move(pred)};
     } else {
-        return [pred](const Output<Node>& value) {
-            return pred(value.get_node_shared_ptr());
-        };
+        return node_value_true_predicate;
     }
 }
 }  // namespace op
