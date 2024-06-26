@@ -4,7 +4,9 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -71,12 +73,13 @@ OutputVector translate_conv1d_ext(const NodeContext& context) {
     auto bias = context.get_input(2);
     bias = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(bias, x));
 
-    auto x_new_shape = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {-1, 0}));
     auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
-
     auto shape_x = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
-    auto x_new = context.mark_node(std::make_shared<v1::Reshape>(x, x_new_shape, true));
+    auto x_last_dim = context.mark_node(std::make_shared<v8::Gather>(shape_x, neg_one, zero));
+    auto x_new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{neg_one, x_last_dim}, 0));
+
+    auto x_new = context.mark_node(std::make_shared<v1::Reshape>(x, x_new_shape, false));
     auto mm = context.mark_node(std::make_shared<v0::MatMul>(x_new, weight));
     auto addmm = context.mark_node(std::make_shared<v1::Add>(bias, mm));
     auto size_out = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_x, neg_one, neg_one, zero));
