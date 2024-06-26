@@ -20,14 +20,20 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
     MatMulShapes shapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(precision, shapes, targetDevice, params) = obj.param;
+    ov::element::Type weightsType;
+    bool prelu;
+    std::string expectedPrimitiveType;
+    std::tie(precision, shapes, targetDevice, params, weightsType, prelu, expectedPrimitiveType) = obj.param;
 
     std::ostringstream result;
     result <<
-           get_test_case_name_by_params(precision, shapes.inputA, targetDevice, params) <<
-           shapes.inputB << "_" <<
+        get_test_case_name_by_params(precision, shapes.inputA, targetDevice, params) <<
+        shapes.inputB << "_" <<
         shapes.transposeA << "_" <<
-        shapes.transposeB;
+        shapes.transposeB << "_" <<
+        weightsType << "_" <<
+        prelu << "_" <<
+        expectedPrimitiveType;
 
     return result.str();
 }
@@ -36,7 +42,10 @@ void FullyConnectedTransformation::SetUp() {
     ov::element::Type precision;
     MatMulShapes shapes;
     ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(precision, shapes, targetDevice, params) = this->GetParam();
+    ov::element::Type weightsType;
+    bool prelu;
+    std::string expectedPrimitiveType;
+    std::tie(precision, shapes, targetDevice, params, weightsType, prelu, expectedPrimitiveType) = this->GetParam();
 
     init_input_shapes({ shapes.inputA, shapes.inputB });
 
@@ -45,12 +54,22 @@ void FullyConnectedTransformation::SetUp() {
         shapes.inputA,
         shapes.inputB,
         shapes.transposeA,
-        shapes.transposeB);
+        shapes.transposeB,
+        weightsType == ov::element::i8,
+        prelu);
 }
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
+
+    const auto actualPrecision = get_runtime_precision_by_type("FullyConnected");
+    auto expectedPrecision = std::get<4>(GetParam());
+    EXPECT_EQ(actualPrecision, expectedPrecision.to_string());
+
+    auto expectedPrimitiveType = std::get<6>(GetParam());
+    const std::string actualPrimitiveType = get_property_by_type("FullyConnected", "primitiveType");
+    EXPECT_EQ(expectedPrimitiveType, actualPrimitiveType);
 };
 
 }  // namespace LayerTestsDefinitions

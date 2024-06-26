@@ -20,6 +20,7 @@
 #include "low_precision/align_quantization_intervals.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/markup_bias.hpp"
+#include "low_precision/markup_dequantization_fuse.hpp"
 #include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
@@ -208,6 +209,8 @@ bool ov::pass::low_precision::MarkupOptimizations::run_on_model(const std::share
         markup.register_pass<low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     }
     markup.register_pass<low_precision::MarkupBias>();
+    // TODO: debug only
+    markup.register_pass<low_precision::MarkupDequantizationFuse>();
     markup.run_passes(f);
     return false;
 }

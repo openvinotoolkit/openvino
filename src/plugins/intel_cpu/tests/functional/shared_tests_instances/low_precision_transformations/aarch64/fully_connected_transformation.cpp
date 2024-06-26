@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn({ov::element::i8 /*, ov::element::u8*/}),
+        ::testing::ValuesIn({true, false}),
+        ::testing::Values("gemm_acl_i8")),
     FullyConnectedTransformation::getTestCaseName);
 }  // namespace

@@ -3,6 +3,9 @@
 //
 
 #include "acl_common_executor.hpp"
+
+#include <ostream>
+
 #include "acl_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
@@ -38,9 +41,9 @@ static void initACLTensorParams(const MemoryPtr& memoryPtr,
     }
 }
 
-static std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                              const arm_compute::DataType& dataType,
-                              const arm_compute::DataLayout& dataLayout) {
+std::shared_ptr<arm_compute::TensorInfo> ACLCommonExecutor::initTensorInfo(const arm_compute::TensorShape& tensorShape,
+                                                                           const arm_compute::DataType& dataType,
+                                                                           const arm_compute::DataLayout& dataLayout) {
     std::shared_ptr<arm_compute::TensorInfo> aclMemoryInfo = nullptr;
     if (dataType != arm_compute::DataType::UNKNOWN) {
         aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(
@@ -72,6 +75,9 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     ACLTypes   aclDataType{};
     ACLLayouts aclDataLayout{};
     for (auto& cpu_mem_ptr : memory) {
+        if (cpu_mem_ptr.second->getSize() == 0) {
+            continue;
+        }
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         initACLTensorParams(cpu_mem_ptr.second, aclTensorAttrs,
                             aclMemoryShapes[index],
@@ -108,18 +114,79 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     configureThreadSafe([&] {
         iFunction = configureFunction(aclMemoryTensors);
     });
+
+//    for (auto& cpu_mem_ptr : memory) {
+//        const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
+//        if (aclTensorAttrs.memoryUsageIndicator[index]) {
+//            aclMemoryTensors[index]->allocator()->import_memory(memory.at(cpu_mem_ptr.first)->getData());
+//        }
+//    }
     return true;
 }
 
+//namespace {
+//std::ostream& operator<<(std::ostream& os, const arm_compute::ITensorInfo* tensor_info) {
+//    const auto data_type = tensor_info->data_type();
+//    switch (data_type) {
+//        case arm_compute::DataType::S8: {
+//            return os << "S8";
+//        }
+//        case arm_compute::DataType::QSYMM8: {
+//            return os << "QSYMM8";
+//        }
+//        case arm_compute::DataType::QASYMM8: {
+//            return os << "QASYMM8";
+//        }
+//        case arm_compute::DataType::QASYMM8_SIGNED: {
+//            return os << "QASYMM8_SIGNED";
+//        }
+//        case arm_compute::DataType::S32: {
+//            return os << "S32";
+//        }
+//        case arm_compute::DataType::F32: {
+//            return os << "F32";
+//        }
+//        default: {
+//            return os << "[UNKNOWN]";
+//        }
+//    }
+//}
+//} // namespace
+
 void ACLCommonExecutor::execute(const MemoryArgs &memory) {
-    // TODO: Move import_memory() to update() function - CVS-145871
     for (auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
-        if (aclTensorAttrs.memoryUsageIndicator[index]) {
+        if (aclMemoryTensors[index]) {
             aclMemoryTensors[index]->allocator()->import_memory(memory.at(cpu_mem_ptr.first)->getData());
         }
     }
+
+//    for (auto index = 0; index < aclMemoryTensors.size(); ++index) {
+//        const auto& tensor = aclMemoryTensors[index];
+//        if ((tensor == nullptr) || (index == ACLArgs::ACL_DST)) {
+//            continue;
+//        }
+//
+//        if (index == ACLArgs::ACL_SRC_0) {
+//            std::cout << "src0 ";
+//        } else if (index == ACLArgs::ACL_WEI) {
+//            std::cout << "src1 ";
+//        } else if (index == ACLArgs::ACL_BIAS) {
+//            std::cout << "biases ";
+//        } else {
+//            std::cout << "[UNKNOWN] ";
+//        }
+//        std::cout << tensor->info() << ":" << std::endl;
+//        tensor->print(std::cout);
+//    }
+
     iFunction->run();
+
+//    {
+//        std::shared_ptr<arm_compute::Tensor> tensor = aclMemoryTensors[ACLArgs::ACL_DST];
+//        std::cout << "dst " << tensor->info() << ":" << std::endl;
+//        tensor->print(std::cout);
+//    }
 }
 
 ACLCommonExecutor::~ACLCommonExecutor() {

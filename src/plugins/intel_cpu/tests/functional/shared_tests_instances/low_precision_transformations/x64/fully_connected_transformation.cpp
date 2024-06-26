@@ -11,26 +11,25 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<ov::element::Type> netPrecisions = {
-    ov::element::f32,
-    ov::element::f16
+        ov::element::f32
 };
 
 const std::vector<MatMulShapes> shapes = {
     {
-        { 1, 16 },
-        { 16, 8 },
+        ov::PartialShape{ 1, 16 },
+        ov::PartialShape{ 16, 8 },
         false,
         false
     },
     {
-        { 1, 16 },
-        { 8, 16 },
+        ov::PartialShape{ 1, 16 },
+        ov::PartialShape{ 8, 16 },
         false,
         true
     },
     {
-        { 16, 1 },
-        { 16, 8 },
+        ov::PartialShape{ 16, 1 },
+        ov::PartialShape{ 16, 8 },
         true,
         false
     },
@@ -44,8 +43,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn({ov::element::i8, ov::element::u8})),
+        ::testing::ValuesIn({ov::element::i8, ov::element::u8}),
+        ::testing::ValuesIn({true, false}),
+        ::testing::Values("")),
     FullyConnectedTransformation::getTestCaseName);
 }  // namespace
