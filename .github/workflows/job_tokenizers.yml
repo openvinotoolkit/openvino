@@ -93,7 +93,7 @@ jobs:
           popd
 
       #
-      # Dependensies
+      # Dependencies
       #
 
       - name: Install OpenVINO Python wheels
