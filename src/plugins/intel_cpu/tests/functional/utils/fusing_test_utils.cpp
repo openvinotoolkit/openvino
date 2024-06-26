@@ -41,16 +41,10 @@ void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model
     for (const auto & op : function->get_ops()) {
         const auto &rtInfo = op->get_rt_info();
 
-        auto getExecValue = [](const std::string &paramName, const ov::Node::RTMap& rtInfo) -> std::string {
-            auto it = rtInfo.find(paramName);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
-
-        auto layerType = getExecValue("layerType", rtInfo);
+        const auto layerType = CPUTestUtils::getRuntimeValue(rtInfo, ov::exec_model_info::LAYER_TYPE);
         if (nodeType.count(layerType)) {
             isNodeFound = true;
-            auto originalLayersNames = getExecValue("originalLayersNames", rtInfo);
+            auto originalLayersNames = CPUTestUtils::getRuntimeValue(rtInfo, ov::exec_model_info::ORIGINAL_NAMES);
             std::string opFriendlyName = op->get_friendly_name();
             ASSERT_TRUE(originalLayersNames.find(opFriendlyName) != std::string::npos)
                 << "Operation name " << opFriendlyName << " has not been found in originalLayersNames!";

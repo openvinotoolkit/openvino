@@ -62,13 +62,12 @@ struct Require {
 // clang-format off
 static const TypeMapping dnnlFCTypeMapping {
     // {src, wei, bia, dst}                                   pt<src, wei, bias, dst>
-    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},               pt(bypass(), bypass(), use<3>(), bypass())},
+    {{_bf16, _bf16 | _f32 | _f16, _any, _bf16 | _f32},        pt(bypass(), bypass(), use<3>(), bypass())},
     {{_f16, _f16, _any, _f16 | _f32},                         pt(bypass(), bypass(), use<3>(), bypass())},
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            pt(bypass(), bypass(), use<0>(), use<0>())},
     // compresses float weights which do not match input data precision
     {{_f32, _half_float, _any, _any | _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     // int8 inner_product does not support f16 output and bias

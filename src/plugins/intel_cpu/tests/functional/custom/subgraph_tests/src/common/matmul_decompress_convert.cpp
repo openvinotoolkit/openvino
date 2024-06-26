@@ -100,24 +100,11 @@ public:
         std::tie(inputShapes, transpose, weiElemType, additionalConfig, cpuParams) = obj.param;
 
         std::ostringstream result;
-        for (const auto& shape : inputShapes) {
-            result << ov::test::utils::partialShape2str({shape.first}) << "_";
-        }
-        result << "TS=";
-        for (const auto& shape : inputShapes) {
-            result << "(";
-            if (!shape.second.empty()) {
-                auto itr = shape.second.begin();
-                do {
-                    result << ov::test::utils::vec2str(*itr);
-                } while (++itr != shape.second.end() && result << "_");
-            }
-            result << ")_";
-        }
+        for (size_t i = 0; i < inputShapes.size(); ++i)
+            result << "IS[" << i << "]=" << inputShapes[i] << "_";
         result << "transpose_a=" << transpose.first << "_";
         result << "transpose_b=" << transpose.second << "_";
-
-        result << "weiLemType=" << weiElemType << "_";
+        result << "weiElemType=" << weiElemType << "_";
 
         result << "config=(";
         for (const auto& configEntry : additionalConfig) {
@@ -135,25 +122,6 @@ protected:
     void transpose_shape(T& shape) {
         OPENVINO_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
-    }
-
-    void check_fc_weights_precision(ElementType expectedWeiElemType) const {
-        auto getExecValue = [](const ov::Node::RTMap& rtInfo, const std::string& paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
-
-        const auto execFunction = compiledModel.get_runtime_model();
-        ASSERT_NE(nullptr, execFunction);
-        for (const auto& fcNode : execFunction->get_ops()) {
-            if (getExecValue(fcNode->get_rt_info(), ov::exec_model_info::LAYER_TYPE) == "FullyConnected") {
-                const auto& constNode = fcNode->get_input_node_shared_ptr(1);
-                ov::element::Type expectedType(
-                    getExecValue(constNode->get_rt_info(), ov::exec_model_info::OUTPUT_PRECISIONS));
-                ASSERT_EQ(expectedType, expectedWeiElemType);
-            }
-        }
     }
 
     void SetUp() override {
@@ -196,23 +164,23 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        ElementType netType = ElementType::f32;
-        ElementType convertOutType = ElementType::f32;
+        inType = outType = netType = ElementType::f32;
         auto it = additionalConfig.find(ov::hint::inference_precision.name());
         if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
-            convertOutType = inType = outType = netType = ElementType::bf16;
+            netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
-        } else {
-            inType = outType = netType;
+            // Reorder between parameter and FullyConnected
+            // Note: reorder between FC and Result is not needed since FC primitive supports f32 output natively
+            reorderCount++;
         }
 
         std::string cpuNodeType = "FullyConnected";
-        selectedType = makeSelectedTypeStr(selectedType, outType);
+        selectedType = makeSelectedTypeStr(selectedType, netType);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB = ov::test::utils::make_constant(weiConstElemType, inShapeB.get_shape());
-        if (weiConstElemType == ElementType::f16 || weiConstElemType == ElementType::bf16) {
-            inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
+        if (weiConstElemType != inType) {
+            inputB = std::make_shared<ov::op::v0::Convert>(inputB, inType);
             mark_as_decompression(inputB);
         }
         expectedWeiConstElemType = weiConstElemType;
@@ -223,18 +191,22 @@ protected:
     }
 
     virtual void check_execution_graph() {
+        CheckNodePrecisionsWithType(compiledModel, "FullyConnected", {netType, expectedWeiConstElemType, ov::element::undefined}, {outType});
         CheckPluginRelatedResults(compiledModel, "FullyConnected");
         CheckNumberOfNodesWithType(compiledModel, "FullyConnected", fullyConnectedCount);
         CheckNumberOfNodesWithType(compiledModel, "Transpose", transposeCount);
         CheckNumberOfNodesWithType(compiledModel, "Convert", convertCount);
-        CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-        check_fc_weights_precision(expectedWeiConstElemType);
+        // Note: Convert node might be converted to Subgraph
+        CheckNumberOfNodesWithType(compiledModel, "Subgraph", 0);
+        CheckNumberOfNodesWithType(compiledModel, "Reorder", reorderCount);
     }
 
     size_t fullyConnectedCount = 1;
     size_t transposeCount = 0;
     size_t convertCount = 0;
+    size_t reorderCount = 0;
     ElementType expectedWeiConstElemType = ElementType::f32;
+    ElementType netType = ElementType::f32;
 };
 
 TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
@@ -266,11 +238,9 @@ const std::vector<std::vector<InputShape>> inputShapes3D = {
     {{{-1, -1, -1}, {{1, 2, 3}, {1, 5, 3}}}, {{1, 3, 4}, {{1, 3, 4}, {1, 3, 4}}}},
 };
 
-ov::AnyMap emptyConfig = {/* empty config */};
-
 std::vector<ov::AnyMap> filter_additional_config_bf16() {
     std::vector<ov::AnyMap> additionalConfig;
-    if (ov::with_cpu_x86_avx512_core()) {
+    if (ov::with_cpu_x86_bfloat16()) {
         additionalConfig.push_back({{ov::hint::inference_precision(ov::element::bf16)}});
     }
     return additionalConfig;
@@ -307,7 +277,7 @@ std::vector<CPUSpecificParams> filter_specific_params_bf16() {
 const auto testParams2D_FP32_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
                                                         ::testing::ValuesIn(transposeParams),
                                                         ::testing::Values(ElementType::f32),
-                                                        ::testing::Values(emptyConfig),
+                                                        ::testing::Values(CPUTestUtils::empty_plugin_config),
                                                         ::testing::ValuesIn(filter_specific_params(true)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP32,
@@ -318,7 +288,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP32,
 const auto testParams2D_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes2D),
                                                    ::testing::ValuesIn(transposeParams),
                                                    ::testing::Values(ElementType::f16, ElementType::bf16),
-                                                   ::testing::Values(emptyConfig),
+                                                   ::testing::Values(CPUTestUtils::empty_plugin_config),
                                                    ::testing::ValuesIn(filter_specific_params(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D,
@@ -340,7 +310,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16,
 const auto testParams3D_FP32_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                                         ::testing::ValuesIn(transposeParams),
                                                         ::testing::Values(ElementType::f32),
-                                                        ::testing::Values(emptyConfig),
+                                                        ::testing::Values(CPUTestUtils::empty_plugin_config),
                                                         ::testing::ValuesIn(filter_specific_params(true)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP32,
@@ -351,7 +321,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP32,
 const auto testParams3D_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                                         ::testing::ValuesIn(transposeParams),
                                                         ::testing::Values(ElementType::f16, ElementType::bf16),
-                                                        ::testing::Values(emptyConfig),
+                                                        ::testing::Values(CPUTestUtils::empty_plugin_config),
                                                         ::testing::ValuesIn(filter_specific_params(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D,
@@ -460,26 +430,26 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        ElementType netType = ElementType::f32;
-        ElementType convertOutType = ElementType::f32;
+        inType = outType = netType = ElementType::f32;
         auto it = additionalConfig.find(ov::hint::inference_precision.name());
         if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
-            convertOutType = inType = outType = netType = ElementType::bf16;
+            netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
-        } else {
-            inType = outType = netType;
+            // Reorder between parameter and FullyConnected
+            // Note: reorder between FC and Result is not needed since FC primitive supports f32 output natively
+            reorderCount++;
         }
 
         std::string cpuNodeType = "FullyConnected";
-        selectedType = makeSelectedTypeStr(selectedType, outType);
+        selectedType = makeSelectedTypeStr(selectedType, netType);
 
         ov::ParameterVector params;
         for (auto&& shape : {inShapeFC0, inShapeFC1}) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
         std::shared_ptr<ov::Node> inputWeights = ov::test::utils::make_constant(weiConstElemType, inShapeWeights.get_shape());
-        if (weiConstElemType == ElementType::f16) {
-            inputWeights = std::make_shared<ov::op::v0::Convert>(inputWeights, convertOutType);
+        if (weiConstElemType != inType) {
+            inputWeights = std::make_shared<ov::op::v0::Convert>(inputWeights, inType);
             mark_as_decompression(inputWeights);
         }
         expectedWeiConstElemType = weiConstElemType;
@@ -505,7 +475,7 @@ const auto testParams2D_FP16_2_smoke =
     ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{2, 3}, {2, 3}, {3, 4}})),
                        ::testing::Values(std::pair<bool, bool>{false, true}),
                        ::testing::Values(ElementType::f16),
-                       ::testing::Values(emptyConfig),
+                       ::testing::Values(CPUTestUtils::empty_plugin_config),
                        ::testing::ValuesIn(filter_specific_params(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_2,
@@ -644,7 +614,7 @@ const auto testParams2D_FP16_3_smoke =
     ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{1, 16, 32}, {32, 64}})),
                        ::testing::Values(std::pair<bool, bool>{false, false}),
                        ::testing::Values(ElementType::f16),
-                       ::testing::Values(emptyConfig),
+                       ::testing::Values(CPUTestUtils::empty_plugin_config),
                        ::testing::ValuesIn(filter_specific_params(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_3,

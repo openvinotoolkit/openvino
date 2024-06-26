@@ -244,6 +244,17 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
             const auto parentEdge = outputNode->getParentEdgeAt(0);
             const auto parent = parentEdge->getParent();
             parent->setOriginalOutputPrecisionAtPort(parentEdge->getInputNum(), precToSet);
+            // If the parent has consumers except Output, precToSet is propagated to consumer's inputs
+            // to avoid precision mismatch (which leads to reorder insertion and unnecessary performance overheads)
+            if (parent->getChildEdges().size() > 1) {
+                for (size_t i = 0; i < parent->getChildEdges().size(); ++i) {
+                    const auto childEdge = parent->getChildEdgeAt(i);
+                    // Consumers from other parent's output shouldn't be changed
+                    if (childEdge->getInputNum() != parentEdge->getInputNum())
+                        continue;
+                    childEdge->getChild()->setOriginalInputPrecisionAtPort(childEdge->getOutputNum(), precToSet);
+                }
+            }
         }
     }
 }
