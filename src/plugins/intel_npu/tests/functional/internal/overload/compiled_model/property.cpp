@@ -31,19 +31,15 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = 
         {std::make_pair(ov::supported_properties.name(), ov::Any("deadbeef"))},
         {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))}};
 
-std::vector<std::pair<std::string, ov::Any>> properties = {{}};
-
 // ExecutableNetwork Properties tests
 class ClassExecutableNetworkGetPropertiesTestNPU :
         public OVCompiledModelPropertiesBase,
         public ::testing::WithParamInterface<
-                std::tuple<std::string, std::pair<std::string, ov::Any>, std::pair<std::string, ov::Any>>> {
+                std::tuple<std::string, std::pair<std::string, ov::Any>>> {
 protected:
     std::string deviceName;
     std::string configKey;
     ov::Any configValue;
-    std::string compilerTypeConfigKey;
-    ov::Any compilerTypeConfigValue;
     ov::Core ie;
 
 public:
@@ -52,23 +48,20 @@ public:
         OVCompiledModelPropertiesBase::SetUp();
         deviceName = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
-        std::tie(compilerTypeConfigKey, compilerTypeConfigValue) = std::get<2>(GetParam());
 
         model = ov::test::utils::make_conv_pool_relu();
     }
     static std::string getTestCaseName(
             testing::TestParamInfo<
-                    std::tuple<std::string, std::pair<std::string, ov::Any>, std::pair<std::string, ov::Any>>>
+                    std::tuple<std::string, std::pair<std::string, ov::Any>>>
                     obj) {
         std::string targetDevice;
         std::pair<std::string, ov::Any> configuration;
-        std::pair<std::string, ov::Any> compilerType;
-        std::tie(targetDevice, configuration, compilerType) = obj.param;
+        std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
         result << "targetDevice=" << ov::test::utils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
-        result << "_compilerType=(" << compilerType.first << "=" << compilerType.second.as<std::string>() << ")";
         result << "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 
         return result.str();
@@ -81,7 +74,7 @@ TEST_P(ClassExecutableNetworkTestSuite1NPU, PropertyIsSupportedAndImmutableAndGe
     std::vector<ov::PropertyName> properties;
 
     ov::CompiledModel exeNetwork =
-            ie.compile_model(model, deviceName, {{compilerTypeConfigKey, compilerTypeConfigValue}});
+            ie.compile_model(model, deviceName);
     OV_ASSERT_NO_THROW(properties = exeNetwork.get_property(ov::supported_properties));
 
     auto it = find(properties.cbegin(), properties.cend(), configKey);
@@ -94,8 +87,7 @@ TEST_P(ClassExecutableNetworkTestSuite1NPU, PropertyIsSupportedAndImmutableAndGe
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkGetPropertiesTestNPU,
                          ClassExecutableNetworkTestSuite1NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
-                                            ::testing::ValuesIn(exe_network_supported_properties),
-                                            ::testing::ValuesIn(properties)),
+                                            ::testing::ValuesIn(exe_network_supported_properties)),
                          ClassExecutableNetworkTestSuite1NPU::getTestCaseName);
 
 using ClassExecutableNetworkTestSuite2NPU = ClassExecutableNetworkGetPropertiesTestNPU;
@@ -104,7 +96,7 @@ TEST_P(ClassExecutableNetworkTestSuite2NPU, PropertyIsSupportedAndImmutableAndCa
     std::vector<ov::PropertyName> properties;
 
     ov::CompiledModel exeNetwork =
-            ie.compile_model(model, deviceName, {{compilerTypeConfigKey, compilerTypeConfigValue}});
+            ie.compile_model(model, deviceName);
     OV_ASSERT_NO_THROW(properties = exeNetwork.get_property(ov::supported_properties));
 
     auto it = find(properties.cbegin(), properties.cend(), configKey);
@@ -116,8 +108,7 @@ TEST_P(ClassExecutableNetworkTestSuite2NPU, PropertyIsSupportedAndImmutableAndCa
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkTestSuite2NPU, ClassExecutableNetworkTestSuite2NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
-                                            ::testing::ValuesIn(exe_network_immutable_properties),
-                                            ::testing::ValuesIn(properties)),
+                                            ::testing::ValuesIn(exe_network_immutable_properties)),
                          ClassExecutableNetworkTestSuite2NPU::getTestCaseName);
 
 }  // namespace
@@ -308,13 +299,13 @@ TEST_P(ClassPluginPropertiesTestSuite4NPU, CanNotSetGetInexistentProperty) {
 
     ASSERT_THROW(
             ov::CompiledModel compiled_model1 = ie.compile_model(
-                    model, deviceName, {{configKey, configValue}, {compilerTypeConfigKey, compilerTypeConfigValue}}),
+                    model, deviceName, {{configKey, configValue}}),
             ov::Exception);
 
     ov::CompiledModel compiled_model2;
 
     OV_ASSERT_NO_THROW(compiled_model2 =
-                               ie.compile_model(model, deviceName, {{compilerTypeConfigKey, compilerTypeConfigValue}}));
+                               ie.compile_model(model, deviceName));
 
     ASSERT_THROW(compiled_model2.set_property({{configKey, configValue}}),
                  ov::Exception);  // Expect to throw due to unimplemented method
@@ -327,8 +318,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkGetProperties
                          ClassPluginPropertiesTestSuite4NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn({std::make_pair<std::string, ov::Any>(
-                                                    "THISCONFIGKEYNOTEXIST", ov::Any("THISCONFIGVALUENOTEXIST"))}),
-                                            ::testing::ValuesIn(properties)),
+                                                    "THISCONFIGKEYNOTEXIST", ov::Any("THISCONFIGVALUENOTEXIST"))})),
                          ClassPluginPropertiesTestSuite4NPU::getTestCaseName);
 
 }  // namespace
