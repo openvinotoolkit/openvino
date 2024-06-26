@@ -78,9 +78,9 @@ static std::set<int64_t> parse_int_set(std::string& str) {
         while (ss >> token) {
             try {
                 int_array.insert(static_cast<int64_t>(std::stol(token)));
-            } catch(const std::exception& ex) {
+            } catch(const std::exception &) {
                 int_array.clear();
-                GPU_DEBUG_COUT << "OV_GPU_DumpMemoryPoolIters was ignored. It cannot be parsed to integer array." << std::endl;
+                GPU_DEBUG_COUT << "Argument was ignored. It cannot be parsed to integer array: " << str << std::endl;
                 break;
             }
         }
@@ -181,6 +181,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
     message_list.emplace_back("OV_GPU_DisableFakeAlignment", "Disable fake alignment");
+    message_list.emplace_back("OV_GPU_EnableDynamicQuantize", "Enable Dynamic quantization for fully connected primitive");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
     message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in "
                               "the following order: number of iterations for pre-allocation(int), max size of single iteration in bytes(int), "
@@ -245,7 +246,8 @@ debug_configuration::debug_configuration()
         , disable_build_time_weight_reorder_for_dynamic_nodes(0)
         , disable_runtime_skip_reorder(0)
         , disable_primitive_fusing(0)
-        , disable_fake_alignment(0) {
+        , disable_fake_alignment(0)
+        , enable_dynamic_quantize(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -296,6 +298,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableRuntimeSkipReorder", disable_runtime_skip_reorder);
     get_gpu_debug_env_var("DisablePrimitiveFusing", disable_primitive_fusing);
     get_gpu_debug_env_var("DisableFakeAlignment", disable_fake_alignment);
+    get_gpu_debug_env_var("EnableDynamicQuantize", enable_dynamic_quantize);
     std::string dump_iteration_str;
     get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
     std::string mem_preallocation_params_str;
