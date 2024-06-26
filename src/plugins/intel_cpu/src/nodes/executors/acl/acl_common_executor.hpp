@@ -32,6 +32,7 @@ public:
     impl_desc_type implType() const override {
         return impl_desc_type::acl;
     }
+    static arm_compute::ITensorInfo* getACLInfo(const ACLMemory& aclMemory);
     void execute(const MemoryArgs& memory) final;
     bool update(const MemoryArgs& memory) final;
     ~ACLCommonExecutor();
@@ -42,8 +43,6 @@ protected:
 private:
     ACLMemoryMap aclMemoryMap;
     ACLFunction iFunction = nullptr;
-    static ACLMemoryInfo initTensorInfo(const MemoryPtr& memoryPtr, const ACLTensorAttrs& attrs);
-    static ACLMemory initTensor(const ACLMemoryInfo& aclMemoryInfo);
 };
 
 using ACLCommonExecutorPtr = std::shared_ptr<ACLCommonExecutor>;

@@ -19,9 +19,6 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs &attrs, const
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
     fullyConnectedLayerInfo.weights_trained_layout = getAclDataLayoutByMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
     fullyConnectedLayerInfo.transpose_weights = !attrs.weightsNonTransposed;
-    if (memory.at(ARG_SRC)->getPrecision() == ov::element::f16) {
-        fullyConnectedLayerInfo.fp_mixed_precision = true;
-    }
 
     // Add postops
     if (!postOps.empty() && postOps.size() == 1) {
@@ -68,10 +65,10 @@ arm_compute::Status ACLFullyConnectedExecutor::updateTensorsInfo(const ACLMemory
     }
 
     return arm_compute::NEFullyConnectedLayer::validate(
-            acl_memory.at(ARG_SRC)->info(),
-            acl_memory.at(ARG_WEI)->info(),
-            acl_memory.at(ARG_BIAS) ? acl_memory.at(ARG_BIAS)->info() : nullptr,
-            acl_memory.at(ARG_DST)->info(),
+            getACLInfo(acl_memory.at(ARG_SRC)),
+            getACLInfo(acl_memory.at(ARG_WEI)),
+            getACLInfo(acl_memory.at(ARG_BIAS)),
+            getACLInfo(acl_memory.at(ARG_DST)),
             fullyConnectedLayerInfo,
             weightsInfo);
 }

@@ -10,7 +10,7 @@
 namespace ov {
 namespace intel_cpu {
 
-ACLMemoryInfo ACLCommonExecutor::initTensorInfo(const MemoryPtr& memoryPtr,  const ACLTensorAttrs& attrs) {
+static ACLMemoryInfo initTensorInfo(const MemoryPtr& memoryPtr,  const ACLTensorAttrs& attrs) {
     auto acl_tensor_type   = precisionToAclDataType(memoryPtr->getPrecision());
     auto acl_tensor_layout = getAclDataLayoutByMemoryDesc(memoryPtr->getDescPtr());
 
@@ -29,13 +29,20 @@ ACLMemoryInfo ACLCommonExecutor::initTensorInfo(const MemoryPtr& memoryPtr,  con
     return aclMemoryInfo;
 }
 
-ACLMemory ACLCommonExecutor::initTensor(const ACLMemoryInfo& aclMemoryInfo) {
+static ACLMemory initTensor(const ACLMemoryInfo& aclMemoryInfo) {
     ACLMemory aclMemory = nullptr;
     if (aclMemoryInfo) {
         aclMemory = std::make_shared<arm_compute::Tensor>();
         aclMemory->allocator()->init(*aclMemoryInfo);
     }
     return aclMemory;
+}
+
+arm_compute::ITensorInfo* ACLCommonExecutor::getACLInfo(const ACLMemory& aclMemory) {
+    if (aclMemory) {
+        return aclMemory->info();
+    }
+    return nullptr;
 }
 
 bool ACLCommonExecutor::update(const MemoryArgs &memory) {
