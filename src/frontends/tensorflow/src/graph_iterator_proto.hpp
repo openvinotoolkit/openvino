@@ -142,7 +142,7 @@ public:
     /// \brief Check if the input file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
-        FRONT_END_GENERAL_CHECK(util::file_exists(path),
+        FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
                                 "Could not open the file: \"",
                                 util::path_to_string(path),
                                 '"');
