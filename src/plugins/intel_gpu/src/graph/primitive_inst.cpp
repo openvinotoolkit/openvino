@@ -637,7 +637,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
     prealloc_info = sp.predict_preallocation_shape(id(), updated_layout, can_reuse_buffer, tmp_prealloc_count);
 
-    if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
+    if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_size / 8))) {
         auto new_layout = updated_layout;
         new_layout.set_partial_shape(prealloc_info.second);
         updated_params.output_layouts[0] = new_layout;
