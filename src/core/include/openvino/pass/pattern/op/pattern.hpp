@@ -36,8 +36,8 @@ std::function<bool(std::shared_ptr<Node>)> has_class() {
     return pred;
 }
 template <typename T>
-std::function<bool(const std::shared_ptr<Node>&)> class_other_than() {
-    auto pred = [](const std::shared_ptr<Node>& node) -> bool {
+std::function<bool(std::shared_ptr<Node>)> class_other_than() {
+    auto pred = [](std::shared_ptr<Node> node) -> bool {
         return !ov::is_type<T>(node);
     };
 
