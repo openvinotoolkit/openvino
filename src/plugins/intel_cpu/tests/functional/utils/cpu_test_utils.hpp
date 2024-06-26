@@ -186,4 +186,9 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
 void CheckNumberOfNodesWithTypes(const ov::CompiledModel& compiledModel,
                                  const std::unordered_set<std::string>& nodeTypes,
                                  size_t expectedCount);
+
+void CheckNodePrecisionsWithType(const ov::CompiledModel& compiledModel,
+                                 const std::string& nodeType,
+                                 ov::element::TypeVector&& inPrecisions,
+                                 ov::element::TypeVector&& outPrecisions);
 }  // namespace CPUTestUtils

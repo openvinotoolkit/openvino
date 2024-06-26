@@ -119,6 +119,12 @@ ov::PrimitivesPriority CPUTestsBase::impls2primProiority(const std::vector<std::
     return ov::PrimitivesPriority(str);
 }
 
+inline std::string getExecValue(const ov::Node::RTMap& rtInfo, const std::string& paramName) {
+    auto it = rtInfo.find(paramName);
+    OPENVINO_ASSERT(rtInfo.end() != it);
+    return it->second.as<std::string>();
+}
+
 void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel& execNet,
                                              const std::set<std::string>& nodeType) const {
     if (!execNet || nodeType.empty())
@@ -138,11 +144,6 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
     ASSERT_NE(nullptr, function);
     for (const auto& node : function->get_ops()) {
         const auto& rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
         auto getExecValueOutputsLayout = [](const std::shared_ptr<ov::Node>& node) -> std::string {
             auto rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ov::exec_model_info::OUTPUT_LAYOUTS);
@@ -163,7 +164,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             return skip_unsquized_1D || permule_of_1;
         };
 
-        if (nodeType.count(getExecValue(ov::exec_model_info::LAYER_TYPE))) {
+        if (nodeType.count(getExecValue(rtInfo, ov::exec_model_info::LAYER_TYPE))) {
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (size_t i = 0; i < inFmts.size(); i++) {
@@ -208,7 +209,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
                 ASSERT_EQ(fmtsNum, actualOutputMemoryFormats.size());
             }
             for (size_t i = 0; i < fmtsNum; i++) {
-                const auto actualOutputMemoryFormat = getExecValue(ov::exec_model_info::OUTPUT_LAYOUTS);
+                const auto actualOutputMemoryFormat = getExecValue(rtInfo, ov::exec_model_info::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_partial_shape(i);
 
                 if (should_be_skipped(shape, outFmts[i]))
@@ -216,7 +217,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
                 ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
-            auto primType = getExecValue(ov::exec_model_info::IMPL_TYPE);
+            auto primType = getExecValue(rtInfo, ov::exec_model_info::IMPL_TYPE);
 
             ASSERT_TRUE(primTypeCheck(primType))
                 << "primType is unexpected : " << primType << " Expected : " << selectedType;
@@ -440,14 +441,7 @@ inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> func
     ASSERT_NE(nullptr, function);
     size_t actualNodeCount = 0;
     for (const auto& node : function->get_ops()) {
-        const auto& rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
-
-        if (nodeTypes.count(getExecValue(ov::exec_model_info::LAYER_TYPE))) {
+        if (nodeTypes.count(getExecValue(node->get_rt_info(), ov::exec_model_info::LAYER_TYPE))) {
             actualNodeCount++;
         }
     }
@@ -541,5 +535,23 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
 
     return deducedType;
 #endif
+}
+
+void CheckNodePrecisionsWithType(const ov::CompiledModel& compiledModel,
+                                 const std::string& nodeType,
+                                 ov::element::TypeVector&& inPrecisions,
+                                 ov::element::TypeVector&& outPrecisions) {
+    const auto function = compiledModel.get_runtime_model();
+    ASSERT_NE(nullptr, function);
+    for (const auto& node : function->get_ops()) {
+        if (getExecValue(node->get_rt_info(), ov::exec_model_info::LAYER_TYPE) == nodeType) {
+            ASSERT_EQ(inPrecisions.size(), node->get_input_size());
+            ASSERT_EQ(outPrecisions.size(), node->get_output_size());
+            for (size_t i = 0; i < inPrecisions.size(); ++i)
+                ASSERT_EQ(inPrecisions[i], node->get_input_element_type(i)) << "i = " << i;
+            for (size_t i = 0; i < outPrecisions.size(); ++i)
+                ASSERT_EQ(outPrecisions[i], node->get_output_element_type(i)) << "i = " << i;
+        }
+    }
 }
 }  // namespace CPUTestUtils
