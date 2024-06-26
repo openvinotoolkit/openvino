@@ -48,10 +48,10 @@ void col2im(const T* data,
             const auto channel_idx = column / kernel_product;
 
             for (int64_t column_height_idx = 0; column_height_idx < original_height; ++column_height_idx) {
-                const T_idx image_height_idx = get_image_dimension_index(column_height_idx, height_offset, 0);
+                const int64_t image_height_idx = get_image_dimension_index(column_height_idx, height_offset, 0);
                 if (image_height_idx >= 0 && image_height_idx < output_size[0]) {
                     for (int64_t column_width_idx = 0; column_width_idx < original_width; ++column_width_idx) {
-                        const T_idx image_width_idx = get_image_dimension_index(column_width_idx, width_offset, 1);
+                        const int64_t image_width_idx = get_image_dimension_index(column_width_idx, width_offset, 1);
                         if (image_width_idx >= 0 && image_width_idx < output_size[1]) {
                             const int64_t img_idx =
                                 ((batch * channel_count + channel_idx) * output_size[0] + image_height_idx) *

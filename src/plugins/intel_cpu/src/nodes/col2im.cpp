@@ -12,6 +12,10 @@ namespace intel_cpu {
 namespace node {
 Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
     const auto col2Im = ov::as_type_ptr<const ov::op::v15::Col2Im>(op);
     strides = col2Im->get_strides();
     dilations = col2Im->get_dilations();
@@ -21,8 +25,7 @@ Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
 bool Col2Im::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto col2Im = std::dynamic_pointer_cast<const ov::op::v15::Col2Im>(op);
-        if (!col2Im) {
+        if (!ov::is_type<ov::op::v15::Col2Im>(op)) {
             errorMessage = "Only opset15 Col2Im operation is supported";
             return false;
         }
@@ -39,14 +42,10 @@ void Col2Im::getSupportedDescriptors() {
 void Col2Im::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
-    ov::element::Type indexPrecision = getOriginalInputPrecisionAtPort(1);
-    ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
-
     addSupportedPrimDesc(
-        {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, indexPrecision}, {LayoutType::ncsp, indexPrecision}},
-        {{LayoutType::ncsp, outputPrecision}},
+        {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+        {{LayoutType::ncsp, dataPrecision}},
         impl_desc_type::ref);
 }
 
@@ -64,26 +63,11 @@ void Col2Im::executeDynamicImpl(dnnl::stream strm) {
 
 template <class T, class T_idx>
 void Col2Im::executeImpl() {
-    const auto indexPrecision = getSrcMemoryAtPort(1)->getPrecision();
-    std::vector<T_idx> outputSizeVector(2);
-    cpu_convert(getSrcMemoryAtPort(1)->getData(),
-                outputSizeVector.data(),
-                indexPrecision,
-                ov::element::i64,
-                2);
-
-    std::vector<T_idx> kernelSizeVector(2);
-    cpu_convert(getSrcMemoryAtPort(2)->getData(),
-                kernelSizeVector.data(),
-                indexPrecision,
-                ov::element::i64,
-                2);
-
     ov::reference::col2im<T, T_idx>(
         getSrcDataAtPortAs<const T>(0),
         ov::Shape{getSrcMemoryAtPort(0)->getStaticDims()},
-        outputSizeVector.data(),
-        kernelSizeVector.data(),
+        getSrcDataAtPortAs<const T_idx>(1),
+        getSrcDataAtPortAs<const T_idx>(2),
         getDstDataAtPortAs<T>(0),
         strides,
         dilations,
@@ -115,9 +99,12 @@ void Col2Im::execute(dnnl::stream strm) {
     };
 
     OV_SWITCH(intel_cpu, Col2ImExecute, ctx, std::tie(dataPrecision, indexPrecision),
-              OV_CASE2(ov::element::f32, ov::element::i32, float, uint64_t),
-              OV_CASE2(ov::element::f16, ov::element::i32, float, uint64_t),
-              OV_CASE2(ov::element::i32, ov::element::i32, uint32_t, uint64_t))
+              OV_CASE2(ov::element::f32, ov::element::i32, float, int32_t),
+              OV_CASE2(ov::element::f16, ov::element::i32, ov::float16, int32_t),
+              OV_CASE2(ov::element::bf16, ov::element::i32, ov::bfloat16, int32_t),
+              OV_CASE2(ov::element::i32, ov::element::i32, int32_t, int32_t),
+              OV_CASE2(ov::element::i8, ov::element::i32, int8_t, int32_t),
+              OV_CASE2(ov::element::u8, ov::element::i32, uint8_t, int32_t))
 }
 }  // namespace node
 }  // namespace intel_cpu

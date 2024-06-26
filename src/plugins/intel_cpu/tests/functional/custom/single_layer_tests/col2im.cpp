@@ -126,6 +126,10 @@ protected:
 
         ov::ParameterVector params{ dataParameter };
         function = makeNgraphFunction(inputPrecision, params, Col2Im, "Col2Im");
+
+        if (inputPrecision == ov::element::bf16) {
+            abs_threshold = 5e-1f;
+        }
     }
 };
 
@@ -279,6 +283,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestF32, Col2ImLayerCPUTest,
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_f32"})),
                 Col2ImLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestBF16, Col2ImLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(col2ImParamsVector),
+                        ::testing::Values(ElementType::bf16),
+                        ::testing::ValuesIn(indexPrecisions),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_bf16"})),
+                Col2ImLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestI32, Col2ImLayerCPUTest,
         ::testing::Combine(
                 ::testing::Combine(
@@ -287,6 +301,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestI32, Col2ImLayerCPUTest,
                         ::testing::ValuesIn(indexPrecisions),
                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_i32"})),
+                Col2ImLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestU8, Col2ImLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(col2ImParamsVector),
+                        ::testing::Values(ElementType::u8),
+                        ::testing::ValuesIn(indexPrecisions),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_I8"})),
+                Col2ImLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestI8, Col2ImLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(col2ImParamsVector),
+                        ::testing::Values(ElementType::i8),
+                        ::testing::ValuesIn(indexPrecisions),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_i8"})),
                 Col2ImLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace test
