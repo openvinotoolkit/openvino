@@ -1231,6 +1231,9 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
                                                                lstm_cell_node->get_activations(),
                                                                lstm_cell_node->get_clip());
 
+        if (transformation_callback(lstm_sequence))
+            return false;
+
         // prepare outputs of LSTMSequence
         // output with concatenated hidden states must be in a format [seq_len, batch_size, hidden_size]
         // LSTMSequence generates it in a format [batch_size, num_directions, seq_len, hidden_size]
