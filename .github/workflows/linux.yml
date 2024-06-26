@@ -327,11 +327,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: 'ubuntu_22'
+          - os: '_ubuntu_22'
             image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ matrix.image }}
+      os: ${{ matrix.os }}
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
