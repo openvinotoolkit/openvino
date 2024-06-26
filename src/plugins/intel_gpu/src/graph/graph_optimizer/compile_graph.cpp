@@ -71,7 +71,8 @@ void compile_graph::run(program& p) {
             }
             if (node->is_type<convolution>()) {
                 auto w_layout = node->as<convolution>().weights().get_output_layout();
-                // Only convolution_fsv16_1x1 is available shape agnostic kernel for onednn convolution using the block format(fsv16)
+                // Convolution_fsv16_1x1 is only available shape agnostic kernel for onednn convolution which uses the block format.(fsv16)
+                // Onednn convolution doesn't support input padding but most of cldnn optimized convolution require input padding except fsv16_1x1.
                 if (w_layout.spatial(0) != 1 || w_layout.spatial(1) != 1) {
                     change_initial_impl = false;
                 }

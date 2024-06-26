@@ -40,8 +40,8 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
             return { 8, EXE_MODE_DEFAULT };
         }
     } else {
-        // In shape agnostic kernel, the output shape cannot be specified at build time,
-        // So we initialy set blockWidth to 8 which is the most commonly used. Update blockWidth after static shape comes.
+        // In shape agnostic kernel, the output shape can not be specified at build time,
+        // So we prepare 4 kernels(blockWith 1, 2, 4, 8) in advance and then use proper kernel at runtime when static shape comes.
         return { 8, EXE_MODE_DEFAULT };
     }
 }
@@ -139,7 +139,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
 
 KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
-    if (!p.has_dynamic_tensors()) {
+    if (!p.is_shape_agnostic) {
         auto autoTune = GetAutoTuneOptions(p, -1);
 
         const auto& input = p.inputs[0];
