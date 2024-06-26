@@ -1,4 +1,4 @@
-name: Linux (Ubuntu 20.04, 22.04, 24.04)
+name: Linux (Ubuntu 22.04, Python 3.11)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -13,7 +13,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-ubuntu-22
   cancel-in-progress: true
 
 permissions: read-all
@@ -70,299 +70,48 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_20_04_x64
             ov_build/ubuntu_22_04_x64
-            ov_build/ubuntu_24_04_x64
-            ov_build/ubuntu_20_04_x64_nvidia
-            ov_test/ubuntu_20_04_x64
+            ov_build/ubuntu_22_04_x64_nvidia
             ov_test/ubuntu_22_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
-    name: Build (${{ matrix.os }})
     needs: [Docker, Smart_CI]
-    timeout-minutes: 150
-    defaults:
-      run:
-        shell: bash
-    runs-on: aks-linux-16-cores-32gb
-    strategy:
-      max-parallel: 3
-      fail-fast: false
-      matrix:
-        include:
-          - os: 'ubuntu_20'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
-          - os: 'ubuntu_22'
-            image:  ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
-          - os: 'ubuntu_24'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
-    container:
-      image: ${{ matrix.image }}
-      volumes:
-        - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
-    env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
-      SCCACHE_LOG: warn
-      GITHUB_WORKSPACE: '/__w/openvino/openvino'
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      INSTALL_DIR_JS: /__w/openvino/openvino/openvino_install/js
-      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
-      DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
-      BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ matrix.os }}_x86_64_Release
-      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
     if: "!needs.smart_ci.outputs.skip_workflow"
-
-    steps:
-      - name: Clone OpenVINO
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-        with:
-          path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
-
-      # Ticket: 139627
-      - name: Checkout the latest OneDNN for GPU in nightly
-        if: ${{ github.event_name == 'schedule' }}
-        working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
-        run: |
-          git fetch origin
-          git checkout main
-          git rev-parse HEAD
-
-      - name: Clone OpenVINO Contrib
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-        with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          submodules: 'true'
-          ref: 'master'
-
-      #
-      # Print system info
-      #
-
-      - name: System info
-        uses: ./openvino/.github/actions/system_info
-
-      #
-      # Dependencies
-      #
-
-      - name: Install python dependencies
-        run: |
-          # For Python API: build and wheel packaging
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          
-          # For running ONNX frontend unit tests
-          if [[ ${{ matrix.os }} == 'ubuntu_24' ]]; then
-            export CMAKE_GENERATOR="Unix Makefiles"
-            python3 -m pip install --force-reinstall --no-cache-dir -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
-          else
-            python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
-          fi
-
-          # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
-
-          # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
-
-          # For running Paddle frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
-
-      #
-      # Build
-      #
-
-      - name: CMake configure - OpenVINO
-        run: |
-          cmake \
-            -G "${{ env.CMAKE_GENERATOR }}" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
-            -S ${OPENVINO_REPO} \
-            -B ${BUILD_DIR}
-
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-
-      - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
-
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
-
-      - name: Cmake install - OpenVINO
-        run: |
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
-
-      - name: Pack Artifacts
-        run: |
-
-          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
-          # w/o the need to checkout repository
-
-          cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
-
-          pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
-          popd
-
-          pushd ${DEVELOPER_PACKAGE_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
-          popd
-
-          pushd ${INSTALL_TEST_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
-          popd
-
-      - name: Build Debian packages
-        run: |
-          python3 -m pip install -U pip
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          cmake -UPython* -U_Python* -UPYTHON* \
-                -UTBB* \
-                -DENABLE_SYSTEM_TBB=ON \
-                -DENABLE_PYTHON_PACKAGING=ON \
-                -DENABLE_TESTS=OFF \
-                -DCPACK_GENERATOR=DEB \
-                ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
-
-      - name: Cmake & Build - OpenVINO Contrib
-        run: |
-          cmake \
-            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES="${OPENVINO_CONTRIB_REPO}/modules/java_api;${OPENVINO_CONTRIB_REPO}/modules/custom_operations" \
-            -S ${OPENVINO_REPO} \
-            -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
-
-      - name: CMake configure, build and install - OpenVINO JS API
-        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        run: |
-          cmake -UTBB* -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -S ${OPENVINO_REPO} -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR_JS} -P ${BUILD_DIR}/cmake_install.cmake
-
-      #
-      # Upload build artifacts and logs
-      #
-      - name: Upload build logs
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        if: always()
-        with:
-          name: build_logs_${{ matrix.os }}
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'ignore'
-
-      - name: Upload openvino package
-        if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: openvino_package_${{ matrix.os }}
-          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-          if-no-files-found: 'error'
-
-      - name: Upload openvino js package
-        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: openvino_js_package_${{ matrix.os }}
-          path: ${{ env.INSTALL_DIR_JS }}
-          if-no-files-found: 'error'
-
-      - name: Upload openvino developer package
-        if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: openvino_developer_package_${{ matrix.os }}
-          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
-          if-no-files-found: 'error'
-
-      - name: Upload openvino debian packages
-        if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: openvino_debian_packages_${{ matrix.os }}
-          path: ${{ env.BUILD_DIR }}/*.deb
-          if-no-files-found: 'error'
-
-      - name: Upload openvino tests package
-        if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: openvino_tests_${{ matrix.os }}
-          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-          if-no-files-found: 'error'
+    uses: ./.github/workflows/job_build_linux.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      event-name: ${{ github.event_name }}
 
   Debian_Packages:
     name: Debian Packages
-    needs: [Build, Docker]
+    needs: Build
     uses: ./.github/workflows/job_debian_packages.yml
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ matrix.image }}
-      os: ${{ matrix.os }}
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: ${{ matrix.os }}
 
   JS_API:
     name: OpenVINO JS API
     needs: [ Docker, Build, Smart_CI ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}"}'
-      os: ${{ matrix.os }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}"}'
 
   Conformance:
     needs: [ Build, Smart_CI ]
@@ -370,7 +119,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04-8-cores
+    runs-on: ubuntu-20.04-8-cores
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -499,179 +248,114 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
         fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
     needs: [ Build, Smart_CI, Docker ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       sccache-azure-key-prefix: 'ubuntu20_x86_64_onnxruntime'
-      os: ${{ matrix.os }}
 
   ONNX_Models:
     name: ONNX Models Tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
     needs: [ Docker, Build, Smart_CI ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-64gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
-      os: ${{ matrix.os }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Docker, Build, Smart_CI ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: ${{ matrix.os }}
 
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Docker, Build, Smart_CI ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: ${{ matrix.os }}
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: ${{ matrix.os }}
 
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     needs: [ Docker, Build, Smart_CI ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-8-cores-32gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
-      os: ${{ matrix.os }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-16gb'
       model_scope: 'precommit'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
-      os: ${{ matrix.os }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
     if: ${{ github.event_name == 'schedule' }}
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_tf_hub'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
-      os: ${{ matrix.os }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   TensorFlow_Models_Tests_Nightly_HF:
     name: TensorFlow Hugging Face Models tests
     if: ${{ github.event_name == 'schedule' }}
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_hf'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
-      os: ${{ matrix.os }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   # TODO: Switch back to self-hosted runners
   # container:
-  #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+  #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
   #   volumes:
   #     - /mount:/mount
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-22.04-16-cores' || 'ubuntu-22.04-8-cores' }}
+      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
       event: ${{ github.event_name }}
-      os: ${{ matrix.os }}
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
     needs: [ Docker, Build, Smart_CI ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     timeout-minutes: 15
     defaults:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64_nvidia }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_nvidia }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -744,18 +428,12 @@ jobs:
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
     needs: [ Build, Smart_CI, Docker ]
-    strategy:
-      matrix:
-        include:
-          - os: '_ubuntu_22'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     uses: ./.github/workflows/job_tokenizers.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       shell: bash
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: ${{ matrix.os }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   iGPU:
@@ -773,8 +451,8 @@ jobs:
       runner: "[ 'self-hosted', 'igpu' ]"
       container: '{"image": "ubuntu:22.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri:/dev/dri"}'
-      os: ${{ matrix.os }}
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: ${{ 'false' }} # Ticket: 143677
 
   dGPU:
     name: dGPU Tests
@@ -791,13 +469,13 @@ jobs:
       runner: "[ 'self-hosted', 'dgpu' ]"
       container: '{"image": "ubuntu:22.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri/card0:/dev/dri/card0  --device /dev/dri/renderD128:/dev/dri/renderD128"}'
-      os: ${{ matrix.os }}
-    if: ${{ github.event_name == 'schedule' }}
+    # if: ${{ github.event_name == 'schedule' }}
+    if: ${{ 'false' }} # Ticket: 143677
 
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers, iGPU]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
