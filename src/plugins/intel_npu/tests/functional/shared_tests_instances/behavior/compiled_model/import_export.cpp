@@ -38,7 +38,7 @@ auto heteroCompiledModelConfigs = []() -> std::vector<ov::AnyMap> {
     return heteroPluginConfigs;
 }();
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests, OVCompiledGraphImportExportTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVCompiledGraphImportExportTest,
                          ::testing::Combine(::testing::ValuesIn(convertModelTypes),
                                             ::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compiledModelConfigs)),
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledGraphImportExport
                                             ::testing::ValuesIn(heteroCompiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVCompiledGraphImportExportTest>);
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests, OVClassCompiledModelImportExportTestP,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVClassCompiledModelImportExportTestP,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelImportExportTestP>);
 

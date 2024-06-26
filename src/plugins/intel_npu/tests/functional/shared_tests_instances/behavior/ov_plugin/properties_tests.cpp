@@ -140,13 +140,13 @@ const std::vector<ov::AnyMap> IncorrectInexistingProperties = {
     {{ov::intel_gpu::hint::host_task_priority.name(), ov::hint::Priority::LOW}},
     {{ov::intel_gpu::hint::queue_throttle.name(), ov::intel_gpu::hint::ThrottleLevel::HIGH}}};
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(CorrectPluginMutableProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTests>));
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(IncorrectImmutableProperties +
@@ -159,12 +159,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesDefaultSupportedTests>));
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVClassCommon,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassCommon,
                          OVBasicPropertiesTestsP,
                          ::testing::Values(std::make_pair("openvino_intel_npu_plugin", ov::test::utils::DEVICE_NPU)),
                          (ov::test::utils::appendPlatformTypeTestName<OVBasicPropertiesTestsP>));
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(CorrectPluginDefaultMutableProperties)),
@@ -186,7 +186,7 @@ INSTANTIATE_TEST_SUITE_P(
     (ov::test::utils::appendPlatformTypeTestName<OVCheckGetSupportedROMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(
-    backwardDrvComp_smoke_BehaviorTests_OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+    compatibility_smoke_BehaviorTests_OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
     OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(CorrectCompiledModelProperties)),
@@ -205,7 +205,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVCheckMetricsPropsTests_ModelDepen
                                             ::testing::ValuesIn(CorrectCompiledModelProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVCheckMetricsPropsTests_ModelDependceProps>));
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVClassSetDefaultDeviceIDPropTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassSetDefaultDeviceIDPropTest,
                          OVClassSetDefaultDeviceIDPropTest,
                          ::testing::Values(std::make_pair(
                              ov::test::utils::DEVICE_NPU,
@@ -226,13 +226,13 @@ INSTANTIATE_TEST_SUITE_P(
                       removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))),
     (ov::test::utils::appendPlatformTypeTestName<OVSpecificDeviceGetConfigTest>));
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVGetAvailableDevicesPropsTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVGetAvailableDevicesPropsTest,
                          OVGetAvailableDevicesPropsTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          (ov::test::utils::appendPlatformTypeTestName<OVGetAvailableDevicesPropsTest>));
 
 INSTANTIATE_TEST_SUITE_P(
-    backwardDrvComp_smoke_BehaviorTests_OVClassSpecificDeviceTest,
+    compatibility_smoke_BehaviorTests_OVClassSpecificDeviceTest,
     OVSpecificDeviceTestSetConfig,
     ::testing::Values(std::string(ov::test::utils::DEVICE_NPU) + "." +
                       removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))),
@@ -240,7 +240,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_NPU)}};
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVClassSetDevicePriorityConfigPropsTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI,
                                                 ov::test::utils::DEVICE_AUTO,
@@ -248,12 +248,12 @@ INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVClassSetDevicePri
                                             ::testing::ValuesIn(multiConfigs)),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassSetDevicePriorityConfigPropsTest>));
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVGetMetricPropsTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVGetMetricPropsTest,
                          OVGetMetricPropsTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          (ov::test::utils::appendPlatformTypeTestName<OVGetMetricPropsTest>));
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests_OVGetMetricPropsOptionalTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVGetMetricPropsOptionalTest,
                          OVGetMetricPropsOptionalTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          (ov::test::utils::appendPlatformTypeTestName<OVGetMetricPropsOptionalTest>));

@@ -11,7 +11,7 @@ using namespace ov::test::behavior;
 namespace {
 
 INSTANTIATE_TEST_SUITE_P(
-        backwardDrvComp_smoke_BehaviorTests, InferRequestPropertiesTest,
+        compatibility_smoke_BehaviorTests, InferRequestPropertiesTest,
         ::testing::Combine(::testing::Values(2u), ::testing::Values(ov::test::utils::DEVICE_NPU),
                            ::testing::ValuesIn(std::vector<ov::AnyMap>{
                                    {}})),

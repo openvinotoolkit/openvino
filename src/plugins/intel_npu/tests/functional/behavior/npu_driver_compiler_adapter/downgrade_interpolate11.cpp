@@ -13,7 +13,7 @@ const std::vector<ov::AnyMap> configs = {
         {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}},
 };
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTest, DriverCompilerAdapterDowngradeInterpolate11TestNPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest, DriverCompilerAdapterDowngradeInterpolate11TestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          DriverCompilerAdapterDowngradeInterpolate11TestNPU::getTestCaseName);

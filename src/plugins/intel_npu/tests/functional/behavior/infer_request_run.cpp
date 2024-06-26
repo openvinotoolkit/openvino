@@ -14,7 +14,7 @@ const std::vector<ov::AnyMap> configsInferRequestRunTests = {
         {ov::log::level(ov::log::Level::INFO)}
 };
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTest, InferRequestRunTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest, InferRequestRunTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);

@@ -122,7 +122,7 @@ TEST_P(QueryNetworkTestSuite1NPU, TestQueryNetworkSupported) {
     EXPECT_EQ(expected, actual);	
 }	
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTest, QueryNetworkTestSuite1NPU,	
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest, QueryNetworkTestSuite1NPU,	
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),	
                                             ::testing::ValuesIn(configs)),	
                          QueryNetworkTestNPU::getTestCaseName);

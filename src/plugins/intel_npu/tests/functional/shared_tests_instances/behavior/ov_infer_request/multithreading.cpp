@@ -23,32 +23,32 @@ const std::vector<ov::AnyMap> autoConfigs = {
         {ov::device::priorities(ov::test::utils::DEVICE_NPU),
         ov::device::properties(ov::test::utils::DEVICE_NPU, {})}};
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests, OVInferRequestMultithreadingTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVInferRequestMultithreadingTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_Multi_BehaviorTests, OVInferRequestMultithreadingTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests, OVInferRequestMultithreadingTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_Auto_BehaviorTests, OVInferRequestMultithreadingTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests, OVInferRequestMultithreadingTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_BehaviorTests, OVInferRequestMultithreadingTestsNPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVInferRequestMultithreadingTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_Multi_BehaviorTests, OVInferRequestMultithreadingTestsNPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests, OVInferRequestMultithreadingTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(backwardDrvComp_smoke_Auto_BehaviorTests, OVInferRequestMultithreadingTestsNPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests, OVInferRequestMultithreadingTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
