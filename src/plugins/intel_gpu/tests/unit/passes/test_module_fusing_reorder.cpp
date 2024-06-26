@@ -297,9 +297,9 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
 
 INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reorder_onednn,
                         ::testing::ValuesIn(std::vector<reorder_test_param>{
-                                            reorder_test_param{format::bs_fs_yx_bsv8_fsv4, format::b_fs_yx_fsv32, data_types::f32, data_types::u8, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
+                                            reorder_test_param{format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, data_types::f32, data_types::u8, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
                                                 tensor{1}, tensor{0}, data_types::u8, format::goiyx, true},
-                                            reorder_test_param{format::bs_fs_yx_bsv8_fsv2, format::b_fs_yx_fsv16, data_types::f32, data_types::f16, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
+                                            reorder_test_param{format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, data_types::f32, data_types::f16, {1, 3, 8, 8}, {1, 32, 8, 8}, {1, 3, 1, 1},
                                                 tensor{1}, tensor{0}, data_types::f16, format::goiyx, true},
                                             }));
 
