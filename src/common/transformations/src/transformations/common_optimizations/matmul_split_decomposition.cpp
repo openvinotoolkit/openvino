@@ -251,8 +251,9 @@ void pass::MatmulVariadicSplitDecomposition::split_weights(const Output<Node>& w
     int64_t split_length_rank = static_cast<int64_t>(split_length_shape.rank().get_length());
 
     if (weights_rank != 2) {
-        PRINT << "Merged exit: weights_rank=" << weights_rank << ", but expected = 2, return." << "\n\n";
-        PRINT << "split_length_rank=" << split_length_rank << ", split_length_shape=" << split_length_shape << "\n\n";
+        PRINT << "Merged exit: weights_rank=" << weights_rank << ", but expected = 2, return." << std::endl;
+        PRINT << "split_length_rank=" << split_length_rank << ", split_length_shape=" << split_length_shape
+              << std::endl;
         return;
     }
 
