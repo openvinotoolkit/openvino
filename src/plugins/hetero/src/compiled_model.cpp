@@ -321,7 +321,8 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         }
         return decltype(ov::execution_devices)::value_type{std::move(device_names)};
     } else if (ov::hetero::number_of_submodels == name) {
-        return decltype(ov::hetero::number_of_submodels)::value_type{m_compiled_submodels.size()};
+        std::cout << "get_hetero_plugin()->get_independency_model(): " << get_hetero_plugin()->independent_model_size << std::endl;
+        return decltype(ov::hetero::number_of_submodels)::value_type{(m_compiled_submodels.size() - get_hetero_plugin()->independent_model_size)};
     }
     return m_cfg.get(name);
 }

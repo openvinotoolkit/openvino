@@ -621,6 +621,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
         get_model_subgraphs(model, supported_ops, false, dump_dot_files, default_device);
 
     SubmodelsVector submodels{ordered_subgraphs.size()};
+    std::cout << "ordered_subgraphs.size(): " << ordered_subgraphs.size() << std::endl;
     for (size_t i = 0; i < ordered_subgraphs.size(); i++) {
         const auto& subgraph = ordered_subgraphs.at(i);
         auto submodel_name = name + '_' + std::to_string(i);
