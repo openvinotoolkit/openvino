@@ -319,8 +319,14 @@ private:
                     mov(reg_divisor, ptr[reg_params + GET_OFF(divisor)]);
                     uni_vbroadcastss(vmm_aux, ptr[reg_divisor]);
                     uni_vdivps(vmm_dst, vmm_dst, vmm_aux);
+                    if (!isFloatCompatible(jcp_.dst_dt)) {
+                        uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+                    }
                     if (isa == cpu::x64::sse41) {
                         uni_vdivps(vmm_dst_aux, vmm_dst_aux, vmm_aux);
+                        if (!isFloatCompatible(jcp_.dst_dt)) {
+                            uni_vroundps(vmm_dst_aux, vmm_dst_aux, 3);
+                        }
                     }
                 }
                 L(reduce_divide_end_label);
@@ -1374,14 +1380,14 @@ private:
                     jl(reduce_loop_end_label, T_NEAR);
 
                     wrap_load_vector(vmm_dst, 0);
-                    reduce_map_kernel(vmm_dst);
+                    reduce_map_kernel(vmm_dst, jcp_.dst_dt);
                     if (post_ops_fusing)
                         apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
                     store_vector(ptr[reg_dst], vmm_dst, jcp_.dst_dt);
 
                     if (isa == cpu::x64::sse41) {
                         wrap_load_vector(vmm_dst, 4);
-                        reduce_map_kernel(vmm_dst);
+                        reduce_map_kernel(vmm_dst, jcp_.dst_dt);
                         if (post_ops_fusing) {
                             if (jcp_.layout != ReduceLayoutType::reduce_ncsp)
                                 add(reg_oc_off, 4 * sizeof(float));
@@ -1462,7 +1468,7 @@ private:
                 wrap_load_scalar(xmm_dst, 0);
 
                 // reduce
-                reduce_map_kernel_scalar(xmm_dst);
+                reduce_map_kernel_scalar(xmm_dst, jcp_.dst_dt);
 
                 // store
                 if (post_ops_fusing)
@@ -1554,22 +1560,30 @@ private:
         }
     }
 
-    inline void reduce_map_kernel(Vmm vmm_dst) {
-        if (jcp_.reduce_mode == Algorithm::ReduceMean)
+    inline void reduce_map_kernel(Vmm vmm_dst, memory::data_type dst_dt) {
+        if (jcp_.reduce_mode == Algorithm::ReduceMean) {
             uni_vdivps(vmm_dst, vmm_dst, vmm_aux);
-        else if (jcp_.reduce_mode == Algorithm::ReduceL2)
+            if (!isFloatCompatible(dst_dt)) {
+                uni_vroundps(vmm_dst, vmm_dst, 3);
+            }
+        } else if (jcp_.reduce_mode == Algorithm::ReduceL2) {
             uni_vsqrtps(vmm_dst, vmm_dst);
-        else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp)
+        } else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1);
+        }
     }
 
-    inline void reduce_map_kernel_scalar(Xmm xmm_dst) {
-        if (jcp_.reduce_mode == Algorithm::ReduceMean)
+    inline void reduce_map_kernel_scalar(Xmm xmm_dst, memory::data_type dst_dt) {
+        if (jcp_.reduce_mode == Algorithm::ReduceMean) {
             uni_vdivps(xmm_dst, xmm_dst, xmm_aux);
-        else if (jcp_.reduce_mode == Algorithm::ReduceL2)
+            if (!isFloatCompatible(dst_dt)) {
+                uni_vroundps(xmm_dst, xmm_dst, 3);
+            }
+        } else if (jcp_.reduce_mode == Algorithm::ReduceL2) {
             uni_vsqrtps(xmm_dst, xmm_dst);
-        else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp)
+        } else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->compute_vector_range(xmm_dst.getIdx(), xmm_dst.getIdx() + 1);
+        }
     }
 
     inline void wrap_load_vector(Vmm vmm_val, size_t offset) {
