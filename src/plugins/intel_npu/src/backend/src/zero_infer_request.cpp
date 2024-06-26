@@ -9,6 +9,7 @@
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_memory.hpp"
 
 using namespace intel_npu;
