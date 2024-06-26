@@ -24,7 +24,8 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     DimType s_dim{};
     DimType ev_dim{};
 
-    TRShape n_dims = input_shapes[0];
+    auto output_shapes = std::vector<TRShape>{input_shapes[0]};
+    auto& n_dims = output_shapes[0];
     const auto& n_dims_rank = n_dims.rank();
     if (n_dims_rank.is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
@@ -107,7 +108,7 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
         n_dims.push_back(l_dim);
         n_dims.push_back(ev_dim);
     }
-    return {n_dims};
+    return output_shapes;
 }
 }  // namespace v13
 }  // namespace op

@@ -641,7 +641,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f9eff572a90>
+    <matplotlib.image.AxesImage at 0x7f8fd43d1b20>
 
 
 
