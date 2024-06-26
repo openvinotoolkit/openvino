@@ -81,7 +81,7 @@ jobs:
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
-    name: Build (Ubuntu ${{ matrix.os_version }})
+    name: Build (${{ matrix.os }})
     needs: [Docker, Smart_CI]
     timeout-minutes: 150
     defaults:
@@ -97,8 +97,8 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
           - os: 'ubuntu_22'
             image:  ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
-#          - os: 'ubuntu_24'
-#            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+          - os: 'ubuntu_24'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
     container:
       image: ${{ matrix.image }}
       volumes:
@@ -168,6 +168,7 @@ jobs:
           
           # For running ONNX frontend unit tests
           if [[ ${{ matrix.os }} == 'ubuntu_24' ]]; then
+            export CMAKE_GENERATOR="Unix Makefiles"
             python3 -m pip install --force-reinstall --no-cache-dir -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
           else
             python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
