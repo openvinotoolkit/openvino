@@ -25,6 +25,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
 const std::vector<ov::AnyMap> default_properties = {
         {},
         {ov::enable_profiling(false)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
@@ -32,6 +33,12 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
                 ::testing::Values(ov::test::utils::target_device),
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesDefaultTests,
+        ::testing::Combine(
+                ::testing::Values(ov::test::utils::target_device),
+                ::testing::ValuesIn(default_properties)),
+        OVPropertiesDefaultTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckGetSupportedROMetricsPropsTests,
         ::testing::Combine(

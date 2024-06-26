@@ -135,7 +135,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling};
+        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling, ov::hint::performance_mode};
         return rw_properties;
     };
     if (ov::model_name == name) {
