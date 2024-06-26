@@ -772,16 +772,7 @@ bool primitive_inst::use_async_compilation() {
         compile_gemm_impls = _node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos;
         compile_gemm_impls |= (_node->get_preferred_impl_type() == impl_types::onednn);
     }
-    // bool compile_conv_impls = _node->is_type<convolution>();
-    // if (compile_conv_impls) {
-    //     // Do not async-compile if opt_gemm is chosen for iGPU
-    //     // Do async-compile if it is to be executed from onednn
-    //     auto is_ref_kernel = _node->get_selected_impl() && _node->get_selected_impl()->get_kernel_name().find("convolution_gpu_ref") != std::string::npos;
-    //     // compile_conv_impls |= (_node->get_preferred_impl_type() == impl_types::onednn);
-    //     return !is_ref_kernel;
-    // }
 
-    // return (_node->is_type<convolution>() || compile_fc_impls || compile_gemm_impls || compile_conv_impls ||
     return (_node->is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
             (_node->is_type<softmax>() && _node->get_selected_impl() &&
              _node->get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
