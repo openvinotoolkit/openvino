@@ -1073,7 +1073,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
                         auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
                         if (input_mem->size() != bin.size()) {
-                            std::cout << "WARNING: memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name << "  " << input_mem->size() << " / " << bin.size();
+                            std::cout << "WARNING: memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name << "  " << input_mem->size() << " / " << bin.size() << std::endl;
                             bin.resize(input_mem->size());
                         }
 
