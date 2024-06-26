@@ -433,6 +433,9 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
         return true;
 
+    if (prev.is_type<gather>() && fmt_prev == format::bfyx && fmt_next == format::bfyx)
+        return true;
+
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
         return false;
 

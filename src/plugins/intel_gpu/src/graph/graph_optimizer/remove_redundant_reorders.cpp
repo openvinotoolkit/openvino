@@ -11,6 +11,7 @@
 #include "convert_color_inst.h"
 #include "one_hot_inst.h"
 #include "shape_of_inst.h"
+#include "gather_inst.h"
 #include "permute_inst.h"
 #include "depth_to_space_inst.h"
 #include "concatenation_inst.h"
@@ -411,7 +412,7 @@ void remove_redundant_reorders::run(program& p) {
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() || input.is_type<concatenation>() ||
-                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>());
+                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>() || input.is_type<gather>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
@@ -427,7 +428,7 @@ void remove_redundant_reorders::run(program& p) {
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout during shape inference
-                if (input.is_type<mvn>() || input.is_type<concatenation>()) {
+                if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>()) {
                     fused_primitive_desc local_desc(node.get_primitive());
                     local_desc.f_param = node.get_fuse_params();
                     local_desc.total_num_deps = node.get_dependencies().size();
