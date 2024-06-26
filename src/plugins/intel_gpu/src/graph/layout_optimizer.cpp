@@ -13,6 +13,7 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
+#include "select_inst.h"
 #include "condition_inst.h"
 #include "strided_slice_inst.h"
 #include <sstream>
@@ -33,6 +34,7 @@
 #include "prior_box_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "gather_inst.h"
+#include "broadcast_inst.h"
 #include "loop_inst.h"
 #include "dft_inst.h"
 #include "to_string_utils.h"
@@ -433,7 +435,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
         return true;
 
-    if (prev.is_type<gather>() && fmt_prev == format::bfyx && fmt_next == format::bfyx)
+    if ((prev.is_type<gather>() || prev.is_type<broadcast>() || prev.is_type<select>() || prev.is_type<eltwise>()) &&
+        fmt_prev == format::bfyx && fmt_next == format::bfyx)
         return true;
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
