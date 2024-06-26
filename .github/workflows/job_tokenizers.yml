@@ -93,13 +93,23 @@ jobs:
           popd
 
       #
+      # Dependensies
+      #
+
+      - name: Install OpenVINO Python wheels
+        run: |
+          # Install the core OV wheel
+          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+
+      #
       # Build
       #
 
       - name: Build tokenizers wheel (Linux and macOS)
         if: runner.os != 'Windows'
         run: |
-          source ${INSTALL_DIR}/setupvars.sh
+          # use OpenVINO wheel package only to build the extension
+          export OpenVINO_DIR=$(python3 -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')")
           python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
@@ -107,7 +117,7 @@ jobs:
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
         run: |
-          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          $env:OpenVINO_DIR=$(python3 -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')")
           python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
