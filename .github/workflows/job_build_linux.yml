@@ -18,6 +18,10 @@ on:
         description: 'Name of the event that triggered the workflow'
         type: string
         required: false
+      os:
+        description: 'OS that is used for building in the form of "ubuntu20"'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -52,7 +56,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
     steps:
       - name: Clone OpenVINO

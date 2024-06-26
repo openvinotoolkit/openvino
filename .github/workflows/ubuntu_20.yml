@@ -71,8 +71,6 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_20_04_x64
-            ov_build/ubuntu_20_04_x64_nvidia
-            ov_test/ubuntu_20_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -86,6 +84,7 @@ jobs:
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
+      os: 'ubuntu20'
 
   iGPU:
     name: iGPU Tests
@@ -122,7 +121,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' }}
 
   Overall_Status:
-    name: ci/gha_overall_status
+    name: ci/gha_overall_status_ubuntu_20
     needs: [Smart_CI, Build, iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest

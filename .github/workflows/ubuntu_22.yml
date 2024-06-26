@@ -86,6 +86,7 @@ jobs:
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
+      os: 'ubuntu22'
 
   Debian_Packages:
     name: Debian Packages
@@ -473,7 +474,7 @@ jobs:
     if: ${{ 'false' }} # Ticket: 143677
 
   Overall_Status:
-    name: ci/gha_overall_status
+    name: ci/gha_overall_status_ubuntu_22
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests,
             CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
     if: ${{ always() }}
