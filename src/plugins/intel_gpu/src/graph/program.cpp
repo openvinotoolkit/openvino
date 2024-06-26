@@ -895,9 +895,12 @@ void program::add_intermediate(program_node& node,
     add_intermediate(node, next, idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
-void program::add_connection(program_node& prev, program_node& next) {
+void program::add_connection(program_node& prev, program_node& next, int32_t port_idx) {
     prev.users.push_back(&next);
-    auto port_idx = next.get_port_from_deps(prev.id());
+    // When this function is called from program::replace, we need to keep the port number as it was
+    if (port_idx < 0)
+        port_idx = next.get_port_from_deps(prev.id());
+
     next.dependencies.push_back({&prev, port_idx});
 }
 
@@ -979,7 +982,7 @@ void program::replace(program_node& old_node, program_node& new_node) {
     // copy old's dependencies
     // First copy them from old node to new node
     for (auto& dependency : old_node.dependencies) {
-        add_connection(*dependency.first, new_node);
+        add_connection(*dependency.first, new_node, dependency.second);
     }
     // Second delete them from old node
     while (!old_node.dependencies.empty()) {
