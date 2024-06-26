@@ -50,7 +50,6 @@ void regclass_graph_Shape(py::module m) {
         throw py::index_error("Index out of range");
     });
 
-    // Added code
     py::class_<ov::Shape>(m, "Shape")
         .def(py::init([](const py::list& lst) {
             std::vector<size_t> vec(lst.size());
