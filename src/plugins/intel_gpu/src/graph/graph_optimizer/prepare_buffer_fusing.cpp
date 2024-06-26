@@ -468,6 +468,11 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<loop>() || user->is_type<non_max_suppression>())
             return false;
+        // If the input tensor of convolution includes dynamic padding, there is an issue
+        // where the total size of tensor is not properly calculated and becomes 0
+        // It causes issue for internal buffer allocation during runtime
+        if (node.is_dynamic() && user->is_type<convolution>())
+            return false;
         if (user->is_type<reshape>()) {
             auto& reshape_node = user->as<reshape>();
             if (!reshape_node.is_runtime_propagatable_padding() && can_reshape_be_optimized(reshape_node))
