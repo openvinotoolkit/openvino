@@ -4,43 +4,32 @@
 
 #include "transformations/common_optimizations/matmul_split_decomposition.hpp"
 
-#include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
-
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <openvino/core/rt_info.hpp>
-#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
-#include "openvino/op/gather.hpp"
-
-#include "itt.hpp"
-#include "ov_ops/type_relaxed.hpp"
-
-#include <memory>
 #include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/gather_base.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
@@ -93,20 +82,21 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
 
     auto bias_pattern = wrap_type<opset1::Constant>();
     auto add_pattern = wrap_type<opset1::Add>({matmul_pattern, bias_pattern});
-    
+
     auto reshape_productor_pattern = std::make_shared<pattern::op::Or>(OutputVector{matmul_pattern, add_pattern});
 
     auto reshape_pattern = wrap_type<opset1::Reshape>({reshape_productor_pattern, any_input()});
     auto transpose_pattern = wrap_type<opset6::Transpose>({reshape_pattern, any_input()});
     auto reshape2_pattern = wrap_type<opset1::Reshape>({reshape_pattern, any_input()});
 
-    auto reshape_or_transpose_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape2_pattern, transpose_pattern});
+    auto reshape_or_transpose_pattern =
+        std::make_shared<pattern::op::Or>(OutputVector{reshape2_pattern, transpose_pattern});
 
     PRINT << "Matched 1:==========\n\n";
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         PRINT << "Matched 2: callback==========\n\n";
         const auto& pattern_map = m.get_pattern_value_map();
-        
+
         // Heuristics: there should be only 3 gathers to split
         auto root_node = m.get_match_root();
         bool have_transpose = as_type<opset1::Transpose>(root_node.get()) != nullptr;
@@ -219,9 +209,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                 reshape_productor = register_new_node<v1::Add>(new_mm, new_bias[i]);
             }
             auto new_reshape = register_new_node<v1::Reshape>(reshape_productor, new_shape, true);
-            ov::NodeVector from_nodes = {gathers[i],
-                                         weights.get_node_shared_ptr(),
-                                         matmul};
+            ov::NodeVector from_nodes = {gathers[i], weights.get_node_shared_ptr(), matmul};
             if (have_bias) {
                 from_nodes.emplace_back(add);
                 from_nodes.emplace_back(pattern_map.at(bias_pattern).get_node_shared_ptr());
@@ -320,8 +308,7 @@ pass::MatmulVariadicSplitDecomposition::MatmulVariadicSplitDecomposition() {
                 PRINT << "Matched 2: Exit. axis_val[0] = " << axis_val[0] << std::endl;
                 return false;
             }
-        }
-        else {
+        } else {
             PRINT << "Matched 2: Exit. axis_node is not const" << std::endl;
             return false;
         }
