@@ -194,17 +194,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckAccuracyModeDynamicQuantiz
     ASSERT_EQ(groupSize, 0);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckAccuracyModeKVCachePrecision) {
-    ov::Core core;
-
-    ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
-    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
-
-    auto kv_cache_precision_value = ov::element::undefined;
-    ASSERT_NO_THROW(kv_cache_precision_value = compiledModel.get_property(ov::hint::kv_cache_precision));
-    ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
-}
-
 const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableInCoreAndModel) {

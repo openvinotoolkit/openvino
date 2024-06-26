@@ -358,7 +358,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::kv_cache_precision.name()) {
             try {
-                kvCachePrecisionSetExplicitly = true;
                 auto const prec = val.as<ov::element::Type>();
                 if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
@@ -394,10 +393,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     }
     // disable dynamic quantization and kv quantization for best accuracy
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
-        if (!kvCachePrecisionSetExplicitly) {
-            kvCachePrecision = ov::element::f32;
-        }
-
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
             fcDynamicQuantizationGroupSize = 0;
         }
