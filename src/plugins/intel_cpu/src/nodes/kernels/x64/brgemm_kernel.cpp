@@ -245,10 +245,14 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = dt_in0;
     brgCopyKernelConf.wei_dt = dt_in1;
+    brgCopyKernelConf.orig_wei_dt = dt_in1;
     brgCopyKernelConf.wei_n_blk = N_blk;
     // B could come from strided tensor, must use copy_B_wei_stride if set.
     brgCopyKernelConf.wei_tag = copy_B_wei_stride != 0 ? transpose ? dnnl_adbc : dnnl_acbd : transpose ? dnnl_ba : dnnl_ab;
+
     brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;
+    brgCopyKernelConf.transposed_B = transpose;
+
     // LDB here is for the target tensor, not source tensor
     brgCopyKernelConf.LDB = LDB;
     brgCopyKernelConf.N = N;
@@ -274,7 +278,6 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.has_zero_point_a = false;
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
-
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
     if (ret != dnnl::impl::status_t::dnnl_success)
         THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel");

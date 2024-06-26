@@ -859,9 +859,9 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = dt_in0;
     brgCopyKernelConf.wei_dt = dt_in1;
+    brgCopyKernelConf.orig_wei_dt = dt_in1;
     brgCopyKernelConf.wei_n_blk = N_blk;
     brgCopyKernelConf.wei_tag = dnnl_abcd;
-    brgCopyKernelConf.copy_B_wei_stride = 0;
     brgCopyKernelConf.LDB = LDB;
     brgCopyKernelConf.N = N;
     brgCopyKernelConf.N_tail = N_tail;
@@ -872,6 +872,7 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.tr_b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
+    brgCopyKernelConf.copy_B_wei_stride = brgCopyKernelConf.N * brgCopyKernelConf.b_dt_sz;
 
     if (is_with_amx) {
         brgCopyKernelConf.isa = avx512_core_amx;
