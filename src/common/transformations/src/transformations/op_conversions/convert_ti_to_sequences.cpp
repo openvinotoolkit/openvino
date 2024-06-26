@@ -1239,8 +1239,9 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
         all_hidden_states_prep = rg.make<ov::op::v1::Transpose>(all_hidden_states_prep, tr_order);
         // prepare output with last hidden state
         // LSTMSequence operation outputs it in a format [batch_size, num_directions, hidden_size]
+        auto tr_order2 = rg.make<ov::op::v0::Constant>(element::i32, Shape{3}, std::vector<int32_t>{1, 0, 2});
         ov::Output<ov::Node> last_hidden_state_prep =
-            rg.make<ov::op::v1::Transpose>(lstm_sequence->output(1), tr_order);
+            rg.make<ov::op::v1::Transpose>(lstm_sequence->output(1), tr_order2);
 
         // reconnect all consumers for hidden states
         for (auto output_idx : all_hidden_states_output_ids) {
@@ -1251,7 +1252,11 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
         }
 
         copy_runtime_info(m.get_matched_nodes(), rg.get());
-        lstm_sequence->set_friendly_name(loop->get_friendly_name());
+        if ((all_hidden_states_output_ids.size() > 0) && (last_iter_hidden_state_output_ids.size() == 0)) {
+            all_hidden_states_prep.get_node_shared_ptr()->set_friendly_name(loop->get_friendly_name());
+        } else if ((all_hidden_states_output_ids.size() == 0) && (last_iter_hidden_state_output_ids.size() > 0)) {
+            last_hidden_state_prep.get_node_shared_ptr()->set_friendly_name(loop->get_friendly_name());
+        }
 
         return true;
     };
