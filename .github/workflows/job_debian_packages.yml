@@ -12,6 +12,11 @@ on:
         type: string
         required: false
         default: null
+      os:
+        description: 'OS version needed to download correct artifacts in the form of "_ubuntu_22"'
+        type: string
+        required: false
+        default: null
 
 permissions: read-all
 
@@ -35,7 +40,7 @@ jobs:
       - name: Download OpenVINO debian packages
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
-          name: openvino_debian_packages
+          name: openvino_debian_packages${{ inputs.os }}
           path: ${{ env.DEBIAN_PACKAGES_DIR }}
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker

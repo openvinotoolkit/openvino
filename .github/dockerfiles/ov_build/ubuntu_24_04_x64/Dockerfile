@@ -1,5 +1,4 @@
-FROM ubuntu:24.04
-# FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
 
 USER root
 

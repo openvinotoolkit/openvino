@@ -93,12 +93,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os_version: '20'
+          - os: 'ubuntu_20'
             image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
-          - os_version: '22'
+          - os: 'ubuntu_22'
             image:  ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
-          - os_version: '24'
-            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+#          - os: 'ubuntu_24'
+#            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
     container:
       image: ${{ matrix.image }}
       volumes:
@@ -122,7 +122,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu${{ matrix.os_version }}_x86_64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ${{ matrix.os }}_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
     if: "!needs.smart_ci.outputs.skip_workflow"
 
@@ -167,7 +167,7 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           
           # For running ONNX frontend unit tests
-          if [[ ${{ matrix.os_version }} == '24' ]]; then
+          if [[ ${{ matrix.os }} == 'ubuntu_24' ]]; then
             python3 -m pip install --force-reinstall --no-cache-dir -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
           else
             python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
@@ -275,7 +275,7 @@ jobs:
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: always()
         with:
-          name: build_logs_ubuntu_${{ matrix.os_version }}
+          name: build_logs_${{ matrix.os }}
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
@@ -283,7 +283,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_package_ubuntu_${{ matrix.os_version }}
+          name: openvino_package_${{ matrix.os }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
@@ -291,7 +291,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_js_package_ubuntu_${{ matrix.os_version }}
+          name: openvino_js_package_${{ matrix.os }}
           path: ${{ env.INSTALL_DIR_JS }}
           if-no-files-found: 'error'
 
@@ -299,7 +299,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_developer_package_ubuntu_${{ matrix.os_version }}
+          name: openvino_developer_package_${{ matrix.os }}
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
           if-no-files-found: 'error'
 
@@ -307,7 +307,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_debian_packages_ubuntu_${{ matrix.os_version }}
+          name: openvino_debian_packages_${{ matrix.os }}
           path: ${{ env.BUILD_DIR }}/*.deb
           if-no-files-found: 'error'
 
@@ -315,17 +315,22 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: openvino_tests_ubuntu_${{ matrix.os_version }}
+          name: openvino_tests_${{ matrix.os }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
   Debian_Packages:
     name: Debian Packages
-    needs: Build
+    needs: [Build, Docker]
     uses: ./.github/workflows/job_debian_packages.yml
+    strategy:
+      matrix:
+        include:
+          - os: 'ubuntu_22'
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ matrix.image }}
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
