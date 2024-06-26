@@ -77,7 +77,7 @@ static const TypeMapping dnnlFCTypeMapping {
 
 static const TypeMapping aclFCTypeMapping {
     // {src, wei, bia, dst}              pt<src, wei, bias, dst>
-    {{_f32 | _f16, _any, _any, _any}, pt(bypass(), use<0>(), use<0>(), use<0>())},
+    {{_i8, _i8, _any, _any},          pt(just<i8>(), just<i8>(), just<i32>(), just<i32>())},
     {{_any, _any, _any, _any},        pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())}
 };
 

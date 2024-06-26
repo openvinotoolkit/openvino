@@ -13,7 +13,7 @@ namespace ov {
 namespace intel_cpu {
 
 // @todo require explicit initialization of all the attributes?
-struct FCAttrs {
+struct GEMMAttrs {
     // @todo probably we don't want with bias flag, since this information is already
     // a part of src memory descs
     bool withBias = false;
@@ -30,6 +30,5 @@ struct FCAttrs {
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
 };
 
-using FCConfig = executor::Config<FCAttrs>;
 }  // namespace intel_cpu
 }  // namespace ov

@@ -54,12 +54,18 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
     const ov::PartialShape inputShape1,
     const ov::PartialShape inputShape2,
     const bool transpose1,
-    const bool transpose2) {
+    const bool transpose2,
+    const bool signedOnWeights,
+    const bool prelu) {
     const auto paramNode = std::make_shared<ov::opset1::Parameter>(precision, inputShape1);
     const std::vector<size_t> constShapes(inputShape1.rank().get_length(), 1ul);
-    const auto fakeQuantizeOnAcitvations = ov::test::utils::make_fake_quantize(
-        paramNode, precision, 256ul, constShapes,
-        { 0.f }, { 255.f / 4.f }, { 0.f }, { 255.f / 4.f });
+    const auto fakeQuantizeOnAcitvations = signedOnWeights ?
+            ov::test::utils::make_fake_quantize(
+                paramNode, precision, 256ul, constShapes,
+                { -128.f / 4.f }, { 127.f / 4.f }, { -128.f / 4.f }, { 127.f / 4.f }) :
+            ov::test::utils::make_fake_quantize(
+                paramNode, precision, 256ul, constShapes,
+                { 0.f }, { 255.f / 4.f }, { 0.f }, { 255.f / 4.f });
     fakeQuantizeOnAcitvations->set_friendly_name("fakeQuantizeOnAcitvations");
 
     auto weightsConst = std::make_shared<ov::op::v0::Constant>(
@@ -71,14 +77,21 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
         { -128.f / 8.f }, { 127.f / 8.f }, { -128.f / 8.f }, { 127.f / 8.f });
     fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
-    const std::shared_ptr<ov::opset1::MatMul> fullyConnected = std::make_shared<ov::opset1::MatMul>(
+    std::shared_ptr<Node> parent = std::make_shared<ov::opset1::MatMul>(
         fakeQuantizeOnAcitvations->output(0),
         fakeQuantizeOnWeights->output(0),
         transpose1,
         transpose2);
-    fullyConnected->set_friendly_name("fullyConnected");
+    parent->set_friendly_name("fullyConnected");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(fullyConnected) };
+    if (prelu) {
+        parent = std::make_shared<ov::opset1::PRelu>(
+                parent,
+                std::make_shared<ov::opset1::Constant>(ov::element::f32, Shape{1}, std::vector<float>{0.f}));
+        parent->set_friendly_name("prelu");
+    }
+
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(parent) };
     std::shared_ptr<ov::Model> function = std::make_shared<ov::Model>(
         results,
         ov::ParameterVector{ paramNode },
@@ -93,21 +106,30 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
     const ov::Shape& inputShape1,
     const FakeQuantizeOnData& fqOnData1,
     const ov::Shape& inputShape2,
-    const FakeQuantizeOnData& fqOnData2) {
+    const FakeQuantizeOnData& fqOnData2,
+    const bool requantization) {
     const std::shared_ptr<ov::opset1::Parameter> input1 = std::make_shared<ov::opset1::Parameter>(precision, inputShape1);
     input1->set_friendly_name("input1");
 
     const std::shared_ptr<ov::opset1::Parameter> input2 = std::make_shared<ov::opset1::Parameter>(precision, inputShape2);
     input2->set_friendly_name("input2");
 
-    const std::shared_ptr<ov::opset1::MatMul> matMul = std::make_shared<ov::opset1::MatMul>(
+    std::shared_ptr<Node> parent = std::make_shared<ov::opset1::MatMul>(
         makeFakeQuantize(input1, precision, fqOnData1),
         makeFakeQuantize(input2, precision, fqOnData2),
         false,
         false);
-    matMul->set_friendly_name("matMul");
+    parent->set_friendly_name("matMul");
 
-    std::shared_ptr<ov::opset1::Result> result = std::make_shared<ov::opset1::Result>(matMul);
+    if (requantization) {
+        parent = makeFakeQuantize(parent, precision, fqOnData1);
+        parent = std::make_shared<ov::opset1::PRelu>(
+                parent,
+                std::make_shared<ov::opset1::Constant>(ov::element::f32, Shape{1}, std::vector<float>{0.f}));
+        parent->set_friendly_name("prelu");
+    }
+
+    std::shared_ptr<ov::opset1::Result> result = std::make_shared<ov::opset1::Result>(parent);
 
     std::shared_ptr<ov::Model> function = std::make_shared<ov::Model>(
         ov::ResultVector{ result },

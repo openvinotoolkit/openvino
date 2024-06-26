@@ -17,6 +17,7 @@
 #define UNSUPPORTED_DST_RANK " unsupported dst rank"
 #define UNSUPPORTED_DST_STRIDES " unsupported dst strides"
 #define HEURISTICS_MISMATCH " heuristics mismatch"
+#define UNSUPPORTED_PER_CHANNEL_QUANTIZATION " unsupported per-channel quantization"
 
 #define VERIFY(condition, ...) \
     do { \

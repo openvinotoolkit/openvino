@@ -475,6 +475,7 @@ void DnnlMemoryMngr::notifyUpdate() {
 
 StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
     m_eng(eng), m_pMemDesc(desc) {
+    OPENVINO_ASSERT(!desc->empty() || (desc->empty() && (data == nullptr)));
     if (desc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
     }
@@ -484,7 +485,7 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
 
     m_size = m_pMemDesc->getCurrentMemSize();
 
-    if (data) {
+    if (data || desc->empty()) {
         m_pMemMngr = std::make_shared<StaticMemoryMngr>(const_cast<void*>(data), m_size);
     } else {
         m_pMemMngr = std::make_shared<StaticMemoryMngr>(m_size);

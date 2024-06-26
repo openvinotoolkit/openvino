@@ -295,6 +295,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     transformations.PostLpt();
+
+    ov::pass::Serialize(
+            "/Users/eshoguli/projects/openvino_matmul/cpu.post_lpt.xml",
+            "/Users/eshoguli/projects/openvino_matmul/cpu.post_lpt.bin").run_on_model(cloned_model);
+
     transformations.Snippets();
 
     transformations.CpuSpecificOpSet();
@@ -330,6 +335,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             denormals_as_zero(false);
         }
     }
+
+    ov::pass::Serialize(
+            "/Users/eshoguli/projects/openvino_matmul/cpu.transformed.xml",
+            "/Users/eshoguli/projects/openvino_matmul/cpu.transformed.bin").run_on_model(cloned_model);
+
     return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
 }
 

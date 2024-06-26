@@ -101,7 +101,7 @@ inline int axisCast(const std::size_t axis, const std::size_t shapeSize, ACLAxis
 * @param precision precision to be converted
 * @return ComputeLibrary DataType or UNKNOWN if precision is not mapped to DataType
 */
-inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision) {
+inline arm_compute::DataType precisionToAclDataType(const ov::element::Type& precision) {
     switch (precision) {
         case ov::element::i8:    return arm_compute::DataType::S8;
         case ov::element::u8:    return arm_compute::DataType::U8;

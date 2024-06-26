@@ -22,6 +22,7 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "shape_inference/custom/matmul.hpp"
+
 using namespace dnnl;
 
 
@@ -244,6 +245,15 @@ static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
     return strides;
 }
 
+#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+ExecutorPtr MatMul::createExecutor() {
+    const auto& executor = factory->make(memory);
+    getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
+
+    return executor;
+}
+#endif
+
 dnnl::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc) {
     // oneDNN matmul requires shape for bias desc to be the same rank
     VectorDims biasDims(outMemDesc->getShape().getRank(), 1);
@@ -463,6 +473,59 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+    attrs.withBias = getOriginalInputsNumber() == 3;
+    attrs.dequantizationScales = getDQScales();
+    // TODO: not supported for ARM
+    //attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS_ID)->getParent(),
+    //                                                    getOriginalInputPrecisionAtPort(DATA_ID),
+    //                                                    context->getConfig().fcSparseWeiDecompressionRate);
+    attrs.sparseWeights = false;
+    attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
+    attrs.modelType = context->getConfig().modelType;
+
+    postOps = getPostOps(fusedWith);
+
+    const auto& srcTypes = getOriginalInputPrecisions();
+    auto dstTypes = getOriginalOutputPrecisions();
+    // @todo graph optimizer should update original output precisions instead
+    if (!fusedWith.empty())
+        dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
+
+    VecMemoryDescs srcDescs;
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    for (size_t i = 0; i < srcTypes.size(); i++) {
+        const auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
+        srcDescs.push_back(srcDesc);
+    }
+
+    VecMemoryDescs dstDescs;
+    for (size_t i = 0; i < dstTypes.size(); i++) {
+        const auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes[i], getOutputShapeAtPort(i));
+        dstDescs.push_back(dstDesc);
+    }
+
+    MemoryDescArgs memoryDescs {
+            {ARG_SRC, srcDescs[0]},
+            {ARG_WEI, srcDescs[1]},
+            {ARG_BIAS, attrs.withBias ? srcDescs[2] : MemoryDescUtils::makeEmptyDesc()},
+            {ARG_DST, dstDescs[0]},
+    };
+
+    auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
+    factory = std::make_shared<ExecutorFactory<GEMMAttrs, node::MatMul>>(attrs, postOps, executionContext, memoryDescs);
+    const auto nodeDescriptors = factory->getProperMemoryDescriptors(memoryDescs);
+
+    NodeConfig nodeConfig;
+    nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_SRC));
+    nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_WEI));
+    if (attrs.withBias) nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_BIAS));
+
+    const int inPlace = canBeInPlace() ? 0 : -1;
+    nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);
+
+    supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
+#else
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
         std::vector<PortConfig> inConfs, outConfs;
         const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
@@ -502,7 +565,26 @@ void MatMul::initSupportedPrimitiveDescriptors() {
         if (supportedPrimitiveDescriptors.empty())
             addSupportedPrimitiveDescriptor(first_desc);
    }
+#endif
 }
+
+#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+void MatMul::createPrimitive() {
+    memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
+    memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
+    // TODO: we don't need allocate empty memory
+    memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
+//    if (attrs.withBias) {
+//        memory[ARG_BIAS] = getSrcMemoryAtPort(BIAS_ID);
+//    }
+    memory[ARG_DST] = getDstMemoryAtPort(0);
+    // @todo should we preconfigure only for dynamic shapes?
+    // Since for static shapes primitive is created in scope of compile_model() anyway
+    factory->preconfigure(memory);
+
+    Node::createPrimitive();
+}
+#endif
 
 MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1): prim_desc.src_desc(idx);
@@ -524,6 +606,9 @@ ov::element::Type MatMul::getRuntimePrecision() const {
 }
 
 void MatMul::prepareParams() {
+#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+    executor = createExecutor();
+#else
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto src0MemPtr = getSrcMemoryAtPort(0);
     auto src1MemPtr = getSrcMemoryAtPort(1);
@@ -630,14 +715,19 @@ void MatMul::prepareParams() {
     auto pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
+#endif
 }
 
 void MatMul::execute(dnnl::stream strm) {
+#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+    executor->execute(memory);
+#else
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else {
         OPENVINO_THROW(errorPrefix, " doesn't have an initialized executor");
     }
+#endif
 }
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {

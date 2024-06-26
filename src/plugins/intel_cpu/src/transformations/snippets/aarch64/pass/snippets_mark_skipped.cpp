@@ -72,7 +72,7 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
            ov::op::util::is_on_constant_path(out_weights);
 }
 
-bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node) {
+bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
     // Note: some other operations support this fusing (SoftPlus, Sqrt).
     // Skip them here, when they are supported by Snippets ARM. Ticket: 141170.
     return ov::is_type<ov::op::v0::Abs>(node) ||
@@ -231,7 +231,10 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                     PropagateIfHasOnlyChild(node, fusingChainType);
                 } else if (isSuitableChildForFusingSimple(node)) {
 #if defined (OV_CPU_WITH_ACL)
-                    if (one_of(fusingChainType, NodeFusingType::FusedWithConvolution, NodeFusingType::FusedWithBinaryConvolution)) {
+                    if (one_of(fusingChainType,
+                               NodeFusingType::FusedWithConvolution,
+                               NodeFusingType::FusedWithBinaryConvolution,
+                               NodeFusingType::FusedWithFC)) {
                         PropagateIfHasOnlyChild(node, NodeFusingType::FusedTerminator);
                         continue;
                     }

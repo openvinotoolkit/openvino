@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "src/core/utils/quantization/AsymmHelpers.h"
+
 #include "acl_common_executor.hpp"
 #include "acl_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -38,9 +40,9 @@ static void initACLTensorParams(const MemoryPtr& memoryPtr,
     }
 }
 
-static ACLInfo initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                              const arm_compute::DataType& dataType,
-                              const arm_compute::DataLayout& dataLayout) {
+ACLInfo ACLCommonExecutor::initTensorInfo(const arm_compute::TensorShape& tensorShape,
+                                          const arm_compute::DataType& dataType,
+                                          const arm_compute::DataLayout& dataLayout) {
     ACLInfo aclMemoryInfo = nullptr;
     if (dataType != arm_compute::DataType::UNKNOWN) {
         aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(
@@ -66,7 +68,16 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     ACLMemoryTypes   aclDataType{};
     ACLMemoryLayouts aclDataLayout{};
     for (auto& cpu_mem_ptr : memory) {
+        // TODO: don't init empty tensor
+        if (cpu_mem_ptr.second->getSize() == 0) {
+            continue;
+        }
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
+
+        if (index == ACLArgs::ACL_DST) {
+            std::cout << std::endl;
+        }
+
         initACLTensorParams(cpu_mem_ptr.second, aclTensorAttrs,
                             aclMemoryShapes[index],
                             aclDataType[index],
@@ -79,6 +90,9 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     // Initialize arm_compute::TensorInfo objects
     ACLMemoryInfo aclMemoryInfos;
     for (int i = 0; i < ACLArgs::COUNT_OF_ARGS; i++) {
+        if (i == ACLArgs::ACL_DST) {
+            std::cout << std::endl;
+        }
         aclMemoryInfos[i] = initTensorInfo(aclMemoryShapes[i], aclDataType[i], aclDataLayout[i]);
     }
 
@@ -108,6 +122,7 @@ void ACLCommonExecutor::execute(const MemoryArgs &memory) {
             aclMemoryTensors[index]->allocator()->import_memory(memory.at(cpu_mem_ptr.first)->getData());
         }
     }
+
     iFunction->run();
 }
 

@@ -52,6 +52,10 @@ public:
 protected:
     ACLTensorAttrs aclTensorAttrs;
 
+    virtual ACLInfo initTensorInfo(const arm_compute::TensorShape& tensorShape,
+                                   const arm_compute::DataType& dataType,
+                                   const arm_compute::DataLayout& dataLayout);
+
 private:
     ACLMemoryTensors aclMemoryTensors;
     ACLFunction iFunction = nullptr;

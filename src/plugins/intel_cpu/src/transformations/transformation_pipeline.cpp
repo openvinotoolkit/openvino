@@ -113,6 +113,7 @@
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
 #if defined(OPENVINO_ARCH_ARM64)
 #include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
+#include "transformations/cpu_opset/arm/pass/mat_mul_decomposition.hpp"
 #else
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
@@ -283,10 +284,23 @@ void Transformations::UpToLpt() {
 
     const auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 
+    ov::pass::Serialize(
+            "/Users/eshoguli/projects/openvino_matmul/cpu.original.xml",
+            "/Users/eshoguli/projects/openvino_matmul/cpu.original.bin").run_on_model(model);
+
     PreLpt(defaultPrecisions);
 
-    if (useLpt)
+    ov::pass::Serialize(
+            "/Users/eshoguli/projects/openvino_matmul/cpu.pre_lpt.xml",
+            "/Users/eshoguli/projects/openvino_matmul/cpu.pre_lpt.bin").run_on_model(model);
+
+    if (useLpt) {
         Lpt(defaultPrecisions);
+
+        ov::pass::Serialize(
+            "/Users/eshoguli/projects/openvino_matmul/cpu.lpt.xml",
+            "/Users/eshoguli/projects/openvino_matmul/cpu.lpt.bin").run_on_model(model);
+    }
 }
 
 void Transformations::SetSubStreamNum(int SubStreams) {
@@ -698,7 +712,11 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
                 }),
             PrecisionsRestriction::create<ov::opset1::MatMul>({
                     {{0}, {ov::element::u8, ov::element::i8}},
+#if defined(OPENVINO_ARCH_ARM64)
+                    {{1}, {ov::element::u8, ov::element::i8}}
+#else
                     {{1}, {ov::element::i8}}
+#endif
                 }),
             PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
                     {{0, 1}, {ov::element::u8}}
@@ -833,6 +851,8 @@ void Transformations::PostLpt() {
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
+
+    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::intel_cpu::MatMulDecomposition);
 
     postLPTPassManager.run_passes(model);
 }

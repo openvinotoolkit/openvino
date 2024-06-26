@@ -44,7 +44,8 @@ struct Config {
         Unknown
     };
 
-    bool collectPerfCounters = false;
+    // TODO: workaround to collect performance counters
+    bool collectPerfCounters = true;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = {};
