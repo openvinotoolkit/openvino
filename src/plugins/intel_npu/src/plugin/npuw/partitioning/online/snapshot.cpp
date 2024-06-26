@@ -404,6 +404,10 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
     // This std::sort allows to prioritize the groups from the tail
     // of the original model. It's possible due to preservation of
     // group IDs in topological order throughout the whole partitioning process.
+    // In the networks we're looking at, ensuring the merge order from the bottom
+    // of the network gives a better generalization for the identified repeated blocks,
+    // e.g. we can guarantee we can find one more, which otherwise would fuse into
+    // head or tail (depending on the topology).
     std::sort(repeating_groups_sorted.begin(),
               repeating_groups_sorted.end(),
               [&](const Group::GPtr& gptr_a, const Group::GPtr& gptr_b) {
