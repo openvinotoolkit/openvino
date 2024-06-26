@@ -297,7 +297,6 @@ TEST(type_prop, scaled_dot_product_attention_type_infer_4_inputs_bool_attention)
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
 
-
 TEST(type_prop, scaled_dot_product_attention_static_broadcast_attention_L) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, 16, 32});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, 48, 32});
