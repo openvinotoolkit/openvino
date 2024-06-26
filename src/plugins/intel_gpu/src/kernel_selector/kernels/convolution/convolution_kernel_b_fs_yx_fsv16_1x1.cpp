@@ -134,9 +134,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
     dispatchData.lws[1] = tuning_data.work_group_size;
     dispatchData.lws[2] = 1;
 
-    // GPU_DEBUG_INFO << "gws: " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << std::endl;
-    // GPU_DEBUG_INFO << "lws: " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << std::endl;
-
     return dispatchData;
 }
 
@@ -178,9 +175,6 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    // GPU_DEBUG_INFO << "input: " << input.Batch().v << ", " << input.Feature().v << ", " << input.Y().v << ", " << input.X().v << std::endl;
-    // GPU_DEBUG_INFO << "output: " << output.Batch().v << ", " << output.Feature().v << ", " << output.Y().v << ", " << output.X().v << std::endl;
-
     const bool bOutputSizes = (!input.X().is_dynamic && !output.X().is_dynamic && output.X().v != input.X().v) ||
                               (!input.Y().is_dynamic && !output.Y().is_dynamic && output.Y().v != input.Y().v) ||
                               (!output.Feature().is_dynamic && output.Feature().v % 16 != 0);
@@ -189,11 +183,6 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
     const bool bPadding = (!input.Feature().pad.is_dynamic && input.Feature().pad.before % tuning_data.feature_block_size != 0) ||
                           (!output.Feature().pad.is_dynamic && output.Feature().pad.before % tuning_data.feature_block_size != 0);
 
-    // GPU_DEBUG_INFO << bOutputSizes << ", " << bFilterSize << ", " << bStride << ", " << bPadding << std::endl;
-    // if (bOutputSizes) {
-    //     GPU_DEBUG_INFO << params.is_shape_agnostic << " && " << output.X().v << " != " << input.X().v << ", "
-    //                     << output.Y().v << " != " << input.Y().v << " || "  <<  output.Feature().v  << "% 16 != 0" << std::endl;
-    // }
     if  (bOutputSizes || bFilterSize || bStride || bPadding) {
         return false;
     }
@@ -239,8 +228,6 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
                                               Tensor::DataChannelName::X };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf_vec, conf_scalar1, conf_scalar2 }));
     }
-
-    // GPU_DEBUG_INFO << params.layerID << " : params.fused_ops.empty(): " << params.fused_ops.empty() << std::endl;
 
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));

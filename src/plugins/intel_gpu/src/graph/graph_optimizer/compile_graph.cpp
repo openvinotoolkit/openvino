@@ -71,6 +71,7 @@ void compile_graph::run(program& p) {
             }
             if (node->is_type<convolution>()) {
                 auto w_layout = node->as<convolution>().weights().get_output_layout();
+                // Only convolution_fsv16_1x1 is available shape agnostic kernel for onednn convolution using the block format(fsv16)
                 if (w_layout.spatial(0) != 1 || w_layout.spatial(1) != 1) {
                     change_initial_impl = false;
                 }
@@ -105,9 +106,10 @@ void compile_graph::run(program& p) {
 
         bool is_planar = format::is_default_format(node->get_output_layout().format);
 
-        // TODO check more.
-        if ((node->is_dynamic() && !is_planar && !node->is_type<convolution>()))
+        if ((node->is_dynamic() && !is_planar &&
+            (!node->is_type<convolution>() || (node->is_type<convolution>() && node->get_output_layout().format != cldnn::format::b_fs_yx_fsv16)))) {
             can_select_impl = false;
+        }
 
         if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())
             can_select_impl = true;
