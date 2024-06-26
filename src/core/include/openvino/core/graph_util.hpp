@@ -304,4 +304,9 @@ OPENVINO_API
 void save_model(const std::shared_ptr<const ov::Model>& model,
                 const std::string& output_model,
                 bool compress_to_fp16 = true);
+
+OPENVINO_API
+void save_model(const std::shared_ptr<const ov::Model>& model,
+                const std::wstring& output_model,
+                bool compress_to_fp16 = true);
 }  // namespace ov

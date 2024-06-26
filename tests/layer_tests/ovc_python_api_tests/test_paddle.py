@@ -165,9 +165,14 @@ class TestUnicodePathsPaddle(unittest.TestCase):
 
             assert os.path.exists(model_path), "Could not create a directory with unicode path."
 
-            from openvino import convert_model
+            from openvino import convert_model, save_model, Core
             res_model = convert_model(model_path)
             flag, msg = compare_functions(res_model, model_ref, False)
+            assert flag, msg
+
+            save_model(res_model, model_path + ".xml")
+            res_model_after_saving = Core().read_model(model_path + ".xml")
+            flag, msg = compare_functions(res_model_after_saving, model_ref, False)
             assert flag, msg
 
             from openvino.frontend import FrontEndManager

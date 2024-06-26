@@ -8,6 +8,8 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
+#include <iostream>
+#include <string>
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -1144,6 +1146,16 @@ std::string valid_xml_path(const std::string& path) {
     return path;
 }
 
+std::wstring valid_xml_path(const std::wstring& path) {
+    OPENVINO_ASSERT(path.size() > 4, "Path for xml file is too short.");
+
+    const std::wstring extension = L".xml";
+    const bool has_xml_extension = path.rfind(extension) == path.size() - extension.size();
+    OPENVINO_ASSERT(has_xml_extension,
+                    "Path for xml file doesn't contains file name with 'xml' extension.");
+    return path;
+}
+
 std::string provide_bin_path(const std::string& xmlPath, const std::string& binPath) {
     if (!binPath.empty()) {
         return binPath;
@@ -1152,6 +1164,19 @@ std::string provide_bin_path(const std::string& xmlPath, const std::string& binP
     std::string bestPath = xmlPath;
     const char* const extension = "bin";
     const auto ext_size = std::strlen(extension);
+    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
+    return bestPath;
+}
+
+
+std::wstring provide_bin_path(const std::wstring& xmlPath, const std::wstring& binPath) {
+    if (!binPath.empty()) {
+        return binPath;
+    }
+    assert(xmlPath.size() > 4);
+    std::wstring bestPath = xmlPath;
+    const std::wstring extension = L"bin";
+    const auto ext_size = extension.size();
     bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
     return bestPath;
 }
@@ -1206,16 +1231,36 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else {
-        auto xmlDir = ov::util::get_directory(m_xmlPath);
-        if (xmlDir != m_xmlPath)
-            ov::util::create_directory_recursive(xmlDir);
+        if (m_xmlPath.size()) {
+            auto xmlDir = ov::util::get_directory(m_xmlPath);
+            if (xmlDir != m_xmlPath)
+                ov::util::create_directory_recursive(xmlDir);
+        }
+        else {
+            auto xmlDir = ov::util::get_directory(m_xmlPath_wchar);
+            if (xmlDir != m_xmlPath_wchar)
+                ov::util::create_directory_recursive(xmlDir);
+        }
 
-        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
 
-        // create xml file
-        std::ofstream xml_file(m_xmlPath, std::ios::out);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+        std::ofstream bin_file;
+        std::ofstream xml_file;
+        if (m_binPath.size()) {
+            bin_file.open(m_binPath, std::ios::out | std::ios::binary);
+            OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+
+            // create xml file
+            xml_file.open(m_xmlPath, std::ios::out);
+            OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+        }
+        else {
+            bin_file.open(m_binPath_wchar.c_str(), std::ios::out | std::ios::binary);
+            OPENVINO_ASSERT(bin_file, "Can't open bin file.");
+
+            // create xml file
+            xml_file.open(m_xmlPath_wchar.c_str(), std::ios::out);
+            OPENVINO_ASSERT(xml_file, "Can't open xml file.");
+        }
 
         try {
             serializeFunc(xml_file, bin_file, model, m_version);
@@ -1240,13 +1285,26 @@ pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::S
       m_binFile{&binFile},
       m_xmlPath{},
       m_binPath{},
-      m_version{version} {}
+      m_version{version},
+      m_xmlPath_wchar{},
+      m_binPath_wchar{} {}
 
 pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
+      m_version{version},
+      m_xmlPath_wchar{},
+      m_binPath_wchar{} {}
+
+pass::Serialize::Serialize(const std::wstring& xmlPath, const std::wstring& binPath, pass::Serialize::Version version)
+    : m_xmlFile{nullptr},
+      m_binFile{nullptr},
+      m_xmlPath{},
+      m_binPath{},
+      m_xmlPath_wchar{valid_xml_path(xmlPath)},
+      m_binPath_wchar{provide_bin_path(xmlPath, binPath)},
       m_version{version} {}
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,

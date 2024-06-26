@@ -10,6 +10,7 @@
 #include <string>
 
 #include "openvino/runtime/core.hpp"
+#include "openvino/util/file_util.hpp"
 #include "pyopenvino/graph/axis_set.hpp"
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
@@ -177,9 +178,16 @@ PYBIND11_MODULE(_pyopenvino, m) {
            if (model == nullptr) {
                throw py::attribute_error("'model' argument is required and cannot be None.");
            }
+        // Fix unicode path
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            ov::save_model(model,
+                          ov::util::string_to_wstring(Common::utils::convert_path_to_string(xml_path)),
+                          compress_to_fp16);
+#else
             ov::save_model(model,
                           Common::utils::convert_path_to_string(xml_path),
                           compress_to_fp16);
+#endif
         },
         py::arg("model"),
         py::arg("output_model"),

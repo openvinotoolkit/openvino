@@ -344,6 +344,20 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
     manager.run_passes(cloned);
 }
 
+void save_model(const std::shared_ptr<const ov::Model>& m, const std::wstring& output_model, bool compress_to_fp16) {
+    auto cloned = m->clone();
+    if (compress_to_fp16) {
+        // TODO: Implement on-the-fly compression in pass::Serialize
+        bool postponed = true;
+        ov::pass::compress_model_to_f16(cloned, postponed);
+    }
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::FusedNamesCleanup>();
+    manager.register_pass<ov::pass::Serialize>(output_model, L"");
+    manager.run_passes(cloned);
+}
+
 bool is_used(Node* node);
 bool is_used(Node* node) {
     std::unordered_set<Node*> instances_seen;
