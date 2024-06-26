@@ -14,6 +14,8 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/al/config/common.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -247,16 +249,46 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroy) {
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
 
-    {
+    for (size_t i = 0; i < 1000; ++i) {
         ov::CompiledModel compiledModel;
-        auto model = ov::test::utils::make_conv_pool_relu();
+        uint64_t deviceAllocMemSizeInference;
+        
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{{1, 10, 30, 30}});
+
+        auto sizes_input = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, std::vector<size_t>{40, 40});
+
+        auto scales_input = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.33333f, 1.33333f});
+
+        ov::op::v4::Interpolate::InterpolateAttrs interpolate_attributes{ov::op::util::InterpolateBase::InterpolateMode::NEAREST,
+                ov::op::util::InterpolateBase::ShapeCalcMode::SIZES, {0, 0, 0, 0},
+                {0, 0, 0, 0}, ov::op::util::InterpolateBase::CoordinateTransformMode::HALF_PIXEL,
+                ov::op::util::InterpolateBase::NearestMode::ROUND_PREFER_FLOOR, false, -0.75f};
+
+        std::shared_ptr<ov::op::v4::Interpolate> interpolate;
+        auto axesInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, std::vector<size_t>{2, 3});
+
+        interpolate = std::make_shared<ov::op::v4::Interpolate>(param,
+                                                                sizes_input,
+                                                                scales_input,
+                                                                axesInput,
+                                                                interpolate_attributes);
+        auto result = std::make_shared<ov::op::v0::Result>(interpolate);
+
+        auto model = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "interpolate");
+        
         OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device,
                                  ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)}));
         auto inferRequest = compiledModel.create_infer_request();
         auto tensor = ov::Tensor(model->input(0).get_element_type(), model->input(0).get_shape());
-        ov::test::utils::fill_data_random(static_cast<float*>(tensor.data()), tensor.get_size());
+        ov::test::utils::fill_data_random(static_cast<ov::float16*>(tensor.data()), tensor.get_size());
         inferRequest.set_input_tensor(tensor);
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeInference = deviceAllocMemSizeAny.as<uint64_t>();
+        std::cout << "Memory used before inference: " << deviceAllocMemSizeInference << std::endl; 
         inferRequest.infer();
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeInference = deviceAllocMemSizeAny.as<uint64_t>();
+        std::cout << "Memory used after inference: " << deviceAllocMemSizeInference << std::endl; 
     }
 
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
