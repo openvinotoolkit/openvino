@@ -18,36 +18,6 @@ std::pair<uint32_t, uint32_t> split_high_low(uint64_t value) {
     return {low, high};
 }
 
-// Splits uint64 global_seed value into two uint32 values to create a key.
-std::array<uint32_t, 2> split_into_key(uint64_t global_seed) {
-    std::array<uint32_t, 2> key;
-    key[0] = static_cast<uint32_t>(global_seed);
-    key[1] = static_cast<uint32_t>(global_seed >> 32);
-    return key;
-}
-
-// Splits two uint64 values (adjusted for previous state) into four uint32 values to create a counter.
-std::array<uint32_t, 4> split_into_counter(std::pair<uint64_t, uint64_t> previous_state, uint64_t operator_seed) {
-    std::array<uint32_t, 4> counter;
-    counter[0] = static_cast<uint32_t>(previous_state.first);
-    counter[1] = static_cast<uint32_t>(previous_state.first >> 32);
-    if (previous_state.second == 0) {
-        counter[2] = static_cast<uint32_t>(operator_seed);
-        counter[3] = static_cast<uint32_t>(operator_seed >> 32);
-    } else {
-        counter[2] = static_cast<uint32_t>(previous_state.second);
-        counter[3] = static_cast<uint32_t>(previous_state.second >> 32);
-    }
-    return counter;
-}
-
-// Helper function to return the lower and higher 32-bits from two 32-bit integer multiplications.
-void multiply_high_low(uint32_t a, uint32_t b, uint32_t* result_low, uint32_t* result_high) {
-    const uint64_t product = static_cast<uint64_t>(a) * b;
-    *result_low = static_cast<uint32_t>(product);
-    *result_high = static_cast<uint32_t>(product >> 32);
-}
-
 uint32_t mix_bits(uint32_t u, uint32_t v) {
     return (u & 0x80000000) | (v & 0x7fffffff);
 }

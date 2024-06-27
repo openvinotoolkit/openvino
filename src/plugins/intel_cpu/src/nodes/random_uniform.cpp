@@ -41,8 +41,8 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
     m_op_seed = rnd_op->get_op_seed();
     m_output_prc = op->get_output_element_type(0);
 
-    if (rnd_op->get_alignment() != ov::op::PhilloxAlignment::OPENVINO) {
-        THROW_CPU_NODE_ERR("Only Openvino alignment mode is supported by the CPU plugin.");
+    if (rnd_op->get_alignment() != ov::op::PhilloxAlignment::TENSORFLOW) {
+        THROW_CPU_NODE_ERR("Only TENSORFLOW alignment mode is supported by the CPU plugin.");
     }
 
     for (size_t i = 0lu; i < op->get_input_size(); i++) {

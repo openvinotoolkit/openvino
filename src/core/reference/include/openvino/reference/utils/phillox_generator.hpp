@@ -75,13 +75,13 @@ protected:
                      const uint64_t operator_seed,
                      const std::pair<uint64_t, uint64_t> previous_state);
 
-protected:
-    const std::pair<uint64_t, uint64_t> m_previous_state;
-
 private:
     const PhilloxAlignment m_alignment;
     uint64_t m_global_seed;
     uint64_t m_operator_seed;
+
+protected:
+    const std::pair<uint64_t, uint64_t> m_previous_state;
 };
 
 /// \brief Mock specialization of the PhilloxGenerator class (in case of unknown alignment).

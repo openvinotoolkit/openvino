@@ -172,9 +172,9 @@ void convert_to_output_type(const std::vector<uint32_t>& generated_numbers,
                        output_elements_buffer.data(),
                        [&mn, &mx, &convert_single_input, &mod_func](uint32_t elem) {
                            if (convert_single_input != nullptr) {
-                               return convert_single_input(elem) * (mx[0] - mn[0]) + mn[0];
+                               return convert_single_input(elem) * (mx - mn) + mn;
                            } else {
-                               return mod_func(elem, mn[0], mx[0]);
+                               return mod_func(elem, mn, mx);
                            }
                        });
     } else if (converted_output_values_per_exec_count == ELEMENTS_PER_EXECUTION / 2) {
@@ -182,7 +182,7 @@ void convert_to_output_type(const std::vector<uint32_t>& generated_numbers,
         // therefore the number of output elements is half of ELEMENTS_PER_EXECUTION.
         for (size_t i = 0; i < converted_output_values_per_exec_count; ++i) {
             output_elements_buffer[i] =
-                convert_two_inputs(generated_numbers[2 * i], generated_numbers[2 * i + 1], mn[0], mx[0]);
+                convert_two_inputs(generated_numbers[2 * i], generated_numbers[2 * i + 1], mn, mx);
         }
 
     } else {

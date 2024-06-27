@@ -113,13 +113,14 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_RandomUniform_With_Hardcoded_Refs,
     ReferenceRandomUniformLayerTest,
     ::testing::Values(
+        // Backwards compatibility tests (implemented before alignment update)
         RandomUniformParams(std::vector<int64_t>{3, 2, 4},
                             reference_tests::Tensor{{1}, element::f32, std::vector<float>{0}},
                             reference_tests::Tensor{{1}, element::f32, std::vector<float>{1}},
                             element::Type_t::f32,
                             150,
                             10,
-                            PhilloxAlignment::OPENVINO,
+                            PhilloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {3, 2, 4},
                                 element::f32,
@@ -135,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::f16,
                             150,
                             10,
-                            PhilloxAlignment::OPENVINO,
+                            PhilloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {3, 2, 4},
                                 element::f16,
@@ -151,7 +152,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::f32,
                             150,
                             10,
-                            PhilloxAlignment::OPENVINO,
+                            PhilloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {3, 2, 4},
                                 element::f32,
@@ -168,7 +169,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::f16,
                             150,
                             10,
-                            PhilloxAlignment::OPENVINO,
+                            PhilloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {3, 2, 4},
                                 element::f16,
@@ -184,7 +185,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::i32,
                             100,
                             350,
-                            PhilloxAlignment::OPENVINO,
+                            PhilloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{{2, 3, 4},
                                                     element::i32,
                                                     std::vector<int32_t>{
@@ -198,7 +199,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::i64,
                             755,
                             951,
-                            PhilloxAlignment::OPENVINO,
+                            PhilloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {5, 4, 3},
                                 element::i64,
@@ -215,7 +216,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::bf16,
                             4978,
                             5164,
-                            PhilloxAlignment::OPENVINO,
+                            PhilloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 3},
                                 element::bf16,
@@ -230,14 +231,14 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::bf16,
                             4978,
                             5164,
-                            PhilloxAlignment::OPENVINO,
+                            PhilloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 3},
                                 element::bf16,
                                 std::vector<bfloat16>{164, 146, -92.5, -84.5, 14,  90,    33,  -43.5, 170, 8,  182,
                                                       -35, -24, -84.5, 180,   -14, -73.5, 198, 138,   8,   156}},
                             "bfloat16_non_default_min_max"),
-        // Alignment tests
+        // Alignment tests - TENSORFLOW
         RandomUniformParams(std::vector<int64_t>{7, 6},
                             reference_tests::Tensor{{1}, element::f64, std::vector<double>{0}},
                             reference_tests::Tensor{{1}, element::f64, std::vector<double>{1}},
@@ -418,7 +419,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                      32,  -3,  -78, 82,  -82, -71, 51,  -24, 100}},
                             "int32_non_default_min_max_tensorflow"),
 
-        // PhilloxAlignment::PYTORCH
+        // Alignment tests - PyTorch
         RandomUniformParams(std::vector<int64_t>{7, 6},
                             reference_tests::Tensor{{1}, element::f64, std::vector<double>{0}},
                             reference_tests::Tensor{{1}, element::f64, std::vector<double>{1}},
