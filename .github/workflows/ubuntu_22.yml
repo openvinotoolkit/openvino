@@ -120,7 +120,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04-8-cores
+    runs-on: ubuntu-latest-8-cores
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -344,7 +344,7 @@ jobs:
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-22.04-16-cores' || 'ubuntu-22.04-8-cores' }}
+      runner: ${{ github.event_name == 'schedule' && 'ubuntu-latest-16-cores' || 'ubuntu-latest-8-cores' }}
       event: ${{ github.event_name }}
 
   NVIDIA_Plugin:
