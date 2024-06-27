@@ -47,6 +47,7 @@
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
@@ -462,6 +463,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::ConvertBatchToSpace, ov::pass::ConvertSpaceToBatch);
 
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            const auto maxpool = std::dynamic_pointer_cast<const ov::op::v14::MaxPool>(node);
+            return !maxpool ||  maxpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
+        },
+        ov::pass::ConvertMaxPool14ToMaxPool8);
+
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
             std::string msg;
@@ -785,6 +794,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
+    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
@@ -817,8 +827,7 @@ void Transformations::PostLpt() {
             }
         }
     }
-
-    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
@@ -945,17 +954,33 @@ void Transformations::MainSnippets(void) {
 
     auto is_supported_op = [](const std::shared_ptr<const ov::Node> &n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
-        return (ov::is_type<ov::op::v1::Add>(n) ||
+        return (ov::is_type<ov::op::v0::Abs>(n) ||
+                ov::is_type<ov::op::v1::Add>(n) ||
+                ov::is_type<ov::op::v0::Clamp>(n) ||
                 ov::is_type<ov::op::v1::Divide>(n) ||
-                ov::is_type<ov::op::v1::Multiply>(n) ||
+                ov::is_type<ov::op::v0::Elu>(n) ||
                 ov::is_type<ov::op::v0::Exp>(n) ||
+                ov::is_type<ov::op::v0::Floor>(n) ||
+                ov::is_type<ov::op::v0::Gelu>(n) ||
+                ov::is_type<ov::op::v7::Gelu>(n) ||
+                ov::is_type<ov::op::v4::HSwish>(n) ||
+                ov::is_type<ov::op::v1::Maximum>(n) ||
+                ov::is_type<ov::op::v1::Minimum>(n) ||
+                ov::is_type<ov::op::v4::Mish>(n) ||
+                ov::is_type<ov::op::v1::Mod>(n) ||
+                ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Relu>(n) ||
+                ov::is_type<ov::op::v0::Sigmoid>(n) ||
+                ov::is_type<ov::op::v1::Subtract>(n) ||
+                ov::is_type<ov::op::v4::Swish>(n) ||
                 ov::is_type<ov::op::v0::Tanh>(n));
 #else
-        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
-        auto is_unsupported_swish = [](const std::shared_ptr<const ov::Node> &n) {
-            return ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                   !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
+        // and CPU Plugin does not support Mish for x64
+        auto is_unsupported = [](const std::shared_ptr<const ov::Node> &n) {
+            return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
+                   !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1))) ||
+                   ov::is_type<const ov::op::v4::Mish>(n);
         };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
@@ -969,7 +994,7 @@ void Transformations::MainSnippets(void) {
                     ov::is_type<const ov::op::v1::ReduceMax>(n) ||
                     ov::is_type<const ov::op::v1::ReduceSum>(n));
         };
-        return !is_unsupported_swish(n) && !is_unsupported_by_common_tokenization(n);
+        return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
 #endif
     };
 

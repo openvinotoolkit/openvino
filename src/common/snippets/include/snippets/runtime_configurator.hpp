@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov {
@@ -42,7 +43,8 @@ public:
     ov::snippets::VectorDims master_shape = {};
 
     size_t buffer_scratchpad_size = 0;
-    std::vector<size_t> buffer_cluster_offsets;
+    std::vector<size_t> buffer_cluster_offsets {};
+    KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
 };
 
 /**
@@ -60,6 +62,8 @@ public:
      * @return updated config
      */
     const std::shared_ptr<RuntimeConfig>& get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+    /*** Returns pointer to KernelExecutorTable owned by the config */
+    const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const { return m_config->kernel_executor_table; }
 
 protected:
     /**

@@ -136,6 +136,7 @@ Download PyTorch model
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
 
 
+
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
@@ -743,7 +744,7 @@ model.
         """
         Prepares a vision-text dataset for quantization.
         """
-        dataset = load_dataset("conceptual_captions")
+        dataset = load_dataset("google-research-datasets/conceptual_captions", trust_remote_code=True)
         train_dataset = dataset["train"].shuffle(seed=42)
         dataloader = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn, batch_size=1)
         calibration_data = prepare_calibration_data(dataloader, opt_init_steps)
