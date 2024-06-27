@@ -136,7 +136,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
         if (!pred.first->is_dynamic() || is_runtime) {
-            if (!pred.first->is_padding_supported(concat_axis, lower_padd_in_axis))
+            if (!pred.first->is_padding_supported(static_cast<int>(concat_axis), lower_padd_in_axis))
                 return false;
         }
         // TODO: handle optimized reshape
