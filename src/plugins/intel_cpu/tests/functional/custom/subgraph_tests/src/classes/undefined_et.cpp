@@ -26,6 +26,7 @@
 //       -----------
 
 #include "custom/subgraph_tests/include/undefined_et.hpp"
+#include "utils/precision_support.h"
 
 namespace ov {
 namespace test {
@@ -135,6 +136,11 @@ fill_data(tensor->data<ov::element_type_traits<P>::value_type>(), S, L); break;
 }
 
 TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
+    if (m_data_et == element::f16 && !ov::intel_cpu::hasHardwareSupport(m_data_et)) {
+        abs_threshold = 1.f;
+        rel_threshold = 0.1f;
+    }
+
     run();
 
     if (IsSkipped()) {
@@ -146,6 +152,10 @@ TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
 
     size_t rnd_unfm_counter = 0lu;
     size_t logical_not_counter = 0lu;
+    auto expected_dt = m_data_et;
+    if (!ov::intel_cpu::hasHardwareSupport(expected_dt)) {
+        expected_dt = element::f32;
+    }
     for (const auto& node : compiledModel.get_runtime_model()->get_ops()) {
         auto rt_info = node->get_rt_info();
         auto it = rt_info.find(exec_model_info::LAYER_TYPE);
@@ -153,7 +163,7 @@ TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
         auto op_name = it->second.as<std::string>();
 
         if (op_name == "RandomUniform") {
-            ASSERT_EQ(node->get_output_element_type(0), m_data_et);
+            ASSERT_EQ(node->get_output_element_type(0), expected_dt);
             rnd_unfm_counter++;
         }
         if (op_name == "Eltwise") {
