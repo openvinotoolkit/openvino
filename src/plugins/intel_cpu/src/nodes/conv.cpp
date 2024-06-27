@@ -531,8 +531,9 @@ void Convolution::getSupportedDescriptors() {
         auto dt = memory::data_type::f32;
 
         // supported lower precisions: bf16, f16
-        if (one_of(originalDT, memory::data_type::bf16, memory::data_type::f16))
+        if (one_of(originalDT, memory::data_type::bf16, memory::data_type::f16) && hasHardwareSupport(originalPrec)) {
             dt = originalDT;
+        }
 
         // fallback to f32 on special case for performance reasons
         if (isDepthWise() && ndims == 5)
