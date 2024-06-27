@@ -23,7 +23,7 @@ can't find Windows SDK version. Try to use vcvarsall.bat script")
         endif()
     endif()
 
-    set(PROGRAMFILES_ENV "ProgramFiles\(X86\)")
+    set(PROGRAMFILES_ENV "ProgramFiles\(X86\)" PARENT_SCOPE)
 
     # check that PROGRAMFILES_ENV is defined, because in case of cross-compilation for Windows
     # we don't have such variable
