@@ -1,4 +1,4 @@
-name: Linux (Ubuntu 20.04, Python 3.11)
+name: Linux (Ubuntu 20.04, Python 3.8)
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday
@@ -20,7 +20,6 @@ permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
 
 jobs:
   Smart_CI:
