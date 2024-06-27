@@ -51,6 +51,7 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
+                        InstanceMethod("importModel", &CoreWrap::import_model_async),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
@@ -185,6 +186,11 @@ void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel*
 };
 
 void FinalizerCallbackPath(Napi::Env env, void* finalizeData, TsfnContextPath* context) {
+    context->nativeThread.join();
+    delete context;
+};
+
+void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext* context) {
     context->nativeThread.join();
     delete context;
 };
@@ -347,6 +353,63 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
         }
         }
         return CompiledModelWrap::wrap(info.Env(), compiled);
+
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+void importModelThread(ImportModelContext* context) {
+    context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+
+    auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {       
+        const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
+        if (!prototype) {
+            OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
+        }
+        auto obj = prototype.New({});
+        const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+        cm->set_compiled_model(context->_compiled_model);
+
+        context->deferred.Resolve(obj);
+    };
+
+    context->tsfn.BlockingCall(context, callback);
+    context->tsfn.Release();
+}
+
+Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
+    const auto& env = info.Env();
+    std::vector<std::string> allowed_signatures;
+
+    try {
+        if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            auto context_data = new ImportModelContext(env, _core);
+
+            const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+            const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+            context_data->_stream << model_stream;
+            context_data->_device = info[1].ToString();
+            context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap();
+
+            context_data->tsfn = Napi::ThreadSafeFunction::New(env,
+                                                               Napi::Function(),
+                                                               "TSFN",
+                                                               0,
+                                                               1,
+                                                               context_data,
+                                                               ImportModelFinalizer,
+                                                               (void*)nullptr);
+
+            context_data->nativeThread = std::thread(importModelThread, context_data);
+            return context_data->deferred.Promise();
+        } else {
+            const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
+
+            OPENVINO_THROW(error_message);
+        }
 
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
