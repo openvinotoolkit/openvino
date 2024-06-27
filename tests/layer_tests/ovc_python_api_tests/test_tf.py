@@ -691,25 +691,25 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf_checkpoint,
         create_keras_layer_dynamic,
         create_tf_module_dynamic,
-    #    create_tf_stateful_partioned_call_net,
+        create_tf_stateful_partioned_call_net,
         create_keras_layer_with_example_input_1,
         create_keras_layer_with_example_input_2,
         create_keras_layer_with_input_shapes_case1,
         create_keras_layer_with_input_shapes_case2,
         create_keras_layer_with_input_shapes_case3,
-        # create_keras_layer_with_input_shapes_case4,
-        # create_keras_layer_with_tf_function_call,
-        # create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
-        # create_keras_layer_with_compressed_constants,
-        # create_keras_layer_with_tf_function_call_no_signature,
-        # create_keras_layer_with_tf_function_call_no_signature_single_input,
-        # create_keras_layer_with_string_tensor,
-        #
-        # # TF1
-        # create_tf_graph,
-        # create_tf_graph_def,
-        # create_tf1_wrap_function,
-        # create_tf_session,
+        create_keras_layer_with_input_shapes_case4,
+        create_keras_layer_with_tf_function_call,
+        create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
+        create_keras_layer_with_compressed_constants,
+        create_keras_layer_with_tf_function_call_no_signature,
+        create_keras_layer_with_tf_function_call_no_signature_single_input,
+        create_keras_layer_with_string_tensor,
+
+        # TF1
+        create_tf_graph,
+        create_tf_graph_def,
+        create_tf1_wrap_function,
+        create_tf_session,
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
